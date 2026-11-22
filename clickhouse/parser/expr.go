@@ -478,6 +478,11 @@ func isSimpleDottedInts(raw string) bool {
 }
 
 func (p *parser) parseUnaryExpr() (Expr, error) {
+	if err := p.enter(); err != nil {
+		return nil, err
+	}
+	defer p.leave()
+
 	tok := p.cur()
 	switch tok.Type {
 	case KwNot:
@@ -1156,11 +1161,14 @@ func (p *parser) parseDataType() (*DataType, error) {
 
 	// General arguments: mix of data types and literal/expr params (no bare `*`, optional trailing comma)
 	for {
-		arg, err := p.parseTypeArg()
+		arg, typeArg, err := p.parseTypeArg()
 		if err != nil {
 			return nil, err
 		}
 		dt.Args = append(dt.Args, arg)
+		if typeArg != nil {
+			dt.TypeArgs = append(dt.TypeArgs, typeArg)
+		}
 		if !p.match(TokComma) {
 			break
 		}
@@ -1176,17 +1184,23 @@ func (p *parser) parseDataType() (*DataType, error) {
 	return dt, nil
 }
 
-func (p *parser) parseTypeArg() (Expr, error) {
-	// Nested data type if it looks like `Ident(...)`
+func (p *parser) parseTypeArg() (Expr, *DataType, error) {
+	// Nested data type (e.g. Nullable(UInt64) or bare UInt64 inside Array(UInt64))
 	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen {
 		save := p.pos
 		if dt, err := p.parseDataType(); err == nil && (p.cur().Type == TokComma || p.cur().Type == TokRParen) {
-			return &IdentExpr{span: dt.span, Parts: []string{dt.Name}}, nil
+			return &TypeExpr{span: dt.span, Type: dt}, dt, nil
 		}
 		p.pos = save
 	}
-	if p.cur().Type == TokStar {
-		return nil, p.errAt(p.cur(), "unexpected '*' in data type argument")
+	if isIdentifier(p.cur()) && (p.peek(1).Type == TokComma || p.peek(1).Type == TokRParen) {
+		tok := p.advance()
+		dt := &DataType{span: span{Pos: tok.Pos, End: tok.End}, Name: tok.Val}
+		return &TypeExpr{span: dt.span, Type: dt}, dt, nil
 	}
-	return p.parseExpr()
+	if p.cur().Type == TokStar {
+		return nil, nil, p.errAt(p.cur(), "unexpected '*' in data type argument")
+	}
+	expr, err := p.parseExpr()
+	return expr, nil, err
 }

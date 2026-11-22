@@ -196,6 +196,7 @@ type InsertStmt struct {
 	Columns  []string
 	Format   string
 	Values   [][]Expr
+	Data     string // raw inline payload after FORMAT <name> or opaque VALUES data
 	Select   *SelectUnionStmt
 	Settings []*SettingExpr
 }
@@ -771,6 +772,15 @@ type ParamExpr struct {
 }
 
 func (*ParamExpr) exprNode() {}
+
+// TypeExpr wraps a nested *DataType inside a type argument list so callers can
+// inspect the full recursive DataType tree (e.g. Array(Nullable(UInt64))).
+type TypeExpr struct {
+	span
+	Type *DataType
+}
+
+func (*TypeExpr) exprNode() {}
 
 // DataType represents a ClickHouse type expression such as UInt64,
 // Nullable(String), Decimal(18, 4), Enum8('a' = 1, 'b' = 2), or Nested(...).

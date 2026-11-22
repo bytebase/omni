@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -209,12 +210,9 @@ func (l *lexer) scanSingleQuoted() (Token, error) {
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
 		if c == '\\' {
-			if l.pos+1 >= len(l.src) {
-				return Token{}, &ParseError{Message: "unterminated string literal", Position: start}
+			if err := l.scanEscape(&b, start, "unterminated string literal"); err != nil {
+				return Token{}, err
 			}
-			l.pos++
-			b.WriteByte(l.src[l.pos])
-			l.pos++
 			continue
 		}
 		if c == '\'' {
@@ -271,12 +269,9 @@ func (l *lexer) scanQuotedIdent(quote byte) (Token, error) {
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
 		if c == '\\' {
-			if l.pos+1 >= len(l.src) {
-				return Token{}, &ParseError{Message: "unterminated quoted identifier", Position: start}
+			if err := l.scanEscape(&b, start, "unterminated quoted identifier"); err != nil {
+				return Token{}, err
 			}
-			l.pos++
-			b.WriteByte(l.src[l.pos])
-			l.pos++
 			continue
 		}
 		if c == quote {
@@ -298,6 +293,59 @@ func (l *lexer) scanQuotedIdent(quote byte) (Token, error) {
 		l.pos++
 	}
 	return Token{}, &ParseError{Message: "unterminated quoted identifier", Position: start}
+}
+
+// scanEscape decodes a ClickHouse backslash escape sequence starting at l.pos ('\\').
+func (l *lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg string) error {
+	if l.pos+1 >= len(l.src) {
+		return &ParseError{Message: unterminatedMsg, Position: tokenStart}
+	}
+	l.pos++ // skip '\\'
+	c := l.src[l.pos]
+	l.pos++
+	switch c {
+	case 'a':
+		b.WriteByte('\a')
+	case 'b':
+		b.WriteByte('\b')
+	case 'e':
+		b.WriteByte(0x1b)
+	case 'f':
+		b.WriteByte('\f')
+	case 'n':
+		b.WriteByte('\n')
+	case 'r':
+		b.WriteByte('\r')
+	case 't':
+		b.WriteByte('\t')
+	case 'v':
+		b.WriteByte('\v')
+	case '0':
+		b.WriteByte(0)
+	case '\\', '\'', '"', '`', '/', '=':
+		b.WriteByte(c)
+	case 'x', 'X':
+		if l.pos+2 <= len(l.src) && isHexDigit(l.src[l.pos]) && isHexDigit(l.src[l.pos+1]) {
+			v, _ := strconv.ParseUint(l.src[l.pos:l.pos+2], 16, 8)
+			b.WriteByte(byte(v))
+			l.pos += 2
+		} else {
+			b.WriteByte(c)
+		}
+	case 'u':
+		if l.pos+4 <= len(l.src) &&
+			isHexDigit(l.src[l.pos]) && isHexDigit(l.src[l.pos+1]) &&
+			isHexDigit(l.src[l.pos+2]) && isHexDigit(l.src[l.pos+3]) {
+			v, _ := strconv.ParseUint(l.src[l.pos:l.pos+4], 16, 32)
+			b.WriteRune(rune(v))
+			l.pos += 4
+		} else {
+			b.WriteByte(c)
+		}
+	default:
+		b.WriteByte(c)
+	}
+	return nil
 }
 
 func (l *lexer) scanPrefixedString(prefix byte) (Token, error) {

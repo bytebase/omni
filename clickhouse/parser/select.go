@@ -6,15 +6,15 @@ import (
 )
 
 func (p *parser) looksLikeSelect() bool {
-	i := p.pos
-	for i < len(p.tokens) && p.tokens[i].Type == TokLParen {
-		i++
+	offset := 0
+	for p.peek(offset).Type == TokLParen {
+		offset++
+		if offset > maxParseDepth {
+			return false
+		}
 	}
-	if i >= len(p.tokens) {
-		return false
-	}
-	t := p.tokens[i].Type
-	return t == KwSelect || t == KwWith
+	t := p.peek(offset).Type
+	return t == KwSelect || t == KwWith || t == KwFrom
 }
 
 func (p *parser) parseSelectUnionStmt() (*SelectUnionStmt, error) {
@@ -715,17 +715,26 @@ func (p *parser) parseOrderExpr() (*OrderByItem, error) {
 	return item, nil
 }
 
+// parseLimitExpr parses `count`, `count OFFSET offset`, or `offset, count`
+// and always returns (limit, offset, err).
 func (p *parser) parseLimitExpr() (Expr, Expr, error) {
 	first, err := p.parseExpr()
 	if err != nil {
 		return nil, nil, err
 	}
-	if p.match(TokComma) || p.match(KwOffset) {
-		second, err := p.parseExpr()
+	if p.match(TokComma) {
+		count, err := p.parseExpr()
 		if err != nil {
 			return nil, nil, err
 		}
-		return first, second, nil
+		return count, first, nil
+	}
+	if p.match(KwOffset) {
+		offset, err := p.parseExpr()
+		if err != nil {
+			return nil, nil, err
+		}
+		return first, offset, nil
 	}
 	return first, nil, nil
 }
@@ -733,6 +742,11 @@ func (p *parser) parseLimitExpr() (Expr, Expr, error) {
 // --- FROM / JOIN parsing ---
 
 func (p *parser) parseJoinExpr() (*JoinExpr, error) {
+	if err := p.enter(); err != nil {
+		return nil, err
+	}
+	defer p.leave()
+
 	left, err := p.parseJoinPrimary()
 	if err != nil {
 		return nil, err
@@ -877,6 +891,11 @@ func (p *parser) tryParseJoinOp() (ok, global, local bool, kind, strictness stri
 }
 
 func (p *parser) parseJoinPrimary() (*JoinExpr, error) {
+	if err := p.enter(); err != nil {
+		return nil, err
+	}
+	defer p.leave()
+
 	if p.cur().Type == TokLParen && !p.looksLikeSelect() {
 		start := p.advance().Pos
 		inner, err := p.parseJoinExpr()
@@ -990,6 +1009,11 @@ func (p *parser) parseTableExpr() (*TableExpr, error) {
 }
 
 func (p *parser) parseTableFunctionExpr() (*FuncCallExpr, error) {
+	if err := p.enter(); err != nil {
+		return nil, err
+	}
+	defer p.leave()
+
 	startTok := p.advance()
 	if _, err := p.expect(TokLParen); err != nil {
 		return nil, err

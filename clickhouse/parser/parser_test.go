@@ -65,10 +65,13 @@ func TestParseValidStatements(t *testing.T) {
 		{"use_stmt", "USE analytics"},
 		{"watch_stmt", "WATCH db.lv EVENTS LIMIT 10"},
 		{"grant_stmt", "GRANT SELECT ON db.* TO analyst"},
+		{"grant_role", "GRANT analyst TO alice WITH ADMIN OPTION"},
 		{"revoke_stmt", "REVOKE SELECT ON db.* FROM analyst"},
 		{"backup_stmt", "BACKUP TABLE db.t TO Disk('backups', '1.zip')"},
 		{"restore_stmt", "RESTORE TABLE db.t FROM Disk('backups', '1.zip')"},
 		{"create_user", "CREATE USER IF NOT EXISTS alice IDENTIFIED WITH sha256_password BY 'secret'"},
+		{"drop_user", "DROP USER IF EXISTS alice, bob ON CLUSTER prod"},
+		{"insert_csv_inline_non_sql", "INSERT INTO t FORMAT CSV\na@b,1\n\"unclosed"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -107,6 +110,13 @@ func TestParseErrorsAndPositions(t *testing.T) {
 		{"bare_show_ident", "SHOW foo", 5},
 		{"parenthesized_single_table", "SELECT * FROM (a)", 16},
 		{"invalid_char", "SELECT @foo", 7},
+		{"truncated_grant", "GRANT SELECT", 12},
+		{"truncated_revoke", "REVOKE SELECT ON *.*", 20},
+		{"truncated_backup", "BACKUP TABLE", 12},
+		{"backup_without_to", "BACKUP TABLE t", 14},
+		{"restore_without_from", "RESTORE TABLE t", 15},
+		{"create_user_garbage", "CREATE USER alice GARBAGE TOKENS", 18},
+		{"drop_user_garbage", "DROP USER alice GARBAGE", 16},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -126,13 +136,96 @@ func TestParseErrorsAndPositions(t *testing.T) {
 }
 
 func TestParseDeepNestingDoesNotOverflow(t *testing.T) {
-	deep := "SELECT " + strings.Repeat("(", 400) + "1" + strings.Repeat(")", 400)
-	_, err := Parse(deep)
-	if err == nil {
-		t.Fatalf("expected nesting depth error on 400 nested parens")
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{"parens", "SELECT " + strings.Repeat("(", 400) + "1" + strings.Repeat(")", 400)},
+		{"table_functions", "SELECT * FROM " + strings.Repeat("f(", 400) + "1" + strings.Repeat(")", 400)},
+		{"parenthesized_joins", "SELECT * FROM " + strings.Repeat("(", 400) + "a JOIN b ON 1" + strings.Repeat(")", 400)},
+		{"unary_minus", "SELECT " + strings.Repeat("-", 400) + "1"},
 	}
-	var pe *ParseError
-	if !errors.As(err, &pe) {
-		t.Fatalf("got %T, want *ParseError", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatalf("expected nesting depth error on deeply nested %s", tc.name)
+			}
+			var pe *ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("got %T, want *ParseError", err)
+			}
+		})
+	}
+}
+
+func TestParseEscapeSequences(t *testing.T) {
+	stmts, err := Parse("SELECT 'line1\\nline2\\t\\x41\\u0042\\\\\\'\"' FROM `line\\nbreak`")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	sel := stmts[0].(*SelectUnionStmt).Items[0]
+	lit := sel.Columns[0].(*LiteralExpr)
+	wantVal := "line1\nline2\tAB\\'\""
+	if lit.Val != wantVal {
+		t.Errorf("string Val = %q, want %q", lit.Val, wantVal)
+	}
+	tbl := sel.From.Table.Table
+	if tbl != "line\nbreak" {
+		t.Errorf("table ident = %q, want %q", tbl, "line\nbreak")
+	}
+}
+
+func TestParseNestedDataTypeAST(t *testing.T) {
+	stmts, err := Parse("SELECT CAST(x AS Array(Nullable(UInt64)))")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	cast := stmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*CastExpr)
+	arr := cast.Type
+	if arr.Name != "Array" || len(arr.TypeArgs) != 1 {
+		t.Fatalf("outer type = %+v, want Array with 1 TypeArg", arr)
+	}
+	nullable := arr.TypeArgs[0]
+	if nullable.Name != "Nullable" || len(nullable.TypeArgs) != 1 {
+		t.Fatalf("middle type = %+v, want Nullable with 1 TypeArg", nullable)
+	}
+	u64 := nullable.TypeArgs[0]
+	if u64.Name != "UInt64" {
+		t.Fatalf("inner type = %q, want UInt64", u64.Name)
+	}
+}
+
+func TestParseLimitCommaVsOffset(t *testing.T) {
+	stmts1, err := Parse("SELECT 1 LIMIT 0, 10")
+	if err != nil {
+		t.Fatalf("Parse comma LIMIT failed: %v", err)
+	}
+	lim1 := stmts1[0].(*SelectUnionStmt).Items[0].Limit
+	if lim1.Limit.(*LiteralExpr).Raw != "10" || lim1.Offset.(*LiteralExpr).Raw != "0" {
+		t.Errorf("LIMIT 0, 10 => Limit=%v Offset=%v, want Limit=10 Offset=0", lim1.Limit, lim1.Offset)
+	}
+
+	stmts2, err := Parse("SELECT 1 LIMIT 10 OFFSET 0")
+	if err != nil {
+		t.Fatalf("Parse OFFSET LIMIT failed: %v", err)
+	}
+	lim2 := stmts2[0].(*SelectUnionStmt).Items[0].Limit
+	if lim2.Limit.(*LiteralExpr).Raw != "10" || lim2.Offset.(*LiteralExpr).Raw != "0" {
+		t.Errorf("LIMIT 10 OFFSET 0 => Limit=%v Offset=%v, want Limit=10 Offset=0", lim2.Limit, lim2.Offset)
+	}
+}
+
+func TestParseInsertFormatRawData(t *testing.T) {
+	stmts, err := Parse("INSERT INTO t FORMAT CSV\na@b,1\n\"unclosed")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	ins := stmts[0].(*InsertStmt)
+	if ins.Format != "CSV" {
+		t.Errorf("Format = %q, want CSV", ins.Format)
+	}
+	if ins.Data != "\na@b,1\n\"unclosed" {
+		t.Errorf("Data = %q, want %q", ins.Data, "\na@b,1\n\"unclosed")
 	}
 }

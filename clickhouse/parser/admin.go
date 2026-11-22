@@ -989,24 +989,247 @@ func (p *parser) parseShowLikeAndLimit() error {
 
 func (p *parser) parseGrantRevokeStmt() (*AccessControlStmt, error) {
 	start := p.cur().Pos
+	isRevoke := p.cur().Type == KwRevoke
 	kind := strings.ToUpper(p.advance().Val) // GRANT or REVOKE
-	if p.isStatementEndOrOutput() {
-		return nil, p.errAt(p.cur(), fmt.Sprintf("incomplete %s statement", kind))
+
+	if _, err := p.parseClusterClause(); err != nil {
+		return nil, err
 	}
-	for !p.isStatementEndOrOutput() {
+
+	if isRevoke {
+		// Optional `ADMIN OPTION FOR` or `GRANT OPTION FOR`
+		if (p.isWord("ADMIN") || p.cur().Type == KwGrant) && p.isWordAt(1, "OPTION") && p.peek(2).Type == KwFor {
+			p.advance()
+			p.advance()
+			p.advance()
+		}
+	}
+
+	// Privilege list (e.g. `SELECT(a, b), INSERT ON db.*`) OR role list (e.g. `role1, role2 TO/FROM u`)
+	if err := p.parsePrivilegeOrRoleList(); err != nil {
+		return nil, err
+	}
+
+	if p.match(KwOn) {
+		if err := p.parsePrivilegeTarget(); err != nil {
+			return nil, err
+		}
+	}
+
+	if isRevoke {
+		if _, err := p.expect(KwFrom); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := p.expect(KwTo); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := p.parseGranteeList(); err != nil {
+		return nil, err
+	}
+
+	// Optional trailing WITH GRANT OPTION / WITH ADMIN OPTION / WITH REPLACE OPTION
+	for p.cur().Type == KwWith {
 		p.advance()
+		switch {
+		case p.cur().Type == KwGrant && p.isWordAt(1, "OPTION"):
+			p.advance()
+			p.advance()
+		case p.isWord("ADMIN") && p.isWordAt(1, "OPTION"):
+			p.advance()
+			p.advance()
+		case p.cur().Type == KwReplace && p.isWordAt(1, "OPTION"):
+			p.advance()
+			p.advance()
+		default:
+			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after WITH in %s", p.cur().Raw, kind))
+		}
 	}
+
 	return &AccessControlStmt{span: span{Pos: start, End: p.peek(-1).End}, Kind: kind}, nil
+}
+
+func (p *parser) parsePrivilegeOrRoleList() error {
+	for {
+		if !isIdentifier(p.cur()) {
+			return p.errAt(p.cur(), fmt.Sprintf("expected privilege or role name, got %q", p.cur().Raw))
+		}
+		// Privilege names may be multi-word (e.g. ALL PRIVILEGES, CREATE TABLE, ALTER COLUMN, SHOW TABLES)
+		p.advance()
+		for isIdentifier(p.cur()) &&
+			p.cur().Type != KwOn && p.cur().Type != KwTo && p.cur().Type != KwFrom &&
+			p.cur().Type != KwWith {
+			p.advance()
+		}
+		// Optional column list: SELECT(col1, col2)
+		if p.match(TokLParen) {
+			if err := p.parseIdentList(); err != nil {
+				return err
+			}
+			if _, err := p.expect(TokRParen); err != nil {
+				return err
+			}
+		}
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	return nil
+}
+
+func (p *parser) parsePrivilegeTarget() error {
+	// Targets: *.*, db.*, db.tbl, tbl
+	if p.match(TokStar) {
+		if p.match(TokDot) {
+			if _, err := p.expect(TokStar); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if _, err := p.parseIdentifier(); err != nil {
+		return err
+	}
+	if p.match(TokDot) {
+		if p.match(TokStar) {
+			return nil
+		}
+		if _, err := p.parseIdentifier(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *parser) parseGranteeList() error {
+	for {
+		if p.match(KwCurrentUser) || p.match(KwAll) {
+			// valid grantee
+		} else if _, err := p.parseIdentifier(); err != nil {
+			return err
+		}
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	if p.match(KwExcept) {
+		for {
+			if p.match(KwCurrentUser) {
+				// ok
+			} else if _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+			if !p.match(TokComma) {
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func (p *parser) parseBackupRestoreStmt() (*BackupRestoreStmt, error) {
 	start := p.cur().Pos
+	isRestore := p.cur().Type == KwRestore
 	kind := strings.ToUpper(p.advance().Val) // BACKUP or RESTORE
-	if p.isStatementEndOrOutput() {
-		return nil, p.errAt(p.cur(), fmt.Sprintf("incomplete %s statement", kind))
+
+	// Comma-separated list of backup/restore elements:
+	//   TABLE [db.]t [AS [db.]t2] | TEMPORARY TABLE t | DICTIONARY [db.]d | VIEW [db.]v |
+	//   DATABASE db [EXCEPT TABLES ...] | ALL [EXCEPT DATABASES/TABLES ...]
+	for {
+		switch p.cur().Type {
+		case KwAll:
+			p.advance()
+		case KwTemporary:
+			p.advance()
+			if _, err := p.expect(KwTable); err != nil {
+				return nil, err
+			}
+			if _, _, err := p.parseTableIdentifier(); err != nil {
+				return nil, err
+			}
+		case KwTable, KwDictionary, KwView:
+			p.advance()
+			if _, _, err := p.parseTableIdentifier(); err != nil {
+				return nil, err
+			}
+			if p.match(KwAs) {
+				if _, _, err := p.parseTableIdentifier(); err != nil {
+					return nil, err
+				}
+			}
+		case KwDatabase:
+			p.advance()
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+			if p.match(KwAs) {
+				if _, err := p.parseIdentifier(); err != nil {
+					return nil, err
+				}
+			}
+		default:
+			return nil, p.errAt(p.cur(), fmt.Sprintf("expected TABLE, DATABASE, DICTIONARY, VIEW, or ALL in %s, got %q", kind, p.cur().Raw))
+		}
+		if p.match(KwExcept) {
+			if !p.match(KwTables) && !p.match(KwDatabases) && !p.match(KwTable) && !p.match(KwDatabase) {
+				return nil, p.errAt(p.cur(), "expected TABLE(S) or DATABASE(S) after EXCEPT")
+			}
+			for {
+				if _, _, err := p.parseTableIdentifier(); err != nil {
+					return nil, err
+				}
+				if !p.match(TokComma) {
+					break
+				}
+			}
+		}
+		if !p.match(TokComma) {
+			break
+		}
 	}
-	for !p.isStatementEndOrOutput() {
-		p.advance()
+
+	if _, err := p.parseClusterClause(); err != nil {
+		return nil, err
 	}
+
+	if isRestore {
+		if _, err := p.expect(KwFrom); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := p.expect(KwTo); err != nil {
+			return nil, err
+		}
+	}
+
+	// Destination/source expression: e.g. Disk('backups', '1.zip'), S3(...), File(...), Null
+	if p.match(KwNull) {
+		// BACKUP ... TO Null
+	} else if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen {
+		if _, err := p.parseTableFunctionExpr(); err != nil {
+			return nil, err
+		}
+	} else if _, err := p.parseIdentifier(); err != nil {
+		return nil, err
+	}
+
+	if p.cur().Type == KwSettings {
+		if _, err := p.parseSettingsClause(); err != nil {
+			return nil, err
+		}
+	}
+	p.match(KwAsync)
+
 	return &BackupRestoreStmt{span: span{Pos: start, End: p.peek(-1).End}, Kind: kind}, nil
+}
+
+func (p *parser) isWord(upper string) bool {
+	return p.isWordAt(0, upper)
+}
+
+func (p *parser) isWordAt(offset int, upper string) bool {
+	tok := p.peek(offset)
+	return (tok.Type == TokIdent || tok.IsKeyword()) && strings.EqualFold(tok.Val, upper)
 }

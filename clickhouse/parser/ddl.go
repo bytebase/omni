@@ -633,37 +633,157 @@ func (p *parser) parseCreateFunctionStmt(start int, orReplace bool) (*CreateFunc
 }
 
 func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool) (*AccessControlStmt, error) {
-	kind := action
+	var entity string
 	switch p.cur().Type {
-	case KwUser, KwRole, KwQuota:
-		kind += " " + strings.ToUpper(p.advance().Val)
+	case KwUser:
+		p.advance()
+		entity = "USER"
+	case KwRole:
+		p.advance()
+		entity = "ROLE"
+	case KwQuota:
+		p.advance()
+		entity = "QUOTA"
 	case KwSettings:
 		p.advance()
 		if _, err := p.expect(KwProfile); err != nil {
 			return nil, err
 		}
-		kind += " SETTINGS PROFILE"
+		entity = "SETTINGS PROFILE"
 	case KwProfile:
 		p.advance()
-		kind += " PROFILE"
+		entity = "PROFILE"
 	case KwRow:
 		p.advance()
 		if _, err := p.expect(KwPolicy); err != nil {
 			return nil, err
 		}
-		kind += " ROW POLICY"
+		entity = "ROW POLICY"
 	case KwPolicy:
 		p.advance()
-		kind += " POLICY"
+		entity = "POLICY"
 	}
-	p.matchIfNotExists()
-	if _, err := p.parseIdentifier(); err != nil {
+	kind := action + " " + entity
+
+	if action == "ALTER" {
+		p.matchIfExists()
+	} else {
+		p.matchIfNotExists()
+	}
+
+	// Entity name(s) (comma-separated)
+	if err := p.parseIdentList(); err != nil {
 		return nil, err
 	}
-	// Consume remaining valid tokens of access entity definition until EOF/;/FORMAT/INTO OUTFILE.
-	for !p.isStatementEndOrOutput() {
-		p.advance()
+	// ROW POLICY requires `ON table1 [, table2 ...]`
+	if entity == "ROW POLICY" || entity == "POLICY" {
+		if _, err := p.expect(KwOn); err != nil {
+			return nil, err
+		}
+		for {
+			if _, _, err := p.parseTableIdentifier(); err != nil {
+				return nil, err
+			}
+			if !p.match(TokComma) {
+				break
+			}
+		}
 	}
+	if _, err := p.parseClusterClause(); err != nil {
+		return nil, err
+	}
+
+	// Structured entity-specific clauses
+	switch entity {
+	case "USER":
+		for !p.isStatementEndOrOutput() {
+			switch {
+			case p.match(KwIdentified):
+				if p.match(KwWith) {
+					if _, err := p.parseIdentifier(); err != nil {
+						return nil, err
+					}
+				}
+				if p.match(KwBy) {
+					if _, err := p.parseStringLiteral(); err != nil {
+						return nil, err
+					}
+				}
+			case p.cur().Type == KwDefault && p.peek(1).Type == KwRole:
+				p.advance()
+				p.advance()
+				if p.isWord("NONE") || p.match(KwAll) {
+					if p.isWord("NONE") {
+						p.advance()
+					}
+				} else if err := p.parseIdentList(); err != nil {
+					return nil, err
+				}
+			case p.cur().Type == KwSettings:
+				if _, err := p.parseSettingsClause(); err != nil {
+					return nil, err
+				}
+			case p.isWord("HOST"):
+				p.advance()
+				if p.match(KwAny) || p.isWord("NONE") || p.isWord("LOCAL") {
+					if !p.match(KwAny) {
+						p.advance()
+					}
+				} else {
+					for {
+						if _, err := p.parseIdentifier(); err != nil {
+							return nil, err
+						}
+						if _, err := p.parseStringLiteral(); err != nil {
+							return nil, err
+						}
+						if !p.match(TokComma) {
+							break
+						}
+					}
+				}
+			default:
+				return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in %s", p.cur().Raw, kind))
+			}
+		}
+	case "ROLE", "SETTINGS PROFILE", "PROFILE":
+		if p.cur().Type == KwSettings {
+			if _, err := p.parseSettingsClause(); err != nil {
+				return nil, err
+			}
+		}
+		if p.match(KwTo) {
+			if err := p.parseGranteeList(); err != nil {
+				return nil, err
+			}
+		}
+	case "ROW POLICY", "POLICY":
+		for !p.isStatementEndOrOutput() {
+			switch {
+			case p.match(KwFor):
+				if _, err := p.expect(KwSelect); err != nil {
+					return nil, err
+				}
+			case p.match(KwUsing):
+				if _, err := p.parseExpr(); err != nil {
+					return nil, err
+				}
+			case p.match(KwTo):
+				if err := p.parseGranteeList(); err != nil {
+					return nil, err
+				}
+			default:
+				return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in %s", p.cur().Raw, kind))
+			}
+		}
+	case "QUOTA":
+		if p.match(KwTo) {
+			if err := p.parseGranteeList(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return &AccessControlStmt{
 		span: span{Pos: start, End: p.peek(-1).End},
 		Kind: kind,
@@ -1596,9 +1716,26 @@ func (p *parser) parseDropStmt() (*DropStmt, error) {
 			return nil, err
 		}
 		stmt.Name = name
-		for !p.isStatementEndOrOutput() {
-			p.advance()
+		for p.match(TokComma) {
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
 		}
+		if (stmt.ObjectType == "ROW POLICY" || stmt.ObjectType == "POLICY") && p.match(KwOn) {
+			for {
+				if _, _, err := p.parseTableIdentifier(); err != nil {
+					return nil, err
+				}
+				if !p.match(TokComma) {
+					break
+				}
+			}
+		}
+		cluster, err := p.parseClusterClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Cluster = cluster
 	default:
 		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after %s", p.cur().Raw, action))
 	}

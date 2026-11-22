@@ -64,19 +64,26 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 			return nil, err
 		}
 		stmt.Format = fmtName
-		// ClickHouse's INSERT ... FORMAT <name> treats any trailing tokens as inline data payload.
-		for p.cur().Type != TokEOF {
-			p.advance()
-		}
-		stmt.End = p.peek(-1).End
+		// Stop SQL tokenization immediately after `FORMAT <name>`: any remaining
+		// bytes are raw inline payload in the named format (CSV, JSONEachRow, etc.).
+		stmt.Data = p.consumeRawTail(p.peek(-1).End)
+		stmt.End = len(p.src)
 		return stmt, nil
 
 	case KwValues:
-		p.advance()
-		// ClickHouse's INSERT ... VALUES treats everything after VALUES as inline Values-format data.
-		// Parse structured tuples when well-formed, and consume remaining inline payload.
+		valTok := p.advance()
+		// ClickHouse's INSERT ... VALUES treats everything after VALUES as inline
+		// Values-format data. Try parsing structured tuples when the remaining
+		// input is valid SQL tuples; otherwise capture the raw payload bytes without
+		// imposing SQL lexing errors on non-SQL inline data.
+		savePos := p.pos
+		saveLexPos := p.lex.pos
+		saveTokLen := len(p.tokens)
+		saveEOF := p.eof
+		saveLexErr := p.lexErr
+
+		parsedTuples := false
 		if p.cur().Type == TokLParen {
-			save := p.pos
 			var rows [][]Expr
 			ok := true
 			for p.cur().Type == TokLParen {
@@ -104,16 +111,20 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 					break
 				}
 			}
-			if ok {
+			if ok && (p.cur().Type == TokEOF || (p.cur().Type == TokSemicolon && p.peek(1).Type == TokEOF)) {
 				stmt.Values = rows
-			} else {
-				p.pos = save
+				parsedTuples = true
 			}
 		}
-		for p.cur().Type != TokEOF {
-			p.advance()
+		if !parsedTuples {
+			p.pos = savePos
+			p.lex.pos = saveLexPos
+			p.tokens = p.tokens[:saveTokLen]
+			p.eof = saveEOF
+			p.lexErr = saveLexErr
+			stmt.Data = p.consumeRawTail(valTok.End)
 		}
-		stmt.End = p.peek(-1).End
+		stmt.End = len(p.src)
 		return stmt, nil
 
 	case KwSelect, KwWith, TokLParen:

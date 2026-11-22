@@ -13,13 +13,12 @@ const maxParseDepth = 256
 // semicolon) and returns its AST. On lexical or syntax error, it returns a
 // *ParseError carrying the byte offset.
 func Parse(sql string) ([]Statement, error) {
-	tokens, err := tokenize(sql)
-	if err != nil {
-		return nil, err
-	}
 	p := &parser{
-		src:    sql,
-		tokens: tokens,
+		src: sql,
+		lex: &lexer{src: sql},
+	}
+	if p.cur().Type == TokIllegal && p.lexErr != nil {
+		return nil, p.lexErr
 	}
 	if p.cur().Type == TokEOF {
 		return nil, p.errAt(p.cur(), "empty query")
@@ -31,6 +30,9 @@ func Parse(sql string) ([]Statement, error) {
 	if p.cur().Type == TokSemicolon {
 		p.advance()
 	}
+	if p.cur().Type == TokIllegal && p.lexErr != nil {
+		return nil, p.lexErr
+	}
 	if p.cur().Type != TokEOF {
 		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q", p.cur().Raw))
 	}
@@ -39,12 +41,49 @@ func Parse(sql string) ([]Statement, error) {
 
 type parser struct {
 	src    string
+	lex    *lexer
 	tokens []Token
 	pos    int
 	depth  int
+	eof    bool
+	lexErr error
+}
+
+func (p *parser) ensure(idx int) {
+	for len(p.tokens) <= idx && !p.eof {
+		tok, err := p.lex.nextToken()
+		if err != nil {
+			p.lexErr = err
+			pos := p.lex.pos
+			if pe, ok := err.(*ParseError); ok {
+				pos = pe.Position
+			}
+			p.tokens = append(p.tokens, Token{Type: TokIllegal, Pos: pos, End: pos})
+			p.eof = true
+			return
+		}
+		p.tokens = append(p.tokens, tok)
+		if tok.Type == TokEOF {
+			p.eof = true
+		}
+	}
+}
+
+// consumeRawTail stops SQL tokenization at the current position and treats all
+// remaining bytes as an opaque raw payload (used for INSERT FORMAT/VALUES data).
+func (p *parser) consumeRawTail(rawStart int) string {
+	data := ""
+	if rawStart < len(p.src) {
+		data = p.src[rawStart:]
+	}
+	p.tokens = append(p.tokens[:p.pos], Token{Type: TokEOF, Pos: len(p.src), End: len(p.src)})
+	p.eof = true
+	p.lexErr = nil
+	return data
 }
 
 func (p *parser) cur() Token {
+	p.ensure(p.pos)
 	if p.pos >= len(p.tokens) {
 		return p.tokens[len(p.tokens)-1]
 	}
@@ -54,8 +93,10 @@ func (p *parser) cur() Token {
 func (p *parser) peek(offset int) Token {
 	idx := p.pos + offset
 	if idx < 0 {
+		p.ensure(0)
 		return p.tokens[0]
 	}
+	p.ensure(idx)
 	if idx >= len(p.tokens) {
 		return p.tokens[len(p.tokens)-1]
 	}
@@ -64,7 +105,7 @@ func (p *parser) peek(offset int) Token {
 
 func (p *parser) advance() Token {
 	tok := p.cur()
-	if p.pos < len(p.tokens)-1 {
+	if tok.Type != TokEOF && tok.Type != TokIllegal {
 		p.pos++
 	}
 	return tok
@@ -87,6 +128,9 @@ func (p *parser) match(tt TokenType) bool {
 }
 
 func (p *parser) errAt(tok Token, msg string) error {
+	if tok.Type == TokIllegal && p.lexErr != nil {
+		return p.lexErr
+	}
 	return &ParseError{Message: msg, Position: tok.Pos}
 }
 
