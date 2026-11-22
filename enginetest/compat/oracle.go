@@ -247,7 +247,7 @@ var (
 	reStandInCreateSchemaGrant        = regexp.MustCompile(`(?i)\bGRANT\s+SELECT\s+ON\s+a\s+TO\s+a\b`)
 	reStandInGrantIdentifiedBy        = regexp.MustCompile(`(?i)^\s*GRANT\s+.+?\s+TO\s+(a)\s+IDENTIFIED\s+BY\b`)
 	reStandInDropTablespaceSet        = regexp.MustCompile(`(?i)^\s*DROP\s+TABLESPACE\s+(SET\s+)`)
-	reStandInSeqPrefix                = regexp.MustCompile(`(?i)^\s*(?:CREATE|ALTER)\s+SEQUENCE\s+(?:\S+\s*\.\s*)?\S+(?:\s+|$)`)
+	reStandInSeqPrefix                = regexp.MustCompile(`(?i)^\s*(?:CREATE|ALTER)\s+SEQUENCE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:(?:"(?:""|[^"])*"|[^\s."]+)\s*\.\s*)?(?:"(?:""|[^"])*"|[^\s."]+)(?:\s+|$)`)
 	reStandInSeqShard                 = regexp.MustCompile(`(?i)\b(?:NO)?SHARD\b`)
 	reStandInSeqShardClause           = regexp.MustCompile(`(?i)\b(?:SHARD(?:\s+(?:NO)?EXTEND)?|NOSHARD)\b`)
 	reStandInSeqScale                 = regexp.MustCompile(`(?i)\b(?:NO)?SCALE\b`)
@@ -277,6 +277,9 @@ var (
 	reStandInRecoverFinish            = regexp.MustCompile(`(?i)\bFINISH\b`)
 	reStandInRecoverUsingAll          = regexp.MustCompile(`(?i)\bUSING\s+INSTANCES\s+ALL\b`)
 	reStandInRecoverUsingOne          = regexp.MustCompile(`(?i)\bUSING\s+INSTANCES\s+1\b`)
+	reStandInRecoverHasParallel       = regexp.MustCompile(`(?i)\b(?:NO)?PARALLEL\b`)
+	reStandInRecoverHasDisconnect     = regexp.MustCompile(`(?i)\bDISCONNECT\b`)
+	reStandInRecoverHasDelay          = regexp.MustCompile(`(?i)\b(?:NO)?DELAY\b`)
 	reStandInRecoverLogicalKeep       = regexp.MustCompile(`(?i)\bTO\s+LOGICAL\s+STANDBY\s+a\s+KEEP\s+IDENTITY\b`)
 	reStandInRecoverLogical           = regexp.MustCompile(`(?i)\bTO\s+LOGICAL\s+STANDBY\s+a\b`)
 	reStandInMVLogSplitCrash          = regexp.MustCompile(`(?i)^\s*ALTER\s+MATERIALIZED\s+VIEW\s+LOG\s+ON\s+a\s+SPLIT\s+(SUB)?PARTITION\s+a\b`)
@@ -607,20 +610,53 @@ func oracleStandInRev5(statement, schema string, e oracleError) (string, func(in
 			return "NOAUDIT " + body, func(pos int) int { return pos }, true
 		}
 	case 274:
-		if e.position == 0 && reStandInRecoverStandbyPrefix.MatchString(statement) {
-			switch {
-			case reStandInRecoverFinishForce.MatchString(statement):
-				return reStandInRecoverFinishForce.ReplaceAllString(statement, "CANCEL IMMEDIATE"), func(pos int) int { return pos }, true
-			case reStandInRecoverFinish.MatchString(statement):
-				return reStandInRecoverFinish.ReplaceAllString(statement, "CANCEL"), func(pos int) int { return pos }, true
-			case reStandInRecoverUsingAll.MatchString(statement):
-				return reStandInRecoverUsingAll.ReplaceAllString(statement, "PARALLEL"), func(pos int) int { return pos }, true
-			case reStandInRecoverUsingOne.MatchString(statement):
-				return reStandInRecoverUsingOne.ReplaceAllString(statement, "PARALLEL 1"), func(pos int) int { return pos }, true
-			case reStandInRecoverLogicalKeep.MatchString(statement):
-				return reStandInRecoverLogicalKeep.ReplaceAllString(statement, "UNTIL CONSISTENT"), func(pos int) int { return pos }, true
-			case reStandInRecoverLogical.MatchString(statement):
-				return reStandInRecoverLogical.ReplaceAllString(statement, "UNTIL CONSISTENT"), func(pos int) int { return pos }, true
+		if e.position == 0 {
+			masked := maskSQLCommentsAndQuotes(statement)
+			if reStandInRecoverStandbyPrefix.MatchString(masked) {
+				replaceAllMasked := func(re *regexp.Regexp, rep string) (string, func(int) int, bool) {
+					matches := re.FindAllStringIndex(masked, -1)
+					if len(matches) == 0 {
+						return "", nil, false
+					}
+					edits := make([]standInEdit, 0, len(matches))
+					for _, m := range matches {
+						edits = append(edits, standInEdit{m[0], m[1], rep})
+					}
+					rewritten, mapPos := applyStandInEdits(statement, edits)
+					return rewritten, mapPos, true
+				}
+				switch {
+				case reStandInRecoverFinishForce.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverFinishForce, "CANCEL IMMEDIATE")
+				case reStandInRecoverFinish.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverFinish, "CANCEL")
+				case reStandInRecoverUsingAll.MatchString(masked), reStandInRecoverUsingOne.MatchString(masked):
+					usingRe := reStandInRecoverUsingAll
+					parRep := "PARALLEL"
+					if !reStandInRecoverUsingAll.MatchString(masked) {
+						usingRe = reStandInRecoverUsingOne
+						parRep = "PARALLEL 1"
+					}
+					switch {
+					case !reStandInRecoverHasParallel.MatchString(masked):
+						return replaceAllMasked(usingRe, parRep)
+					case !reStandInRecoverHasDisconnect.MatchString(masked):
+						return replaceAllMasked(usingRe, "DISCONNECT")
+					case !reStandInRecoverHasDelay.MatchString(masked):
+						return replaceAllMasked(usingRe, "NODELAY")
+					default:
+						matches := usingRe.FindAllStringIndex(masked, -1)
+						if len(matches) == 1 {
+							rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{matches[0][0], matches[0][1], ""}})
+							return rewritten, mapPos, true
+						}
+						return replaceAllMasked(usingRe, parRep)
+					}
+				case reStandInRecoverLogicalKeep.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverLogicalKeep, "UNTIL CONSISTENT")
+				case reStandInRecoverLogical.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverLogical, "UNTIL CONSISTENT")
+				}
 			}
 		}
 	}
