@@ -9,7 +9,7 @@ func (p *parser) looksLikeSelect() bool {
 	offset := 0
 	for p.peek(offset).Type == TokLParen {
 		offset++
-		if offset > maxParseDepth {
+		if offset > maxNestingDepth {
 			return false
 		}
 	}

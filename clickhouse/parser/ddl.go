@@ -725,10 +725,8 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 				}
 			case p.isWord("HOST"):
 				p.advance()
-				if p.match(KwAny) || p.isWord("NONE") || p.isWord("LOCAL") {
-					if !p.match(KwAny) {
-						p.advance()
-					}
+				if p.cur().Type == KwAny || p.isWord("NONE") || p.isWord("LOCAL") {
+					p.advance()
 				} else {
 					for {
 						if _, err := p.parseIdentifier(); err != nil {
@@ -1194,14 +1192,17 @@ func (p *parser) parseTTLClause() ([]Expr, error) {
 				return nil, err
 			}
 		case p.cur().Type == KwGroup && p.peek(1).Type == KwBy:
-			if _, err := p.parseGroupByClause(); err != nil {
+			p.advance() // GROUP
+			p.advance() // BY
+			if err := p.parseTTLGroupByKeys(); err != nil {
 				return nil, err
 			}
 			if _, err := p.expect(KwSet); err != nil {
 				return nil, err
 			}
 			for {
-				if _, err := p.parseExpr(); err != nil {
+				// ClickHouse requires a column identifier on the LHS of TTL SET assignments.
+				if _, err := p.parseNestedIdentifier(); err != nil {
 					return nil, err
 				}
 				if _, err := p.expect(TokEq); err != nil {
@@ -1223,6 +1224,55 @@ func (p *parser) parseTTLClause() ([]Expr, error) {
 		break
 	}
 	return exprs, nil
+}
+
+func (p *parser) parseTTLGroupByKeys() error {
+	if p.cur().Type == KwAll && p.peek(1).Type != TokLParen {
+		p.advance()
+		return nil
+	}
+	if (p.cur().Type == KwCube || p.cur().Type == KwRollup) && p.peek(1).Type == TokLParen {
+		p.advance()
+		p.advance()
+		for {
+			if _, err := p.parseExpr(); err != nil {
+				return err
+			}
+			if !p.match(TokComma) {
+				break
+			}
+		}
+		_, err := p.expect(TokRParen)
+		return err
+	}
+	if p.cur().Type == KwGrouping && p.peek(1).Type == KwSets && p.peek(2).Type == TokLParen {
+		p.advance()
+		p.advance()
+		p.advance()
+		for {
+			if _, err := p.parseExpr(); err != nil {
+				return err
+			}
+			if !p.match(TokComma) {
+				break
+			}
+		}
+		_, err := p.expect(TokRParen)
+		return err
+	}
+	for {
+		if p.cur().Type == TokStar {
+			if _, err := p.parseStarExpr(nil); err != nil {
+				return err
+			}
+		} else if _, err := p.parseExpr(); err != nil {
+			return err
+		}
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	return nil
 }
 
 func isAlterClauseStart(tt TokenType) bool {

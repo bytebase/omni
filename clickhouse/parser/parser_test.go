@@ -70,8 +70,10 @@ func TestParseValidStatements(t *testing.T) {
 		{"backup_stmt", "BACKUP TABLE db.t TO Disk('backups', '1.zip')"},
 		{"restore_stmt", "RESTORE TABLE db.t FROM Disk('backups', '1.zip')"},
 		{"create_user", "CREATE USER IF NOT EXISTS alice IDENTIFIED WITH sha256_password BY 'secret'"},
+		{"create_user_host_any", "CREATE USER alice HOST ANY SETTINGS max_threads = 1"},
 		{"drop_user", "DROP USER IF EXISTS alice, bob ON CLUSTER prod"},
 		{"insert_csv_inline_non_sql", "INSERT INTO t FORMAT CSV\na@b,1\n\"unclosed"},
+		{"ttl_group_by_rollup", "ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), m = max(m)"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -116,6 +118,7 @@ func TestParseErrorsAndPositions(t *testing.T) {
 		{"backup_without_to", "BACKUP TABLE t", 14},
 		{"restore_without_from", "RESTORE TABLE t", 15},
 		{"create_user_garbage", "CREATE USER alice GARBAGE TOKENS", 18},
+		{"create_user_host_any_garbage", "CREATE USER alice HOST ANY GARBAGE", 27},
 		{"drop_user_garbage", "DROP USER alice GARBAGE", 16},
 	}
 	for _, tc := range cases {
@@ -227,5 +230,33 @@ func TestParseInsertFormatRawData(t *testing.T) {
 	}
 	if ins.Data != "\na@b,1\n\"unclosed" {
 		t.Errorf("Data = %q, want %q", ins.Data, "\na@b,1\n\"unclosed")
+	}
+}
+
+func TestParseTreeHeightLimit(t *testing.T) {
+	sql := "SELECT " + strings.Repeat("1+", 100001) + "1"
+	_, err := Parse(sql)
+	if err == nil {
+		t.Fatalf("expected *ParseError when AST height exceeds maxTreeHeight")
+	}
+	var pe *ParseError
+	if !errors.As(err, &pe) {
+		t.Fatalf("got %T, want *ParseError", err)
+	}
+}
+
+func TestParseWideFunctionArgsLinearTime(t *testing.T) {
+	args := make([]string, 16000)
+	for i := range args {
+		args[i] = "a"
+	}
+	sql := "SELECT f(" + strings.Join(args, ",") + ")"
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse failed on 16,000 args: %v", err)
+	}
+	fc := stmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*FuncCallExpr)
+	if len(fc.Args) != 16000 {
+		t.Fatalf("got %d args, want 16000", len(fc.Args))
 	}
 }

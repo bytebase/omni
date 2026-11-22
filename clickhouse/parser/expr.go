@@ -1040,10 +1040,18 @@ func (p *parser) tryParseLambda() (Expr, bool, error) {
 			return nil, false, nil
 		}
 	} else if isIdentifier(p.cur()) {
-		// Unparenthesized lambda: `x -> expr` or `x, y -> expr`
+		// Unparenthesized lambda: `x -> expr` or `x, y -> expr`.
+		// If a previous lookahead already proved no `->` ends this comma-separated
+		// identifier run, skip rescanning so wide argument lists stay O(N).
+		if p.pos < p.noLambdaBefore {
+			return nil, false, nil
+		}
 		for {
 			id, err := p.parseIdentifier()
 			if err != nil {
+				if p.pos > p.noLambdaBefore {
+					p.noLambdaBefore = p.pos
+				}
 				p.pos = save
 				return nil, false, nil
 			}
@@ -1053,6 +1061,9 @@ func (p *parser) tryParseLambda() (Expr, bool, error) {
 			}
 		}
 		if !p.match(TokArrow) {
+			if p.pos > p.noLambdaBefore {
+				p.noLambdaBefore = p.pos
+			}
 			p.pos = save
 			return nil, false, nil
 		}

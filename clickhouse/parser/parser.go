@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-const maxParseDepth = 256
-
 // Parse parses a single ClickHouse SQL statement (with optional trailing
 // semicolon) and returns its AST. On lexical or syntax error, it returns a
 // *ParseError carrying the byte offset.
@@ -36,17 +34,21 @@ func Parse(sql string) ([]Statement, error) {
 	if p.cur().Type != TokEOF {
 		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q", p.cur().Raw))
 	}
+	if treeTooHigh(stmt, len(sql)) {
+		return nil, &ParseError{Message: nestingErrorMessage, Position: stmt.StartPos()}
+	}
 	return []Statement{stmt}, nil
 }
 
 type parser struct {
-	src    string
-	lex    *lexer
-	tokens []Token
-	pos    int
-	depth  int
-	eof    bool
-	lexErr error
+	src            string
+	lex            *lexer
+	tokens         []Token
+	pos            int
+	depth          int
+	eof            bool
+	lexErr         error
+	noLambdaBefore int // token index bound caching failed unparenthesized lambda lookahead
 }
 
 func (p *parser) ensure(idx int) {
@@ -132,18 +134,6 @@ func (p *parser) errAt(tok Token, msg string) error {
 		return p.lexErr
 	}
 	return &ParseError{Message: msg, Position: tok.Pos}
-}
-
-func (p *parser) enter() error {
-	p.depth++
-	if p.depth > maxParseDepth {
-		return p.errAt(p.cur(), "maximum nesting depth exceeded")
-	}
-	return nil
-}
-
-func (p *parser) leave() {
-	p.depth--
 }
 
 func (p *parser) parseTopLevel() (Statement, error) {
