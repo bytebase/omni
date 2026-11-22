@@ -263,6 +263,8 @@ CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 			{"ALTER TABLE a ROW_FORMAT FIXED", 0},
 			{"ALTER TABLE a RENAME TO b", 0},
 			{"ALTER TABLE a COMMENT 'changed', ALTER CHECK c ENFORCED", 3940},
+			{"ALTER TABLE a COMMENT 'changed', CONVERT TO CHARACTER SET latin1 COLLATE utf8mb4_bin", 1253},
+			{"ALTER TABLE a COMMENT 'changed', CHARACTER SET latin1 COLLATE utf8mb4_bin", 1253},
 		}
 		for _, tc := range cases {
 			c := newCat(t)
@@ -273,9 +275,9 @@ CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 			if got := errorCode(res[0].Error); got != tc.want {
 				t.Errorf("%s: got code %d (%v), want %d", tc.stmt, got, res[0].Error, tc.want)
 			}
-			if tc.stmt == "ALTER TABLE a COMMENT 'changed', ALTER CHECK c ENFORCED" {
+			if strings.HasPrefix(tc.stmt, "ALTER TABLE a COMMENT 'changed',") {
 				if c.GetDatabase("d").Sequences["a"].Comment != "" {
-					t.Errorf("failed ALTER CHECK committed comment change on sequence")
+					t.Errorf("%s: failed ALTER committed comment change on sequence", tc.stmt)
 				}
 			}
 		}

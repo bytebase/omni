@@ -528,6 +528,8 @@ func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, st
 		Name:                seq.Name,
 		Database:            db,
 		Engine:              seq.Engine,
+		Charset:             db.Charset,
+		Collation:           db.Collation,
 		Comment:             seq.Comment,
 		Temporary:           seq.Temporary,
 		TablespaceDiscarded: seq.TablespaceDiscarded,
@@ -554,6 +556,9 @@ func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, st
 				return errNotSystemVersioned(seq.Name)
 			}
 		}
+	}
+	if _, err := c.planAlterCharset(synth, stmt.Commands); err != nil {
+		return err
 	}
 
 	next := *seq
