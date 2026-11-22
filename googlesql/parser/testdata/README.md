@@ -3,37 +3,78 @@
 ## `compat.tsv`: the Spanner emulator's verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
-`../../testdata/GoogleSQL.g4`, then its near-misses, with omni's verdict and
-the pinned Spanner emulator's (`../../testdata/pins.tsv`). `GoogleSQL.g4` is
-converted by `../cmd/tm2g4` from `googlesql.tm`, the Textmapper grammar of the
-GoogleSQL release the emulator builds against, beside it as published.
+`../../testdata/GoogleSQL.g4`, then its near-misses, plus 626 hand-written
+`suite:` rows, with omni's union-mode verdict (`googlesql/parser.Parse`,
+`DialectDefault`) and the pinned Spanner emulator's verdict
+(`../../testdata/pins.tsv`, `parser` role, judge revision 3:
+`gcr.io/cloud-spanner-emulator/emulator:1.5.54`). `GoogleSQL.g4` is converted
+by `../cmd/tm2g4` from `googlesql.tm`, the Textmapper grammar of the GoogleSQL
+release the emulator builds against, beside it as published.
 `TestCompatibility` (`../compat_test.go`) reads the file through
-`enginetest/compat` and starts no server. Recorded 2026-11-14 in about a
-minute; a second recording on a fresh emulator wrote the same file.
-Rejudged at judge revision 2 (`../../testdata/pins.tsv`), which reads
-GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
+`enginetest/compat` and starts no server in offline replay. Recorded against
+the pinned Spanner emulator `1.5.54` through `googlesql/spanner-oracle` (~40
+seconds for all 9,463 rows) and verified end-to-end with `OMNI_RECORD=verify`
+with zero differences.
 
-| Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
-| --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 2,196 | 38 | 380 |
-| Near-misses | 6,223 | 5,139 | 1,055 | 29 |
+| Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| One per alternative | 2,614 | 2,176 | 0 | 438 | 83.24% |
+| Near-misses | 6,223 | 6,175 | 1 | 47 | 99.23% |
+| Suites (`suite:*`) | 626 | 577 | 0 | 49 | 92.17% |
+| **All** | **9,463** | **8,928** | **1** | **534** | **94.35%** |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
 Spanner runs. `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no row:
 it refuses every input (`../../testdata/tokens.tsv`).
 
-Most of what only Spanner accepts is GoogleSQL syntax the emulator parses and
-then refuses as a statement it does not run (`Statement not supported`):
-`MERGE` (80 rows), `LOAD DATA` (74), `TABLE a(…)` / table clauses (56),
-`BEGIN … END` (47), `IMPORT` (25), `EXPORT DATA` (23), `SHOW` (23), and
-`EXECUTE IMMEDIATE` (21). `SET TRANSACTION` and `SET @@…` are the same, and the
-pipe and graph rows are different; see below.
-Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
-`CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
-no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`). Each
-of the 475 rows is measured below: the pinned grammar derives 473 of them, and
-two are Spanner DDL reference forms the grammar lags.
+### Judge revision 3 (`PinRole: "parser"`)
+
+At judge revision 2 (`default` pin, after `grammar_refusals.go` moved 90 rows
+to `reject`), `compat.tsv` had **7,909 / 9,463 (83.58%)** agreement with
+**1,103 `Only Spanner accepts`** and **451 `Only omni accepts`**. Judge
+revision 3 moves 1,185 rows from `accept` to `reject` (**1,102** false
+`Only Spanner accepts` resolved, leaving only `TABLE a() QUALIFY` where
+`QUALIFY` is a BigQuery query clause in union mode and a non-reserved
+identifier in Spanner; **+83** `Only omni accepts`, 76 generated + 7 suite,
+bringing agreement to **8,928 / 9,463 = 94.35%**):
+
+- **Parse-error fallback (`Statement not supported: <Kind>Stmt`):** When
+  GoogleSQL's `ParseStatement` succeeds on an unsupported statement kind, it
+  reports the AST node name ending in `Statement` or `Assignment`
+  (`SubpipelineStatement`, `MergeStatement`, `BeginStatement`,
+  `SingleAssignment`, etc. — kept `accept`). When `ParseStatement` fails on an
+  unsupported statement kind, GoogleSQL's fallback path
+  (`GetNextStatementKind`) replaces the syntax error with the
+  `ResolvedNodeKind` name ending in `Stmt` (`SubpipelineStmt`, `MergeStmt`,
+  `AuxLoadDataStmt`, `BeginStmt`, `UndropStmt`, etc.). Judge rev 3 classifies
+  `...Stmt` as `reject`.
+- **Lookahead tokenizer and dynamic grammar-action refusals:** Rejects
+  `EXCEPT must be followed by ALL, DISTINCT, or "("` and `DYNAMIC
+  LABEL|PROPERTIES cannot be used more than once in a single element table`
+  (`MakeSyntaxError` in `googlesql.tm:2862`).
+- **`CREATE VIEW` missing `SQL SECURITY`:** Re-asks with a `SQL SECURITY
+  INVOKER` stand-in before `AS` so broken view bodies (`CREATE VIEW a AS NULL`,
+  `CREATE VIEW a AS SELECT`) reject on syntax while valid view bodies
+  (`CREATE VIEW a AS SELECT NULL`) stay accepted.
+
+Most of the 534 `Only omni accepts` rows are intentional BigQuery-only syntax
+that `googlesql/parser` accepts in union mode (`DialectDefault`) — scripting
+(`DECLARE`, `IF`, `CASE`, `BEGIN ... END`, etc.), BigQuery DDL, `QUALIFY`,
+`IS [NOT] DISTINCT FROM`, `|> MATCH_RECOGNIZE(...)`, `LOAD DATA` with
+`PARTITIONS(...)` / `TEMP TABLE`, etc. (The 451 rows present at judge rev 2 are
+catalogued below; the 76 generated + 7 suite rows exposed by judge rev 3 are
+BigQuery scripting/pipe/`LOAD DATA` forms plus a small set of invalid
+union-mode forms such as truncated `|> EXPORT` and bare `|> INSERT
+REPLACE|UPDATE`.)
+
+## Historical notes (judge revision 2)
+
+The sections below document the judge rev 2 audit before judge rev 3 classified
+`Statement not supported: <Kind>Stmt` fallbacks, lookahead `EXCEPT`, duplicate
+`DYNAMIC LABEL|PROPERTIES`, and masked `CREATE VIEW` bodies as `reject`.
+(`SELECT NULL.*`, `|> EXTEND NULL.*`, and `DROP MODEL a` were also closed in
+the parser prior to judge rev 3.)
 
 ## Most of those families are not parse verdicts either
 
@@ -236,22 +277,23 @@ rows, judged by the same recording: the fixtures of the `*_oracle_test.go`
 files that compared `Parse` of a statement with the emulator's verdict on it.
 
 | Suite | Rows | Agree | Only Spanner accepts | Only omni accepts |
-| --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: |
 | `suite:select` | 95 | 94 | 0 | 1 |
 | `suite:pivot-unpivot` | 49 | 49 | 0 | 0 |
 | `suite:dml` | 68 | 68 | 0 | 0 |
 | `suite:ddl` | 91 | 91 | 0 | 0 |
 | `suite:spanner-ddl` | 81 | 81 | 0 | 0 |
 | `suite:utility` | 67 | 67 | 0 | 0 |
-| `suite:scripting` | 47 | 23 | 3 | 21 |
+| `suite:scripting` | 47 | 20 | 0 | 27 |
 | `suite:graph-query` | 86 | 86 | 0 | 0 |
 | `suite:bq-ddl` | 24 | 4 | 0 | 20 |
-| `suite:export-load-clone` | 18 | 11 | 7 | 0 |
+| `suite:export-load-clone` | 18 | 17 | 0 | 1 |
 
-The disagreeing suite rows are the forms those tests recorded as divergences:
-BigQuery forms Spanner refuses, and `BEGIN SELECT 1 END`, which the emulator
-takes and omni refuses. A statement added to a suite is a row with `?` in both
-verdict cells, judged by a recording:
+The 49 disagreeing suite rows are BigQuery forms that `googlesql/parser`
+accepts in union mode and the Spanner emulator refuses (`suite:scripting` 27,
+`suite:bq-ddl` 20, `suite:select` 1, `suite:export-load-clone` 1). A statement
+added to a suite is a row with `?` in both verdict cells, judged by a
+recording:
 
 ```text
 ?	?	-	suite:select	<statement>
@@ -274,12 +316,39 @@ harness's answer for each statement they send, recorded with `OMNI_RECORD=1`.
   GRAPH`, a function's body); a message GoogleSQL's grammar writes when an
   action refuses input, as `QUALIFY is not supported` where the emulator
   leaves the feature off (`grammar_refusals.go` in the harness, generated
-  from `googlesql.tm` by `../cmd/tm2g4`); or `Error parsing Spanner DDL
-  statement:` from the emulator's own DDL parser. Every other answer is an
-  acceptance, `Statement not supported` and `Unimplemented` (a query that
-  returns a `STRUCT` column) included.
+  from `googlesql.tm` by `../cmd/tm2g4`); `Error parsing Spanner DDL
+  statement:` from the emulator's own DDL parser; or, at judge revision 3,
+  GoogleSQL's `Statement not supported: <Kind>Stmt` parse-error fallback,
+  lookahead `EXCEPT` and duplicate `DYNAMIC LABEL|PROPERTIES` syntax refusals,
+  and syntax errors exposed after injecting a `SQL SECURITY INVOKER` stand-in
+  on `CREATE [OR REPLACE] VIEW` missing `SQL SECURITY`. Every other answer is
+  an acceptance, post-parse `Statement not supported: <ASTKind>Statement` /
+  `Assignment` and `Unimplemented` (a query that returns a `STRUCT` column)
+  included.
 - **Every statement sees an empty schema.** The emulator answers
   `CREATE PROPERTY GRAPH a` by the names the schema holds before it parses the
   rest, so the harness applies DDL to a database it replaces after each DDL
   statement that applies.
 - **One statement, no `;`.** The emulator's DDL path refuses a terminator.
+
+## Recording and verification commands
+
+Offline replay (CI default, zero Docker, zero network):
+
+```bash
+go test ./googlesql/parser/ -run '^TestCompatibility$'
+```
+
+Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
+(~40 seconds for all 9,463 rows):
+
+```bash
+OMNI_RECORD=1 go test -v -timeout 20m ./googlesql/parser/ -run '^TestCompatibility$'
+```
+
+Read-only live verification against the pinned emulator (re-judges all 9,463
+rows, writes nothing, fails on any diff):
+
+```bash
+OMNI_RECORD=verify go test -v -timeout 20m ./googlesql/parser/ -run '^TestCompatibility$'
+```

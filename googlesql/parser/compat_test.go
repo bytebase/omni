@@ -26,6 +26,7 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join(td, "pins.tsv"),
+		PinRole: "parser",
 		Grammar: filepath.Join(td, "GoogleSQL.g4"),
 		Tokens:  filepath.Join(td, "tokens.tsv"),
 		Omni:    omniVerdict,
