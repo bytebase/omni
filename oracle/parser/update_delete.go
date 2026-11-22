@@ -233,7 +233,10 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			p.advance()
 			return nil, p.syntaxErrorAtCur()
 		}
-		if sc.Value, err = p.parseExpr(); err != nil {
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if sc.Value, err = p.parseSetClauseValueExpr(); err != nil {
 			return nil, err
 		}
 		if sc.Value == nil {
@@ -281,8 +284,11 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			p.advance()
 			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1140 error
-		sc.Value, parseErr1140 = p.parseExpr()
+		sc.Value, parseErr1140 = p.parseSetClauseValueExpr()
 		if parseErr1140 != nil {
 			return nil, parseErr1140
 		}
@@ -296,6 +302,9 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	// Single column: col = expr
 	if !p.isIdentLike() {
 		return nil, nil
+	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
 	}
 
 	col, parseErr1141 := p.parseColumnRef()
@@ -325,8 +334,11 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 		}
 		p.advance()
 	} else {
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1142 error
-		sc.Value, parseErr1142 = p.parseExpr()
+		sc.Value, parseErr1142 = p.parseSetClauseValueExpr()
 		if parseErr1142 != nil {
 			return nil, parseErr1142
 		}
@@ -336,6 +348,15 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	}
 	sc.Loc.End = p.prev.End
 	return sc, nil
+}
+
+// parseSetClauseValueExpr parses the RHS expression of an UPDATE SET assignment,
+// enabling SELECT-token blame when a scalar subquery is missing its closing ')'.
+func (p *Parser) parseSetClauseValueExpr() (nodes.ExprNode, error) {
+	saved := p.updateSetSubquery
+	p.updateSetSubquery = true
+	defer func() { p.updateSetSubquery = saved }()
+	return p.parseExpr()
 }
 
 func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
@@ -356,7 +377,7 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 	}
 	target := &nodes.TableRef{Loc: nodes.Loc{Start: start}}
 	var parseErr1151 error
-	target.Name, parseErr1151 = p.parseObjectName()
+	target.Name, parseErr1151 = p.parseReservedCheckedObjectName()
 	if parseErr1151 != nil {
 		return nil, parseErr1151
 	}

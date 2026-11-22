@@ -69,6 +69,7 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 		}
 
 		if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+			partTok := p.cur
 			if p.cur.Type == kwPARTITION {
 				item.PartitionType = "PARTITION"
 			} else {
@@ -79,7 +80,7 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 				item.PartitionFor = true
 				p.advance()
 			}
-			if err := p.parseLockPartitionSpec(item); err != nil {
+			if err := p.parseLockPartitionSpec(item, partTok); err != nil {
 				return nil, err
 			}
 		}
@@ -132,13 +133,19 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 //	( partition_key_value [, partition_key_value ]... )   item.PartitionFor true
 //
 // Oracle 23ai rejects PARTITION () and PARTITION (p1, p2) (ORA-01738).
-func (p *Parser) parseLockPartitionSpec(item *nodes.LockTableItem) error {
+func (p *Parser) parseLockPartitionSpec(item *nodes.LockTableItem, partTok Token) error {
 	if p.cur.Type != '(' {
+		if !item.PartitionFor {
+			return p.syntaxErrorAtTok(partTok)
+		}
 		return p.syntaxErrorAtCur()
 	}
 	open := p.advance()
 	if !item.PartitionFor {
 		if !p.isIdentLike() {
+			if p.cur.Type == ')' {
+				return p.syntaxErrorAtTok(partTok)
+			}
 			return p.syntaxErrorAtCur()
 		}
 		name, err := p.parseIdentifier()
@@ -146,22 +153,29 @@ func (p *Parser) parseLockPartitionSpec(item *nodes.LockTableItem) error {
 			return err
 		}
 		item.PartitionName = name
-	} else {
-		for {
-			value, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			if value == nil {
-				return p.syntaxErrorAtCur()
-			}
+		if p.cur.Type != ')' {
 			if p.cur.Type != ',' {
-				break
+				return p.syntaxErrorAtTok(partTok)
 			}
-			p.advance()
+			return p.syntaxErrorAtCur()
 		}
-		item.PartitionName = strings.TrimSpace(p.source[open.End:p.cur.Loc])
+		p.advance()
+		return nil
 	}
+	for {
+		value, err := p.parseExprPrec(precAdd)
+		if err != nil {
+			return err
+		}
+		if value == nil {
+			return p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	item.PartitionName = strings.TrimSpace(p.source[open.End:p.cur.Loc])
 	if p.cur.Type != ')' {
 		return p.syntaxErrorAtCur()
 	}
@@ -316,6 +330,7 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1153 error
 
+	var routineStart Token
 	if p.cur.Type == '(' {
 		// object_access_expression: ( expr ) . method_name, the object
 		// required (ORA-00936 for CALL ().m()).
@@ -323,9 +338,13 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 			return nil, parseErr1153
 		}
 	} else {
+		routineStart = p.cur
 		stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
 		if parseErr1153 != nil {
 			return nil, parseErr1153
+		}
+		if p.cur.Type != '(' && p.cur.Type != kwINTO && !p.isStatementEnd() {
+			return nil, p.syntaxErrorAtTok(routineStart)
 		}
 	}
 
@@ -372,6 +391,10 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	// with nothing, ORA-01745 for INTO 1).
 	if p.cur.Type == kwINTO {
 		p.advance()
+		if p.cur.Type == ':' && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1155 error
 		stmt.Into, parseErr1155 = p.parseExpr()
 		if parseErr1155 != nil {
@@ -389,6 +412,10 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 			p.advance()
 		}
 		if indicator || p.cur.Type == tokBIND || p.cur.Type == ':' {
+			if p.cur.Type == ':' && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
+				p.advance()
+				return nil, p.syntaxErrorAtCur()
+			}
 			if stmt.Indicator, parseErr1155 = p.parseExpr(); parseErr1155 != nil {
 				return nil, parseErr1155
 			}
@@ -409,6 +436,7 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 // CALL of an object's method, up to its arguments.
 func (p *Parser) parseCallObjectAccess(stmt *nodes.CallStmt) error {
 	p.advance() // consume (
+	objTok := p.cur
 	obj, err := p.parseExpr()
 	if err != nil {
 		return err
@@ -418,9 +446,9 @@ func (p *Parser) parseCallObjectAccess(stmt *nodes.CallStmt) error {
 	}
 	p.advance()
 	if p.cur.Type != '.' {
-		return p.syntaxErrorAtCur()
+		return p.syntaxErrorAtTok(objTok)
 	}
-	p.advance()
+	dotTok := p.advance()
 	methodStart := p.pos()
 	if !p.isIdentLike() {
 		return p.syntaxErrorAtCur()
@@ -431,6 +459,9 @@ func (p *Parser) parseCallObjectAccess(stmt *nodes.CallStmt) error {
 	method, err := p.parseIdentifier()
 	if err != nil {
 		return err
+	}
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtTok(dotTok)
 	}
 	stmt.Object = obj
 	stmt.Name = &nodes.ObjectName{Name: method, Loc: nodes.Loc{Start: methodStart, End: p.prev.End}}
@@ -451,7 +482,7 @@ func (p *Parser) parseRenameStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1156 error
 
-	stmt.OldName, parseErr1156 = p.parseObjectName()
+	stmt.OldName, parseErr1156 = p.parseReservedCheckedObjectName()
 	if parseErr1156 != nil {
 		return nil, parseErr1156
 	}
@@ -627,7 +658,11 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 	var parseErr1159 error
 
 	// Object name (possibly schema-qualified)
-	stmt.Table, parseErr1159 = p.parseObjectName()
+	if named {
+		stmt.Table, parseErr1159 = p.parseReservedCheckedObjectName()
+	} else {
+		stmt.Table, parseErr1159 = p.parseObjectName()
+	}
 	if parseErr1159 !=
 
 		// Skip optional partition_extension_clause:
@@ -871,7 +906,7 @@ func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
 	if p.cur.Type == kwINTO {
 		p.advance()
 		var parseErr1165 error
-		stmt.Into, parseErr1165 = p.parseObjectName()
+		stmt.Into, parseErr1165 = p.parseReservedCheckedObjectName()
 		if parseErr1165 != nil {
 			return nil, parseErr1165
 		}
@@ -921,7 +956,7 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	}
 
 	// One or more table names (comma-separated), ending before TO
-	first, parseErr1167 := p.parseObjectName()
+	first, parseErr1167 := p.parseReservedCheckedObjectName()
 	if parseErr1167 != nil {
 		return nil, parseErr1167
 	}
@@ -932,7 +967,7 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	stmt.Table = first
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
-		t, parseErr1168 := p.parseObjectName()
+		t, parseErr1168 := p.parseReservedCheckedObjectName()
 		if parseErr1168 != nil {
 			return nil, parseErr1168
 		}
@@ -951,7 +986,10 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	// BEFORE variant or RESTORE POINT or SCN expr | TIMESTAMP expr
 	hasTarget := false
 	if p.cur.Type == kwBEFORE {
-		p.advance() // consume BEFORE
+		beforeTok := p.advance() // consume BEFORE
+		if p.isStatementEnd() {
+			return nil, p.syntaxErrorAtTok(beforeTok)
+		}
 		if p.cur.Type == kwDROP {
 			p.advance() // consume DROP
 			stmt.ToBeforeDrop = true

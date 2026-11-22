@@ -50,7 +50,7 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 		stmt.ObjectType = nodes.OBJECT_TABLE
 		p.advance()
 		// For COLUMN, parse a dotted name: [schema.]table.column
-		name, parseErr194 := p.parseObjectName()
+		name, parseErr194 := p.parseReservedCheckedObjectName()
 		if parseErr194 != nil {
 			return nil, parseErr194
 		}
@@ -68,7 +68,7 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 			// and we need to parse the column part
 			p.advance()
 			var parseErr195 error
-			stmt.Column, parseErr195 = p.parseIdentifier()
+			stmt.Column, parseErr195 = p.parseObjectNameIdentifier()
 			if parseErr195 != nil {
 				return nil, parseErr195
 			}

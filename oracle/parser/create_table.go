@@ -59,9 +59,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	global := false
 	private := false
 	if p.cur.Type == kwGLOBAL {
-		p.advance() // consume GLOBAL
+		globalTok := p.advance() // consume GLOBAL
 		if p.cur.Type != kwTEMPORARY {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtTok(globalTok)
 		}
 		p.advance() // consume TEMPORARY
 		global = true
@@ -69,13 +69,15 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 
 	// PRIVATE also leads CREATE PRIVATE OUTLINE.
 	if p.cur.Type == kwPRIVATE {
-		p.advance() // consume PRIVATE
+		privateTok := p.advance() // consume PRIVATE
 		switch p.cur.Type {
 		case kwTEMPORARY:
 			p.advance() // consume TEMPORARY
 			private = true
-		case kwTABLE:
-			return nil, p.syntaxErrorAtCur()
+		default:
+			if !p.isKeywordStr("OUTLINE") {
+				return nil, p.syntaxErrorAtTok(privateTok)
+			}
 		}
 	}
 
@@ -220,9 +222,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			if p.peekNext().Type == kwTABLESPACE {
 				return p.parseCreateTablespaceFamily(start)
 			}
-			p.advance() // consume TEMPORARY
 		}
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	default:
 		if p.isKeywordStr("NOFORCE") {
 			if isAnalyticObjectWord(p.peekNext()) {
@@ -374,15 +375,20 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 	stmt.Columns = &nodes.List{}
 	stmt.Constraints = &nodes.List{}
 
-	// IF NOT EXISTS (Oracle 23c)
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		p.advance() // consume IF
-		p.advance() // consume NOT
-		if p.cur.Type != kwEXISTS {
+	// IF NOT EXISTS (Oracle 23c): IF EXISTS and IF NOT without EXISTS fail at IF.
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
 			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // consume EXISTS
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.advance() // consume IF
+			p.advance()          // consume NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			stmt.IfNotExists = true
+		}
 	}
 
 	// Table name
@@ -803,18 +809,21 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		// A user-defined type name (not a built-in parameterized type) cannot
 		// take a parenthesized modifier; Oracle rejects at the type name
 		// (ORA-03060: MODIFY (a LOB(a) ...), MODIFY (a AS(1), a(1))).
-		if p.alterTableModifyColumn && p.cur.Type == '(' && !isOracleTypeToken(typeTok.Type) &&
+		if (p.alterTableModifyColumn || p.createTableColumns) && p.cur.Type == '(' && !isOracleTypeToken(typeTok.Type) &&
 			col.TypeName != nil && !col.TypeName.IsPercType && !col.TypeName.IsPercRowtype {
 			return nil, p.syntaxErrorAtTok(typeTok)
 		}
-	} else if p.alterTableAddColumn && p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur) && !p.isCreateTableColumnClauseStart() {
-		// ALTER TABLE ... ADD's datatype is the resolve phase's: a word
-		// Oracle does not reserve names the type it has no such type as
-		// (ORA-00902 at it), as DEFERRED does in ADD INITIALLY DEFERRED and
-		// INITIALLY in ADD DEFERRABLE INITIALLY. Oracle reserves IMMEDIATE
-		// (ORA-00904 at it), so ADD INITIALLY IMMEDIATE is no column. A size
-		// after such a word is ORA-03060 at it (ADD PRIORITY KEY(a)), which
-		// is a syntax error: only a type the server has takes one.
+	} else if (p.alterTableAddColumn ||
+		((p.createTableColumns || p.alterTableModifyColumn || p.alterTableAddList) && !isColumnPropertyKeyword(p.cur))) &&
+		p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur) && !p.isCreateTableColumnClauseStart() {
+		// ALTER TABLE ... ADD's and CREATE TABLE's datatype is the resolve
+		// phase's: a word Oracle does not reserve (and that does not start a
+		// column property) names a user-defined type, as DEFERRED does in ADD
+		// INITIALLY DEFERRED and VARRAY/NESTED/PARTITION do in CREATE TABLE
+		// column definitions. Oracle reserves IMMEDIATE (ORA-00904 at it), so
+		// ADD INITIALLY IMMEDIATE is no column. A size after such a word is
+		// ORA-03060 at it (ADD PRIORITY KEY(a)), which is a syntax error: only
+		// a type the server has takes one.
 		if p.peekNext().Type == '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -868,6 +877,25 @@ func isOracleTypeToken(tokenType int) bool {
 	}
 }
 
+// isColumnPropertyKeyword reports whether tok is a keyword that starts a column
+// property/constraint clause rather than a user-defined datatype name in a
+// CREATE TABLE column definition.
+func isColumnPropertyKeyword(tok Token) bool {
+	switch tok.Type {
+	case kwDEFAULT, kwAS, kwGENERATED, kwNOT, kwNULL, kwINVISIBLE, kwWITH,
+		kwCONSTRAINT, kwCONSTRAINTS, kwPRIMARY, kwUNIQUE, kwCHECK, kwREFERENCES,
+		kwDROP, kwALWAYS, kwIDENTITY:
+		return true
+	}
+	if tok.Type != tokQIDENT {
+		switch tok.Str {
+		case "SORT", "VISIBLE", "ENCRYPT", "DECRYPT", "COLLATE", "ANNOTATIONS", "SCOPE":
+			return true
+		}
+	}
+	return false
+}
+
 func columnDefHasProperties(col *nodes.ColumnDef) bool {
 	return (col.Annotations != nil && col.Annotations.Len() > 0) || col.Sort || col.Visible || col.Invisible || col.Default != nil ||
 		col.Identity != nil || col.Virtual != nil || col.NotNull || col.Null ||
@@ -910,6 +938,9 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					}
 					col.DefaultOnNullInsertOnly = true
 				}
+			}
+			if p.cur.Type == kwINSERT {
+				return p.syntaxErrorAtCur()
 			}
 			var parseErr501 error
 			col.Default, parseErr501 = p.parseExpr()
@@ -958,7 +989,6 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				return p.syntaxErrorAtCur()
 			}
 			if !always && !byDefault && p.peekNext().Type == '(' {
-				p.advance() // consume AS
 				return p.syntaxErrorAtCur()
 			}
 			if p.cur.Type == kwAS {
@@ -1501,6 +1531,7 @@ func (p *Parser) isIdentityOptionStart() bool {
 //	[ { CACHE integer | NOCACHE } ]
 //	[ { ORDER | NOORDER } ]
 func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
+	seen := map[string]bool{}
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
@@ -1540,6 +1571,10 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 				return err
 			}
 		case "NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER":
+			if seen[p.cur.Str] {
+				return p.syntaxErrorAtCur()
+			}
+			seen[p.cur.Str] = true
 			p.advance()
 		default:
 			return nil
@@ -1564,8 +1599,14 @@ func (p *Parser) parseIdentitySignedInteger() error {
 // 1, ORA-22890 for CONSTRAINT c SCOPE IS t and CONSTRAINT c WITH ROWID).
 func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
-	p.advance() // consume CONSTRAINT or CONSTRAINTS
+	constTok := p.advance() // consume CONSTRAINT or CONSTRAINTS
 
+	if p.cur.Type == kwNULL {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != tokQIDENT && isOracleSQLReservedKeyword(p.cur) {
+		return nil, p.syntaxErrorAtTok(constTok)
+	}
 	name, parseErr523 := p.parseIdentifier()
 	if parseErr523 != nil {
 		return nil, parseErr523
@@ -1580,7 +1621,7 @@ func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	}
 	if cc == nil {
 		if p.cur.Type != kwNULL && (p.cur.Type != kwNOT || p.peekNext().Type != kwNULL) {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtTok(constTok)
 		}
 		return nil, nil
 	}
@@ -1717,7 +1758,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		p.advance()
 		var // consume CONSTRAINT
 		parseErr529 error
-		tc.Name, parseErr529 = p.parseIdentifier()
+		tc.Name, parseErr529 = p.parseObjectNameIdentifier()
 		if parseErr529 != nil {
 			return nil, parseErr529
 		}
@@ -1765,10 +1806,10 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		p.advance()
 
 	case kwCHECK:
-		p.advance() // consume CHECK
+		checkTok := p.advance() // consume CHECK
 		tc.Type = nodes.CONSTRAINT_CHECK
 		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtTok(checkTok)
 		}
 		p.advance()
 		var parseErr532 error

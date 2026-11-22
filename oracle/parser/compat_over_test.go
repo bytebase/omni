@@ -47,7 +47,7 @@ func TestOverAcceptsRefused(t *testing.T) {
 		{"ALTER MATERIALIZED VIEW a SET PARTITIONING", 42},
 		// IF NOT EXISTS is the whole clause (ORA-11543 at the word where
 		// EXISTS belongs).
-		{"CREATE FUNCTION IF NOT a RETURN NUMBER IS BEGIN RETURN 1; END;", 23},
+		{"CREATE FUNCTION IF NOT a RETURN NUMBER IS BEGIN RETURN 1; END;", 16},
 		// A materialized view's inmemory_column_clause writes its columns
 		// first and then INMEMORY or NO INMEMORY (ORA-00922 where the query
 		// starts), and a materialized view takes one inmemory_table_clause,

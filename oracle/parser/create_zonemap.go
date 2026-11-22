@@ -43,15 +43,20 @@ func (p *Parser) parseZonemapInteger(v **int) error {
 func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMaterializedZonemapStmt, error) {
 	stmt := &nodes.CreateMaterializedZonemapStmt{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.cur
-		p.advance() // IF
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // EXISTS
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.cur
+			p.advance() // IF
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // EXISTS
+			stmt.IfNotExists = true
+		}
 	}
 	if !p.isCreateTableNameStart() {
 		return nil, p.syntaxErrorAtCur()

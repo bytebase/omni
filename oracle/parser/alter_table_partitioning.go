@@ -249,9 +249,22 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 			p.atOption(cmd.Options, start)
 			return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
 		}
+		var lastSubUpdateTok Token
+		subMethod := atMethodAny
 		for {
-			if err := p.parseATSubpartitionDesc(atMethodAny); err != nil {
+			subStartPos := p.pos()
+			beforeValues := p.cur
+			if err := p.parseATSubpartitionDesc(subMethod); err != nil {
 				return err
+			}
+			_ = beforeValues
+			if subMethod == atMethodAny && p.atLastSubpartitionMethod != atMethodAny {
+				subMethod = p.atLastSubpartitionMethod
+			}
+			if p.prev.Type == kwSUBPARTITION && p.cur.Type == kwUPDATE {
+				lastSubUpdateTok = p.cur
+			} else if p.pos() > subStartPos {
+				lastSubUpdateTok = Token{}
 			}
 			if p.cur.Type != ',' {
 				break
@@ -259,7 +272,16 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 			p.advance()
 		}
 		p.atOption(cmd.Options, start)
-		return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
+		if err := p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
+			if lastSubUpdateTok.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(lastSubUpdateTok)
+			}
+			return err
+		}
+		if lastSubUpdateTok.Type == kwUPDATE && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			return p.syntaxErrorAtTok(lastSubUpdateTok)
+		}
+		return nil
 	case p.atWord("COALESCE"):
 		// Oracle takes COALESCE alone as well, as it does at the top of
 		// ALTER TABLE for an index-organized table.
@@ -504,7 +526,7 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 			p.atOption(cmd.Options, start)
 		}
 		if err := p.parseATClauses(allowed, cmd.Options); err != nil {
-			if p.alterMview && !hasName && firstTokAfterPart.Type == kwUPDATE {
+			if !hasName && firstTokAfterPart.Type == kwUPDATE {
 				return p.syntaxErrorAtTok(firstTokAfterPart)
 			}
 			return err
@@ -512,6 +534,9 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		start := p.pos()
 		switch {
 		case p.cur.Type == '(':
+			if !hasName && p.pos() == afterNamePos && p.peekNext().Type != kwSUBPARTITION {
+				return p.syntaxErrorAtCur()
+			}
 			if err := p.parseATSubpartitionDescList(atMethodAny); err != nil {
 				return err
 			}
@@ -524,7 +549,7 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		if err := p.parseATClauses(atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
 			return err
 		}
-		if p.alterMview && p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
+		if p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
 			if hasName && p.pos() == afterNamePos {
 				return p.syntaxErrorAtTok(nameTok)
 			}
@@ -747,21 +772,27 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 	if into {
 		p.advance() // INTO
 		if p.cur.Type != '(' {
-			// Oracle reads the list without its parentheses, and the
-			// closing one left over at the end, after AT(values)
+			if !sub {
+				return p.syntaxErrorAtCur()
+			}
+			// Oracle reads the subpartition list without its parentheses, and
+			// the closing one left over at the end, after AT(values)
 			// (compat.tsv's SPLIT SUBPARTITION ... AT(1) INTO SUBPARTITION,
 			// SUBPARTITION) rows).
 			for {
-				if sub {
-					err = p.parseATSubpartitionSpec(nil)
-				} else {
-					err = p.parseATPartitionSpec(nil)
+				var had bool
+				values := &had
+				if !intoOnly {
+					values = nil
 				}
-				if err != nil {
+				if err = p.parseATSubpartitionSpec(values); err != nil {
 					return err
 				}
 				if p.cur.Type != ',' {
 					break
+				}
+				if intoOnly && !had {
+					return p.syntaxErrorAtCur()
 				}
 				p.advance()
 			}
@@ -825,10 +856,14 @@ func (p *Parser) parseATSplitNestedTablePart() error {
 	if err := p.atExpect(kwTABLE); err != nil {
 		return err
 	}
+	colTok := p.cur
 	if err := p.parseATName(); err != nil {
 		return err
 	}
 	if err := p.atExpect(kwINTO); err != nil {
+		if p.cur.Type == '(' {
+			return p.syntaxErrorAtTok(colTok)
+		}
 		return err
 	}
 	if err := p.atExpect('('); err != nil {

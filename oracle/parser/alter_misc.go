@@ -138,11 +138,12 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			}
 			// ALTER USECASE DOMAIN
 			if p.cur.Str == "USECASE" {
-				p.advance() // consume USECASE
+				usecaseTok := p.advance() // consume USECASE
 				if p.isIdentLike() && p.cur.Str == "DOMAIN" {
 					p.advance() // consume DOMAIN
 					return p.parseAlterDomainStmt(start, true)
 				}
+				return nil, p.syntaxErrorAtTok(usecaseTok)
 			}
 			// Check for DIMENSION and other identifier-based objects
 			adminStmt, err := p.parseAlterAdminObject(start)
@@ -269,7 +270,7 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) (nodes.StmtNode, 
 	var parseErr53 error
 
 	// Parse the synonym name.
-	stmt.Name, parseErr53 = p.parseObjectName()
+	stmt.Name, parseErr53 = p.parseReservedCheckedObjectName()
 	if parseErr53 !=
 
 		// { EDITIONABLE | NONEDITIONABLE | COMPILE }
@@ -422,7 +423,7 @@ func (p *Parser) parseAlterProcedureStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr92 error
 
-	stmt.Name, parseErr92 = p.parseObjectName()
+	stmt.Name, parseErr92 = p.parseReservedCheckedObjectName()
 	if parseErr92 !=
 
 		// Parse action
@@ -487,7 +488,7 @@ func (p *Parser) parseAlterFunctionStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr94 error
 
-	stmt.Name, parseErr94 = p.parseObjectName()
+	stmt.Name, parseErr94 = p.parseReservedCheckedObjectName()
 	if parseErr94 !=
 
 		// Parse action
@@ -554,7 +555,7 @@ func (p *Parser) parseAlterPackageStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr96 error
 
-	stmt.Name, parseErr96 = p.parseObjectName()
+	stmt.Name, parseErr96 = p.parseReservedCheckedObjectName()
 	if parseErr96 !=
 
 		// Parse action
@@ -645,7 +646,7 @@ func (p *Parser) parseAlterTriggerStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr98 error
 
-	stmt.Name, parseErr98 = p.parseObjectName()
+	stmt.Name, parseErr98 = p.parseReservedCheckedObjectName()
 	if parseErr98 !=
 
 		// Parse action
@@ -749,7 +750,7 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr101 error
 
-	stmt.Name, parseErr101 = p.parseObjectName()
+	stmt.Name, parseErr101 = p.parseReservedCheckedObjectName()
 	if parseErr101 !=
 
 		// Parse action

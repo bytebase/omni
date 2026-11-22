@@ -559,6 +559,9 @@ func (p *Parser) parseAuditPolicyUsers() (users, roles []string, err error) {
 		roles, err = p.parseAuditWordList()
 		return nil, roles, err
 	}
+	if p.cur.Type == kwWITH {
+		return nil, nil, p.syntaxErrorAtCur()
+	}
 	users, err = p.parseAuditWordList()
 	return users, nil, err
 }

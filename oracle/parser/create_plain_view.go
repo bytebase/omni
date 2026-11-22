@@ -244,8 +244,11 @@ func (p *Parser) isPlainViewInlineConstraintStart() bool {
 //	{ UNIQUE | PRIMARY KEY | REFERENCES [ schema. ] table [ ( column ) ] }
 //	[ RELY | NORELY ] DISABLE [ NOVALIDATE ]
 func (p *Parser) parsePlainViewInlineConstraint() error {
+	var constTok Token
+	hasConst := false
 	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
-		p.advance()
+		constTok = p.advance()
+		hasConst = true
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
@@ -278,6 +281,9 @@ func (p *Parser) parsePlainViewInlineConstraint() error {
 			}
 		}
 	default:
+		if hasConst {
+			return p.syntaxErrorAtTok(constTok)
+		}
 		return p.syntaxErrorAtCur()
 	}
 	return p.parseViewConstraintState()

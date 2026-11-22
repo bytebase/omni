@@ -161,15 +161,16 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	}
 
 	// IF NOT EXISTS (for FUNCTION, it comes after the FUNCTION keyword per BNF).
-	// Oracle answers ORA-11543, an incorrect IF NOT EXISTS clause, at the
-	// word where EXISTS should stand: CREATE FUNCTION IF NOT a RETURN NUMBER
-	// is refused at the a.
+	// Oracle answers ORA-11543, an incorrect IF NOT EXISTS clause, at the IF.
 	if !ifNotExists && p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.peekNext().Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
+			ifTok := p.advance() // consume IF
+			p.advance()          // consume NOT
 			if p.cur.Type != kwEXISTS {
-				return nil, p.syntaxErrorAtCur()
+				return nil, p.syntaxErrorAtTok(ifTok)
 			}
 			p.advance() // consume EXISTS
 			ifNotExists = true
@@ -675,7 +676,7 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	var parseErr466 error
 
 	// Package name
-	stmt.Name, parseErr466 = p.parseObjectName()
+	stmt.Name, parseErr466 = p.parseReservedCheckedObjectName()
 	if parseErr466 !=
 
 		// Optional SHARING = { METADATA | NONE }

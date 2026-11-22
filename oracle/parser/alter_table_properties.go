@@ -17,7 +17,7 @@ import (
 //	    GROUP log_group ( column [ NO LOG ] [, column [ NO LOG ] ]... ) [ ALWAYS ]
 //	supplemental_id_key_clause:
 //	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
-func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *nodes.List) error {
+func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *nodes.List, suppTok ...Token) error {
 	if err := p.atExpectWord("LOG"); err != nil {
 		return err
 	}
@@ -75,6 +75,9 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 			}
 		case p.cur.Type == kwGROUP:
 			p.advance()
+			if p.cur.Type == '(' && len(suppTok) > 0 {
+				return p.syntaxErrorAtTok(suppTok[0])
+			}
 			if err := p.parseATName(); err != nil {
 				return err
 			}
@@ -299,9 +302,9 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 			return err
 		}
 		if p.atWord("STORE") {
-			p.advance()
+			storeTok := p.advance()
 			if p.cur.Type != kwALL {
-				return p.syntaxErrorAtCur()
+				return p.syntaxErrorAtTok(storeTok)
 			}
 			if err := storeAllVarrays(); err != nil {
 				return err

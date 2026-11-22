@@ -351,6 +351,9 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 // parseDatabaseLinkName parses a database link name: a name, its domain
 // after dots, and a connection qualifier after @.
 func (p *Parser) parseDatabaseLinkName() (string, error) {
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return "", err
+	}
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return "", err
@@ -377,6 +380,9 @@ func (p *Parser) parseDatabaseLinkName() (string, error) {
 // takes the password as a name, quoted or not, and not as a string
 // (ORA-00988).
 func (p *Parser) parseDatabaseLinkUser() (string, string, error) {
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return "", "", err
+	}
 	user, err := p.parseIdentifier()
 	if err != nil {
 		return "", "", err

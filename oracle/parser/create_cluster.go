@@ -91,7 +91,7 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 		return nil, err
 	}
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		}
 	}
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
 	}

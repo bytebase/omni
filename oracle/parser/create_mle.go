@@ -259,9 +259,10 @@ func (p *Parser) parseMleUsingClause() (*nodes.DDLOption, error) {
 	switch {
 	case p.isKeywordStr("BFILE"):
 		p.advance() // consume BFILE
-		if err := p.expectCreateTableToken('('); err != nil {
-			return nil, err
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtTok(kindTok)
 		}
+		p.advance() // consume (
 		if !p.isCreateTableNameStart() {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -286,9 +287,10 @@ func (p *Parser) parseMleUsingClause() (*nodes.DDLOption, error) {
 		}, nil
 	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"):
 		p.advance() // consume CLOB or BLOB
-		if err := p.expectCreateTableToken('('); err != nil {
-			return nil, err
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtTok(kindTok)
 		}
+		p.advance() // consume (
 		if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 			return nil, p.syntaxErrorAtTok(kindTok)
 		}
