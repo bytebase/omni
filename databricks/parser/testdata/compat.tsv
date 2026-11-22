@@ -6655,3 +6655,19 @@ reject	reject	engine	suite:spark-astbuilder	CREATE FUNCTION f(x INT GENERATED AL
 reject	reject	engine	suite:spark-astbuilder	CREATE TEMP FUNCTION f(x INT GENERATED ALWAYS AS IDENTITY) RETURNS INT RETURN x
 accept	accept	engine	suite:spark-astbuilder	RESET foo:bar
 accept	accept	engine	suite:spark-astbuilder	RESET select
+accept	accept	engine	suite:spark-astbuilder	ALTER TABLE t CHANGE COLUMN `a.b` `a.b` INT
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t CHANGE COLUMN `a.b` b INT
+accept	accept	engine	suite:spark-astbuilder	ALTER TABLE t CHANGE COLUMN s.`a.b` `a.b` INT
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t REPLACE COLUMNS (a INT NOT NULL)
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t REPLACE COLUMNS (a INT FIRST)
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t REPLACE COLUMNS (s.a INT)
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t REPLACE COLUMNS (a INT DEFAULT 1)
+accept	accept	engine	suite:spark-astbuilder	ALTER TABLE t REPLACE COLUMNS (`a.b` INT, b STRING COMMENT 'ok')
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT DEFAULT ?)
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t ALTER COLUMN a SET DEFAULT :p
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (a STRING DEFAULT '?')
+accept	accept	engine	suite:spark-astbuilder	CREATE FUNCTION f(x INT DEFAULT ?) RETURNS INT RETURN x
+reject	reject	engine	suite:spark-astbuilder	DECLARE x INT DEFAULT ?
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet OPTIONS (path '/tmp/a') LOCATION '/tmp/b'
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet LOCATION '/tmp/b' OPTIONS ('PATH' = '/tmp/a')
+reject	reject	engine	suite:spark-astbuilder	REPLACE TABLE t (a INT) USING parquet OPTIONS (path '/tmp/a') LOCATION '/tmp/b'

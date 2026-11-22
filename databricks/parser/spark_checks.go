@@ -9,10 +9,11 @@ import (
 	_ "time/tzdata"
 )
 
-// isQualifiedIdent reports whether a parsed multipart identifier string
-// contains a qualification dot outside backtick-quoted segments (e.g.
-// `db.tbl` returns true, while “ `a.b` “ returns false).
-func isQualifiedIdent(s string) bool {
+// splitMultipartIdent splits a multipart identifier string on '.' outside
+// backtick-quoted segments (preserving escaped backticks).
+func splitMultipartIdent(s string) []string {
+	var parts []string
+	start := 0
 	inBacktick := false
 	for i := 0; i < len(s); i++ {
 		if s[i] == '`' {
@@ -22,10 +23,18 @@ func isQualifiedIdent(s string) bool {
 			}
 			inBacktick = !inBacktick
 		} else if s[i] == '.' && !inBacktick {
-			return true
+			parts = append(parts, s[start:i])
+			start = i + 1
 		}
 	}
-	return false
+	parts = append(parts, s[start:])
+	return parts
+}
+
+// isQualifiedIdent reports whether a parsed multipart identifier string
+// contains a qualification dot outside backtick-quoted segments.
+func isQualifiedIdent(s string) bool {
+	return len(splitMultipartIdent(s)) > 1
 }
 
 // exactIdentName unquotes a backtick-quoted identifier (unescaping “) while
@@ -227,7 +236,7 @@ var sparkICULocales = map[string]struct{}{
 // specifier, which Spark v4.0.5 rejects at parse time in both expression
 // COLLATE clauses and data type COLLATE clauses (UNSUPPORTED_FEATURE.TRIM_COLLATION).
 func isTrimSparkCollation(raw string) bool {
-	parts := strings.Split(raw, ".")
+	parts := splitMultipartIdent(raw)
 	last := strings.ToUpper(exactIdentName(parts[len(parts)-1]))
 	return last == "TRIM" || last == "RTRIM" ||
 		strings.HasSuffix(last, "_TRIM") || strings.HasSuffix(last, "_RTRIM")
@@ -237,7 +246,7 @@ func isTrimSparkCollation(raw string) bool {
 // SYSTEM.BUILTIN.) against Apache Spark 4.0.5's CollationFactory, rejecting
 // unknown names and unsupported TRIM/RTRIM collations.
 func isValidSparkCollation(raw string) bool {
-	parts := strings.Split(raw, ".")
+	parts := splitMultipartIdent(raw)
 	for i := range parts {
 		parts[i] = strings.ToUpper(exactIdentName(parts[i]))
 	}

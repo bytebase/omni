@@ -1,7 +1,5 @@
 package parser
 
-import "strings"
-
 func (p *Parser) parseCreateStatement() (Statement, error) {
 	start := p.cur().Start
 	cp := p.save()
@@ -240,6 +238,7 @@ func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 	var (
 		hasOptions            bool
+		hasOptionsPath        bool
 		hasPartitionedBy      bool
 		hasTypedPartitionCols bool
 		hasClusterBy          bool
@@ -261,8 +260,12 @@ func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 			}
 			hasOptions = true
 			p.advance()
-			if err := p.parseExpressionPropertyList(); err != nil {
+			optPath, err := p.parseExpressionPropertyList()
+			if err != nil {
 				return false, err
+			}
+			if optPath {
+				hasOptionsPath = true
 			}
 		case kwPARTITIONED:
 			if hasPartitionedBy {
@@ -370,6 +373,9 @@ func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 				return false, err
 			}
 		default:
+			if hasOptionsPath && hasLocation {
+				return false, p.errorf("duplicated table paths: LOCATION and OPTIONS path cannot both be specified")
+			}
 			if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
 				return false, p.errorf("%s", msg)
 			}
@@ -1265,11 +1271,9 @@ func (p *Parser) parseHiveChangeColumnBody() error {
 		return err
 	}
 	// Spark v4.0.5 AstBuilder.visitHiveChangeColumn rejects column renaming
-	// (newCol must match the leaf name of oldCol).
-	leaf := oldCol
-	if idx := strings.LastIndexByte(oldCol, '.'); idx >= 0 {
-		leaf = oldCol[idx+1:]
-	}
+	// (newCol must match the leaf name of oldCol, ignoring dots inside backticks).
+	parts := splitMultipartIdent(oldCol)
+	leaf := parts[len(parts)-1]
 	if exactIdentName(leaf) != exactIdentName(newCol) {
 		return p.errorf("ALTER TABLE CHANGE COLUMN cannot rename column %q to %q", oldCol, newCol)
 	}
@@ -1301,8 +1305,27 @@ func (p *Parser) parseHiveReplaceColumnsTail() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
-	if err := p.parseQualifiedColTypeWithPositionList(); err != nil {
-		return err
+	// Spark v4.0.5 AstBuilder.visitHiveReplaceColumns rejects nested column
+	// names, NOT NULL, DEFAULT, and column positions (FIRST/AFTER), accepting
+	// only simple column name + dataType + optional COMMENT.
+	for {
+		if _, err := p.parseErrorCapturingIdentifier(); err != nil {
+			return err
+		}
+		if p.cur().Kind == tokDot {
+			return p.errorf("nested column names are not supported in REPLACE COLUMNS")
+		}
+		if err := p.parseDataType(); err != nil {
+			return err
+		}
+		if p.cur().Kind == kwCOMMENT {
+			if err := p.parseCommentSpec(); err != nil {
+				return err
+			}
+		}
+		if !p.match(tokComma) {
+			break
+		}
 	}
 	_, err := p.expect(tokRParen)
 	return err
@@ -1443,16 +1466,23 @@ func (p *Parser) parseCreateVariableBody() (string, error) {
 	if p.isStatementEnd() {
 		return "", p.errorf("variable %q requires a data type or DEFAULT expression", target)
 	}
+	parseVarInit := func() error {
+		prevDisallow := p.disallowParamMarkers
+		p.disallowParamMarkers = true
+		err := p.parseExpression()
+		p.disallowParamMarkers = prevDisallow
+		return err
+	}
 	if p.cur().Kind == tokEq {
 		p.advance()
-		if err := p.parseExpression(); err != nil {
+		if err := parseVarInit(); err != nil {
 			return "", err
 		}
 		return target, nil
 	}
 	if p.cur().Kind == kwDEFAULT && !p.isStatementEndAt(1) {
 		p.advance()
-		if err := p.parseExpression(); err != nil {
+		if err := parseVarInit(); err != nil {
 			return "", err
 		}
 		return target, nil
@@ -1461,7 +1491,7 @@ func (p *Parser) parseCreateVariableBody() (string, error) {
 		return "", err
 	}
 	if p.match(kwDEFAULT, tokEq) {
-		if err := p.parseExpression(); err != nil {
+		if err := parseVarInit(); err != nil {
 			return "", err
 		}
 	}

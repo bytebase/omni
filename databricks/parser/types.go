@@ -671,6 +671,13 @@ func (p *Parser) parseDefaultExpression() error {
 	if _, err := p.expect(kwDEFAULT); err != nil {
 		return err
 	}
+	if !p.relaxFunctionDataTypes {
+		prevDisallow := p.disallowParamMarkers
+		p.disallowParamMarkers = true
+		err := p.parseExpression()
+		p.disallowParamMarkers = prevDisallow
+		return err
+	}
 	return p.parseExpression()
 }
 
@@ -996,7 +1003,7 @@ func (p *Parser) parsePropertyKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	parts := strings.Split(raw, ".")
+	parts := splitMultipartIdent(raw)
 	for i := range parts {
 		parts[i] = exactIdentName(parts[i])
 	}
@@ -1013,33 +1020,38 @@ func (p *Parser) parsePropertyValue() error {
 	}
 }
 
-func (p *Parser) parseExpressionPropertyList() error {
+func (p *Parser) parseExpressionPropertyList() (hasPath bool, err error) {
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return false, err
 	}
-	if err := p.parseExpressionProperty(); err != nil {
-		return err
-	}
-	for p.match(tokComma) {
-		if err := p.parseExpressionProperty(); err != nil {
-			return err
+	for {
+		key, err := p.parseExpressionProperty()
+		if err != nil {
+			return false, err
+		}
+		if strings.EqualFold(key, "path") {
+			hasPath = true
+		}
+		if !p.match(tokComma) {
+			break
 		}
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	_, err = p.expect(tokRParen)
+	return hasPath, err
 }
 
-func (p *Parser) parseExpressionProperty() error {
-	if _, err := p.parsePropertyKey(); err != nil {
-		return err
+func (p *Parser) parseExpressionProperty() (string, error) {
+	key, err := p.parsePropertyKey()
+	if err != nil {
+		return "", err
 	}
 	if p.match(tokEq) {
-		return p.parseExpression()
+		return key, p.parseExpression()
 	}
 	if p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
-		return p.errorf("a value must be specified for OPTIONS property key")
+		return "", p.errorf("a value must be specified for OPTIONS property key")
 	}
-	return p.parseExpression()
+	return key, p.parseExpression()
 }
 
 func (p *Parser) parsePartitionSpec(requireValues bool) error {

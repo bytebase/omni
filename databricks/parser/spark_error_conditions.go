@@ -6,7 +6,7 @@ import "strings"
 // 1664 built-in error classes or sub-classes in Apache Spark 4.0.5
 // (error/error-conditions.json), case-insensitively.
 func isBuiltinSparkErrorCondition(raw string) bool {
-	parts := strings.Split(raw, ".")
+	parts := splitMultipartIdent(raw)
 	for i := range parts {
 		parts[i] = exactIdentName(parts[i])
 	}
