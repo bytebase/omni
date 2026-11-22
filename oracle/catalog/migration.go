@@ -553,7 +553,36 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		graph.AddEdge(pkgID, dependentID)
 	}
 	synonymMap := make(map[string]*SynonymDiff)
-	addSynonymDep := func(synDiff *SynonymDiff, dependentID string) {
+	findTargetSynonymDiff := func(synDiff *SynonymDiff) (*SynonymDiff, bool) {
+		syn := synDiff.NewSynonym
+		if syn == nil || syn.GetTargetDbLink() != "" || syn.GetTargetName() == "" {
+			return nil, false
+		}
+		targetSchema := syn.GetTargetSchema()
+		if targetSchema == "" {
+			targetSchema = synDiff.SchemaName
+		}
+		targetName := syn.GetTargetName()
+		for _, candidate := range diff.SynonymChanges {
+			if (candidate.Action != DiffActionCreate && candidate.Action != DiffActionAlter) || candidate == synDiff {
+				continue
+			}
+			if !candidate.Public && candidate.SchemaName == targetSchema && candidate.SynonymName == targetName {
+				return candidate, true
+			}
+		}
+		for _, candidate := range diff.SynonymChanges {
+			if (candidate.Action != DiffActionCreate && candidate.Action != DiffActionAlter) || candidate == synDiff {
+				continue
+			}
+			if candidate.Public && candidate.SynonymName == targetName {
+				return candidate, true
+			}
+		}
+		return nil, false
+	}
+	var addSynonymDep func(synDiff *SynonymDiff, dependentID string)
+	addSynonymDep = func(synDiff *SynonymDiff, dependentID string) {
 		prefix := "syn:"
 		if synDiff.Public {
 			prefix = "pubsyn:"
@@ -572,6 +601,8 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					graph.AddEdge(targetID, synID)
 				} else if targetIDNoSchema := getMigrationObjectID("", syn.GetTargetName()); allObjects[targetIDNoSchema] {
 					graph.AddEdge(targetIDNoSchema, synID)
+				} else if targetSyn, ok := findTargetSynonymDiff(synDiff); ok {
+					addSynonymDep(targetSyn, synID)
 				}
 			}
 		}
@@ -894,6 +925,17 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				writtenPackages[pkgDiff] = true
 			}
 		}
+		var writeSynonymDiffChain func(synDiff *SynonymDiff)
+		writeSynonymDiffChain = func(synDiff *SynonymDiff) {
+			if writtenSynonyms[synDiff] {
+				return
+			}
+			writtenSynonyms[synDiff] = true
+			if targetSyn, ok := findTargetSynonymDiff(synDiff); ok {
+				writeSynonymDiffChain(targetSyn)
+			}
+			writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+		}
 		for _, synDiff := range diff.SynonymChanges {
 			if (synDiff.Action != DiffActionCreate && synDiff.Action != DiffActionAlter) || writtenSynonyms[synDiff] {
 				continue
@@ -920,8 +962,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				}
 			}
 			if referenced {
-				writeSynonymDiff(buf, diff.DatabaseName, synDiff)
-				writtenSynonyms[synDiff] = true
+				writeSynonymDiffChain(synDiff)
 			}
 		}
 

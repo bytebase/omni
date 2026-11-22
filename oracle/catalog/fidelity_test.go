@@ -848,5 +848,40 @@ CREATE VIEW V AS SELECT A FROM S;
 		syncedDef, err := DatabaseDefinition(synced.Metadata())
 		require.NoError(t, err)
 		require.True(t, strings.Index(syncedDef, `CREATE OR REPLACE SYNONYM "S" FOR "T";`) < strings.Index(syncedDef, `CREATE VIEW "V"`), syncedDef)
+
+		// Transitive synonym chain S1 -> S2 -> T must order T -> S2 -> S1 -> V in both definition and migration
+		cChain, err := LoadSQL(`
+CREATE TABLE T (A NUMBER);
+CREATE SYNONYM S2 FOR T;
+CREATE SYNONYM S1 FOR S2;
+CREATE VIEW V AS SELECT A FROM S1;
+`)
+		require.NoError(t, err)
+		chainDef, err := DatabaseDefinition(cChain.Metadata())
+		require.NoError(t, err)
+		cTblPos := strings.Index(chainDef, `CREATE TABLE "T"`)
+		cS2Pos := strings.Index(chainDef, `CREATE OR REPLACE SYNONYM "S2" FOR "T";`)
+		cS1Pos := strings.Index(chainDef, `CREATE OR REPLACE SYNONYM "S1" FOR "S2";`)
+		cVPos := strings.Index(chainDef, `CREATE VIEW "V"`)
+		require.True(t, cTblPos >= 0 && cS2Pos > cTblPos && cS1Pos > cS2Pos && cVPos > cS1Pos, "T -> S2 -> S1 -> V required in definition:\n%s", chainDef)
+
+		chainMig := GenerateMigration(New(), cChain, nil).SQL()
+		mTblPos := strings.Index(chainMig, `CREATE TABLE "T"`)
+		mS2Pos := strings.Index(chainMig, `CREATE OR REPLACE SYNONYM "S2" FOR "T";`)
+		mS1Pos := strings.Index(chainMig, `CREATE OR REPLACE SYNONYM "S1" FOR "S2";`)
+		mVPos := strings.Index(chainMig, `CREATE VIEW "V"`)
+		require.True(t, mTblPos >= 0 && mS2Pos > mTblPos && mS1Pos > mS2Pos && mVPos > mS1Pos, "T -> S2 -> S1 -> V required in migration:\n%s", chainMig)
+
+		// Cyclic synonym chain must terminate without infinite recursion
+		cCycle, err := LoadSQL(`
+CREATE SYNONYM S1 FOR S2;
+CREATE SYNONYM S2 FOR S1;
+CREATE VIEW V AS SELECT A FROM S1;
+`)
+		require.NoError(t, err)
+		cycleDef, err := DatabaseDefinition(cCycle.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, cycleDef, `CREATE OR REPLACE SYNONYM "S1" FOR "S2";`)
+		require.Contains(t, cycleDef, `CREATE OR REPLACE SYNONYM "S2" FOR "S1";`)
 	})
 }

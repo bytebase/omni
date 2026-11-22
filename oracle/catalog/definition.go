@@ -126,7 +126,31 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		allSyns = append(allSyns, synonymEntry{syn: syn, public: true})
 	}
 	synonymMap := make(map[string]synonymEntry)
-	addSynonymDep := func(entry synonymEntry, dependentID string) {
+	findTargetSynonym := func(entry synonymEntry) (synonymEntry, bool) {
+		if entry.syn.GetTargetDbLink() != "" || entry.syn.GetTargetName() == "" {
+			return synonymEntry{}, false
+		}
+		targetSchema := entry.syn.GetTargetSchema()
+		if targetSchema == "" {
+			targetSchema = databaseName
+		}
+		targetName := entry.syn.GetTargetName()
+		if targetSchema == databaseName {
+			for _, candidate := range allSyns {
+				if !candidate.public && candidate.syn != entry.syn && candidate.syn.GetName() == targetName {
+					return candidate, true
+				}
+			}
+		}
+		for _, candidate := range allSyns {
+			if candidate.public && candidate.syn != entry.syn && candidate.syn.GetName() == targetName {
+				return candidate, true
+			}
+		}
+		return synonymEntry{}, false
+	}
+	var addSynonymDep func(entry synonymEntry, dependentID string)
+	addSynonymDep = func(entry synonymEntry, dependentID string) {
 		prefix := "syn:"
 		if entry.public {
 			prefix = "pubsyn:"
@@ -147,6 +171,8 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 					graph.AddEdge(targetID, synID)
 				} else if _, ok := materializedViewMap[targetID]; ok {
 					graph.AddEdge(targetID, synID)
+				} else if targetEntry, ok := findTargetSynonym(entry); ok {
+					addSynonymDep(targetEntry, synID)
 				}
 			}
 		}
@@ -262,6 +288,19 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// A view that calls a function or package function or queries a synonym
 		// needs those prerequisites before the view.
 		prewrittenSynonyms := map[*metadatapb.SynonymMetadata]bool{}
+		var writeSynonymChain func(entry synonymEntry) error
+		writeSynonymChain = func(entry synonymEntry) error {
+			if prewrittenSynonyms[entry.syn] {
+				return nil
+			}
+			prewrittenSynonyms[entry.syn] = true
+			if targetEntry, ok := findTargetSynonym(entry); ok {
+				if err := writeSynonymChain(targetEntry); err != nil {
+					return err
+				}
+			}
+			return writeSynonym(&buf, entry.syn, databaseName, entry.public)
+		}
 		checkView := func(definition string, deps []*metadatapb.DependencyColumn) error {
 			for _, function := range schema.Functions {
 				if !prewrittenFunctions[function.Name] && expressionReferencesFunction(definition, function.Name) {
@@ -281,10 +320,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			}
 			for _, entry := range allSyns {
 				if !prewrittenSynonyms[entry.syn] && viewReferencesSynonym(definition, deps, entry.syn.GetName()) {
-					if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+					if err := writeSynonymChain(entry); err != nil {
 						return err
 					}
-					prewrittenSynonyms[entry.syn] = true
 				}
 			}
 			return nil
