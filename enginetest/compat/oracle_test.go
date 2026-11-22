@@ -466,9 +466,9 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"CREATE SEQUENCE s SCALE EXTEND SHARD": {2511, 0, "", nil},
 			"CREATE SEQUENCE s SCALE EXTEND ORDER": parsed,
 		}, Accept},
-		{"ALTER TYPE ADD ATTRIBUTE intra-statement duplicate rejected on ORA-22324 PLS-00410", "ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)", map[string]*answer{
+		{"ALTER TYPE ADD ATTRIBUTE intra-statement duplicate rejected on ORA-22324 PLS-00716", "ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)", map[string]*answer{
 			"ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)": {4043, 0, "", nil},
-			"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a NUMBER)": {22324, 0, "PLS-00410", nil},
+			"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a NUMBER)": {22324, 0, "PLS-00716", nil},
 		}, Reject},
 		{"ALTER TYPE ADD ATTRIBUTE fixture collision accepted on ORA-22324 PLS-00410", "ALTER TYPE a ADD ATTRIBUTE b NUMBER", map[string]*answer{
 			"ALTER TYPE a ADD ATTRIBUTE b NUMBER": {4043, 0, "", nil},
@@ -692,28 +692,6 @@ func TestHasUnclosedParen(t *testing.T) {
 	} {
 		if got := hasUnclosedParen(tc.sql); got != tc.want {
 			t.Errorf("hasUnclosedParen(%q) = %v, want %v", tc.sql, got, tc.want)
-		}
-	}
-}
-
-func TestHasDuplicateAlterTypeAttr(t *testing.T) {
-	for _, tc := range []struct {
-		sql  string
-		want bool
-	}{
-		{"ALTER TYPE y ADD ATTRIBUTE b NUMBER", false},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, b VARCHAR2(10))", false},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER(10, 2), b VARCHAR2(10))", false},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, \"a\" NUMBER)", false},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a NUMBER)", true},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a OBJECT)", true},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER(10, 2), A VARCHAR2(10))", true},
-		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, \"A\" NUMBER)", true},
-		{"ALTER TYPE y ADD ATTRIBUTE a NUMBER, ADD ATTRIBUTE a VARCHAR2(10)", true},
-		{"ALTER TYPE y MODIFY ATTRIBUTE(a NUMBER, a VARCHAR2(10))", true},
-	} {
-		if got := hasDuplicateAlterTypeAttr(tc.sql); got != tc.want {
-			t.Errorf("hasDuplicateAlterTypeAttr(%q) = %v, want %v", tc.sql, got, tc.want)
 		}
 	}
 }

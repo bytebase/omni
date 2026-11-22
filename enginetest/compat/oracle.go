@@ -29,8 +29,8 @@ import (
 // SQL statement inside the PL/SQL ("PL/SQL: ORA-00942", whose code
 // USER_ERRORS keeps only in its text): for ORA-24344, a unit created with
 // compilation errors, those USER_ERRORS lists (PLS-00000 is "Statement
-// ignored", which follows another), and for ORA-06550, an
-// anonymous block that did not compile, those of its error stack.
+// ignored", which follows another), and for ORA-06550 / ORA-22324, an
+// anonymous block or ALTER TYPE that did not compile, those of its error stack.
 const OracleParse = `DECLARE
   c INTEGER := DBMS_SQL.OPEN_CURSOR;
   code PLS_INTEGER := 0;
@@ -50,18 +50,18 @@ BEGIN
   END;
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
-  IF code IN (24344, 22324) THEN
+  IF code = 24344 THEN
     SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, '^PL/SQL: (ORA-[0-9]{5})', 1, 1, NULL, 1)
                         ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
              WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
-  ELSIF code = 6550 THEN
+  ELSIF code IN (6550, 22324) THEN
     FOR i IN 1 .. REGEXP_COUNT(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, 'm') LOOP
       compile := compile || CASE WHEN i > 1 THEN ',' END ||
         REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
     END LOOP;
   END IF;
-  IF code IN (0, 24344, 22324) AND fn NOT IN (` + oracleParsedOnly + `) THEN
+  IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
     FOR pass IN 1 .. 3 LOOP
       FOR o IN (SELECT object_name, object_type FROM user_objects
                  WHERE object_type NOT IN ('LOB', 'LOB PARTITION', 'LOB SUBPARTITION', 'TABLE PARTITION',
@@ -249,7 +249,6 @@ var (
 	reStandInSeqKeep                  = regexp.MustCompile(`(?i)\b(?:NO)?KEEP\b`)
 	reStandInSeqExtend                = regexp.MustCompile(`(?i)^\s*(?:NO)?EXTEND\b`)
 	reStandInSeqAnyExtend             = regexp.MustCompile(`(?i)\b(?:NO)?EXTEND\b`)
-	reAlterTypeAttrClause             = regexp.MustCompile(`(?i)\b(?:ADD|MODIFY|DROP)\s+ATTRIBUTE\b`)
 	reStandInIdentifiedGlobally       = regexp.MustCompile(`(?i)^\s*(CREATE|ALTER)\s+(ROLE|USER)\s+(\S+)\s+IDENTIFIED\s+(GLOBALLY)\b`)
 	reStandInPDBSnapshot              = regexp.MustCompile(`(?i)^\s*ALTER\s+PLUGGABLE\s+DATABASE\s+(SNAPSHOT)\b`)
 	reStandInNumberCollate            = regexp.MustCompile(`(?i)\b(NUMBER)\s+COLLATE\b`)
@@ -804,130 +803,6 @@ func hasUnclosedParen(statement string) bool {
 	return depth > 0
 }
 
-// hasDuplicateAlterTypeAttr reports whether statement names the same attribute
-// more than once across its ADD/MODIFY/DROP ATTRIBUTE clauses. Used under judge
-// revision 5 to distinguish intra-statement duplicate-attribute errors from
-// fixture-dependent PLS-00410 collisions on ALTER TYPE (ORA-22324).
-func hasDuplicateAlterTypeAttr(statement string) bool {
-	clauses := reAlterTypeAttrClause.FindAllStringIndex(statement, -1)
-	if len(clauses) == 0 {
-		return false
-	}
-	skipWS := func(i int) int {
-		for i < len(statement) && (statement[i] == ' ' || statement[i] == '\t' || statement[i] == '\n' || statement[i] == '\r') {
-			i++
-		}
-		return i
-	}
-	readIdent := func(i int) (string, int, bool) {
-		i = skipWS(i)
-		if i >= len(statement) {
-			return "", i, false
-		}
-		if statement[i] == '"' {
-			i++
-			var b strings.Builder
-			for i < len(statement) {
-				if statement[i] == '"' {
-					if i+1 < len(statement) && statement[i+1] == '"' {
-						b.WriteByte('"')
-						i += 2
-						continue
-					}
-					return b.String(), i + 1, true
-				}
-				b.WriteByte(statement[i])
-				i++
-			}
-			return "", i, false
-		}
-		c := statement[i]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
-			return "", i, false
-		}
-		start := i
-		for i < len(statement) && isWordByte(statement[i]) {
-			i++
-		}
-		return strings.ToUpper(statement[start:i]), i, true
-	}
-	seen := make(map[string]bool)
-	for _, cl := range clauses {
-		i := skipWS(cl[1])
-		if i >= len(statement) {
-			continue
-		}
-		if statement[i] != '(' {
-			if name, _, ok := readIdent(i); ok {
-				if seen[name] {
-					return true
-				}
-				seen[name] = true
-			}
-			continue
-		}
-		i++ // consume '('
-		if name, next, ok := readIdent(i); ok {
-			if seen[name] {
-				return true
-			}
-			seen[name] = true
-			i = next
-		}
-		depth := 1
-		for i < len(statement) && depth > 0 {
-			switch statement[i] {
-			case '\'':
-				i++
-				for i < len(statement) {
-					if statement[i] == '\'' {
-						if i+1 < len(statement) && statement[i+1] == '\'' {
-							i += 2
-							continue
-						}
-						i++
-						break
-					}
-					i++
-				}
-			case '"':
-				i++
-				for i < len(statement) {
-					if statement[i] == '"' {
-						if i+1 < len(statement) && statement[i+1] == '"' {
-							i += 2
-							continue
-						}
-						i++
-						break
-					}
-					i++
-				}
-			case '(':
-				depth++
-				i++
-			case ')':
-				depth--
-				i++
-			case ',':
-				i++
-				if depth == 1 {
-					if name, next, ok := readIdent(i); ok {
-						if seen[name] {
-							return true
-						}
-						seen[name] = true
-						i = next
-					}
-				}
-			default:
-				i++
-			}
-		}
-	}
-	return false
-}
-
 // oracleKindChecked are errors Oracle raises at byte 0, where no token
 // stands, when the statement asks of its object what that kind of object
 // does not take: ORA-01735 on ALTER TABLE, as OVERFLOW ALLOCATE EXTENT on
@@ -984,13 +859,15 @@ var oracleCheckedAtEndRemovedRev5 = map[int]bool{
 }
 
 // oracleCompileStructuralRev5 are PL/SQL compiler structural errors (beyond
-// PLS-001xx) rejected by omni and pinned in suite:reference, with 0 hits on
-// any accepted PL/SQL row in compat.tsv. PLS-00306 is handled separately in
-// oracleCompileSyntax only when an inquiry directive ($$name =>) appears as a
-// named argument so ordinary signature-mismatch calls stay accepted.
+// PLS-001xx) rejected by omni and pinned in suite:reference / ALTER TYPE
+// (including PLS-00716 for duplicate attribute/method in a single ALTER TYPE
+// statement), with 0 hits on any accepted PL/SQL or ALTER TYPE row in
+// compat.tsv. PLS-00306 is handled separately in oracleCompileSyntax only when
+// an inquiry directive ($$name =>) appears as a named argument so ordinary
+// signature-mismatch calls stay accepted.
 var oracleCompileStructuralRev5 = map[int]bool{
 	312: true, 431: true, 505: true, 550: true,
-	572: true, 589: true, 710: true, 712: true, 856: true, 999: true,
+	572: true, 589: true, 710: true, 712: true, 716: true, 856: true, 999: true,
 }
 
 // oracleStatement are the errors of the parsers Oracle keeps for its
@@ -1232,17 +1109,15 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		return "", err
 	}
 	if rev5 && e.code == 22324 {
-		// ORA-22324 reports compilation errors on ALTER TYPE (populated from
-		// USER_ERRORS in OracleParse). Reject only on compiler syntax/structural
-		// errors or an intra-statement duplicate attribute under PLS-00410, so
-		// fixture-dependent semantic collisions (such as ADD ATTRIBUTE b NUMBER
-		// colliding with fixture y's attribute b) or undeclared types (PLS-00201)
-		// remain accepted.
+		// ORA-22324 reports compilation errors on ALTER TYPE, with PLS-* codes
+		// extracted from DBMS_UTILITY.FORMAT_ERROR_STACK in OracleParse. Reject
+		// only on compiler syntax/structural errors (such as PLS-00103 or
+		// PLS-00716 for a duplicate attribute/method within the ALTER TYPE
+		// statement itself), so fixture-dependent semantic collisions (such as
+		// ADD ATTRIBUTE b NUMBER colliding with fixture y's attribute b under
+		// PLS-00410) or undeclared types (PLS-00201) remain accepted.
 		for _, c := range e.compile {
 			if oracleCompileSyntax(c, statement, rev5) {
-				return Reject, nil
-			}
-			if c == "PLS-00410" && hasDuplicateAlterTypeAttr(statement) {
 				return Reject, nil
 			}
 		}
