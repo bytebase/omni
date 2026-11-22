@@ -270,7 +270,7 @@ func (p *parser) parseExprWithExplicitAlias() (Expr, error) {
 		return nil, err
 	}
 	if p.match(KwAs) {
-		alias, err := p.parseIdentifier()
+		alias, err := p.parseAnyWordIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -285,7 +285,7 @@ func (p *parser) parseExprWithExplicitAlias() (Expr, error) {
 
 func (p *parser) parseOptionalAlias(expr Expr) (Expr, error) {
 	if p.match(KwAs) {
-		alias, err := p.parseIdentifier()
+		alias, err := p.parseAnyWordIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -445,6 +445,9 @@ func (p *parser) parseExprPrec(minPrec int) (Expr, error) {
 				continue
 			}
 			if tok.Type == KwIs {
+				if !p.isIsPredicateStart() {
+					break
+				}
 				p.advance()
 				not := p.match(KwNot)
 				if p.cur().Type == KwNull {
@@ -592,6 +595,22 @@ func (p *parser) parseExprPrec(minPrec int) (Expr, error) {
 	}
 
 	return left, nil
+}
+
+// isIsPredicateStart reports whether the current IS keyword begins a ClickHouse
+// IS [NOT] {NULL|TRUE|FALSE|DISTINCT FROM} predicate. When it does not (e.g.
+// `SELECT 1e1 IS`), the expression stops so the caller may consume IS as a bare
+// alias, matching ClickHouse's expression parser.
+func (p *parser) isIsPredicateStart() bool {
+	next := p.peek(1)
+	switch next.Type {
+	case KwNull, KwTrue, KwFalse, KwNot:
+		return true
+	case KwDistinct:
+		return p.peek(2).Type == KwFrom
+	default:
+		return false
+	}
 }
 
 func isSimpleDottedInts(raw string) bool {
@@ -1272,7 +1291,7 @@ func (p *parser) parseFuncArg() (Expr, error) {
 	// ClickHouse allows explicit `AS alias` inside function calls (e.g. `f(1 AS a)`),
 	// but rejects bare implicit aliases (e.g. `f(1 a)`).
 	if p.match(KwAs) {
-		alias, err := p.parseIdentifier()
+		alias, err := p.parseAnyWordIdent()
 		if err != nil {
 			return nil, err
 		}

@@ -197,6 +197,28 @@ func TestRoutines_StructureCreateFunction(t *testing.T) {
 			t.Errorf("body statements = %d, want 2", len(body.Body))
 		}
 	})
+
+	t.Run("python_dollar_string_body", func(t *testing.T) {
+		sql := "CREATE FUNCTION f(x integer) RETURNS integer LANGUAGE PYTHON WITH (handler = 'twice') AS $$\ndef twice(a):\n    return a * 2;\n$$"
+		s := parseOneStmt(t, sql).(*CreateFunctionStmt)
+		if s.Spec.Body != nil {
+			t.Errorf("Body = %T, want nil for AS $$...$$ definition", s.Spec.Body)
+		}
+		if s.Spec.Definition == nil {
+			t.Fatalf("Definition = nil, want *FunctionDefinition")
+		}
+		if want := "\ndef twice(a):\n    return a * 2;\n"; s.Spec.Definition.Body != want {
+			t.Errorf("Definition.Body = %q, want %q", s.Spec.Definition.Body, want)
+		}
+	})
+
+	t.Run("nonreserved_returns_parameter_name", func(t *testing.T) {
+		s := parseOneStmt(t, "CREATE FUNCTION f(returns bigint) RETURNS bigint RETURN returns").(*CreateFunctionStmt)
+		ps := s.Spec.Declaration.Parameters
+		if len(ps) != 1 || ps[0].Name == nil || ps[0].Name.Normalize() != "returns" {
+			t.Errorf("param = %+v, want name 'returns'", ps)
+		}
+	})
 }
 
 func TestRoutines_StructureDropFunction(t *testing.T) {
@@ -278,6 +300,28 @@ func TestRoutines_StructureWithFunction(t *testing.T) {
 		}
 		if s.Query == nil || s.Query.With == nil {
 			t.Errorf("trailing query CTE = nil, want a WITH clause")
+		}
+	})
+
+	t.Run("inline_python_dollar_string", func(t *testing.T) {
+		s := parseOneStmt(t, "WITH FUNCTION f(x int) RETURNS int LANGUAGE PYTHON WITH (handler = 'f') AS $$def f(x): return x$$ SELECT f(1)").(*WithFunctionStmt)
+		if len(s.Functions) != 1 || s.Functions[0].Definition == nil {
+			t.Fatalf("functions = %+v, want 1 function with Definition", s.Functions)
+		}
+		if s.Functions[0].Definition.Body != "def f(x): return x" {
+			t.Errorf("Definition.Body = %q", s.Functions[0].Definition.Body)
+		}
+	})
+
+	t.Run("cte_named_function", func(t *testing.T) {
+		for _, sql := range []string{
+			"WITH function AS (SELECT 1 AS x) SELECT x FROM function",
+			"WITH function(x) AS (SELECT 1) SELECT x FROM function",
+			"SELECT * FROM (WITH function AS (SELECT 1 AS x) SELECT x FROM function) t",
+		} {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q) = %v, want nil", sql, err)
+			}
 		}
 	})
 }

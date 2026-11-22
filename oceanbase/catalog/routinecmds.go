@@ -60,6 +60,12 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	for _, ch := range stmt.Characteristics {
 		chars[ch.Name] = ch.Value
 	}
+	// OceanBase 4.3.5.6's PL compiler tags stored procedures whose body
+	// executes transaction control (COMMIT / ROLLBACK) as MODIFIES SQL DATA
+	// regardless of any declared DATA ACCESS characteristic.
+	if stmt.IsProcedure && routineBodyHasTxnControl(stmt.Body) {
+		chars["DATA ACCESS"] = "MODIFIES SQL DATA"
+	}
 
 	routine := &Routine{
 		Name:            name,
@@ -76,10 +82,81 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	return nil
 }
 
+func routineBodyHasTxnControl(n nodes.Node) bool {
+	if n == nil {
+		return false
+	}
+	switch s := n.(type) {
+	case *nodes.CommitStmt, *nodes.RollbackStmt:
+		return true
+	case *nodes.BeginEndBlock:
+		for _, child := range s.Stmts {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.IfStmt:
+		for _, child := range s.ThenList {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+		for _, ei := range s.ElseIfs {
+			for _, child := range ei.ThenList {
+				if routineBodyHasTxnControl(child) {
+					return true
+				}
+			}
+		}
+		for _, child := range s.ElseList {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.CaseStmtNode:
+		for _, w := range s.Whens {
+			for _, child := range w.ThenList {
+				if routineBodyHasTxnControl(child) {
+					return true
+				}
+			}
+		}
+		for _, child := range s.ElseList {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.LoopStmt:
+		for _, child := range s.Stmts {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.WhileStmt:
+		for _, child := range s.Stmts {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.RepeatStmt:
+		for _, child := range s.Stmts {
+			if routineBodyHasTxnControl(child) {
+				return true
+			}
+		}
+	case *nodes.DeclareHandlerStmt:
+		return routineBodyHasTxnControl(s.Stmt)
+	}
+	return false
+}
+
 func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
-		if stmt.IfExists {
+		// OceanBase 4.3.5.6 answers 1049 for DROP PROCEDURE/FUNCTION IF EXISTS
+		// naming an unknown database, whereas an unqualified IF EXISTS with no
+		// database selected succeeds.
+		if stmt.IfExists && stmt.Name.Schema == "" {
 			return nil
 		}
 		return err

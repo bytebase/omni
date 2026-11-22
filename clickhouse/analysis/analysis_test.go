@@ -420,7 +420,7 @@ func TestValidateQuery(t *testing.T) {
 		{"with delete rejected as syntax error", "WITH x AS (SELECT 1) DELETE FROM t", 21, "unexpected token"},
 		{"syntax error propagates parse error", "SELECT 1 FROM", 13, "expected"},
 		{"syntax error after leading semicolon keeps script offset", "; SELECT 1 FROM", 15, "expected"},
-		{"unparsed select propagates parse error", "SELECT 1e1 NANOSECOND", 11, "unexpected token"},
+		{"unparsed select propagates parse error", "SELECT 1e1 2e1", 11, "unexpected token"},
 	} {
 		t.Run(bad.name, func(t *testing.T) {
 			ro, rd, err := ValidateQuery(bad.sql)
@@ -486,7 +486,7 @@ func TestStatementReadsRows(t *testing.T) {
 		{"SELECT 'unterminated", 7},
 		{"/* /* */ SELECT 1", 0},
 		{"WITH x AS (SELECT 1) DELETE FROM t", 21},
-		{"SELECT 1e1 NANOSECOND", 11},
+		{"SELECT 1e1 2e1", 11},
 		{"; SELECT 1 FROM", 15},
 	} {
 		got, err := StatementReadsRows(bad.sql)

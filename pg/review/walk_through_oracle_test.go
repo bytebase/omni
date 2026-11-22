@@ -985,6 +985,8 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "Type ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "Trigger ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " doesn't exist in "),
 		strings.HasPrefix(msg, "This statement drops constraint "):
 		return []string{"42704"}
 	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " doesn't exist in "),
@@ -995,26 +997,88 @@ func walkStates(msg string) []string {
 		return []string{"42P01"}
 	case strings.HasPrefix(msg, "`") && strings.Contains(msg, " is a") && strings.Contains(msg, ", not a"),
 		strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " isn't a domain."),
+		strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " isn't an enum."),
+		strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " isn't a composite type."),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `TRUNCATE ONLY` "):
 		return []string{"42809"}
 	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " already exists in "),
 		strings.HasPrefix(msg, "This statement declares column "), strings.HasPrefix(msg, "This statement adds column "),
 		strings.HasSuffix(msg, " conflicts with a system column."):
 		return []string{"42701"}
+	case strings.HasPrefix(msg, "This statement declares enum label "):
+		return []string{"23505"}
 	case strings.Contains(msg, " is a system column, which can't be "):
 		return []string{"0A000"}
-	case strings.HasSuffix(msg, " already has a primary key."):
+	case strings.HasSuffix(msg, " already has a primary key."),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ON COMMIT` on a non-temporary table"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept column of table "):
 		return []string{"42P16"}
-	case strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " already exists in "):
+	case strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " already exists in "),
+		strings.HasPrefix(msg, "Trigger ") && strings.Contains(msg, " already exists in "),
+		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " already exists in "):
 		return []string{"42710"}
 	case strings.HasPrefix(msg, "This statement declares constraint "), strings.HasPrefix(msg, "This statement adds constraint "):
 		return []string{"42710", "42P07"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept circular inheritance on "):
+		return []string{"42P07"}
 	case strings.HasSuffix(msg, " refers to another database, which PostgreSQL doesn't allow."),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` "),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` "):
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE OR REPLACE CONSTRAINT TRIGGER`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `INSTEAD OF` trigger without `FOR EACH ROW`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `REFERENCING ... ROW` in `CREATE TRIGGER`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `FOR EACH ROW` trigger with transition tables"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ALTER TABLE ... ALTER COLUMN` by column number"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `WITH CHECK OPTION` on a non-updatable view"):
 		return []string{"0A000"}
-	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " still holds objects."):
+	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " still holds objects."),
+		strings.HasPrefix(msg, "Built-in type ") && strings.HasSuffix(msg, " can't be dropped."),
+		strings.HasPrefix(msg, "Array type ") && strings.HasSuffix(msg, " can't be dropped directly."),
+		strings.HasPrefix(msg, "Row type ") && strings.HasSuffix(msg, " can't be dropped directly."):
 		return []string{"2BP01"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept invalid type modifier for "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept non-integer value "):
+		return []string{"22P02"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept storage mode "):
+		return []string{"22023"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept type modifier for "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept type attribute "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE TYPE ... AS RANGE` without `SUBTYPE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept conflicting or redundant options "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `PARALLEL "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept unqualified column name in `COMMENT ON COLUMN`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept more column names than columns in `CREATE VIEW`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept more column names than columns in `CREATE TABLE AS`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `WITH CHECK` on a "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `USING` on an `INSERT` policy"):
+		return []string{"42601"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept more column names than columns in `CREATE RECURSIVE VIEW`"):
+		return []string{"42P10"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept `TRUNCATE FOR EACH ROW` trigger"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `INSTEAD OF` trigger with "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept transition tables on "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept multiple `NEW TABLE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept multiple `OLD TABLE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `NEW TABLE` transition relation"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `OLD TABLE` transition relation"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept duplicate transition table name "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept non-immutable expression in index"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept expressions or options in index `INCLUDE` list"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept attaching "):
+		return []string{"42P17"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept detaching "):
+		return []string{"42P17", "42P01"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE TYPE` without `INPUT` and `OUTPUT`"):
+		return []string{"42710", "42P17"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE FUNCTION` without "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SETOF` parameter in `CREATE FUNCTION`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept parameter after `VARIADIC` in `CREATE FUNCTION`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept volatility attribute in `CREATE PROCEDURE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept strictness attribute in `CREATE PROCEDURE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `PARALLEL` in `CREATE PROCEDURE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `WINDOW` in `CREATE PROCEDURE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SUPPORT` in `CREATE PROCEDURE`"):
+		return []string{"42P13"}
 	case strings.HasSuffix(msg, " is reserved for system schemas."):
 		return []string{"42939"}
 	}

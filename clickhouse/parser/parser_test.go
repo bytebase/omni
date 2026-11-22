@@ -1129,3 +1129,170 @@ func TestParseExplainCurrentTransaction(t *testing.T) {
 		t.Errorf("EXPLAIN CURRENT TRANSACTION = %+v", ex)
 	}
 }
+
+func TestParseClickHouseAliasSystemPoliciesProjectionAndWindowCompat(t *testing.T) {
+	// 1. Expression / alias keyword fallbacks (interval units, NULL, IS).
+	aliasCases := []struct {
+		sql       string
+		wantAlias string
+	}{
+		{"SELECT 1e1 NANOSECOND", "NANOSECOND"},
+		{"SELECT INTERVAL NANOSECOND", "NANOSECOND"},
+		{"SELECT IS NULL", "NULL"},
+		{"SELECT 1e1 NULL", "NULL"},
+		{"SELECT 1e1 IS", "IS"},
+		{"SELECT 1e1 AS NULL", "NULL"},
+		{"SELECT 1e1 IS FROM t", "IS"},
+		{"SELECT INTERVAL 1 DAY HOUR", "HOUR"},
+	}
+	for _, tc := range aliasCases {
+		stmts, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+		}
+		col := stmts[0].(*SelectUnionStmt).Items[0].Columns[0]
+		al, ok := col.(*AliasExpr)
+		if !ok || al.Alias != tc.wantAlias {
+			t.Errorf("Parse(%q) col = %T (%+v), want *AliasExpr(%q)", tc.sql, col, col, tc.wantAlias)
+		}
+	}
+	// Verify real IS NULL and INTERVAL expressions still parse as predicates/intervals.
+	if stmts, err := Parse("SELECT 1e1 IS NULL"); err != nil {
+		t.Fatalf("Parse IS NULL failed: %v", err)
+	} else if _, ok := stmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*IsNullExpr); !ok {
+		t.Errorf("SELECT 1e1 IS NULL col = %T, want *IsNullExpr", stmts[0].(*SelectUnionStmt).Items[0].Columns[0])
+	}
+	if stmts, err := Parse("SELECT INTERVAL 1 DAY"); err != nil {
+		t.Fatalf("Parse INTERVAL 1 DAY failed: %v", err)
+	} else if _, ok := stmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*IntervalExpr); !ok {
+		t.Errorf("SELECT INTERVAL 1 DAY col = %T, want *IntervalExpr", stmts[0].(*SelectUnionStmt).Items[0].Columns[0])
+	}
+
+	// 2. Generic SYSTEM START|STOP <tableIdentifier> forms.
+	sysCases := []struct {
+		sql        string
+		wantAction string
+		wantTarget string
+	}{
+		{"SYSTEM START a", "START", "a"},
+		{"SYSTEM START a.b", "START", "a.b"},
+		{"SYSTEM STOP a", "STOP", "a"},
+		{"SYSTEM START SENDS", "START", "SENDS"},
+		{"SYSTEM START REPLICATED", "START", "REPLICATED"},
+		{"SYSTEM START DISTRIBUTED", "START", "DISTRIBUTED"},
+		{"SYSTEM START DISTRIBUTED SENDS", "START DISTRIBUTED SENDS", ""},
+		{"SYSTEM START DISTRIBUTED SENDS db.t", "START DISTRIBUTED SENDS", "db.t"},
+	}
+	for _, tc := range sysCases {
+		stmts, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+		}
+		sys := stmts[0].(*SystemStmt)
+		if sys.Action != tc.wantAction || sys.Target != tc.wantTarget {
+			t.Errorf("Parse(%q) = {Action:%q Target:%q}, want {%q %q}", tc.sql, sys.Action, sys.Target, tc.wantAction, tc.wantTarget)
+		}
+	}
+
+	// 3. SHOW [ROW] POLICIES optional target forms (short name and ON target).
+	policyCases := []struct {
+		sql        string
+		wantTarget string
+	}{
+		{"SHOW POLICIES zzz", "zzz"},
+		{"SHOW POLICIES a", "a"},
+		{"SHOW POLICIES ON", "ON"},
+		{"SHOW POLICIES 'my_policy'", "my_policy"},
+		{"SHOW POLICIES ON db.tbl", "db.tbl"},
+		{"SHOW POLICIES ON *.*", "*.*"},
+		{"SHOW ROW POLICIES zzz", "zzz"},
+		{"SHOW POLICIES FORMAT JSON", ""},
+	}
+	for _, tc := range policyCases {
+		stmts, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+		}
+		show := stmts[0].(*ShowStmt)
+		if show.Target != tc.wantTarget {
+			t.Errorf("Parse(%q) Target = %q, want %q", tc.sql, show.Target, tc.wantTarget)
+		}
+	}
+
+	// 4. Empty GROUP BY inside a projection definition.
+	for _, sql := range []string{
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY)",
+		"CREATE TABLE t (a Int32, PROJECTION p (SELECT * GROUP BY)) ENGINE = MergeTree ORDER BY a",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+
+	// 5. ClickHouse ParserWindowDefinition OVER(...) forms.
+	windowAccept := []string{
+		"SELECT a() OVER(PARTITION BY * zzz)",
+		"SELECT a() OVER(ORDER BY 1e1 zzz)",
+		"SELECT a() OVER(ROWS CURRENT ROW zzz)",
+		"SELECT a() OVER(ROWS CURRENT_USER ROW)",
+		"SELECT a() OVER(ROWS BETWEEN ROW AND CURRENT ROW)",
+		"SELECT a() OVER(ROWS BETWEEN CURRENT AND CURRENT ROW)",
+		"SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW zzz)",
+		"SELECT a() OVER(ROWS UNBOUNDED PRECEDING zzz)",
+		"SELECT a() OVER(ROWS UNION PRECEDING)",
+		"SELECT a() OVER(ROWS UNION FOLLOWING)",
+		"SELECT a() OVER(ROWS 1e1 PRECEDING zzz)",
+		"SELECT a() OVER(ROWS 1e1 PREWHERE)",
+		"SELECT a() OVER(ROWS 1e1 FOLLOWING zzz)",
+		"SELECT a() OVER(ROWS 1e1 FOR)",
+		"SELECT a() OVER(ROWS 1e1 + 2 PRECEDING)",
+		"SELECT a() OVER(GROUPS UNBOUNDED PRECEDING)",
+	}
+	for _, sql := range windowAccept {
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+
+	// Negative controls: invalid ClickHouse SQL must stay rejected.
+	rejects := []string{
+		"SELECT 1e1 2e1",
+		"SELECT 1e1 IS NOT",
+		"SELECT 1e1 IS a",
+		"SELECT IS NOT NULL",
+		"SELECT 1 FROM t WHERE a IS",
+		"SELECT INTERVAL 1e1",
+		"SYSTEM START",
+		"SYSTEM START a b",
+		"SYSTEM START DISTRIBUTED a",
+		"SYSTEM START REPLICATED a",
+		"SYSTEM START TTL a",
+		"SHOW POLICIES a b",
+		"SHOW POLICIES a.b",
+		"SHOW POLICIES ON a zzz",
+		"SHOW POLICIES ON 'a'",
+		"SHOW POLICIES ON FORMAT JSON",
+		"SHOW POLICIES 123",
+		"SELECT * GROUP BY",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ORDER BY a)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY)",
+		"SELECT a() OVER(ROWS 1e1)",
+		"SELECT a() OVER(ROWS ROW)",
+		"SELECT a() OVER(ROWS CURRENT)",
+		"SELECT a() OVER(ROWS (1 zzz)",
+		"SELECT a() OVER(ROWS + zzz)",
+		"SELECT a() OVER(zzz ROWS 1e1 PREWHERE)",
+		"SELECT a() OVER(ROWS UNBOUNDED FOLLOWING)",
+		"SELECT a() OVER(ROWS UNBOUNDED FOLLOWING zzz)",
+		"SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)",
+		"SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND ROW)",
+		"SELECT a() OVER(PARTITION BY a zzz yyy)",
+		"SELECT a() OVER(`` ``)",
+	}
+	for _, sql := range rejects {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+}

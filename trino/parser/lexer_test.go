@@ -747,7 +747,7 @@ func TestClass_NonReservedSamples(t *testing.T) {
 
 func TestClass_LiteralsNotReserved(t *testing.T) {
 	for _, k := range []TokenKind{tokInteger, tokDecimal, tokDouble, tokString,
-		tokUnicodeString, tokBinaryLiteral, tokIdent, tokQuotedIdent,
+		tokUnicodeString, tokDollarString, tokBinaryLiteral, tokIdent, tokQuotedIdent,
 		tokBackquotedIdent, tokDigitIdent, tokQuestion} {
 		if IsReserved(k) {
 			t.Errorf("literal/ident kind %s should not be reserved", TokenName(k))
@@ -840,7 +840,7 @@ func TestTokenName_Samples(t *testing.T) {
 		{kwMATCH_RECOGNIZE, "MATCH_RECOGNIZE"},
 		{tokEOF, "EOF"}, {tokInvalid, "INVALID"},
 		{tokInteger, "INTEGER_VALUE"}, {tokDecimal, "DECIMAL_VALUE"}, {tokDouble, "DOUBLE_VALUE"},
-		{tokString, "STRING"}, {tokUnicodeString, "UNICODE_STRING"}, {tokBinaryLiteral, "BINARY_LITERAL"},
+		{tokString, "STRING"}, {tokUnicodeString, "UNICODE_STRING"}, {tokDollarString, "DOLLAR_STRING"}, {tokBinaryLiteral, "BINARY_LITERAL"},
 		{tokIdent, "IDENTIFIER"}, {tokQuotedIdent, "QUOTED_IDENTIFIER"},
 		{tokBackquotedIdent, "BACKQUOTED_IDENTIFIER"}, {tokDigitIdent, "DIGIT_IDENTIFIER"},
 		{tokQuestion, "?"},
@@ -854,4 +854,59 @@ func TestTokenName_Samples(t *testing.T) {
 			t.Errorf("TokenName(%d): got %q, want %q", tc.kind, got, tc.want)
 		}
 	}
+}
+
+func TestLexer_DollarString(t *testing.T) {
+	t.Run("basic_and_multiline", func(t *testing.T) {
+		for _, tc := range []struct {
+			input string
+			want  string
+		}{
+			{"$$$$", ""},
+			{"$$a$$", "a"},
+			{"$$def f(x):\n    return x * 2;\n$$", "def f(x):\n    return x * 2;\n"},
+			{"$$a$b$$", "a$b"},
+		} {
+			tok := singleToken(t, tc.input)
+			if tok.Kind != tokDollarString {
+				t.Errorf("%q: kind = %s, want DOLLAR_STRING", tc.input, TokenName(tok.Kind))
+			}
+			if tok.Str != tc.want {
+				t.Errorf("%q: Str = %q, want %q", tc.input, tok.Str, tc.want)
+			}
+			if tok.Loc.Start != 0 || tok.Loc.End != len(tc.input) {
+				t.Errorf("%q: Loc = %+v, want [0,%d)", tc.input, tok.Loc, len(tc.input))
+			}
+		}
+	})
+
+	t.Run("non_greedy_two_literals", func(t *testing.T) {
+		tokens, errs := Tokenize("$$a$$ $$b$$")
+		if len(errs) != 0 {
+			t.Fatalf("unexpected lex errors: %v", errs)
+		}
+		if len(tokens) != 3 || tokens[0].Kind != tokDollarString || tokens[0].Str != "a" ||
+			tokens[1].Kind != tokDollarString || tokens[1].Str != "b" {
+			t.Fatalf("tokens = %+v", tokens)
+		}
+	})
+
+	t.Run("single_dollar_stays_operator", func(t *testing.T) {
+		tok := singleToken(t, "$")
+		if tok.Kind != int('$') {
+			t.Errorf("single $: kind = %s, want '$'", TokenName(tok.Kind))
+		}
+	})
+
+	t.Run("unterminated", func(t *testing.T) {
+		for _, input := range []string{"$$", "$$$", "$$unterminated"} {
+			tokens, errs := Tokenize(input)
+			if len(errs) == 0 {
+				t.Errorf("%q: expected lex error, got none", input)
+			}
+			if len(tokens) == 0 || tokens[0].Kind != tokInvalid {
+				t.Errorf("%q: first token = %+v, want tokInvalid", input, tokens)
+			}
+		}
+	})
 }

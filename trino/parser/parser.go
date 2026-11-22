@@ -160,10 +160,11 @@ func (p *Parser) replayTo(c parserCheckpoint) {
 // parsing it again. raws holds the query bodies it captured raw. A failure
 // keeps none, for the reason parenFailure gives.
 type exprReplay struct {
-	expr Expr
-	err  error
-	raws []rawQuery
-	end  parserCheckpoint
+	expr     Expr
+	err      error
+	raws     []rawQuery
+	deferred *ParseError
+	end      parserCheckpoint
 }
 
 // typeReplay is a recorded parseType result. A type holds no expression, so
@@ -387,7 +388,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// HERE and routed to parseWithFunctionQuery, while the subquery parseQuery
 	// path keeps rejecting it.
 	case kwWITH:
-		if p.peekNext().Kind == kwFUNCTION {
+		if p.peekNext().Kind == kwFUNCTION && p.withFunctionFollows() {
 			return p.parseWithFunctionQuery()
 		}
 		if p.peekNext().Kind == kwSESSION && p.withSessionFollows() {
@@ -608,6 +609,23 @@ func (p *Parser) alterBranchFollows() bool {
 	}
 	p.advance() // branch name
 	return p.cur.Kind == kwIN
+}
+
+// withFunctionFollows reports whether the WITH FUNCTION keyword pair begins an
+// inline-routine prefix (`WITH FUNCTION name(...)`) rather than a CTE named
+// FUNCTION (`WITH function AS (...)` or `WITH function(x) AS (...)`). FUNCTION
+// is non-reserved.
+func (p *Parser) withFunctionFollows() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // WITH
+	p.advance() // FUNCTION
+	switch p.cur.Kind {
+	case kwAS, int('('), int(','):
+		return false
+	default:
+		return true
+	}
 }
 
 // withSessionFollows reports whether the WITH SESSION keyword pair begins a

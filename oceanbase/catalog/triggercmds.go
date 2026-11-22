@@ -26,21 +26,31 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 		return err
 	}
 
-	// Resolve database from the table reference.
+	// Resolve database from the table reference. OceanBase 4.3.5.6 answers
+	// 1146 (Table '<db>.<table>' doesn't exist) rather than 1049 when the
+	// table's own database does not exist (unlike the trigger's own database,
+	// checked above, which answers 1049).
 	schema := ""
+	tableName := ""
 	if stmt.Table != nil {
 		schema = stmt.Table.Schema
+		tableName = stmt.Table.Name
 	}
-	db, err := c.resolveDatabase(schema)
-	if err != nil {
-		return err
+	var db *Database
+	var err error
+	if schema != "" {
+		db = c.GetDatabase(schema)
+		if db == nil {
+			return errNoSuchTable(schema, tableName)
+		}
+	} else {
+		db, err = c.resolveDatabase("")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Verify the table exists.
-	tableName := ""
-	if stmt.Table != nil {
-		tableName = stmt.Table.Name
-	}
 	if tableName != "" {
 		tbl := db.GetTable(tableName)
 		if tbl == nil {
@@ -59,6 +69,23 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 			return errDupTrigger(name)
 		}
 		return nil
+	}
+
+	// Verify FOLLOWS/PRECEDES references an existing trigger on the same
+	// (table, timing, event). OceanBase 4.3.5.6 answers 3011 otherwise.
+	if stmt.Order != nil {
+		found := false
+		if stmt.Order.Schema == "" || strings.EqualFold(stmt.Order.Schema, db.Name) {
+			for _, peer := range triggerGroupPeers(db, tableName, stmt.Timing, stmt.Event) {
+				if strings.EqualFold(peer.Name, stmt.Order.TriggerName) {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return errReferencedTriggerNotFound(stmt.Order.TriggerName)
+		}
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -117,21 +144,24 @@ func validateTriggerBody(timing, event, body string) error {
 
 func (c *Catalog) dropTrigger(stmt *nodes.DropTriggerStmt) error {
 	schema := ""
+	name := ""
 	if stmt.Name != nil {
 		schema = stmt.Name.Schema
+		name = stmt.Name.Name
 	}
 	db, err := c.resolveDatabase(schema)
 	if err != nil {
 		if stmt.IfExists {
 			return nil
 		}
+		// OceanBase 4.3.5.6 answers 1360 (Trigger does not exist) rather than
+		// 1049 for a qualified DROP TRIGGER naming an unknown database.
+		if schema != "" {
+			return errNoSuchTrigger(schema, name)
+		}
 		return err
 	}
 
-	name := ""
-	if stmt.Name != nil {
-		name = stmt.Name.Name
-	}
 	key := toLower(name)
 
 	tr, exists := db.Triggers[key]
