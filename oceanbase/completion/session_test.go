@@ -106,6 +106,12 @@ func TestCompleteSession_ReadOnlyFiltersWriteKeywords(t *testing.T) {
 
 	gotCre := CompleteSession(context.Background(), roCfg, "CRE", 1, len("CRE"))
 	require.False(t, containsCandidate(gotCre, "CREATE", CandidateKeyword))
+
+	gotIns := CompleteSession(context.Background(), roCfg, "SELECT 1; INS", 1, len("SELECT 1; INS"))
+	require.False(t, containsCandidate(gotIns, "INSERT", CandidateKeyword))
+
+	gotShowCre := CompleteSession(context.Background(), roCfg, "SHOW CRE", 1, len("SHOW CRE"))
+	require.True(t, containsCandidate(gotShowCre, "CREATE", CandidateKeyword))
 }
 
 func TestCompleteSession_CrossDBAndHelpers(t *testing.T) {
@@ -431,4 +437,75 @@ func TestCompleteSession_CodexRound4Fixes(t *testing.T) {
 	recImplicit := "WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c. FROM c) SELECT * FROM c"
 	gotRecImplicit := CompleteSession(context.Background(), cfg, recImplicit, 1, len("WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c."))
 	require.True(t, containsCandidate(gotRecImplicit, "n", CandidateColumn), "got %v", gotRecImplicit)
+}
+
+func TestCompleteSession_UnparseableColumnInstanceDBsViewsAndIsolation(t *testing.T) {
+	// Unparseable column type falls back to stand-in so all columns still surface.
+	standInCfg := SessionConfig{
+		DefaultDatabase: "db",
+		LoadDatabase: sessionMetaLoader(&metadatapb.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{{
+					Name: "t",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "good", Type: "int"},
+						{Name: "weird", Type: ")"},
+					},
+				}},
+			}},
+		}, true),
+	}
+	gotStandIn := CompleteSession(context.Background(), standInCfg, "SELECT  FROM t", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotStandIn, "good", CandidateColumn), "got %v", gotStandIn)
+	require.True(t, containsCandidate(gotStandIn, "weird", CandidateColumn), "got %v", gotStandIn)
+
+	// Instance-level completion without DefaultDatabase surfaces database names.
+	instCfg := SessionConfig{
+		DefaultDatabase: "",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			return db, &metadatapb.DatabaseSchemaMetadata{Name: db, Schemas: []*metadatapb.SchemaMetadata{{}}}, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "otherdb"}, nil
+		},
+	}
+	gotInst := CompleteSession(context.Background(), instCfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotInst, "appdb", CandidateDatabase), "got %v", gotInst)
+	require.True(t, containsCandidate(gotInst, "otherdb", CandidateDatabase), "got %v", gotInst)
+
+	// Statement isolation, bare-SELECT views, function parens, and backtick inside string literal.
+	cfg := SessionConfig{
+		DefaultDatabase: "db",
+		LoadDatabase: sessionMetaLoader(&metadatapb.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "t1", Columns: []*metadatapb.ColumnMetadata{{Name: "a1"}, {Name: "a2"}}},
+					{Name: "t2", Columns: []*metadatapb.ColumnMetadata{{Name: "b1"}, {Name: "b2"}}},
+					{Name: "order", Columns: []*metadatapb.ColumnMetadata{{Name: "id"}}},
+				},
+				Views: []*metadatapb.ViewMetadata{{Name: "v1", Definition: "SELECT a1 FROM t1"}},
+			}},
+		}, true),
+	}
+
+	gotIso := CompleteSession(context.Background(), cfg, "SELECT * FROM t1; SELECT  FROM t2", 1, len("SELECT * FROM t1; SELECT "))
+	require.True(t, containsCandidate(gotIso, "b1", CandidateColumn), "got %v", gotIso)
+	require.True(t, containsCandidate(gotIso, "b2", CandidateColumn), "got %v", gotIso)
+	require.False(t, containsCandidate(gotIso, "a1", CandidateColumn), "got %v", gotIso)
+	require.False(t, containsCandidate(gotIso, "a2", CandidateColumn), "got %v", gotIso)
+
+	gotViewList := CompleteSession(context.Background(), cfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotViewList, "v1", CandidateView), "got %v", gotViewList)
+
+	gotViewCols := CompleteSession(context.Background(), cfg, "SELECT  FROM v1", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotViewCols, "a1", CandidateColumn), "got %v", gotViewCols)
+
+	gotFunc := CompleteSession(context.Background(), cfg, "SELECT  FROM t1", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotFunc, "COUNT()", CandidateFunction), "got %v", gotFunc)
+	require.False(t, containsCandidate(gotFunc, "COUNT", CandidateFunction), "got %v", gotFunc)
+
+	gotBacktickStr := CompleteSession(context.Background(), cfg, "SELECT '`' FROM ", 1, len("SELECT '`' FROM "))
+	require.True(t, containsCandidate(gotBacktickStr, "`order`", CandidateTable), "got %v", gotBacktickStr)
 }

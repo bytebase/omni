@@ -79,6 +79,14 @@ func pgTestMetadata() *metadatapb.DatabaseSchemaMetadata {
 						},
 					},
 				},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{
+						Name: "spectrum_orders",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "external_id", Type: "varchar"},
+						},
+					},
+				},
 				Views: []*metadatapb.ViewMetadata{
 					{
 						Name: "active_orders",
@@ -280,5 +288,150 @@ func TestCompleteSession_NilOrFailedMetadata(t *testing.T) {
 		stmtCTERel, lineR, colR := catchCaretUTF16(t, "WITH c(x) AS (SELECT 1) SELECT * FROM |")
 		gotCTERel := CompleteSession(context.Background(), cfg, stmtCTERel, lineR, colR)
 		require.True(t, hasSessionCandidate(gotCTERel, "c", CandidateTable), "got %v", gotCTERel)
+	}
+}
+
+func TestCompleteSession_MetadataCoverageMatrix(t *testing.T) {
+	type wantSpec struct {
+		text string
+		typ  CandidateType
+	}
+	tests := []struct {
+		name       string
+		input      string
+		want       []wantSpec
+		absentText []string
+	}{
+		{
+			name:  "FROM offers schemas and current-schema relations including foreign tables",
+			input: "SELECT 1 FROM |",
+			want: []wantSpec{
+				{"public", CandidateSchema},
+				{"analytics", CandidateSchema},
+				{"orders", CandidateTable},
+				{"spectrum_orders", CandidateTable},
+				{"active_orders", CandidateView},
+				{"orders_summary", CandidateMaterializedView},
+				{"order_seq", CandidateSequence},
+				{`"order"`, CandidateTable},
+				{`"Order Items"`, CandidateTable},
+				{`"my-table"`, CandidateTable},
+			},
+		},
+		{
+			name:       "schema-qualified FROM offers that schema's tables",
+			input:      "SELECT 1 FROM analytics.|",
+			want:       []wantSpec{{"events", CandidateTable}},
+			absentText: []string{"orders", "active_orders"},
+		},
+		{
+			name:  "projection offers table columns",
+			input: "SELECT | FROM orders",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:  "WHERE offers table columns",
+			input: "SELECT * FROM orders WHERE |",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:  "JOIN ON offers both sides' columns",
+			input: "SELECT * FROM orders o JOIN analytics.events e ON |",
+			want:  []wantSpec{{"id", CandidateColumn}, {"event_id", CandidateColumn}},
+		},
+		{
+			name:       "alias-qualified columns",
+			input:      "SELECT o.| FROM orders AS o",
+			want:       []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+			absentText: []string{"event_id"},
+		},
+		{
+			name:  "dollar-signed qualifier columns",
+			input: "SELECT t$1.| FROM orders AS t$1",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:       "schema table-qualified columns",
+			input:      "SELECT events.| FROM analytics.events",
+			want:       []wantSpec{{"event_id", CandidateColumn}},
+			absentText: []string{"amount"},
+		},
+		{
+			name:       "unknown qualifier does not broaden column scope",
+			input:      "SELECT missing.| FROM orders",
+			absentText: []string{"id", "amount", "event_id"},
+		},
+		{
+			name:  "view columns are available",
+			input: "SELECT | FROM active_orders",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:  "materialized view columns are available",
+			input: "SELECT | FROM orders_summary",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:  "foreign table columns are available",
+			input: "SELECT | FROM spectrum_orders",
+			want:  []wantSpec{{"external_id", CandidateColumn}},
+		},
+		{
+			name:  "CTE relation is offered after FROM",
+			input: "WITH recent_orders AS (SELECT * FROM orders) SELECT * FROM |",
+			want:  []wantSpec{{"recent_orders", CandidateTable}},
+		},
+		{
+			name:  "CTE columns are offered in projection",
+			input: "WITH recent_orders(id_alias, amount_alias) AS (SELECT id, amount FROM orders) SELECT | FROM recent_orders",
+			want:  []wantSpec{{"id_alias", CandidateColumn}, {"amount_alias", CandidateColumn}},
+		},
+		{
+			name:  "set-operation CTE infers output columns from left branch",
+			input: "WITH combined AS (SELECT id, amount FROM orders UNION SELECT event_id, event_id FROM analytics.events) SELECT combined.| FROM combined",
+			want:  []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}},
+		},
+		{
+			name:  "INSERT INTO offers tables",
+			input: "INSERT INTO |",
+			want:  []wantSpec{{"orders", CandidateTable}, {"events", CandidateTable}},
+		},
+		{
+			name:  "UPDATE table context offers tables",
+			input: "UPDATE |",
+			want:  []wantSpec{{"orders", CandidateTable}},
+		},
+		{
+			name:  "DELETE FROM offers tables",
+			input: "DELETE FROM |",
+			want:  []wantSpec{{"orders", CandidateTable}},
+		},
+		{
+			name:  "quoted column names are surfaced quoted",
+			input: `SELECT | FROM "Order Items"`,
+			want:  []wantSpec{{`"Item ID"`, CandidateColumn}, {`"Order ID"`, CandidateColumn}},
+		},
+		{
+			name:       "typed prefix filters object candidates",
+			input:      "SELECT 1 FROM ord|",
+			want:       []wantSpec{{"orders", CandidateTable}, {"orders_summary", CandidateMaterializedView}},
+			absentText: []string{"events", "active_orders"},
+		},
+	}
+
+	cfg := pgSessionConfig()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt, line, col := catchCaretUTF16(t, tc.input)
+			got := CompleteSession(context.Background(), cfg, stmt, line, col)
+			for _, w := range tc.want {
+				require.Truef(t, hasSessionCandidate(got, w.text, w.typ), "missing {%s, %v} in %v", w.text, w.typ, got)
+			}
+			for _, absent := range tc.absentText {
+				for _, c := range got {
+					require.NotEqualf(t, absent, c.Text, "unexpected %q in %v", absent, got)
+				}
+			}
+		})
 	}
 }

@@ -319,6 +319,9 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 	require.True(t, containsCandidate(gotQualifiedExprFunc, "`LEFT`()", CandidateFunction), "got %v", gotQualifiedExprFunc)
 	require.True(t, containsCandidate(gotQualifiedExprFunc, "`my-func`()", CandidateFunction), "got %v", gotQualifiedExprFunc)
 
+	gotViewList := CompleteSession(context.Background(), cfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotViewList, "v1", CandidateView), "got %v", gotViewList)
+
 	gotView := CompleteSession(context.Background(), cfg, "SELECT  FROM v1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotView, "a1", CandidateColumn))
 
@@ -1005,4 +1008,163 @@ func TestCompleteSession_CodexRound4Fixes(t *testing.T) {
 	recImplicit := "WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c. FROM c) SELECT * FROM c"
 	gotRecImplicit := CompleteSession(context.Background(), cfg, recImplicit, 1, len("WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c."))
 	require.True(t, containsCandidate(gotRecImplicit, "n", CandidateColumn), "got %v", gotRecImplicit)
+}
+
+func TestCompleteSession_InstanceLevelDatabaseCandidates(t *testing.T) {
+	cfg := SessionConfig{
+		DefaultDatabase: "",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			return db, &metadatapb.DatabaseSchemaMetadata{Name: db, Schemas: []*metadatapb.SchemaMetadata{{}}}, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "otherdb"}, nil
+		},
+	}
+
+	got := CompleteSession(context.Background(), cfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(got, "appdb", CandidateDatabase), "got %v", got)
+	require.True(t, containsCandidate(got, "otherdb", CandidateDatabase), "got %v", got)
+}
+
+func TestCompleteSession_SkipsDatabaseEnumerationAndCaseResolution(t *testing.T) {
+	var metaCalls []string
+	listCalls := 0
+	cfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			metaCalls = append(metaCalls, db)
+			return db, &metadatapb.DatabaseSchemaMetadata{
+				Name: db,
+				Schemas: []*metadatapb.SchemaMetadata{{
+					Tables: []*metadatapb.TableMetadata{{
+						Name:    "t1",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "c1"}},
+					}},
+				}},
+			}, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			listCalls++
+			return []string{"appdb", "otherdb"}, nil
+		},
+	}
+
+	for _, tc := range []struct {
+		name      string
+		stmt      string
+		caretCol  int
+		wantType  CandidateType
+		wantText  string
+		wantLoads []string
+	}{
+		{"unqualified column", "SELECT  FROM t1", len("SELECT "), CandidateColumn, "c1", []string{"appdb"}},
+		{"table alias column", "SELECT a. FROM t1 a WHERE a.c1 = 1", len("SELECT a."), CandidateColumn, "c1", []string{"appdb"}},
+		{"insert with modifier", "INSERT LOW_PRIORITY INTO otherdb.", len("INSERT LOW_PRIORITY INTO otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+		{"analyze table comma list", "ANALYZE TABLE appdb.t1, otherdb.", len("ANALYZE TABLE appdb.t1, otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+		{"drop temporary table comma list", "DROP TEMPORARY TABLE appdb.t1, otherdb.", len("DROP TEMPORARY TABLE appdb.t1, otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+		{"truncate without table keyword", "TRUNCATE otherdb.", len("TRUNCATE otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+		{"parenthesized update join", "UPDATE (otherdb.", len("UPDATE (otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+		{"multi-table delete target", "DELETE otherdb.", len("DELETE otherdb."), CandidateTable, "t1", []string{"appdb", "otherdb"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			metaCalls = nil
+			listCalls = 0
+			got := CompleteSession(context.Background(), cfg, tc.stmt, 1, tc.caretCol)
+			require.True(t, containsCandidate(got, tc.wantText, tc.wantType), "got %v", got)
+			require.Zero(t, listCalls)
+			require.Equal(t, tc.wantLoads, metaCalls)
+		})
+	}
+
+	// Dollar-signed database qualifier resolves without database enumeration.
+	metaCalls = nil
+	listCalls = 0
+	dollarCfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			metaCalls = append(metaCalls, db)
+			if db == "sales$archive" {
+				return db, &metadatapb.DatabaseSchemaMetadata{
+					Name: db,
+					Schemas: []*metadatapb.SchemaMetadata{{
+						Tables: []*metadatapb.TableMetadata{{
+							Name:    "orders",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "int"}},
+						}},
+					}},
+				}, true, true
+			}
+			return db, &metadatapb.DatabaseSchemaMetadata{Name: db}, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			listCalls++
+			return []string{"appdb", "sales$archive"}, nil
+		},
+	}
+	gotDollarCol := CompleteSession(context.Background(), dollarCfg, "SELECT sales$archive.orders. FROM sales$archive.orders", 1, len("SELECT sales$archive.orders."))
+	require.True(t, containsCandidate(gotDollarCol, "id", CandidateColumn), "got %v", gotDollarCol)
+	require.Zero(t, listCalls)
+	require.Equal(t, []string{"appdb", "sales$archive"}, metaCalls)
+
+	metaCalls = nil
+	gotDollarTbl := CompleteSession(context.Background(), dollarCfg, "SELECT * FROM sales$archive.", 1, len("SELECT * FROM sales$archive."))
+	require.True(t, containsCandidate(gotDollarTbl, "orders", CandidateTable), "got %v", gotDollarTbl)
+	require.Zero(t, listCalls)
+	require.Equal(t, []string{"appdb", "sales$archive"}, metaCalls)
+
+	// Case-folded qualifier with non-empty DefaultDatabase resolves via ListDatabaseNames.
+	gotFolded := CompleteSession(context.Background(), SessionConfig{
+		DefaultDatabase: "appdb",
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "db_b"}, nil
+		},
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			switch db {
+			case "appdb":
+				return db, &metadatapb.DatabaseSchemaMetadata{Name: "appdb"}, false, true
+			case "db_b":
+				return db, &metadatapb.DatabaseSchemaMetadata{
+					Name: "db_b",
+					Schemas: []*metadatapb.SchemaMetadata{{
+						Tables: []*metadatapb.TableMetadata{{
+							Name:    "orders",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "int"}},
+						}},
+					}},
+				}, false, true
+			default:
+				return "", nil, false, false
+			}
+		},
+	}, "SELECT DB_B.orders. FROM DB_B.orders", 1, len("SELECT DB_B.orders."))
+	require.True(t, containsCandidate(gotFolded, "id", CandidateColumn), "got %v", gotFolded)
+
+	// Case-colliding databases: alias and unqualified default-DB carets stay isolated.
+	csCfg := SessionConfig{
+		DefaultDatabase: "foo",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			switch db {
+			case "foo":
+				return db, &metadatapb.DatabaseSchemaMetadata{
+					Name:    "foo",
+					Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "lower_col", Type: "int"}}}}}},
+				}, true, true
+			case "Foo":
+				return db, &metadatapb.DatabaseSchemaMetadata{
+					Name:    "Foo",
+					Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "upper_col", Type: "int"}}}}}},
+				}, true, true
+			default:
+				return "", nil, false, false
+			}
+		},
+	}
+
+	gotAliasUpper := CompleteSession(context.Background(), csCfg, "SELECT x. FROM foo.t y JOIN Foo.t x", 1, len("SELECT x."))
+	require.True(t, containsCandidate(gotAliasUpper, "upper_col", CandidateColumn), "got %v", gotAliasUpper)
+	require.False(t, containsCandidate(gotAliasUpper, "lower_col", CandidateColumn), "got %v", gotAliasUpper)
+
+	gotUnqualDefault := CompleteSession(context.Background(), csCfg, "SELECT  FROM t JOIN Foo.other", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotUnqualDefault, "lower_col", CandidateColumn), "got %v", gotUnqualDefault)
+	require.False(t, containsCandidate(gotUnqualDefault, "upper_col", CandidateColumn), "got %v", gotUnqualDefault)
 }
