@@ -22,6 +22,11 @@ type caseScanEntry struct {
 	ends        int
 }
 
+type openCaseRun struct {
+	parenDepth int
+	count      int
+}
+
 type Parser struct {
 	src                   string
 	toks                  []Token
@@ -31,9 +36,10 @@ type Parser struct {
 	gtEnd                 int
 	depth                 int
 	parenDepth            int
-	openCaseParenDepths   []int
+	openCaseRuns          []openCaseRun
 	caseScanCache         []caseScanEntry
 	caseScanConfirmedOpen map[int]int
+	matchingClose         []int
 }
 
 // Parse parses a Databricks / Spark SQL input string (one or more

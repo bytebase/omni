@@ -944,6 +944,34 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 			sql:  "SELECT 1 FROM t WHERE " + strings.Repeat("CASE a WHEN 1 THEN true END AND ", 4000) + "true",
 		},
 		{
+			name: "deeply nested searched case expressions",
+			sql:  "SELECT " + strings.Repeat("CASE WHEN true THEN ", 8000) + "1" + strings.Repeat(" END", 8000),
+		},
+		{
+			name: "deeply nested simple case expressions",
+			sql:  "SELECT " + strings.Repeat("CASE x WHEN 1 THEN ", 4000) + "1" + strings.Repeat(" END", 4000),
+		},
+		{
+			name: "deeply nested searched case containing sibling cases",
+			sql:  "SELECT " + strings.Repeat("CASE WHEN true THEN ", 2000) + strings.Repeat("CASE x WHEN 1 THEN 2 END + ", 2000) + "1" + strings.Repeat(" END", 2000),
+		},
+		{
+			name: "sibling cases each containing nested cases inside outer case",
+			sql:  "SELECT CASE WHEN true THEN " + strings.Repeat("CASE WHEN true THEN CASE WHEN true THEN 1 END END + ", 2000) + "1 END",
+		},
+		{
+			name: "deeply nested parenthesized simple case operands",
+			sql:  "SELECT " + strings.Repeat("CASE (", 2000) + "1" + strings.Repeat(") WHEN 1 THEN 2 END", 2000),
+		},
+		{
+			name: "searched case with case column before next when",
+			sql:  "SELECT CASE WHEN a THEN case WHEN b THEN 1 END",
+		},
+		{
+			name: "sibling simple case with case column operand",
+			sql:  "SELECT CASE WHEN true THEN CASE WHEN 1 THEN 2 END + CASE case WHEN 1 THEN 2 END END",
+		},
+		{
 			name: "nested parenthesized map calls",
 			sql:  "SELECT " + strings.Repeat("(MAP(1, ", 40) + "1" + strings.Repeat("))", 40),
 		},

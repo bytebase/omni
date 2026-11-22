@@ -1264,26 +1264,46 @@ func (p *Parser) isCaseClauseBoundaryAt(i int) bool {
 }
 
 func (p *Parser) openCasesAtCurrentParenDepth() int {
-	count := 0
-	for i := len(p.openCaseParenDepths) - 1; i >= 0; i-- {
-		if p.openCaseParenDepths[i] == p.parenDepth {
-			count++
-		} else {
-			break
+	if n := len(p.openCaseRuns); n > 0 && p.openCaseRuns[n-1].parenDepth == p.parenDepth {
+		return p.openCaseRuns[n-1].count
+	}
+	return 0
+}
+
+func (p *Parser) ensureMatchingClose() {
+	if p.matchingClose != nil {
+		return
+	}
+	mc := make([]int, len(p.toks))
+	var stack []int
+	for i, tok := range p.toks {
+		switch tok.Kind {
+		case tokLParen, tokLBracket:
+			stack = append(stack, i)
+		case tokRParen, tokRBracket:
+			if len(stack) > 0 {
+				openIdx := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				mc[openIdx] = i
+			}
+		case tokSemicolon:
+			stack = stack[:0]
 		}
 	}
-	return count
+	p.matchingClose = mc
 }
 
 // hasCaseWhenAndEndAhead scans forward from p.pos+1 at paren/bracket depth 0
-// to decide whether a `CASE` token starts a simple `CASE <expr> WHEN ... END`
-// expression rather than a column reference `case` or a `CASE(...)` function
-// call. When inside an outer open CASE at the same paren depth, it requires
-// more unmatched `END` tokens than currently open CASEs at this depth so
+// to decide whether a `CASE` token starts a `CASE ... WHEN ... END` expression
+// rather than a column reference `case` or a `CASE(...)` function call. When
+// inside an outer open CASE at the same paren depth, it requires more unmatched
+// `END` tokens than currently open CASEs at this depth so
 // `SELECT CASE case + case + 1 WHEN 1 THEN 'ok' END` keeps the inner `case`s as
 // columns while `SELECT CASE CASE -1 WHEN -1 THEN 2 END WHEN 2 THEN 3 END` and
 // `SELECT CASE abs(CASE -1 WHEN -1 THEN 2 END) WHEN 2 THEN 3 END` parse nested
-// simple CASE expressions cleanly.
+// CASE expressions cleanly. Results for the segment before the first unmatched
+// END (including nested CASEs) and for all closed sibling/nested CASEs after it
+// are memoized so arbitrarily deep nested or sibling CASEs parse in linear time.
 func (p *Parser) hasCaseWhenAndEndAhead() bool {
 	open := p.openCasesAtCurrentParenDepth()
 	if maxOpen, ok := p.caseScanConfirmedOpen[p.pos]; ok && open <= maxOpen {
@@ -1298,117 +1318,133 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 			return open == 0 || entry.ends > open
 		}
 	}
-	depth := 0
 	sawWhen := false
 	lastWhenPos := -1
 	ends := 0
 	firstEndPos := -1
-	type siblingCase struct {
-		pos     int
-		hasWhen bool
+	type siblingNode struct {
+		pos       int
+		parent    int
+		closedAnc int
+		hasWhen   bool
+		closed    bool
+		endsAtPop int
+		maxOpen   int
 	}
-	var siblingStack []siblingCase
-	var closedSiblings []int
-	record := func(stopPos int) {
-		if p.parenDepth < 0 {
-			return
-		}
-		endPos := stopPos
-		if firstEndPos >= 0 && firstEndPos < endPos {
-			endPos = firstEndPos
-		}
-		if p.parenDepth >= len(p.caseScanCache) {
-			grown := make([]caseScanEntry, p.parenDepth+1)
-			copy(grown, p.caseScanCache)
-			p.caseScanCache = grown
-		}
-		p.caseScanCache[p.parenDepth] = caseScanEntry{
-			start:       p.pos,
-			end:         endPos,
-			lastWhenPos: lastWhenPos,
-			ends:        ends,
-		}
-	}
-	confirmSiblings := func() {
-		if len(closedSiblings) == 0 {
-			return
-		}
-		if p.caseScanConfirmedOpen == nil {
-			p.caseScanConfirmedOpen = make(map[int]int, len(closedSiblings))
-		}
-		for _, spos := range closedSiblings {
-			if prev, ok := p.caseScanConfirmedOpen[spos]; !ok || open > prev {
-				p.caseScanConfirmedOpen[spos] = open
+	var nodes []siblingNode
+	var siblingStack []int
+	finish := func(stopPos int) bool {
+		if p.parenDepth >= 0 {
+			endPos := stopPos
+			if firstEndPos >= 0 && firstEndPos < endPos {
+				endPos = firstEndPos
+			}
+			if p.parenDepth >= len(p.caseScanCache) {
+				grown := make([]caseScanEntry, p.parenDepth+1)
+				copy(grown, p.caseScanCache)
+				p.caseScanCache = grown
+			}
+			p.caseScanCache[p.parenDepth] = caseScanEntry{
+				start:       p.pos,
+				end:         endPos,
+				lastWhenPos: lastWhenPos,
+				ends:        ends,
 			}
 		}
+		if len(nodes) > 0 {
+			for i := range nodes {
+				par := nodes[i].parent
+				if par < 0 {
+					nodes[i].closedAnc = -1
+				} else if nodes[par].closed {
+					nodes[i].closedAnc = par
+				} else {
+					nodes[i].closedAnc = nodes[par].closedAnc
+				}
+				if !nodes[i].closed {
+					continue
+				}
+				if anc := nodes[i].closedAnc; anc >= 0 {
+					nodes[i].maxOpen = nodes[anc].maxOpen + 1
+				} else {
+					nodes[i].maxOpen = ends - nodes[i].endsAtPop
+				}
+				if p.caseScanConfirmedOpen == nil {
+					p.caseScanConfirmedOpen = make(map[int]int, len(nodes))
+				}
+				spos := nodes[i].pos
+				if prev, ok := p.caseScanConfirmedOpen[spos]; !ok || nodes[i].maxOpen > prev {
+					p.caseScanConfirmedOpen[spos] = nodes[i].maxOpen
+				}
+			}
+		}
+		return sawWhen && (open == 0 || ends > open)
 	}
 	for i := 1; ; i++ {
 		k := p.peek(i).Kind
 		switch k {
 		case tokEOF, tokSemicolon:
-			record(p.pos + i)
-			return sawWhen && (open == 0 || ends > open)
+			return finish(p.pos + i)
 		case tokLParen, tokLBracket:
-			depth++
-		case tokRParen, tokRBracket:
-			if depth == 0 {
-				record(p.pos + i)
-				return sawWhen && (open == 0 || ends > open)
+			p.ensureMatchingClose()
+			idx := p.pos + i
+			if idx < len(p.matchingClose) {
+				if closeIdx := p.matchingClose[idx]; closeIdx > idx {
+					i = closeIdx - p.pos
+					continue
+				}
 			}
-			depth--
+			return finish(p.pos + i)
+		case tokRParen, tokRBracket:
+			return finish(p.pos + i)
 		case kwWHEN:
-			if depth == 0 {
-				if open == 0 {
-					return true
-				}
-				sawWhen = true
-				lastWhenPos = p.pos + i
-				if len(siblingStack) > 0 {
-					siblingStack[len(siblingStack)-1].hasWhen = true
-				}
+			if open == 0 {
+				return true
+			}
+			sawWhen = true
+			lastWhenPos = p.pos + i
+			if len(siblingStack) > 0 {
+				nodes[siblingStack[len(siblingStack)-1]].hasWhen = true
 			}
 		case kwCASE:
 			// After an END has closed the first CASE, a subsequent CASE at depth 0
 			// may start a sibling CASE whose own END should not count toward closing
 			// an enclosing open CASE.
-			if depth == 0 && ends > 0 {
+			if ends > 0 {
 				next := p.peek(i + 1).Kind
-				if next == kwWHEN || !isCaseColumnNext(next) {
-					siblingStack = append(siblingStack, siblingCase{pos: p.pos + i})
+				if next == kwWHEN || (p.peek(i+2).Kind == kwWHEN && next.isIdentifier()) || !isCaseColumnNext(next) {
+					parent := -1
+					if len(siblingStack) > 0 {
+						parent = siblingStack[len(siblingStack)-1]
+					}
+					siblingStack = append(siblingStack, len(nodes))
+					nodes = append(nodes, siblingNode{pos: p.pos + i, parent: parent})
 				}
 			}
 		case kwEND:
-			if depth == 0 {
-				next := p.peek(i + 1).Kind
-				if !(i == 1 && next == kwWHEN) &&
-					next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
-					// Discard any speculatively pushed sibling CASEs that never saw a WHEN
-					// (they were column references like `case + 1`, not CASE expressions).
-					for len(siblingStack) > 0 && !siblingStack[len(siblingStack)-1].hasWhen {
-						siblingStack = siblingStack[:len(siblingStack)-1]
+			next := p.peek(i + 1).Kind
+			if !(p.peek(i-1).Kind == kwCASE && next == kwWHEN) &&
+				next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
+				// Discard any speculatively pushed sibling CASEs that never saw a WHEN
+				// (they were column references like `case + 1`, not CASE expressions).
+				for len(siblingStack) > 0 && !nodes[siblingStack[len(siblingStack)-1]].hasWhen {
+					siblingStack = siblingStack[:len(siblingStack)-1]
+				}
+				if len(siblingStack) > 0 {
+					topIdx := siblingStack[len(siblingStack)-1]
+					siblingStack = siblingStack[:len(siblingStack)-1]
+					nodes[topIdx].closed = true
+					nodes[topIdx].endsAtPop = ends
+				} else {
+					if firstEndPos < 0 {
+						firstEndPos = p.pos + i
 					}
-					if len(siblingStack) > 0 {
-						top := siblingStack[len(siblingStack)-1]
-						siblingStack = siblingStack[:len(siblingStack)-1]
-						if len(siblingStack) == 0 {
-							closedSiblings = append(closedSiblings, top.pos)
-						}
-					} else {
-						if firstEndPos < 0 {
-							firstEndPos = p.pos + i
-						}
-						ends++
-						if sawWhen && ends > open {
-							confirmSiblings()
-							return true
-						}
-					}
+					ends++
 				}
 			}
 		default:
-			if depth == 0 && p.isCaseClauseBoundaryAt(i) {
-				record(p.pos + i)
-				return sawWhen && (open == 0 || ends > open)
+			if p.isCaseClauseBoundaryAt(i) {
+				return finish(p.pos + i)
 			}
 		}
 	}
@@ -1485,9 +1521,18 @@ func (p *Parser) parseCaseExpression() error {
 	if _, err := p.expect(kwCASE); err != nil {
 		return err
 	}
-	p.openCaseParenDepths = append(p.openCaseParenDepths, p.parenDepth)
+	if n := len(p.openCaseRuns); n > 0 && p.openCaseRuns[n-1].parenDepth == p.parenDepth {
+		p.openCaseRuns[n-1].count++
+	} else {
+		p.openCaseRuns = append(p.openCaseRuns, openCaseRun{parenDepth: p.parenDepth, count: 1})
+	}
 	defer func() {
-		p.openCaseParenDepths = p.openCaseParenDepths[:len(p.openCaseParenDepths)-1]
+		n := len(p.openCaseRuns)
+		if p.openCaseRuns[n-1].count > 1 {
+			p.openCaseRuns[n-1].count--
+		} else {
+			p.openCaseRuns = p.openCaseRuns[:n-1]
+		}
 	}()
 	if p.cur().Kind != kwWHEN {
 		if err := p.parseExpression(); err != nil {
