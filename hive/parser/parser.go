@@ -39,11 +39,22 @@ const (
 	StmtDDL     StatementKind = "DDL"
 )
 
+// ExplainInfo holds parsed metadata for an EXPLAIN statement.
+type ExplainInfo struct {
+	Formatted bool
+	Analyze   bool
+	Rewrite   bool
+	InnerKind StatementKind
+}
+
 // Statement holds metadata for one parsed HiveQL statement.
 type Statement struct {
-	Kind StatementKind
-	Text string
-	Loc  Loc
+	Kind         StatementKind
+	Explain      *ExplainInfo // non-nil when Kind == StmtExplain
+	FirstKeyword TokenType
+	HasTransform bool
+	Text         string
+	Loc          Loc
 }
 
 // ParseResult is the result of parsing a HiveQL statement.
@@ -62,7 +73,7 @@ func Parse(sql string) (*ParseResult, error) {
 		sql:  sql,
 		toks: toks,
 	}
-	kind, err := p.parseStatement()
+	kind, explainInfo, err := p.parseStatement()
 	if err != nil {
 		return nil, err
 	}
@@ -71,15 +82,20 @@ func Parse(sql string) (*ParseResult, error) {
 	}
 	start := 0
 	end := len(sql)
+	var firstKW TokenType
 	if len(toks) > 1 {
 		start = toks[0].Loc.Start
 		end = toks[len(toks)-2].Loc.End
+		firstKW = toks[0].Type
 	}
 	return &ParseResult{
 		Statement: &Statement{
-			Kind: kind,
-			Text: sql,
-			Loc:  Loc{Start: start, End: end},
+			Kind:         kind,
+			Explain:      explainInfo,
+			FirstKeyword: firstKW,
+			HasTransform: p.hasTransform,
+			Text:         sql,
+			Loc:          Loc{Start: start, End: end},
 		},
 	}, nil
 }
@@ -100,19 +116,23 @@ type memoKey struct {
 }
 
 type memoEntry struct {
-	endPos   int
-	relDepth int
-	err      error
+	endPos       int
+	relDepth     int
+	hasInsert    bool
+	hasTransform bool
+	err          error
 }
 
 type parser struct {
-	sql       string
-	toks      []Token
-	pos       int
-	depth     int
-	peakDepth int
-	inTry     int
-	memo      map[memoKey]memoEntry
+	sql          string
+	toks         []Token
+	pos          int
+	depth        int
+	peakDepth    int
+	inTry        int
+	hasInsert    bool
+	hasTransform bool
+	memo         map[memoKey]memoEntry
 }
 
 func (p *parser) enter() error {
@@ -155,6 +175,8 @@ func (p *parser) memoize(rule memoRule, fn func() error) error {
 					p.peakDepth = p.depth + entry.relDepth
 				}
 				p.pos = entry.endPos
+				p.hasInsert = p.hasInsert || entry.hasInsert
+				p.hasTransform = p.hasTransform || entry.hasTransform
 				return nil
 			}
 		}
@@ -162,7 +184,12 @@ func (p *parser) memoize(rule memoRule, fn func() error) error {
 
 	prevPeak := p.peakDepth
 	p.peakDepth = p.depth
+	prevInsert, prevTransform := p.hasInsert, p.hasTransform
+	p.hasInsert, p.hasTransform = false, false
 	err := fn()
+	subInsert, subTransform := p.hasInsert, p.hasTransform
+	p.hasInsert = prevInsert || subInsert
+	p.hasTransform = prevTransform || subTransform
 	relDepth := p.peakDepth - p.depth
 	if prevPeak > p.peakDepth {
 		p.peakDepth = prevPeak
@@ -174,9 +201,11 @@ func (p *parser) memoize(rule memoRule, fn func() error) error {
 				p.memo = make(map[memoKey]memoEntry)
 			}
 			p.memo[memoKey{rule: rule, pos: startPos}] = memoEntry{
-				endPos:   p.pos,
-				relDepth: relDepth,
-				err:      err,
+				endPos:       p.pos,
+				relDepth:     relDepth,
+				hasInsert:    subInsert,
+				hasTransform: subTransform,
+				err:          err,
 			}
 		}
 	}
@@ -237,6 +266,7 @@ func (p *parser) errAt(t Token, msg string) error {
 
 func (p *parser) try(fn func() error) bool {
 	saved := p.save()
+	savedInsert, savedTransform := p.hasInsert, p.hasTransform
 	p.inTry++
 	err := fn()
 	p.inTry--
@@ -244,6 +274,7 @@ func (p *parser) try(fn func() error) bool {
 		return true
 	}
 	p.restore(saved)
+	p.hasInsert, p.hasTransform = savedInsert, savedTransform
 	return false
 }
 
@@ -309,38 +340,58 @@ func (p *parser) checkCreateTableColName(t Token) error {
 }
 
 // statement : explainStatement EOF | execStatement EOF ;
-func (p *parser) parseStatement() (StatementKind, error) {
+func (p *parser) parseStatement() (StatementKind, *ExplainInfo, error) {
 	if err := p.enter(); err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer p.leave()
 
 	if p.peek().Type == KW_EXPLAIN {
-		if err := p.parseExplainStatement(); err != nil {
-			return "", err
+		info, err := p.parseExplainStatement()
+		if err != nil {
+			return "", nil, err
 		}
-		return StmtExplain, nil
+		return StmtExplain, info, nil
 	}
-	return p.parseExecStatement()
+	kind, err := p.parseExecStatement()
+	return kind, nil, err
 }
 
 // explainStatement : KW_EXPLAIN ( explainOption* execStatement | KW_REWRITE queryStatementExpression ) ;
-func (p *parser) parseExplainStatement() error {
+func (p *parser) parseExplainStatement() (*ExplainInfo, error) {
 	if _, err := p.expect(KW_EXPLAIN); err != nil {
-		return err
+		return nil, err
 	}
+	info := &ExplainInfo{}
 	if p.match(KW_REWRITE) {
-		return p.parseQueryStatementExpression()
+		info.Rewrite = true
+		if err := p.parseQueryStatementExpression(); err != nil {
+			return nil, err
+		}
+		if p.hasInsert {
+			info.InnerKind = StmtInsert
+		} else {
+			info.InnerKind = StmtQuery
+		}
+		return info, nil
 	}
-	for p.parseExplainOption() {
+	for p.parseExplainOption(info) {
 	}
-	_, err := p.parseExecStatement()
-	return err
+	innerKind, err := p.parseExecStatement()
+	if err != nil {
+		return nil, err
+	}
+	info.InnerKind = innerKind
+	return info, nil
 }
 
-func (p *parser) parseExplainOption() bool {
+func (p *parser) parseExplainOption(info *ExplainInfo) bool {
 	switch p.peek().Type {
-	case KW_EXTENDED, KW_FORMATTED, KW_DEPENDENCY, KW_LOGICAL,
+	case KW_FORMATTED:
+		info.Formatted = true
+		p.next()
+		return true
+	case KW_EXTENDED, KW_DEPENDENCY, KW_LOGICAL,
 		KW_AUTHORIZATION, KW_REOPTIMIZATION, KW_LOCKS, KW_AST, KW_DEBUG, KW_DDL:
 		p.next()
 		return true
@@ -349,6 +400,7 @@ func (p *parser) parseExplainOption() bool {
 		if p.peekAt(1).Type == KW_TABLE {
 			return false
 		}
+		info.Analyze = true
 		p.next()
 		return true
 	case KW_CBO:
@@ -374,7 +426,13 @@ func (p *parser) parseExplainOption() bool {
 func (p *parser) parseExecStatement() (StatementKind, error) {
 	switch p.peek().Type {
 	case KW_WITH, KW_FROM, KW_SELECT, KW_MAP, KW_REDUCE, KW_VALUES, TokLParen:
-		return StmtQuery, p.parseQueryStatementExpression()
+		if err := p.parseQueryStatementExpression(); err != nil {
+			return "", err
+		}
+		if p.hasInsert {
+			return StmtInsert, nil
+		}
+		return StmtQuery, nil
 	case KW_INSERT:
 		return StmtInsert, p.parseQueryStatementExpression()
 	case KW_LOAD:

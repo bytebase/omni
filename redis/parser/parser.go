@@ -44,38 +44,91 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("line %d: %s", e.Line, e.Message)
 }
 
+// Statement is one tokenized, non-empty command line from a Redis script,
+// without command-table or arity validation.
+type Statement struct {
+	// Args holds the tokenized arguments as written, with Args[0] being the
+	// raw command token.
+	Args []string
+	// Text is the raw source line the statement was split from.
+	Text string
+	// Start and End are the half-open byte offsets [Start, End) of Text in the
+	// input script.
+	Start int
+	End   int
+	// Line is the 1-based line number of Text in the input script.
+	Line int
+}
+
+// Split splits a newline-delimited Redis command script into non-empty
+// tokenized statements with their byte offsets. Unlike Parse, Split performs
+// only lexical tokenization and does not check command names or arity, so
+// Redis module commands (such as JSON.GET or FT.SEARCH) and unknown commands
+// split cleanly. Malformed quoting or a trailing backslash returns a
+// *ParseError.
+func Split(script string) ([]Statement, error) {
+	var statements []Statement
+	err := forEachStatement(script, func(stmt Statement) error {
+		statements = append(statements, stmt)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return statements, nil
+}
+
 // Parse parses a newline-delimited Redis command script. Blank and
 // whitespace-only lines are skipped. Each non-empty line is tokenized and
 // validated against Redis 7.4.12's command/subcommand names and arity rules.
 func Parse(script string) ([]Command, error) {
 	var commands []Command
+	err := forEachStatement(script, func(stmt Statement) error {
+		cmd, err := validateCommand(stmt.Args, stmt.Text, stmt.Start, stmt.End)
+		if err != nil {
+			return &ParseError{
+				Message:  err.Error(),
+				Position: stmt.Start,
+				Line:     stmt.Line,
+			}
+		}
+		commands = append(commands, cmd)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return commands, nil
+}
+
+func forEachStatement(script string, fn func(Statement) error) error {
 	start := 0
 	lineNo := 1
 	for line := range strings.SplitSeq(script, "\n") {
 		end := start + len(line)
 		fields, err := Tokenize(line)
 		if err != nil {
-			return nil, &ParseError{
+			return &ParseError{
 				Message:  err.Error(),
 				Position: start,
 				Line:     lineNo,
 			}
 		}
 		if len(fields) > 0 {
-			cmd, err := validateCommand(fields, line, start, end)
-			if err != nil {
-				return nil, &ParseError{
-					Message:  err.Error(),
-					Position: start,
-					Line:     lineNo,
-				}
+			if err := fn(Statement{
+				Args:  fields,
+				Text:  line,
+				Start: start,
+				End:   end,
+				Line:  lineNo,
+			}); err != nil {
+				return err
 			}
-			commands = append(commands, cmd)
 		}
 		start = end + 1
 		lineNo++
 	}
-	return commands, nil
+	return nil
 }
 
 // ParseCommand parses and validates a single Redis command line. Empty lines
