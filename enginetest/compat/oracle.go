@@ -29,8 +29,10 @@ import (
 // SQL statement inside the PL/SQL ("PL/SQL: ORA-00942", whose code
 // USER_ERRORS keeps only in its text): for ORA-24344, a unit created with
 // compilation errors, those USER_ERRORS lists (PLS-00000 is "Statement
-// ignored", which follows another), and for ORA-06550 / ORA-22324, an
-// anonymous block or ALTER TYPE that did not compile, those of its error stack.
+// ignored", which follows another), for ORA-06550 / ORA-22324 (an anonymous
+// block or ALTER TYPE that did not compile), the PLS-/ORA- codes from its
+// error stack, and for ORA-02425 / ORA-02426 (CREATE SCHEMA inner CREATE TABLE
+// / GRANT wrappers), the underlying ORA- codes from its error stack.
 const OracleParse = `DECLARE
   c INTEGER := DBMS_SQL.OPEN_CURSOR;
   code PLS_INTEGER := 0;
@@ -59,6 +61,11 @@ BEGIN
     FOR i IN 1 .. REGEXP_COUNT(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, 'm') LOOP
       compile := compile || CASE WHEN i > 1 THEN ',' END ||
         REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
+    END LOOP;
+  ELSIF code IN (2425, 2426) THEN
+    FOR i IN 2 .. REGEXP_COUNT(stack, '^ORA-[0-9]{5}', 1, 'm') LOOP
+      compile := compile || CASE WHEN i > 2 THEN ',' END ||
+        REGEXP_SUBSTR(stack, '^ORA-[0-9]{5}', 1, i, 'm');
     END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
@@ -280,6 +287,10 @@ var (
 	reInquiryNamedArg                 = regexp.MustCompile(`(?i)\$\$[A-Za-z_][A-Za-z0-9_$#]*\s*=>`)
 	reCondComp                        = regexp.MustCompile(`(?i)\$IF\b`)
 	reRowLimitingForUpdate            = regexp.MustCompile(`(?i)\b(?:OFFSET|FETCH\s+(?:FIRST|NEXT)\b.*?\bWITH\s+TIES)\b.*\bFOR\s+UPDATE\b`)
+	reCharsetRefOrRowtype             = regexp.MustCompile(`(?i)(?:\bREF\s+\S+|%ROWTYPE)\s+CHARACTER\s+SET\b`)
+	reCharsetPredefinedNonChar        = regexp.MustCompile(`(?i)\b(?:NUMBER|INTEGER|INT|SMALLINT|DECIMAL|DEC|NUMERIC|FLOAT|REAL|DOUBLE\s+PRECISION|BINARY_FLOAT|BINARY_DOUBLE|SIMPLE_FLOAT|SIMPLE_DOUBLE|PLS_INTEGER|BINARY_INTEGER|SIMPLE_INTEGER|NATURALN?|POSITIVEN?|SIGNTYPE|BOOL(?:EAN)?|DATE|TIMESTAMP|INTERVAL|RAW|LONG|ROWID|UROWID|BLOB|BFILE|JSON|VECTOR|MLSLABEL|SYS_REFCURSOR|NCHAR|NVARCHAR2|NCLOB)\b(?:\s*\([^)]*\))?\s+CHARACTER\s+SET\b`)
+	reCharsetAttr                     = regexp.MustCompile(`(?i)\bCHARACTER\s+SET\s+([A-Za-z_][A-Za-z0-9_$#]*)%CHARSET\b`)
+	reNonCharTypeWord                 = regexp.MustCompile(`(?i)^(?:NUMBER|INTEGER|INT|SMALLINT|DECIMAL|DEC|NUMERIC|FLOAT|REAL|DOUBLE\s+PRECISION|BINARY_FLOAT|BINARY_DOUBLE|SIMPLE_FLOAT|SIMPLE_DOUBLE|PLS_INTEGER|BINARY_INTEGER|SIMPLE_INTEGER|NATURALN?|POSITIVEN?|SIGNTYPE|BOOL(?:EAN)?|DATE|TIMESTAMP|INTERVAL|RAW|LONG|ROWID|UROWID|BLOB|BFILE|JSON|VECTOR|MLSLABEL|SYS_REFCURSOR|NCHAR|NVARCHAR2|NCLOB)\b`)
 )
 
 // oracleStandIn returns statement rewritten with a fixture object, valid
@@ -625,11 +636,14 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 	}
 	base := prefix[1]
 	rest := statement[base:]
-	if !reStandInSeqShard.MatchString(rest) {
+	// Mask comments and quoted text with spaces (preserving byte offsets) so
+	// option and EXTEND/NOEXTEND counts ignore words inside comments or quotes.
+	masked := maskSQLCommentsAndQuotes(rest)
+	if !reStandInSeqShard.MatchString(masked) {
 		return "", nil, false
 	}
-	if !reStandInSeqScale.MatchString(rest) {
-		matches := reStandInSeqShard.FindAllStringIndex(rest, -1)
+	if !reStandInSeqScale.MatchString(masked) {
+		matches := reStandInSeqShard.FindAllStringIndex(masked, -1)
 		edits := make([]standInEdit, 0, len(matches))
 		for _, m := range matches {
 			rep := "SCALE"
@@ -647,25 +661,25 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 	// SHARD's EXTEND/NOEXTEND modifier when it is the sole modifier in the
 	// statement so duplicate modifiers like "SCALE EXTEND SHARD NOEXTEND"
 	// remain visible for Oracle to reject.
-	extendCount := len(reStandInSeqAnyExtend.FindAllStringIndex(rest, -1))
+	extendCount := len(reStandInSeqAnyExtend.FindAllStringIndex(masked, -1))
 	clauseRe := reStandInSeqShardClause
 	if extendCount > 1 {
 		clauseRe = reStandInSeqShard
 	}
-	matches := clauseRe.FindAllStringIndex(rest, -1)
+	matches := clauseRe.FindAllStringIndex(masked, -1)
 	if len(matches) == 0 {
 		return "", nil, false
 	}
 	posRep, negRep := "", ""
 	switch {
-	case !reStandInSeqOrder.MatchString(rest):
+	case !reStandInSeqOrder.MatchString(masked):
 		posRep, negRep = "ORDER", "NOORDER"
-	case !reStandInSeqCycle.MatchString(rest):
+	case !reStandInSeqCycle.MatchString(masked):
 		posRep, negRep = "CYCLE", "NOCYCLE"
-	case !reStandInSeqKeep.MatchString(rest):
+	case !reStandInSeqKeep.MatchString(masked):
 		posRep, negRep = "KEEP", "NOKEEP"
 	}
-	if posRep == "" && extendCount <= 1 && len(matches) == 1 && !reStandInSeqExtend.MatchString(rest[matches[0][1]:]) {
+	if posRep == "" && extendCount <= 1 && len(matches) == 1 && !reStandInSeqExtend.MatchString(masked[matches[0][1]:]) {
 		rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{base + matches[0][0], base + matches[0][1], ""}})
 		return rewritten, mapPos, true
 	}
@@ -685,6 +699,57 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 	}
 	rewritten, mapPos := applyStandInEdits(statement, edits)
 	return rewritten, mapPos, true
+}
+
+// maskSQLCommentsAndQuotes returns a copy of s of the same byte length with
+// SQL line comments (-- ...), block comments (/* ... */), single-quoted
+// strings, and double-quoted identifiers replaced by spaces.
+func maskSQLCommentsAndQuotes(s string) string {
+	b := []byte(s)
+	for i := 0; i < len(b); {
+		switch {
+		case b[i] == '-' && i+1 < len(b) && b[i+1] == '-':
+			for i < len(b) && b[i] != '\n' {
+				b[i] = ' '
+				i++
+			}
+		case b[i] == '/' && i+1 < len(b) && b[i+1] == '*':
+			b[i] = ' '
+			b[i+1] = ' '
+			i += 2
+			for i < len(b) {
+				if b[i] == '*' && i+1 < len(b) && b[i+1] == '/' {
+					b[i] = ' '
+					b[i+1] = ' '
+					i += 2
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		case b[i] == '\'' || b[i] == '"':
+			q := b[i]
+			b[i] = ' '
+			i++
+			for i < len(b) {
+				if b[i] == q {
+					b[i] = ' '
+					i++
+					if i < len(b) && b[i] == q {
+						b[i] = ' '
+						i++
+						continue
+					}
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		default:
+			i++
+		}
+	}
+	return string(b)
 }
 
 // oracleFailureStandInRev5 rewrites a statement that crashes Oracle 23ai's own
@@ -833,7 +898,6 @@ func oracleParserCode(code int, rev5 bool) bool {
 // oracleStatementRev5 are additional statement-parser and structural syntax
 // error codes classified in judge revision 5, each measured on the pinned
 // server (0 false rejects across all valid compat.tsv rows):
-//   - 2425, 2426: CREATE SCHEMA inner CREATE TABLE / GRANT failure on OMNI_JUDGE
 //   - 2538: invalid TABLESPACE SET clause on hash-partitioned MV / MV log
 //   - 3001: unimplemented feature (GRANT a TO a BY a, CREATE TABLE a COLUMN a IS OF(a))
 //   - 4125: empty MLE module body (CREATE MLE MODULE ... AS)
@@ -845,7 +909,7 @@ func oracleParserCode(code int, rev5 bool) bool {
 //   - 46373: unified audit policy missing required audit option
 //   - 64350: duplicate INMEMORY clause
 var oracleStatementRev5 = map[int]bool{
-	2425: true, 2426: true, 2538: true, 3001: true, 4125: true,
+	2538: true, 3001: true, 4125: true,
 	14108: true, 14156: true, 14173: true, 22913: true,
 	28025: true, 28700: true, 28701: true, 46373: true, 64350: true,
 }
@@ -862,11 +926,11 @@ var oracleCheckedAtEndRemovedRev5 = map[int]bool{
 // PLS-001xx) rejected by omni and pinned in suite:reference / ALTER TYPE
 // (including PLS-00716 for duplicate attribute/method in a single ALTER TYPE
 // statement), with 0 hits on any accepted PL/SQL or ALTER TYPE row in
-// compat.tsv. PLS-00306 is handled separately in oracleCompileSyntax only when
-// an inquiry directive ($$name =>) appears as a named argument so ordinary
-// signature-mismatch calls stay accepted.
+// compat.tsv. PLS-00306 (inquiry directive named arg) and PLS-00550
+// (textually non-character CHARACTER SET target) are scoped separately in
+// oracleCompileSyntax so semantic failures stay accepted.
 var oracleCompileStructuralRev5 = map[int]bool{
-	312: true, 431: true, 505: true, 550: true,
+	312: true, 431: true, 505: true,
 	572: true, 589: true, 710: true, 712: true, 716: true, 856: true, 999: true,
 }
 
@@ -1108,14 +1172,14 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 	if !ok {
 		return "", err
 	}
-	if rev5 && e.code == 22324 {
-		// ORA-22324 reports compilation errors on ALTER TYPE, with PLS-* codes
-		// extracted from DBMS_UTILITY.FORMAT_ERROR_STACK in OracleParse. Reject
-		// only on compiler syntax/structural errors (such as PLS-00103 or
-		// PLS-00716 for a duplicate attribute/method within the ALTER TYPE
-		// statement itself), so fixture-dependent semantic collisions (such as
-		// ADD ATTRIBUTE b NUMBER colliding with fixture y's attribute b under
-		// PLS-00410) or undeclared types (PLS-00201) remain accepted.
+	if rev5 && (e.code == 22324 || e.code == 2425 || e.code == 2426) {
+		// ORA-22324 (ALTER TYPE compilation errors) and ORA-02425/02426
+		// (CREATE SCHEMA inner CREATE TABLE / GRANT wrappers) carry their
+		// underlying diagnostics in e.compile (extracted from
+		// DBMS_UTILITY.FORMAT_ERROR_STACK in OracleParse). Reject only when
+		// an underlying error is a syntax/structural error (such as PLS-00103,
+		// PLS-00716, ORA-00922, or ORA-00933), so fixture-dependent semantic
+		// failures (PLS-00410, PLS-00201, ORA-00955, ORA-01917) stay accepted.
 		for _, c := range e.compile {
 			if oracleCompileSyntax(c, statement, rev5) {
 				return Reject, nil
@@ -1249,12 +1313,38 @@ func oracleCompileSyntax(e, statement string, rev5 bool) bool {
 		if rev5 && n == 306 {
 			return reInquiryNamedArg.MatchString(statement)
 		}
+		if rev5 && n == 550 {
+			return hasTextualNonCharCharset(statement)
+		}
 		return rev5 && oracleCompileStructuralRev5[n]
 	case "ORA":
 		if rev5 && n == 32551 {
 			return true
 		}
 		return oracleParserCode(n, rev5)
+	}
+	return false
+}
+
+// hasTextualNonCharCharset reports whether statement applies a CHARACTER SET
+// clause to a type that is textually non-character without database metadata:
+// REF <type>, %ROWTYPE, a predefined non-character SQL/PL/SQL type, or
+// <ident>%CHARSET where <ident> is declared in the statement itself with a
+// predefined non-character type. Metadata-dependent targets like t.a%TYPE or
+// a user object type return false so semantic PLS-00550 failures stay accepted.
+func hasTextualNonCharCharset(statement string) bool {
+	masked := maskSQLCommentsAndQuotes(statement)
+	if reCharsetRefOrRowtype.MatchString(masked) || reCharsetPredefinedNonChar.MatchString(masked) {
+		return true
+	}
+	for _, m := range reCharsetAttr.FindAllStringSubmatch(masked, -1) {
+		ident := m[1]
+		declRe := regexp.MustCompile(`(?i)(?:^|[(\s,;])` + regexp.QuoteMeta(ident) + `\s+(?:(?:IN\s+OUT|IN|OUT|NOCOPY|CONSTANT)\s+)*([A-Za-z_][A-Za-z0-9_$#]*(?:\s+PRECISION)?)`)
+		for _, dm := range declRe.FindAllStringSubmatch(masked, -1) {
+			if reNonCharTypeWord.MatchString(dm[1]) {
+				return true
+			}
+		}
 	}
 	return false
 }

@@ -462,6 +462,10 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"CREATE SEQUENCE s SCALE EXTEND ORDER EXTEND":                   {933, 37, "", nil},
 			"CREATE SEQUENCE s SCALE EXTEND ORDER EXTEND" + OracleProbeTail: {933, 37, "", nil},
 		}, Reject},
+		{"CREATE SEQUENCE SCALE SHARD EXTEND with EXTEND in comment accepts valid", "CREATE SEQUENCE s SCALE SHARD EXTEND /* EXTEND */", map[string]*answer{
+			"CREATE SEQUENCE s SCALE SHARD EXTEND /* EXTEND */": {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER /* EXTEND */":        parsed,
+		}, Accept},
 		{"CREATE SEQUENCE SCALE EXTEND SHARD accepts single EXTEND", "CREATE SEQUENCE s SCALE EXTEND SHARD", map[string]*answer{
 			"CREATE SEQUENCE s SCALE EXTEND SHARD": {2511, 0, "", nil},
 			"CREATE SEQUENCE s SCALE EXTEND ORDER": parsed,
@@ -580,11 +584,18 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"LOCK TABLE p PARTITION(1) IN SHARE MODE":                   {14108, 23, "", nil},
 			"LOCK TABLE p PARTITION(1) IN SHARE MODE" + OracleProbeTail: {911, 41, "", nil},
 		}, Reject},
-		{"CREATE SCHEMA AUTHORIZATION a stand-in rejects trailing zzz", "CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz", map[string]*answer{
-			"CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz":                            {2421, 0, "", nil},
-			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE a (a NUMBER) zzz":                   {2425, 39, "", nil},
-			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE a (a NUMBER) zzz" + OracleProbeTail: {911, 70, "", nil},
+		{"CREATE SCHEMA AUTHORIZATION a stand-in rejects trailing zzz via underlying ORA-00922", "CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz", map[string]*answer{
+			"CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz":          {2421, 0, "", nil},
+			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE a (a NUMBER) zzz": {2425, 39, "ORA-00922,ORA-06512", nil},
 		}, Reject},
+		{"CREATE SCHEMA AUTHORIZATION a fixture collision ORA-02425 wrapping ORA-00955 stays accepted", "CREATE SCHEMA AUTHORIZATION a CREATE TABLE t (a NUMBER)", map[string]*answer{
+			"CREATE SCHEMA AUTHORIZATION a CREATE TABLE t (a NUMBER)":          {2421, 0, "", nil},
+			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE t (a NUMBER)": {2425, 39, "ORA-00955,ORA-06512", nil},
+		}, Accept},
+		{"CREATE SCHEMA AUTHORIZATION a missing grantee ORA-02426 wrapping ORA-01917 stays accepted", "CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON t TO nonexistent", map[string]*answer{
+			"CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON t TO nonexistent":          {2421, 0, "", nil},
+			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE GRANT SELECT ON t TO nonexistent": {2426, 39, "ORA-01917,ORA-06512", nil},
+		}, Accept},
 		{"CREATE FUNCTION a.zzz stand-in to OMNI_JUDGE rejects PLS-00103", "CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;", map[string]*answer{
 			"CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;":          {1031, 0, "", nil},
 			"CREATE FUNCTION OMNI_JUDGE.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;": {24344, 0, "PLS-00103", nil},
@@ -631,6 +642,12 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;": {6550, 14, "PLS-00201", nil},
 			"DECLARE x REF y CHARACTER SET NCHAR_CS; BEGIN NULL; END;":              {6550, 10, "PLS-00550", nil},
 		}, Reject},
+		{"PL/SQL cursor param NUMBER %CHARSET rejects PLS-00550", "DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;", map[string]*answer{
+			"DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;": {6550, 53, "PLS-00550", nil},
+		}, Reject},
+		{"PL/SQL metadata-dependent %TYPE CHARACTER SET stays accepted on PLS-00550", "CREATE PROCEDURE p (x t.a%TYPE CHARACTER SET ANY_CS) IS BEGIN NULL; END;", map[string]*answer{
+			"CREATE PROCEDURE p (x t.a%TYPE CHARACTER SET ANY_CS) IS BEGIN NULL; END;": {24344, 0, "PLS-00550", nil},
+		}, Accept},
 		{"PL/SQL ORA-32551 rejected", "DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;", map[string]*answer{
 			"DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;": {6550, 39, "ORA-32551", nil},
 		}, Reject},
@@ -716,9 +733,8 @@ func TestOracleVerdictOnlySchemaCustomScratchUser(t *testing.T) {
 			"CREATE FUNCTION SCRATCH_USER.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;": {24344, 0, "PLS-00103"},
 		}, Reject},
 		{"CREATE SCHEMA stand-in uses connected scratch user", "CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON a TO a zzz", map[string]*answer{
-			"CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON a TO a zzz":                                         {2421, 0, ""},
-			"CREATE SCHEMA AUTHORIZATION SCRATCH_USER GRANT SELECT ON t TO SCRATCH_USER zzz":                   {2426, 41, ""},
-			"CREATE SCHEMA AUTHORIZATION SCRATCH_USER GRANT SELECT ON t TO SCRATCH_USER zzz" + OracleProbeTail: {911, 79, ""},
+			"CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON a TO a zzz":                       {2421, 0, ""},
+			"CREATE SCHEMA AUTHORIZATION SCRATCH_USER GRANT SELECT ON t TO SCRATCH_USER zzz": {2426, 41, "ORA-00933,ORA-06512"},
 		}, Reject},
 	} {
 		t.Run(c.name, func(t *testing.T) {
