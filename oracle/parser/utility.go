@@ -1890,7 +1890,7 @@ func (p *Parser) parseStatisticsObjectKind() (string, error) {
 }
 
 // parseStatisticsObjects reads [ schema. ] name [, [ schema. ] name ]...,
-// or table . column for COLUMNS (COLUMNS a is ORA-29818 after the a).
+// or [ schema. ] table . column for COLUMNS (COLUMNS a is ORA-29818 after the a).
 func (p *Parser) parseStatisticsObjects(kind string) ([]*nodes.ObjectName, error) {
 	var objs []*nodes.ObjectName
 	for {
@@ -1898,8 +1898,20 @@ func (p *Parser) parseStatisticsObjects(kind string) ([]*nodes.ObjectName, error
 		if err != nil {
 			return nil, err
 		}
-		if kind == "COLUMNS" && name.Schema == "" {
-			return nil, p.syntaxErrorAtCur()
+		if kind == "COLUMNS" {
+			if name.Schema == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.cur.Type == '.' {
+				p.advance()
+				col, err := p.ixName()
+				if err != nil {
+					return nil, err
+				}
+				name.Schema = name.Schema + "." + name.Name
+				name.Name = col
+				name.Loc.End = p.prev.End
+			}
 		}
 		objs = append(objs, name)
 		if p.cur.Type != ',' {

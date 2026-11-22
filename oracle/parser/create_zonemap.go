@@ -77,8 +77,13 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 			continue
 		case p.isKeywordStr("SCALE"):
 			p.advance()
+			scaleTok := p.cur
 			if err := p.parseZonemapInteger(&stmt.Scale); err != nil {
 				return nil, err
+			}
+			// Oracle 23ai requires zonemap SCALE to be between 3 and 20 (ORA-31951).
+			if stmt.Scale != nil && (*stmt.Scale < 3 || *stmt.Scale > 20) {
+				return nil, p.syntaxErrorAtTok(scaleTok)
 			}
 			continue
 		case p.cur.Type == kwPCTFREE:

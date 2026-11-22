@@ -241,6 +241,25 @@ func (p *Parser) parseATSizeClause() error {
 	return nil
 }
 
+// parseATExtentSizeClause reads size_clause for ALLOCATE EXTENT / DEALLOCATE
+// UNUSED KEEP, where Oracle refuses P and E units at the integer (ORA-03277).
+func (p *Parser) parseATExtentSizeClause() error {
+	intTok := p.cur
+	if err := p.parseATInteger(); err != nil {
+		return err
+	}
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "K", "M", "G", "T":
+			p.advance()
+		case "P", "E":
+			p.advance()
+			return p.syntaxErrorAtTok(intTok)
+		}
+	}
+	return nil
+}
+
 // parseATStorageClause reads storage_clause:
 //
 //	STORAGE ( { INITIAL size_clause | NEXT size_clause | MINEXTENTS integer
@@ -880,7 +899,7 @@ func (p *Parser) parseATAllocateExtent() error {
 		switch {
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			err = p.parseATSizeClause()
+			err = p.parseATExtentSizeClause()
 		case p.atWord("DATAFILE"):
 			p.advance()
 			err = p.atExpect(tokSCONST)
@@ -910,7 +929,7 @@ func (p *Parser) parseATDeallocateUnused() error {
 	}
 	if p.atWord("KEEP") {
 		p.advance()
-		return p.parseATSizeClause()
+		return p.parseATExtentSizeClause()
 	}
 	return nil
 }
@@ -940,9 +959,10 @@ func (p *Parser) parseATShrink() error {
 func (p *Parser) parseATEncryptionSpec() error {
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if err := p.atExpect(tokSCONST); err != nil {
-			return err
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
@@ -956,6 +976,9 @@ func (p *Parser) parseATEncryptionSpec() error {
 		}
 	}
 	if p.cur.Type == tokSCONST {
+		if !isValidOracleIntegrityAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
+		}
 		p.advance()
 	}
 	if p.atWord("NO") && p.atNextWord("SALT") {

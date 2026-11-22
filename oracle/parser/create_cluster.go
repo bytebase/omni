@@ -21,11 +21,26 @@ func (p *Parser) parseClusterInteger(v **int) error {
 }
 
 // parseClusterSize reads a size_clause: integer [ K | M | G | T | P | E ].
-func (p *Parser) parseClusterSize() (string, error) {
+// For CREATE CLUSTER SIZE, Oracle rejects units M/G/T/P/E at the integer
+// (ORA-02229); for DEALLOCATE UNUSED / ALLOCATE EXTENT, Oracle rejects P/E
+// at the integer (ORA-03277).
+func (p *Parser) parseClusterSize(maxUnit string) (string, error) {
 	if p.cur.Type != tokICONST {
 		return "", p.syntaxErrorAtCur()
 	}
-	return p.parseSizeValue()
+	intTok := p.cur
+	val := p.advance().Str
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "K", "M", "G", "T", "P", "E":
+			unit := p.advance().Str
+			if (maxUnit == "K" && unit != "K") || (maxUnit == "T" && (unit == "P" || unit == "E")) {
+				return "", p.syntaxErrorAtTok(intTok)
+			}
+			val += unit
+		}
+	}
+	return val, nil
 }
 
 // parseCreateClusterStmt parses a CREATE CLUSTER statement after CLUSTER.
@@ -65,8 +80,7 @@ func (p *Parser) parseClusterSize() (string, error) {
 //
 // Oracle 23ai takes the options after the column list in any order, and
 // MAXTRANS among the physical attributes. It refuses range partitioning of
-// a cluster that is not a hash cluster (ORA-14179), which the page states
-// but its syntax does not, so omni does not check it.
+// a cluster that is not a hash cluster (ORA-14179 at '(').
 func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, error) {
 	stmt := &nodes.CreateClusterStmt{
 		Loc: nodes.Loc{Start: start},
@@ -132,6 +146,9 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 			if err := p.parseClusterInteger(&stmt.InitTrans); err != nil {
 				return nil, err
 			}
+			if stmt.InitTrans != nil && *stmt.InitTrans < 2 {
+				return nil, p.syntaxErrorAtCur()
+			}
 		case p.isKeywordStr("MAXTRANS"):
 			p.advance()
 			if err := p.parseClusterInteger(nil); err != nil {
@@ -143,7 +160,7 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 			}
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			if stmt.Size, err = p.parseClusterSize(); err != nil {
+			if stmt.Size, err = p.parseClusterSize("K"); err != nil {
 				return nil, err
 			}
 		case p.cur.Type == kwTABLESPACE:
@@ -203,7 +220,7 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 			p.advance()
 			stmt.NoCache = true
 		case p.cur.Type == kwPARTITION:
-			if err := p.parseClusterRangePartitions(); err != nil {
+			if err := p.parseClusterRangePartitions(stmt.IsHash); err != nil {
 				return nil, err
 			}
 		case p.isKeywordStr("INMEMORY"):
@@ -271,13 +288,19 @@ func (p *Parser) parseCreateClusterColumns(stmt *nodes.CreateClusterStmt) error 
 //
 //	PARTITION BY RANGE ( column [, column ]... )
 //	( PARTITION [ partition ] range_values_clause [ table_partition_description ] [, ...] )
-func (p *Parser) parseClusterRangePartitions() error {
+//
+// Oracle 23ai only allows range partitioning on hash clusters (HASHKEYS);
+// on a non-hash cluster it refuses at the '(' after RANGE (ORA-14179).
+func (p *Parser) parseClusterRangePartitions(isHash bool) error {
 	p.advance() // PARTITION
 	if err := p.expectCreateTableToken(kwBY); err != nil {
 		return err
 	}
 	if err := p.expectCreateTableWord("RANGE"); err != nil {
 		return err
+	}
+	if !isHash && p.cur.Type == '(' {
+		return p.syntaxErrorAtCur()
 	}
 	if err := p.parseCreateTablePartitionColumns(&nodes.List{}); err != nil {
 		return err
@@ -362,7 +385,7 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		case p.cur.Type == kwSIZE:
 			p.advance()
 			stmt.Action = "SIZE"
-			if stmt.Size, err = p.parseClusterSize(); err != nil {
+			if stmt.Size, err = p.parseClusterSize(""); err != nil {
 				return nil, err
 			}
 		case p.isKeywordStr("PCTUSED"):
@@ -381,6 +404,9 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 			p.advance()
 			if err := p.parseClusterInteger(&stmt.InitTrans); err != nil {
 				return nil, err
+			}
+			if stmt.InitTrans != nil && *stmt.InitTrans < 2 {
+				return nil, p.syntaxErrorAtCur()
 			}
 			physical()
 		case p.isKeywordStr("MAXTRANS"):
@@ -429,7 +455,7 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 			}
 			if p.isKeywordStr("KEEP") {
 				p.advance()
-				keep, err := p.parseClusterSize()
+				keep, err := p.parseClusterSize("T")
 				if err != nil {
 					return nil, err
 				}
@@ -478,7 +504,7 @@ func (p *Parser) parseClusterAllocateExtent() error {
 		switch {
 		case !size && p.cur.Type == kwSIZE:
 			p.advance()
-			extent, err := p.parseClusterSize()
+			extent, err := p.parseClusterSize("T")
 			if err != nil {
 				return err
 			}
