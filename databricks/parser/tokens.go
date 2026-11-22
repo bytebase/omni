@@ -472,17 +472,19 @@ func (k TokenKind) isStrictNonReservedOnly() bool {
 	return false
 }
 
-// isStrictIdentifier reports whether k can be parsed as a Spark strictIdentifier.
+// isStrictIdentifier reports whether k can be parsed as a Spark strictIdentifier
+// under Spark's default quoting configuration (double_quoted_identifiers=false).
 func (k TokenKind) isStrictIdentifier() bool {
-	if k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted {
+	if k == tokIdent || k == tokBackquoted {
 		return true
 	}
 	return k.isKeyword() && !k.isStrictNonReservedOnly()
 }
 
-// isIdentifier reports whether k can be parsed as a Spark identifier.
+// isIdentifier reports whether k can be parsed as a Spark identifier under
+// Spark's default quoting configuration (double_quoted_identifiers=false).
 func (k TokenKind) isIdentifier() bool {
-	return k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted || k.isKeyword()
+	return k == tokIdent || k == tokBackquoted || k.isKeyword()
 }
 
 var keywords = map[string]TokenKind{

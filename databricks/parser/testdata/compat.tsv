@@ -6686,3 +6686,13 @@ reject	reject	engine	suite:spark-astbuilder	SELECT 1.7976931348623158e308
 reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE c CONDITION; BEGIN DECLARE c CONDITION; SELECT 1; END; END
 reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE c CONDITION; BEGIN DECLARE C CONDITION; SELECT 1; END; END
 accept	accept	engine	suite:spark-astbuilder	BEGIN BEGIN DECLARE c CONDITION; SELECT 1; END; BEGIN DECLARE c CONDITION; SELECT 1; END; END
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE "t" (a INT)
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t ("a" INT)
+reject	reject	engine	suite:spark-astbuilder	SELECT * FROM "t"
+reject	reject	engine	suite:spark-astbuilder	SELECT 1 AS "a"
+reject	reject	engine	suite:spark-astbuilder	SELECT 1 "a"
+reject	reject	engine	suite:spark-astbuilder	SELECT * FROM t AS "u"
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) TBLPROPERTIES ("k" = "v")
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) TBLPROPERTIES ("k"."v" = "x")
+accept	accept	engine	suite:spark-astbuilder	SELECT "a" "b"
+reject	reject	engine	suite:spark-astbuilder	SELECT a COLLATE "utf8_binary"

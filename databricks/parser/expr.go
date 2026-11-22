@@ -127,7 +127,7 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 	if !k.isIdentifier() {
 		return false
 	}
-	if k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted {
+	if k == tokIdent || k == tokBackquoted {
 		if k == tokIdent && isWord(p.cur(), "QUALIFY") && !p.isStatementEnd() && p.peek(1).Kind != tokRParen {
 			return false
 		}
@@ -429,7 +429,7 @@ func (p *Parser) isNotIdentifierContinuation() bool {
 		// `not COLLATE utf8_binary` is a postfix COLLATE on column `not`,
 		// whereas `NOT collate FROM t` negates a column named `collate`.
 		after := p.peek(2).Kind
-		return after == tokIdent || after == tokBackquoted || after == tokDoubleQuoted
+		return after == tokIdent || after == tokBackquoted
 	}
 	return false
 }

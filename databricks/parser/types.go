@@ -995,11 +995,7 @@ func (p *Parser) parseProperty() (string, error) {
 }
 
 func (p *Parser) parsePropertyKey() (string, error) {
-	if p.cur().Kind == tokString {
-		tok := p.advance()
-		return decodePropertyKey(tok.Text, true), nil
-	}
-	if p.cur().Kind == tokDoubleQuoted && p.peek(1).Kind != tokDot {
+	if p.cur().Kind == tokString || p.cur().Kind == tokDoubleQuoted {
 		tok := p.advance()
 		return decodePropertyKey(tok.Text, true), nil
 	}

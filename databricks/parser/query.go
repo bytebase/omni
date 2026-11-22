@@ -972,7 +972,7 @@ func (p *Parser) isLateralParenRelation() bool {
 	}
 	// Bare `LATERAL (t alias)` with two plain identifiers and no operator between them.
 	isPlainIdent := func(k TokenKind) bool {
-		return k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted
+		return k == tokIdent || k == tokBackquoted
 	}
 	pos := lo
 	if isPlainIdent(p.peek(pos).Kind) {
@@ -1879,7 +1879,7 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 	if !k.isStrictIdentifier() {
 		return false
 	}
-	if k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted {
+	if k == tokIdent || k == tokBackquoted {
 		// Don't swallow QUALIFY when followed by an expression.
 		if k == tokIdent && isWord(p.cur(), "QUALIFY") && !p.isStatementEnd() && p.peek(1).Kind != tokRParen {
 			return false
