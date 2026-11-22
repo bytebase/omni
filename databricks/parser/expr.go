@@ -782,6 +782,9 @@ func (p *Parser) parsePrimaryAtom(negated bool) (bool, error) {
 
 	// Lambda: identifier -> expression
 	if k.isIdentifier() && p.peek(1).Kind == tokArrow {
+		if p.inWindowFrameBound {
+			return false, p.errorf("lambda expressions are not allowed in window frame bounds")
+		}
 		p.advance()
 		p.advance()
 		return false, p.parseExpression()
@@ -798,6 +801,9 @@ func (p *Parser) parsePrimaryAtom(negated bool) (bool, error) {
 
 	// Star: * [EXCEPT (...)]
 	if k == tokAsterisk {
+		if p.inWindowFrameBound {
+			return false, p.errorf("star expression is not allowed in window frame bounds")
+		}
 		p.advance()
 		if p.cur().Kind == kwEXCEPT && p.peek(1).Kind == tokLParen {
 			return false, p.parseExceptClause()
@@ -833,11 +839,17 @@ func (p *Parser) parsePrimaryAtom(negated bool) (bool, error) {
 
 	// Special keyword expressions that take parentheses.
 	if p.peek(1).Kind == tokLParen && isSpecialKeywordCall(k) {
+		if p.inWindowFrameBound && k != kwCAST && k != kwTRY_CAST {
+			return false, p.errorf("function %q is not allowed in window frame bounds", p.cur().Text)
+		}
 		return false, p.parseSpecialKeywordCall(k)
 	}
 
 	// Function call: functionName (...) [WITHIN GROUP (...)] [FILTER (WHERE ...)] [(IGNORE|RESPECT) NULLS] [OVER windowSpec]
 	if p.canStartFunctionCall() {
+		if p.inWindowFrameBound {
+			return false, p.errorf("function calls are not allowed in window frame bounds")
+		}
 		cp := p.save()
 		if err := p.parseFunctionCall(); err == nil {
 			return false, nil
@@ -858,7 +870,7 @@ func (p *Parser) parsePrimaryAtom(negated bool) (bool, error) {
 			next := p.peek(1).Kind
 			if err := p.parseConstantWithNeg(negated); err != nil {
 				isLitTok := func(tk TokenKind) bool {
-					return tk == tokString || tk == tokInt || tk == tokDecimal ||
+					return tk == tokString || tk == tokDoubleQuoted || tk == tokInt || tk == tokDecimal ||
 						tk == tokFloat || tk == tokDouble || tk == tokBigInt || tk == tokSmallInt ||
 						tk == tokTinyInt || tk == tokBigDecimal || tk == tokExponent
 				}

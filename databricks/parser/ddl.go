@@ -138,11 +138,17 @@ func (p *Parser) parseCreateTable() (Statement, error) {
 		return nil, err
 	}
 	isTemporary := p.match(kwTEMPORARY)
-	p.match(kwEXTERNAL)
+	isExternal := p.match(kwEXTERNAL)
+	if isTemporary && isExternal {
+		return nil, p.errorf("CREATE TEMPORARY EXTERNAL TABLE is not supported")
+	}
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	p.matchIfNotExists()
+	ifNotExists := p.matchIfNotExists()
+	if isTemporary && ifNotExists {
+		return nil, p.errorf("CREATE TEMPORARY TABLE cannot specify IF NOT EXISTS")
+	}
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
@@ -454,6 +460,9 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 				return nil, err
 			}
 		default:
+			if hasUsing && (hasRowFormat || hasStoredAs) {
+				return nil, p.errorf("CREATE TABLE LIKE cannot combine USING with ROW FORMAT or STORED AS")
+			}
 			if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
 				return nil, p.errorf("%s", msg)
 			}

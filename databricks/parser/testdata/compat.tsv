@@ -6742,3 +6742,17 @@ accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer's-dat
 accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer"s-data
 accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer`s-data
 reject	reject	engine	suite:spark-astbuilder	SET `unterminated = 1
+accept	accept	engine	suite:spark-astbuilder	SET CATALOG "main"
+accept	accept	engine	suite:spark-astbuilder	SELECT 1 WINDOW w AS (), W AS ()
+reject	reject	engine	suite:spark-astbuilder	SELECT 1 WINDOW w AS (), z AS (W)
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS abs(1) PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS (SELECT 1) PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS CURRENT_DATE PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS EXTRACT(DAY FROM INTERVAL 1 DAY) PRECEDING) FROM t
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS 1 + 2 PRECEDING) FROM t
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS ? PRECEDING) FROM t
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ROWS CAST(1 AS INT) PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE dst LIKE src USING parquet STORED AS PARQUET
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE dst LIKE src USING parquet ROW FORMAT DELIMITED
+reject	reject	engine	suite:spark-astbuilder	CREATE TEMPORARY TABLE IF NOT EXISTS t (a INT) USING parquet
+reject	reject	engine	suite:spark-astbuilder	CREATE TEMPORARY EXTERNAL TABLE t (a INT) USING parquet

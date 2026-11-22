@@ -6,6 +6,9 @@ import "strconv"
 //
 //	query : ctes? queryTerm queryOrganization ;
 func (p *Parser) parseQuery() error {
+	if p.inWindowFrameBound {
+		return p.errorf("subqueries are not allowed in window frame bounds")
+	}
 	if err := p.enterNesting(); err != nil {
 		return err
 	}
@@ -2691,8 +2694,8 @@ func (p *Parser) parseWindowClause() error {
 		if err != nil {
 			return err
 		}
-		norm := normalizeIdentName(name)
-		if _, dup := concrete[norm]; dup {
+		key := exactIdentName(name)
+		if _, dup := concrete[key]; dup {
 			return p.errorf("repetitive window definition %q", name)
 		}
 		if _, err := p.expect(kwAS); err != nil {
@@ -2707,7 +2710,7 @@ func (p *Parser) parseWindowClause() error {
 		if err != nil {
 			return err
 		}
-		concrete[norm] = ref == ""
+		concrete[key] = ref == ""
 		if ref != "" {
 			refs = append(refs, ref)
 		}
@@ -2716,7 +2719,7 @@ func (p *Parser) parseWindowClause() error {
 		}
 	}
 	for _, ref := range refs {
-		if !concrete[normalizeIdentName(ref)] {
+		if !concrete[exactIdentName(ref)] {
 			return p.errorf("window reference %q does not target a concrete window specification", ref)
 		}
 	}
@@ -2804,9 +2807,12 @@ func (p *Parser) parseFrameBound() error {
 		return nil
 	}
 	prevDisallow := p.disallowColumnRefs
+	prevFrameBound := p.inWindowFrameBound
 	p.disallowColumnRefs = true
+	p.inWindowFrameBound = true
 	err := p.parseExpression()
 	p.disallowColumnRefs = prevDisallow
+	p.inWindowFrameBound = prevFrameBound
 	if err != nil {
 		return err
 	}

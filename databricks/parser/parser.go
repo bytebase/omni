@@ -53,6 +53,7 @@ type Parser struct {
 	inFromStatement        bool
 	disallowParamMarkers   bool
 	disallowColumnRefs     bool
+	inWindowFrameBound     bool
 	disallowGeneratedCols  bool
 	relaxFunctionDataTypes bool
 	windowSpecSeen         bool

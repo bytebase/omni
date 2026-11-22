@@ -165,7 +165,7 @@ func (p *Parser) parseCatalogIdentifierReference() (string, error) {
 		}
 		return "IDENTIFIER(...)", nil
 	}
-	if p.cur().Kind == tokString {
+	if p.isStringLit() {
 		tok := p.advance()
 		return tok.Text, nil
 	}
