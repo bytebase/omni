@@ -600,7 +600,7 @@ reject	reject	engine	stmt/get_diagnostics_stmt!drop-4	GET DIAGNOSTICS @v NUMBER
 reject	reject	engine	stmt/get_diagnostics_stmt!drop-5	GET DIAGNOSTICS @v =
 reject	reject	engine	stmt/get_diagnostics_stmt!insert	GET DIAGNOSTICS @v = NUMBER zzz
 reject	reject	engine	stmt/get_diagnostics_stmt!swap	GET_FORMAT DIAGNOSTICS @v = NUMBER
-accept	reject	engine	stmt/pl_expr_stmt	DO a
+reject	reject	engine	stmt/pl_expr_stmt	DO a
 reject	reject	engine	stmt/pl_expr_stmt!drop-2	DO
 reject	reject	engine	stmt/pl_expr_stmt!insert	DO a zzz
 reject	reject	engine	stmt/pl_expr_stmt!swap	DOP a
@@ -716,7 +716,7 @@ reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-4	ALTER SENSITIVE RULE 
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-5	ALTER SENSITIVE RULE a
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!insert	ALTER SENSITIVE RULE a ENABLE zzz
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!swap	ALWAYS SENSITIVE RULE a ENABLE
-accept	reject	engine	pl_expr_stmt/DO_expr	DO a
+reject	reject	engine	pl_expr_stmt/DO_expr	DO a
 accept	accept	engine	expr_list/expr	SELECT [ a ]
 reject	reject	engine	expr_list/expr!drop-1	SELECT [ ]
 reject	reject	engine	expr_list/expr!truncate	SELECT [
