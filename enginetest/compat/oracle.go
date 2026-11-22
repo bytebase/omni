@@ -50,7 +50,7 @@ BEGIN
   END;
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
-  IF code = 24344 THEN
+  IF code IN (24344, 22324) THEN
     SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, '^PL/SQL: (ORA-[0-9]{5})', 1, 1, NULL, 1)
                         ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
              WITHIN GROUP (ORDER BY name, type, sequence)
@@ -61,7 +61,7 @@ BEGIN
         REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
     END LOOP;
   END IF;
-  IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
+  IF code IN (0, 24344, 22324) AND fn NOT IN (` + oracleParsedOnly + `) THEN
     FOR pass IN 1 .. 3 LOOP
       FOR o IN (SELECT object_name, object_type FROM user_objects
                  WHERE object_type NOT IN ('LOB', 'LOB PARTITION', 'LOB SUBPARTITION', 'TABLE PARTITION',
@@ -248,6 +248,8 @@ var (
 	reStandInSeqCycle                 = regexp.MustCompile(`(?i)\b(?:NO)?CYCLE\b`)
 	reStandInSeqKeep                  = regexp.MustCompile(`(?i)\b(?:NO)?KEEP\b`)
 	reStandInSeqExtend                = regexp.MustCompile(`(?i)^\s*(?:NO)?EXTEND\b`)
+	reStandInSeqAnyExtend             = regexp.MustCompile(`(?i)\b(?:NO)?EXTEND\b`)
+	reAlterTypeAttrClause             = regexp.MustCompile(`(?i)\b(?:ADD|MODIFY|DROP)\s+ATTRIBUTE\b`)
 	reStandInIdentifiedGlobally       = regexp.MustCompile(`(?i)^\s*(CREATE|ALTER)\s+(ROLE|USER)\s+(\S+)\s+IDENTIFIED\s+(GLOBALLY)\b`)
 	reStandInPDBSnapshot              = regexp.MustCompile(`(?i)^\s*ALTER\s+PLUGGABLE\s+DATABASE\s+(SNAPSHOT)\b`)
 	reStandInNumberCollate            = regexp.MustCompile(`(?i)\b(NUMBER)\s+COLLATE\b`)
@@ -641,7 +643,17 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 		return rewritten, mapPos, true
 	}
 
-	matches := reStandInSeqShardClause.FindAllStringIndex(rest, -1)
+	// SCALE/NOSCALE is already present. Oracle allows at most one
+	// EXTEND/NOEXTEND modifier across SCALE and SHARD combined; only consume
+	// SHARD's EXTEND/NOEXTEND modifier when it is the sole modifier in the
+	// statement so duplicate modifiers like "SCALE EXTEND SHARD NOEXTEND"
+	// remain visible for Oracle to reject.
+	extendCount := len(reStandInSeqAnyExtend.FindAllStringIndex(rest, -1))
+	clauseRe := reStandInSeqShardClause
+	if extendCount > 1 {
+		clauseRe = reStandInSeqShard
+	}
+	matches := clauseRe.FindAllStringIndex(rest, -1)
 	if len(matches) == 0 {
 		return "", nil, false
 	}
@@ -654,7 +666,7 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 	case !reStandInSeqKeep.MatchString(rest):
 		posRep, negRep = "KEEP", "NOKEEP"
 	}
-	if posRep == "" && len(matches) == 1 && !reStandInSeqExtend.MatchString(rest[matches[0][1]:]) {
+	if posRep == "" && extendCount <= 1 && len(matches) == 1 && !reStandInSeqExtend.MatchString(rest[matches[0][1]:]) {
 		rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{base + matches[0][0], base + matches[0][1], ""}})
 		return rewritten, mapPos, true
 	}
@@ -792,6 +804,130 @@ func hasUnclosedParen(statement string) bool {
 	return depth > 0
 }
 
+// hasDuplicateAlterTypeAttr reports whether statement names the same attribute
+// more than once across its ADD/MODIFY/DROP ATTRIBUTE clauses. Used under judge
+// revision 5 to distinguish intra-statement duplicate-attribute errors from
+// fixture-dependent PLS-00410 collisions on ALTER TYPE (ORA-22324).
+func hasDuplicateAlterTypeAttr(statement string) bool {
+	clauses := reAlterTypeAttrClause.FindAllStringIndex(statement, -1)
+	if len(clauses) == 0 {
+		return false
+	}
+	skipWS := func(i int) int {
+		for i < len(statement) && (statement[i] == ' ' || statement[i] == '\t' || statement[i] == '\n' || statement[i] == '\r') {
+			i++
+		}
+		return i
+	}
+	readIdent := func(i int) (string, int, bool) {
+		i = skipWS(i)
+		if i >= len(statement) {
+			return "", i, false
+		}
+		if statement[i] == '"' {
+			i++
+			var b strings.Builder
+			for i < len(statement) {
+				if statement[i] == '"' {
+					if i+1 < len(statement) && statement[i+1] == '"' {
+						b.WriteByte('"')
+						i += 2
+						continue
+					}
+					return b.String(), i + 1, true
+				}
+				b.WriteByte(statement[i])
+				i++
+			}
+			return "", i, false
+		}
+		c := statement[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
+			return "", i, false
+		}
+		start := i
+		for i < len(statement) && isWordByte(statement[i]) {
+			i++
+		}
+		return strings.ToUpper(statement[start:i]), i, true
+	}
+	seen := make(map[string]bool)
+	for _, cl := range clauses {
+		i := skipWS(cl[1])
+		if i >= len(statement) {
+			continue
+		}
+		if statement[i] != '(' {
+			if name, _, ok := readIdent(i); ok {
+				if seen[name] {
+					return true
+				}
+				seen[name] = true
+			}
+			continue
+		}
+		i++ // consume '('
+		if name, next, ok := readIdent(i); ok {
+			if seen[name] {
+				return true
+			}
+			seen[name] = true
+			i = next
+		}
+		depth := 1
+		for i < len(statement) && depth > 0 {
+			switch statement[i] {
+			case '\'':
+				i++
+				for i < len(statement) {
+					if statement[i] == '\'' {
+						if i+1 < len(statement) && statement[i+1] == '\'' {
+							i += 2
+							continue
+						}
+						i++
+						break
+					}
+					i++
+				}
+			case '"':
+				i++
+				for i < len(statement) {
+					if statement[i] == '"' {
+						if i+1 < len(statement) && statement[i+1] == '"' {
+							i += 2
+							continue
+						}
+						i++
+						break
+					}
+					i++
+				}
+			case '(':
+				depth++
+				i++
+			case ')':
+				depth--
+				i++
+			case ',':
+				i++
+				if depth == 1 {
+					if name, next, ok := readIdent(i); ok {
+						if seen[name] {
+							return true
+						}
+						seen[name] = true
+						i = next
+					}
+				}
+			default:
+				i++
+			}
+		}
+	}
+	return false
+}
+
 // oracleKindChecked are errors Oracle raises at byte 0, where no token
 // stands, when the statement asks of its object what that kind of object
 // does not take: ORA-01735 on ALTER TABLE, as OVERFLOW ALLOCATE EXTENT on
@@ -828,7 +964,6 @@ func oracleParserCode(code int, rev5 bool) bool {
 //   - 4125: empty MLE module body (CREATE MLE MODULE ... AS)
 //   - 14108, 14173: invalid partition/subpartition name (LOCK TABLE p [SUB]PARTITION(1))
 //   - 14156: invalid SUBPARTITIONS count in SET SUBPARTITION TEMPLATE
-//   - 22324: duplicate attribute / illegal collection element type in ALTER TYPE
 //   - 22913: missing storage table name in NESTED TABLE ... STORE AS
 //   - 28025: missing or null external name after IDENTIFIED EXTERNALLY AS
 //   - 28700, 28701: GRANT/REVOKE to/from program units syntax errors
@@ -836,7 +971,7 @@ func oracleParserCode(code int, rev5 bool) bool {
 //   - 64350: duplicate INMEMORY clause
 var oracleStatementRev5 = map[int]bool{
 	2425: true, 2426: true, 2538: true, 3001: true, 4125: true,
-	14108: true, 14156: true, 14173: true, 22324: true, 22913: true,
+	14108: true, 14156: true, 14173: true, 22913: true,
 	28025: true, 28700: true, 28701: true, 46373: true, 64350: true,
 }
 
@@ -1095,6 +1230,23 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 	e, ok := readOracle(err)
 	if !ok {
 		return "", err
+	}
+	if rev5 && e.code == 22324 {
+		// ORA-22324 reports compilation errors on ALTER TYPE (populated from
+		// USER_ERRORS in OracleParse). Reject only on compiler syntax/structural
+		// errors or an intra-statement duplicate attribute under PLS-00410, so
+		// fixture-dependent semantic collisions (such as ADD ATTRIBUTE b NUMBER
+		// colliding with fixture y's attribute b) or undeclared types (PLS-00201)
+		// remain accepted.
+		for _, c := range e.compile {
+			if oracleCompileSyntax(c, statement, rev5) {
+				return Reject, nil
+			}
+			if c == "PLS-00410" && hasDuplicateAlterTypeAttr(statement) {
+				return Reject, nil
+			}
+		}
+		return acceptEarlyError()
 	}
 	if e.code == 24344 || e.code == 6550 {
 		if len(e.compile) == 0 {

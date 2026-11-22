@@ -452,6 +452,36 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"CREATE SEQUENCE s SCALE SHARD EXTEND": {2511, 0, "", nil},
 			"CREATE SEQUENCE s SCALE ORDER":        parsed,
 		}, Accept},
+		{"CREATE SEQUENCE SCALE EXTEND SHARD NOEXTEND rejects duplicate EXTEND", "CREATE SEQUENCE s SCALE EXTEND SHARD NOEXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE EXTEND SHARD NOEXTEND":                   {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE EXTEND ORDER NOEXTEND":                   {933, 37, "", nil},
+			"CREATE SEQUENCE s SCALE EXTEND ORDER NOEXTEND" + OracleProbeTail: {933, 37, "", nil},
+		}, Reject},
+		{"CREATE SEQUENCE SCALE EXTEND SHARD EXTEND rejects duplicate EXTEND", "CREATE SEQUENCE s SCALE EXTEND SHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE EXTEND SHARD EXTEND":                   {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE EXTEND ORDER EXTEND":                   {933, 37, "", nil},
+			"CREATE SEQUENCE s SCALE EXTEND ORDER EXTEND" + OracleProbeTail: {933, 37, "", nil},
+		}, Reject},
+		{"CREATE SEQUENCE SCALE EXTEND SHARD accepts single EXTEND", "CREATE SEQUENCE s SCALE EXTEND SHARD", map[string]*answer{
+			"CREATE SEQUENCE s SCALE EXTEND SHARD": {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE EXTEND ORDER": parsed,
+		}, Accept},
+		{"ALTER TYPE ADD ATTRIBUTE intra-statement duplicate rejected on ORA-22324 PLS-00410", "ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)", map[string]*answer{
+			"ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)": {4043, 0, "", nil},
+			"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a NUMBER)": {22324, 0, "PLS-00410", nil},
+		}, Reject},
+		{"ALTER TYPE ADD ATTRIBUTE fixture collision accepted on ORA-22324 PLS-00410", "ALTER TYPE a ADD ATTRIBUTE b NUMBER", map[string]*answer{
+			"ALTER TYPE a ADD ATTRIBUTE b NUMBER": {4043, 0, "", nil},
+			"ALTER TYPE y ADD ATTRIBUTE b NUMBER": {22324, 0, "PLS-00410", nil},
+		}, Accept},
+		{"ALTER TYPE ADD ATTRIBUTE undeclared type accepted on ORA-22324 PLS-00201", "ALTER TYPE a ADD ATTRIBUTE a OBJECT", map[string]*answer{
+			"ALTER TYPE a ADD ATTRIBUTE a OBJECT": {4043, 0, "", nil},
+			"ALTER TYPE y ADD ATTRIBUTE a OBJECT": {22324, 0, "PLS-00201", nil},
+		}, Accept},
+		{"ALTER TYPE ADD ATTRIBUTE syntax error rejected on ORA-22324 PLS-00103", "ALTER TYPE a ADD ATTRIBUTE a NUMBER(10, 2) zzz", map[string]*answer{
+			"ALTER TYPE a ADD ATTRIBUTE a NUMBER(10, 2) zzz": {4043, 0, "", nil},
+			"ALTER TYPE y ADD ATTRIBUTE a NUMBER(10, 2) zzz": {22324, 0, "PLS-00103", nil},
+		}, Reject},
 		{"CREATE SEQUENCE SCALE NOSHARD EXTEND rejects invalid suboption", "CREATE SEQUENCE s SCALE NOSHARD EXTEND", map[string]*answer{
 			"CREATE SEQUENCE s SCALE NOSHARD EXTEND":                   {2511, 0, "", nil},
 			"CREATE SEQUENCE s SCALE NOORDER EXTEND":                   {933, 32, "", nil},
@@ -662,6 +692,28 @@ func TestHasUnclosedParen(t *testing.T) {
 	} {
 		if got := hasUnclosedParen(tc.sql); got != tc.want {
 			t.Errorf("hasUnclosedParen(%q) = %v, want %v", tc.sql, got, tc.want)
+		}
+	}
+}
+
+func TestHasDuplicateAlterTypeAttr(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want bool
+	}{
+		{"ALTER TYPE y ADD ATTRIBUTE b NUMBER", false},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, b VARCHAR2(10))", false},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER(10, 2), b VARCHAR2(10))", false},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, \"a\" NUMBER)", false},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a NUMBER)", true},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, a OBJECT)", true},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER(10, 2), A VARCHAR2(10))", true},
+		{"ALTER TYPE y ADD ATTRIBUTE(a NUMBER, \"A\" NUMBER)", true},
+		{"ALTER TYPE y ADD ATTRIBUTE a NUMBER, ADD ATTRIBUTE a VARCHAR2(10)", true},
+		{"ALTER TYPE y MODIFY ATTRIBUTE(a NUMBER, a VARCHAR2(10))", true},
+	} {
+		if got := hasDuplicateAlterTypeAttr(tc.sql); got != tc.want {
+			t.Errorf("hasDuplicateAlterTypeAttr(%q) = %v, want %v", tc.sql, got, tc.want)
 		}
 	}
 }
