@@ -9357,7 +9357,7 @@ reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!drop-5	DO VALUE(
 reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!truncate	DO VALUE(a.a.
 reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!insert	DO VALUE(a.a.a zzz);
 accept	accept	engine	field_ident/ident	ALTER TABLE a DROP a;
-reject	accept	engine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+accept	accept	engine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-1	ALTER TABLE a DROP.a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-2	ALTER TABLE a DROP a a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-3	ALTER TABLE a DROP a..a;

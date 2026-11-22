@@ -209,6 +209,9 @@ func (b *builder) use(v *ast.UseStmt) bool {
 // createTable follows CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT
 // EXISTS], with a column list, LIKE, or AS SELECT.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
+	if !b.fieldDBsMatchCurrent(v.FieldDBs) {
+		return false
+	}
 	if b.namesTooLong(v) {
 		return true
 	}

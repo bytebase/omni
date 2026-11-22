@@ -436,7 +436,7 @@ ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	opt_if_exists/IF_SYM_EX
 1054	1054	engine	one_table@missing	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	one_table@missing	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	one_table@missing	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@missing	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	one_table@missing	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	one_table@missing	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	one_table@missing	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	one_table@missing	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -895,7 +895,7 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@table	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@table	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 ok:f988031a1679	ok:f988031a1679	engine	one_table@table	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@table	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	one_table@table	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1091	1091	engine	one_table@table	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 ok:f71f3a78a417	ok:f71f3a78a417	engine	one_table@table	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -1354,7 +1354,7 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_table_sym/TABLE_SYM	
 1050	1050	engine	one_table@column	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@column	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@column	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@column	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	one_table@column	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@column	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -1813,7 +1813,7 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@index	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@index	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@index	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@index	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	one_table@index	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@index	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -2272,7 +2272,7 @@ ok:8b84ba332b08	ok:8b84ba332b08	engine	objects@view	drop/DROP_VIEW_SYM_opt_if_ex
 1050	1050	engine	objects@view	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@view	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1347	1347	engine	objects@view	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@view	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@view	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1347	1347	engine	objects@view	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1347	1347	engine	objects@view	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@view	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -2731,7 +2731,7 @@ ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	opt_table_sym/TABLE_S
 1050	1050	engine	objects@partitioned	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@partitioned	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	objects@partitioned	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@partitioned	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@partitioned	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1072	1072	engine	objects@partitioned	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	objects@partitioned	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -3190,7 +3190,7 @@ ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	opt_table_sym/TABLE_SYM	TRUNCA
 1050	1050	engine	objects@fk	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@fk	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	objects@fk	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@fk	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@fk	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1553	1553	engine	objects@fk	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	objects@fk	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -3649,7 +3649,7 @@ ok:f09350955cc7	ok:f09350955cc7	engine	objects@sequence	opt_by/BY	ALTER SEQUENCE
 1050	1050	engine	objects@sequence	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@sequence	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 4086	4086	engine	objects@sequence	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@sequence	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@sequence	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1091	1091	engine	objects@sequence	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 4086	4086	engine	objects@sequence	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1031	1031	engine	objects@sequence	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -4108,7 +4108,7 @@ ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	opt_if_exists/IF_SYM_EXIS
 1054	1054	engine	objects@routine	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@routine	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@routine	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@routine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@routine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@routine	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@routine	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@routine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -4567,7 +4567,7 @@ ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	opt_if_exists/IF_SYM_EXIS
 1054	1054	engine	objects@trigger	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@trigger	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@trigger	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@trigger	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@trigger	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@trigger	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@trigger	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@trigger	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -5026,7 +5026,7 @@ ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	opt_if_exists/IF_SYM_EXISTS
 1054	1054	engine	objects@event	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@event	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@event	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@event	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+1102	1102	engine	objects@event	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@event	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@event	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@event	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;

@@ -223,6 +223,10 @@ type CreateTableStmt struct {
 	// AppPeriodDuplicate is set when more than one application-time period was
 	// specified (rejected by the catalog as 4154).
 	AppPeriodDuplicate bool
+	// FieldDBs records the database qualifiers written on 3-part field_ident
+	// references (db.tbl.col) when Table carried no explicit schema. MariaDB
+	// holds those qualifiers to the session's current database (1102).
+	FieldDBs []string
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -238,6 +242,10 @@ type AlterTableStmt struct {
 	Ignore bool
 	// IfExists is ALTER TABLE IF EXISTS: a missing table is a note, not an error.
 	IfExists bool
+	// FieldDBs records the database qualifiers written on 3-part field_ident
+	// references (db.tbl.col) when Table carried no explicit schema. MariaDB
+	// holds those qualifiers to the session's current database (1102).
+	FieldDBs []string
 }
 
 func (s *AlterTableStmt) nodeTag()  {}

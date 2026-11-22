@@ -9,6 +9,9 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	if err := c.checkFieldDBs(stmt.FieldDBs); err != nil {
+		return err
+	}
 	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""

@@ -7,11 +7,8 @@
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped, followed by 7 `suite:json-operators` rows pinning the `->` and `->>`
 operators MariaDB has no grammar for (12,960 generated rows and 7 `suite:`
-rows, 12,967 in all: 12,966 agreeing, 1 only MariaDB accepts
-(`ALTER TABLE a DROP a.a.a;`, where MariaDB accepts a 3-part `field_ident`
-whose database qualifier matches the session database `a`, while omni's
-`parseFieldIdent` requires an explicit database on the target table), and 0
-only omni accepts).
+rows, 12,967 in all: 12,967 / 12,967 (100.00%) agreeing, 0 only MariaDB
+accepts, and 0 only omni accepts).
 Each row has omni's verdict and MariaDB's. `TestCompatibility`
 (`compat_test.go`) reads it through `enginetest/compat`, which describes the
 columns and what passes. It starts no server, and it regenerates the generated
