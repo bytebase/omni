@@ -74,6 +74,11 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"a cluster looked up after the parse", "ALTER CLUSTER a ALLOCATE EXTENT", &answer{943, 0, ""}, &answer{911, 33, ""}, Accept},
 		{"a view column to name, after the parse", "CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY", &answer{998, 24, ""}, &answer{911, 53, ""}, Accept},
 		{"a database link looked up after the parse", "SELECT * FROM a@a zzz", &answer{2019, 16, ""}, &answer{911, 23, ""}, Accept},
+		{"a 23ai expression syntax error, lexed whole first", "ALTER TABLE t MODIFY LOB(a(RETENTION)", &answer{3059, 25, ""}, &answer{911, 39, ""}, "reject@25"},
+		{"MERGE missing USING, lexed whole first", "MERGE INTO a", &answer{38107, 0, ""}, &answer{911, 14, ""}, "reject@0"},
+		{"ADMINISTER KEY MANAGEMENT SET missing clause", "ADMINISTER KEY MANAGEMENT SET", &answer{46601, 26, ""}, &answer{911, 31, ""}, "reject@26"},
+		{"ADMINISTER KEY MANAGEMENT CREATE missing clause", "ADMINISTER KEY MANAGEMENT CREATE", &answer{46603, 26, ""}, &answer{911, 34, ""}, "reject@26"},
+		{"CREATE SPFILE in PDB at the end", "CREATE SPFILE FROM PFILE", &answer{65168, 24, ""}, nil, Accept},
 	} {
 		var asked []string
 		parse := func(text string) error {
@@ -154,6 +159,91 @@ func TestOracleVerdictAsksOnTheFixturesObject(t *testing.T) {
 		{"a materialized view log, which has no stand-in", "ALTER MATERIALIZED VIEW LOG ON a ADD(a)", map[string]*answer{
 			"ALTER MATERIALIZED VIEW LOG ON a ADD(a)": {942, 0},
 		}, Accept},
+		{"ALTER TYPE on object fixture y", "ALTER TYPE a ADD ATTRIBUTE a NUMBER", map[string]*answer{
+			"ALTER TYPE a ADD ATTRIBUTE a NUMBER": {4043, 0},
+			"ALTER TYPE y ADD ATTRIBUTE a NUMBER": parsed,
+		}, Accept},
+		{"ALTER TYPE MODIFY LIMIT on varray fixture w", "ALTER TYPE a MODIFY LIMIT 1", map[string]*answer{
+			"ALTER TYPE a MODIFY LIMIT 1": {4043, 0},
+			"ALTER TYPE w MODIFY LIMIT 2": parsed,
+		}, Accept},
+		{"ALTER TYPE MODIFY ELEMENT TYPE on varray fixture w", "ALTER TYPE a MODIFY ELEMENT TYPE NUMBER", map[string]*answer{
+			"ALTER TYPE a MODIFY ELEMENT TYPE NUMBER":       {4043, 0},
+			"ALTER TYPE w MODIFY ELEMENT TYPE VARCHAR2(10)": parsed,
+		}, Accept},
+		{"ALTER DIMENSION ADD LEVEL on fixture d", "ALTER DIMENSION a ADD LEVEL a IS(a.a) zzz", map[string]*answer{
+			"ALTER DIMENSION a ADD LEVEL a IS(a.a) zzz":                   {30333, 16},
+			"ALTER DIMENSION d ADD LEVEL a IS(a.a) zzz":                   {3049, 38},
+			"ALTER DIMENSION d ADD LEVEL a IS(a.a) zzz" + OracleProbeTail: {3049, 38},
+		}, "reject@38"},
+		{"ALTER DIMENSION DROP HIERARCHY on fixture e", "ALTER DIMENSION a DROP HIERARCHY a(a CHILD OF a)", map[string]*answer{
+			"ALTER DIMENSION a DROP HIERARCHY a(a CHILD OF a)":                   {30333, 16},
+			"ALTER DIMENSION e DROP HIERARCHY a(a CHILD OF a)":                   {3048, 34},
+			"ALTER DIMENSION e DROP HIERARCHY a(a CHILD OF a)" + OracleProbeTail: {3048, 34},
+		}, "reject@34"},
+		{"INMEMORY JOIN GROUP multiple table stand-ins", "CREATE INMEMORY JOIN GROUP a(a(a), a(a))", map[string]*answer{
+			"CREATE INMEMORY JOIN GROUP a(a(a), a(a))": {903, 29},
+			"CREATE INMEMORY JOIN GROUP a(t(a), a(a))": {903, 35},
+			"CREATE INMEMORY JOIN GROUP a(t(a), t(a))": parsed,
+		}, Accept},
+		{"CREATE PLUGGABLE DATABASE USING 's' accepted via 's.xml'", "CREATE PLUGGABLE DATABASE a USING 's'", map[string]*answer{
+			"CREATE PLUGGABLE DATABASE a USING 's'":     {65125, 34},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml'": {65018, 41},
+		}, Accept},
+		{"CREATE PLUGGABLE DATABASE USING 's' zzz remaps byte offset", "CREATE PLUGGABLE DATABASE a USING 's' zzz", map[string]*answer{
+			"CREATE PLUGGABLE DATABASE a USING 's' zzz":                       {65125, 34},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml' zzz":                   {922, 42},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml' zzz" + OracleProbeTail: {922, 42},
+		}, "reject@38"},
+		{"CREATE PLUGGABLE DATABASE chained USING and SOURCE_FILE_DIRECTORY", "CREATE PLUGGABLE DATABASE a USING 's' SOURCE_FILE_DIRECTORY = 's' zzz", map[string]*answer{
+			"CREATE PLUGGABLE DATABASE a USING 's' SOURCE_FILE_DIRECTORY = 's' zzz":                        {65125, 34},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml' SOURCE_FILE_DIRECTORY = 's' zzz":                    {65155, 66},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml' SOURCE_FILE_DIRECTORY = '/s' zzz":                   {922, 71},
+			"CREATE PLUGGABLE DATABASE a USING 's.xml' SOURCE_FILE_DIRECTORY = '/s' zzz" + OracleProbeTail: {922, 71},
+		}, "reject@66"},
+		{"SHARING = METADATA stand-in remaps byte offset", "CREATE ANALYTIC VIEW a SHARING = METADATA zzz USING a", map[string]*answer{
+			"CREATE ANALYTIC VIEW a SHARING = METADATA zzz USING a":               {65021, 33},
+			"CREATE ANALYTIC VIEW a SHARING = NONE zzz USING a":                   {2000, 38},
+			"CREATE ANALYTIC VIEW a SHARING = NONE zzz USING a" + OracleProbeTail: {2000, 38},
+		}, "reject@42"},
+		{"CREATE PFILE FROM stand-in remaps byte offset", "CREATE PFILE FROM SPFILE zzz", map[string]*answer{
+			"CREATE PFILE FROM SPFILE zzz":                         {65168, 13},
+			"CREATE PFILE = 's' FROM SPFILE zzz":                   {3049, 31},
+			"CREATE PFILE = 's' FROM SPFILE zzz" + OracleProbeTail: {3049, 31},
+		}, "reject@25"},
+		{"ALTER TABLE NO DELETE UNTIL 1 chained with table stand-in", "ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER", map[string]*answer{
+			"ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER":  {942, 0},
+			"ALTER TABLE t NO DELETE UNTIL 1 DAY AFTER":  {5741, 0},
+			"ALTER TABLE t NO DELETE UNTIL 16 DAY AFTER": {2000, 42},
+		}, "reject@41"},
+		{"ALTER DATABASE RECOVER UNTIL TIME placeholder", "ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS'", map[string]*answer{
+			"ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS'": {1841, 23},
+			"ALTER DATABASE RECOVER STANDBY DATABASE UNTIL TIME '2026-01-01:00:00:00'":   {1031, 0},
+		}, Accept},
+		{"ALTER AUDIT POLICY CONDITION 's' stand-in", "ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER STATEMENT", map[string]*answer{
+			"ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER STATEMENT":   {46368, 0},
+			"ALTER AUDIT POLICY a CONDITION '1=1' EVALUATE PER STATEMENT": {1031, 0},
+		}, Accept},
+		{"CREATE AUDIT POLICY WHEN 's' stand-in", "CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENT", map[string]*answer{
+			"CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENT":                                         {46373, 0},
+			"CREATE AUDIT POLICY a ACTIONS SELECT ON t WHEN '1=1' EVALUATE PER STATEMENT":                   {41732, 40},
+			"CREATE AUDIT POLICY a ACTIONS SELECT ON t WHEN '1=1' EVALUATE PER STATEMENT" + OracleProbeTail: {911, 0},
+		}, Accept},
+		{"CREATE AUDIT POLICY ONLY TOPLEVEL stand-in", "CREATE AUDIT POLICY a ONLY TOPLEVEL", map[string]*answer{
+			"CREATE AUDIT POLICY a ONLY TOPLEVEL":                                       {46373, 0},
+			"CREATE AUDIT POLICY a ACTIONS SELECT ON t ONLY TOPLEVEL":                   {41732, 40},
+			"CREATE AUDIT POLICY a ACTIONS SELECT ON t ONLY TOPLEVEL" + OracleProbeTail: {911, 0},
+		}, Accept},
+		{"missing schema a. stand-in remaps byte offset", "CREATE MATERIALIZED VIEW a.zzz a AS SELECT 1 FROM dual", map[string]*answer{
+			"CREATE MATERIALIZED VIEW a.zzz a AS SELECT 1 FROM dual":                        {1435, 0},
+			"CREATE MATERIALIZED VIEW SYSTEM.zzz a AS SELECT 1 FROM dual":                   {2000, 36},
+			"CREATE MATERIALIZED VIEW SYSTEM.zzz a AS SELECT 1 FROM dual" + OracleProbeTail: {2000, 36},
+		}, "reject@31"},
+		{"missing schema a. on column DOMAIN stand-in", "CREATE TABLE a(a DOMAIN a.zzz a)", map[string]*answer{
+			"CREATE TABLE a(a DOMAIN a.zzz a)":                        {1917, 0},
+			"CREATE TABLE a(a DOMAIN SYSTEM.zzz a)":                   {3099, 35},
+			"CREATE TABLE a(a DOMAIN SYSTEM.zzz a)" + OracleProbeTail: {3099, 35},
+		}, "reject@30"},
 	} {
 		parse := func(text string) error {
 			a, ok := c.answers[text]
