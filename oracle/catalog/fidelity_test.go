@@ -806,4 +806,47 @@ CREATE VIEW V AS SELECT PKG.F() AS N FROM DUAL;
 		migViewPos := strings.Index(mig, `CREATE VIEW "V"`)
 		require.True(t, migPkgPos >= 0 && migViewPos > migPkgPos, "package must precede dependent view in migration:\n%s", mig)
 	})
+
+	t.Run("synonyms referenced by views are created before dependent views", func(t *testing.T) {
+		c, err := LoadSQL(`
+CREATE TABLE T (A NUMBER);
+CREATE SYNONYM S FOR T;
+CREATE VIEW V AS SELECT A FROM S;
+`)
+		require.NoError(t, err)
+
+		def, err := DatabaseDefinition(c.Metadata())
+		require.NoError(t, err)
+		tblPos := strings.Index(def, `CREATE TABLE "T"`)
+		synPos := strings.Index(def, `CREATE OR REPLACE SYNONYM "S" FOR "T";`)
+		viewPos := strings.Index(def, `CREATE VIEW "V"`)
+		require.True(t, tblPos >= 0 && synPos > tblPos && viewPos > synPos, "table -> synonym -> view order required in definition:\n%s", def)
+
+		mig := GenerateMigration(New(), c, nil).SQL()
+		migTblPos := strings.Index(mig, `CREATE TABLE "T"`)
+		migSynPos := strings.Index(mig, `CREATE OR REPLACE SYNONYM "S" FOR "T";`)
+		migViewPos := strings.Index(mig, `CREATE VIEW "V"`)
+		require.True(t, migTblPos >= 0 && migSynPos > migTblPos && migViewPos > migSynPos, "table -> synonym -> view order required in migration:\n%s", mig)
+
+		// Synced snapshot where ALL_DEPENDENCIES omitted the synonym still orders synonym before view
+		synced := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "T",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "A", Type: "NUMBER", Position: 1, Nullable: true}},
+			}},
+			Synonyms: []*metadatapb.SynonymMetadata{{
+				Name:         "S",
+				TargetSchema: "APP",
+				TargetName:   "T",
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "V",
+				Definition: "SELECT A FROM S",
+			}},
+		}))
+		syncedDef, err := DatabaseDefinition(synced.Metadata())
+		require.NoError(t, err)
+		require.True(t, strings.Index(syncedDef, `CREATE OR REPLACE SYNONYM "S" FOR "T";`) < strings.Index(syncedDef, `CREATE VIEW "V"`), syncedDef)
+	})
 }

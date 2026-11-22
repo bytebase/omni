@@ -2027,6 +2027,13 @@ func materializedViewRefreshPrefix(buildMode, refreshMethod, refreshMode string)
 	method := strings.ToUpper(strings.TrimSpace(refreshMethod))
 	mode := strings.ToUpper(strings.TrimSpace(refreshMode))
 
+	// Materialized view logs (CREATE MATERIALIZED VIEW LOG) are not synced or
+	// rendered yet, so emitting REFRESH FAST would fail when restoring into an
+	// empty schema (ORA-23413). Fall back to Oracle's default FORCE method.
+	if method == "FAST" {
+		method = "FORCE"
+	}
+
 	// Omit the prefix when the effective clauses match Oracle's default
 	// CREATE MATERIALIZED VIEW AS ... settings (BUILD IMMEDIATE REFRESH FORCE
 	// ON DEMAND). BUILD_MODE='PREBUILT' is intentionally not emitted as

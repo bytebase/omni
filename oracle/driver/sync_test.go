@@ -978,6 +978,20 @@ func TestMaterializedViewRefreshPrefix(t *testing.T) {
 			refreshMode:   "NEVER",
 			want:          "NEVER REFRESH",
 		},
+		{
+			name:          "fast refresh on demand falls back to default without MV logs",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "FAST",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "deferred fast refresh falls back to FORCE while keeping BUILD DEFERRED",
+			buildMode:     "DEFERRED",
+			refreshMethod: "FAST",
+			refreshMode:   "DEMAND",
+			want:          "BUILD DEFERRED REFRESH FORCE ON DEMAND",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

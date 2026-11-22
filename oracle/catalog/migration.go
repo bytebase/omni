@@ -541,8 +541,8 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// Views and virtual columns can call functions or package functions, so
-	// those units must exist first.
+	// Views and virtual columns can call functions or package functions, and
+	// views can query through synonyms, so those prerequisites must exist first.
 	packageMap := make(map[string]*PackageDiff)
 	addPackageDep := func(pkgDiff *PackageDiff, dependentID string) {
 		pkgID := "pkg:" + getMigrationObjectID(pkgDiff.SchemaName, pkgDiff.PackageName)
@@ -551,6 +551,31 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			graph.AddNode(pkgID)
 		}
 		graph.AddEdge(pkgID, dependentID)
+	}
+	synonymMap := make(map[string]*SynonymDiff)
+	addSynonymDep := func(synDiff *SynonymDiff, dependentID string) {
+		prefix := "syn:"
+		if synDiff.Public {
+			prefix = "pubsyn:"
+		}
+		synID := prefix + getMigrationObjectID(synDiff.SchemaName, synDiff.SynonymName)
+		if _, exists := synonymMap[synID]; !exists {
+			synonymMap[synID] = synDiff
+			graph.AddNode(synID)
+			if syn := synDiff.NewSynonym; syn != nil && syn.GetTargetDbLink() == "" && syn.GetTargetName() != "" {
+				targetSchema := syn.GetTargetSchema()
+				if targetSchema == "" {
+					targetSchema = synDiff.SchemaName
+				}
+				targetID := getMigrationObjectID(targetSchema, syn.GetTargetName())
+				if allObjects[targetID] {
+					graph.AddEdge(targetID, synID)
+				} else if targetIDNoSchema := getMigrationObjectID("", syn.GetTargetName()); allObjects[targetIDNoSchema] {
+					graph.AddEdge(targetIDNoSchema, synID)
+				}
+			}
+		}
+		graph.AddEdge(synID, dependentID)
 	}
 	for viewID, viewDiff := range viewMap {
 		view := viewDiff.NewView
@@ -576,6 +601,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				addPackageDep(pkgDiff, viewID)
 			}
 		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) &&
+				(synDiff.Public || synDiff.SchemaName == viewDiff.SchemaName) &&
+				viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+				addSynonymDep(synDiff, viewID)
+			}
+		}
 	}
 	for viewID, viewDiff := range materializedViewMap {
 		view := viewDiff.NewMaterializedView
@@ -599,6 +631,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				pkgDiff.SchemaName == viewDiff.SchemaName &&
 				expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
 				addPackageDep(pkgDiff, viewID)
+			}
+		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) &&
+				(synDiff.Public || synDiff.SchemaName == viewDiff.SchemaName) &&
+				viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+				addSynonymDep(synDiff, viewID)
 			}
 		}
 	}
@@ -730,6 +769,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 	// Get topological order
 	writtenPackages := map[*PackageDiff]bool{}
+	writtenSynonyms := map[*SynonymDiff]bool{}
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
 		// If there's a cycle, fall back to a safe order. Functions and packages
@@ -854,6 +894,36 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				writtenPackages[pkgDiff] = true
 			}
 		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action != DiffActionCreate && synDiff.Action != DiffActionAlter) || writtenSynonyms[synDiff] {
+				continue
+			}
+			referenced := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && (synDiff.Public || viewDiff.SchemaName == synDiff.SchemaName) &&
+					viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+					referenced = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && (synDiff.Public || viewDiff.SchemaName == synDiff.SchemaName) &&
+					viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+					referenced = true
+				}
+			}
+			if referenced {
+				writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+				writtenSynonyms[synDiff] = true
+			}
+		}
 
 		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
 
@@ -925,6 +995,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			} else if pkgDiff, ok := packageMap[objID]; ok {
 				writePackageDiff(buf, pkgDiff)
 				writtenPackages[pkgDiff] = true
+			} else if synDiff, ok := synonymMap[objID]; ok {
+				writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+				writtenSynonyms[synDiff] = true
 			}
 		}
 
@@ -1073,9 +1146,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
 
-	// Create/alter synonyms after target objects exist.
+	// Create/alter remaining synonyms after target objects exist.
 	for _, synDiff := range diff.SynonymChanges {
-		if synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter {
+		if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) && !writtenSynonyms[synDiff] {
 			writeSynonymDiff(buf, diff.DatabaseName, synDiff)
 		}
 	}

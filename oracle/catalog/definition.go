@@ -102,8 +102,8 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// Procedures will be created after tables by default order
 	}
 
-	// Views and virtual columns can call functions or package functions, so
-	// those units must exist first.
+	// Views and virtual columns can call functions or package functions, and
+	// views can query through synonyms, so those prerequisites must exist first.
 	packageMap := make(map[string]*metadatapb.PackageMetadata)
 	addPackageDep := func(pkg *metadatapb.PackageMetadata, dependentID string) {
 		pkgID := "pkg:" + getObjectID(databaseName, pkg.Name)
@@ -112,6 +112,45 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			graph.AddNode(pkgID)
 		}
 		graph.AddEdge(pkgID, dependentID)
+	}
+	type synonymEntry struct {
+		syn    *metadatapb.SynonymMetadata
+		public bool
+	}
+	publicSyns := dumpablePublicSynonyms(to.PublicSynonyms, databaseName)
+	allSyns := make([]synonymEntry, 0, len(schema.Synonyms)+len(publicSyns))
+	for _, syn := range schema.Synonyms {
+		allSyns = append(allSyns, synonymEntry{syn: syn})
+	}
+	for _, syn := range publicSyns {
+		allSyns = append(allSyns, synonymEntry{syn: syn, public: true})
+	}
+	synonymMap := make(map[string]synonymEntry)
+	addSynonymDep := func(entry synonymEntry, dependentID string) {
+		prefix := "syn:"
+		if entry.public {
+			prefix = "pubsyn:"
+		}
+		synID := prefix + getObjectID(databaseName, entry.syn.GetName())
+		if _, exists := synonymMap[synID]; !exists {
+			synonymMap[synID] = entry
+			graph.AddNode(synID)
+			if entry.syn.GetTargetDbLink() == "" && entry.syn.GetTargetName() != "" {
+				targetSchema := entry.syn.GetTargetSchema()
+				if targetSchema == "" {
+					targetSchema = databaseName
+				}
+				targetID := getObjectID(targetSchema, entry.syn.GetTargetName())
+				if _, ok := tableMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				} else if _, ok := viewMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				} else if _, ok := materializedViewMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				}
+			}
+		}
+		graph.AddEdge(synID, dependentID)
 	}
 	for viewID, view := range viewMap {
 		for functionID, function := range functionMap {
@@ -124,6 +163,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				addPackageDep(pkg, viewID)
 			}
 		}
+		for _, entry := range allSyns {
+			if viewReferencesSynonym(view.Definition, view.DependencyColumns, entry.syn.GetName()) {
+				addSynonymDep(entry, viewID)
+			}
+		}
 	}
 	for viewID, view := range materializedViewMap {
 		for functionID, function := range functionMap {
@@ -134,6 +178,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		for _, pkg := range schema.Packages {
 			if expressionReferencesPackage(view.Definition, pkg.Name) {
 				addPackageDep(pkg, viewID)
+			}
+		}
+		for _, entry := range allSyns {
+			if viewReferencesSynonym(view.Definition, view.DependencyColumns, entry.syn.GetName()) {
+				addSynonymDep(entry, viewID)
 			}
 		}
 	}
@@ -210,9 +259,10 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				}
 			}
 		}
-		// A view that calls a function or package function needs it before the
-		// view, as a virtual column does.
-		checkView := func(definition string) error {
+		// A view that calls a function or package function or queries a synonym
+		// needs those prerequisites before the view.
+		prewrittenSynonyms := map[*metadatapb.SynonymMetadata]bool{}
+		checkView := func(definition string, deps []*metadatapb.DependencyColumn) error {
 			for _, function := range schema.Functions {
 				if !prewrittenFunctions[function.Name] && expressionReferencesFunction(definition, function.Name) {
 					if err := writeFunction(&buf, function); err != nil {
@@ -229,15 +279,23 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 					prewrittenPackages[pkg.Name] = true
 				}
 			}
+			for _, entry := range allSyns {
+				if !prewrittenSynonyms[entry.syn] && viewReferencesSynonym(definition, deps, entry.syn.GetName()) {
+					if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+						return err
+					}
+					prewrittenSynonyms[entry.syn] = true
+				}
+			}
 			return nil
 		}
 		for _, view := range schema.Views {
-			if err := checkView(view.Definition); err != nil {
+			if err := checkView(view.Definition, view.DependencyColumns); err != nil {
 				return "", err
 			}
 		}
-		for _, definition := range materializedViewDefinitions(schema) {
-			if err := checkView(definition); err != nil {
+		for _, view := range schema.MaterializedViews {
+			if err := checkView(view.Definition, view.DependencyColumns); err != nil {
 				return "", err
 			}
 		}
@@ -271,14 +329,20 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
 			return "", err
 		}
-		if err := writeSynonyms(&buf, schema.Synonyms, to.PublicSynonyms, databaseName); err != nil {
-			return "", err
+		for _, entry := range allSyns {
+			if prewrittenSynonyms[entry.syn] {
+				continue
+			}
+			if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+				return "", err
+			}
 		}
 		return buf.String(), nil
 	}
 
 	// Generate objects in dependency order
 	writtenPackages := map[string]bool{}
+	writtenSynonyms := map[*metadatapb.SynonymMetadata]bool{}
 	for _, objectID := range orderedList {
 		if table, ok := tableMap[objectID]; ok {
 			if err := writeTableWithoutFunctionIndexes(&buf, table); err != nil {
@@ -311,6 +375,12 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			}
 			writtenPackages[pkg.Name] = true
 		}
+		if entry, ok := synonymMap[objectID]; ok {
+			if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+				return "", err
+			}
+			writtenSynonyms[entry.syn] = true
+		}
 	}
 	for _, pkg := range schema.Packages {
 		if writtenPackages[pkg.Name] {
@@ -326,8 +396,13 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
 		return "", err
 	}
-	if err := writeSynonyms(&buf, schema.Synonyms, to.PublicSynonyms, databaseName); err != nil {
-		return "", err
+	for _, entry := range allSyns {
+		if writtenSynonyms[entry.syn] {
+			continue
+		}
+		if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+			return "", err
+		}
 	}
 
 	return buf.String(), nil

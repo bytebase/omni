@@ -1230,6 +1230,74 @@ func expressionReferencesPackage(expression, pkg string) bool {
 	return false
 }
 
+func viewReferencesSynonym(definition string, deps []*metadatapb.DependencyColumn, synName string) bool {
+	if synName == "" {
+		return false
+	}
+	for _, dep := range deps {
+		if dep.GetTable() == synName {
+			return true
+		}
+	}
+	for i := 0; i < len(definition); {
+		if end, ok := alternativeQuoteEnd(definition, i); ok {
+			i = end
+			continue
+		}
+		if i+1 < len(definition) && definition[i] == '-' && definition[i+1] == '-' {
+			if end := strings.IndexByte(definition[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(definition) && definition[i] == '/' && definition[i+1] == '*' {
+			if end := strings.Index(definition[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
+			continue
+		}
+		if definition[i] == '\'' {
+			if end := strings.IndexByte(definition[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
+			continue
+		}
+		if definition[i] == '"' {
+			end := i + 1
+			for end < len(definition) && definition[end] != '"' {
+				end++
+			}
+			if definition[i+1:end] == synName {
+				return true
+			}
+			if end < len(definition) {
+				end++
+			}
+			i = end
+			continue
+		}
+		if !isIdentifierByte(definition[i]) {
+			i++
+			continue
+		}
+		end := i + 1
+		for end < len(definition) && isIdentifierByte(definition[end]) {
+			end++
+		}
+		if strings.EqualFold(definition[i:end], synName) {
+			return true
+		}
+		i = end
+	}
+	return false
+}
+
 func isIdentifierByte(c byte) bool {
 	return c == '_' || c == '$' || c == '#' ||
 		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
