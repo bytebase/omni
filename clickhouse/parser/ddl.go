@@ -758,34 +758,45 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 		entity = "POLICY"
 	}
 	kind := action + " " + entity
+	stmt := &AccessControlStmt{
+		span:      span{Pos: start},
+		Kind:      kind,
+		OrReplace: orReplace,
+	}
 
 	if action == "ALTER" {
-		p.matchIfExists()
+		stmt.IfExists = p.matchIfExists()
 	} else {
-		p.matchIfNotExists()
+		stmt.IfNotExists = p.matchIfNotExists()
 	}
 
 	// Entity name(s) (comma-separated)
-	if err := p.parseIdentList(); err != nil {
+	names, err := p.parseIdentList()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Names = names
 	// ROW POLICY requires `ON table1 [, table2 ...]`
 	if entity == "ROW POLICY" || entity == "POLICY" {
 		if _, err := p.expect(KwOn); err != nil {
 			return nil, err
 		}
 		for {
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Tables = append(stmt.Tables, joinDB(db, tbl))
 			if !p.match(TokComma) {
 				break
 			}
 		}
 	}
-	if _, err := p.parseClusterClause(); err != nil {
+	cluster, err := p.parseClusterClause()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Cluster = cluster
 
 	// Structured entity-specific clauses
 	switch entity {
@@ -794,41 +805,54 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 			switch {
 			case p.match(KwIdentified):
 				if p.match(KwWith) {
-					if _, err := p.parseIdentifier(); err != nil {
+					withType, err := p.parseIdentifier()
+					if err != nil {
 						return nil, err
 					}
+					stmt.IdentifiedWith = withType
 				}
 				if p.match(KwBy) {
-					if _, err := p.parseStringLiteral(); err != nil {
+					lit, err := p.parseStringLiteral()
+					if err != nil {
 						return nil, err
 					}
+					stmt.IdentifiedBy = lit.Val
 				}
 			case p.cur().Type == KwDefault && p.peek(1).Type == KwRole:
 				p.advance()
 				p.advance()
-				if p.isWord("NONE") || p.match(KwAll) {
-					if p.isWord("NONE") {
-						p.advance()
+				if p.isWord("NONE") {
+					stmt.DefaultRoles = append(stmt.DefaultRoles, strings.ToUpper(p.advance().Val))
+				} else if p.match(KwAll) {
+					stmt.DefaultRoles = append(stmt.DefaultRoles, "ALL")
+				} else {
+					roles, err := p.parseIdentList()
+					if err != nil {
+						return nil, err
 					}
-				} else if err := p.parseIdentList(); err != nil {
-					return nil, err
+					stmt.DefaultRoles = append(stmt.DefaultRoles, roles...)
 				}
 			case p.cur().Type == KwSettings:
-				if _, err := p.parseSettingsClause(); err != nil {
+				settings, err := p.parseSettingsClause()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Settings = append(stmt.Settings, settings...)
 			case p.isWord("HOST"):
 				p.advance()
 				if p.cur().Type == KwAny || p.isWord("NONE") || p.isWord("LOCAL") {
-					p.advance()
+					stmt.Hosts = append(stmt.Hosts, strings.ToUpper(p.advance().Val))
 				} else {
 					for {
-						if _, err := p.parseIdentifier(); err != nil {
+						hType, err := p.parseIdentifier()
+						if err != nil {
 							return nil, err
 						}
-						if _, err := p.parseStringLiteral(); err != nil {
+						hVal, err := p.parseStringLiteral()
+						if err != nil {
 							return nil, err
 						}
+						stmt.Hosts = append(stmt.Hosts, strings.ToUpper(hType)+" "+hVal.Val)
 						if !p.match(TokComma) {
 							break
 						}
@@ -840,14 +864,19 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 		}
 	case "ROLE", "SETTINGS PROFILE", "PROFILE":
 		if p.cur().Type == KwSettings {
-			if _, err := p.parseSettingsClause(); err != nil {
+			settings, err := p.parseSettingsClause()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Settings = settings
 		}
 		if p.match(KwTo) {
-			if err := p.parseGranteeList(); err != nil {
+			grantees, except, err := p.parseGranteeList()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Grantees = grantees
+			stmt.ExceptGrantees = except
 		}
 	case "ROW POLICY", "POLICY":
 		for !p.isStatementEndOrOutput() {
@@ -856,30 +885,37 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 				if _, err := p.expect(KwSelect); err != nil {
 					return nil, err
 				}
+				stmt.ForSelect = true
 			case p.match(KwUsing):
-				if _, err := p.parseExpr(); err != nil {
+				using, err := p.parseExpr()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Using = using
 			case p.match(KwTo):
-				if err := p.parseGranteeList(); err != nil {
+				grantees, except, err := p.parseGranteeList()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Grantees = grantees
+				stmt.ExceptGrantees = except
 			default:
 				return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in %s", p.cur().Raw, kind))
 			}
 		}
 	case "QUOTA":
 		if p.match(KwTo) {
-			if err := p.parseGranteeList(); err != nil {
+			grantees, except, err := p.parseGranteeList()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Grantees = grantees
+			stmt.ExceptGrantees = except
 		}
 	}
 
-	return &AccessControlStmt{
-		span: span{Pos: start, End: p.peek(-1).End},
-		Kind: kind,
-	}, nil
+	stmt.End = p.peek(-1).End
+	return stmt, nil
 }
 
 func (p *parser) matchIfNotExists() bool {

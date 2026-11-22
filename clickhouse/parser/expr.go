@@ -874,17 +874,12 @@ func (p *parser) parseSubstringOrFuncCall() (Expr, error) {
 func (p *parser) parseFuncCallSuffix(fc *FuncCallExpr) (Expr, error) {
 	if p.match(KwOver) {
 		if p.cur().Type == TokLParen {
-			p.advance()
 			spec, err := p.parseWindowSpec()
 			if err != nil {
 				return nil, err
 			}
-			rpOver, err := p.expect(TokRParen)
-			if err != nil {
-				return nil, err
-			}
 			fc.Over = spec
-			fc.End = rpOver.End
+			fc.End = spec.End
 		} else {
 			winName, err := p.parseIdentifier()
 			if err != nil {
@@ -1086,17 +1081,12 @@ func (p *parser) parseFuncCall(nameTok Token) (Expr, error) {
 	// Optional window OVER (...) or OVER window_name
 	if p.match(KwOver) {
 		if p.cur().Type == TokLParen {
-			p.advance()
 			spec, err := p.parseWindowSpec()
 			if err != nil {
 				return nil, err
 			}
-			rpOver, err := p.expect(TokRParen)
-			if err != nil {
-				return nil, err
-			}
 			fc.Over = spec
-			fc.End = rpOver.End
+			fc.End = spec.End
 		} else {
 			winName, err := p.parseIdentifier()
 			if err != nil {

@@ -527,9 +527,11 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 			if p.match(KwCurrentUser) {
 				stmt.Target = "CURRENT_USER"
 			} else if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
-				if err := p.parseIdentList(); err != nil {
+				names, err := p.parseIdentList()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Targets = names
 			}
 		case KwRole:
 			p.advance()
@@ -538,9 +540,11 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 				stmt.Kind, stmt.Target = "CREATE TABLE", "ROLE"
 			} else {
 				stmt.Kind = "CREATE ROLE"
-				if err := p.parseIdentList(); err != nil {
+				names, err := p.parseIdentList()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Targets = names
 			}
 		case KwRow, KwPolicy:
 			p.match(KwRow)
@@ -549,17 +553,21 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 			}
 			stmt.Kind = "CREATE ROW POLICY"
 			if p.cur().Type != KwOn {
-				if _, err := p.parseIdentifier(); err != nil {
+				name, err := p.parseIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Target = name
 			}
 			if _, err := p.expect(KwOn); err != nil {
 				return nil, err
 			}
 			for {
-				if _, _, err := p.parseTableIdentifier(); err != nil {
+				db, tbl, err := p.parseTableIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Targets = append(stmt.Targets, joinDB(db, tbl))
 				if !p.match(TokComma) {
 					break
 				}
@@ -570,10 +578,14 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 				stmt.Kind, stmt.Target = "CREATE TABLE", "QUOTA"
 			} else {
 				stmt.Kind = "CREATE QUOTA"
-				if !p.match(KwCurrent) {
-					if err := p.parseIdentList(); err != nil {
+				if p.match(KwCurrent) {
+					stmt.Target = "CURRENT"
+				} else {
+					names, err := p.parseIdentList()
+					if err != nil {
 						return nil, err
 					}
+					stmt.Targets = names
 				}
 			}
 		case KwSettings, KwProfile:
@@ -585,12 +597,14 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 				stmt.Kind, stmt.Target = "CREATE TABLE", "PROFILE"
 			} else {
 				stmt.Kind = "CREATE SETTINGS PROFILE"
-				if err := p.parseIdentList(); err != nil {
+				names, err := p.parseIdentList()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Targets = names
 			}
 		default:
-			p.match(KwTemporary)
+			stmt.Temporary = p.match(KwTemporary)
 			p.match(KwTable)
 			db, tbl, err := p.parseTableIdentifier()
 			if err != nil {
@@ -626,7 +640,7 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 	case KwDatabases:
 		p.advance()
 		stmt.Kind = "DATABASES"
-		if err := p.parseShowLikeAndLimit(); err != nil {
+		if err := p.parseShowLikeAndLimit(stmt); err != nil {
 			return nil, err
 		}
 
@@ -634,30 +648,33 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		p.advance()
 		stmt.Kind = "DICTIONARIES"
 		if p.match(KwFrom) {
-			if _, err := p.parseIdentifier(); err != nil {
+			from, err := p.parseIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			stmt.From = from
 		}
-		if err := p.parseShowFilterAndLimit(); err != nil {
+		if err := p.parseShowFilterAndLimit(stmt); err != nil {
 			return nil, err
 		}
 
 	case KwFull:
 		p.advance()
+		stmt.Full = true
 		switch p.cur().Type {
 		case KwTemporary, KwTables:
-			p.match(KwTemporary)
+			stmt.Temporary = p.match(KwTemporary)
 			if _, err := p.expect(KwTables); err != nil {
 				return nil, err
 			}
 			stmt.Kind = "TABLES"
-			if err := p.parseShowTablesTail(); err != nil {
+			if err := p.parseShowTablesTail(stmt); err != nil {
 				return nil, err
 			}
 		case KwColumns, KwFields:
 			p.advance()
 			stmt.Kind = "COLUMNS"
-			if err := p.parseShowColumnsTail(); err != nil {
+			if err := p.parseShowColumnsTail(stmt); err != nil {
 				return nil, err
 			}
 		default:
@@ -665,30 +682,38 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		}
 
 	case KwTemporary, KwTables:
-		p.match(KwTemporary)
+		stmt.Temporary = p.match(KwTemporary)
 		if _, err := p.expect(KwTables); err != nil {
 			return nil, err
 		}
 		stmt.Kind = "TABLES"
-		if err := p.parseShowTablesTail(); err != nil {
+		if err := p.parseShowTablesTail(stmt); err != nil {
 			return nil, err
 		}
 
 	case KwExtended:
 		p.advance()
-		if p.match(KwFull) || p.cur().Type == KwColumns || p.cur().Type == KwFields {
+		stmt.Extended = true
+		if p.match(KwFull) {
+			stmt.Full = true
 			if p.cur().Type != KwColumns && p.cur().Type != KwFields {
 				return nil, p.errAt(p.cur(), "expected COLUMNS or FIELDS")
 			}
 			p.advance()
 			stmt.Kind = "COLUMNS"
-			if err := p.parseShowColumnsTail(); err != nil {
+			if err := p.parseShowColumnsTail(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.cur().Type == KwColumns || p.cur().Type == KwFields {
+			p.advance()
+			stmt.Kind = "COLUMNS"
+			if err := p.parseShowColumnsTail(stmt); err != nil {
 				return nil, err
 			}
 		} else if p.cur().Type == KwIndex || p.cur().Type == KwIndexes || p.cur().Type == KwIndices || p.cur().Type == KwKeys {
 			p.advance()
 			stmt.Kind = "INDEXES"
-			if err := p.parseShowIndexTail(); err != nil {
+			if err := p.parseShowIndexTail(stmt); err != nil {
 				return nil, err
 			}
 		} else {
@@ -698,14 +723,14 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 	case KwColumns, KwFields:
 		p.advance()
 		stmt.Kind = "COLUMNS"
-		if err := p.parseShowColumnsTail(); err != nil {
+		if err := p.parseShowColumnsTail(stmt); err != nil {
 			return nil, err
 		}
 
 	case KwIndex, KwIndexes, KwIndices, KwKeys:
 		p.advance()
 		stmt.Kind = "INDEXES"
-		if err := p.parseShowIndexTail(); err != nil {
+		if err := p.parseShowIndexTail(stmt); err != nil {
 			return nil, err
 		}
 
@@ -717,15 +742,18 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		p.advance()
 		stmt.Kind = "GRANTS"
 		if p.match(KwFor) {
-			if err := p.parseIdentList(); err != nil {
+			names, err := p.parseIdentList()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Targets = names
 		}
 		if p.cur().Type == KwWith && p.peek(1).Type == KwImplicit {
 			p.advance()
 			p.advance()
+			stmt.WithImplicit = true
 		}
-		p.match(KwFinal)
+		stmt.Final = p.match(KwFinal)
 
 	case KwUsers:
 		p.advance()
@@ -763,18 +791,22 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		}
 		stmt.Kind = "ROW POLICIES"
 		if p.match(KwOn) {
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Target = joinDB(db, tbl)
 		}
 
 	case KwPolicies:
 		p.advance()
 		stmt.Kind = "POLICIES"
 		if p.match(KwOn) {
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Target = joinDB(db, tbl)
 		}
 
 	case KwQuotas:
@@ -800,7 +832,7 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 	case KwClusters:
 		p.advance()
 		stmt.Kind = "CLUSTERS"
-		if err := p.parseShowLikeAndLimit(); err != nil {
+		if err := p.parseShowLikeAndLimit(stmt); err != nil {
 			return nil, err
 		}
 
@@ -813,10 +845,12 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		if p.cur().Type != KwLike && p.cur().Type != KwIlike {
 			return nil, p.errAt(p.cur(), "expected LIKE or ILIKE after SHOW CHANGED SETTINGS")
 		}
-		p.advance()
-		if _, err := p.parseStringLiteral(); err != nil {
+		stmt.ILike = p.advance().Type == KwIlike
+		lit, err := p.parseStringLiteral()
+		if err != nil {
 			return nil, err
 		}
+		stmt.Like = lit.Val
 
 	case KwSettings:
 		p.advance()
@@ -827,10 +861,12 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 			if p.cur().Type != KwLike && p.cur().Type != KwIlike {
 				return nil, p.errAt(p.cur(), "expected PROFILES, LIKE, or ILIKE after SHOW SETTINGS")
 			}
-			p.advance()
-			if _, err := p.parseStringLiteral(); err != nil {
+			stmt.ILike = p.advance().Type == KwIlike
+			lit, err := p.parseStringLiteral()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Like = lit.Val
 		}
 
 	case KwSetting:
@@ -856,16 +892,18 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 		p.advance()
 		stmt.Kind = "FUNCTIONS"
 		if p.cur().Type == KwLike || p.cur().Type == KwIlike {
-			p.advance()
-			if _, err := p.parseStringLiteral(); err != nil {
+			stmt.ILike = p.advance().Type == KwIlike
+			lit, err := p.parseStringLiteral()
+			if err != nil {
 				return nil, err
 			}
+			stmt.Like = lit.Val
 		}
 
 	case KwMerges:
 		p.advance()
 		stmt.Kind = "MERGES"
-		if err := p.parseShowLikeAndLimit(); err != nil {
+		if err := p.parseShowLikeAndLimit(stmt); err != nil {
 			return nil, err
 		}
 
@@ -889,105 +927,135 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 	return stmt, nil
 }
 
-func (p *parser) parseIdentList() error {
+func (p *parser) parseIdentList() ([]string, error) {
+	var names []string
 	for {
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		names = append(names, name)
 		if !p.match(TokComma) {
 			break
 		}
 	}
-	return nil
+	return names, nil
 }
 
-func (p *parser) parseShowTablesTail() error {
+func (p *parser) parseShowTablesTail(stmt *ShowStmt) error {
 	if p.match(KwFrom) || p.match(KwIn) {
-		if _, err := p.parseIdentifier(); err != nil {
+		from, err := p.parseIdentifier()
+		if err != nil {
 			return err
 		}
+		stmt.From = from
 	}
-	return p.parseShowFilterAndLimit()
+	return p.parseShowFilterAndLimit(stmt)
 }
 
-func (p *parser) parseShowColumnsTail() error {
+func (p *parser) parseShowColumnsTail(stmt *ShowStmt) error {
 	if !p.match(KwFrom) && !p.match(KwIn) {
 		return p.errAt(p.cur(), "expected FROM or IN")
 	}
-	if err := p.parseShowTableOrInDB(); err != nil {
+	target, err := p.parseShowTableOrInDB()
+	if err != nil {
 		return err
 	}
-	return p.parseShowFilterAndLimit()
+	stmt.From = target
+	return p.parseShowFilterAndLimit(stmt)
 }
 
-func (p *parser) parseShowIndexTail() error {
+func (p *parser) parseShowIndexTail(stmt *ShowStmt) error {
 	if !p.match(KwFrom) && !p.match(KwIn) {
 		return p.errAt(p.cur(), "expected FROM or IN")
 	}
-	if err := p.parseShowTableOrInDB(); err != nil {
+	target, err := p.parseShowTableOrInDB()
+	if err != nil {
 		return err
 	}
+	stmt.From = target
 	if p.match(KwWhere) {
-		if _, err := p.parseExpr(); err != nil {
+		where, err := p.parseExpr()
+		if err != nil {
 			return err
 		}
+		stmt.Where = where
 	}
 	return nil
 }
 
-func (p *parser) parseShowTableOrInDB() error {
-	if _, err := p.parseIdentifier(); err != nil {
-		return err
+func (p *parser) parseShowTableOrInDB() (string, error) {
+	first, err := p.parseIdentifier()
+	if err != nil {
+		return "", err
 	}
 	if p.match(TokDot) {
-		_, err := p.parseIdentifier()
-		return err
+		second, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
+		}
+		return first + "." + second, nil
 	}
 	if p.match(KwFrom) || p.match(KwIn) {
-		_, err := p.parseIdentifier()
-		return err
+		db, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
+		}
+		return db + "." + first, nil
 	}
-	return nil
+	return first, nil
 }
 
-func (p *parser) parseShowFilterAndLimit() error {
+func (p *parser) parseShowFilterAndLimit(stmt *ShowStmt) error {
 	if p.match(KwWhere) {
-		if _, err := p.parseExpr(); err != nil {
+		where, err := p.parseExpr()
+		if err != nil {
 			return err
 		}
+		stmt.Where = where
 	} else {
 		not := p.match(KwNot)
 		if p.cur().Type == KwLike || p.cur().Type == KwIlike {
-			p.advance()
-			if _, err := p.parseStringLiteral(); err != nil {
+			stmt.NotLike = not
+			stmt.ILike = p.advance().Type == KwIlike
+			lit, err := p.parseStringLiteral()
+			if err != nil {
 				return err
 			}
+			stmt.Like = lit.Val
 		} else if not {
 			return p.errAt(p.cur(), "expected LIKE or ILIKE after NOT")
 		}
 	}
 	if p.match(KwLimit) {
-		if _, err := p.parseExpr(); err != nil {
+		limit, err := p.parseExpr()
+		if err != nil {
 			return err
 		}
+		stmt.Limit = limit
 	}
 	return nil
 }
 
-func (p *parser) parseShowLikeAndLimit() error {
+func (p *parser) parseShowLikeAndLimit(stmt *ShowStmt) error {
 	not := p.match(KwNot)
 	if p.cur().Type == KwLike || p.cur().Type == KwIlike {
-		p.advance()
-		if _, err := p.parseStringLiteral(); err != nil {
+		stmt.NotLike = not
+		stmt.ILike = p.advance().Type == KwIlike
+		lit, err := p.parseStringLiteral()
+		if err != nil {
 			return err
 		}
+		stmt.Like = lit.Val
 	} else if not {
 		return p.errAt(p.cur(), "expected LIKE or ILIKE after NOT")
 	}
 	if p.match(KwLimit) {
-		if _, err := p.parseExpr(); err != nil {
+		limit, err := p.parseExpr()
+		if err != nil {
 			return err
 		}
+		stmt.Limit = limit
 	}
 	return nil
 }
@@ -996,29 +1064,37 @@ func (p *parser) parseGrantRevokeStmt() (*AccessControlStmt, error) {
 	start := p.cur().Pos
 	isRevoke := p.cur().Type == KwRevoke
 	kind := strings.ToUpper(p.advance().Val) // GRANT or REVOKE
+	stmt := &AccessControlStmt{span: span{Pos: start}, Kind: kind}
 
-	if _, err := p.parseClusterClause(); err != nil {
+	cluster, err := p.parseClusterClause()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Cluster = cluster
 
 	if isRevoke {
 		// Optional `ADMIN OPTION FOR` or `GRANT OPTION FOR`
 		if (p.isWord("ADMIN") || p.cur().Type == KwGrant) && p.isWordAt(1, "OPTION") && p.peek(2).Type == KwFor {
-			p.advance()
-			p.advance()
-			p.advance()
+			optKind := strings.ToUpper(p.advance().Val)
+			p.advance() // OPTION
+			p.advance() // FOR
+			stmt.RevokeOption = optKind + " OPTION"
 		}
 	}
 
 	// Privilege list (e.g. `SELECT(a, b), INSERT ON db.*`) OR role list (e.g. `role1, role2 TO/FROM u`)
-	if err := p.parsePrivilegeOrRoleList(); err != nil {
+	privs, err := p.parsePrivilegeOrRoleList()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Privileges = privs
 
 	if p.match(KwOn) {
-		if err := p.parsePrivilegeTarget(); err != nil {
+		target, err := p.parsePrivilegeTarget()
+		if err != nil {
 			return nil, err
 		}
+		stmt.Target = target
 	}
 
 	if isRevoke {
@@ -1031,9 +1107,12 @@ func (p *parser) parseGrantRevokeStmt() (*AccessControlStmt, error) {
 		}
 	}
 
-	if err := p.parseGranteeList(); err != nil {
+	grantees, except, err := p.parseGranteeList()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Grantees = grantees
+	stmt.ExceptGrantees = except
 
 	// Optional trailing WITH GRANT OPTION / WITH ADMIN OPTION / WITH REPLACE OPTION
 	for p.cur().Type == KwWith {
@@ -1042,78 +1121,102 @@ func (p *parser) parseGrantRevokeStmt() (*AccessControlStmt, error) {
 		case p.cur().Type == KwGrant && p.isWordAt(1, "OPTION"):
 			p.advance()
 			p.advance()
+			stmt.Options = append(stmt.Options, "GRANT OPTION")
 		case p.isWord("ADMIN") && p.isWordAt(1, "OPTION"):
 			p.advance()
 			p.advance()
+			stmt.Options = append(stmt.Options, "ADMIN OPTION")
 		case p.cur().Type == KwReplace && p.isWordAt(1, "OPTION"):
 			p.advance()
 			p.advance()
+			stmt.Options = append(stmt.Options, "REPLACE OPTION")
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after WITH in %s", p.cur().Raw, kind))
 		}
 	}
 
-	return &AccessControlStmt{span: span{Pos: start, End: p.peek(-1).End}, Kind: kind}, nil
+	stmt.End = p.peek(-1).End
+	return stmt, nil
 }
 
-func (p *parser) parsePrivilegeOrRoleList() error {
+func (p *parser) parsePrivilegeOrRoleList() ([]*PrivilegeSpec, error) {
+	var list []*PrivilegeSpec
 	for {
 		if !isIdentifier(p.cur()) {
-			return p.errAt(p.cur(), fmt.Sprintf("expected privilege or role name, got %q", p.cur().Raw))
+			return nil, p.errAt(p.cur(), fmt.Sprintf("expected privilege or role name, got %q", p.cur().Raw))
 		}
+		start := p.cur().Pos
 		// Privilege names may be multi-word (e.g. ALL PRIVILEGES, CREATE TABLE, ALTER COLUMN, SHOW TABLES)
-		p.advance()
+		parts := []string{p.advance().Val}
 		for isIdentifier(p.cur()) &&
 			p.cur().Type != KwOn && p.cur().Type != KwTo && p.cur().Type != KwFrom &&
 			p.cur().Type != KwWith {
-			p.advance()
+			parts = append(parts, p.advance().Val)
+		}
+		spec := &PrivilegeSpec{
+			span: span{Pos: start},
+			Name: strings.Join(parts, " "),
 		}
 		// Optional column list: SELECT(col1, col2)
 		if p.match(TokLParen) {
-			if err := p.parseIdentList(); err != nil {
-				return err
+			cols, err := p.parseIdentList()
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(TokRParen); err != nil {
-				return err
+				return nil, err
 			}
+			spec.Columns = cols
 		}
+		spec.End = p.peek(-1).End
+		list = append(list, spec)
 		if !p.match(TokComma) {
 			break
 		}
 	}
-	return nil
+	return list, nil
 }
 
-func (p *parser) parsePrivilegeTarget() error {
+func (p *parser) parsePrivilegeTarget() (string, error) {
 	// Targets: *.*, db.*, db.tbl, tbl
 	if p.match(TokStar) {
 		if p.match(TokDot) {
 			if _, err := p.expect(TokStar); err != nil {
-				return err
+				return "", err
 			}
+			return "*.*", nil
 		}
-		return nil
+		return "*", nil
 	}
-	if _, err := p.parseIdentifier(); err != nil {
-		return err
+	first, err := p.parseIdentifier()
+	if err != nil {
+		return "", err
 	}
 	if p.match(TokDot) {
 		if p.match(TokStar) {
-			return nil
+			return first + ".*", nil
 		}
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		second, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
 		}
+		return first + "." + second, nil
 	}
-	return nil
+	return first, nil
 }
 
-func (p *parser) parseGranteeList() error {
+func (p *parser) parseGranteeList() (grantees []string, except []string, err error) {
 	for {
-		if p.match(KwCurrentUser) || p.match(KwAll) {
-			// valid grantee
-		} else if _, err := p.parseIdentifier(); err != nil {
-			return err
+		if p.match(KwCurrentUser) {
+			grantees = append(grantees, "CURRENT_USER")
+		} else if p.match(KwAll) {
+			grantees = append(grantees, "ALL")
+		} else {
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, nil, err
+			}
+			grantees = append(grantees, name)
 		}
 		if !p.match(TokComma) {
 			break
@@ -1122,82 +1225,111 @@ func (p *parser) parseGranteeList() error {
 	if p.match(KwExcept) {
 		for {
 			if p.match(KwCurrentUser) {
-				// ok
-			} else if _, err := p.parseIdentifier(); err != nil {
-				return err
+				except = append(except, "CURRENT_USER")
+			} else {
+				name, err := p.parseIdentifier()
+				if err != nil {
+					return nil, nil, err
+				}
+				except = append(except, name)
 			}
 			if !p.match(TokComma) {
 				break
 			}
 		}
 	}
-	return nil
+	return grantees, except, nil
 }
 
 func (p *parser) parseBackupRestoreStmt() (*BackupRestoreStmt, error) {
 	start := p.cur().Pos
 	isRestore := p.cur().Type == KwRestore
 	kind := strings.ToUpper(p.advance().Val) // BACKUP or RESTORE
+	stmt := &BackupRestoreStmt{span: span{Pos: start}, Kind: kind}
 
 	// Comma-separated list of backup/restore elements:
 	//   TABLE [db.]t [AS [db.]t2] | TEMPORARY TABLE t | DICTIONARY [db.]d | VIEW [db.]v |
 	//   DATABASE db [EXCEPT TABLES ...] | ALL [EXCEPT DATABASES/TABLES ...]
 	for {
+		eStart := p.cur().Pos
+		elem := &BackupElement{span: span{Pos: eStart}}
 		switch p.cur().Type {
 		case KwAll:
 			p.advance()
+			elem.Kind = "ALL"
 		case KwTemporary:
 			p.advance()
 			if _, err := p.expect(KwTable); err != nil {
 				return nil, err
 			}
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			elem.Kind = "TEMPORARY TABLE"
+			elem.Name = joinDB(db, tbl)
 		case KwTable, KwDictionary, KwView:
-			p.advance()
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			elem.Kind = strings.ToUpper(p.advance().Val)
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			elem.Name = joinDB(db, tbl)
 			if p.match(KwAs) {
-				if _, _, err := p.parseTableIdentifier(); err != nil {
+				adb, atbl, err := p.parseTableIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				elem.Alias = joinDB(adb, atbl)
 			}
 		case KwDatabase:
 			p.advance()
-			if _, err := p.parseIdentifier(); err != nil {
+			elem.Kind = "DATABASE"
+			name, err := p.parseIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			elem.Name = name
 			if p.match(KwAs) {
-				if _, err := p.parseIdentifier(); err != nil {
+				alias, err := p.parseIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				elem.Alias = alias
 			}
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("expected TABLE, DATABASE, DICTIONARY, VIEW, or ALL in %s, got %q", kind, p.cur().Raw))
 		}
 		if p.match(KwExcept) {
-			if !p.match(KwTables) && !p.match(KwDatabases) && !p.match(KwTable) && !p.match(KwDatabase) {
+			switch p.cur().Type {
+			case KwTables, KwDatabases, KwTable, KwDatabase:
+				elem.ExceptKind = strings.ToUpper(p.advance().Val)
+			default:
 				return nil, p.errAt(p.cur(), "expected TABLE(S) or DATABASE(S) after EXCEPT")
 			}
 			for {
-				if _, _, err := p.parseTableIdentifier(); err != nil {
+				db, tbl, err := p.parseTableIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				elem.Except = append(elem.Except, joinDB(db, tbl))
 				if !p.match(TokComma) {
 					break
 				}
 			}
 		}
+		elem.End = p.peek(-1).End
+		stmt.Items = append(stmt.Items, elem)
 		if !p.match(TokComma) {
 			break
 		}
 	}
 
-	if _, err := p.parseClusterClause(); err != nil {
+	cluster, err := p.parseClusterClause()
+	if err != nil {
 		return nil, err
 	}
+	stmt.Cluster = cluster
 
 	if isRestore {
 		if _, err := p.expect(KwFrom); err != nil {
@@ -1211,23 +1343,32 @@ func (p *parser) parseBackupRestoreStmt() (*BackupRestoreStmt, error) {
 
 	// Destination/source expression: e.g. Disk('backups', '1.zip'), S3(...), File(...), Null
 	if p.match(KwNull) {
-		// BACKUP ... TO Null
+		stmt.Destination = "Null"
 	} else if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen {
-		if _, err := p.parseTableFunctionExpr(); err != nil {
+		fn, err := p.parseTableFunctionExpr()
+		if err != nil {
 			return nil, err
 		}
-	} else if _, err := p.parseIdentifier(); err != nil {
-		return nil, err
+		stmt.DestinationFunc = fn
+	} else {
+		dest, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Destination = dest
 	}
 
 	if p.cur().Type == KwSettings {
-		if _, err := p.parseSettingsClause(); err != nil {
+		settings, err := p.parseSettingsClause()
+		if err != nil {
 			return nil, err
 		}
+		stmt.Settings = settings
 	}
-	p.match(KwAsync)
+	stmt.Async = p.match(KwAsync)
 
-	return &BackupRestoreStmt{span: span{Pos: start, End: p.peek(-1).End}, Kind: kind}, nil
+	stmt.End = p.peek(-1).End
+	return stmt, nil
 }
 
 func (p *parser) isWord(upper string) bool {

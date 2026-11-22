@@ -478,19 +478,12 @@ func (p *parser) parseWindowClause() ([]*WindowDef, error) {
 		if _, err := p.expect(KwAs); err != nil {
 			return nil, err
 		}
-		if _, err := p.expect(TokLParen); err != nil {
-			return nil, err
-		}
 		spec, err := p.parseWindowSpec()
 		if err != nil {
 			return nil, err
 		}
-		rp, err := p.expect(TokRParen)
-		if err != nil {
-			return nil, err
-		}
 		wins = append(wins, &WindowDef{
-			span: span{Pos: start, End: rp.End},
+			span: span{Pos: start, End: spec.End},
 			Name: name,
 			Spec: spec,
 		})
@@ -502,7 +495,11 @@ func (p *parser) parseWindowClause() ([]*WindowDef, error) {
 }
 
 func (p *parser) parseWindowSpec() (*WindowSpec, error) {
-	spec := &WindowSpec{span: span{Pos: p.cur().Pos}}
+	lp, err := p.expect(TokLParen)
+	if err != nil {
+		return nil, err
+	}
+	spec := &WindowSpec{span: span{Pos: lp.Pos}}
 	// Optional base window name: OVER (existing_window_name [PARTITION BY ...] ...)
 	if isIdentifier(p.cur()) &&
 		!(p.cur().Type == KwPartition && p.peek(1).Type == KwBy) &&
@@ -568,7 +565,11 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 			spec.FrameStart = startBound
 		}
 	}
-	spec.End = p.peek(-1).End
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	spec.End = rp.End
 	return spec, nil
 }
 

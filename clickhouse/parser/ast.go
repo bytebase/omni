@@ -510,9 +510,21 @@ func (*UndropStmt) stmtNode() {}
 
 type ShowStmt struct {
 	span
-	Kind   string
-	Target string
-	Output *OutputClause
+	Kind         string
+	Target       string
+	Targets      []string // comma-separated targets (e.g. SHOW CREATE USER u1, u2; SHOW GRANTS FOR u1, u2)
+	From         string   // FROM/IN database or table
+	Full         bool
+	Extended     bool
+	Temporary    bool
+	NotLike      bool
+	Like         string
+	ILike        bool
+	Where        Expr
+	Limit        Expr
+	WithImplicit bool
+	Final        bool
+	Output       *OutputClause
 }
 
 func (*ShowStmt) stmtNode() {}
@@ -617,18 +629,58 @@ type WatchStmt struct {
 
 func (*WatchStmt) stmtNode() {}
 
+type PrivilegeSpec struct {
+	span
+	Name    string
+	Columns []string
+}
+
 type AccessControlStmt struct {
 	span
-	Kind   string // "GRANT", "REVOKE", "CREATE USER", "ALTER USER", "CREATE ROLE", ...
-	Output *OutputClause
+	Kind           string           // "GRANT", "REVOKE", "CREATE USER", "ALTER USER", "CREATE ROLE", ...
+	OrReplace      bool             // CREATE OR REPLACE
+	IfNotExists    bool             // CREATE ... IF NOT EXISTS
+	IfExists       bool             // ALTER ... IF EXISTS
+	Cluster        string           // optional ON CLUSTER
+	Names          []string         // entity names for CREATE/ALTER USER/ROLE/QUOTA/PROFILE/POLICY
+	Tables         []string         // ON table list for ROW POLICY
+	RevokeOption   string           // "", "ADMIN OPTION", "GRANT OPTION" for REVOKE ... OPTION FOR
+	Privileges     []*PrivilegeSpec // privileges or roles for GRANT/REVOKE
+	Target         string           // ON target (*.*, db.*, db.tbl, tbl) for GRANT/REVOKE
+	Grantees       []string         // TO / FROM grantees
+	ExceptGrantees []string         // EXCEPT grantees
+	Options        []string         // WITH GRANT OPTION / WITH ADMIN OPTION / WITH REPLACE OPTION
+	IdentifiedWith string           // USER IDENTIFIED WITH <type>
+	IdentifiedBy   string           // USER IDENTIFIED [WITH ...] BY '...'
+	DefaultRoles   []string         // USER DEFAULT ROLE ...
+	Hosts          []string         // USER HOST ...
+	ForSelect      bool             // ROW POLICY FOR SELECT
+	Using          Expr             // ROW POLICY USING expr
+	Settings       []*SettingExpr   // SETTINGS ...
+	Output         *OutputClause
 }
 
 func (*AccessControlStmt) stmtNode() {}
 
+type BackupElement struct {
+	span
+	Kind       string // "ALL", "TABLE", "TEMPORARY TABLE", "DATABASE", "DICTIONARY", "VIEW"
+	Name       string
+	Alias      string
+	ExceptKind string // "", "TABLES", "DATABASES", "TABLE", "DATABASE"
+	Except     []string
+}
+
 type BackupRestoreStmt struct {
 	span
-	Kind   string // "BACKUP", "RESTORE"
-	Output *OutputClause
+	Kind            string           // "BACKUP", "RESTORE"
+	Items           []*BackupElement // elements being backed up or restored
+	Cluster         string           // optional ON CLUSTER
+	Destination     string           // "Null" or identifier destination
+	DestinationFunc *FuncCallExpr    // Disk(...), S3(...), File(...)
+	Settings        []*SettingExpr
+	Async           bool
+	Output          *OutputClause
 }
 
 func (*BackupRestoreStmt) stmtNode() {}

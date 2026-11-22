@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"bufio"
 	"errors"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -568,5 +571,148 @@ func TestParseCreateDictionaryAST(t *testing.T) {
 	}
 	if len(d.Settings) != 1 || d.Settings[0].Name != "max_result_bytes" {
 		t.Errorf("Settings = %+v", d.Settings)
+	}
+}
+
+func TestParseEmptyWindowSpecSpan(t *testing.T) {
+	sql1 := "SELECT row_number() OVER (  )"
+	stmts1, err := Parse(sql1)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql1, err)
+	}
+	spec1 := stmts1[0].(*SelectUnionStmt).Items[0].Columns[0].(*FuncCallExpr).Over
+	if spec1 == nil {
+		t.Fatalf("expected non-nil WindowSpec")
+	}
+	if spec1.StartPos() > spec1.EndPos() || sql1[spec1.StartPos():spec1.EndPos()] != "(  )" {
+		t.Errorf("OVER (  ) span = [%d, %d) text=%q, want %q", spec1.StartPos(), spec1.EndPos(), sql1[spec1.StartPos():spec1.EndPos()], "(  )")
+	}
+
+	sql2 := "SELECT sum(x) OVER w FROM t WINDOW w AS (  )"
+	stmts2, err := Parse(sql2)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql2, err)
+	}
+	spec2 := stmts2[0].(*SelectUnionStmt).Items[0].Windows[0].Spec
+	if spec2 == nil || spec2.StartPos() > spec2.EndPos() || sql2[spec2.StartPos():spec2.EndPos()] != "(  )" {
+		t.Errorf("WINDOW w AS (  ) span = [%d, %d), want %q", spec2.StartPos(), spec2.EndPos(), "(  )")
+	}
+}
+
+func TestParseGrantRevokeBackupAndShowAST(t *testing.T) {
+	g1, err := Parse("GRANT SELECT(a, b), INSERT ON db.t TO alice, bob EXCEPT bob WITH GRANT OPTION")
+	if err != nil {
+		t.Fatalf("Parse GRANT failed: %v", err)
+	}
+	ac1 := g1[0].(*AccessControlStmt)
+	if ac1.Kind != "GRANT" || len(ac1.Privileges) != 2 || ac1.Privileges[0].Name != "SELECT" || len(ac1.Privileges[0].Columns) != 2 ||
+		ac1.Privileges[1].Name != "INSERT" || ac1.Target != "db.t" || len(ac1.Grantees) != 2 || ac1.Grantees[0] != "alice" ||
+		len(ac1.ExceptGrantees) != 1 || ac1.ExceptGrantees[0] != "bob" || len(ac1.Options) != 1 || ac1.Options[0] != "GRANT OPTION" {
+		t.Errorf("GRANT AST = %+v", ac1)
+	}
+
+	r1, err := Parse("REVOKE ADMIN OPTION FOR r1 FROM carol")
+	if err != nil {
+		t.Fatalf("Parse REVOKE failed: %v", err)
+	}
+	ac2 := r1[0].(*AccessControlStmt)
+	if ac2.Kind != "REVOKE" || ac2.RevokeOption != "ADMIN OPTION" || len(ac2.Privileges) != 1 || ac2.Privileges[0].Name != "r1" ||
+		len(ac2.Grantees) != 1 || ac2.Grantees[0] != "carol" {
+		t.Errorf("REVOKE AST = %+v", ac2)
+	}
+
+	u1, err := Parse("CREATE USER u1 IDENTIFIED WITH sha256_password BY 'secret' HOST ANY DEFAULT ROLE r1")
+	if err != nil {
+		t.Fatalf("Parse CREATE USER failed: %v", err)
+	}
+	ac3 := u1[0].(*AccessControlStmt)
+	if ac3.Kind != "CREATE USER" || len(ac3.Names) != 1 || ac3.Names[0] != "u1" || ac3.IdentifiedWith != "sha256_password" ||
+		ac3.IdentifiedBy != "secret" || len(ac3.Hosts) != 1 || ac3.Hosts[0] != "ANY" || len(ac3.DefaultRoles) != 1 || ac3.DefaultRoles[0] != "r1" {
+		t.Errorf("CREATE USER AST = %+v", ac3)
+	}
+
+	b1, err := Parse("BACKUP TABLE db.t AS db.t2 TO Disk('backups', '1.zip') SETTINGS compression_level = 3 ASYNC")
+	if err != nil {
+		t.Fatalf("Parse BACKUP failed: %v", err)
+	}
+	bk := b1[0].(*BackupRestoreStmt)
+	if bk.Kind != "BACKUP" || len(bk.Items) != 1 || bk.Items[0].Kind != "TABLE" || bk.Items[0].Name != "db.t" || bk.Items[0].Alias != "db.t2" ||
+		bk.DestinationFunc == nil || bk.DestinationFunc.Name != "Disk" || len(bk.Settings) != 1 || !bk.Async {
+		t.Errorf("BACKUP AST = %+v", bk)
+	}
+
+	sh1, err := Parse("SHOW FULL TABLES FROM analytics NOT ILIKE 'tmp%' LIMIT 10")
+	if err != nil {
+		t.Fatalf("Parse SHOW TABLES failed: %v", err)
+	}
+	sh := sh1[0].(*ShowStmt)
+	if sh.Kind != "TABLES" || !sh.Full || sh.From != "analytics" || !sh.NotLike || !sh.ILike || sh.Like != "tmp%" || sh.Limit == nil {
+		t.Errorf("SHOW TABLES AST = %+v", sh)
+	}
+}
+
+func TestAllCompatASTSpansValid(t *testing.T) {
+	f, err := os.Open("testdata/compat.tsv")
+	if err != nil {
+		t.Fatalf("open testdata/compat.tsv: %v", err)
+	}
+	defer f.Close()
+
+	var checkNode func(v reflect.Value, sql string)
+	checkNode = func(v reflect.Value, sql string) {
+		if !v.IsValid() {
+			return
+		}
+		for v.Kind() == reflect.Interface || v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				return
+			}
+			if n, ok := v.Interface().(Node); ok {
+				if n.StartPos() < 0 || n.EndPos() < n.StartPos() || n.EndPos() > len(sql) {
+					t.Errorf("invalid span [%d, %d) for %T on SQL %q (len=%d)", n.StartPos(), n.EndPos(), n, sql, len(sql))
+				}
+			}
+			v = v.Elem()
+		}
+		switch v.Kind() {
+		case reflect.Struct:
+			for i := 0; i < v.NumField(); i++ {
+				checkNode(v.Field(i), sql)
+			}
+		case reflect.Slice, reflect.Array:
+			for i := 0; i < v.Len(); i++ {
+				checkNode(v.Index(i), sql)
+			}
+		}
+	}
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	checked := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) < 4 {
+			continue
+		}
+		// Unescape TSV SQL column (only \t, \n, \r, \\)
+		sql := parts[len(parts)-1]
+		stmts, err := Parse(sql)
+		if err != nil {
+			continue
+		}
+		checked++
+		for _, stmt := range stmts {
+			checkNode(reflect.ValueOf(stmt), sql)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scan compat.tsv: %v", err)
+	}
+	if checked < 1000 {
+		t.Fatalf("expected to check >1000 parsed statements, checked %d", checked)
 	}
 }
