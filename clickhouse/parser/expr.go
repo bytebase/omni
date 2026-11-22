@@ -562,11 +562,7 @@ func (p *parser) parsePrimaryExpr() (Expr, error) {
 		}
 	case KwSubstring:
 		if p.peek(1).Type == TokLParen {
-			if expr, ok, err := p.tryParseSubstringExpr(); err != nil {
-				return nil, err
-			} else if ok {
-				return expr, nil
-			}
+			return p.parseSubstringOrFuncCall()
 		}
 	case KwTrim:
 		if p.peek(1).Type == TokLParen {
@@ -701,14 +697,17 @@ func (p *parser) parseExtractExpr() (Expr, error) {
 }
 
 func (p *parser) tryParseIntervalExpr() (Expr, bool, error) {
+	if p.noIntervalAt[p.pos] {
+		return nil, false, nil
+	}
 	save := p.pos
 	start := p.advance().Pos // INTERVAL
 	val, err := p.parseExpr()
-	if err != nil {
-		p.pos = save
-		return nil, false, nil
-	}
-	if !isIntervalUnit(p.cur().Type) {
+	if err != nil || !isIntervalUnit(p.cur().Type) {
+		if p.noIntervalAt == nil {
+			p.noIntervalAt = make(map[int]bool)
+		}
+		p.noIntervalAt[save] = true
 		p.pos = save
 		return nil, false, nil
 	}
@@ -720,37 +719,109 @@ func (p *parser) tryParseIntervalExpr() (Expr, bool, error) {
 	}, true, nil
 }
 
-func (p *parser) tryParseSubstringExpr() (Expr, bool, error) {
-	save := p.pos
-	start := p.advance().Pos // SUBSTRING
-	p.advance()              // (
-	expr, err := p.parseExprWithAlias()
-	if err != nil || p.cur().Type != KwFrom {
-		p.pos = save
-		return nil, false, nil
+// parseSubstringOrFuncCall parses SUBSTRING(...) in a single pass without
+// reparsing the first argument, handling both SQL-standard
+// `SUBSTRING(expr FROM start [FOR len])` and function-call `SUBSTRING(a, b, c)`.
+func (p *parser) parseSubstringOrFuncCall() (Expr, error) {
+	nameTok := p.advance() // SUBSTRING
+	p.advance()            // (
+
+	if p.cur().Type == TokRParen {
+		rp := p.advance()
+		return p.parseFuncCallSuffix(&FuncCallExpr{
+			span: span{Pos: nameTok.Pos, End: rp.End},
+			Name: nameTok.Val,
+		})
 	}
-	p.advance() // FROM
-	from, err := p.parseExprWithAlias()
+
+	distinct := p.match(KwDistinct)
+	first, err := p.parseFuncArg()
 	if err != nil {
-		return nil, true, err
+		return nil, err
 	}
-	var forExpr Expr
-	if p.match(KwFor) {
-		forExpr, err = p.parseExprWithAlias()
-		if err != nil {
-			return nil, true, err
+
+	// SQL-standard SUBSTRING(expr [alias] FROM start [alias] [FOR len [alias]])
+	if !distinct {
+		// Allow an optional bare alias before FROM as ClickHouse permits.
+		if p.cur().Type != KwFrom && isBareAlias(p.cur()) && p.peek(1).Type == KwFrom {
+			aliasTok := p.advance()
+			first = &AliasExpr{
+				span:  span{Pos: first.StartPos(), End: aliasTok.End},
+				Expr:  first,
+				Alias: aliasTok.Val,
+			}
 		}
+		if p.match(KwFrom) {
+			from, err := p.parseExprWithAlias()
+			if err != nil {
+				return nil, err
+			}
+			var forExpr Expr
+			if p.match(KwFor) {
+				forExpr, err = p.parseExprWithAlias()
+				if err != nil {
+					return nil, err
+				}
+			}
+			rp, err := p.expect(TokRParen)
+			if err != nil {
+				return nil, err
+			}
+			return &SubstringExpr{
+				span: span{Pos: nameTok.Pos, End: rp.End},
+				Expr: first,
+				From: from,
+				For:  forExpr,
+			}, nil
+		}
+	}
+
+	// Comma-separated ordinary function call: reuse the already-parsed first argument.
+	args := []Expr{first}
+	for p.match(TokComma) {
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
 	}
 	rp, err := p.expect(TokRParen)
 	if err != nil {
-		return nil, true, err
+		return nil, err
 	}
-	return &SubstringExpr{
-		span: span{Pos: start, End: rp.End},
-		Expr: expr,
-		From: from,
-		For:  forExpr,
-	}, true, nil
+	fc := &FuncCallExpr{
+		span:     span{Pos: nameTok.Pos, End: rp.End},
+		Name:     nameTok.Val,
+		Distinct: distinct,
+		Args:     args,
+	}
+	return p.parseFuncCallSuffix(fc)
+}
+
+func (p *parser) parseFuncCallSuffix(fc *FuncCallExpr) (Expr, error) {
+	if p.match(KwOver) {
+		if p.cur().Type == TokLParen {
+			p.advance()
+			spec, err := p.parseWindowSpec()
+			if err != nil {
+				return nil, err
+			}
+			rpOver, err := p.expect(TokRParen)
+			if err != nil {
+				return nil, err
+			}
+			fc.Over = spec
+			fc.End = rpOver.End
+		} else {
+			winName, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			fc.OverName = winName
+			fc.End = p.peek(-1).End
+		}
+	}
+	return fc, nil
 }
 
 func (p *parser) tryParseTrimExpr() (Expr, bool, error) {
@@ -1197,11 +1268,15 @@ func (p *parser) parseDataType() (*DataType, error) {
 
 func (p *parser) parseTypeArg() (Expr, *DataType, error) {
 	// Nested data type (e.g. Nullable(UInt64) or bare UInt64 inside Array(UInt64))
-	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen {
+	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen && !p.noTypeArgAt[p.pos] {
 		save := p.pos
 		if dt, err := p.parseDataType(); err == nil && (p.cur().Type == TokComma || p.cur().Type == TokRParen) {
 			return &TypeExpr{span: dt.span, Type: dt}, dt, nil
 		}
+		if p.noTypeArgAt == nil {
+			p.noTypeArgAt = make(map[int]bool)
+		}
+		p.noTypeArgAt[save] = true
 		p.pos = save
 	}
 	if isIdentifier(p.cur()) && (p.peek(1).Type == TokComma || p.peek(1).Type == TokRParen) {

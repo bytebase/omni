@@ -923,7 +923,7 @@ func (p *parser) parseTableColumnDfnt() (*TableElement, error) {
 		hasType = true
 	}
 	if p.cur().Type == KwDefault || p.cur().Type == KwMaterialized || p.cur().Type == KwAlias {
-		p.advance()
+		elem.DefaultKind = strings.ToUpper(p.advance().Val)
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err

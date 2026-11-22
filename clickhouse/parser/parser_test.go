@@ -74,6 +74,9 @@ func TestParseValidStatements(t *testing.T) {
 		{"drop_user", "DROP USER IF EXISTS alice, bob ON CLUSTER prod"},
 		{"insert_csv_inline_non_sql", "INSERT INTO t FORMAT CSV\na@b,1\n\"unclosed"},
 		{"ttl_group_by_rollup", "ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), m = max(m)"},
+		{"window_partition_rows_no_order", "SELECT sum(v) OVER (PARTITION BY k ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"},
+		{"window_partition_range_no_order", "SELECT sum(v) OVER (PARTITION BY k RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"},
+		{"substring_comma_form", "SELECT substring('abcdef', 2, 3)"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,5 +261,54 @@ func TestParseWideFunctionArgsLinearTime(t *testing.T) {
 	fc := stmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*FuncCallExpr)
 	if len(fc.Args) != 16000 {
 		t.Fatalf("got %d args, want 16000", len(fc.Args))
+	}
+}
+
+func TestParseNestedSubstringLinearTime(t *testing.T) {
+	sql := "SELECT " + strings.Repeat("substring(", 40) + "'abc'" + strings.Repeat(", 1)", 40)
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse failed on 40 nested substrings: %v", err)
+	}
+	if len(stmts) != 1 {
+		t.Fatalf("got %d statements, want 1", len(stmts))
+	}
+}
+
+func TestParseColumnDefaultKinds(t *testing.T) {
+	sql := "CREATE TABLE t (a UInt64 DEFAULT 1, b UInt64 MATERIALIZED 2, c UInt64 ALIAS 3) ENGINE = Memory"
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	ct := stmts[0].(*CreateTableStmt)
+	want := []string{"DEFAULT", "MATERIALIZED", "ALIAS"}
+	if len(ct.Columns) != len(want) {
+		t.Fatalf("got %d columns, want %d", len(ct.Columns), len(want))
+	}
+	for i, w := range want {
+		if ct.Columns[i].DefaultKind != w {
+			t.Errorf("col %d DefaultKind = %q, want %q", i, ct.Columns[i].DefaultKind, w)
+		}
+	}
+}
+
+func TestParseOutputClauseSpan(t *testing.T) {
+	sql1 := "SELECT 1 FORMAT JSON"
+	stmts1, err := Parse(sql1)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql1, err)
+	}
+	if stmts1[0].StartPos() != 0 || stmts1[0].EndPos() != len(sql1) {
+		t.Errorf("span = [%d, %d), want [0, %d)", stmts1[0].StartPos(), stmts1[0].EndPos(), len(sql1))
+	}
+
+	sql2 := "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT CSV;"
+	stmts2, err := Parse(sql2)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql2, err)
+	}
+	if stmts2[0].StartPos() != 0 || stmts2[0].EndPos() != len(sql2)-1 {
+		t.Errorf("span = [%d, %d), want [0, %d)", stmts2[0].StartPos(), stmts2[0].EndPos(), len(sql2)-1)
 	}
 }

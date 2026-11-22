@@ -513,9 +513,25 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 	if p.cur().Type == KwPartition && p.peek(1).Type == KwBy {
 		p.advance()
 		p.advance()
-		exprs, err := p.parseColumnExprList()
-		if err != nil {
-			return nil, err
+		// Parse partition keys without consuming ROWS/RANGE as an implicit alias.
+		var exprs []Expr
+		for {
+			var expr Expr
+			var err error
+			if p.cur().Type == TokStar {
+				expr, err = p.parseStarExpr(nil)
+			} else if parts, ok := p.tryMatchQualifiedStar(); ok {
+				expr, err = p.parseStarExpr(parts)
+			} else {
+				expr, err = p.parseExpr()
+			}
+			if err != nil {
+				return nil, err
+			}
+			exprs = append(exprs, expr)
+			if !p.match(TokComma) {
+				break
+			}
 		}
 		spec.PartitionBy = exprs
 	}

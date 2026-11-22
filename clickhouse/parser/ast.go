@@ -41,6 +41,7 @@ func (s span) EndPos() int   { return s.End }
 // OutputClause captures optional INTO OUTFILE ... and FORMAT ... clauses
 // attached to top-level ClickHouse queries.
 type OutputClause struct {
+	span
 	Outfile     string
 	Compression string
 	Format      string
@@ -333,11 +334,12 @@ type EngineClause struct {
 
 type TableElement struct {
 	span
-	Kind    string // "COLUMN", "CONSTRAINT", "INDEX", "PROJECTION"
-	Name    string
-	Type    *DataType
-	Expr    Expr
-	Comment string
+	Kind        string // "COLUMN", "CONSTRAINT", "INDEX", "PROJECTION"
+	Name        string
+	Type        *DataType
+	DefaultKind string // "", "DEFAULT", "MATERIALIZED", "ALIAS"
+	Expr        Expr
+	Comment     string
 }
 
 type AlterTableStmt struct {

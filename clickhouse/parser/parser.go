@@ -48,7 +48,9 @@ type parser struct {
 	depth          int
 	eof            bool
 	lexErr         error
-	noLambdaBefore int // token index bound caching failed unparenthesized lambda lookahead
+	noLambdaBefore int          // token index bound caching failed unparenthesized lambda lookahead
+	noIntervalAt   map[int]bool // token positions where INTERVAL expr unit lookahead failed
+	noTypeArgAt    map[int]bool // token positions where nested DataType lookahead failed
 }
 
 func (p *parser) ensure(idx int) {
@@ -216,28 +218,33 @@ func (p *parser) parseQuery() (Statement, error) {
 func (p *parser) parseOptionalOutputClause() (*OutputClause, error) {
 	var out *OutputClause
 	if p.cur().Type == KwInto && p.peek(1).Type == KwOutfile {
-		p.advance()
+		start := p.advance().Pos
 		p.advance()
 		str, err := p.parseStringLiteral()
 		if err != nil {
 			return nil, err
 		}
-		out = &OutputClause{Outfile: str.Val}
+		out = &OutputClause{span: span{Pos: start, End: str.End}, Outfile: str.Val}
 		if p.match(KwCompression) {
 			comp, err := p.parseStringLiteral()
 			if err != nil {
 				return nil, err
 			}
 			out.Compression = comp.Val
+			out.End = comp.End
 		}
 	}
 	if p.match(KwFormat) {
+		fmtStart := p.peek(-1).Pos
 		name, err := p.parseIdentifierOrNull()
 		if err != nil {
 			return nil, err
 		}
+		end := p.peek(-1).End
 		if out == nil {
-			out = &OutputClause{}
+			out = &OutputClause{span: span{Pos: fmtStart, End: end}}
+		} else {
+			out.End = end
 		}
 		out.Format = name
 	}
@@ -250,57 +257,57 @@ func attachOutputClause(stmt Statement, out *OutputClause) {
 	}
 	switch s := stmt.(type) {
 	case *SelectUnionStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CreateDatabaseStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CreateTableStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CreateViewStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CreateDictionaryStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CreateFunctionStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *AlterTableStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *DropStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *AttachStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *RenameStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *ExchangeStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *TruncateStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *UndropStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *ShowStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *DescribeStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *ExplainStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *ExistsStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *CheckStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *OptimizeStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *KillStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *SystemStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *SetStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *UseStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *WatchStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *AccessControlStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	case *BackupRestoreStmt:
-		s.Output = out
+		s.Output, s.End = out, out.End
 	}
 }
 
