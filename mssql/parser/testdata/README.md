@@ -13,8 +13,8 @@ on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,406 | 0 | 104 |
-| Near-misses | 11,960 | 11,942 | 0 | 18 |
+| One per alternative | 5,510 | 5,415 | 0 | 95 |
+| Near-misses | 11,960 | 11,960 | 0 | 0 |
 | `suite:lexer` | 67 | 66 | 0 | 1 |
 
 SQL Server accepts 3,035 of the 5,510 alternatives. Five more alternatives get
@@ -112,7 +112,7 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,414 rows agree (99.30%, up from 17,409 / 99.27% under judge rev 1): 12,212
+17,441 rows agree (99.45%, up from 17,414 / 99.30% after judge rev 2): 12,212
 when the file was first recorded, the rest closed family by family (#1034 to
 #1070, and then the batch's call by name, `ALTER AUTHORIZATION` and the refusals
 around it, `SELECT`'s table sources, ODBC escapes, graph `MATCH`, the security
@@ -124,20 +124,18 @@ operators, the shapes a query expression's parentheses, a name's dot and a
 label's colon carry, and then the CTAS alternatives and a line comment's
 opening), followed by judge rev 2 closing all 20 `only_mssql` lookup-hides-syntax
 rows and 18 context-only `only_omni` rows (`GOTO`, unused CTE, `PARSE`/`TRY_PARSE`,
-and `ALTER EXTERNAL LANGUAGE`).
+and `ALTER EXTERNAL LANGUAGE`), and then closing the 27 parser bugs judge rev 2
+exposed (18 loose `USE FEDERATION` near-misses in `utility.go` and 9
+`ALTER FULLTEXT STOPLIST ... LANGUAGE ...` forms lacking `;` in `fulltext.go`).
 
-123 rows disagree: all 123 are accepted only by omni, and 0 are accepted only by
-SQL Server (`only_mssql` dropped from 20 to 0). Upgrading the judge to rev 2
-also exposed 33 previously masked `only_omni` rows where judge rev 1 had blindly
-accepted early lookups: 24 `USE FEDERATION` rows (6 valid Azure SQL forms plus
-18 loose near-misses) and 9 `ALTER FULLTEXT STOPLIST` rows missing their
-required semicolon.
+96 rows disagree: all 96 are accepted only by omni, and 0 are accepted only by
+SQL Server (`only_mssql` is 0, and all 11,960 near-misses agree).
 
 A byte in them is the offset of the token the server's message names: SQL
 Server reports a line, not a byte, and each row is one line. A row that says
 "no byte" has a message that names what it refuses and reports no position.
 
-## Rows only omni accepts, measured (123)
+## Rows only omni accepts, measured (96)
 
 `TSql160.g4` is the grammar omni reads, so a statement the rule under the row
 derives stays accepted where this server refuses it: the row is recorded here
@@ -145,7 +143,9 @@ instead of closed. Three rows of the 111 before #1468 were the grammar's, and
 are closed; judge rev 2 closed 18 context-only rows (`GOTO`, unused CTE,
 `PARSE`/`TRY_PARSE`, `ALTER EXTERNAL LANGUAGE`) and exposed 33 rows previously
 hidden behind Msg 911 (`USE FEDERATION`, 24) and Msg 7609/7678
-(`ALTER FULLTEXT STOPLIST` without `;`, 9).
+(`ALTER FULLTEXT STOPLIST` without `;`, 9), of which the 27 malformed forms
+(18 loose `USE FEDERATION` near-misses and all 9 `ALTER FULLTEXT STOPLIST` rows
+missing `;`) are now closed.
 
 ### Closed (3)
 
@@ -160,7 +160,7 @@ form SQL Server takes.
 | 1 | `CREATE TABLE a WITH() AS SELECT *` | Msg 102 near `)` (20) | `withTableOptions` is one option at least (TSql160.g:26710-26723): SQL Server, ScriptDOM and omni all refuse at 20 |
 | 1 | `SELECT 1 --(* a *)` | Msg 102 near `--(*` (9) | a line comment opening with `(*` is no comment: ScriptDOM's lexer refuses the same four characters, and a comment that opens otherwise may hold them later (`SELECT 1 --x --(* a *)` parses). omni now refuses at 9 |
 
-### Measured (123)
+### Measured (96)
 
 Each group's code was measured on both servers, and the control beside it — the
 form the server takes, or the same text with the feature it lacks — is what
@@ -175,8 +175,7 @@ tells a check from the grammar.
 | Synapse's `CREATE EXTERNAL STREAM` | 9 | Msg 102 at `EXTERNAL` (7), with PolyBase installed too: `EXTERNAL` is a word the shape takes only for the kinds this product has |
 | Synapse's CTAS options | 5 | Msg 102 at `HEAP` (20) for `CREATE TABLE a WITH(HEAP) AS SELECT *`, and Msg 173 at the column `a` (15) then Msg 319 near `WITH` (18) for `CREATE TABLE a(a) WITH(HEAP) AS SELECT *`. `CREATE TABLE a(a INT) WITH(DATA_COMPRESSION = PAGE)` parses and `CREATE TABLE a WITH(DATA_COMPRESSION = PAGE) AS SELECT *` answers Msg 156 near `AS` (45): the option list is read and the `AS SELECT` is not. ScriptDOM takes both texts and refuses each for the distribution option a CTAS requires |
 | Federations (`CREATE`/`ALTER`/`DROP`, Azure SQL Database's) | 12 | Msg 343 "Unknown object type 'FEDERATION'" at the object type word (7 for `CREATE`, 6 for `ALTER`, 5 for `DROP`), the answer `CREATE FOO a(a INT)` gets too: the word is looked up in the set of object types this product has, not read by a grammar |
-| Federations (`USE FEDERATION`, Azure SQL Database's + loose parser forms) | 24 | With scratch database `FEDERATION` present, SQL Server 2022 reads past the database name and refuses all 24 rows with Msg 102/319 (6 valid Azure SQL `USE FEDERATION` alternatives plus 18 loose near-misses previously kept accepted in `utility.go` because judge rev 1 accepted Msg 911; tightening `parseUseFederationStmt` in a follow-up parser PR closes the 18 near-misses) |
-| `ALTER FULLTEXT STOPLIST` without `;` | 9 | With judge rev 2 probing past the Msg 7609/7678 language lookup, SQL Server refuses all 9 `ALTER FULLTEXT STOPLIST ... LANGUAGE ...` forms lacking `;` with Msg 10736 (matching `CREATE`/`DROP FULLTEXT STOPLIST` and `ALTER FULLTEXT STOPLIST a DROP ALL`; removing the rev-1 workaround in `fulltext.go` closes all 9 in a follow-up parser PR) |
+| Federations (`USE FEDERATION`, Azure SQL Database's) | 6 | With scratch database `FEDERATION` present, SQL Server 2022 reads past the database name and refuses all 6 valid Azure SQL `USE FEDERATION` alternatives with Msg 102/319 (`parseUseFederationStmt` in `utility.go` requires every clause per `TSql160.g:13647`, closing all 18 loose near-misses) |
 | A name of 129 characters | 1 | Msg 103 at 7, the name; 128 characters parse, and ScriptDOM's lexer refuses the 129 as well. omni reads a name of any length and `mssql/review` reports it as WT403 (`NameTooLong`): the limit is the review layer's, and moving it into the lexer would report the text as a syntax error instead, so it stays its own change |
 
 ## Rows only SQL Server accepts (0)

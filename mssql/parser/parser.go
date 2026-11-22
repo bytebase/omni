@@ -423,10 +423,16 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwDENY:
 		return p.parseDenyStmt()
 	case kwUSE:
-		// Check for USE FEDERATION
-		{
-			next := p.peekNext()
-			if next.Type == kwFEDERATION {
+		// Check for USE FEDERATION ... distinguished by its actual continuation
+		// (ROOT WITH ... or identifier '(' ...); otherwise fall through to
+		// parseUseStmt so switching to a database named FEDERATION works with
+		// or without a semicolon before another statement.
+		if p.peekNext().Type == kwFEDERATION {
+			after := p.peekSecond()
+			third := p.peekThird()
+			isFed := (after.Type == kwROOT && third.Type == kwWITH) ||
+				((after.Type == tokIDENT || isContextKeyword(after.Type)) && third.Type == '(')
+			if isFed {
 				loc := p.pos()
 				p.advance() // consume USE
 				p.advance() // consume FEDERATION
