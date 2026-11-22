@@ -257,20 +257,15 @@ func (p *Parser) parseFromStatement() error {
 
 func (p *Parser) parseFromStatementBody() error {
 	if p.isTransformStart() {
-		cp := p.save()
-		err := p.parseTransformClause()
-		if err == nil {
-			if p.cur().Kind == kwWHERE {
-				if err := p.parseWhereClause(); err != nil {
-					return err
-				}
-			}
-			return p.parseQueryOrganization()
-		}
-		p.restore(cp)
-		if p.cur().Kind != kwSELECT {
+		if err := p.parseTransformClause(); err != nil {
 			return err
 		}
+		if p.cur().Kind == kwWHERE {
+			if err := p.parseWhereClause(); err != nil {
+				return err
+			}
+		}
+		return p.parseQueryOrganization()
 	}
 	if err := p.parseSelectClause(); err != nil {
 		return err
@@ -305,16 +300,8 @@ func (p *Parser) parseFromStatementBody() error {
 
 func (p *Parser) parseQuerySpecification() error {
 	if p.isTransformStart() {
-		cp := p.save()
 		if err := p.parseTransformClause(); err != nil {
-			p.restore(cp)
-			if p.cur().Kind == kwSELECT {
-				if err := p.parseSelectClause(); err != nil {
-					return err
-				}
-			} else {
-				return err
-			}
+			return err
 		}
 	} else {
 		if err := p.parseSelectClause(); err != nil {
@@ -368,7 +355,36 @@ func (p *Parser) isTransformStart() bool {
 	if p.cur().Kind == kwMAP || p.cur().Kind == kwREDUCE {
 		return true
 	}
-	return p.cur().Kind == kwSELECT && p.peek(1).Kind == kwTRANSFORM && p.peek(2).Kind == tokLParen
+	if p.cur().Kind != kwSELECT || p.peek(1).Kind != kwTRANSFORM || p.peek(2).Kind != tokLParen {
+		return false
+	}
+	return p.hasTransformClauseAfterParens(2)
+}
+
+// hasTransformClauseAfterParens scans from the '(' at lparenOffset to its
+// matching ')' and reports whether the following tokens start a Hive
+// transformClause (`ROW FORMAT`, `RECORDWRITER`, or `USING`), distinguishing
+// script transformations from higher-order `SELECT TRANSFORM(arr, x -> x)`
+// function calls without reparsing the arguments.
+func (p *Parser) hasTransformClauseAfterParens(lparenOffset int) bool {
+	depth := 0
+	for i := lparenOffset; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF {
+			return false
+		}
+		if k == tokLParen {
+			depth++
+		} else if k == tokRParen {
+			depth--
+			if depth == 0 {
+				after := p.peek(i + 1).Kind
+				return after == kwUSING ||
+					(after == kwROW && p.peek(i+2).Kind == kwFORMAT) ||
+					after == kwRECORDWRITER
+			}
+		}
+	}
 }
 
 func (p *Parser) parseTransformClause() error {
@@ -559,7 +575,7 @@ func (p *Parser) parseRelation() error {
 	}
 	defer p.leave()
 
-	if p.cur().Kind == kwLATERAL && p.peek(1).Kind != kwVIEW {
+	if p.isLateralRelationModifier() {
 		p.advance()
 	}
 	if err := p.parseRelationPrimary(); err != nil {
@@ -583,6 +599,41 @@ func (p *Parser) parseRelation() error {
 			return nil
 		}
 	}
+}
+
+// isLateralRelationModifier reports whether a leading LATERAL keyword before a
+// relationPrimary acts as the LATERAL modifier (e.g. `FROM LATERAL (SELECT ...)`,
+// `FROM LATERAL explode(arr)`) rather than a table or schema named `lateral`
+// (e.g. `FROM lateral`, `FROM lateral.t`, `JOIN lateral ON ...`).
+func (p *Parser) isLateralRelationModifier() bool {
+	if p.cur().Kind != kwLATERAL {
+		return false
+	}
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+		tokDot, kwAS, kwVIEW,
+		kwON, kwUSING,
+		kwTABLESAMPLE, kwPIVOT, kwUNPIVOT,
+		kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
+		kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwSELECT, kwMAP, kwREDUCE, kwSET, kwINTO:
+		return false
+	case kwFOR:
+		return p.peek(2).Kind != kwSYSTEM_TIME && p.peek(2).Kind != kwSYSTEM_VERSION && p.peek(2).Kind != kwVERSION
+	case kwTIMESTAMP, kwVERSION:
+		return !(p.peek(2).Kind == kwAS && p.peek(3).Kind == kwOF)
+	case kwWITH:
+		return p.peek(2).Kind != tokLParen
+	case kwLATERAL:
+		return p.peek(2).Kind != kwVIEW
+	case tokIdent:
+		if isWord(p.peek(1), "QUALIFY") && p.peek(2).Kind != tokEOF && p.peek(2).Kind != tokSemicolon && p.peek(2).Kind != tokRParen {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Parser) isJoinStart() bool {
@@ -609,7 +660,7 @@ func (p *Parser) parseJoinRelation() error {
 	if _, err := p.expect(kwJOIN); err != nil {
 		return err
 	}
-	if p.cur().Kind == kwLATERAL && p.peek(1).Kind != kwVIEW {
+	if p.isLateralRelationModifier() {
 		p.advance()
 	}
 	if err := p.parseRelationPrimary(); err != nil {

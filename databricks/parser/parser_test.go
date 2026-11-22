@@ -291,6 +291,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "lateral as relation or schema name",
+			sql:  `SELECT * FROM lateral JOIN lateral.t ON lateral.id = t.id JOIN lateral AS l2 USING (id)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "from statement with transform higher-order function",
+			sql:  `FROM t SELECT TRANSFORM(arr, x -> x + 1)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "select transform hive script",
+			sql:  `SELECT TRANSFORM(a, b) USING 'cat' AS (c INT, d STRING) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -449,6 +464,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested case function",
 			sql:  "SELECT " + strings.Repeat("CASE(", depth) + "x" + strings.Repeat(")", depth),
+		},
+		{
+			name: "nested select transform subquery",
+			sql:  strings.Repeat("SELECT TRANSFORM((", 30) + "SELECT array(1)" + strings.Repeat("), x -> x)", 30),
+		},
+		{
+			name: "nested from select transform subquery",
+			sql:  "FROM t " + strings.Repeat("SELECT TRANSFORM((", 25) + "SELECT array(1)" + strings.Repeat("), x -> x)", 25),
 		},
 		{
 			name: "nested parens",
