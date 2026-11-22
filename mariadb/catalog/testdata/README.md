@@ -21,7 +21,9 @@ of the `SHOW CREATE` texts the database holds afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**5,071 / 5,071 rows (100.00%) agree** (461 statements × 11 fixtures).
+**5,038 / 5,049 rows (99.78%) agree** (459 statements × 11 fixtures; 11 rows
+disagree on error code for `ALTER TABLE a DROP a.a.a;`, where MariaDB answers
+`1102` and omni answers `1064`).
 
 ## Commands
 
