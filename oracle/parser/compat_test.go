@@ -40,17 +40,12 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join(td, "pins.tsv"),
+		PinRole: "parser",
 		Grammar: filepath.Join(td, "OracleDocs.g4"),
 		Tokens:  filepath.Join(td, "tokens.tsv"),
 		Omni:    omniVerdict,
 		Source:  compat.SourceEngine,
 		Judge:   compatJudge,
-		// 1: a probe the lexer refuses at the tail says nothing, since
-		// Oracle lexes some statements whole before it parses them, and an
-		// error past the last token is a missing token. 2: the statement
-		// parsers' own errors are syntax errors. 3: ALTER TABLE a and ALTER
-		// MATERIALIZED VIEW a are asked again on the fixture's t and v.
-		JudgeRevision: 3,
 	})
 }
 

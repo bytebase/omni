@@ -8,7 +8,7 @@ zero Docker in CI.
 ## `walk_simulation_verdicts.tsv` and `TestWalkSimulation`
 
 `walk_simulation_verdicts.tsv` holds every unique Oracle 23-accepted DDL and DML
-statement in `../../parser/testdata/compat.tsv` (3,054 statements across tables,
+statement in `../../parser/testdata/compat.tsv` (3,079 statements across tables,
 views, materialized views, indexes, sequences, synonyms, procedures, functions,
 packages, types, triggers, comments, renames, and DML — excluding materialized
 view logs, which trigger Oracle server parse hangs) executed against 11 starting
@@ -26,11 +26,11 @@ fixtures in `fixtures/`:
 - `objects@function` — function `a`
 - `objects@type` — object type `a` (unsynced in Bytebase's Oracle metadata sync)
 
-Total: **33,594 rows** (3,763 accepted `ok`, 29,831 refused).
+Total: **33,869 rows** (3,764 accepted `ok`, 30,105 refused).
 `TestWalkSimulation` (`../walk_simulation_test.go`) enforces **zero false positives**
-on all 3,763 Oracle-accepted rows and verifies every finding on refused rows against
+on all 3,764 Oracle-accepted rows and verifies every finding on refused rows against
 either Oracle's error code or the fixture's real Oracle inventory synced via
-`tapes/TestWalkSimulation.tape`. Currently catches 21,072 / 29,831 refusals (70.6%).
+`tapes/TestWalkSimulation.tape`. Currently catches 21,257 / 30,105 refusals (70.6%).
 
 ## Commands
 
