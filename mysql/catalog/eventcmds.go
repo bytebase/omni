@@ -92,6 +92,20 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 		return err
 	}
 
+	// MySQL refuses renaming an event to its own (schema, name) with 1551
+	// (ER_EVENT_SAME_NAME) before looking up whether the event exists.
+	if stmt.RenameTo != "" {
+		renameSchema := stmt.RenameSchema
+		if renameSchema == "" {
+			if cur, curErr := c.resolveDatabase(""); curErr == nil {
+				renameSchema = cur.Name
+			}
+		}
+		if toLower(db.Name) == toLower(renameSchema) && toLower(stmt.Name) == toLower(stmt.RenameTo) {
+			return errEventSameName()
+		}
+	}
+
 	name := stmt.Name
 	key := toLower(name)
 

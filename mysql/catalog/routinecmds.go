@@ -76,15 +76,23 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 }
 
 func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
+	name := stmt.Name.Name
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		if stmt.IfExists {
 			return nil
 		}
+		// MySQL looks up qualified routines by (schema, name) and answers 1305
+		// (ER_SP_DOES_NOT_EXIST) rather than 1049 when the schema does not exist.
+		if stmt.Name.Schema != "" {
+			if stmt.IsProcedure {
+				return errNoSuchProcedure(stmt.Name.Schema, name)
+			}
+			return errNoSuchFunction(stmt.Name.Schema + "." + name)
+		}
 		return err
 	}
 
-	name := stmt.Name.Name
 	key := toLower(name)
 
 	routineMap := db.Functions
@@ -107,12 +115,18 @@ func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
 }
 
 func (c *Catalog) alterRoutine(stmt *nodes.AlterRoutineStmt) error {
+	name := stmt.Name.Name
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
+		if stmt.Name.Schema != "" {
+			if stmt.IsProcedure {
+				return errNoSuchProcedure(stmt.Name.Schema, name)
+			}
+			return errNoSuchFunction(stmt.Name.Schema + "." + name)
+		}
 		return err
 	}
 
-	name := stmt.Name.Name
 	key := toLower(name)
 
 	routineMap := db.Functions
