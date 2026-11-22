@@ -101,48 +101,156 @@ func (p *parser) parseStarExpr(qualifier []string, startPos int) (Expr, error) {
 		span:      span{Pos: startPos, End: tok.End},
 		Qualifier: qualifier,
 	}
-	if p.match(KwExcept) {
-		if p.match(TokLParen) {
-			if isStringTok(p.cur().Type) {
+	for {
+		switch {
+		case p.cur().Type == KwExcept && !p.isSetOpExceptAfterStar():
+			trStart := p.advance().Pos // EXCEPT
+			tr := &StarTransformer{span: span{Pos: trStart}, Kind: "EXCEPT"}
+			if p.isWord("STRICT") {
+				p.advance()
+				tr.Strict = true
+			}
+			if p.match(TokLParen) {
+				if isStringTok(p.cur().Type) {
+					lit, err := p.parseStringLiteral()
+					if err != nil {
+						return nil, err
+					}
+					tr.Regex = lit.Val
+					star.ExceptRe = lit.Val
+				} else {
+					for {
+						id, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
+						tr.Columns = append(tr.Columns, id)
+						star.Except = append(star.Except, id)
+						if !p.match(TokComma) {
+							break
+						}
+					}
+				}
+				rp, err := p.expect(TokRParen)
+				if err != nil {
+					return nil, err
+				}
+				tr.End = rp.End
+			} else if isStringTok(p.cur().Type) {
 				lit, err := p.parseStringLiteral()
 				if err != nil {
 					return nil, err
 				}
+				tr.Regex = lit.Val
 				star.ExceptRe = lit.Val
+				tr.End = lit.End
 			} else {
-				for {
-					id, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					star.Except = append(star.Except, id)
-					if !p.match(TokComma) {
-						break
-					}
+				id, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				tr.Columns = []string{id}
+				star.Except = append(star.Except, id)
+				tr.End = p.peek(-1).End
+			}
+			star.Transformers = append(star.Transformers, tr)
+			star.End = tr.End
+
+		case p.cur().Type == KwReplace && (p.peek(1).Type == TokLParen || (p.isWordAt(1, "STRICT") && p.peek(2).Type == TokLParen)):
+			trStart := p.advance().Pos // REPLACE
+			tr := &StarTransformer{span: span{Pos: trStart}, Kind: "REPLACE"}
+			if p.isWord("STRICT") {
+				p.advance()
+				tr.Strict = true
+			}
+			if _, err := p.expect(TokLParen); err != nil {
+				return nil, err
+			}
+			for {
+				expr, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(KwAs); err != nil {
+					return nil, err
+				}
+				alias, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				tr.Replaces = append(tr.Replaces, &AliasExpr{
+					span:  span{Pos: expr.StartPos(), End: p.peek(-1).End},
+					Expr:  expr,
+					Alias: alias,
+				})
+				if !p.match(TokComma) {
+					break
 				}
 			}
 			rp, err := p.expect(TokRParen)
 			if err != nil {
 				return nil, err
 			}
-			star.End = rp.End
-		} else if isStringTok(p.cur().Type) {
-			lit, err := p.parseStringLiteral()
-			if err != nil {
-				return nil, err
+			tr.End = rp.End
+			star.Transformers = append(star.Transformers, tr)
+			star.End = tr.End
+
+		case p.isWord("APPLY") && (p.peek(1).Type == TokLParen || isBareAlias(p.peek(1))):
+			trStart := p.advance().Pos // APPLY
+			tr := &StarTransformer{span: span{Pos: trStart}, Kind: "APPLY"}
+			if p.match(TokLParen) {
+				if lam, ok, err := p.tryParseLambda(); err != nil {
+					return nil, err
+				} else if ok {
+					tr.ApplyExpr = lam
+				} else {
+					fnStart := p.cur()
+					fnName, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					if p.cur().Type == TokLParen {
+						fc, err := p.parseFuncCall(fnStart)
+						if err != nil {
+							return nil, err
+						}
+						tr.ApplyExpr = fc
+					} else {
+						tr.ApplyFunc = fnName
+					}
+				}
+				rp, err := p.expect(TokRParen)
+				if err != nil {
+					return nil, err
+				}
+				tr.End = rp.End
+			} else {
+				fnName, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				tr.ApplyFunc = fnName
+				tr.End = p.peek(-1).End
 			}
-			star.ExceptRe = lit.Val
-			star.End = lit.End
-		} else {
-			id, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			star.Except = []string{id}
-			star.End = p.peek(-1).End
+			star.Transformers = append(star.Transformers, tr)
+			star.End = tr.End
+
+		default:
+			return star, nil
 		}
 	}
-	return star, nil
+}
+
+func (p *parser) isSetOpExceptAfterStar() bool {
+	next := p.peek(1).Type
+	if next == KwSelect || next == KwWith || next == KwFrom {
+		return true
+	}
+	if next == KwAll || next == KwDistinct {
+		n2 := p.peek(2).Type
+		return n2 == KwSelect || n2 == KwWith || n2 == KwFrom || n2 == TokLParen
+	}
+	return false
 }
 
 // parseExprWithAlias parses an expression with an optional `AS alias` or bare alias.
@@ -152,6 +260,27 @@ func (p *parser) parseExprWithAlias() (Expr, error) {
 		return nil, err
 	}
 	return p.parseOptionalAlias(expr)
+}
+
+// parseExprWithExplicitAlias parses an expression with an optional explicit
+// `AS identifier` alias (without consuming bare implicit aliases).
+func (p *parser) parseExprWithExplicitAlias() (Expr, error) {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if p.match(KwAs) {
+		alias, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &AliasExpr{
+			span:  span{Pos: expr.StartPos(), End: p.peek(-1).End},
+			Expr:  expr,
+			Alias: alias,
+		}, nil
+	}
+	return expr, nil
 }
 
 func (p *parser) parseOptionalAlias(expr Expr) (Expr, error) {
@@ -166,7 +295,7 @@ func (p *parser) parseOptionalAlias(expr Expr) (Expr, error) {
 			Alias: alias,
 		}, nil
 	}
-	if isBareAlias(p.cur()) {
+	if isBareAlias(p.cur()) && !p.isFetchClauseStart() {
 		tok := p.advance()
 		return &AliasExpr{
 			span:  span{Pos: expr.StartPos(), End: tok.End},

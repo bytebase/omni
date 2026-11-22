@@ -428,11 +428,13 @@ func (*AlterTableStmt) stmtNode() {}
 type AlterClause struct {
 	span
 	Action      string
+	IfExists    bool // for DROP/MODIFY/CLEAR/COMMENT/MATERIALIZE/RENAME ... IF EXISTS
+	IfNotExists bool // for ADD ... IF NOT EXISTS
 	Name        string
 	NewName     string            // for RENAME COLUMN
 	Element     *TableElement     // column, index, projection, or constraint definition
-	After       string            // for ADD ... AFTER col
-	First       bool              // for ADD ... FIRST
+	After       string            // for ADD/MODIFY ... AFTER col
+	First       bool              // for ADD/MODIFY ... FIRST
 	Assignments []*AssignmentExpr // for UPDATE ... WHERE ...
 	Where       Expr              // for DELETE WHERE ... and UPDATE ... WHERE ...
 	Partition   *PartitionClause  // for partition clauses
@@ -865,11 +867,23 @@ type SubqueryExpr struct {
 
 func (*SubqueryExpr) exprNode() {}
 
+type StarTransformer struct {
+	span
+	Kind      string       // "EXCEPT", "REPLACE", "APPLY"
+	Strict    bool         // optional STRICT modifier
+	Columns   []string     // EXCEPT column names
+	Regex     string       // EXCEPT 'regex'
+	Replaces  []*AliasExpr // REPLACE (expr AS col, ...)
+	ApplyFunc string       // APPLY(func_name) or APPLY func_name
+	ApplyExpr Expr         // APPLY(lambda) or APPLY(func(params))
+}
+
 type StarExpr struct {
 	span
-	Qualifier []string
-	Except    []string
-	ExceptRe  string
+	Qualifier    []string
+	Except       []string
+	ExceptRe     string
+	Transformers []*StarTransformer
 }
 
 func (*StarExpr) exprNode() {}

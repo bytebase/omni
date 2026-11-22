@@ -1568,6 +1568,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		switch p.cur().Type {
 		case KwColumn:
 			p.advance()
+			ifNotExists := false
 			if p.cur().Type == KwIf && p.peek(1).Type == KwNot {
 				if p.peek(2).Type != KwExists {
 					return nil, p.errAt(p.peek(2), "expected EXISTS after IF NOT")
@@ -1575,6 +1576,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				p.advance()
 				p.advance()
 				p.advance()
+				ifNotExists = true
 			}
 			elem, err := p.parseTableColumnDfnt()
 			if err != nil {
@@ -1590,10 +1592,10 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			} else {
 				first = p.match(KwFirst)
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD COLUMN", Name: elem.Name, Element: elem, After: after, First: first}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD COLUMN", IfNotExists: ifNotExists, Name: elem.Name, Element: elem, After: after, First: first}, nil
 		case KwIndex:
 			p.advance()
-			p.matchIfNotExists()
+			ifNotExists := p.matchIfNotExists()
 			elem, err := p.parseTableIndexDfnt(start)
 			if err != nil {
 				return nil, err
@@ -1608,10 +1610,10 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			} else {
 				first = p.match(KwFirst)
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD INDEX", Name: elem.Name, Element: elem, After: after, First: first}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD INDEX", IfNotExists: ifNotExists, Name: elem.Name, Element: elem, After: after, First: first}, nil
 		case KwProjection:
 			p.advance()
-			p.matchIfNotExists()
+			ifNotExists := p.matchIfNotExists()
 			elem, err := p.parseTableProjectionDfnt(start)
 			if err != nil {
 				return nil, err
@@ -1626,10 +1628,10 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			} else {
 				first = p.match(KwFirst)
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD PROJECTION", Name: elem.Name, Element: elem, After: after, First: first}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD PROJECTION", IfNotExists: ifNotExists, Name: elem.Name, Element: elem, After: after, First: first}, nil
 		case KwConstraint:
 			p.advance()
-			p.matchIfNotExists()
+			ifNotExists := p.matchIfNotExists()
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -1642,7 +1644,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				return nil, err
 			}
 			elem := &TableElement{span: span{Pos: start, End: expr.EndPos()}, Kind: "CONSTRAINT", Name: name, Expr: expr}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD CONSTRAINT", Name: name, Element: elem}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ADD CONSTRAINT", IfNotExists: ifNotExists, Name: name, Element: elem}, nil
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after ADD", p.cur().Raw))
 		}
@@ -1672,7 +1674,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		default:
 			return nil, p.errAt(p.cur(), "expected COLUMN, INDEX, or PROJECTION after CLEAR")
 		}
-		p.matchIfExists()
+		ifExists := p.matchIfExists()
 		name, err := p.parseNestedIdentifier()
 		if err != nil {
 			return nil, err
@@ -1684,14 +1686,14 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				return nil, err
 			}
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name, Partition: part}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, IfExists: ifExists, Name: name, Partition: part}, nil
 
 	case KwComment:
 		p.advance()
 		if _, err := p.expect(KwColumn); err != nil {
 			return nil, err
 		}
-		p.matchIfExists()
+		ifExists := p.matchIfExists()
 		name, err := p.parseNestedIdentifier()
 		if err != nil {
 			return nil, err
@@ -1700,7 +1702,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "COMMENT COLUMN", Name: name, Comment: lit.Val}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "COMMENT COLUMN", IfExists: ifExists, Name: name, Comment: lit.Val}, nil
 
 	case KwDelete:
 		p.advance()
@@ -1726,12 +1728,12 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		switch p.cur().Type {
 		case KwColumn, KwIndex, KwProjection, KwConstraint:
 			kind := "DROP " + strings.ToUpper(p.advance().Val)
-			p.matchIfExists()
+			ifExists := p.matchIfExists()
 			name, err := p.parseNestedIdentifier()
 			if err != nil {
 				return nil, err
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, IfExists: ifExists, Name: name}, nil
 		case KwPartition:
 			part, err := p.parsePartitionClause()
 			if err != nil {
@@ -1763,7 +1765,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		default:
 			return nil, p.errAt(p.cur(), "expected INDEX or PROJECTION after MATERIALIZE")
 		}
-		p.matchIfExists()
+		ifExists := p.matchIfExists()
 		name, err := p.parseNestedIdentifier()
 		if err != nil {
 			return nil, err
@@ -1775,19 +1777,19 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				return nil, err
 			}
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name, Partition: part}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, IfExists: ifExists, Name: name, Partition: part}, nil
 
 	case KwModify:
 		p.advance()
 		switch p.cur().Type {
 		case KwColumn:
 			p.advance()
-			p.matchIfExists()
+			ifExists := p.matchIfExists()
 			// Could be:
 			//   nestedIdentifier codecExpr
 			//   nestedIdentifier COMMENT stringLiteral
 			//   nestedIdentifier REMOVE tableColumnPropertyType
-			//   tableColumnDfnt
+			//   tableColumnDfnt [FIRST | AFTER col]
 			save := p.pos
 			name, err := p.parseNestedIdentifier()
 			if err != nil {
@@ -1799,14 +1801,14 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				if err != nil {
 					return nil, err
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN CODEC", Name: name, Codec: codec}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN CODEC", IfExists: ifExists, Name: name, Codec: codec}, nil
 			case KwComment:
 				p.advance()
 				lit, err := p.parseStringLiteral()
 				if err != nil {
 					return nil, err
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN COMMENT", Name: name, Comment: lit.Val}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN COMMENT", IfExists: ifExists, Name: name, Comment: lit.Val}, nil
 			case KwRemove:
 				p.advance()
 				var prop string
@@ -1816,14 +1818,24 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				default:
 					return nil, p.errAt(p.cur(), "expected column property type after REMOVE")
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN REMOVE", Name: name, RemoveProp: prop}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN REMOVE", IfExists: ifExists, Name: name, RemoveProp: prop}, nil
 			default:
 				p.pos = save
 				elem, err := p.parseTableColumnDfnt()
 				if err != nil {
 					return nil, err
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN", Name: elem.Name, Element: elem}, nil
+				var after string
+				var first bool
+				if p.match(KwAfter) {
+					after, err = p.parseNestedIdentifier()
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					first = p.match(KwFirst)
+				}
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN", IfExists: ifExists, Name: elem.Name, Element: elem, After: after, First: first}, nil
 			}
 		case KwOrder:
 			p.advance()
@@ -1894,7 +1906,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if _, err := p.expect(KwColumn); err != nil {
 			return nil, err
 		}
-		p.matchIfExists()
+		ifExists := p.matchIfExists()
 		oldName, err := p.parseNestedIdentifier()
 		if err != nil {
 			return nil, err
@@ -1906,7 +1918,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "RENAME COLUMN", Name: oldName, NewName: newName}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "RENAME COLUMN", IfExists: ifExists, Name: oldName, NewName: newName}, nil
 
 	case KwReplace:
 		p.advance()

@@ -818,3 +818,101 @@ func TestParseUnsupportedEscapesTableParamsAndColumnAliases(t *testing.T) {
 		t.Errorf("bare x(a, b) TableExpr = %+v", at2)
 	}
 }
+
+func TestParseWithLambdaAlterModifiersFilterAliasesStarTransformersAndOffsetFetch(t *testing.T) {
+	// 1. Scalar WITH lambda expression.
+	w1, err := Parse("WITH (x) -> x + 1 AS f SELECT f(1)")
+	if err != nil {
+		t.Fatalf("Parse WITH lambda failed: %v", err)
+	}
+	with0 := w1[0].(*SelectUnionStmt).Items[0].With[0]
+	lam, ok := with0.Expr.(*LambdaExpr)
+	if !ok || with0.Alias != "f" || len(lam.Params) != 1 || lam.Params[0] != "x" {
+		t.Errorf("WITH lambda = %+v, expr=%T", with0, with0.Expr)
+	}
+
+	// 2. MODIFY COLUMN AFTER / FIRST + conditional IF EXISTS / IF NOT EXISTS flags.
+	m1, err := Parse("ALTER TABLE t ADD COLUMN IF NOT EXISTS a UInt64, MODIFY COLUMN IF EXISTS c UInt64 AFTER d, MODIFY COLUMN e String FIRST, DROP COLUMN IF EXISTS old")
+	if err != nil {
+		t.Fatalf("Parse ALTER modifiers/flags failed: %v", err)
+	}
+	cls := m1[0].(*AlterTableStmt).Clauses
+	if len(cls) != 4 {
+		t.Fatalf("got %d clauses, want 4", len(cls))
+	}
+	if !cls[0].IfNotExists || cls[0].IfExists {
+		t.Errorf("ADD COLUMN flags = %+v, want IfNotExists=true", cls[0])
+	}
+	if !cls[1].IfExists || cls[1].After != "d" || cls[1].First {
+		t.Errorf("MODIFY COLUMN AFTER = %+v, want IfExists=true After=\"d\"", cls[1])
+	}
+	if cls[2].IfExists || !cls[2].First || cls[2].After != "" {
+		t.Errorf("MODIFY COLUMN FIRST = %+v, want First=true", cls[2])
+	}
+	if !cls[3].IfExists {
+		t.Errorf("DROP COLUMN IF EXISTS = %+v, want IfExists=true", cls[3])
+	}
+
+	// 3. Explicit aliases in WHERE / PREWHERE / HAVING / QUALIFY.
+	f1, err := Parse("SELECT y WHERE 1 AS y")
+	if err != nil {
+		t.Fatalf("Parse WHERE alias failed: %v", err)
+	}
+	if al, ok := f1[0].(*SelectUnionStmt).Items[0].Where.(*AliasExpr); !ok || al.Alias != "y" {
+		t.Errorf("WHERE = %T %+v, want AliasExpr(y)", f1[0].(*SelectUnionStmt).Items[0].Where, f1[0].(*SelectUnionStmt).Items[0].Where)
+	}
+	if _, err := Parse("SELECT y FROM t PREWHERE x > 0 AS p WHERE p HAVING count() > 0 AS h QUALIFY row_number() OVER () = 1 AS q"); err != nil {
+		t.Fatalf("Parse PREWHERE/HAVING/QUALIFY aliases failed: %v", err)
+	}
+
+	// 4. Star APPLY and REPLACE column transformers (including chaining).
+	st1, err := Parse("SELECT * APPLY(toString) FROM numbers(3)")
+	if err != nil {
+		t.Fatalf("Parse * APPLY failed: %v", err)
+	}
+	star1 := st1[0].(*SelectUnionStmt).Items[0].Columns[0].(*StarExpr)
+	if len(star1.Transformers) != 1 || star1.Transformers[0].Kind != "APPLY" || star1.Transformers[0].ApplyFunc != "toString" {
+		t.Errorf("star1 transformers = %+v", star1.Transformers)
+	}
+
+	st2, err := Parse("SELECT * EXCEPT (secret) REPLACE(number + 1 AS number) APPLY(x -> x * 2) FROM numbers(3)")
+	if err != nil {
+		t.Fatalf("Parse chained star transformers failed: %v", err)
+	}
+	star2 := st2[0].(*SelectUnionStmt).Items[0].Columns[0].(*StarExpr)
+	if len(star2.Transformers) != 3 || star2.Transformers[0].Kind != "EXCEPT" || star2.Transformers[1].Kind != "REPLACE" ||
+		len(star2.Transformers[1].Replaces) != 1 || star2.Transformers[1].Replaces[0].Alias != "number" ||
+		star2.Transformers[2].Kind != "APPLY" || star2.Transformers[2].ApplyExpr == nil {
+		t.Errorf("star2 transformers = %+v", star2.Transformers)
+	}
+
+	// 5. Standalone OFFSET and SQL-standard FETCH pagination.
+	o1, err := Parse("SELECT number FROM numbers(10) ORDER BY number OFFSET 5 ROWS FETCH NEXT 2 ROWS ONLY")
+	if err != nil {
+		t.Fatalf("Parse OFFSET FETCH failed: %v", err)
+	}
+	lim1 := o1[0].(*SelectUnionStmt).Items[0].Limit
+	if lim1 == nil || lim1.Offset == nil || lim1.Limit == nil || lim1.WithTies {
+		t.Errorf("OFFSET FETCH Limit = %+v", lim1)
+	}
+
+	o2, err := Parse("SELECT number FROM numbers(10) OFFSET 5")
+	if err != nil {
+		t.Fatalf("Parse standalone OFFSET failed: %v", err)
+	}
+	if lim2 := o2[0].(*SelectUnionStmt).Items[0].Limit; lim2 == nil || lim2.Offset == nil || lim2.Limit != nil {
+		t.Errorf("standalone OFFSET Limit = %+v", lim2)
+	}
+
+	o3, err := Parse("SELECT number FROM numbers(10) ORDER BY number FETCH FIRST 2 ROWS WITH TIES")
+	if err != nil {
+		t.Fatalf("Parse FETCH WITH TIES failed: %v", err)
+	}
+	if lim3 := o3[0].(*SelectUnionStmt).Items[0].Limit; lim3 == nil || lim3.Limit == nil || !lim3.WithTies {
+		t.Errorf("FETCH WITH TIES Limit = %+v", lim3)
+	}
+
+	if _, err := Parse("SELECT number FROM t FETCH FIRST 2 ROWS ONLY"); err != nil {
+		t.Fatalf("Parse FETCH after table name failed: %v", err)
+	}
+}

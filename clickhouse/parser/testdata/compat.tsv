@@ -1690,7 +1690,7 @@ accept	accept	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT * 
 reject	reject	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-1	SELECT * ORDER BY 1e1 FIRST
 reject	reject	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT * ORDER BY 1e1 NULLS
 reject	reject	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!insert	SELECT * ORDER BY 1e1 NULLS FIRST zzz
-reject	accept	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!swap	SELECT * ORDER BY 1e1 OFFSET FIRST
+accept	accept	engine	orderExpr(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!swap	SELECT * ORDER BY 1e1 OFFSET FIRST
 accept	accept	engine	orderExpr(FIRST|LAST)/FIRST	SELECT * ORDER BY 1e1 NULLS FIRST
 reject	reject	engine	orderExpr(FIRST|LAST)/FIRST!swap	SELECT * ORDER BY 1e1 NULLS FLUSH
 accept	accept	engine	orderExpr(FIRST|LAST)/LAST	SELECT * ORDER BY 1e1 NULLS LAST

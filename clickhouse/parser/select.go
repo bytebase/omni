@@ -132,7 +132,7 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 
 	// PREWHERE
 	if p.match(KwPrewhere) {
-		expr, err := p.parseExpr()
+		expr, err := p.parseExprWithExplicitAlias()
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +141,7 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 
 	// WHERE
 	if p.match(KwWhere) {
-		expr, err := p.parseExpr()
+		expr, err := p.parseExprWithExplicitAlias()
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +183,7 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 
 	// HAVING
 	if p.match(KwHaving) {
-		expr, err := p.parseExpr()
+		expr, err := p.parseExprWithExplicitAlias()
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 
 	// QUALIFY
 	if p.match(KwQualify) {
-		expr, err := p.parseExpr()
+		expr, err := p.parseExprWithExplicitAlias()
 		if err != nil {
 			return nil, err
 		}
@@ -301,6 +301,15 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 			}
 			stmt.Limit = lc
 		}
+	}
+
+	// Standalone OFFSET n [ROW|ROWS] and/or SQL-standard FETCH {FIRST|NEXT} [m] {ROW|ROWS} {ONLY|WITH TIES}
+	if stmt.Limit == nil && (p.cur().Type == KwOffset || p.isFetchClauseStart()) {
+		lc, err := p.parseOffsetFetchClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Limit = lc
 	}
 
 	// ClickHouse enforces inside ParserSelectQuery that WITH TIES requires ORDER BY.
@@ -415,10 +424,18 @@ func (p *parser) parseWithExpr() (*WithExpr, error) {
 		p.pos = save
 	}
 
-	// Expression CTE: columnExpr AS identifier
-	expr, err := p.parseExpr()
-	if err != nil {
+	// Expression CTE: (lambda | columnExpr) AS identifier
+	var expr Expr
+	if lam, ok, err := p.tryParseLambda(); err != nil {
 		return nil, err
+	} else if ok {
+		expr = lam
+	} else {
+		var err error
+		expr, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if _, err := p.expect(KwAs); err != nil {
 		return nil, err
@@ -755,9 +772,57 @@ func (p *parser) parseLimitExpr() (Expr, Expr, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		if p.cur().Type == KwRow || p.cur().Type == KwRows {
+			p.advance()
+		}
 		return first, offset, nil
 	}
 	return first, nil, nil
+}
+
+func (p *parser) isFetchClauseStart() bool {
+	return p.isWord("FETCH") && (p.peek(1).Type == KwFirst || p.isWordAt(1, "NEXT"))
+}
+
+func (p *parser) parseOffsetFetchClause() (*LimitClause, error) {
+	start := p.cur().Pos
+	lc := &LimitClause{span: span{Pos: start}}
+	if p.match(KwOffset) {
+		off, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		lc.Offset = off
+		if p.cur().Type == KwRow || p.cur().Type == KwRows {
+			p.advance()
+		}
+	}
+	if p.isFetchClauseStart() {
+		p.advance() // FETCH
+		p.advance() // FIRST or NEXT
+		if p.cur().Type != KwRow && p.cur().Type != KwRows {
+			lim, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			lc.Limit = lim
+		}
+		if p.cur().Type != KwRow && p.cur().Type != KwRows {
+			return nil, p.errAt(p.cur(), "expected ROW or ROWS in FETCH clause")
+		}
+		p.advance()
+		if p.isWord("ONLY") {
+			p.advance()
+		} else if p.cur().Type == KwWith && p.peek(1).Type == KwTies {
+			p.advance()
+			p.advance()
+			lc.WithTies = true
+		} else {
+			return nil, p.errAt(p.cur(), "expected ONLY or WITH TIES in FETCH clause")
+		}
+	}
+	lc.End = p.peek(-1).End
+	return lc, nil
 }
 
 // --- FROM / JOIN parsing ---
@@ -1069,7 +1134,7 @@ func (p *parser) parseTableExpr() (*TableExpr, error) {
 			te.ColumnAliases = cols
 			te.End = rpEnd
 		}
-	} else if isBareAlias(p.cur()) {
+	} else if isBareAlias(p.cur()) && !p.isFetchClauseStart() {
 		tok := p.advance()
 		te.Alias = tok.Val
 		te.End = tok.End
