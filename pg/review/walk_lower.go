@@ -495,6 +495,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	case walk.Absent:
 		b.set(k, walk.Present, relTable)
 		b.set(tk, walk.Present, typOther)
+		b.mayAddArrayType(c.schema)
 		b.clear(walk.Scope{Parent: parent, Deep: true})
 		if !plain {
 			b.forget(walk.Scope{Space: spaceColumn, Parent: parent})
@@ -962,6 +963,7 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	b.made(k)
 	b.set(k, walk.Present, relView)
 	b.set(tk, walk.Present, typOther)
+	b.mayAddArrayType(c.schema)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	if temp || c.schema == tempSchema {
 		b.session(func() { b.w.temporary = true })
@@ -1040,6 +1042,7 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	if prior == walk.Absent {
 		b.set(k, walk.Present, kind)
 		b.set(tk, walk.Present, "")
+		b.mayAddArrayType(c.schema)
 		b.clear(walk.Scope{Parent: parent, Deep: true})
 		b.forget(walk.Scope{Space: spaceColumn, Parent: parent})
 		b.made(k)
@@ -1154,9 +1157,22 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	}
 	b.set(k, walk.Present, relComposite)
 	b.set(tk, walk.Present, typOther)
+	b.mayAddArrayType(c.schema)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	b.made(k)
 	return true
+}
+
+// mayAddArrayType weakens Absent facts for PostgreSQL's auto-generated
+// companion array types (_<name>) in schema s.
+func (b *builder) mayAddArrayType(schema string) {
+	b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(schema), Prefix: "_"})
+}
+
+// mayRemoveArrayType weakens Present facts for PostgreSQL's auto-generated
+// companion array types (_<name>) in schema s.
+func (b *builder) mayRemoveArrayType(schema string) {
+	b.mayRemove(walk.Scope{Space: spaceType, Parent: walk.Path(schema), Prefix: "_"})
 }
 
 // createEnum follows CREATE TYPE ... AS ENUM (...).
@@ -1234,6 +1250,7 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 		return true
 	}
 	b.set(tk, walk.Present, typOther)
+	b.mayAddArrayType(c.schema)
 	b.session(func() { delete(b.w.shellTypes, tk) })
 	b.made(tk)
 	// PostgreSQL 14+ also creates a companion multirange type alongside the
@@ -1342,6 +1359,7 @@ func (b *builder) defineObject(v *ast.DefineStmt) bool {
 		return true
 	}
 	b.set(tk, walk.Present, typOther)
+	b.mayAddArrayType(c.schema)
 	b.session(func() { delete(b.w.shellTypes, tk) })
 	b.made(tk)
 	return true
@@ -1520,6 +1538,7 @@ func (b *builder) createType(parts []string, kind string) bool {
 	tk := typeKey(c.schema, name)
 	b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
 	b.set(tk, walk.Present, kind)
+	b.mayAddArrayType(c.schema)
 	b.made(tk)
 	return true
 }
@@ -1984,6 +2003,7 @@ func (b *builder) dropColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableCm
 	}
 	b.mayRemove(walk.Scope{Space: spaceConstraint, Parent: tableOf(t)})
 	b.mayRemove(walk.Scope{Space: spacePrimaryKey, Parent: tableOf(t)})
+	b.mayRemove(walk.Scope{Space: spaceTrigger, Parent: tableOf(t)})
 	b.mayRemove(walk.Scope{Space: spaceRelation, Parent: walk.Path(schemaOfKey(t)), Kinds: []string{relIndex}})
 	b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relSequence, relIndex}})
 	if ast.DropBehavior(cmd.Behavior) == ast.DROP_CASCADE {
@@ -2081,8 +2101,13 @@ func (b *builder) dropConstraint(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTab
 			b.mayRemove(walk.Scope{Space: spaceConstraint, Deep: true, Prefix: name})
 		}
 	}
+	b.mayRemove(walk.Scope{Space: spaceTrigger, Parent: tableOf(t)})
 	if b.w.partitioned[t] {
 		b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relIndex}})
+		b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
+	}
+	if inh {
+		b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
 	}
 	if ast.DropBehavior(cmd.Behavior) == ast.DROP_CASCADE {
 		b.mayRemove(walk.Scope{Deep: true})
@@ -2148,9 +2173,13 @@ func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 	b.set(nk, walk.Present, r.kind)
 	switch {
 	case rowType:
+		b.mayRemoveArrayType(s)
+		b.mayAddArrayType(s)
 		b.set(typeKey(s, r.key.Name), walk.Absent, "")
 		b.set(typeKey(s, newName), walk.Present, "")
 	case r.kind == "":
+		b.mayRemoveArrayType(s)
+		b.mayAddArrayType(s)
 		b.set(typeKey(s, r.key.Name), walk.Unknown, "")
 		b.set(typeKey(s, newName), walk.Unknown, "")
 	}
@@ -2410,9 +2439,13 @@ func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 	b.set(nk, walk.Present, r.kind)
 	switch {
 	case rowType:
+		b.mayRemoveArrayType(old)
+		b.mayAddArrayType(ns)
 		b.set(typeKey(old, r.key.Name), walk.Absent, "")
 		b.set(typeKey(ns, r.key.Name), walk.Present, "")
 	case r.kind == "":
+		b.mayRemoveArrayType(old)
+		b.mayAddArrayType(ns)
 		b.set(typeKey(old, r.key.Name), walk.Unknown, "")
 		b.set(typeKey(ns, r.key.Name), walk.Unknown, "")
 	}
@@ -2585,8 +2618,10 @@ func (b *builder) dropped(k walk.Key, kind string) {
 	b.set(k, walk.Absent, "")
 	switch {
 	case hasRowType(kind):
+		b.mayRemoveArrayType(s)
 		b.set(typeKey(s, k.Name), walk.Absent, "")
 	case kind == "":
+		b.mayRemoveArrayType(s)
 		b.set(typeKey(s, k.Name), walk.Unknown, "")
 	}
 	b.clear(walk.Scope{Parent: tableOf(k), Deep: true})
@@ -2754,6 +2789,7 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 		}
 	}
 	s := schemaOfKey(r.key)
+	b.mayRemoveArrayType(s)
 	b.set(r.key, walk.Absent, "")
 	b.session(func() { delete(b.w.shellTypes, r.key) })
 	rk := relKey(s, r.key.Name)
@@ -3834,6 +3870,8 @@ func (b *builder) renameDomain(v *ast.RenameStmt) bool {
 	s := schemaOfKey(r.key)
 	nk := typeKey(s, newName)
 	b.need(nk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", ident(v.Newname))}) // 42710
+	b.mayRemoveArrayType(s)
+	b.mayAddArrayType(s)
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, typDomain)
 	b.made(nk)
@@ -3899,6 +3937,8 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		b.set(nrk, walk.Present, relComposite)
 		b.renamed(rk, nrk)
 	}
+	b.mayRemoveArrayType(s)
+	b.mayAddArrayType(s)
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, r.kind)
 	b.session(func() {
@@ -3943,6 +3983,8 @@ func (b *builder) setSchemaDomain(v *ast.AlterObjectSchemaStmt) bool {
 	nk := typeKey(ns, r.key.Name)
 	moved := qualified([]string{v.Newschema, r.key.Name})
 	b.need(nk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", moved)}) // 42710
+	b.mayRemoveArrayType(old)
+	b.mayAddArrayType(ns)
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, typDomain)
 	b.made(nk)
@@ -4001,6 +4043,10 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 			b.set(nrk, walk.Present, relComposite)
 			b.renamed(rk, nrk)
 		}
+		// Moving a type also moves its companion array type (and companion
+		// multirange type for range types) into the destination schema.
+		b.mayRemove(walk.Scope{Space: spaceType, Parent: walk.Path(old)})
+		b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ns)})
 		b.set(r.key, walk.Absent, "")
 		b.set(nk, walk.Present, r.kind)
 		b.session(func() {

@@ -331,7 +331,7 @@ func (b *builder) resolveType(parts []string) resolved {
 			if builtinCatalogTypes[typ] {
 				return resolved{fact: walk.Present, kind: typOther, builtin: true, keys: keys}
 			}
-			if strings.HasPrefix(typ, "pg_") {
+			if strings.HasPrefix(typ, "pg_") || strings.HasPrefix(typ, "_") {
 				return resolved{}
 			}
 			continue
