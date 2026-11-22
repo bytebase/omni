@@ -106,16 +106,17 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 	if s.OrAlter && s.IfNotExists {
 		return &ParseError{Position: s.Name.Loc.Start, End: s.Name.Loc.End, Message: "syntax error: CREATE OR ALTER TASK GRAPH takes no IF NOT EXISTS"}
 	}
-	seen := map[string]bool{}
+	seenContact := false
+	seenDefaults := false
 	tags := false
 	for {
 		start := p.cur.Loc.Start
 		switch {
 		case p.cur.Type == kwWITH && isWordToken(p.peekNext(), "CONTACT"):
-			if s.OrAlter || seen["WITH CONTACT"] {
+			if s.OrAlter || seenContact {
 				return p.syntaxErrorAtCur()
 			}
-			seen["WITH CONTACT"] = true
+			seenContact = true
 			p.advance() // consume WITH
 			p.advance() // consume CONTACT
 			group, err := p.parseTaskGraphGroup(false, false)
@@ -127,10 +128,10 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			}
 			p.addObjectKeywordsClause(s, "WITH CONTACT", start).Options = []*ast.CopyOption{group}
 		case isWordToken(p.cur, "TASK_DEFAULTS") && p.peekNext().Type == '(':
-			if seen["TASK_DEFAULTS"] {
+			if seenDefaults {
 				return p.syntaxErrorAtCur()
 			}
-			seen["TASK_DEFAULTS"] = true
+			seenDefaults = true
 			p.advance() // consume TASK_DEFAULTS
 			group, err := p.parseTaskGraphDefaults(false)
 			if err != nil {
@@ -147,15 +148,15 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "WHEN", Query: cond, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 			return nil
 		default:
-			c, err := p.parseObjectProperties(s, "", false)
+			c, err := p.parseObjectPropertiesWith(s, "", false, true)
 			if err != nil {
 				return err
 			}
 			if c == nil {
 				return nil
 			}
-			// The runs between the clauses above are one property list: each
-			// property, and TAG, comes once.
+			// TAG is a singleton clause; duplicate property validation is
+			// deferred to the semantic/catalog layer, matching CREATE WAREHOUSE.
 			if c.Tags != nil {
 				if tags || s.OrAlter {
 					return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error: TAG is not allowed here"}
@@ -163,10 +164,6 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 				tags = true
 			}
 			for _, o := range c.Options {
-				if seen[o.Name] {
-					return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
-				}
-				seen[o.Name] = true
 				if err := checkTaskGraphProperty(o); err != nil {
 					return err
 				}
@@ -258,10 +255,10 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		return nil
 	case p.cur.Type == kwSET && p.peekNext().Type != kwTAG:
 		// SET <property> = <value> [ , ... ]: the page separates them with
-		// commas.
+		// commas. Duplicate property validation is deferred to the
+		// semantic/catalog layer, matching CREATE/ALTER WAREHOUSE.
 		p.advance() // consume SET
 		c := &ast.ObjectClause{Keywords: "SET", Loc: ast.Loc{Start: start}}
-		seen := map[string]bool{}
 		for {
 			if !p.startsObjectProperty() {
 				return p.syntaxErrorAtCur()
@@ -270,10 +267,6 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			if err != nil {
 				return err
 			}
-			if seen[o.Name] {
-				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
-			}
-			seen[o.Name] = true
 			if err := checkTaskGraphProperty(o); err != nil {
 				return err
 			}
@@ -318,22 +311,19 @@ func checkTaskGraphContacts(group *ast.CopyOption) error {
 
 // parseTaskGraphDefaults reads TASK_DEFAULTS' ( <default_property> = <value>
 // [ , ... ] ), or with names ( <default_property> [ , ... ] ), holding each
-// property to the ones the page lists, once. cur is '('.
+// property to the ones the page lists. Duplicate property validation is
+// deferred to the semantic/catalog layer, matching CREATE/ALTER WAREHOUSE.
+// cur is '('.
 func (p *Parser) parseTaskGraphDefaults(names bool) (*ast.CopyOption, error) {
 	group, err := p.parseTaskGraphGroup(names, true)
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
 	for _, e := range group.Group {
 		v, ok := taskGraphDefaults[e.Name]
 		if !ok || (!names && !v.matches(e)) {
 			return nil, &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error at or near " + e.Name}
 		}
-		if seen[e.Name] {
-			return nil, &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error: " + e.Name + " is set twice"}
-		}
-		seen[e.Name] = true
 	}
 	return group, nil
 }

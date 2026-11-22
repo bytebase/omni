@@ -191,13 +191,14 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 	}
 
 	// The properties come first, then the tag clause, then the parameters:
-	// phase says which of them may still follow.
+	// phase says which of them may still follow. Duplicate property/parameter
+	// validation is deferred to the semantic/catalog layer, matching
+	// CREATE WAREHOUSE.
 	const (
 		phaseProps = iota
 		phaseParams
 	)
 	phase := phaseProps
-	seen := map[string]bool{}
 	for {
 		switch {
 		case p.startsWarehouseTags():
@@ -231,13 +232,12 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 			} else if phase != phaseProps {
 				props = nil
 			}
-			if seen[opt.Name] || props == nil || !interactiveWarehouseValueOK(props, opt) {
+			if props == nil || !interactiveWarehouseValueOK(props, opt) {
 				return nil, &ParseError{
 					Position: opt.Loc.Start, End: opt.Loc.End,
 					Message: "syntax error at or near " + opt.Name,
 				}
 			}
-			seen[opt.Name] = true
 			stmt.Options = append(stmt.Options, opt)
 		default:
 			stmt.Loc.End = p.prev.Loc.End

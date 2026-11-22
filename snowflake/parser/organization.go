@@ -120,9 +120,12 @@ var organizationAccountProps = objectProps{
 //	  [ FIRST_NAME = '<string>' ] [ MIDDLE_NAME = '<string>' ] [ LAST_NAME = '<string>' ]
 //	  [ TYPE = { PERSON | SERVICE } ] [ COMMENT = '<string>' ]
 //
+// Duplicate property validation is deferred to the semantic/catalog layer,
+// matching CREATE WAREHOUSE.
+//
 // https://docs.snowflake.com/en/sql-reference/sql/create-organization-user
 func parseCreateOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
-	if _, err := p.parseObjectProperties(s, "", false); err != nil {
+	if _, err := p.parseObjectPropertiesWith(s, "", false, true); err != nil {
 		return err
 	}
 	return rejectObjectTags(s)
@@ -133,13 +136,26 @@ func parseCreateOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
 //	ALTER ORGANIZATION USER [ IF EXISTS ] <name> SET <property> [ ... ]
 //	ALTER ORGANIZATION USER <name> UNSET <property> [ , ... ]
 //
+// Duplicate property validation is deferred to the semantic/catalog layer,
+// matching CREATE/ALTER WAREHOUSE.
+//
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user
 func parseAlterOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
 	if s.IfExists && p.cur.Type == kwUNSET {
 		// The page writes IF EXISTS on SET alone.
 		return p.syntaxErrorAtCur()
 	}
-	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset)
+	if p.cur.Type == kwSET {
+		start := p.cur.Loc.Start
+		p.advance() // consume SET
+		c, err := p.parseObjectPropertiesWith(s, "SET", true, true)
+		if err != nil {
+			return err
+		}
+		c.Loc.Start = start
+		return rejectObjectTags(s)
+	}
+	ok, err := p.parseObjectAlterCommon(s, actUnset)
 	if err != nil {
 		return err
 	}
