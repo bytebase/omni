@@ -10,7 +10,8 @@ const (
 	tokInvalid
 
 	// Identifiers and literals.
-	tokIdent        // unquoted identifier (or URI path)
+	tokIdent        // unquoted ASCII identifier ([A-Za-z0-9_]+)
+	tokRawWord      // non-ASCII word or scheme:// URI (valid only in raw .*? tails, rejected as SQL identifier)
 	tokBackquoted   // `...`
 	tokString       // '...' or R'...' or R"..."
 	tokDoubleQuoted // "..."

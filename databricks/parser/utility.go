@@ -711,11 +711,7 @@ func (p *Parser) parseUncacheTable() (Statement, error) {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfExists()
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err

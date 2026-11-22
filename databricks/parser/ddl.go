@@ -68,6 +68,25 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 	return nil, &ParseError{Message: "unexpected CREATE statement", Position: start}
 }
 
+func (p *Parser) matchIfNotExists() bool {
+	if p.cur().Kind == kwIF && p.isNotAt(1) && p.peek(2).Kind == kwEXISTS {
+		p.advance()
+		p.advance()
+		p.advance()
+		return true
+	}
+	return false
+}
+
+func (p *Parser) matchIfExists() bool {
+	if p.cur().Kind == kwIF && p.peek(1).Kind == kwEXISTS {
+		p.advance()
+		p.advance()
+		return true
+	}
+	return false
+}
+
 func (p *Parser) parseCreateNamespace() (Statement, error) {
 	start := p.cur().Start
 	if _, err := p.expect(kwCREATE); err != nil {
@@ -76,14 +95,7 @@ func (p *Parser) parseCreateNamespace() (Statement, error) {
 	if !p.matchNamespace() {
 		return nil, p.errorf("expected NAMESPACE, DATABASE, or SCHEMA")
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
@@ -122,14 +134,7 @@ func (p *Parser) parseCreateTable() (Statement, error) {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
@@ -258,14 +263,7 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseTableIdentifier()
 	if err != nil {
 		return nil, err
@@ -325,14 +323,7 @@ func (p *Parser) parseCreateView() (Statement, error) {
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
@@ -437,14 +428,7 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
@@ -525,14 +509,7 @@ func (p *Parser) parseCreateIndex() (Statement, error) {
 	if _, err := p.expect(kwINDEX); err != nil {
 		return nil, err
 	}
-	if p.match(kwIF) {
-		if !p.matchNot() {
-			return nil, p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-	}
+	p.matchIfNotExists()
 	target, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
@@ -624,7 +601,7 @@ func (p *Parser) parseAlterNamespace() (Statement, error) {
 		if !p.match(kwDBPROPERTIES, kwPROPERTIES) {
 			return nil, p.errorf("expected DBPROPERTIES or PROPERTIES")
 		}
-		if err := p.parsePropertyList(); err != nil {
+		if err := p.parsePropertyKeyList(); err != nil {
 			return nil, err
 		}
 		return &ParsedStmt{Kind: StmtAlterNamespace, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -671,7 +648,7 @@ func (p *Parser) parseAlterView() (Statement, error) {
 				return nil, err
 			}
 		}
-		if err := p.parsePropertyList(); err != nil {
+		if err := p.parsePropertyKeyList(); err != nil {
 			return nil, err
 		}
 	case kwADD:
@@ -848,11 +825,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 	case kwDROP:
 		p.advance()
 		if p.match(kwCOLUMN, kwCOLUMNS) {
-			if p.match(kwIF) {
-				if _, err := p.expect(kwEXISTS); err != nil {
-					return nil, err
-				}
-			}
+			p.matchIfExists()
 			if p.match(tokLParen) {
 				if err := p.parseMultipartIdentifierList(); err != nil {
 					return nil, err
@@ -897,7 +870,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 				return nil, err
 			}
 		}
-		if err := p.parsePropertyList(); err != nil {
+		if err := p.parsePropertyKeyList(); err != nil {
 			return nil, err
 		}
 

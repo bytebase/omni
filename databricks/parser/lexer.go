@@ -198,13 +198,16 @@ outer:
 					}
 					if j > i+3 {
 						i = j
-						toks = append(toks, Token{Kind: tokIdent, Text: src[start:i], Start: start, End: i})
+						toks = append(toks, Token{Kind: tokRawWord, Text: src[start:i], Start: start, End: i})
 						continue
 					}
 				}
 			}
 			word := src[start:i]
-			kind := lookupKeyword(word)
+			kind := tokRawWord
+			if isASCIIIdent(word) {
+				kind = lookupKeyword(word)
+			}
 			toks = append(toks, Token{Kind: kind, Text: word, Start: start, End: i})
 			continue
 		}
@@ -436,7 +439,12 @@ func scanNumberOrIdent(src string, start int) Token {
 				break
 			}
 		}
-		return Token{Kind: tokIdent, Text: src[start:i], Start: start, End: i}
+		word := src[start:i]
+		kind := tokRawWord
+		if isASCIIIdent(word) {
+			kind = tokIdent
+		}
+		return Token{Kind: kind, Text: word, Start: start, End: i}
 	}
 
 	// Spark's isValidDecimal(): a decimal/exponent literal with a dot cannot be
@@ -460,6 +468,21 @@ func scanNumberOrIdent(src string, start int) Token {
 
 func isASCIIDigit(b byte) bool {
 	return b >= '0' && b <= '9'
+}
+
+// isASCIIIdent reports whether s contains only Spark's accepted unquoted
+// identifier alphabet ([A-Za-z0-9_]), matching PostProcessor.exitUnquotedIdentifier.
+func isASCIIIdent(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if !((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 func upperASCII(b byte) byte {

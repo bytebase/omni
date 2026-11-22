@@ -202,20 +202,30 @@ func (p *Parser) parseCTEs() error {
 	if p.cur().Kind == kwRECURSIVE && p.peek(1).Kind != kwAS && p.peek(1).Kind != tokLParen {
 		p.advance()
 	}
-	if err := p.parseNamedQuery(); err != nil {
+	seen := make(map[string]struct{})
+	name, err := p.parseNamedQuery()
+	if err != nil {
 		return err
 	}
+	seen[normalizeIdentName(name)] = struct{}{}
 	for p.match(tokComma) {
-		if err := p.parseNamedQuery(); err != nil {
+		name, err := p.parseNamedQuery()
+		if err != nil {
 			return err
 		}
+		key := normalizeIdentName(name)
+		if _, dup := seen[key]; dup {
+			return p.errorf("duplicate CTE name %q in WITH clause", name)
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }
 
-func (p *Parser) parseNamedQuery() error {
-	if _, err := p.parseErrorCapturingIdentifier(); err != nil {
-		return err
+func (p *Parser) parseNamedQuery() (string, error) {
+	name, err := p.parseErrorCapturingIdentifier()
+	if err != nil {
+		return "", err
 	}
 	if p.cur().Kind == tokLParen {
 		// Could be optional columnAliases=identifierList followed by AS? (query), OR directly (query)!
@@ -231,13 +241,13 @@ func (p *Parser) parseNamedQuery() error {
 afterAliases:
 	p.match(kwAS)
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return "", err
 	}
 	if err := p.parseQuery(); err != nil {
-		return err
+		return "", err
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	_, err = p.expect(tokRParen)
+	return name, err
 }
 
 // parseQueryTerm parses queryPrimary, set operations (UNION/INTERSECT/EXCEPT/MINUS),

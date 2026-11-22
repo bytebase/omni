@@ -433,7 +433,7 @@ reject	reject	grammar	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_
 reject	reject	grammar	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!drop-3	CREATE NAMESPACE
 reject	reject	grammar	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!insert	CREATE NAMESPACE a zzz
 reject	reject	grammar	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!swap	CROSS NAMESPACE a
-accept	accept	grammar	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d	ALTER NAMESPACE a SET DBPROPERTIES(a)
+reject	accept	grammar	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d	ALTER NAMESPACE a SET DBPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-1	NAMESPACE a SET DBPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-2	ALTER a SET DBPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-3	ALTER NAMESPACE SET DBPROPERTIES(a)
@@ -567,7 +567,7 @@ reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_RENAME_TO
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_RENAME_TO_multip~d43d0bc2!drop-6	ALTER TABLE a RENAME TO
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_RENAME_TO_multip~d43d0bc2!insert	ALTER TABLE a RENAME TO a zzz
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_RENAME_TO_multip~d43d0bc2!swap	ALWAYS TABLE a RENAME TO a
-accept	accept	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_SET_TBLPROPERTIE~2401ceba	ALTER TABLE a SET TBLPROPERTIES(a)
+reject	accept	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_SET_TBLPROPERTIE~2401ceba	ALTER TABLE a SET TBLPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_SET_TBLPROPERTIE~2401ceba!drop-1	TABLE a SET TBLPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_SET_TBLPROPERTIE~2401ceba!drop-2	ALTER a SET TBLPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_SET_TBLPROPERTIE~2401ceba!drop-3	ALTER TABLE SET TBLPROPERTIES(a)
@@ -626,7 +626,7 @@ reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3!drop-6	ALTER TABLE a SET SERDE
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3!insert	ALTER TABLE a SET SERDE 's' zzz
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3!swap	ALWAYS TABLE a SET SERDE 's'
-accept	accept	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02	ALTER TABLE a SET SERDEPROPERTIES(a)
+reject	accept	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02	ALTER TABLE a SET SERDEPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02!drop-1	TABLE a SET SERDEPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02!drop-2	ALTER a SET SERDEPROPERTIES(a)
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02!drop-3	ALTER TABLE SET SERDEPROPERTIES(a)
@@ -774,7 +774,7 @@ reject	reject	grammar	statement/DROP_(TEMPORARY)?_FUNCTION_(IF_EXISTS)?_identifi
 reject	reject	grammar	statement/DROP_(TEMPORARY)?_FUNCTION_(IF_EXISTS)?_identifierReference!swap	ELSE FUNCTION a
 accept	accept	grammar	statement/DECLARE_(OR_REPLACE)?_(variable)?_identifierReference_(~2e341e4f	DECLARE a
 reject	reject	grammar	statement/DECLARE_(OR_REPLACE)?_(variable)?_identifierReference_(~2e341e4f!drop-2	DECLARE
-accept	accept	grammar	statement/DECLARE_(OR_REPLACE)?_(variable)?_identifierReference_(~2e341e4f!insert	DECLARE a zzz
+reject	accept	grammar	statement/DECLARE_(OR_REPLACE)?_(variable)?_identifierReference_(~2e341e4f!insert	DECLARE a zzz
 reject	reject	grammar	statement/DECLARE_(OR_REPLACE)?_(variable)?_identifierReference_(~2e341e4f!swap	DEFAULT a
 accept	accept	grammar	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference	DROP TEMPORARY VARIABLE a
 reject	reject	grammar	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference!drop-1	TEMPORARY VARIABLE a
@@ -981,7 +981,7 @@ accept	accept	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/l
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/locationSpec!drop-2	CREATE NAMESPACE a LOCATION
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/locationSpec!insert	CREATE NAMESPACE a LOCATION 's' zzz
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/locationSpec!swap	CREATE NAMESPACE a LOCK 's'
-accept	accept	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList	CREATE NAMESPACE a WITH DBPROPERTIES(a)
+reject	accept	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList	CREATE NAMESPACE a WITH DBPROPERTIES(a)
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!drop-1	CREATE NAMESPACE a DBPROPERTIES(a)
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!drop-2	CREATE NAMESPACE a WITH(a)
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!drop-3	CREATE NAMESPACE a WITH DBPROPERTIES a)
@@ -989,11 +989,11 @@ reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/W
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!drop-5	CREATE NAMESPACE a WITH DBPROPERTIES(a
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!insert	CREATE NAMESPACE a WITH DBPROPERTIES(a) zzz
 reject	reject	grammar	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)/WITH_(DBPROPERTIES|PROPERTIES)_propertyList!swap	CREATE NAMESPACE a WITHIN DBPROPERTIES(a)
-accept	accept	grammar	statement(DBPROPERTIES|PROPERTIES)/DBPROPERTIES	CREATE NAMESPACE a WITH DBPROPERTIES(a)
+reject	accept	grammar	statement(DBPROPERTIES|PROPERTIES)/DBPROPERTIES	CREATE NAMESPACE a WITH DBPROPERTIES(a)
 reject	reject	grammar	statement(DBPROPERTIES|PROPERTIES)/DBPROPERTIES!truncate	CREATE NAMESPACE a WITH
 reject	reject	grammar	statement(DBPROPERTIES|PROPERTIES)/DBPROPERTIES!insert	CREATE NAMESPACE a WITH DBPROPERTIES zzz(a)
 reject	reject	grammar	statement(DBPROPERTIES|PROPERTIES)/DBPROPERTIES!swap	CREATE NAMESPACE a WITH DEC(a)
-accept	accept	grammar	statement(DBPROPERTIES|PROPERTIES)/PROPERTIES	CREATE NAMESPACE a WITH PROPERTIES(a)
+reject	accept	grammar	statement(DBPROPERTIES|PROPERTIES)/PROPERTIES	CREATE NAMESPACE a WITH PROPERTIES(a)
 reject	reject	grammar	statement(DBPROPERTIES|PROPERTIES)/PROPERTIES!insert	CREATE NAMESPACE a WITH PROPERTIES zzz(a)
 reject	reject	grammar	statement(DBPROPERTIES|PROPERTIES)/PROPERTIES!swap	CREATE NAMESPACE a WITH PURGE(a)
 accept	accept	grammar	statement(IF_EXISTS)?/%empty	DROP NAMESPACE a
@@ -1037,7 +1037,7 @@ reject	reject	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_
 reject	reject	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_PAREN_colDefinitionList_RIGHT_PAREN!drop-3	CREATE TABLE a(a)
 reject	reject	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_PAREN_colDefinitionList_RIGHT_PAREN!drop-4	CREATE TABLE a(a BOOLEAN
 reject	reject	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_PAREN_colDefinitionList_RIGHT_PAREN!insert	CREATE TABLE a(a BOOLEAN) zzz
-accept	accept	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_PAREN_colDefinitionList_RIGHT_PAREN!swap	CREATE TABLE a(a BOTH)
+reject	accept	grammar	statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?/LEFT_PAREN_colDefinitionList_RIGHT_PAREN!swap	CREATE TABLE a(a BOTH)
 accept	accept	grammar	statement(tableProvider)?/%empty	CREATE TABLE a
 accept	accept	grammar	statement(tableProvider)?/tableProvider	CREATE TABLE a USING a
 reject	reject	grammar	statement(tableProvider)?/tableProvider!drop-2	CREATE TABLE a USING
@@ -1077,7 +1077,7 @@ reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/l
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec!drop-2	CREATE TABLE a LIKE a LOCATION
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec!insert	CREATE TABLE a LIKE a LOCATION 's' zzz
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec!swap	CREATE TABLE a LIKE a LOCK 's'
-accept	accept	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/TBLPROPERTIES_propertyList	CREATE TABLE a LIKE a TBLPROPERTIES(a)
+reject	accept	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/TBLPROPERTIES_propertyList	CREATE TABLE a LIKE a TBLPROPERTIES(a)
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/TBLPROPERTIES_propertyList!drop-1	CREATE TABLE a LIKE a(a)
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/TBLPROPERTIES_propertyList!drop-2	CREATE TABLE a LIKE a TBLPROPERTIES a)
 reject	reject	grammar	statement(tableProvider|rowFormat|createFileFo~74776650)/TBLPROPERTIES_propertyList!drop-3	CREATE TABLE a LIKE a TBLPROPERTIES()
@@ -1145,7 +1145,7 @@ accept	accept	grammar	statement(colPosition)?/colPosition	ALTER TABLE a CHANGE a
 reject	reject	grammar	statement(colPosition)?/colPosition!insert	ALTER TABLE a CHANGE a a BOOLEAN FIRST zzz
 reject	reject	grammar	statement(colPosition)?/colPosition!swap	ALTER TABLE a CHANGE a a BOOLEAN FLOAT
 accept	accept	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/%empty	ALTER TABLE a SET SERDE 's'
-accept	accept	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	ALTER TABLE a SET SERDE 's' WITH SERDEPROPERTIES(a)
+reject	accept	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	ALTER TABLE a SET SERDE 's' WITH SERDEPROPERTIES(a)
 reject	reject	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-1	ALTER TABLE a SET SERDE 's' SERDEPROPERTIES(a)
 reject	reject	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-2	ALTER TABLE a SET SERDE 's' WITH(a)
 reject	reject	grammar	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-3	ALTER TABLE a SET SERDE 's' WITH SERDEPROPERTIES a)
@@ -1190,12 +1190,12 @@ reject	reject	grammar	statement(clusterBySpec|CLUSTER_BY_NONE)/clusterBySpec!swa
 accept	accept	grammar	statement(clusterBySpec|CLUSTER_BY_NONE)/CLUSTER_BY_NONE	ALTER TABLE a CLUSTER BY NONE
 reject	reject	grammar	statement(clusterBySpec|CLUSTER_BY_NONE)/CLUSTER_BY_NONE!swap	ALTER TABLE a CLUSTERED BY NONE
 accept	accept	grammar	statement(OR_REPLACE)?/%empty	DECLARE a
-accept	accept	grammar	statement(OR_REPLACE)?/%empty!insert	DECLARE zzz a
+reject	accept	grammar	statement(OR_REPLACE)?/%empty!insert	DECLARE zzz a
 accept	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE	DECLARE OR REPLACE a
-accept	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!drop-1	DECLARE REPLACE a
-accept	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!drop-2	DECLARE OR a
+reject	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!drop-1	DECLARE REPLACE a
+reject	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!drop-2	DECLARE OR a
 accept	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!truncate	DECLARE OR
-accept	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!insert	DECLARE OR REPLACE zzz a
+reject	accept	grammar	statement(OR_REPLACE)?/OR_REPLACE!insert	DECLARE OR REPLACE zzz a
 reject	reject	grammar	statement(OR_REPLACE)?/OR_REPLACE!swap	DECLARE ORDER REPLACE a
 accept	accept	grammar	statement(GLOBAL?_TEMPORARY)?/%empty	CREATE VIEW a AS SELECT a
 reject	reject	grammar	statement(GLOBAL?_TEMPORARY)?/%empty!insert	CREATE zzz VIEW a AS SELECT a
@@ -1247,7 +1247,7 @@ reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/P
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/PARTITIONED_ON_identifierList!truncate	CREATE VIEW a PARTITIONED ON(a
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/PARTITIONED_ON_identifierList!insert	CREATE VIEW a PARTITIONED ON(a) zzz AS SELECT a
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/PARTITIONED_ON_identifierList!swap	CREATE VIEW a PARTITIONS ON(a) AS SELECT a
-accept	accept	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/TBLPROPERTIES_propertyList	CREATE VIEW a TBLPROPERTIES(a) AS SELECT a
+reject	accept	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/TBLPROPERTIES_propertyList	CREATE VIEW a TBLPROPERTIES(a) AS SELECT a
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/TBLPROPERTIES_propertyList!drop-2	CREATE VIEW a TBLPROPERTIES a) AS SELECT a
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/TBLPROPERTIES_propertyList!drop-3	CREATE VIEW a TBLPROPERTIES() AS SELECT a
 reject	reject	grammar	statement(commentSpec|schemaBinding|collationS~70988a9e)/TBLPROPERTIES_propertyList!drop-4	CREATE VIEW a TBLPROPERTIES(a AS SELECT a
@@ -1263,9 +1263,9 @@ reject	reject	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_
 reject	reject	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_colTypeList_RIGHT_PAREN!drop-4	CREATE TEMPORARY VIEW a(a BOOLEAN USING a
 reject	reject	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_colTypeList_RIGHT_PAREN!truncate	CREATE TEMPORARY VIEW a(a BOOLEAN
 reject	reject	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_colTypeList_RIGHT_PAREN!insert	CREATE TEMPORARY VIEW a(a BOOLEAN) zzz USING a
-accept	accept	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_colTypeList_RIGHT_PAREN!swap	CREATE TEMPORARY VIEW a(a BOTH) USING a
+reject	accept	grammar	statement(LEFT_PAREN_colTypeList_RIGHT_PAREN)?/LEFT_PAREN_colTypeList_RIGHT_PAREN!swap	CREATE TEMPORARY VIEW a(a BOTH) USING a
 accept	accept	grammar	statement(OPTIONS_propertyList)?/%empty	CACHE TABLE a
-accept	accept	grammar	statement(OPTIONS_propertyList)?/OPTIONS_propertyList	CACHE TABLE a OPTIONS(a)
+reject	accept	grammar	statement(OPTIONS_propertyList)?/OPTIONS_propertyList	CACHE TABLE a OPTIONS(a)
 reject	reject	grammar	statement(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-1	CACHE TABLE a(a)
 reject	reject	grammar	statement(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-2	CACHE TABLE a OPTIONS a)
 reject	reject	grammar	statement(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-3	CACHE TABLE a OPTIONS()
@@ -1298,7 +1298,7 @@ reject	reject	grammar	statement(colDefinitionList)?/colDefinitionList!drop-1	CRE
 reject	reject	grammar	statement(colDefinitionList)?/colDefinitionList!drop-2	CREATE FUNCTION a(a) RETURN a
 reject	reject	grammar	statement(colDefinitionList)?/colDefinitionList!truncate	CREATE FUNCTION a(a
 reject	reject	grammar	statement(colDefinitionList)?/colDefinitionList!insert	CREATE FUNCTION a(a BOOLEAN zzz) RETURN a
-accept	accept	grammar	statement(colDefinitionList)?/colDefinitionList!swap	CREATE FUNCTION a(a BOTH) RETURN a
+reject	accept	grammar	statement(colDefinitionList)?/colDefinitionList!swap	CREATE FUNCTION a(a BOTH) RETURN a
 accept	accept	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/%empty	CREATE FUNCTION a() RETURN a
 reject	reject	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/%empty!insert	CREATE FUNCTION a() zzz RETURN a
 accept	accept	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/RETURNS_(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)	CREATE FUNCTION a() RETURNS BOOLEAN RETURN a
@@ -1308,7 +1308,7 @@ reject	reject	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/
 reject	reject	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/RETURNS_(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)!insert	CREATE FUNCTION a() RETURNS BOOLEAN zzz RETURN a
 reject	reject	grammar	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/RETURNS_(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)!swap	CREATE FUNCTION a() REVOKE BOOLEAN RETURN a
 accept	accept	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType	CREATE FUNCTION a() RETURNS BOOLEAN RETURN a
-accept	accept	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType!swap	CREATE FUNCTION a() RETURNS BOTH RETURN a
+reject	accept	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType!swap	CREATE FUNCTION a() RETURNS BOTH RETURN a
 accept	accept	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN	CREATE FUNCTION a() RETURNS TABLE(a BOOLEAN) RETURN a
 reject	reject	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN!drop-1	CREATE FUNCTION a() RETURNS(a BOOLEAN) RETURN a
 reject	reject	grammar	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN!drop-2	CREATE FUNCTION a() RETURNS TABLE a BOOLEAN) RETURN a
@@ -1325,15 +1325,15 @@ reject	reject	grammar	statement(query|expression)/query!swap	CREATE FUNCTION a()
 accept	accept	grammar	statement(query|expression)/expression	CREATE FUNCTION a() RETURN a
 accept	accept	grammar	statement(variable)?/%empty	DECLARE a
 accept	accept	grammar	statement(variable)?/variable	DECLARE VARIABLE a
-accept	accept	grammar	statement(variable)?/variable!insert	DECLARE VARIABLE zzz a
-accept	accept	grammar	statement(variable)?/variable!swap	DECLARE VARIANT a
+reject	accept	grammar	statement(variable)?/variable!insert	DECLARE VARIABLE zzz a
+reject	accept	grammar	statement(variable)?/variable!swap	DECLARE VARIANT a
 accept	accept	grammar	statement(dataType)?/%empty	DECLARE a
 accept	accept	grammar	statement(dataType)?/dataType	DECLARE a BOOLEAN
 reject	reject	grammar	statement(dataType)?/dataType!insert	DECLARE a BOOLEAN zzz
-accept	accept	grammar	statement(dataType)?/dataType!swap	DECLARE a BOTH
+reject	accept	grammar	statement(dataType)?/dataType!swap	DECLARE a BOTH
 accept	accept	grammar	statement(variableDefaultExpression)?/%empty	DECLARE a
 accept	accept	grammar	statement(variableDefaultExpression)?/variableDefaultExpression	DECLARE a DEFAULT a
-accept	accept	grammar	statement(variableDefaultExpression)?/variableDefaultExpression!drop-2	DECLARE a DEFAULT
+reject	accept	grammar	statement(variableDefaultExpression)?/variableDefaultExpression!drop-2	DECLARE a DEFAULT
 reject	reject	grammar	statement(variableDefaultExpression)?/variableDefaultExpression!insert	DECLARE a DEFAULT a zzz
 reject	reject	grammar	statement(variableDefaultExpression)?/variableDefaultExpression!swap	DECLARE a DEFINED a
 accept	accept	grammar	statement(LOGICAL|FORMATTED|EXTENDED|CODEGEN|COST)?/%empty	EXPLAIN REFRESH
@@ -1971,7 +1971,7 @@ accept	accept	grammar	insertInto(TABLE)?/TABLE	INSERT OVERWRITE TABLE a SELECT a
 reject	reject	grammar	insertInto(TABLE)?/TABLE!insert	INSERT OVERWRITE TABLE zzz a SELECT a
 reject	reject	grammar	insertInto(TABLE)?/TABLE!swap	INSERT OVERWRITE TABLES a SELECT a
 accept	accept	grammar	insertInto(optionsClause)?/%empty	INSERT OVERWRITE a SELECT a
-accept	accept	grammar	insertInto(optionsClause)?/optionsClause	INSERT OVERWRITE a WITH(a) SELECT a
+reject	accept	grammar	insertInto(optionsClause)?/optionsClause	INSERT OVERWRITE a WITH(a) SELECT a
 reject	reject	grammar	insertInto(optionsClause)?/optionsClause!drop-2	INSERT OVERWRITE a WITH a) SELECT a
 reject	reject	grammar	insertInto(optionsClause)?/optionsClause!drop-3	INSERT OVERWRITE a WITH() SELECT a
 reject	reject	grammar	insertInto(optionsClause)?/optionsClause!drop-4	INSERT OVERWRITE a WITH(a SELECT a
@@ -2042,7 +2042,7 @@ reject	reject	grammar	insertInto(stringLit)?/%empty!insert	INSERT OVERWRITE DIRE
 accept	accept	grammar	insertInto(stringLit)?/stringLit	INSERT OVERWRITE DIRECTORY 's' USING a SELECT a
 reject	reject	grammar	insertInto(stringLit)?/stringLit!insert	INSERT OVERWRITE DIRECTORY 's' zzz USING a SELECT a
 accept	accept	grammar	insertInto(OPTIONS_propertyList)?/%empty	INSERT OVERWRITE DIRECTORY USING a SELECT a
-accept	accept	grammar	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList	INSERT OVERWRITE DIRECTORY USING a OPTIONS(a) SELECT a
+reject	accept	grammar	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList	INSERT OVERWRITE DIRECTORY USING a OPTIONS(a) SELECT a
 reject	reject	grammar	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-1	INSERT OVERWRITE DIRECTORY USING a(a) SELECT a
 reject	reject	grammar	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-2	INSERT OVERWRITE DIRECTORY USING a OPTIONS a) SELECT a
 reject	reject	grammar	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-3	INSERT OVERWRITE DIRECTORY USING a OPTIONS() SELECT a
@@ -2098,8 +2098,8 @@ reject	reject	grammar	namespaces/SCHEMAS!insert	SHOW SCHEMAS zzz
 reject	reject	grammar	namespaces/SCHEMAS!swap	SHOW SECOND
 accept	accept	grammar	variable/VARIABLE	DECLARE VARIABLE a
 accept	accept	grammar	variable/VAR	DECLARE VAR a
-accept	accept	grammar	variable/VAR!insert	DECLARE VAR zzz a
-accept	accept	grammar	variable/VAR!swap	DECLARE VARCHAR a
+reject	accept	grammar	variable/VAR!insert	DECLARE VAR zzz a
+reject	accept	grammar	variable/VAR!swap	DECLARE VARCHAR a
 accept	accept	grammar	describeFuncName/identifierReference	DESC FUNCTION a
 accept	accept	grammar	describeFuncName/stringLit	DESC FUNCTION 's'
 reject	reject	grammar	describeFuncName/stringLit!insert	DESC FUNCTION 's' zzz
@@ -2128,7 +2128,7 @@ reject	reject	grammar	ctes(RECURSIVE)?/RECURSIVE!truncate	WITH
 reject	reject	grammar	ctes(RECURSIVE)?/RECURSIVE!insert	WITH RECURSIVE zzz a(SELECT a) SELECT a
 reject	reject	grammar	ctes(RECURSIVE)?/RECURSIVE!swap	WITH REDUCE a(SELECT a) SELECT a
 accept	accept	grammar	ctes(COMMA_namedQuery)*/%empty	WITH a(SELECT a) SELECT a
-accept	accept	grammar	ctes(COMMA_namedQuery)*/COMMA_namedQuery_(COMMA_namedQuery)*	WITH a(SELECT a), a(SELECT a) SELECT a
+reject	accept	grammar	ctes(COMMA_namedQuery)*/COMMA_namedQuery_(COMMA_namedQuery)*	WITH a(SELECT a), a(SELECT a) SELECT a
 reject	reject	grammar	ctes(COMMA_namedQuery)*/COMMA_namedQuery_(COMMA_namedQuery)*!drop-1	WITH a(SELECT a) a(SELECT a) SELECT a
 reject	reject	grammar	ctes(COMMA_namedQuery)*/COMMA_namedQuery_(COMMA_namedQuery)*!drop-2	WITH a(SELECT a),(SELECT a) SELECT a
 reject	reject	grammar	ctes(COMMA_namedQuery)*/COMMA_namedQuery_(COMMA_namedQuery)*!drop-3	WITH a(SELECT a), a SELECT a) SELECT a
@@ -2200,38 +2200,38 @@ reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/collationSpec!drop-3	CREATE TABLE a DEFAULT COLLATION
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/collationSpec!insert	CREATE TABLE a DEFAULT COLLATION a zzz
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/collationSpec!swap	CREATE TABLE a DEFINED COLLATION a
-accept	accept	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList	CREATE TABLE a TBLPROPERTIES(a)
+reject	accept	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList	CREATE TABLE a TBLPROPERTIES(a)
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList!drop-2	CREATE TABLE a TBLPROPERTIES a)
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList!drop-3	CREATE TABLE a TBLPROPERTIES()
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList!drop-4	CREATE TABLE a TBLPROPERTIES(a
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList!insert	CREATE TABLE a TBLPROPERTIES(a) zzz
 reject	reject	grammar	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/TBLPROPERTIES_propertyList!swap	CREATE TABLE a TEMPORARY(a)
-accept	accept	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN	FROM a WITH(a)
+reject	accept	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN	FROM a WITH(a)
 reject	reject	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN!drop-1	FROM a WITH a)
 reject	reject	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN!drop-2	FROM a WITH()
 reject	reject	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN!drop-3	FROM a WITH(a
-accept	accept	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN!insert	FROM a WITH(a) zzz
-accept	accept	grammar	propertyList(COMMA_property)*/%empty	FROM a WITH(a)
+reject	accept	grammar	propertyList/LEFT_PAREN_property_(COMMA_property)*_RIGHT_PAREN!insert	FROM a WITH(a) zzz
+reject	accept	grammar	propertyList(COMMA_property)*/%empty	FROM a WITH(a)
 reject	reject	grammar	propertyList(COMMA_property)*/%empty!insert	FROM a WITH(a zzz)
-accept	accept	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*	FROM a WITH(a, a)
+reject	accept	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*	FROM a WITH(a, a)
 reject	reject	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*!drop-1	FROM a WITH(a a)
 reject	reject	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*!drop-2	FROM a WITH(a,)
 reject	reject	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*!truncate	FROM a WITH(a,
 reject	reject	grammar	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*!insert	FROM a WITH(a, a zzz)
-accept	accept	grammar	property/propertyKey_(EQ?_propertyValue)?	FROM a WITH(a)
+reject	accept	grammar	property/propertyKey_(EQ?_propertyValue)?	FROM a WITH(a)
 reject	reject	grammar	property/propertyKey_(EQ?_propertyValue)?!truncate	FROM a WITH(
-accept	accept	grammar	property(EQ?_propertyValue)?/%empty	FROM a WITH(a)
+reject	accept	grammar	property(EQ?_propertyValue)?/%empty	FROM a WITH(a)
 accept	accept	grammar	property(EQ?_propertyValue)?/(EQ)?_propertyValue	FROM a WITH(a 1)
 reject	reject	grammar	property(EQ?_propertyValue)?/(EQ)?_propertyValue!insert	FROM a WITH(a 1 zzz)
 accept	accept	grammar	property(EQ)?/%empty	FROM a WITH(a 1)
 reject	reject	grammar	property(EQ)?/%empty!insert	FROM a WITH(a zzz 1)
 accept	accept	grammar	property(EQ)?/EQ	FROM a WITH(a = 1)
 reject	reject	grammar	property(EQ)?/EQ!insert	FROM a WITH(a = zzz 1)
-accept	accept	grammar	propertyKey/errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	FROM a WITH(a)
-accept	accept	grammar	propertyKey/stringLit	FROM a WITH('s')
+reject	accept	grammar	propertyKey/errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	FROM a WITH(a)
+reject	accept	grammar	propertyKey/stringLit	FROM a WITH('s')
 reject	reject	grammar	propertyKey/stringLit!insert	FROM a WITH('s' zzz)
-accept	accept	grammar	propertyKey(DOT_errorCapturingIdentifier)*/%empty	FROM a WITH(a)
-accept	accept	grammar	propertyKey(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	FROM a WITH(a.a)
+reject	accept	grammar	propertyKey(DOT_errorCapturingIdentifier)*/%empty	FROM a WITH(a)
+reject	accept	grammar	propertyKey(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	FROM a WITH(a.a)
 reject	reject	grammar	propertyKey(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!drop-2	FROM a WITH(a.)
 reject	reject	grammar	propertyKey(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!truncate	FROM a WITH(a.
 reject	reject	grammar	propertyKey(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!insert	FROM a WITH(a.a zzz)
@@ -2296,7 +2296,7 @@ reject	reject	grammar	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit!sw
 accept	accept	grammar	fileFormat/identifier	CREATE TABLE a STORED AS a
 accept	accept	grammar	storageHandler/stringLit_(WITH_SERDEPROPERTIES_propertyList)?	CREATE TABLE a STORED BY 's'
 accept	accept	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/%empty	CREATE TABLE a STORED BY 's'
-accept	accept	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	CREATE TABLE a STORED BY 's' WITH SERDEPROPERTIES(a)
+reject	accept	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	CREATE TABLE a STORED BY 's' WITH SERDEPROPERTIES(a)
 reject	reject	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-1	CREATE TABLE a STORED BY 's' SERDEPROPERTIES(a)
 reject	reject	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-2	CREATE TABLE a STORED BY 's' WITH(a)
 reject	reject	grammar	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-3	CREATE TABLE a STORED BY 's' WITH SERDEPROPERTIES a)
@@ -2698,13 +2698,13 @@ accept	accept	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff1
 accept	accept	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)	MAP a USING 's' AS a
 reject	reject	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!drop-1	MAP a USING 's' a
 reject	reject	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!drop-2	MAP a USING 's' AS
-accept	accept	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!insert	MAP a USING 's' AS a zzz
+reject	accept	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!insert	MAP a USING 's' AS a zzz
 reject	reject	grammar	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!swap	MAP a USING 's' ASC a
 accept	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/identifierSeq	MAP a USING 's' AS a
 accept	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/colTypeList	MAP a USING 's' AS a BOOLEAN
 accept	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/colTypeList!drop-1	MAP a USING 's' AS BOOLEAN
 reject	reject	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/colTypeList!insert	MAP a USING 's' AS a BOOLEAN zzz
-accept	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/colTypeList!swap	MAP a USING 's' AS a BOTH
+reject	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/colTypeList!swap	MAP a USING 's' AS a BOTH
 accept	accept	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/LEFT_PAREN_(identifierSeq|colTypeList)_RIGHT_PAREN	MAP a USING 's' AS(a)
 reject	reject	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/LEFT_PAREN_(identifierSeq|colTypeList)_RIGHT_PAREN!drop-1	MAP a USING 's' AS a)
 reject	reject	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/LEFT_PAREN_(identifierSeq|colTypeList)_RIGHT_PAREN!drop-2	MAP a USING 's' AS()
@@ -2712,11 +2712,11 @@ reject	reject	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb5
 reject	reject	grammar	transformClause(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)/LEFT_PAREN_(identifierSeq|colTypeList)_RIGHT_PAREN!insert	MAP a USING 's' AS(a) zzz
 accept	accept	grammar	transformClause(identifierSeq|colTypeList)/identifierSeq	MAP a USING 's' AS(a)
 reject	reject	grammar	transformClause(identifierSeq|colTypeList)/identifierSeq!truncate	MAP a USING 's' AS(
-accept	accept	grammar	transformClause(identifierSeq|colTypeList)/identifierSeq!insert	MAP a USING 's' AS(a zzz)
+reject	accept	grammar	transformClause(identifierSeq|colTypeList)/identifierSeq!insert	MAP a USING 's' AS(a zzz)
 accept	accept	grammar	transformClause(identifierSeq|colTypeList)/colTypeList	MAP a USING 's' AS(a BOOLEAN)
 accept	accept	grammar	transformClause(identifierSeq|colTypeList)/colTypeList!drop-1	MAP a USING 's' AS(BOOLEAN)
 reject	reject	grammar	transformClause(identifierSeq|colTypeList)/colTypeList!insert	MAP a USING 's' AS(a BOOLEAN zzz)
-accept	accept	grammar	transformClause(identifierSeq|colTypeList)/colTypeList!swap	MAP a USING 's' AS(a BOTH)
+reject	accept	grammar	transformClause(identifierSeq|colTypeList)/colTypeList!swap	MAP a USING 's' AS(a BOTH)
 accept	accept	grammar	transformClause(RECORDREADER_stringLit)?/%empty	MAP a USING 's'
 accept	accept	grammar	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit	MAP a USING 's' RECORDREADER 's'
 reject	reject	grammar	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit!drop-1	MAP a USING 's' 's'
@@ -3397,12 +3397,12 @@ accept	accept	grammar	relationPrimary/functionTable!swap	FROM IDENTITY()
 accept	accept	grammar	relationPrimary(temporalClause)?/%empty	FROM a
 accept	accept	grammar	relationPrimary(temporalClause)?/temporalClause	FROM a SYSTEM_VERSION AS OF 1
 accept	accept	grammar	relationPrimary(optionsClause)?/%empty	FROM a
-accept	accept	grammar	relationPrimary(optionsClause)?/optionsClause	FROM a WITH(a)
+reject	accept	grammar	relationPrimary(optionsClause)?/optionsClause	FROM a WITH(a)
 accept	accept	grammar	relationPrimary(optionsClause)?/optionsClause!drop-1	FROM a(a)
 accept	accept	grammar	relationPrimary(optionsClause)?/optionsClause!swap	FROM a WITHIN(a)
 accept	accept	grammar	relationPrimary(sample)?/%empty	FROM a
 accept	accept	grammar	relationPrimary(sample)?/sample	FROM a TABLESAMPLE()
-accept	accept	grammar	optionsClause/WITH_propertyList	FROM a WITH(a)
+reject	accept	grammar	optionsClause/WITH_propertyList	FROM a WITH(a)
 accept	accept	grammar	inlineTable/VALUES_expression_(COMMA_expression)*_tableAlias	VALUES a
 accept	accept	grammar	inlineTable(COMMA_expression)*/%empty	VALUES a
 accept	accept	grammar	inlineTable(COMMA_expression)*/COMMA_expression_(COMMA_expression)*	VALUES a, a
@@ -3570,7 +3570,7 @@ reject	reject	grammar	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES
 reject	reject	grammar	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!swap	CREATE TABLE a ROWS FORMAT SERDE 's'
 accept	accept	grammar	rowFormat/ROW_FORMAT_DELIMITED_(FIELDS_TERMINATED_BY_stringLit_(E~d9076158	CREATE TABLE a ROW FORMAT DELIMITED
 accept	accept	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/%empty	CREATE TABLE a ROW FORMAT SERDE 's'
-accept	accept	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	CREATE TABLE a ROW FORMAT SERDE 's' WITH SERDEPROPERTIES(a)
+reject	accept	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	CREATE TABLE a ROW FORMAT SERDE 's' WITH SERDEPROPERTIES(a)
 reject	reject	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-1	CREATE TABLE a ROW FORMAT SERDE 's' SERDEPROPERTIES(a)
 reject	reject	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-2	CREATE TABLE a ROW FORMAT SERDE 's' WITH(a)
 reject	reject	grammar	rowFormat(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-3	CREATE TABLE a ROW FORMAT SERDE 's' WITH SERDEPROPERTIES a)
@@ -3648,7 +3648,7 @@ reject	reject	grammar	multipartIdentifierPropertyList(COMMA_multipartIdentifierP
 reject	reject	grammar	multipartIdentifierPropertyList(COMMA_multipartIdentifierProperty)*/COMMA_multipartIdentifierProperty_(COMMA_multipartIdent~d24fbffb!insert	CREATE INDEX a ON a(a, a zzz)
 accept	accept	grammar	multipartIdentifierProperty/multipartIdentifier_(OPTIONS_propertyList)?	CREATE INDEX a ON a(a)
 accept	accept	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/%empty	CREATE INDEX a ON a(a)
-accept	accept	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/OPTIONS_propertyList	CREATE INDEX a ON a(a OPTIONS(a))
+reject	accept	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/OPTIONS_propertyList	CREATE INDEX a ON a(a OPTIONS(a))
 reject	reject	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-1	CREATE INDEX a ON a(a(a))
 reject	reject	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-2	CREATE INDEX a ON a(a OPTIONS a))
 reject	reject	grammar	multipartIdentifierProperty(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-3	CREATE INDEX a ON a(a OPTIONS())
@@ -3683,18 +3683,18 @@ reject	reject	grammar	namedExpressionSeq(COMMA_namedExpression)*/COMMA_namedExpr
 accept	accept	grammar	namedExpressionSeq(COMMA_namedExpression)*/COMMA_namedExpression_(COMMA_namedExpression)*!insert	SELECT a, a zzz
 accept	accept	grammar	partitionFieldList/LEFT_PAREN_partitionField_(COMMA_partitionField)*_RIGHT_PAREN	CREATE TABLE a PARTITIONED BY(a)
 accept	accept	grammar	partitionFieldList(COMMA_partitionField)*/%empty	CREATE TABLE a PARTITIONED BY(a)
-accept	accept	grammar	partitionFieldList(COMMA_partitionField)*/%empty!insert	CREATE TABLE a PARTITIONED BY(a zzz)
+reject	accept	grammar	partitionFieldList(COMMA_partitionField)*/%empty!insert	CREATE TABLE a PARTITIONED BY(a zzz)
 accept	accept	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*	CREATE TABLE a PARTITIONED BY(a, a)
-accept	accept	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!drop-1	CREATE TABLE a PARTITIONED BY(a a)
+reject	accept	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!drop-1	CREATE TABLE a PARTITIONED BY(a a)
 reject	reject	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!drop-2	CREATE TABLE a PARTITIONED BY(a,)
 reject	reject	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!truncate	CREATE TABLE a PARTITIONED BY(a,
-accept	accept	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!insert	CREATE TABLE a PARTITIONED BY(a, a zzz)
+reject	accept	grammar	partitionFieldList(COMMA_partitionField)*/COMMA_partitionField_(COMMA_partitionField)*!insert	CREATE TABLE a PARTITIONED BY(a, a zzz)
 accept	accept	grammar	partitionField/transform	CREATE TABLE a PARTITIONED BY(a)
 reject	reject	grammar	partitionField/transform!truncate	CREATE TABLE a PARTITIONED BY(
 accept	accept	grammar	partitionField/colType	CREATE TABLE a PARTITIONED BY(a BOOLEAN)
 accept	accept	grammar	partitionField/colType!drop-1	CREATE TABLE a PARTITIONED BY(BOOLEAN)
 reject	reject	grammar	partitionField/colType!insert	CREATE TABLE a PARTITIONED BY(a BOOLEAN zzz)
-accept	accept	grammar	partitionField/colType!swap	CREATE TABLE a PARTITIONED BY(a BOTH)
+reject	accept	grammar	partitionField/colType!swap	CREATE TABLE a PARTITIONED BY(a BOTH)
 accept	accept	grammar	transform/qualifiedName	CREATE TABLE a PARTITIONED BY(a)
 accept	accept	grammar	transform/identifier_LEFT_PAREN_transformArgument_(COMMA_transfor~6d5722e0	CREATE TABLE a PARTITIONED BY(a(a))
 reject	reject	grammar	transform/identifier_LEFT_PAREN_transformArgument_(COMMA_transfor~6d5722e0!drop-1	CREATE TABLE a PARTITIONED BY((a))
@@ -4006,7 +4006,7 @@ reject	reject	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!
 accept	accept	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!drop-2	SELECT a BOOLEAN
 reject	reject	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!drop-3	SELECT a ::
 accept	accept	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!insert	SELECT a :: BOOLEAN zzz
-accept	accept	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!swap	SELECT a :: BOTH
+reject	accept	grammar	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!swap	SELECT a :: BOTH
 accept	accept	grammar	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411	SELECT STRUCT()
 reject	reject	grammar	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411!drop-1	SELECT()
 reject	reject	grammar	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411!drop-2	SELECT STRUCT)
@@ -4549,41 +4549,41 @@ accept	accept	grammar	collateClause/COLLATE_multipartIdentifier	SELECT a COLLATE
 accept	accept	grammar	type/BOOLEAN	DECLARE a BOOLEAN
 accept	accept	grammar	type/TINYINT	DECLARE a TINYINT
 reject	reject	grammar	type/TINYINT!insert	DECLARE a TINYINT zzz
-accept	accept	grammar	type/TINYINT!swap	DECLARE a TO
+reject	accept	grammar	type/TINYINT!swap	DECLARE a TO
 accept	accept	grammar	type/BYTE	DECLARE a BYTE
 reject	reject	grammar	type/BYTE!insert	DECLARE a BYTE zzz
-accept	accept	grammar	type/BYTE!swap	DECLARE a CACHE
+reject	accept	grammar	type/BYTE!swap	DECLARE a CACHE
 accept	accept	grammar	type/SMALLINT	DECLARE a SMALLINT
 reject	reject	grammar	type/SMALLINT!insert	DECLARE a SMALLINT zzz
-accept	accept	grammar	type/SMALLINT!swap	DECLARE a SOME
+reject	accept	grammar	type/SMALLINT!swap	DECLARE a SOME
 accept	accept	grammar	type/SHORT	DECLARE a SHORT
 reject	reject	grammar	type/SHORT!insert	DECLARE a SHORT zzz
-accept	accept	grammar	type/SHORT!swap	DECLARE a SHOW
+reject	accept	grammar	type/SHORT!swap	DECLARE a SHOW
 accept	accept	grammar	type/INT	DECLARE a INT
 reject	reject	grammar	type/INT!insert	DECLARE a INT zzz
 accept	accept	grammar	type/INTEGER	DECLARE a INTEGER
 reject	reject	grammar	type/INTEGER!insert	DECLARE a INTEGER zzz
-accept	accept	grammar	type/INTEGER!swap	DECLARE a INTERSECT
+reject	accept	grammar	type/INTEGER!swap	DECLARE a INTERSECT
 accept	accept	grammar	type/BIGINT	DECLARE a BIGINT
 reject	reject	grammar	type/BIGINT!insert	DECLARE a BIGINT zzz
 accept	accept	grammar	type/LONG	DECLARE a LONG
 reject	reject	grammar	type/LONG!insert	DECLARE a LONG zzz
-accept	accept	grammar	type/LONG!swap	DECLARE a LOOP
+reject	accept	grammar	type/LONG!swap	DECLARE a LOOP
 accept	accept	grammar	type/FLOAT	DECLARE a FLOAT
 reject	reject	grammar	type/FLOAT!insert	DECLARE a FLOAT zzz
-accept	accept	grammar	type/FLOAT!swap	DECLARE a FOLLOWING
+reject	accept	grammar	type/FLOAT!swap	DECLARE a FOLLOWING
 accept	accept	grammar	type/REAL	DECLARE a REAL
 reject	reject	grammar	type/REAL!insert	DECLARE a REAL zzz
-accept	accept	grammar	type/REAL!swap	DECLARE a RECORDREADER
+reject	accept	grammar	type/REAL!swap	DECLARE a RECORDREADER
 accept	accept	grammar	type/DOUBLE	DECLARE a DOUBLE
 reject	reject	grammar	type/DOUBLE!insert	DECLARE a DOUBLE zzz
-accept	accept	grammar	type/DOUBLE!swap	DECLARE a DROP
+reject	accept	grammar	type/DOUBLE!swap	DECLARE a DROP
 accept	accept	grammar	type/DATE	DECLARE a DATE
 reject	reject	grammar	type/DATE!insert	DECLARE a DATE zzz
-accept	accept	grammar	type/DATE!swap	DECLARE a DATEADD
+reject	accept	grammar	type/DATE!swap	DECLARE a DATEADD
 accept	accept	grammar	type/TIMESTAMP	DECLARE a TIMESTAMP
 reject	reject	grammar	type/TIMESTAMP!insert	DECLARE a TIMESTAMP zzz
-accept	accept	grammar	type/TIMESTAMP!swap	DECLARE a TIMESTAMPADD
+reject	accept	grammar	type/TIMESTAMP!swap	DECLARE a TIMESTAMPADD
 accept	accept	grammar	type/TIMESTAMP_NTZ	DECLARE a TIMESTAMP_NTZ
 reject	reject	grammar	type/TIMESTAMP_NTZ!insert	DECLARE a TIMESTAMP_NTZ zzz
 accept	accept	grammar	type/TIMESTAMP_LTZ	DECLARE a TIMESTAMP_LTZ
@@ -4592,42 +4592,42 @@ accept	accept	grammar	type/STRING_(collateClause)?	DECLARE a STRING
 reject	reject	grammar	type/STRING_(collateClause)?!insert	DECLARE a STRING zzz
 accept	accept	grammar	type/CHARACTER	DECLARE a CHARACTER
 reject	reject	grammar	type/CHARACTER!insert	DECLARE a CHARACTER zzz
-accept	accept	grammar	type/CHARACTER!swap	DECLARE a CHECK
+reject	accept	grammar	type/CHARACTER!swap	DECLARE a CHECK
 accept	accept	grammar	type/CHAR	DECLARE a CHAR
 reject	reject	grammar	type/CHAR!insert	DECLARE a CHAR zzz
 accept	accept	grammar	type/VARCHAR	DECLARE a VARCHAR
 reject	reject	grammar	type/VARCHAR!insert	DECLARE a VARCHAR zzz
-accept	accept	grammar	type/VARCHAR!swap	DECLARE a VARIABLE
+reject	accept	grammar	type/VARCHAR!swap	DECLARE a VARIABLE
 accept	accept	grammar	type/BINARY	DECLARE a BINARY
 reject	reject	grammar	type/BINARY!insert	DECLARE a BINARY zzz
-accept	accept	grammar	type/BINARY!swap	DECLARE a BINDING
+reject	accept	grammar	type/BINARY!swap	DECLARE a BINDING
 accept	accept	grammar	type/DECIMAL	DECLARE a DECIMAL
 reject	reject	grammar	type/DECIMAL!insert	DECLARE a DECIMAL zzz
-accept	accept	grammar	type/DECIMAL!swap	DECLARE a DECLARE
+reject	accept	grammar	type/DECIMAL!swap	DECLARE a DECLARE
 accept	accept	grammar	type/DEC	DECLARE a DEC
 reject	reject	grammar	type/DEC!insert	DECLARE a DEC zzz
 accept	accept	grammar	type/NUMERIC	DECLARE a NUMERIC
 reject	reject	grammar	type/NUMERIC!insert	DECLARE a NUMERIC zzz
-accept	accept	grammar	type/NUMERIC!swap	DECLARE a OF
+reject	accept	grammar	type/NUMERIC!swap	DECLARE a OF
 accept	accept	grammar	type/VOID	DECLARE a VOID
 reject	reject	grammar	type/VOID!insert	DECLARE a VOID zzz
-accept	accept	grammar	type/VOID!swap	DECLARE a WEEK
+reject	accept	grammar	type/VOID!swap	DECLARE a WEEK
 accept	accept	grammar	type/INTERVAL	DECLARE a INTERVAL
 reject	reject	grammar	type/INTERVAL!insert	DECLARE a INTERVAL zzz
-accept	accept	grammar	type/INTERVAL!swap	DECLARE a INTO
+reject	accept	grammar	type/INTERVAL!swap	DECLARE a INTO
 accept	accept	grammar	type/VARIANT	DECLARE a VARIANT
 reject	reject	grammar	type/VARIANT!insert	DECLARE a VARIANT zzz
-accept	accept	grammar	type/VARIANT!swap	DECLARE a VERSION
+reject	accept	grammar	type/VARIANT!swap	DECLARE a VERSION
 accept	accept	grammar	type/ARRAY	DECLARE a ARRAY
 reject	reject	grammar	type/ARRAY!insert	DECLARE a ARRAY zzz
-accept	accept	grammar	type/ARRAY!swap	DECLARE a AS
+reject	accept	grammar	type/ARRAY!swap	DECLARE a AS
 accept	accept	grammar	type/STRUCT	DECLARE a STRUCT
 reject	reject	grammar	type/STRUCT!insert	DECLARE a STRUCT zzz
-accept	accept	grammar	type/STRUCT!swap	DECLARE a SUBSTR
+reject	accept	grammar	type/STRUCT!swap	DECLARE a SUBSTR
 accept	accept	grammar	type/MAP	DECLARE a MAP
 reject	reject	grammar	type/MAP!insert	DECLARE a MAP zzz
-accept	accept	grammar	type/MAP!swap	DECLARE a MATCHED
-accept	accept	grammar	type/identifier	DECLARE a a
+reject	accept	grammar	type/MAP!swap	DECLARE a MATCHED
+reject	accept	grammar	type/identifier	DECLARE a a
 reject	reject	grammar	type/identifier!insert	DECLARE a a zzz
 accept	accept	grammar	type(collateClause)?/%empty	DECLARE a STRING
 accept	accept	grammar	type(collateClause)?/collateClause	DECLARE a STRING COLLATE a
@@ -4656,11 +4656,11 @@ reject	reject	grammar	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-1	DEC
 reject	reject	grammar	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!insert	DECLARE a STRUCT <> zzz
 reject	reject	grammar	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!swap	DECLARE a SUBSTR <>
 accept	accept	grammar	dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	DECLARE a INTERVAL YEAR
-accept	accept	grammar	dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-1	DECLARE a YEAR
+reject	accept	grammar	dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-1	DECLARE a YEAR
 reject	reject	grammar	dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!insert	DECLARE a INTERVAL YEAR zzz
 reject	reject	grammar	dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!swap	DECLARE a INTO YEAR
 accept	accept	grammar	dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	DECLARE a INTERVAL DAY
-accept	accept	grammar	dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-1	DECLARE a DAY
+reject	accept	grammar	dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-1	DECLARE a DAY
 reject	reject	grammar	dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!insert	DECLARE a INTERVAL DAY zzz
 reject	reject	grammar	dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!swap	DECLARE a INTO DAY
 accept	accept	grammar	dataType/type_(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?	DECLARE a BOOLEAN
@@ -4676,7 +4676,7 @@ reject	reject	grammar	dataType(complexColTypeList)?/complexColTypeList!drop-1	DE
 reject	reject	grammar	dataType(complexColTypeList)?/complexColTypeList!drop-2	DECLARE a STRUCT < a >
 reject	reject	grammar	dataType(complexColTypeList)?/complexColTypeList!truncate	DECLARE a STRUCT < a
 reject	reject	grammar	dataType(complexColTypeList)?/complexColTypeList!insert	DECLARE a STRUCT < a BOOLEAN zzz >
-accept	accept	grammar	dataType(complexColTypeList)?/complexColTypeList!swap	DECLARE a STRUCT < a BOTH >
+reject	accept	grammar	dataType(complexColTypeList)?/complexColTypeList!swap	DECLARE a STRUCT < a BOTH >
 accept	accept	grammar	dataType(YEAR|MONTH)/YEAR	DECLARE a INTERVAL YEAR
 reject	reject	grammar	dataType(YEAR|MONTH)/YEAR!swap	DECLARE a INTERVAL YEARS
 accept	accept	grammar	dataType(YEAR|MONTH)/MONTH	DECLARE a INTERVAL MONTH
@@ -4727,14 +4727,14 @@ reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	DECLARE a BOOLEAN(1,
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	DECLARE a BOOLEAN(1, 1 zzz)
 accept	accept	grammar	qualifiedColTypeWithPositionList/qualifiedColTypeWithPosition_(COMMA_qualifiedColTypeWit~ef53b654	ALTER TABLE a ADD COLUMN a BOOLEAN
-accept	accept	grammar	qualifiedColTypeWithPositionList/qualifiedColTypeWithPosition_(COMMA_qualifiedColTypeWit~ef53b654!swap	ALTER TABLE a ADD COLUMN a BOTH
+reject	accept	grammar	qualifiedColTypeWithPositionList/qualifiedColTypeWithPosition_(COMMA_qualifiedColTypeWit~ef53b654!swap	ALTER TABLE a ADD COLUMN a BOTH
 accept	accept	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/%empty	ALTER TABLE a ADD COLUMN a BOOLEAN
 accept	accept	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOOLEAN
 reject	reject	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!drop-1	ALTER TABLE a ADD COLUMN a BOOLEAN a BOOLEAN
 reject	reject	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!drop-2	ALTER TABLE a ADD COLUMN a BOOLEAN, BOOLEAN
 reject	reject	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!drop-3	ALTER TABLE a ADD COLUMN a BOOLEAN, a
 reject	reject	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!insert	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOOLEAN zzz
-accept	accept	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!swap	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOTH
+reject	accept	grammar	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!swap	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOTH
 accept	accept	grammar	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84	ALTER TABLE a ADD COLUMN a BOOLEAN
 accept	accept	grammar	qualifiedColTypeWithPosition(colDefinitionDescriptorWithPosition)*/%empty	ALTER TABLE a ADD COLUMN a BOOLEAN
 accept	accept	grammar	qualifiedColTypeWithPosition(colDefinitionDescriptorWithPosition)*/colDefinitionDescriptorWithPosition_(colDefinitionDescr~9c3c21a6	ALTER TABLE a ADD COLUMN a BOOLEAN FIRST
@@ -4773,7 +4773,7 @@ reject	reject	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*
 reject	reject	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!drop-2	MAP a USING 's' AS a BOOLEAN, BOOLEAN
 reject	reject	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!drop-3	MAP a USING 's' AS a BOOLEAN, a
 reject	reject	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!insert	MAP a USING 's' AS a BOOLEAN, a BOOLEAN zzz
-accept	accept	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!swap	MAP a USING 's' AS a BOOLEAN, a BOTH
+reject	accept	grammar	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!swap	MAP a USING 's' AS a BOOLEAN, a BOTH
 accept	accept	grammar	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6	MAP a USING 's' AS a BOOLEAN
 accept	accept	grammar	colType(errorCapturingNot_NULL)?/%empty	MAP a USING 's' AS a BOOLEAN
 accept	accept	grammar	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL	MAP a USING 's' AS a BOOLEAN NOT NULL
@@ -4797,7 +4797,7 @@ reject	reject	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinitio
 reject	reject	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!drop-3	CREATE TABLE a(a BOOLEAN, a)
 reject	reject	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!truncate	CREATE TABLE a(a BOOLEAN, a
 reject	reject	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!insert	CREATE TABLE a(a BOOLEAN, a BOOLEAN zzz)
-accept	accept	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!swap	CREATE TABLE a(a BOOLEAN, a BOTH)
+reject	accept	grammar	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!swap	CREATE TABLE a(a BOOLEAN, a BOTH)
 accept	accept	grammar	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*	CREATE TABLE a(a BOOLEAN)
 accept	accept	grammar	colDefinition(colDefinitionOption)*/%empty	CREATE TABLE a(a BOOLEAN)
 accept	accept	grammar	colDefinition(colDefinitionOption)*/colDefinitionOption_(colDefinitionOption)*	CREATE TABLE a(a BOOLEAN NOT NULL)
@@ -4887,7 +4887,7 @@ reject	reject	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexCol
 reject	reject	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!drop-3	DECLARE a STRUCT < a BOOLEAN, a >
 reject	reject	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!truncate	DECLARE a STRUCT < a BOOLEAN, a
 reject	reject	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!insert	DECLARE a STRUCT < a BOOLEAN, a BOOLEAN zzz >
-accept	accept	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!swap	DECLARE a STRUCT < a BOOLEAN, a BOTH >
+reject	accept	grammar	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!swap	DECLARE a STRUCT < a BOOLEAN, a BOTH >
 accept	accept	grammar	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f	DECLARE a STRUCT < a BOOLEAN >
 accept	accept	grammar	complexColType(COLON)?/%empty	DECLARE a STRUCT < a BOOLEAN >
 reject	reject	grammar	complexColType(COLON)?/%empty!insert	DECLARE a STRUCT < a zzz BOOLEAN >

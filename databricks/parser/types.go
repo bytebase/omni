@@ -2,6 +2,15 @@ package parser
 
 import "strings"
 
+// normalizeIdentName unquotes a backtick-quoted identifier (unescaping “) and
+// lowercases it for case-insensitive duplicate checks (e.g. CTE names).
+func normalizeIdentName(s string) string {
+	if len(s) >= 2 && s[0] == '`' && s[len(s)-1] == '`' {
+		s = strings.ReplaceAll(s[1:len(s)-1], "``", "`")
+	}
+	return strings.ToLower(s)
+}
+
 // parseIdentifier parses Spark's identifier rule:
 //
 //	identifier : strictIdentifier | strictNonReserved ;
@@ -410,8 +419,7 @@ func (p *Parser) parsePrimitiveTypeName() error {
 		p.advance()
 		return nil
 	default:
-		_, err := p.parseIdentifier()
-		return err
+		return p.errorf("unsupported data type %q", p.cur().Text)
 	}
 }
 
@@ -701,7 +709,9 @@ func (p *Parser) parseColPosition() error {
 	return p.errorf("expected FIRST or AFTER")
 }
 
-// parsePropertyList parses: LEFT_PAREN property (COMMA property)* RIGHT_PAREN
+// parsePropertyList parses setter key-value property lists
+// (`TBLPROPERTIES`, `DBPROPERTIES`, `SERDEPROPERTIES`, `OPTIONS`, `WITH (...)`),
+// requiring a value for every property just as Spark v4.0.5 visitPropertyKeyValues does.
 func (p *Parser) parsePropertyList() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
@@ -718,17 +728,31 @@ func (p *Parser) parsePropertyList() error {
 	return err
 }
 
+// parsePropertyKeyList parses unsetter key-only property lists
+// (`UNSET TBLPROPERTIES`, `UNSET DBPROPERTIES/PROPERTIES`), forbidding values
+// just as Spark v4.0.5 visitPropertyKeys does.
+func (p *Parser) parsePropertyKeyList() error {
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if err := p.parsePropertyKey(); err != nil {
+		return err
+	}
+	for p.match(tokComma) {
+		if err := p.parsePropertyKey(); err != nil {
+			return err
+		}
+	}
+	_, err := p.expect(tokRParen)
+	return err
+}
+
 func (p *Parser) parseProperty() error {
 	if err := p.parsePropertyKey(); err != nil {
 		return err
 	}
-	if p.match(tokEq) {
-		return p.parsePropertyValue()
-	}
-	if p.isPropertyValueStart() {
-		return p.parsePropertyValue()
-	}
-	return nil
+	p.match(tokEq)
+	return p.parsePropertyValue()
 }
 
 func (p *Parser) parsePropertyKey() error {
@@ -742,14 +766,6 @@ func (p *Parser) parsePropertyKey() error {
 	}
 	_, err := p.parseMultipartIdentifier()
 	return err
-}
-
-func (p *Parser) isPropertyValueStart() bool {
-	switch p.cur().Kind {
-	case tokInt, tokDecimal, kwTRUE, kwFALSE, tokString, tokDoubleQuoted:
-		return true
-	}
-	return false
 }
 
 func (p *Parser) parsePropertyValue() error {
