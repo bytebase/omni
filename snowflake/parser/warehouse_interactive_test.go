@@ -42,33 +42,39 @@ func TestParseCreateInteractiveWarehouse(t *testing.T) {
 		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = X3LARGE",
 		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = '2X-LARGE'",
 		"CREATE INTERACTIVE WAREHOUSE a COMMENT = 'c' STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1 MAX_CONCURRENCY_LEVEL = 2",
+		// Duplicate documented properties/parameters are deferred to the semantic/catalog layer,
+		// matching CREATE/ALTER WAREHOUSE.
+		"CREATE INTERACTIVE WAREHOUSE a COMMENT = 'x' COMMENT = 'y'",
+		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL",
+		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 2",
+		"CREATE INTERACTIVE WAREHOUSE a WITH WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = SMALL TAG (t = 's') MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 2",
 	} {
 		if s := mustCreateWarehouse(t, ok); !s.Interactive {
 			t.Errorf("%q: not interactive", ok)
 		}
 	}
 	for _, bad := range []string{
-		"CREATE OR ALTER INTERACTIVE WAREHOUSE a",                                            // no OR ALTER
-		"CREATE OR REPLACE INTERACTIVE WAREHOUSE IF NOT EXISTS a",                            // IF NOT EXISTS only without OR REPLACE
-		"CREATE INTERACTIVE WAREHOUSE db.a",                                                  // a warehouse name has one part
-		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_TYPE = STANDARD",                           // not an interactive property
-		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = HUGE",                               // not a size
-		"CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 'x'",                                  // a number or NULL
-		"CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR = db.m",                             // one-part name
-		"CREATE INTERACTIVE WAREHOUSE a COMMENT = 'x' COMMENT = 'y'",                         // set twice
-		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 2", // set twice
-		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 COMMENT = 'x'",             // properties before parameters
-		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 TAG (t = 's')",             // tags before parameters
-		"CREATE INTERACTIVE WAREHOUSE a TAG (t = 's') COMMENT = 'x'",                         // properties before tags
-		"CREATE INTERACTIVE WAREHOUSE a TAG (t = 's') WITH TAG (u = 's')",                    // tags twice
-		"CREATE INTERACTIVE WAREHOUSE a WITH MAX_CONCURRENCY_LEVEL = 1",                      // WITH introduces properties
-		"CREATE INTERACTIVE WAREHOUSE a COMMENT = 'x' WITH AUTO_RESUME = TRUE",               // WITH leads the run
-		"CREATE INTERACTIVE WAREHOUSE a TABLES ()",                                           // empty list
-		"CREATE INTERACTIVE WAREHOUSE a TABLES (t,)",                                         // trailing comma
-		"CREATE INTERACTIVE WAREHOUSE a \"WAREHOUSE_SIZE\" = XSMALL",                         // quoted key
-		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL TABLES (t)",                  // TABLES comes first
-		"CREATE TRANSIENT INTERACTIVE WAREHOUSE a",                                           // no modifiers
-		"CREATE \"INTERACTIVE\" WAREHOUSE a",                                                 // quoted keyword
+		"CREATE OR ALTER INTERACTIVE WAREHOUSE a",                                              // no OR ALTER
+		"CREATE OR REPLACE INTERACTIVE WAREHOUSE IF NOT EXISTS a",                              // IF NOT EXISTS only without OR REPLACE
+		"CREATE INTERACTIVE WAREHOUSE db.a",                                                    // a warehouse name has one part
+		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_TYPE = STANDARD",                             // not an interactive property
+		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = HUGE",                                 // not a size
+		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = HUGE",         // invalid value on repeat
+		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 'x'", // invalid value on repeat
+		"CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 'x'",                                    // a number or NULL
+		"CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR = db.m",                               // one-part name
+		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 COMMENT = 'x'",               // properties before parameters
+		"CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 TAG (t = 's')",               // tags before parameters
+		"CREATE INTERACTIVE WAREHOUSE a TAG (t = 's') COMMENT = 'x'",                           // properties before tags
+		"CREATE INTERACTIVE WAREHOUSE a TAG (t = 's') WITH TAG (u = 's')",                      // tags twice
+		"CREATE INTERACTIVE WAREHOUSE a WITH MAX_CONCURRENCY_LEVEL = 1",                        // WITH introduces properties
+		"CREATE INTERACTIVE WAREHOUSE a COMMENT = 'x' WITH AUTO_RESUME = TRUE",                 // WITH leads the run
+		"CREATE INTERACTIVE WAREHOUSE a TABLES ()",                                             // empty list
+		"CREATE INTERACTIVE WAREHOUSE a TABLES (t,)",                                           // trailing comma
+		"CREATE INTERACTIVE WAREHOUSE a \"WAREHOUSE_SIZE\" = XSMALL",                           // quoted key
+		"CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL TABLES (t)",                    // TABLES comes first
+		"CREATE TRANSIENT INTERACTIVE WAREHOUSE a",                                             // no modifiers
+		"CREATE \"INTERACTIVE\" WAREHOUSE a",                                                   // quoted keyword
 	} {
 		mustRejectObject(t, bad)
 	}

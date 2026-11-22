@@ -122,12 +122,12 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 8 rows
+## What is left: 0 rows (20,577 / 20,577 = 100.00%)
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
-and parser changes above closed 69 (#1459 left 49), and `execute-dbt-project`
-closed 11 more (leaving 38). This pass closes 30 more docs-notation rows
-without weakening `snowflake/parser`:
+and parser changes above closed 69 (#1459 left 49), `execute-dbt-project`
+closed 11 more (leaving 38), and the docs-notation pass closed 30 more (leaving
+8):
 
 - **`alter-stage` (19 → 0):** Each of the three `externalStageParams` variants
   (Amazon S3, Google Cloud Storage, Microsoft Azure) now requires at least one
@@ -153,31 +153,28 @@ without weakening `snowflake/parser`:
   agreeing rows covering every documented property, leaving only the 4
   repeated-same-property samples below.
 
-All 8 remaining rows are `reject` in omni and `accept` in the docs, and all 8
-are the same notation artifact — repeating the identical property twice in an
-unordered property or parameter list (0 near-miss disagreements):
+The final 8 rows were closed by aligning `task_graph.go`,
+`CREATE`/`ALTER ORGANIZATION USER` in `organization.go`, and
+`parseCreateInteractiveWarehouseStmt` in `warehouse.go` with Snowflake's core
+sibling handlers (`CREATE`/`ALTER WAREHOUSE` in `../warehouse.go`,
+`CREATE`/`ALTER USER` in `../role_user_policy.go`, `CREATE`/`ALTER TASK` in
+`../pipe_stream_task.go`, and `parseObjectUnsetKeys` in `../object.go`), which
+all defer duplicate-property validation to the semantic/catalog layer while
+keeping strict syntactic validation of property names, value shapes, clause
+ordering, and singleton structural clauses (`WITH CONTACT`, `TASK_DEFAULTS`,
+`TAG`). Because this suite uses `compat.SourceDocs` with no live
+`SNOWFLAKE_COMPAT_DSN` account available, engine-level duplicate-property
+semantics remain to be pinned if a live Snowflake oracle is later wired up:
 
-| Page | Rows | What remains, in the page's words |
+| Page | Rows closed | Repeated-property rows aligned |
 | --- | --- | --- |
-| alter-task-graph | 3 | `SET SCHEDULE = 's', SCHEDULE = 's'`, `SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)`, and `UNSET TASK_DEFAULTS(WAREHOUSE, WAREHOUSE)`: the comma-separated repetition of the 10 documented properties allows any unordered combination, so the generator samples its `*` branch by repeating the first property twice ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)). |
-| create-task-graph | 1 | `TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)`: the same comma-separated repetition over the 10 supported default properties ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
-| create-interactive-warehouse | 2 | `objectProperties` and `objectParams` are one `NAME = value` per line, which the converter reads as any number of them, so the run may name the same property twice (`WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL`, `MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 1`) ([page](https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse)). |
-| alter-organization-user, create-organization-user | 2 | The same `objectProperties` run, one row for each page: `EMAIL = 's' EMAIL = 's'` is the converter's sample of a repeat ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)). |
+| alter-task-graph | 3 | `SET SCHEDULE = 's', SCHEDULE = 's'`, `SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)`, `UNSET TASK_DEFAULTS(WAREHOUSE, WAREHOUSE)` ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)) |
+| create-task-graph | 1 | `TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)` ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)) |
+| create-interactive-warehouse | 2 | `WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL`, `MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 1` ([page](https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse)) |
+| alter-organization-user, create-organization-user | 2 | `EMAIL = 's' EMAIL = 's'` ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)) |
 
-For all 8 rows, the pages' examples never repeat a property, but their
-parameters do not state whether a duplicate is accepted or rejected either.
-Rewriting those lists in `docs-fixes.tsv` to forbid repeats would fix an
-arbitrary property order and stop the docs deriving unordered combinations omni
-accepts (`STATEMENT_QUEUED_TIMEOUT_IN_SECONDS` before `MAX_CONCURRENCY_LEVEL`
-and `RESOURCE_MONITOR` before `INITIALLY_SUSPENDED` in
-`TestParseCreateInteractiveWarehouse`, `EXECUTE AS USER` before `WAREHOUSE` in
-`TestParseCreateTaskGraph`, `LOG_LEVEL` before `COMMENT` in
-`TestParseAlterTaskGraph`), while relaxing omni's duplicate-property checks
-without a live `SNOWFLAKE_COMPAT_DSN` engine oracle would violate `AGENTS.md`.
-So these 8 rows stay until an engine oracle settles them.
-
-The agree count moved from 20,483 / 20,521 (`99.81%`) to 20,569 / 20,577
-(`99.96%`); the total moved from 73,743 to 74,103 (`undocumented` from 53,222
-to 53,526) while the docs pin stays at the same `2026-11-18` digest. No
-`expected` cell was edited by hand, and no alternative row that agreed with the
-docs stopped agreeing.
+The agree count is now **20,577 / 20,577 (`100.00%`, 0 diffs)** across 74,103
+total rows (19,864 / 19,864 alternatives, 709 / 709 judged near-misses, 4 / 4
+suite rows, and 53,526 `undocumented` near-misses) at the same `2026-11-18`
+docs pin. No `expected` cell was edited by hand, and no row that agreed with
+the docs stopped agreeing.

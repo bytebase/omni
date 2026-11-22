@@ -450,8 +450,17 @@ func (p *Parser) startsObjectProperty() bool {
 // whether an empty run is a syntax error. keywords names the clause ("" for a
 // CREATE's run).
 func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need bool) (*ast.ObjectClause, error) {
+	return p.parseObjectPropertiesWith(s, keywords, need, false)
+}
+
+// parseObjectPropertiesWith is parseObjectProperties with duplicate-property
+// handling controlled by allowDup. TAG remains a singleton clause either way.
+func (p *Parser) parseObjectPropertiesWith(s *ast.ObjectStmt, keywords string, need, allowDup bool) (*ast.ObjectClause, error) {
 	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: p.cur.Loc.Start}}
-	seen := map[string]bool{}
+	var seen map[string]bool
+	if !allowDup {
+		seen = map[string]bool{}
+	}
 	for {
 		tagStart := p.cur
 		switch {
@@ -491,14 +500,16 @@ func (p *Parser) parseObjectProperties(s *ast.ObjectStmt, keywords string, need 
 			if err != nil {
 				return nil, err
 			}
-			if seen[opt.Name] {
-				// A property is set once a run.
-				return nil, &ParseError{
-					Position: opt.Loc.Start, End: opt.Loc.End,
-					Message: "syntax error: " + opt.Name + " is set twice",
+			if seen != nil {
+				if seen[opt.Name] {
+					// A property is set once a run.
+					return nil, &ParseError{
+						Position: opt.Loc.Start, End: opt.Loc.End,
+						Message: "syntax error: " + opt.Name + " is set twice",
+					}
 				}
+				seen[opt.Name] = true
 			}
-			seen[opt.Name] = true
 			c.Options = append(c.Options, opt)
 		default:
 			if len(c.Options) == 0 && len(c.Tags) == 0 {
