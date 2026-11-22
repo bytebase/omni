@@ -117,35 +117,31 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 22 rows
+## What is left: 34 rows
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
 and parser changes above closed 69; #1459 left 49; #1471 closed 11 more
 (`execute-dbt-project`'s targetless `IMPORTS` forms, leaving 38).
 
-This pass closes 16 more rows (`20,483` → `20,499` / `20,521` = `99.89%`):
+This pass closes 4 more rows (`20,483` → `20,487` / `20,521` = `99.83%`):
 
-- `alter-task-graph` (9) and `create-task-graph` (3): `ALTER TASK GRAPH ...
-  SET <property> = <value>`, `UNSET <property>`, and `TASK_DEFAULTS ( ... )`
-  now accept open-ended property names (still validating documented property
-  value shapes when known, and matching `ALTER TASK`'s open property handling
-  including `SET CONTACT = <value>` vs `SET CONTACT <purpose> = <contact>`).
 - `create-interactive-warehouse` (2) and `create-organization-user` /
   `alter-organization-user` (2): repeated `NAME = value` properties in their
   property/parameter runs are now accepted at parse time (matching
   `CREATE/ALTER WAREHOUSE` and `CREATE/ALTER USER`), while still validating
   every property name, value shape, and clause ordering.
 
-The remaining 22 rows are all `reject` in omni and `accept` in the docs, and
-are intentionally kept rejected because they are genuinely invalid Snowflake
-SQL derived only by docs-notation quirks:
+The remaining 34 rows are all `reject` in omni and `accept` in the docs, grouped
+by the page whose notation or reading leaves them:
 
 | Page | Rows | What remains, in the page's words |
 | --- | --- | --- |
 | alter-stage | 19 | `ALTER STAGE [ IF EXISTS ] <name> SET { [ externalStageParams ] [ FILE_FORMAT = ( ... ) ] [ COMMENT = '<string_literal>' ] }`, and the external stage's Amazon S3, Google Cloud Storage and Microsoft Azure `externalStageParams` are all optional too, as the page writes them (the Amazon S3 one after docs-fixes lets an ALTER change the credentials or encryption and keep the URL). Nothing says "at least one", so `ALTER STAGE a SET` is the page's own shape; a page-local fix would invent a required parameter ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-stage)). The `statement` rule holds the same form as `statement/alterStage`. |
+| alter-task-graph | 9 | `SET <property> = <value> [ , <property> = <value> ... ]`, `UNSET <property> [ , ... ]`, `SET TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )` and its UNSET. The page restricts graph-wide properties to those listed in `CREATE TASK GRAPH` and restricts `TASK_DEFAULTS` to its documented list ("Only the following properties are supported"), so its generic `<property>` notation derives `SET a = a` and `UNSET a` while omni enforces the documented allowlists ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)). |
+| create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )`: the page explicitly states "Only the following properties are supported" in its `TASK_DEFAULTS` parameter, so `a = a` is a docs-notation placeholder rather than a supported property; omni enforces the documented allowlist ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
 | show-semantic-dimensions, -facts, -metrics | 3 | `IN SCHEMA.a`: the pages' `IN` choice does take a `<semantic_view_name>`, a QNAME, but Snowflake's [reserved and limited keywords](https://docs.snowflake.com/en/sql-reference/reserved-keywords) say `SCHEMA` and `DATABASE` "cannot be used as an identifier in a SHOW command (e.g. 'SHOW … IN <identifier>')". So the row is the docs grammar reading a limited keyword as a name, not a form the engine takes; the documented schema scope is `SCHEMA <db_name>.<schema_name>`, and the name would have to be quoted. |
 
-The agree count moved from 20,483 to 20,499; the total, `undocumented` count
+The agree count moved from 20,483 to 20,487; the total, `undocumented` count
 and docs pin stay at 73,743, 53,222 and the same digest, because these were
 parser gaps in statements the file already held. No `expected` cell was edited
 by hand, and no alternative row that agreed with the docs stopped agreeing.

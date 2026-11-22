@@ -26777,7 +26777,7 @@ reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER TASK a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER TASK a SET TAG a = 's', a =
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER TASK a SET TAG a = 's', a = 's' zzz
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a
+reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-1	TASK GRAPH a SET a = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER GRAPH a SET a = a
 accept	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-4	ALTER TASK GRAPH SET a = a
@@ -26787,7 +26787,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-8	ALTER TASK GRAPH a SET a =
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!insert	ALTER TASK GRAPH a SET a = a zzz
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!swap	ALWAYS TASK GRAPH a SET a = a
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*	ALTER TASK GRAPH a UNSET a
+reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*	ALTER TASK GRAPH a UNSET a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-1	TASK GRAPH a UNSET a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-2	ALTER GRAPH a UNSET a
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-4	ALTER TASK GRAPH UNSET a
@@ -26795,7 +26795,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSE
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-6	ALTER TASK GRAPH a UNSET
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!insert	ALTER TASK GRAPH a UNSET a zzz
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!swap	ALWAYS TASK GRAPH a UNSET a
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a)
+reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-1	TASK GRAPH a SET TASK_DEFAULTS(a = a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-2	ALTER GRAPH a SET TASK_DEFAULTS(a = a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-3	ALTER TASK a SET TASK_DEFAULTS(a = a)
@@ -26809,7 +26809,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-11	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a) zzz
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!swap	ALWAYS TASK GRAPH a SET TASK_DEFAULTS(a = a)
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(a)
+reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-1	TASK GRAPH a UNSET TASK_DEFAULTS(a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-2	ALTER GRAPH a UNSET TASK_DEFAULTS(a)
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-3	ALTER TASK a UNSET TASK_DEFAULTS(a)
@@ -26843,7 +26843,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-2	ALTER GRAPH a SET TAG a = 's'
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-4	ALTER TASK GRAPH SET TAG a = 's'
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-5	ALTER TASK GRAPH a TAG a = 's'
-accept	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-6	ALTER TASK GRAPH a SET a = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-6	ALTER TASK GRAPH a SET a = 's'
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-7	ALTER TASK GRAPH a SET TAG = 's'
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-8	ALTER TASK GRAPH a SET TAG a 's'
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TAG_QNAME_=_STR~8b48cdd8!drop-9	ALTER TASK GRAPH a SET TAG a =
@@ -26862,7 +26862,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-2	ALTER GRAPH a SET CONTACT a = a
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-4	ALTER TASK GRAPH SET CONTACT a = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-5	ALTER TASK GRAPH a CONTACT a = a
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-7	ALTER TASK GRAPH a SET CONTACT = a
+reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-7	ALTER TASK GRAPH a SET CONTACT = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-8	ALTER TASK GRAPH a SET CONTACT a a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-9	ALTER TASK GRAPH a SET CONTACT a =
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!insert	ALTER TASK GRAPH a SET CONTACT a = a zzz
@@ -26903,15 +26903,15 @@ reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER TASK 
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!truncate	ALTER TASK GRAPH IF
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!insert	ALTER TASK GRAPH IF EXISTS zzz a COMMIT
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!swap	ALTER TASK GRAPH IGNORE EXISTS a COMMIT
-accept	accept	docs	alterTaskGraph(,_ID_=_ID)*/%empty	ALTER TASK GRAPH a SET a = a
-accept	accept	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a, a = a
+reject	accept	docs	alterTaskGraph(,_ID_=_ID)*/%empty	ALTER TASK GRAPH a SET a = a
+reject	accept	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a, a = a
 reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	ALTER TASK GRAPH a SET a = a a = a
 reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER TASK GRAPH a SET a = a, = a
 reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER TASK GRAPH a SET a = a, a a
 reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	ALTER TASK GRAPH a SET a = a, a =
 reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	ALTER TASK GRAPH a SET a = a, a = a zzz
-accept	accept	docs	alterTaskGraph(,_a)*/%empty	ALTER TASK GRAPH a UNSET a
-accept	accept	docs	alterTaskGraph(,_a)*/,_a_(,_a)*	ALTER TASK GRAPH a UNSET a, a
+reject	accept	docs	alterTaskGraph(,_a)*/%empty	ALTER TASK GRAPH a UNSET a
+reject	accept	docs	alterTaskGraph(,_a)*/,_a_(,_a)*	ALTER TASK GRAPH a UNSET a, a
 reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!drop-1	ALTER TASK GRAPH a UNSET a a
 reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!drop-2	ALTER TASK GRAPH a UNSET a,
 reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!insert	ALTER TASK GRAPH a UNSET a, a zzz
@@ -50019,9 +50019,9 @@ reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE TASK GRAPH a WITH CONTACT(a = a
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE TASK GRAPH a WITH CONTACT(a = a) zzz
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE TASK GRAPH a WITHIN CONTACT(a = a)
-accept	accept	docs	createTaskGraph(,_ID_=_ID)*/%empty	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
+reject	accept	docs	createTaskGraph(,_ID_=_ID)*/%empty	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
 reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/%empty!insert	CREATE TASK GRAPH a TASK_DEFAULTS(a = a zzz)
-accept	accept	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a = a)
+reject	accept	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a = a)
 reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(a = a a = a)
 reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, = a)
 reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a a)
@@ -50103,7 +50103,7 @@ reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!dro
 reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TASK GRAPH a COMMENT = 's' zzz
 reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TASK GRAPH a COMMENTS = 's'
 accept	accept	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE TASK GRAPH a
-accept	accept	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
+reject	accept	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
 reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE TASK GRAPH a(a = a)
 reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS a = a)
 reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(= a)

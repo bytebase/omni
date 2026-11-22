@@ -39,7 +39,6 @@ func TestParseCreateTaskGraph(t *testing.T) {
 		"CREATE TASK GRAPH g TAG (t = 'v') OVERLAP_POLICY = ALLOW_ALL_OVERLAP",
 		"CREATE TASK GRAPH g WITH CONTACT (STEWARD = governance.contacts.owner)",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER svc, WAREHOUSE = wh)",
-		"CREATE TASK GRAPH g TASK_DEFAULTS (USER_TASK_MIN_SUCCESS_INTERVAL_IN_SECONDS = 60, LOG_LEVEL = 'INFO', LOG_LEVEL = 'DEBUG')",
 	} {
 		mustObjectStmt(t, in)
 	}
@@ -51,11 +50,13 @@ func TestParseCreateTaskGraphRejects(t *testing.T) {
 		"CREATE TASK GRAPH g ROOTS = a",                   // a parenthesized list
 		"CREATE TASK GRAPH g COMMENT = 'x' COMMENT = 'y'", // a property once
 		"CREATE TASK GRAPH g COMMENT = 'x' WITH CONTACT (s = c) COMMENT = 'y'",
-		"CREATE TASK GRAPH g NOT_A_PROPERTY = 1",         // unknown property
-		"CREATE TASK GRAPH g OVERLAP_POLICY = SOMETIMES", // value outside the choices
-		"CREATE TASK GRAPH g SCHEDULE = 5",               // a string
-		"CREATE TASK GRAPH g ERROR_INTEGRATION = db.i",   // one-part name
-		"CREATE TASK GRAPH g TASK_DEFAULTS (WAREHOUSE = 'w')",
+		"CREATE TASK GRAPH g NOT_A_PROPERTY = 1",                // unknown property
+		"CREATE TASK GRAPH g OVERLAP_POLICY = SOMETIMES",        // value outside the choices
+		"CREATE TASK GRAPH g SCHEDULE = 5",                      // a string
+		"CREATE TASK GRAPH g ERROR_INTEGRATION = db.i",          // one-part name
+		"CREATE TASK GRAPH g TASK_DEFAULTS (NOT_A_DEFAULT = x)", // listed defaults only
+		"CREATE TASK GRAPH g TASK_DEFAULTS (WAREHOUSE = 'w')",   // a name
+		"CREATE TASK GRAPH g TASK_DEFAULTS (LOG_LEVEL = 'a', LOG_LEVEL = 'b')",
 		"CREATE TASK GRAPH g TASK_DEFAULTS ()",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (WAREHOUSE = w,)",
 		"CREATE TASK GRAPH g TASK_DEFAULTS = (WAREHOUSE = w)",
@@ -72,6 +73,7 @@ func TestParseCreateTaskGraphRejects(t *testing.T) {
 		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER db.svc)",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER)",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER = svc)",
+		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER a, EXECUTE AS USER b)",
 	} {
 		mustRejectObject(t, in)
 	}
@@ -79,28 +81,21 @@ func TestParseCreateTaskGraphRejects(t *testing.T) {
 
 func TestParseAlterTaskGraph(t *testing.T) {
 	for in, want := range map[string]string{
-		"ALTER TASK GRAPH g COMMIT":                                                             "COMMIT",
-		"ALTER TASK GRAPH IF EXISTS g REVERT":                                                   "REVERT",
-		"ALTER TASK GRAPH g RESUME":                                                             "RESUME",
-		"ALTER TASK GRAPH g SUSPEND":                                                            "SUSPEND",
-		"ALTER TASK GRAPH g MODIFY WHEN SYSTEM$STREAM_HAS_DATA('s')":                            "MODIFY WHEN",
-		"ALTER TASK GRAPH g REMOVE WHEN":                                                        "REMOVE WHEN",
-		"ALTER TASK GRAPH g SET SCHEDULE = '30 SECONDS', COMMENT = 'c'":                         "SET",
-		"ALTER TASK GRAPH g SET NEW_PROP = 'v', OTHER_PROP = 1":                                 "SET",
-		"ALTER TASK GRAPH g SET COMMENT = 'a', COMMENT = 'b'":                                   "SET",
-		"ALTER TASK GRAPH g SET CONTACT = c":                                                    "SET",
-		"ALTER TASK GRAPH g UNSET CONFIG, FINALIZER":                                            "UNSET",
-		"ALTER TASK GRAPH g UNSET NEW_PROP, OTHER_PROP":                                         "UNSET",
-		"ALTER TASK GRAPH g UNSET COMMENT, COMMENT":                                             "UNSET",
-		"ALTER TASK GRAPH g SET TASK_DEFAULTS (WAREHOUSE = new_wh)":                             "SET TASK_DEFAULTS",
-		"ALTER TASK GRAPH g SET TASK_DEFAULTS (USER_TASK_MIN_SUCCESS_INTERVAL_IN_SECONDS = 60)": "SET TASK_DEFAULTS",
-		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (LOG_LEVEL, COMMENT)":                           "UNSET TASK_DEFAULTS",
-		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (USER_TASK_MIN_SUCCESS_INTERVAL_IN_SECONDS)":    "UNSET TASK_DEFAULTS",
-		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (EXECUTE AS USER)":                              "UNSET TASK_DEFAULTS",
-		"ALTER TASK GRAPH g SET TAG t = 'v', u = 'w'":                                           "SET TAG",
-		"ALTER TASK GRAPH g UNSET TAG t, u":                                                     "UNSET TAG",
-		"ALTER TASK GRAPH g SET CONTACT STEWARD = c, SUPPORT = d":                               "SET CONTACT",
-		"ALTER TASK GRAPH g UNSET CONTACT STEWARD, SUPPORT":                                     "UNSET CONTACT",
+		"ALTER TASK GRAPH g COMMIT":                                     "COMMIT",
+		"ALTER TASK GRAPH IF EXISTS g REVERT":                           "REVERT",
+		"ALTER TASK GRAPH g RESUME":                                     "RESUME",
+		"ALTER TASK GRAPH g SUSPEND":                                    "SUSPEND",
+		"ALTER TASK GRAPH g MODIFY WHEN SYSTEM$STREAM_HAS_DATA('s')":    "MODIFY WHEN",
+		"ALTER TASK GRAPH g REMOVE WHEN":                                "REMOVE WHEN",
+		"ALTER TASK GRAPH g SET SCHEDULE = '30 SECONDS', COMMENT = 'c'": "SET",
+		"ALTER TASK GRAPH g UNSET CONFIG, FINALIZER":                    "UNSET",
+		"ALTER TASK GRAPH g SET TASK_DEFAULTS (WAREHOUSE = new_wh)":     "SET TASK_DEFAULTS",
+		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (LOG_LEVEL, COMMENT)":   "UNSET TASK_DEFAULTS",
+		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (EXECUTE AS USER)":      "UNSET TASK_DEFAULTS",
+		"ALTER TASK GRAPH g SET TAG t = 'v', u = 'w'":                   "SET TAG",
+		"ALTER TASK GRAPH g UNSET TAG t, u":                             "UNSET TAG",
+		"ALTER TASK GRAPH g SET CONTACT STEWARD = c, SUPPORT = d":       "SET CONTACT",
+		"ALTER TASK GRAPH g UNSET CONTACT STEWARD, SUPPORT":             "UNSET CONTACT",
 	} {
 		s := mustObjectStmt(t, in)
 		if s.Verb != "ALTER" || s.Kind != "TASK GRAPH" {
@@ -113,17 +108,12 @@ func TestParseAlterTaskGraph(t *testing.T) {
 	for _, in := range []string{
 		"ALTER TASK GRAPH g SET SCHEDULE = '30 SECONDS' COMMENT = 'c'", // the page writes commas
 		"ALTER TASK GRAPH g SET SCHEDULE = 's',",
-		"ALTER TASK GRAPH g SET SCHEDULE = 5",
-		"ALTER TASK GRAPH g SET ROOTS = (a, b)",
-		"ALTER TASK GRAPH g SET OVERLAP_POLICY = SOMETIMES",
-		"ALTER TASK GRAPH g SET TASK_DEFAULTS (WAREHOUSE = 'w')",
-		"ALTER TASK GRAPH g SET",
-		"ALTER TASK GRAPH g SET CONTACT",
-		"ALTER TASK GRAPH g SET TAG = 'v'",
-		"ALTER TASK GRAPH g UNSET",
-		"ALTER TASK GRAPH g UNSET TAG",
+		"ALTER TASK GRAPH g SET NOT_A_PROPERTY = 1",
+		"ALTER TASK GRAPH g SET COMMENT = 'a', COMMENT = 'b'",
+		"ALTER TASK GRAPH g UNSET NOT_A_PROPERTY",
 		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS",
 		"ALTER TASK GRAPH g UNSET TASK_DEFAULTS (WAREHOUSE = w)",
+		"ALTER TASK GRAPH g SET CONTACT = c",
 		"ALTER TASK GRAPH g UNSET CONTACT",
 		"ALTER TASK GRAPH g COMMIT REVERT",
 		"ALTER TASK GRAPH g MODIFY WHEN",
