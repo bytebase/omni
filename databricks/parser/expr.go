@@ -20,33 +20,43 @@ func (p *Parser) parseExpressionSeq() error {
 //
 //	namedExpression : expression (AS? (errorCapturingIdentifier | identifierList))? ;
 func (p *Parser) parseNamedExpression() error {
+	_, err := p.parseNamedExpressionWithAliasFlag()
+	return err
+}
+
+func (p *Parser) parseNamedExpressionWithAliasFlag() (bool, error) {
 	if err := p.parseExpression(); err != nil {
-		return err
+		return false, err
 	}
-	return p.parseOptionalNamedExprAlias()
+	return p.parseOptionalNamedExprAliasFlag()
 }
 
 func (p *Parser) parseOptionalNamedExprAlias() error {
+	_, err := p.parseOptionalNamedExprAliasFlag()
+	return err
+}
+
+func (p *Parser) parseOptionalNamedExprAliasFlag() (bool, error) {
 	if p.match(kwAS) {
 		if p.cur().Kind == tokLParen {
-			return p.parseIdentifierList()
+			return true, p.parseIdentifierList()
 		}
 		_, err := p.parseErrorCapturingIdentifier()
-		return err
+		return true, err
 	}
 	if p.cur().Kind == tokLParen {
 		cp := p.save()
 		if err := p.parseIdentifierList(); err == nil {
-			return nil
+			return true, nil
 		}
 		p.restore(cp)
-		return nil
+		return false, nil
 	}
 	if p.canBeImplicitExprAlias() {
 		_, err := p.parseErrorCapturingIdentifier()
-		return err
+		return true, err
 	}
-	return nil
+	return false, nil
 }
 
 // canBeImplicitExprAlias checks whether the current token can serve as an
@@ -715,22 +725,9 @@ func (p *Parser) isPositionInValueExpr() bool {
 	if p.peek(1).Kind != tokLParen {
 		return true
 	}
-	depth := 0
-	closeIdx := -1
-	for i := 1; ; i++ {
-		k := p.peek(i).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				closeIdx = i
-				break
-			}
-		}
+	closeIdx := p.matchingCloseOffset(1)
+	if closeIdx < 0 {
+		return false
 	}
 	switch p.peek(closeIdx + 1).Kind {
 	case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
@@ -1270,29 +1267,6 @@ func (p *Parser) openCasesAtCurrentParenDepth() int {
 	return 0
 }
 
-func (p *Parser) ensureMatchingClose() {
-	if p.matchingClose != nil {
-		return
-	}
-	mc := make([]int, len(p.toks))
-	var stack []int
-	for i, tok := range p.toks {
-		switch tok.Kind {
-		case tokLParen, tokLBracket:
-			stack = append(stack, i)
-		case tokRParen, tokRBracket:
-			if len(stack) > 0 {
-				openIdx := stack[len(stack)-1]
-				stack = stack[:len(stack)-1]
-				mc[openIdx] = i
-			}
-		case tokSemicolon:
-			stack = stack[:0]
-		}
-	}
-	p.matchingClose = mc
-}
-
 // hasCaseWhenAndEndAhead scans forward from p.pos+1 at paren/bracket depth 0
 // to decide whether a `CASE` token starts a `CASE ... WHEN ... END` expression
 // rather than a column reference `case` or a `CASE(...)` function call. When
@@ -1386,13 +1360,9 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 		case tokEOF, tokSemicolon:
 			return finish(p.pos + i)
 		case tokLParen, tokLBracket:
-			p.ensureMatchingClose()
-			idx := p.pos + i
-			if idx < len(p.matchingClose) {
-				if closeIdx := p.matchingClose[idx]; closeIdx > idx {
-					i = closeIdx - p.pos
-					continue
-				}
+			if closeOff := p.matchingCloseOffset(i); closeOff > i {
+				i = closeOff
+				continue
 			}
 			return finish(p.pos + i)
 		case tokRParen, tokRBracket:

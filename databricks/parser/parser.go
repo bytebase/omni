@@ -40,6 +40,8 @@ type Parser struct {
 	caseScanCache         []caseScanEntry
 	caseScanConfirmedOpen map[int]int
 	matchingClose         []int
+	lparenRunStart        int
+	lparenRunEnd          int
 }
 
 // Parse parses a Databricks / Spark SQL input string (one or more
@@ -126,6 +128,83 @@ func (p *Parser) peek(offset int) Token {
 		return p.toks[len(p.toks)-1]
 	}
 	return p.toks[idx]
+}
+
+func (p *Parser) ensureMatchingClose() {
+	if p.matchingClose != nil {
+		return
+	}
+	mc := make([]int, len(p.toks))
+	var stack []int
+	for i, tok := range p.toks {
+		switch tok.Kind {
+		case tokLParen, tokLBracket:
+			stack = append(stack, i)
+		case tokRParen, tokRBracket:
+			if len(stack) > 0 {
+				openIdx := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				mc[openIdx] = i
+			}
+		case tokSemicolon:
+			stack = stack[:0]
+		}
+	}
+	p.matchingClose = mc
+}
+
+// matchingCloseOffset returns the peek offset of the ')' or ']' matching the
+// '(' or '[' at openOffset (relative to p.cur()), or -1 if unmatched before
+// ';' or EOF.
+func (p *Parser) matchingCloseOffset(openOffset int) int {
+	if p.gtPending > 0 {
+		depth := 0
+		for i := openOffset; ; i++ {
+			k := p.peek(i).Kind
+			if k == tokEOF || k == tokSemicolon {
+				return -1
+			}
+			if k == tokLParen || k == tokLBracket {
+				depth++
+			} else if k == tokRParen || k == tokRBracket {
+				depth--
+				if depth == 0 {
+					return i
+				}
+			}
+		}
+	}
+	p.ensureMatchingClose()
+	idx := p.pos + openOffset
+	if idx < 0 || idx >= len(p.matchingClose) {
+		return -1
+	}
+	closeIdx := p.matchingClose[idx]
+	if closeIdx <= idx {
+		return -1
+	}
+	return closeIdx - p.pos
+}
+
+// skipLParensOffset returns the first peek offset >= startOffset whose token is
+// not '(', caching consecutive '(' runs so deeply nested parenthesized
+// expressions do not rescan leading parens quadratically.
+func (p *Parser) skipLParensOffset(startOffset int) int {
+	if p.gtPending == 0 {
+		abs := p.pos + startOffset
+		if abs >= p.lparenRunStart && abs < p.lparenRunEnd {
+			return p.lparenRunEnd - p.pos
+		}
+	}
+	i := startOffset
+	for p.peek(i).Kind == tokLParen {
+		i++
+	}
+	if p.gtPending == 0 && i > startOffset {
+		p.lparenRunStart = p.pos + startOffset
+		p.lparenRunEnd = p.pos + i
+	}
+	return i
 }
 
 func (p *Parser) prevEnd() int {

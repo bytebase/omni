@@ -46,40 +46,30 @@ func (p *Parser) startsWithCompleteParenQuery() bool {
 	if p.cur().Kind != tokLParen {
 		return true
 	}
-	leadingParens := 0
-	for p.peek(leadingParens).Kind == tokLParen {
-		leadingParens++
-	}
-	depth := leadingParens
-	minDepth := leadingParens
-	for i := leadingParens; ; i++ {
-		k := p.peek(i).Kind
-		if k == tokEOF || k == tokSemicolon {
+	leadingParens := p.skipLParensOffset(0)
+	checkClose := func(d int) bool {
+		closeOff := p.matchingCloseOffset(d)
+		if closeOff < 0 || p.peek(closeOff).Kind != tokRParen {
 			return false
 		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth < minDepth {
-				if k != tokRParen {
-					return false
-				}
-				after := p.peek(i + 1).Kind
-				switch after {
-				case tokRParen, tokOperatorPipe,
-					kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
-					kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
-					minDepth = depth
-					if depth == 0 {
-						return true
-					}
-				default:
-					return false
-				}
-			}
+		switch p.peek(closeOff + 1).Kind {
+		case tokRParen, tokOperatorPipe,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
+			return true
+		default:
+			return false
 		}
 	}
+	if !checkClose(0) {
+		return false
+	}
+	for d := leadingParens - 1; d >= 1; d-- {
+		if !checkClose(d) {
+			return false
+		}
+	}
+	return true
 }
 
 // isValuesQueryAt reports whether `VALUES` at offset i can introduce an
@@ -108,25 +98,24 @@ func (p *Parser) isValuesQueryAt(i int, inParens bool) bool {
 		if (inner == kwDISTINCT || inner == kwALL) && p.peek(i+3).Kind != tokRParen && p.peek(i+3).Kind != tokComma {
 			return false
 		}
-		// Scan to the matching ')' of VALUES(...), checking for depth-1 named
-		// arguments (`k => v`), TABLE arguments (`TABLE ...`), and function-call
-		// suffixes immediately after ')'.
-		depth := 0
-		closeIdx := -1
-		for j := i + 1; ; j++ {
+		// Scan depth-1 tokens inside VALUES(...), checking for named arguments
+		// (`k => v`), TABLE arguments (`TABLE ...`), and function-call suffixes
+		// immediately after ')'.
+		closeIdx := p.matchingCloseOffset(i + 1)
+		if closeIdx < 0 {
+			return false
+		}
+		for j := i + 2; j < closeIdx; j++ {
 			k := p.peek(j).Kind
-			if k == tokEOF || k == tokSemicolon {
-				return false
-			}
 			if k == tokLParen || k == tokLBracket {
-				depth++
-			} else if k == tokRParen || k == tokRBracket {
-				depth--
-				if depth == 0 {
-					closeIdx = j
-					break
+				c := p.matchingCloseOffset(j)
+				if c < 0 {
+					return false
 				}
-			} else if depth == 1 && (k == tokFatArrow || (k == kwTABLE && (j == i+2 || p.peek(j-1).Kind == tokComma))) {
+				j = c
+				continue
+			}
+			if k == tokFatArrow || (k == kwTABLE && (j == i+2 || p.peek(j-1).Kind == tokComma)) {
 				return false
 			}
 		}
@@ -154,33 +143,29 @@ func (p *Parser) isValuesQueryAt(i int, inParens bool) bool {
 	// In `(VALUES(...) AS a, 2)` or `(VALUES(...) a, 2)`, a depth-0 comma after
 	// an alias indicates a row constructor rather than an inlineTable (whose
 	// optional tableAlias only appears after all comma-separated expressions).
-	depth := 0
 	for j := i + 1; ; j++ {
 		k := p.peek(j).Kind
 		switch k {
-		case tokEOF, tokSemicolon:
+		case tokEOF, tokSemicolon, tokRParen, tokRBracket:
 			return true
 		case tokLParen, tokLBracket:
-			depth++
-		case tokRParen, tokRBracket:
-			if depth == 0 {
+			c := p.matchingCloseOffset(j)
+			if c < 0 {
 				return true
 			}
-			depth--
-			if depth == 0 {
-				// `(...) alias ,` where alias is an identifier (not a query clause keyword)
-				a := p.peek(j + 1).Kind
-				if a == kwAS && p.peek(j+2).Kind.isIdentifier() && p.peek(j+3).Kind == tokComma {
-					return false
-				}
-				if a.isIdentifier() && a != kwAS && a != kwUNION && a != kwINTERSECT && a != kwEXCEPT && a != kwMINUS &&
-					a != kwORDER && a != kwCLUSTER && a != kwDISTRIBUTE && a != kwSORT && a != kwWINDOW && a != kwLIMIT && a != kwOFFSET &&
-					p.peek(j+2).Kind == tokComma {
-					return false
-				}
+			j = c
+			// `(...) alias ,` where alias is an identifier (not a query clause keyword)
+			a := p.peek(j + 1).Kind
+			if a == kwAS && p.peek(j+2).Kind.isIdentifier() && p.peek(j+3).Kind == tokComma {
+				return false
+			}
+			if a.isIdentifier() && a != kwAS && a != kwUNION && a != kwINTERSECT && a != kwEXCEPT && a != kwMINUS &&
+				a != kwORDER && a != kwCLUSTER && a != kwDISTRIBUTE && a != kwSORT && a != kwWINDOW && a != kwLIMIT && a != kwOFFSET &&
+				p.peek(j+2).Kind == tokComma {
+				return false
 			}
 		case kwAS:
-			if depth == 0 && p.peek(j+1).Kind.isIdentifier() && p.peek(j+2).Kind == tokComma {
+			if p.peek(j+1).Kind.isIdentifier() && p.peek(j+2).Kind == tokComma {
 				return false
 			}
 		}
@@ -188,21 +173,19 @@ func (p *Parser) isValuesQueryAt(i int, inParens bool) bool {
 }
 
 func (p *Parser) hasKeywordAtDepthZero(startOffset int, target TokenKind) bool {
-	depth := 0
 	for i := startOffset; ; i++ {
 		k := p.peek(i).Kind
 		switch k {
-		case tokEOF, tokSemicolon:
+		case tokEOF, tokSemicolon, tokRParen, tokRBracket:
 			return false
 		case tokLParen, tokLBracket:
-			depth++
-		case tokRParen, tokRBracket:
-			if depth == 0 {
+			c := p.matchingCloseOffset(i)
+			if c < 0 {
 				return false
 			}
-			depth--
+			i = c
 		default:
-			if depth == 0 && k == target {
+			if k == target {
 				return true
 			}
 		}
@@ -558,24 +541,14 @@ func (p *Parser) isTransformStart() bool {
 // script transformations from higher-order `SELECT TRANSFORM(arr, x -> x)`
 // function calls without reparsing the arguments.
 func (p *Parser) hasTransformClauseAfterParens(lparenOffset int) bool {
-	depth := 0
-	for i := lparenOffset; ; i++ {
-		k := p.peek(i).Kind
-		if k == tokEOF {
-			return false
-		}
-		if k == tokLParen {
-			depth++
-		} else if k == tokRParen {
-			depth--
-			if depth == 0 {
-				after := p.peek(i + 1).Kind
-				return after == kwUSING ||
-					(after == kwROW && p.peek(i+2).Kind == kwFORMAT) ||
-					after == kwRECORDWRITER
-			}
-		}
+	closeOff := p.matchingCloseOffset(lparenOffset)
+	if closeOff < 0 || p.peek(closeOff).Kind != tokRParen {
+		return false
 	}
+	after := p.peek(closeOff + 1).Kind
+	return after == kwUSING ||
+		(after == kwROW && p.peek(closeOff+2).Kind == kwFORMAT) ||
+		after == kwRECORDWRITER
 }
 
 func (p *Parser) parseTransformClause() error {
@@ -867,38 +840,21 @@ func (p *Parser) isLateralParenRelation() bool {
 		return true
 	}
 
-	// Find the matching ')' for the opening '(' at offset 1 while computing
-	// how many outermost paren pairs wrap the entire content in a single pass.
-	leadingParens := 0
-	for p.peek(1+leadingParens).Kind == tokLParen {
-		leadingParens++
-	}
-	depth := leadingParens
-	minDepth := leadingParens
-	closeIdx := -1
-	for j := 1 + leadingParens; ; j++ {
-		k := p.peek(j).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				if k != tokRParen {
-					return false
-				}
-				closeIdx = j
-				break
-			}
-			if depth < minDepth && (k != tokRParen || p.peek(j+1).Kind != tokRParen) {
-				minDepth = depth
-			}
-		}
+	// Find the matching ')' for the opening '(' at offset 1 and determine how
+	// many outermost paren pairs wrap the entire content.
+	closeIdx := p.matchingCloseOffset(1)
+	if closeIdx < 0 || p.peek(closeIdx).Kind != tokRParen {
+		return false
 	}
 	if p.peek(closeIdx+1).Kind == kwTABLESAMPLE {
 		return true
+	}
+	leadingParens := p.skipLParensOffset(1) - 1
+	minDepth := 1
+	for minDepth < leadingParens &&
+		p.matchingCloseOffset(1+minDepth) == closeIdx-minDepth &&
+		p.peek(closeIdx-minDepth).Kind == tokRParen {
+		minDepth++
 	}
 
 	lo := 1 + minDepth
@@ -911,19 +867,15 @@ func (p *Parser) isLateralParenRelation() bool {
 	}
 
 	// Scan top-level tokens inside [lo, hi) for relation-only or function-arg-only markers.
-	d := 0
 	hasRelationMarker := false
 	for j := lo; j < hi; j++ {
 		k := p.peek(j).Kind
 		if k == tokLParen || k == tokLBracket {
-			d++
-			continue
-		}
-		if k == tokRParen || k == tokRBracket {
-			d--
-			continue
-		}
-		if d != 0 {
+			c := p.matchingCloseOffset(j)
+			if c < 0 || c >= hi {
+				break
+			}
+			j = c
 			continue
 		}
 		switch k {
@@ -1218,7 +1170,7 @@ func (p *Parser) parseFunctionTable() error {
 		p.advance()
 		singlePlainArg := false
 		if !p.match(tokRParen) {
-			isTableOrNamed := p.cur().Kind == kwTABLE ||
+			isTableOrNamed := p.isTableSubqueryArgAt(0) ||
 				(p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow)
 			if err := p.parseFunctionTableArgument(); err != nil {
 				return err
@@ -1333,22 +1285,9 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 	}
 
 	// `TABLE ( ... )`: find matching ')' of TABLE(...).
-	depth := 0
-	outerClose := -1
-	for j := tOff + 1; ; j++ {
-		k := p.peek(j).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				outerClose = j
-				break
-			}
-		}
+	outerClose := p.matchingCloseOffset(tOff + 1)
+	if outerClose < 0 {
+		return false
 	}
 	if outerClose == tOff+2 {
 		return false // empty `TABLE()`
@@ -1375,24 +1314,11 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 	innerKind := p.peek(innerOff).Kind
 	switch innerKind {
 	case tokLParen:
-		// Parenthesized query `TABLE((SELECT ...) [UNION ...])`: scan to matching ')'
-		// of the inner '(' and verify a query continuation (or outerClose) follows,
+		// Parenthesized query `TABLE((SELECT ...) [UNION ...])`: verify matching ')'
+		// of the inner '(' is followed by a query continuation (or outerClose),
 		// rejecting multi-arg calls like `TABLE((SELECT 1), k => 1)`.
-		d := 0
-		innerClose := -1
-		for j := innerOff; j < outerClose; j++ {
-			k := p.peek(j).Kind
-			if k == tokLParen || k == tokLBracket {
-				d++
-			} else if k == tokRParen || k == tokRBracket {
-				d--
-				if d == 0 {
-					innerClose = j
-					break
-				}
-			}
-		}
-		if innerClose < 0 {
+		innerClose := p.matchingCloseOffset(innerOff)
+		if innerClose < 0 || innerClose >= outerClose {
 			return false
 		}
 		if innerClose+1 == outerClose {
@@ -1415,19 +1341,7 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 	case kwIDENTIFIER:
 		if p.peek(innerOff+1).Kind == tokLParen {
 			// `TABLE(IDENTIFIER(expr))`: ensure the matching ')' is outerClose-1.
-			d := 0
-			for j := innerOff + 1; j < outerClose; j++ {
-				k := p.peek(j).Kind
-				if k == tokLParen || k == tokLBracket {
-					d++
-				} else if k == tokRParen || k == tokRBracket {
-					d--
-					if d == 0 {
-						return j+1 == outerClose
-					}
-				}
-			}
-			return false
+			return p.matchingCloseOffset(innerOff+1)+1 == outerClose
 		}
 		return p.isIdentRefSpan(innerOff, outerClose)
 	default:
@@ -1436,10 +1350,7 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 }
 
 func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
-	i := startOffset
-	for p.peek(i).Kind == tokLParen {
-		i++
-	}
+	i := p.skipLParensOffset(startOffset)
 	switch p.peek(i).Kind {
 	case kwSELECT:
 		return p.isSelectQueryAt(i)
@@ -1523,31 +1434,21 @@ func (p *Parser) isFromQueryAt(fromOffset int) bool {
 		}
 		// Reject function calls like `(from(x) + 1)` or `(from(x), 1)` where an
 		// expression operator immediately follows `from(...)`.
-		depth := 0
-		for j := fromOffset + 1; ; j++ {
-			k := p.peek(j).Kind
-			if k == tokEOF || k == tokSemicolon {
-				return false
-			}
-			if k == tokLParen || k == tokLBracket {
-				depth++
-			} else if k == tokRParen || k == tokRBracket {
-				depth--
-				if depth == 0 {
-					switch p.peek(j + 1).Kind {
-					case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
-						tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
-						tokConcatPipe, tokPipe, tokAmpersand, tokHat,
-						tokShiftLeft, tokShiftRight, tokShiftRightU,
-						tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-						kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
-						tokArrow, tokFatArrow:
-						return false
-					}
-					return true
-				}
-			}
+		closeOff := p.matchingCloseOffset(fromOffset + 1)
+		if closeOff < 0 {
+			return false
 		}
+		switch p.peek(closeOff + 1).Kind {
+		case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+			tokArrow, tokFatArrow:
+			return false
+		}
+		return true
 	}
 	return true
 }
@@ -1560,27 +1461,11 @@ func (p *Parser) isFromQueryAt(fromOffset int) bool {
 func (p *Parser) isTableQueryAt(tableOffset int) bool {
 	pos := tableOffset + 1
 	if p.peek(pos).Kind == kwIDENTIFIER && p.peek(pos+1).Kind == tokLParen {
-		depth := 0
-		end := -1
-		for j := pos + 1; ; j++ {
-			k := p.peek(j).Kind
-			if k == tokEOF || k == tokSemicolon {
-				return false
-			}
-			if k == tokLParen || k == tokLBracket {
-				depth++
-			} else if k == tokRParen || k == tokRBracket {
-				depth--
-				if depth == 0 {
-					if k != tokRParen || j == pos+2 {
-						return false
-					}
-					end = j + 1
-					break
-				}
-			}
+		closeOff := p.matchingCloseOffset(pos + 1)
+		if closeOff < 0 || p.peek(closeOff).Kind != tokRParen || closeOff == pos+2 {
+			return false
 		}
-		pos = end
+		pos = closeOff + 1
 	} else {
 		if !p.peek(pos).Kind.isIdentifier() {
 			return false
@@ -1752,28 +1637,18 @@ func (p *Parser) isParenthesizedPartitionList(allowOrderBy bool) bool {
 	if p.cur().Kind != tokLParen {
 		return false
 	}
-	depth := 0
-	for i := 0; ; i++ {
-		k := p.peek(i).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				after := p.peek(i + 1).Kind
-				if after == tokRParen || after == tokComma {
-					return true
-				}
-				if allowOrderBy && (after == kwORDER || after == kwSORT) && p.peek(i+2).Kind == kwBY {
-					return true
-				}
-				return false
-			}
-		}
+	closeOff := p.matchingCloseOffset(0)
+	if closeOff < 0 {
+		return false
 	}
+	after := p.peek(closeOff + 1).Kind
+	if after == tokRParen || after == tokComma {
+		return true
+	}
+	if allowOrderBy && (after == kwORDER || after == kwSORT) && p.peek(closeOff+2).Kind == kwBY {
+		return true
+	}
+	return false
 }
 
 // parseTableAlias parses: (AS? strictIdentifier identifierList?)?
@@ -2192,17 +2067,33 @@ func (p *Parser) parseAggregationClause() error {
 	// and retrying through parseNamedExpression so malformed nested queries
 	// fail in linear time.
 	hasGroupingAnalyticsOnly := false
+	hasAlias := false
 	for {
 		if p.isGroupingAnalyticsStart() {
-			if p.cur().Kind == kwGROUPING {
+			if p.cur().Kind == kwGROUPING && hasAlias {
+				return p.errorf("GROUPING SETS cannot be mixed with aliased GROUP BY expressions")
+			}
+			analyticsOnly, err := p.parseGroupingAnalytics()
+			if err != nil {
+				return err
+			}
+			if analyticsOnly {
+				if hasAlias {
+					return p.errorf("grouping analytics cannot be mixed with aliased GROUP BY expressions")
+				}
 				hasGroupingAnalyticsOnly = true
 			}
-			if err := p.parseGroupingAnalytics(); err != nil {
+		} else if hasGroupingAnalyticsOnly {
+			if err := p.parseExpression(); err != nil {
 				return err
 			}
 		} else {
-			if err := p.parseNamedExpression(); err != nil {
+			aliased, err := p.parseNamedExpressionWithAliasFlag()
+			if err != nil {
 				return err
+			}
+			if aliased {
+				hasAlias = true
 			}
 		}
 		if !p.match(tokComma) {
@@ -2222,11 +2113,11 @@ func (p *Parser) parseAggregationClause() error {
 		if _, err := p.expect(tokLParen); err != nil {
 			return err
 		}
-		if err := p.parseGroupingSet(); err != nil {
+		if _, err := p.parseGroupingSet(); err != nil {
 			return err
 		}
 		for p.match(tokComma) {
-			if err := p.parseGroupingSet(); err != nil {
+			if _, err := p.parseGroupingSet(); err != nil {
 				return err
 			}
 		}
@@ -2254,22 +2145,21 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 	if p.isFunctionSetQuantifierAt(2) {
 		return false
 	}
-	depth := 0
-	closeIdx := -1
-	for i := 1; ; i++ {
+	closeIdx := p.matchingCloseOffset(1)
+	if closeIdx < 0 {
+		return false
+	}
+	for i := 2; i < closeIdx; i++ {
 		k := p.peek(i).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
 		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				closeIdx = i
-				break
+			c := p.matchingCloseOffset(i)
+			if c < 0 {
+				return false
 			}
-		} else if depth == 1 && k == tokFatArrow {
+			i = c
+			continue
+		}
+		if k == tokFatArrow {
 			return false
 		}
 	}
@@ -2292,60 +2182,72 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 	return false
 }
 
-func (p *Parser) parseGroupingAnalytics() error {
+func (p *Parser) parseGroupingAnalytics() (bool, error) {
 	if err := p.enterNesting(); err != nil {
-		return err
+		return false, err
 	}
 	defer p.leaveNesting()
 
 	if p.match(kwROLLUP, kwCUBE) {
 		if _, err := p.expect(tokLParen); err != nil {
-			return err
+			return false, err
 		}
-		if err := p.parseGroupingSet(); err != nil {
-			return err
+		hasEmpty, err := p.parseGroupingSet()
+		if err != nil {
+			return false, err
 		}
 		for p.match(tokComma) {
-			if err := p.parseGroupingSet(); err != nil {
-				return err
+			empty, err := p.parseGroupingSet()
+			if err != nil {
+				return false, err
+			}
+			if empty {
+				hasEmpty = true
 			}
 		}
-		_, err := p.expect(tokRParen)
-		return err
+		_, err = p.expect(tokRParen)
+		return hasEmpty, err
 	}
 	if _, err := p.expect(kwGROUPING); err != nil {
-		return err
+		return true, err
 	}
 	if _, err := p.expect(kwSETS); err != nil {
-		return err
+		return true, err
 	}
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return true, err
 	}
 	if err := p.parseGroupingElement(); err != nil {
-		return err
+		return true, err
 	}
 	for p.match(tokComma) {
 		if err := p.parseGroupingElement(); err != nil {
-			return err
+			return true, err
 		}
 	}
 	_, err := p.expect(tokRParen)
-	return err
+	return true, err
 }
 
 func (p *Parser) parseGroupingElement() error {
 	if p.isGroupingAnalyticsStart() {
-		return p.parseGroupingAnalytics()
+		_, err := p.parseGroupingAnalytics()
+		return err
 	}
-	return p.parseGroupingSet()
+	_, err := p.parseGroupingSet()
+	return err
 }
 
-func (p *Parser) parseGroupingSet() error {
+func (p *Parser) parseGroupingSet() (bool, error) {
 	if p.cur().Kind == tokLParen && p.isParenthesizedGroupingSet() {
-		return p.parseParenthesizedExprOrRow(true)
+		if p.peek(1).Kind == tokRParen {
+			p.advance()
+			p.advance()
+			return true, nil
+		}
+		return false, p.parseParenthesizedExprOrRow(true)
 	}
-	return p.parseExpression()
+	return false, p.parseExpression()
 }
 
 // parseParenthesizedExprOrRow parses `()` (when allowEmpty), `(query)`,
@@ -2493,22 +2395,12 @@ func (p *Parser) isParenthesizedGroupingSet() bool {
 	if p.cur().Kind != tokLParen {
 		return false
 	}
-	depth := 0
-	for i := 0; ; i++ {
-		k := p.peek(i).Kind
-		if k == tokEOF || k == tokSemicolon {
-			return false
-		}
-		if k == tokLParen || k == tokLBracket {
-			depth++
-		} else if k == tokRParen || k == tokRBracket {
-			depth--
-			if depth == 0 {
-				after := p.peek(i + 1).Kind
-				return after == tokRParen || after == tokComma
-			}
-		}
+	closeOff := p.matchingCloseOffset(0)
+	if closeOff < 0 {
+		return false
 	}
+	after := p.peek(closeOff + 1).Kind
+	return after == tokRParen || after == tokComma
 }
 
 func (p *Parser) parseWindowClause() error {

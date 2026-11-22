@@ -686,6 +686,41 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "group by expression with grouping sets",
+			sql:  `SELECT a FROM t GROUP BY a, GROUPING SETS ((b))`,
+			kind: StmtQuery,
+		},
+		{
+			name: "group by grouping sets with expression",
+			sql:  `SELECT a FROM t GROUP BY GROUPING SETS ((b)), a`,
+			kind: StmtQuery,
+		},
+		{
+			name: "group by aliased expression with rollup function call",
+			sql:  `SELECT a FROM t GROUP BY a AS x, ROLLUP(b)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "dynamic relation identifier with table column expression and function args",
+			sql:  `SELECT * FROM IDENTIFIER(table)(1)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "dynamic relation identifier with table qualified expression and function args",
+			sql:  `SELECT * FROM IDENTIFIER(table.x)(1)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "dynamic relation identifier with table column expression and temporal clause",
+			sql:  `SELECT * FROM IDENTIFIER(table) VERSION AS OF 1`,
+			kind: StmtQuery,
+		},
+		{
+			name: "dynamic relation identifier with zero-arg table call and function args",
+			sql:  `SELECT * FROM IDENTIFIER(table())(1)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "double parenthesized row constructor with subquery",
 			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,
@@ -758,6 +793,13 @@ func TestParseErrors(t *testing.T) {
 		{"unpivot incomplete multi alias", "SELECT * FROM t UNPIVOT ((v1, v2) FOR k IN ((a, b) AS))"},
 		{"pipe where with window", "FROM t |> WHERE x > 0 WINDOW w AS (PARTITION BY x)"},
 		{"pipe pivot with unpivot", "FROM t |> PIVOT(SUM(a) FOR b IN (1)) UNPIVOT(v FOR k IN (c))"},
+		{"group by alias then grouping sets", "SELECT a FROM t GROUP BY a AS x, GROUPING SETS ((b))"},
+		{"group by grouping sets then alias", "SELECT a FROM t GROUP BY GROUPING SETS ((b)), a AS x"},
+		{"group by implicit alias then grouping sets", "SELECT a FROM t GROUP BY a x, GROUPING SETS ((b))"},
+		{"group by grouping sets then implicit alias", "SELECT a FROM t GROUP BY GROUPING SETS ((b)), a x"},
+		{"group by alias then rollup with empty set", "SELECT a FROM t GROUP BY a AS x, ROLLUP(())"},
+		{"group by rollup with empty set then alias", "SELECT a FROM t GROUP BY ROLLUP(()), a AS x"},
+		{"group by rollup with empty set then with rollup", "SELECT a FROM t GROUP BY ROLLUP(()) WITH ROLLUP"},
 		{"pipe set dotted target", "FROM t |> SET a.b = 1"},
 		{"qualified star on parenthesized expression", "SELECT (a + b).* FROM t"},
 		{"qualified star on star", "SELECT *.* FROM t"},
@@ -882,6 +924,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested position",
 			sql:  "SELECT " + strings.Repeat("POSITION(", depth) + "'a'" + strings.Repeat(", 'abc')", depth),
+		},
+		{
+			name: "deeply nested position with parenthesized in operand",
+			sql:  "SELECT " + strings.Repeat("POSITION(x IN (", 8000) + "1" + strings.Repeat("))", 8000),
+		},
+		{
+			name: "deeply nested parentheses",
+			sql:  "SELECT " + strings.Repeat("(", 8000) + "1" + strings.Repeat(")", 8000),
 		},
 		{
 			name: "nested row constructor",
