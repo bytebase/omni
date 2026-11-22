@@ -134,6 +134,13 @@ func TestSplit(t *testing.T) {
 			offsets: [][2]int{{0, 30}, {30, 51}},
 			empty:   []bool{false, false},
 		},
+		{
+			name:    "insert format csv preserves semicolons in inline payload",
+			script:  "INSERT INTO t FORMAT CSV\nhello;world\n",
+			want:    []string{"INSERT INTO t FORMAT CSV\nhello;world\n"},
+			offsets: [][2]int{{0, 37}},
+			empty:   []bool{false},
+		},
 	}
 
 	for _, tc := range cases {
@@ -336,16 +343,15 @@ func TestValidateQuery(t *testing.T) {
 		{"WITH 1 AS `x` SELECT 2", true},
 		{"WITH 1 AS x SELECT 'foo' AS y", true},
 		{"WITH 1 AS x SELECT [] AS y", true},
-		{"WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", false},
-		{"WITH x AS (SELECT 1) UPDATE t SET a = 1", false},
-		{"WITH x AS (SELECT 1) DELETE FROM t", false},
 		{"WITH 1 AS update SELECT update", true},
 		{"WITH 1 AS insert SELECT insert", true},
 		{"WITH 1 AS delete SELECT delete", true},
 		{"WITH 1 AS select SELECT select", true},
 		{"INSERT INTO t VALUES (1)", false},
+		{"INSERT INTO t FORMAT CSV\nhello;world\n\"unclosed", false},
 		{"UPDATE t SET a = 1 WHERE b = 2", false},
 		{"DELETE FROM t WHERE a = 1", false},
+		{"create table t (a int);", false},
 		{"create table t (a int) ENGINE = Memory;", false},
 		{"ALTER TABLE t ADD COLUMN c Int32", false},
 		{"DROP TABLE t", false},
@@ -409,6 +415,12 @@ func TestValidateQuery(t *testing.T) {
 		{"unterminated double-quoted ident", `SELECT "unterminated`, 7, "unterminated quoted identifier"},
 		{"unterminated block comment", "/* unclosed SELECT 1", 0, "unterminated block comment"},
 		{"unterminated nested block comment", "/* /* */ SELECT 1", 0, "unterminated block comment"},
+		{"with insert rejected as syntax error", "WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", 21, "unexpected token"},
+		{"with update rejected as syntax error", "WITH x AS (SELECT 1) UPDATE t SET a = 1", 21, "unexpected token"},
+		{"with delete rejected as syntax error", "WITH x AS (SELECT 1) DELETE FROM t", 21, "unexpected token"},
+		{"syntax error propagates parse error", "SELECT 1 FROM", 13, "expected"},
+		{"syntax error after leading semicolon keeps script offset", "; SELECT 1 FROM", 15, "expected"},
+		{"unparsed select propagates parse error", "SELECT 1e1 NANOSECOND", 11, "unexpected token"},
 	} {
 		t.Run(bad.name, func(t *testing.T) {
 			ro, rd, err := ValidateQuery(bad.sql)
@@ -427,6 +439,9 @@ func TestValidateQuery(t *testing.T) {
 			}
 			if pe.Position != bad.wantPos {
 				t.Errorf("ValidateQuery(%q) Position = %d, want %d", bad.sql, pe.Position, bad.wantPos)
+			}
+			if got := CheckStatementWithoutQuotedTextAndComment(bad.sql); got {
+				t.Errorf("CheckStatementWithoutQuotedTextAndComment(%q) = true, want false", bad.sql)
 			}
 		})
 	}
@@ -450,7 +465,7 @@ func TestStatementReadsRows(t *testing.T) {
 		{"EXPLAIN ANALYZE json = 1 SELECT 1", true},
 		{"EXPLAIN ANALYZE SELECT 1; DROP TABLE t", false},
 		{"INSERT INTO t VALUES (1)", false},
-		{"WITH x AS (SELECT 1) DELETE FROM t", false},
+		{"INSERT INTO t FORMAT CSV\nhello;world\n\"unclosed", false},
 		{"SELECT 1; DROP TABLE t", false},
 		{"USE mydb", false},
 		{"SYSTEM FLUSH LOGS", false},
@@ -464,10 +479,27 @@ func TestStatementReadsRows(t *testing.T) {
 			t.Errorf("StatementReadsRows(%q) = %v, want %v", tc.statement, got, tc.rows)
 		}
 	}
-	if _, err := StatementReadsRows("SELECT 'unterminated"); err == nil {
-		t.Error("StatementReadsRows of an unterminated literal returned no error")
-	}
-	if _, err := StatementReadsRows("/* /* */ SELECT 1"); err == nil {
-		t.Error("StatementReadsRows of an unterminated nested block comment returned no error")
+	for _, bad := range []struct {
+		sql     string
+		wantPos int
+	}{
+		{"SELECT 'unterminated", 7},
+		{"/* /* */ SELECT 1", 0},
+		{"WITH x AS (SELECT 1) DELETE FROM t", 21},
+		{"SELECT 1e1 NANOSECOND", 11},
+		{"; SELECT 1 FROM", 15},
+	} {
+		got, err := StatementReadsRows(bad.sql)
+		if err == nil {
+			t.Errorf("StatementReadsRows(%q) = (%v, nil), want error", bad.sql, got)
+			continue
+		}
+		if got {
+			t.Errorf("StatementReadsRows(%q) returned true on error", bad.sql)
+		}
+		var pe *parser.ParseError
+		if !errors.As(err, &pe) || pe.Position != bad.wantPos {
+			t.Errorf("StatementReadsRows(%q) err = %v, want *parser.ParseError at %d", bad.sql, err, bad.wantPos)
+		}
 	}
 }

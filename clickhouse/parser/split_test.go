@@ -145,6 +145,62 @@ func TestSplit(t *testing.T) {
 			empty:   []bool{false, false},
 			offsets: [][2]int{{0, 17}, {17, 27}},
 		},
+		{
+			name:    "insert format csv preserves semicolons in inline payload",
+			script:  "INSERT INTO t FORMAT CSV\nhello;world\nfoo;bar\n",
+			want:    []string{"INSERT INTO t FORMAT CSV\nhello;world\nfoo;bar\n"},
+			empty:   []bool{false},
+			offsets: [][2]int{{0, 45}},
+		},
+		{
+			name:    "insert format csv after earlier statement preserves payload",
+			script:  "SELECT 1;\nINSERT INTO db.t (a, b) FORMAT CSV\na@b;1\n\"unclosed;2",
+			want:    []string{"SELECT 1;", "\nINSERT INTO db.t (a, b) FORMAT CSV\na@b;1\n\"unclosed;2"},
+			empty:   []bool{false, false},
+			offsets: [][2]int{{0, 9}, {9, 62}},
+		},
+		{
+			name:    "insert format with settings including setting named format",
+			script:  "INSERT INTO TABLE t (a) SETTINGS format = 'CSV', async_insert = 1 FORMAT JSONEachRow\n{\"a\":\"x;y\"}\n",
+			want:    []string{"INSERT INTO TABLE t (a) SETTINGS format = 'CSV', async_insert = 1 FORMAT JSONEachRow\n{\"a\":\"x;y\"}\n"},
+			empty:   []bool{false},
+			offsets: [][2]int{{0, 97}},
+		},
+		{
+			name:    "insert into function format preserves inline payload",
+			script:  "INSERT INTO FUNCTION s3('https://example.com/a;b', 'CSV') FORMAT CSV\n1;2\n",
+			want:    []string{"INSERT INTO FUNCTION s3('https://example.com/a;b', 'CSV') FORMAT CSV\n1;2\n"},
+			empty:   []bool{false},
+			offsets: [][2]int{{0, 73}},
+		},
+		{
+			name:    "explain ast insert format preserves inline payload",
+			script:  "EXPLAIN AST INSERT INTO t FORMAT CSV\nhello;world\n",
+			want:    []string{"EXPLAIN AST INSERT INTO t FORMAT CSV\nhello;world\n"},
+			empty:   []bool{false},
+			offsets: [][2]int{{0, 49}},
+		},
+		{
+			name:    "insert values still splits across statements",
+			script:  "INSERT INTO t VALUES (1, 'a');\nINSERT INTO t VALUES (2, 'b');",
+			want:    []string{"INSERT INTO t VALUES (1, 'a');", "\nINSERT INTO t VALUES (2, 'b');"},
+			empty:   []bool{false, false},
+			offsets: [][2]int{{0, 30}, {30, 61}},
+		},
+		{
+			name:    "insert parenthesized select still splits across statements",
+			script:  "INSERT INTO t (SELECT 1); SELECT 2;",
+			want:    []string{"INSERT INTO t (SELECT 1);", " SELECT 2;"},
+			empty:   []bool{false, false},
+			offsets: [][2]int{{0, 25}, {25, 35}},
+		},
+		{
+			name:    "truncated insert before format still splits at semicolon",
+			script:  "INSERT INTO t FORMAT; SELECT 2;",
+			want:    []string{"INSERT INTO t FORMAT;", " SELECT 2;"},
+			empty:   []bool{false, false},
+			offsets: [][2]int{{0, 21}, {21, 31}},
+		},
 	}
 
 	for _, tc := range cases {

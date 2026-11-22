@@ -13,24 +13,21 @@ import (
 // Classification uses clickhouse/parser's lexer and AST: SELECT (including
 // parenthesized, FROM-first, WITH/CTE, UNION/INTERSECT/EXCEPT, FORMAT, and
 // SETTINGS queries, excluding INTO OUTFILE), SHOW, DESCRIBE/DESC, EXISTS,
-// CHECK, and non-executing EXPLAIN statements are allowed. Multi-statement
-// batches, EXPLAIN ANALYZE (which executes what it plans), WITH ... DML, and
-// all DDL/DML/admin statements are rejected. Lexical errors (unterminated
-// strings, dollar-quoted strings, quoted identifiers, or block comments) are
-// returned as errors.
+// CHECK, and non-executing EXPLAIN statements are allowed. Empty/comment-only
+// inputs and multi-statement batches return (false, false, nil). EXPLAIN
+// ANALYZE (which executes what it plans) and all DDL/DML/admin statements
+// return (false, false, nil). Lexical and syntax errors from clickhouse/parser
+// are propagated with statement-relative byte offsets.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
-	if err := firstLexError(statement); err != nil {
-		return false, false, err
-	}
 	seg, ok := singleNonEmptySegment(statement)
 	if !ok {
 		return false, false, nil
 	}
 	stmts, err := parser.Parse(seg.Text)
-	if err != nil || len(stmts) != 1 {
-		return false, false, nil
+	if err != nil {
+		return false, false, wrapLexError(offsetParseError(err, seg.ByteStart))
 	}
-	if !isReadOnlyAST(stmts[0]) {
+	if len(stmts) != 1 || !isReadOnlyAST(stmts[0]) {
 		return false, false, nil
 	}
 	return true, true, nil
@@ -39,21 +36,21 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 // StatementReadsRows reports whether the server answers statement with rows.
 // EXPLAIN ANALYZE is classified as non-read-only by ValidateQuery because it
 // executes what it plans, yet the server still returns the plan as rows.
+// Lexical and syntax errors from clickhouse/parser are propagated with
+// statement-relative byte offsets rather than downgraded to a non-row command.
 func StatementReadsRows(statement string) (bool, error) {
-	if err := firstLexError(statement); err != nil {
-		return false, err
-	}
 	seg, ok := singleNonEmptySegment(statement)
 	if !ok {
 		return false, nil
 	}
 	stmts, err := parser.Parse(seg.Text)
-	if err == nil && len(stmts) == 1 {
-		return astReadsRows(stmts[0]), nil
+	if err != nil {
+		return false, wrapLexError(offsetParseError(err, seg.ByteStart))
 	}
-	// If a single EXPLAIN statement wraps syntax outside the parser grammar,
-	// ClickHouse still answers an EXPLAIN statement with rows.
-	return inspectExplain(seg.Text).isExplain, nil
+	if len(stmts) != 1 {
+		return false, nil
+	}
+	return astReadsRows(stmts[0]), nil
 }
 
 // CheckStatementWithoutQuotedTextAndComment classifies a single statement as a
@@ -115,17 +112,18 @@ func hasOutfile(out *parser.OutputClause) bool {
 	return out != nil && out.Outfile != ""
 }
 
-func firstLexError(text string) error {
-	l := parser.NewLexer(text)
-	for l.NextToken().Type != parser.TokEOF {
-		if err := l.Err(); err != nil {
-			return wrapLexError(err)
+func offsetParseError(err error, base int) error {
+	if base == 0 {
+		return err
+	}
+	var pe *parser.ParseError
+	if errors.As(err, &pe) {
+		return &parser.ParseError{
+			Message:  pe.Message,
+			Position: pe.Position + base,
 		}
 	}
-	if err := l.Err(); err != nil {
-		return wrapLexError(err)
-	}
-	return nil
+	return err
 }
 
 // wrapLexError preserves *parser.ParseError unwrapping while keeping the
