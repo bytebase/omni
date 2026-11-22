@@ -204,6 +204,8 @@ func (p *Parser) parseCreateOrReplaceTableBody() error {
 }
 
 func (p *Parser) parseCreateTableClauses() error {
+	hasPartitionedBy := false
+	hasClusterBy := false
 	for {
 		switch p.cur().Kind {
 		case kwOPTIONS:
@@ -212,6 +214,10 @@ func (p *Parser) parseCreateTableClauses() error {
 				return err
 			}
 		case kwPARTITIONED:
+			if hasClusterBy {
+				return p.errorf("PARTITIONED BY cannot be combined with CLUSTER BY")
+			}
+			hasPartitionedBy = true
 			p.advance()
 			if _, err := p.expect(kwBY); err != nil {
 				return err
@@ -224,6 +230,10 @@ func (p *Parser) parseCreateTableClauses() error {
 				return err
 			}
 		case kwCLUSTER:
+			if hasPartitionedBy {
+				return p.errorf("CLUSTER BY cannot be combined with PARTITIONED BY")
+			}
+			hasClusterBy = true
 			if err := p.parseClusterBySpec(); err != nil {
 				return err
 			}

@@ -947,14 +947,23 @@ func (p *Parser) isJoinStart() bool {
 
 func (p *Parser) parseJoinRelation() error {
 	natural := p.match(kwNATURAL)
-	if err := p.parseJoinType(); err != nil {
+	isCross, err := p.parseJoinType()
+	if err != nil {
 		return err
+	}
+	if natural && isCross {
+		return p.errorf("NATURAL cannot be combined with CROSS JOIN")
 	}
 	if _, err := p.expect(kwJOIN); err != nil {
 		return err
 	}
+	isLateral := false
 	if p.isLateralRelationModifier() {
+		isLateral = true
 		p.advance()
+	}
+	if natural && isLateral {
+		return p.errorf("NATURAL JOIN cannot be combined with LATERAL")
 	}
 	if err := p.parseRelationPrimary(); err != nil {
 		return err
@@ -970,12 +979,13 @@ func (p *Parser) parseJoinRelation() error {
 	return nil
 }
 
-func (p *Parser) parseJoinType() error {
+func (p *Parser) parseJoinType() (bool, error) {
 	switch p.cur().Kind {
 	case kwINNER:
 		p.advance()
 	case kwCROSS:
 		p.advance()
+		return true, nil
 	case kwLEFT:
 		p.advance()
 		p.match(kwOUTER, kwSEMI, kwANTI)
@@ -988,7 +998,7 @@ func (p *Parser) parseJoinType() error {
 	case kwSEMI, kwANTI:
 		p.advance()
 	}
-	return nil
+	return false, nil
 }
 
 func (p *Parser) parseRelationPrimary() error {
@@ -1739,7 +1749,7 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 		// Allow as implicit alias when followed by an unmistakable clause boundary.
 		after := p.peek(2).Kind
 		isClauseExprArg := func() bool {
-			return after != tokEOF && after != tokSemicolon && after != tokRParen && after != tokComma && !isExprContinuationOp(after)
+			return !p.isClauseStartAt(2) && !isExprContinuationOp(after)
 		}
 		switch next {
 		case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
@@ -1777,6 +1787,36 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 	return true
 }
 
+func (p *Parser) isClauseStartAt(offset int) bool {
+	k := p.peek(offset).Kind
+	n := p.peek(offset + 1).Kind
+	switch k {
+	case tokEOF, tokSemicolon, tokRParen, tokComma, tokOperatorPipe:
+		return true
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return n == kwBY
+	case kwWINDOW:
+		return n.isIdentifier() && p.peek(offset+2).Kind == kwAS
+	case kwLATERAL:
+		return n == kwVIEW
+	case kwWITH:
+		return n == kwROLLUP || n == kwCUBE
+	case kwGROUPING:
+		return n == kwSETS && p.peek(offset+2).Kind == tokLParen
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch n {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwFROM:
+		return n != tokEOF && n != tokSemicolon && n != tokRParen && n != tokComma && !isExprContinuationOp(n)
+	case tokIdent:
+		return isWord(p.peek(offset), "QUALIFY") && n != tokEOF && n != tokSemicolon && n != tokRParen && n != tokComma && !isExprContinuationOp(n)
+	}
+	return false
+}
+
 func (p *Parser) parseSample() error {
 	if _, err := p.expect(kwTABLESAMPLE); err != nil {
 		return err
@@ -1784,13 +1824,11 @@ func (p *Parser) parseSample() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
-	if !p.match(tokRParen) {
-		if err := p.parseSampleMethod(); err != nil {
-			return err
-		}
-		if _, err := p.expect(tokRParen); err != nil {
-			return err
-		}
+	if err := p.parseSampleMethod(); err != nil {
+		return err
+	}
+	if _, err := p.expect(tokRParen); err != nil {
+		return err
 	}
 	if p.match(kwREPEATABLE) {
 		if _, err := p.expect(tokLParen); err != nil {

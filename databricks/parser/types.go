@@ -394,39 +394,48 @@ func (p *Parser) parseDataType() error {
 			}
 			return nil
 		}
-		// Plain INTERVAL primitive type (optionally with params).
-		return p.parseOptionalTypeParams()
+		// Plain INTERVAL primitive type (no parameters).
+		return p.parseOptionalTypeParams(0, "INTERVAL")
 	}
 
 	// Primitive / named type.
-	if err := p.parsePrimitiveTypeName(); err != nil {
+	maxParams, typeName, err := p.parsePrimitiveTypeName()
+	if err != nil {
 		return err
 	}
-	return p.parseOptionalTypeParams()
+	return p.parseOptionalTypeParams(maxParams, typeName)
 }
 
-func (p *Parser) parsePrimitiveTypeName() error {
-	switch p.cur().Kind {
+func (p *Parser) parsePrimitiveTypeName() (int, string, error) {
+	tok := p.cur()
+	switch tok.Kind {
 	case kwSTRING:
 		p.advance()
 		if p.cur().Kind == kwCOLLATE {
-			return p.parseCollateClause()
+			if err := p.parseCollateClause(); err != nil {
+				return 0, "", err
+			}
 		}
-		return nil
+		return 0, tok.Text, nil
+	case kwCHARACTER, kwCHAR, kwVARCHAR:
+		p.advance()
+		return 1, tok.Text, nil
+	case kwDECIMAL, kwDEC, kwNUMERIC:
+		p.advance()
+		return 2, tok.Text, nil
 	case kwBOOLEAN, kwTINYINT, kwBYTE, kwSMALLINT, kwSHORT,
 		kwINT, kwINTEGER, kwBIGINT, kwLONG, kwFLOAT, kwREAL, kwDOUBLE,
 		kwDATE, kwTIMESTAMP, kwTIMESTAMP_NTZ, kwTIMESTAMP_LTZ,
-		kwCHARACTER, kwCHAR, kwVARCHAR, kwBINARY,
-		kwDECIMAL, kwDEC, kwNUMERIC, kwVOID, kwINTERVAL, kwVARIANT,
+		kwBINARY, kwVOID, kwINTERVAL, kwVARIANT,
 		kwARRAY, kwSTRUCT, kwMAP:
 		p.advance()
-		return nil
+		return 0, tok.Text, nil
 	default:
-		return p.errorf("unsupported data type %q", p.cur().Text)
+		return 0, "", p.errorf("unsupported data type %q", tok.Text)
 	}
 }
 
-func (p *Parser) parseOptionalTypeParams() error {
+func (p *Parser) parseOptionalTypeParams(maxParams int, typeName string) error {
 	if p.cur().Kind != tokLParen {
 		return nil
 	}
@@ -436,11 +445,19 @@ func (p *Parser) parseOptionalTypeParams() error {
 		p.restore(cp)
 		return nil
 	}
+	if maxParams == 0 {
+		return p.errorf("data type %q does not accept parameters", typeName)
+	}
 	p.advance()
+	count := 1
 	for p.match(tokComma) {
 		if _, err := p.expect(tokInt); err != nil {
 			p.restore(cp)
 			return err
+		}
+		count++
+		if count > maxParams {
+			return p.errorf("data type %q accepts at most %d parameter(s)", typeName, maxParams)
 		}
 	}
 	if _, err := p.expect(tokRParen); err != nil {
@@ -817,10 +834,17 @@ func (p *Parser) parsePartitionSpec() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
+	seen := make(map[string]struct{})
 	for {
-		if _, err := p.parseIdentifier(); err != nil {
+		key, err := p.parseIdentifier()
+		if err != nil {
 			return err
 		}
+		norm := normalizeIdentName(key)
+		if _, dup := seen[norm]; dup {
+			return p.errorf("duplicate partition key %q in PARTITION specification", key)
+		}
+		seen[norm] = struct{}{}
 		if p.match(tokEq) {
 			if !p.match(kwDEFAULT) {
 				if err := p.parseConstant(); err != nil {

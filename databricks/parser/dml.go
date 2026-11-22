@@ -232,15 +232,6 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 			return "", err
 		}
 	}
-	if p.cur().Kind == kwIF {
-		p.advance()
-		if !p.matchNot() {
-			return "", p.errorf("expected NOT after IF")
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return "", err
-		}
-	}
 	if p.cur().Kind == kwBY && p.peek(1).Kind == kwNAME {
 		p.advance()
 		p.advance()

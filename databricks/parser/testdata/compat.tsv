@@ -1987,7 +1987,7 @@ reject	reject	grammar	insertInto(partitionSpec_(IF_errorCapturingNot_EXISTS)?)?/
 reject	reject	grammar	insertInto(partitionSpec_(IF_errorCapturingNot_EXISTS)?)?/partitionSpec_(IF_errorCapturingNot_EXISTS)?!insert	INSERT OVERWRITE a PARTITION(a) zzz SELECT a
 reject	reject	grammar	insertInto(partitionSpec_(IF_errorCapturingNot_EXISTS)?)?/partitionSpec_(IF_errorCapturingNot_EXISTS)?!swap	INSERT OVERWRITE a PARTITIONED(a) SELECT a
 accept	accept	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/%empty	INSERT INTO a SELECT a
-accept	accept	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS	INSERT INTO a IF NOT EXISTS SELECT a
+reject	accept	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS	INSERT INTO a IF NOT EXISTS SELECT a
 reject	reject	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!drop-1	INSERT INTO a NOT EXISTS SELECT a
 reject	reject	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!drop-2	INSERT INTO a IF EXISTS SELECT a
 reject	reject	grammar	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!drop-3	INSERT INTO a IF NOT SELECT a
@@ -2060,7 +2060,7 @@ reject	reject	grammar	partitionSpecLocation(locationSpec)?/locationSpec!swap	ALT
 accept	accept	grammar	partitionSpec/PARTITION_LEFT_PAREN_partitionVal_(COMMA_partitionVal)*~30e3cfa1	DESC a PARTITION(a)
 accept	accept	grammar	partitionSpec(COMMA_partitionVal)*/%empty	DESC a PARTITION(a)
 reject	reject	grammar	partitionSpec(COMMA_partitionVal)*/%empty!insert	DESC a PARTITION(a zzz)
-accept	accept	grammar	partitionSpec(COMMA_partitionVal)*/COMMA_partitionVal_(COMMA_partitionVal)*	DESC a PARTITION(a, a)
+reject	accept	grammar	partitionSpec(COMMA_partitionVal)*/COMMA_partitionVal_(COMMA_partitionVal)*	DESC a PARTITION(a, a)
 reject	reject	grammar	partitionSpec(COMMA_partitionVal)*/COMMA_partitionVal_(COMMA_partitionVal)*!drop-1	DESC a PARTITION(a a)
 reject	reject	grammar	partitionSpec(COMMA_partitionVal)*/COMMA_partitionVal_(COMMA_partitionVal)*!drop-2	DESC a PARTITION(a,)
 reject	reject	grammar	partitionSpec(COMMA_partitionVal)*/COMMA_partitionVal_(COMMA_partitionVal)*!truncate	DESC a PARTITION(a,
@@ -3265,23 +3265,23 @@ reject	reject	grammar	joinCriteria/USING_identifierList!drop-3	FROM a JOIN a USI
 reject	reject	grammar	joinCriteria/USING_identifierList!drop-4	FROM a JOIN a USING(a
 reject	reject	grammar	joinCriteria/USING_identifierList!insert	FROM a JOIN a USING(a) zzz
 accept	accept	grammar	joinCriteria/USING_identifierList!swap	FROM a JOIN a VALUE(a)
-accept	accept	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d	FROM a TABLESAMPLE()
+reject	accept	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d	FROM a TABLESAMPLE()
 accept	accept	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!drop-1	FROM a()
 reject	reject	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!drop-2	FROM a TABLESAMPLE)
 reject	reject	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!drop-3	FROM a TABLESAMPLE(
-accept	accept	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!insert	FROM a TABLESAMPLE() zzz
+reject	accept	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!insert	FROM a TABLESAMPLE() zzz
 reject	reject	grammar	sample/TABLESAMPLE_LEFT_PAREN_(sampleMethod)?_RIGHT_PAREN_(REP~db151f1d!swap	FROM a TARGET()
-accept	accept	grammar	sample(sampleMethod)?/%empty	FROM a TABLESAMPLE()
+reject	accept	grammar	sample(sampleMethod)?/%empty	FROM a TABLESAMPLE()
 accept	accept	grammar	sample(sampleMethod)?/%empty!insert	FROM a TABLESAMPLE(zzz)
 accept	accept	grammar	sample(sampleMethod)?/sampleMethod	FROM a TABLESAMPLE(a)
 reject	reject	grammar	sample(sampleMethod)?/sampleMethod!insert	FROM a TABLESAMPLE(a zzz)
-accept	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/%empty	FROM a TABLESAMPLE()
-accept	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN	FROM a TABLESAMPLE() REPEATABLE(1)
+reject	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/%empty	FROM a TABLESAMPLE()
+reject	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN	FROM a TABLESAMPLE() REPEATABLE(1)
 reject	reject	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!drop-1	FROM a TABLESAMPLE()(1)
 reject	reject	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!drop-2	FROM a TABLESAMPLE() REPEATABLE 1)
 reject	reject	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!drop-3	FROM a TABLESAMPLE() REPEATABLE()
 reject	reject	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!drop-4	FROM a TABLESAMPLE() REPEATABLE(1
-accept	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!insert	FROM a TABLESAMPLE() REPEATABLE(1) zzz
+reject	accept	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!insert	FROM a TABLESAMPLE() REPEATABLE(1) zzz
 reject	reject	grammar	sample(REPEATABLE_LEFT_PAREN_INTEGER_VALUE_~1caab361)?/REPEATABLE_LEFT_PAREN_INTEGER_VALUE_RIGHT_PAREN!swap	FROM a TABLESAMPLE() REPLACE(1)
 accept	accept	grammar	sampleMethod/(MINUS)?_(INTEGER_VALUE|DECIMAL_VALUE)_PERCENTLIT	FROM a TABLESAMPLE(1 PERCENT)
 accept	accept	grammar	sampleMethod/(MINUS)?_(INTEGER_VALUE|DECIMAL_VALUE)_PERCENTLIT!drop-1	FROM a TABLESAMPLE(PERCENT)
@@ -3401,7 +3401,7 @@ reject	accept	grammar	relationPrimary(optionsClause)?/optionsClause	FROM a WITH(
 accept	accept	grammar	relationPrimary(optionsClause)?/optionsClause!drop-1	FROM a(a)
 accept	accept	grammar	relationPrimary(optionsClause)?/optionsClause!swap	FROM a WITHIN(a)
 accept	accept	grammar	relationPrimary(sample)?/%empty	FROM a
-accept	accept	grammar	relationPrimary(sample)?/sample	FROM a TABLESAMPLE()
+reject	accept	grammar	relationPrimary(sample)?/sample	FROM a TABLESAMPLE()
 reject	accept	grammar	optionsClause/WITH_propertyList	FROM a WITH(a)
 accept	accept	grammar	inlineTable/VALUES_expression_(COMMA_expression)*_tableAlias	VALUES a
 accept	accept	grammar	inlineTable(COMMA_expression)*/%empty	VALUES a
@@ -4714,14 +4714,14 @@ accept	accept	grammar	dataType(HOUR|MINUTE|SECOND)/SECOND	DECLARE a INTERVAL DAY
 reject	reject	grammar	dataType(HOUR|MINUTE|SECOND)/SECOND!insert	DECLARE a INTERVAL DAY TO SECOND zzz
 reject	reject	grammar	dataType(HOUR|MINUTE|SECOND)/SECOND!swap	DECLARE a INTERVAL DAY TO SECONDS
 accept	accept	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/%empty	DECLARE a BOOLEAN
-accept	accept	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN	DECLARE a BOOLEAN(1)
+reject	accept	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN	DECLARE a BOOLEAN(1)
 reject	reject	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-1	DECLARE a BOOLEAN 1)
 reject	reject	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-2	DECLARE a BOOLEAN()
 reject	reject	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!drop-3	DECLARE a BOOLEAN(1
 reject	reject	grammar	dataType(LEFT_PAREN_INTEGER_VALUE_(COMMA_INTE~496cd065)?/LEFT_PAREN_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*_RIGHT_PAREN!insert	DECLARE a BOOLEAN(1) zzz
-accept	accept	grammar	dataType(COMMA_INTEGER_VALUE)*/%empty	DECLARE a BOOLEAN(1)
+reject	accept	grammar	dataType(COMMA_INTEGER_VALUE)*/%empty	DECLARE a BOOLEAN(1)
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/%empty!insert	DECLARE a BOOLEAN(1 zzz)
-accept	accept	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*	DECLARE a BOOLEAN(1, 1)
+reject	accept	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*	DECLARE a BOOLEAN(1, 1)
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-1	DECLARE a BOOLEAN(1 1)
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	DECLARE a BOOLEAN(1,)
 reject	reject	grammar	dataType(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	DECLARE a BOOLEAN(1,
@@ -5293,7 +5293,7 @@ reject	reject	grammar	operatorPipeRightSide/unpivotClause_(pivotClause)?!drop-8	
 reject	reject	grammar	operatorPipeRightSide/unpivotClause_(pivotClause)?!drop-9	SELECT a |> UNPIVOT(a FOR a IN(a)
 accept	accept	grammar	operatorPipeRightSide/unpivotClause_(pivotClause)?!insert	SELECT a |> UNPIVOT(a FOR a IN(a)) zzz
 reject	reject	grammar	operatorPipeRightSide/unpivotClause_(pivotClause)?!swap	SELECT a |> UNSET(a FOR a IN(a))
-accept	accept	grammar	operatorPipeRightSide/sample	SELECT a |> TABLESAMPLE()
+reject	accept	grammar	operatorPipeRightSide/sample	SELECT a |> TABLESAMPLE()
 reject	reject	grammar	operatorPipeRightSide/sample!drop-1	SELECT a |>()
 reject	reject	grammar	operatorPipeRightSide/sample!drop-2	SELECT a |> TABLESAMPLE)
 reject	reject	grammar	operatorPipeRightSide/sample!drop-3	SELECT a |> TABLESAMPLE(

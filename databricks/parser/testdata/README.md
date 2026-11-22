@@ -12,9 +12,9 @@ recognizer again on every run with no server, credentials, or network.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,229 | 2,149 | 80 | 0 |
-| Near-misses | 4,209 | 4,110 | 95 | 4 |
-| **All** | **6,438** | **6,259** | **175** | **4** |
+| One per alternative | 2,229 | 2,138 | 91 | 0 |
+| Near-misses | 4,209 | 4,108 | 97 | 4 |
+| **All** | **6,438** | **6,246** | **188** | **4** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,31 +70,36 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,259 / 6,438 (97.22%), with 2,149 / 2,229 (96.41%) on
-  generated grammar alternatives (all 80 excluded alternatives are Spark's
+- **Agreement: 6,246 / 6,438 (97.02%), with 2,138 / 2,229 (95.92%) on
+  generated grammar alternatives (all 91 excluded alternatives are Spark's
   error-capturing or AstBuilder-rejected grammar forms: unparenthesized `TABLE`
   TVF arguments and unparenthesized multi-expression partitioning/ordering,
   valueless setter `propertyList` witnesses, missing-action `ALTER COLUMN`,
+  empty `TABLESAMPLE()`, invalid primitive type parameter arities,
   `unsupportedType=identifier` for data types and typed literals, non-`NOSCAN`
-  `ANALYZE` modifiers, duplicate CTE names, unquoted hyphens, invalid
-  pipe-operator forms, and mixed/repeated interval continuations), 175
-  `judge-only` rows, and 4 `omni-only` near-miss rows.**
+  `ANALYZE` modifiers, `INSERT INTO ... IF NOT EXISTS`, duplicate CTE/partition
+  keys, unquoted hyphens, invalid pipe-operator forms, and mixed/repeated
+  interval continuations), 188 `judge-only` rows, and 4 `omni-only` near-miss
+  rows.**
 
-## Remaining tail (175 `judge-only`, 4 `omni-only` rows)
+## Remaining tail (188 `judge-only`, 4 `omni-only` rows)
 
-All 175 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
+All 188 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
 intentionally rejects while the grammar recognizer accepts them due to known
 properties of the offline recognizer and upstream error-capturing / AstBuilder
 rules, and the 4 `omni-only` near-misses are `.*?` wildcard statements
 (`REFRESH .*?` and `SET .*?`) accepted by Spark's ANTLR grammar that the offline
 recognizer's `.` wildcard does not match:
 
-1. **55 `unsupportedType=identifier` rows** (1 alternative `DECLARE a a` and 54
-   near-misses such as `CREATE TABLE a(a BOTH)`, `SELECT a :: BOTH`, and
-   `DECLARE a zzz`): `SqlBaseParser.g4:1296` keeps `unsupportedType=identifier`
-   solely so Spark v4.0.5's `DataTypeAstBuilder.visitPrimitiveDataType` can
-   throw `dataTypeUnsupportedError`; strict `databricks/parser` rejects
-   unsupported primitive type names directly.
+1. **58 primitive data-type diagnostics** (55 `unsupportedType=identifier` rows
+   such as `DECLARE a a`, `CREATE TABLE a(a BOTH)`, `SELECT a :: BOTH`, and
+   `DECLARE a zzz`, plus 3 invalid type-parameter arity rows `DECLARE a BOOLEAN(1)`
+   and `DECLARE a BOOLEAN(1, 1)`): `SqlBaseParser.g4:1296-1307` keeps
+   `unsupportedType=identifier` and unrestricted `(INTEGER_VALUE, ...)` solely
+   so Spark v4.0.5's `DataTypeAstBuilder.visitPrimitiveDataType` can report
+   `dataTypeUnsupportedError` / parameter arity errors; strict
+   `databricks/parser` enforces valid primitive type names and parameter counts
+   (`CHAR`/`VARCHAR` <= 1, `DECIMAL`/`DEC`/`NUMERIC` <= 2, 0 for all others).
 2. **32 error-capturing `TABLE` TVF argument rows** (30 alternatives and 2
    near-misses using `FROM IDENTIFIER(TABLE a ...)` and unparenthesized
    `PARTITION BY a, a` / `ORDER BY a, a`): `SqlBaseParser.g4:986-1002` keeps
@@ -147,34 +152,40 @@ recognizer's `.` wildcard does not match:
    and `INTERVAL 1 SECOND TO SECOND 1 NANOSECOND`): Spark v4.0.5's
    `AstBuilder.parseIntervalLiteral` explicitly rejects these continuations as
    syntax errors; strict `databricks/parser` rejects them directly.
-8. **8 unsupported typed-literal (`literalType: unsupportedType=identifier`) rows**
+8. **8 empty `TABLESAMPLE()` rows** (6 alternatives and 2 near-misses such as
+   `FROM a TABLESAMPLE()`, `FROM a TABLESAMPLE() REPEATABLE(1)`, and
+   `SELECT a |> TABLESAMPLE()`): Spark requires a `ROWS`, `PERCENT`, or `BUCKET`
+   sampling method inside `TABLESAMPLE(...)` and keeps `sampleMethod?` optional
+   solely for diagnostics.
+9. **8 unsupported typed-literal (`literalType: unsupportedType=identifier`) rows**
    (1 alternative `SELECT a 's'` and 7 near-misses such as `SELECT DATEADD 's'`
    and `SELECT a LIKE a 's'`): Spark v4.0.5's `AstBuilder.visitTypeConstructor`
    throws `literalValueTypeUnsupportedError` for literal types outside
    `DATE`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `TIMESTAMP_NTZ`, `INTERVAL`, and `X`.
-9. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
-   (3 alternatives `FROM a - a`, `FROM a - a - a` and 4 near-misses including
-   `DESC FUNCTION - zzz`): `SqlBaseParser.g4:1479` parses `(MINUS identifier)+`
-   solely so Spark's `AstBuilder` can reject unquoted hyphenated names like
-   `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
-   rejects these directly with a positioned `ParseError` while accepting
-   backtick-quoted identifiers.
-10. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
+10. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
+    (3 alternatives `FROM a - a`, `FROM a - a - a` and 4 near-misses including
+    `DESC FUNCTION - zzz`): `SqlBaseParser.g4:1479` parses `(MINUS identifier)+`
+    solely so Spark's `AstBuilder` can reject unquoted hyphenated names like
+    `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
+    rejects these directly with a positioned `ParseError` while accepting
+    backtick-quoted identifiers.
+11. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
     `operatorPipeSetAssignmentSeq`) rows** (3 alternatives and 1 near-miss for
     combined `|> PIVOT ... UNPIVOT ...`, `|> UNPIVOT ... PIVOT ...`, and dotted
     `|> SET a.a = a`): `SqlBaseParser.g4:1561-1584` explicitly comments that
     these productions (along with `|> WHERE ... WINDOW ...`) are captured solely
     for diagnostic error messages; strict `databricks/parser` rejects them.
-11. **3 non-`NOSCAN` `ANALYZE` modifier rows** (1 alternative
+12. **3 non-`NOSCAN` `ANALYZE` modifier rows** (1 alternative
     `ANALYZE TABLE a COMPUTE STATISTICS a` and 2 near-misses
     `ANALYZE TABLE(S) ... COMPUTE STATISTICS zzz`): Spark v4.0.5's
     `visitAnalyze` / `visitAnalyzeTables` require the optional identifier after
     `COMPUTE STATISTICS` to be `NOSCAN` (case-insensitively).
-12. **1 duplicate CTE name row** (`WITH a(SELECT a), a(SELECT a) SELECT a`):
-    Spark v4.0.5's `AstBuilder.withCTE` rejects duplicate CTE names within the
-    same `WITH` clause (`duplicateCteDefinitionNamesError`), while the grammar
-    generator reuses `a` for both CTE names.
-13. **4 `omni-only` `.*?` wildcard near-misses**
+13. **3 single-row AstBuilder checks** (`INSERT INTO a IF NOT EXISTS SELECT a`,
+    `WITH a(SELECT a), a(SELECT a) SELECT a`, and `DESC a PARTITION(a, a)`):
+    Spark v4.0.5's `AstBuilder` rejects `IF NOT EXISTS` on `INSERT INTO`,
+    duplicate CTE names within a single `WITH` clause, and duplicate keys within
+    a `PARTITION (...)` spec.
+14. **4 `omni-only` `.*?` wildcard near-misses**
    (`SET a = a`, `BEGIN REFRESH REFRESH; END`,
    `BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`,
    `BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`):

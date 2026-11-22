@@ -123,7 +123,7 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 		}
 		if next == kwLIMIT || next == kwOFFSET || next == kwWHERE || next == kwHAVING {
 			after := p.peek(2).Kind
-			if after != tokEOF && after != tokSemicolon && after != tokRParen && after != tokComma && !isExprContinuationOp(after) {
+			if !p.isClauseStartAt(2) && !isExprContinuationOp(after) {
 				return true
 			}
 		}
@@ -332,6 +332,20 @@ func (p *Parser) isNotIdentifierContinuation() bool {
 	case kwUSING:
 		after := p.peek(2).Kind
 		return after == tokLParen || after == tokString || after == tokDoubleQuoted
+	case kwNULLS:
+		after := p.peek(2).Kind
+		return after == kwFIRST || after == kwLAST
+	case kwASC, kwDESC:
+		after := p.peek(2).Kind
+		return after == tokEOF || after == tokSemicolon || after == tokComma || after == tokRParen ||
+			after == tokOperatorPipe || after == kwNULLS || after == kwROWS || after == kwRANGE ||
+			after == kwLIMIT || after == kwOFFSET
+	case kwROWS, kwRANGE:
+		after := p.peek(2).Kind
+		if after == kwBETWEEN || after == kwUNBOUNDED || (after == kwCURRENT && p.peek(3).Kind == kwROW) {
+			return true
+		}
+		return p.hasKeywordAtDepthZero(2, kwPRECEDING) || p.hasKeywordAtDepthZero(2, kwFOLLOWING)
 	case kwEND:
 		return p.openCasesAtCurrentParenDepth() > 0
 	case kwAS:
@@ -1273,9 +1287,30 @@ func (p *Parser) isCaseColumnReference() bool {
 	if next == kwWHEN {
 		return false
 	}
-	if p.peek(2).Kind == kwWHEN {
+	after := p.peek(2).Kind
+	if after == kwWHEN {
 		// `CASE <keyword> WHEN ...` uses the non-reserved keyword as the operand.
 		return !next.isIdentifier()
+	}
+	if next.isIdentifier() {
+		// Compound expressions beginning with an operator-like non-reserved
+		// identifier (e.g. `CASE and + 1 WHEN ...`, `CASE collate + 1 WHEN ...`,
+		// `CASE and(1) WHEN ...`, `CASE in(1) WHEN ...`) are CASE operands.
+		if isExprContinuationOp(after) {
+			return false
+		}
+		if after == tokLParen {
+			if next != kwIN {
+				return false
+			}
+			closeOff := p.matchingCloseOffset(2)
+			if closeOff > 0 {
+				afterClose := p.peek(closeOff + 1).Kind
+				if afterClose == kwWHEN || isExprContinuationOp(afterClose) {
+					return false
+				}
+			}
+		}
 	}
 	return isCaseColumnNext(next)
 }
@@ -1464,7 +1499,7 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 			}
 		case kwEND:
 			next := p.peek(i + 1).Kind
-			if !(p.peek(i-1).Kind == kwCASE && next == kwWHEN) &&
+			if !(p.peek(i-1).Kind == kwCASE && (next == kwWHEN || isExprContinuationOp(next) || next == tokLParen)) &&
 				next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
 				// Discard any speculatively pushed sibling CASEs that never saw a WHEN
 				// (they were column references like `case + 1`, not CASE expressions).
