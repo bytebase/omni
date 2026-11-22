@@ -29,7 +29,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 			return err
 		}
 	}
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
 	if checkBody && bodyErr != nil {
 		return bodyErr
 	}
@@ -118,11 +118,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // Alias-bearing clauses (GROUP BY, HAVING, ORDER BY) and unsupported analyzer
 // expressions leave the view without AnalyzedQuery rather than refusing a view
 // the engine accepts.
-func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
+func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
-	q, err := c.AnalyzeSelectStmt(sel)
+	q, err := c.analyzeSelectStmtWithSource(sel, source)
 	if err == nil {
 		return q, nil
 	}
@@ -390,7 +390,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err := validateViewPreAnalysis(stmt.Select); err != nil {
 		return err
 	}
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
 	if err != nil {
 		return err
 	}

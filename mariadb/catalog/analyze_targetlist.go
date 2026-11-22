@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/deparse"
 )
 
 // analyzeTargetList processes the SELECT list, populating q.TargetList.
@@ -38,10 +39,14 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		if err != nil {
 			return nil, err
 		}
+		name := n.Name
+		if name == "" {
+			name = deriveColumnName(n.Val, analyzed, *resNo, scope.source)
+		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: n.Name,
+			ResName: name,
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -64,7 +69,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -87,7 +92,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -177,8 +182,14 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) 
 	return result, nil
 }
 
-// deriveColumnName generates the output column name for an unaliased expression.
-func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
+// deriveColumnName generates the output column name for an unaliased
+// expression. When source SQL text is available (as on CREATE/ALTER VIEW and
+// CTAS), it uses MariaDB's expression-derived naming rules via deparse.AutoName;
+// otherwise it falls back to the AST-only analyzer naming.
+func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr, position int, source string) string {
+	if source != "" {
+		return deparse.AutoName(source, astNode, position)
+	}
 	switch n := astNode.(type) {
 	case *nodes.ColumnRef:
 		return n.Column
@@ -198,7 +209,7 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 	case *nodes.FuncCallExpr:
 		return n.Name
 	case *nodes.ParenExpr:
-		return deriveColumnName(n.Expr, nil)
+		return deriveColumnName(n.Expr, nil, position, "")
 	default:
 		return "?"
 	}

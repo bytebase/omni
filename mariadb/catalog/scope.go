@@ -13,8 +13,9 @@ type analyzerScope struct {
 	base    *scope.Scope
 	rteMap  []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
 	cols    [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	dbNames []string // parallel to base entries: database name for base tables/views (empty for derived/CTE)
+	dbNames []string    // parallel to base entries: database name for base tables/views (empty for derived/CTE)
 	ctes    map[string]*CommonTableExprQ
+	source  string // original SQL text for expression-derived column names
 	parent  *analyzerScope
 
 	// firstByName maps each name an entry was registered under to the first

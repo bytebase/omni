@@ -11,14 +11,15 @@ import (
 // not match expected.
 //
 // Categories:
-//   S — Statement dispatch gap (parser should accept an sp_proc_stmt-valid
-//       statement); expected=accept; audit fails if reject.
-//   E — Expression production gap; expected=accept; audit fails if reject.
-//   C — Context-sensitive token handling; expected=accept; audit fails if reject.
-//   V — Static validation gap (MySQL CREATE-time rejects what the parser
-//       currently accepts); expected=reject; audit fails if accept.
-//       These are the items deferred to a future mysql/semantic PR, and the
-//       audit locks in "omni still accepts this" to track the backlog.
+//
+//	S — Statement dispatch gap (parser should accept an sp_proc_stmt-valid
+//	    statement); expected=accept; audit fails if reject.
+//	E — Expression production gap; expected=accept; audit fails if reject.
+//	C — Context-sensitive token handling; expected=accept; audit fails if reject.
+//	V — Static validation gap (MySQL CREATE-time rejects what the parser
+//	    currently accepts); expected=reject; audit fails if accept.
+//	    These are the items deferred to a future mysql/semantic PR, and the
+//	    audit locks in "omni still accepts this" to track the backlog.
 //
 // Test does not fail; we log a structured report so the backlog is visible
 // to reviewers and drives the follow-up work.

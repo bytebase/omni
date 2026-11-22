@@ -264,3 +264,91 @@ func TestViewSchemaQualifiedStarAcrossDatabasesAndSequenceFuncs(t *testing.T) {
 		t.Errorf("DeparseQuery(v_paren_cte) = %q, want WITH clause preserved", dep)
 	}
 }
+
+func TestParenSourceOrderByAndLimit(t *testing.T) {
+	c, err := LoadSQL(`
+		CREATE DATABASE test;
+		USE test;
+		CREATE TABLE t (a INT, b INT);
+	`)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// (SELECT b, a FROM t) ORDER BY a must order by t.a (target 2), not t.b (attnum 2).
+	if results, err := c.Exec("CREATE VIEW v_ord AS (SELECT b, a FROM t) ORDER BY a", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v_ord failed: parse=%v results=%+v", err, results)
+	}
+	vOrd := c.GetDatabase("test").Views["v_ord"]
+	if vOrd.AnalyzedQuery == nil || len(vOrd.AnalyzedQuery.SortClause) != 1 {
+		t.Fatalf("v_ord.AnalyzedQuery = %+v, want 1 SortClause", vOrd.AnalyzedQuery)
+	}
+	if vOrd.AnalyzedQuery.SortClause[0].TargetIdx != 2 {
+		t.Errorf("v_ord SortClause[0].TargetIdx = %d, want 2", vOrd.AnalyzedQuery.SortClause[0].TargetIdx)
+	}
+	if dep := DeparseQuery(vOrd.AnalyzedQuery); !strings.HasSuffix(dep, "order by `t`.`a`") {
+		t.Errorf("DeparseQuery(v_ord) = %q, want suffix %q", dep, "order by `t`.`a`")
+	}
+
+	// Aliased inner target referenced by outer ORDER BY.
+	if results, err := c.Exec("CREATE VIEW v_ord_alias AS (SELECT b AS x, a AS y FROM t) ORDER BY y DESC", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v_ord_alias failed: parse=%v results=%+v", err, results)
+	}
+	vOrdAlias := c.GetDatabase("test").Views["v_ord_alias"]
+	if vOrdAlias.AnalyzedQuery == nil || len(vOrdAlias.AnalyzedQuery.SortClause) != 1 {
+		t.Fatalf("v_ord_alias.AnalyzedQuery = %+v, want 1 SortClause", vOrdAlias.AnalyzedQuery)
+	}
+	if dep := DeparseQuery(vOrdAlias.AnalyzedQuery); !strings.HasSuffix(dep, "order by `t`.`a` desc") {
+		t.Errorf("DeparseQuery(v_ord_alias) = %q, want suffix %q", dep, "order by `t`.`a` desc")
+	}
+
+	// Outer ORDER BY across inner LIMIT must NOT flatten into ORDER BY ... LIMIT ...
+	for _, tc := range []struct{ name, sql string }{
+		{"v_limit_then_order", "CREATE VIEW v_limit_then_order AS (SELECT a FROM t LIMIT 2) ORDER BY 1 DESC"},
+		{"v_order_then_order", "CREATE VIEW v_order_then_order AS (SELECT a FROM t ORDER BY a) ORDER BY 1 DESC"},
+		{"v_limit_then_limit", "CREATE VIEW v_limit_then_limit AS (SELECT a FROM t LIMIT 5) LIMIT 2"},
+		{"v_outer_expr_order", "CREATE VIEW v_outer_expr_order AS (SELECT b, a FROM t) ORDER BY a + 1"},
+	} {
+		if results, err := c.Exec(tc.sql, nil); err != nil || results[0].Error != nil {
+			t.Fatalf("Exec(%q) failed: parse=%v results=%+v", tc.sql, err, results)
+		}
+		if v := c.GetDatabase("test").Views[tc.name]; v.AnalyzedQuery != nil {
+			t.Errorf("%s.AnalyzedQuery = %+v (deparsed %q), want nil to preserve parenthesized boundary",
+				tc.name, v.AnalyzedQuery, DeparseQuery(v.AnalyzedQuery))
+		}
+	}
+}
+
+func TestViewDerivedTableAndCTEExpressionColumnNames(t *testing.T) {
+	c, err := LoadSQL("CREATE DATABASE test; USE test;")
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	for _, tc := range []struct {
+		name string
+		sql  string
+	}{
+		{"derived_arith", "CREATE VIEW v1 AS SELECT d.`1+1` FROM (SELECT 1+1) d"},
+		{"derived_arith_spaced", "CREATE VIEW v2 AS SELECT d.`1 + 1` FROM (SELECT 1 + 1) d"},
+		{"derived_func", "CREATE VIEW v3 AS SELECT d.`ABS(1)` FROM (SELECT ABS(1)) d"},
+		{"cte_arith", "CREATE VIEW v4 AS WITH c AS (SELECT 1+1) SELECT `1+1` FROM c"},
+		{"cte_func", "CREATE VIEW v5 AS WITH c AS (SELECT ABS(1)) SELECT `ABS(1)` FROM c"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			results, err := c.Exec(tc.sql, nil)
+			if err != nil || (len(results) > 0 && results[0].Error != nil) {
+				t.Fatalf("Exec(%q) failed: parse=%v results=%+v", tc.sql, err, results)
+			}
+		})
+	}
+
+	// Truly nonexistent column on derived table still fails with 1054.
+	results, err := c.Exec("CREATE VIEW v_bad AS SELECT d.nonexistent FROM (SELECT 1+1) d", nil)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	var ce *Error
+	if len(results) == 0 || !errors.As(results[0].Error, &ce) || ce.Code != 1054 {
+		t.Fatalf("expected 1054 for nonexistent derived column, got %+v", results)
+	}
+}

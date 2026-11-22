@@ -89,7 +89,7 @@ func (c *Catalog) DefineTable(stmt *nodes.CreateTableStmt) error {
 	if stmt == nil || stmt.Table == nil || stmt.Table.Name == "" {
 		return errWrongArguments("DefineTable")
 	}
-	return c.createTable(stmt)
+	return c.createTable(stmt, "")
 }
 
 // DefineView installs a view. stmt.Name and stmt.Name.Name must be
