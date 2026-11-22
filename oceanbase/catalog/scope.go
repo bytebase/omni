@@ -65,6 +65,49 @@ type analyzerScope struct {
 	// unfaithful records that this query (or a subquery inside one of its
 	// expressions) used a FROM source that DeparseQuery cannot write back.
 	unfaithful bool
+
+	// fromUnaliased tracks unaliased table references in this query block's
+	// FROM clause by lowered table name -> lowered resolved database name, so
+	// unaliased tables from different databases (e.g. db1.t JOIN db2.t) do not
+	// collide while same-database duplicates still report ER_NONUNIQ_TABLE (1066).
+	fromUnaliased map[string]map[string]bool
+	// fromAliases tracks explicit aliases (aliased tables, derived tables,
+	// CTEs, table functions) in this query block's FROM clause so collisions
+	// with another alias or unaliased table report ER_NONUNIQ_TABLE (1066).
+	fromAliases map[string]bool
+}
+
+func (s *analyzerScope) checkDupFromTable(dbName, name string, hasAlias bool) error {
+	if name == "" {
+		return nil
+	}
+	lower := strings.ToLower(name)
+	if hasAlias {
+		if s.fromAliases[lower] || len(s.fromUnaliased[lower]) > 0 {
+			return errNotUniqueTable(name)
+		}
+		if s.fromAliases == nil {
+			s.fromAliases = make(map[string]bool)
+		}
+		s.fromAliases[lower] = true
+		return nil
+	}
+	lowerDB := strings.ToLower(dbName)
+	if s.fromAliases[lower] || s.fromUnaliased[lower][lowerDB] {
+		return errNotUniqueTable(name)
+	}
+	if s.fromUnaliased == nil {
+		s.fromUnaliased = make(map[string]map[string]bool)
+	}
+	if s.fromUnaliased[lower] == nil {
+		s.fromUnaliased[lower] = make(map[string]bool)
+	}
+	s.fromUnaliased[lower][lowerDB] = true
+	return nil
+}
+
+func (s *analyzerScope) checkDupFromAlias(alias string) error {
+	return s.checkDupFromTable("", alias, true)
 }
 
 func (s *analyzerScope) markUnfaithful() {
@@ -402,7 +445,7 @@ func (s *analyzerScope) resolveQualifiedRefFull(catalog, schema, tableName, colN
 					continue
 				}
 			} else if schema != "" {
-				if q.hasAlias || !strings.EqualFold(q.schema, schema) {
+				if !strings.EqualFold(q.schema, schema) {
 					continue
 				}
 			}
@@ -430,11 +473,11 @@ func (s *analyzerScope) resolveQualifiedRefFull(catalog, schema, tableName, colN
 		}
 	}
 
-	return nil, s.unsure(&Error{
-		Code:     ErrUnknownTable,
-		SQLState: sqlState(ErrUnknownTable),
-		Message:  fmt.Sprintf("Unknown table '%s'", tableName),
-	})
+	qualName := tableName
+	if schema != "" {
+		qualName = schema + "." + tableName
+	}
+	return nil, s.unsure(errUnknownTableInFieldList(qualName))
 }
 
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
@@ -494,11 +537,7 @@ func (s *analyzerScope) resolveQualifiedColumn(tableName, colName string) (int, 
 			}
 		}
 		if strings.Contains(err.Error(), "unknown table") {
-			return 0, 0, &Error{
-				Code:     ErrUnknownTable,
-				SQLState: sqlState(ErrUnknownTable),
-				Message:  fmt.Sprintf("Unknown table '%s'", tableName),
-			}
+			return 0, 0, errUnknownTableInFieldList(tableName)
 		}
 		return 0, 0, errNoSuchColumn(colName, "field list")
 	}

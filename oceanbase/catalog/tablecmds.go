@@ -46,7 +46,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// 1060 (TestSimulationCausesOracle).
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
-	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
+	if _, err := c.resolveQueryFirst(stmt.Select, false); err != nil {
 		return err
 	}
 

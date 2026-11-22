@@ -173,6 +173,23 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 				Default: n.Args[2],
 			}
 		}
+		// OceanBase 4.3.5.6 drops precision arguments on temporal current-time
+		// builtins in SHOW CREATE VIEW (e.g., NOW(1) -> now(), SYSDATE(1) -> sysdate()).
+		if n.Schema == "" && len(n.Args) == 1 {
+			switch strings.ToUpper(n.Name) {
+			case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP",
+				"SYSDATE", "CURTIME", "CURRENT_TIME":
+				n.Args = nil
+			}
+		}
+		// OceanBase 4.3.5.6 strips window frame clauses from ranking functions in
+		// SHOW CREATE VIEW (e.g., RANK() OVER (ROWS CURRENT ROW) -> rank() over()).
+		if n.Schema == "" && n.Over != nil && n.Over.Frame != nil {
+			switch strings.ToUpper(n.Name) {
+			case "RANK", "DENSE_RANK", "ROW_NUMBER", "PERCENT_RANK", "CUME_DIST":
+				n.Over.Frame = nil
+			}
+		}
 		return rewriteDateArith(n)
 
 	case *ast.ExtractExpr:

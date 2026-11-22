@@ -93,8 +93,12 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 			scope.namesUncertain = true
 			return nil, fmt.Errorf("no columns found for remote star expansion")
 		}
+		entries := scope.allEntries()
+		if len(entries) == 0 {
+			return nil, errNoTablesUsed()
+		}
 		// SELECT * — expand all tables in scope order.
-		for _, e := range scope.allEntries() {
+		for _, e := range entries {
 			entries, err := expandScopeEntry(e, q, scope, resNo, true)
 			if err != nil {
 				return nil, err
@@ -148,14 +152,18 @@ func expandQualifiedStarRef(ref *nodes.ColumnRef, q *Query, scope *analyzerScope
 		matches = append(matches, qual)
 	}
 	if len(matches) == 0 {
-		if ref.Catalog != "" {
+		if ref.Catalog != "" && scope.hasUnknown {
 			scope.namesUncertain = true
 			return nil, fmt.Errorf("no columns found for remote star expansion")
+		}
+		qualName := ref.Table
+		if ref.Schema != "" {
+			qualName = ref.Schema + "." + ref.Table
 		}
 		return nil, scope.unsure(&Error{
 			Code:     ErrUnknownTable,
 			SQLState: sqlState(ErrUnknownTable),
-			Message:  fmt.Sprintf("Unknown table '%s'", ref.Table),
+			Message:  fmt.Sprintf("Unknown table '%s'", qualName),
 		})
 	}
 	if len(matches) > 1 {

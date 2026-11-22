@@ -3221,6 +3221,16 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	if name == "SCHEMA" && n.Schema == "" {
 		canonical = "database"
 	}
+	if n.Schema == "" {
+		switch name {
+		case "GEOMETRYCOLLECTION":
+			canonical = "geomcollection"
+		case "KEY_VERSION":
+			canonical = "version"
+		case "SYSTEM_USER", "SESSION_USER":
+			canonical = "user"
+		}
+	}
 
 	// Schema-qualified name
 	if n.Schema != "" {

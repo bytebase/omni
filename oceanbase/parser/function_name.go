@@ -42,7 +42,7 @@ master_ssl_key master_user materialized max_connections_per_hour max_queries_per
 max_rows max_size max_updates_per_hour max_user_connections maxvalue medium member
 memory merge message_text migrate min_rows mode modify mutex mysql_errno name names
 national nchar ndb ndbcluster nested never new next no no_wait nodegroup none nowait
-nulls number nvarchar of offset oj old one only open optimizer_costs options ordinality
+nulls number nvarchar of off offset oj old one only open optimizer_costs options ordinality
 organization over overwrite owner pack_keys page parallel parameters parser partial
 partitioning partitions path pctfree phase plugin plugin_dir plugins port preceding
 prepare preserve prev privileges process processlist profile profiles proxy query quick

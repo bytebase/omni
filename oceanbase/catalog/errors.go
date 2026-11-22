@@ -57,6 +57,23 @@ const (
 	ErrOBColumnNotFound                  = 5031 // OceanBase's own: Column not found
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+
+	// View query and expression semantic error codes (oceanbase-ce 4.3.5.6).
+	ErrNoTablesUsed                = 1096
+	ErrUnknownTableInFieldList     = 1109
+	ErrUnknownCharacterSet         = 1115
+	ErrOBSyntaxError               = 1149
+	ErrWrongUsage                  = 1234
+	ErrNotSupportedYet             = 1235
+	ErrUnknownCollation            = 1273
+	ErrViewSelectVariable          = 1351
+	ErrWrongParamCount             = 1582
+	ErrWindowRangeFrameNumericType = 3596
+	ErrEmptyRowInTVC               = 3942
+	ErrDefaultAsValInTVC           = 3943
+	ErrOBJSONPathSyntax            = 5454
+	ErrOBRemoteDBNotFound          = 5835
+	ErrOBWindowNotDefined          = 5929
 )
 
 var sqlStateMap = map[int]string{
@@ -391,4 +408,52 @@ func errDropAllPartitions() error {
 // does not match the partitioning column list.
 func errPartitionColumnListInconsistency() error {
 	return &Error{Code: 1653, SQLState: "HY000", Message: "Inconsistency in usage of column lists for partitioning"}
+}
+
+func errNoTablesUsed() error {
+	return &Error{Code: ErrNoTablesUsed, SQLState: "HY000", Message: "No tables used"}
+}
+
+func errUnknownTableInFieldList(name string) error {
+	return &Error{Code: ErrUnknownTableInFieldList, SQLState: "42S02", Message: fmt.Sprintf("Unknown table '%s' in field list", name)}
+}
+
+func errOBSyntaxError() error {
+	return &Error{Code: ErrOBSyntaxError, SQLState: "42000", Message: "You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use"}
+}
+
+func errWrongUsage(what string) error {
+	return &Error{Code: ErrWrongUsage, SQLState: "42000", Message: fmt.Sprintf("Incorrect usage/placement of '%s'", what)}
+}
+
+func errViewSelectVariable() error {
+	return &Error{Code: ErrViewSelectVariable, SQLState: "HY000", Message: "View's SELECT contains a variable or parameter"}
+}
+
+func errWrongParamCount(fn string) error {
+	return &Error{Code: ErrWrongParamCount, SQLState: "42000", Message: fmt.Sprintf("Incorrect parameter count in the call to native function '%s'", fn)}
+}
+
+func errWindowRangeFrameNumericType() error {
+	return &Error{Code: ErrWindowRangeFrameNumericType, SQLState: "HY000", Message: "Window '<unnamed window>': INTERVAL can only be used with RANGE frames."}
+}
+
+func errEmptyRowInTVC() error {
+	return &Error{Code: ErrEmptyRowInTVC, SQLState: "HY000", Message: "Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement."}
+}
+
+func errDefaultAsValInTVC() error {
+	return &Error{Code: ErrDefaultAsValInTVC, SQLState: "HY000", Message: "A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement."}
+}
+
+func errOBJSONPathSyntax(path string) error {
+	return &Error{Code: ErrOBJSONPathSyntax, SQLState: "42000", Message: fmt.Sprintf("JSON path expression syntax error ('%s')", path)}
+}
+
+func errOBRemoteDBNotFound() error {
+	return &Error{Code: ErrOBRemoteDBNotFound, SQLState: "HY000", Message: "connection description for remote database not found"}
+}
+
+func errOBWindowNotDefined(name string) error {
+	return &Error{Code: ErrOBWindowNotDefined, SQLState: "HY000", Message: fmt.Sprintf("Window name '%s' is not defined.", name)}
 }

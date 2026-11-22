@@ -305,7 +305,7 @@ func (p *Parser) parseInsertValuesQuery(stmt *nodes.InsertStmt) error {
 func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 	var rows [][]nodes.ExprNode
 	for {
-		row, err := p.parseRowValue()
+		row, _, err := p.parseRowValue()
 		if err != nil {
 			return nil, err
 		}
@@ -319,11 +319,13 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 }
 
 // parseRowValue parses one parenthesized list of values, possibly empty.
-func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
+// leadingComma reports whether the row opened with a leading comma (e.g. `(, a)`).
+func (p *Parser) parseRowValue() ([]nodes.ExprNode, bool, error) {
 	if _, err := p.expect('('); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var row []nodes.ExprNode
+	leadingComma := false
 	// Completion: inside an empty row, parseExpr still offers its candidates.
 	p.checkCursor()
 	if p.cur.Type != ')' || p.collectMode() {
@@ -332,12 +334,13 @@ func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
 		// answered (,1) with 1136 on tables of one and of two columns, and (,1,2)
 		// with 1136 on a table of two (measured).
 		if p.cur.Type == ',' {
+			leadingComma = true
 			p.advance()
 		}
 		for {
 			e, err := p.parseValuesItem()
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			row = append(row, e)
 			if p.cur.Type != ',' {
@@ -347,9 +350,9 @@ func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
 		}
 	}
 	if _, err := p.expect(')'); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return row, nil
+	return row, leadingComma, nil
 }
 
 // parseValuesItem parses one value of a row: an expression or bare DEFAULT
