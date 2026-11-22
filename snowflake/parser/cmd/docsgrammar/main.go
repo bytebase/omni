@@ -902,11 +902,19 @@ const nameSample = "a"
 //     <object_param_name> and <session_param_name> are the UNSET list's names,
 //     and the page writes TAG with a tag name
 //     (https://docs.snowflake.com/en/sql-reference/sql/alter-account).
-//   - alter-task, alter-task-graph: the UNSET list's <unset_parameter> and
-//     <unset_property>, which docs-fixes.tsv names so the SET form keeps its
-//     name class (https://docs.snowflake.com/en/sql-reference/sql/alter-task).
+//   - alter-task: the UNSET list's <unset_parameter>, which docs-fixes.tsv
+//     names so the SET form keeps its name class
+//     (https://docs.snowflake.com/en/sql-reference/sql/alter-task).
 //   - alter-security-integration: <parameter> after UNSET
 //     (https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration).
+//   - show-semantic-dimensions, show-semantic-facts, show-semantic-metrics:
+//     <semantic_view_name> in IN { <semantic_view_name> | ... | SCHEMA <db>.<schema> }.
+//     Snowflake's reserved and limited keywords say SCHEMA and DATABASE cannot
+//     be used as an identifier in a SHOW ... IN <identifier> clause
+//     (https://docs.snowflake.com/en/sql-reference/reserved-keywords,
+//     https://docs.snowflake.com/en/sql-reference/sql/show-semantic-dimensions),
+//     so a dropped <db> in IN SCHEMA <db>.<schema> (IN SCHEMA.a) must not read
+//     as <semantic_view_name>.
 var sampledNames = map[string]map[string]bool{
 	"drop-application":              {"name": true},
 	"drop-model":                    {"name": true},
@@ -933,8 +941,10 @@ var sampledNames = map[string]map[string]bool{
 	"alter-user":                    {"object_property_name": true, "object_param_name": true, "session_param_name": true},
 	"alter-warehouse":               {"property_name": true, "param_name": true},
 	"alter-task":                    {"unset_parameter": true},
-	"alter-task-graph":              {"unset_property": true},
 	"alter-security-integration":    {"parameter": true},
+	"show-semantic-dimensions":      {"semantic_view_name": true},
+	"show-semantic-facts":           {"semantic_view_name": true},
+	"show-semantic-metrics":         {"semantic_view_name": true},
 }
 
 // value writes a value as the grammar reads it on a page: <object_type>
