@@ -405,17 +405,20 @@ func validateTemporalLiteral(lit *nodes.TemporalLit) error {
 }
 
 func hasDateTimeTimePart(s string) bool {
-	head := s
-	if dot := strings.IndexByte(head, '.'); dot >= 0 {
-		head = head[:dot]
-	}
-	runs := countDigitRuns(head)
-	if runs == 1 {
-		return len(head) >= 12
-	}
-	if strings.ContainsAny(head, " \t\n\rTt") {
+	if strings.ContainsAny(s, " \t\n\rTt") {
 		return true
 	}
+	runs := countDigitRuns(s)
+	if runs <= 2 {
+		// Compact digit string with optional fractional seconds:
+		// YYYYMMDDhhmmss[.frac] or YYMMDDhhmmss[.frac].
+		head := s
+		if dot := strings.IndexByte(head, '.'); dot >= 0 {
+			head = head[:dot]
+		}
+		return countDigitRuns(head) == 1 && len(head) >= 12
+	}
+	// Delimited without whitespace/T: a date-only value has at most 3 digit runs.
 	return runs > 3
 }
 
@@ -1634,11 +1637,12 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
-		Lookup:            lookup,
-		SchemaLookup:      schemaLookup,
-		DefaultCharset:    charset,
-		DefaultWeekFormat: c.session.DefaultWeekFormat,
-		Source:            source,
+		Lookup:              lookup,
+		SchemaLookup:        schemaLookup,
+		DefaultCharset:      charset,
+		DefaultWeekFormat:   c.session.DefaultWeekFormat,
+		NormalizeCastAsYear: !c.hasStoredFunction(db, "cast_as_year"),
+		Source:              source,
 	}
 	resolver.Resolve(sel)
 
@@ -1710,10 +1714,11 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 			cols := make([]deparse.ResolverColumn, len(visible))
 			for i, c := range visible {
 				cols[i] = deparse.ResolverColumn{
-					Name:     c.Name,
-					Position: c.Position,
-					DataType: toLower(c.DataType),
-					Scale:    columnDeparseScale(c),
+					Name:      c.Name,
+					Position:  c.Position,
+					DataType:  toLower(c.DataType),
+					Scale:     columnDeparseScale(c),
+					Invisible: c.Invisible,
 				}
 			}
 			return &deparse.ResolverTable{
@@ -1754,6 +1759,15 @@ func (c *Catalog) schemaTableLookup(defaultDB *Database) deparse.SchemaTableLook
 		}
 		return tableLookupForDB(targetDB)(tableName)
 	}
+}
+
+func (c *Catalog) hasStoredFunction(viewDB *Database, lowerName string) bool {
+	if c != nil {
+		if curDB := c.GetDatabase(c.CurrentDatabase()); curDB != nil && curDB.Functions[lowerName] != nil {
+			return true
+		}
+	}
+	return viewDB != nil && viewDB.Functions[lowerName] != nil
 }
 
 // columnDeparseScale returns a column's fractional seconds precision (for

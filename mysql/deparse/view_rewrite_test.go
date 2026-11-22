@@ -108,9 +108,9 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
 		},
 		{
-			"cast_as_year_readback_converges",
-			"SELECT `cast_as_year`(`t`.`a`) AS `CAST(a AS YEAR)` FROM `t`",
-			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
+			"cast_as_year_stored_func_preserved_by_default",
+			"SELECT cast_as_year(a) AS x FROM t",
+			"select cast_as_year(`t`.`a`) AS `x` from `t`",
 		},
 		{
 			"explicit_table_expands",
@@ -191,6 +191,17 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 		RewriteSelectStmt(stmtUnknown)
 		if got, want := DeparseSelect(stmtUnknown), "select week('2021-01-01') AS `w`"; got != want {
 			t.Errorf("unknown mode: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("cast_as_year_readback_converges_when_enabled", func(t *testing.T) {
+		sql := "SELECT `cast_as_year`(`t`.`a`) AS `CAST(a AS YEAR)` FROM `t`"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", NormalizeCastAsYear: true, Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		if got, want := DeparseSelect(stmt), "select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`"; got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 	})
 }

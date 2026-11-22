@@ -51,6 +51,7 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"invalid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP 's' FROM t", ErrWrongValue},
 		{"invalid_timestamp_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01' FROM t", ErrWrongValue},
 		{"invalid_timestamp_colon_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020:01:01' FROM t", ErrWrongValue},
+		{"invalid_timestamp_dotted_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020.01.01' FROM t", ErrWrongValue},
 		{"invalid_timestamp_zero", "CREATE VIEW v AS SELECT TIMESTAMP '0000-00-00 00:00:00' FROM t", ErrWrongValue},
 
 		// CAST(... AT TIME ZONE ... AS DATETIME) requires TIMESTAMP or NULL (3998).
@@ -219,6 +220,7 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"valid_time_literal", "CREATE VIEW v AS SELECT TIME '-838:59:59' FROM t"},
 		{"valid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01 12:34:56.123456' FROM t"},
 		{"valid_timestamp_colon_date", "CREATE VIEW v AS SELECT TIMESTAMP '2020:01:01 12:34:56' FROM t"},
+		{"valid_timestamp_dotted_date", "CREATE VIEW v AS SELECT TIMESTAMP '2020.01.01 12:34:56' AS ts FROM t"},
 		// Valid CAST AT TIME ZONE, JSON_VALUE, geometry constructors, and non-top-level DEFAULT(col).
 		{"cast_at_tz_timestamp", "CREATE VIEW v AS SELECT CAST(ts AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
 		{"cast_at_tz_null", "CREATE VIEW v AS SELECT CAST(NULL AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
@@ -323,6 +325,44 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		wantDefZero := "select week('2021-01-01',0) AS `w`"
 		if vDef.Definition != wantDefZero {
 			t.Errorf("default definition = %q, want %q", vDef.Definition, wantDefZero)
+		}
+	})
+
+	t.Run("explicit_table_excludes_invisible_cols_but_explicit_ref_keeps_them", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE TABLE ti (a INT, secret INT INVISIBLE);")
+		mustExec(t, c, "CREATE VIEW vi AS TABLE ti")
+		v := c.GetDatabase("db1").Views["vi"]
+		if v == nil {
+			t.Fatal("view vi not found")
+		}
+		wantDef := "select `ti`.`a` AS `a` from `ti`"
+		if v.Definition != wantDef {
+			t.Errorf("TABLE ti definition = %q, want %q", v.Definition, wantDef)
+		}
+		if len(v.Columns) != 1 || v.Columns[0] != "a" {
+			t.Errorf("TABLE ti columns = %v, want [a]", v.Columns)
+		}
+
+		mustExec(t, c, "CREATE VIEW vi_named AS SELECT secret FROM ti")
+		vNamed := c.GetDatabase("db1").Views["vi_named"]
+		wantNamed := "select `ti`.`secret` AS `secret` from `ti`"
+		if vNamed.Definition != wantNamed {
+			t.Errorf("SELECT secret definition = %q, want %q", vNamed.Definition, wantNamed)
+		}
+	})
+
+	t.Run("stored_func_cast_as_year_not_rewritten_to_cast", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE FUNCTION cast_as_year(x INT) RETURNS INT DETERMINISTIC RETURN x + 1;")
+		mustExec(t, c, "CREATE VIEW vc AS SELECT cast_as_year(2020) AS x")
+		v := c.GetDatabase("db1").Views["vc"]
+		if v == nil {
+			t.Fatal("view vc not found")
+		}
+		wantDef := "select cast_as_year(2020) AS `x`"
+		if v.Definition != wantDef {
+			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
 		}
 	})
 }

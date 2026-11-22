@@ -41,6 +41,11 @@ type Resolver struct {
 	// to expand 1-arg WEEK(x) -> week(x, mode). A negative value means unknown,
 	// preserving the 1-arg call unexpanded.
 	DefaultWeekFormat int
+	// NormalizeCastAsYear rewrites MySQL 8.0 SHOW CREATE VIEW's internal
+	// `cast_as_year`(x) spelling to `cast(x as year)` so engine-readback views
+	// converge with executable CAST(... AS YEAR). Left false when a stored
+	// function named `cast_as_year` is in scope or for direct Resolver callers.
+	NormalizeCastAsYear bool
 	// Source is the text the statement was parsed from, which the AST's Loc
 	// offsets index into. When it is set, an unaliased select item is named
 	// after its source text, as MySQL names it; otherwise the name is rebuilt
@@ -103,11 +108,12 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		}
 		for _, cte := range stmt.CTEs {
 			cteResolver := &Resolver{
-				Lookup:            r.withCTELookup(mergedCTETables),
-				SchemaLookup:      r.SchemaLookup,
-				DefaultCharset:    r.DefaultCharset,
-				DefaultWeekFormat: r.DefaultWeekFormat,
-				Source:            r.Source,
+				Lookup:              r.withCTELookup(mergedCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
@@ -148,11 +154,12 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			}
 			for _, cte := range leftCTEs {
 				cteResolver := &Resolver{
-					Lookup:            r.withCTELookup(mergedCTETables),
-					SchemaLookup:      r.SchemaLookup,
-					DefaultCharset:    r.DefaultCharset,
-					DefaultWeekFormat: r.DefaultWeekFormat,
-					Source:            r.Source,
+					Lookup:              r.withCTELookup(mergedCTETables),
+					SchemaLookup:        r.SchemaLookup,
+					DefaultCharset:      r.DefaultCharset,
+					DefaultWeekFormat:   r.DefaultWeekFormat,
+					NormalizeCastAsYear: r.NormalizeCastAsYear,
+					Source:              r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
@@ -199,11 +206,12 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{
-				Lookup:            r.withCTELookup(localCTETables),
-				SchemaLookup:      r.SchemaLookup,
-				DefaultCharset:    r.DefaultCharset,
-				DefaultWeekFormat: r.DefaultWeekFormat,
-				Source:            r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -215,21 +223,23 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
 			rightResolver := &Resolver{
-				Lookup:            r.withCTELookup(localCTETables),
-				SchemaLookup:      r.SchemaLookup,
-				DefaultCharset:    r.DefaultCharset,
-				DefaultWeekFormat: r.DefaultWeekFormat,
-				Source:            r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
-				Lookup:            r.withCTELookup(localCTETables),
-				SchemaLookup:      r.SchemaLookup,
-				DefaultCharset:    r.DefaultCharset,
-				DefaultWeekFormat: r.DefaultWeekFormat,
-				Source:            r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
@@ -481,7 +491,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 	}
 
 	var result []ast.ExprNode
-	cols := sortedResolverColumns(table)
+	cols := sortedVisibleResolverColumns(table)
 	for _, col := range cols {
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
@@ -498,6 +508,21 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 func sortedResolverColumns(table *ResolverTable) []ResolverColumn {
 	cols := make([]ResolverColumn, len(table.Columns))
 	copy(cols, table.Columns)
+	sort.Slice(cols, func(i, j int) bool {
+		return cols[i].Position < cols[j].Position
+	})
+	return cols
+}
+
+// sortedVisibleResolverColumns returns non-invisible columns sorted by Position
+// (for SELECT *, t.*, TABLE t, and NATURAL JOIN expansion).
+func sortedVisibleResolverColumns(table *ResolverTable) []ResolverColumn {
+	cols := make([]ResolverColumn, 0, len(table.Columns))
+	for _, c := range table.Columns {
+		if !c.Invisible {
+			cols = append(cols, c)
+		}
+	}
 	sort.Slice(cols, func(i, j int) bool {
 		return cols[i].Position < cols[j].Position
 	})
@@ -591,6 +616,14 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 			case "WEEK":
 				if r.DefaultWeekFormat >= 0 {
 					n.Args = append(n.Args, &ast.IntLit{Value: int64(r.DefaultWeekFormat)})
+				}
+			case "CAST_AS_YEAR":
+				if r.NormalizeCastAsYear {
+					return &ast.CastExpr{
+						Loc:      n.Loc,
+						Expr:     n.Args[0],
+						TypeName: &ast.DataType{Name: "year"},
+					}
 				}
 			}
 		}
@@ -1047,7 +1080,7 @@ func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLoo
 		if table == nil {
 			return nil
 		}
-		sorted := sortedResolverColumns(table)
+		sorted := sortedVisibleResolverColumns(table)
 		cols := make([]ResolverColumn, 0, len(sorted))
 		for i, c := range sorted {
 			cols = append(cols, ResolverColumn{Name: c.Name, Position: i + 1})

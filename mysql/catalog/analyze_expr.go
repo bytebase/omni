@@ -409,7 +409,7 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		result.ResultType = c.storedFuncReturnType(fc.Schema, lower)
 	} else {
 		result.ResultType = functionReturnType(result.Name, result.Args)
-		if result.ResultType == nil && !isBuiltinMySQLFunction(lower) {
+		if result.ResultType == nil && (!isBuiltinMySQLFunction(lower) || lower == "cast_as_year") {
 			result.ResultType = c.storedFuncReturnType("", lower)
 		}
 	}

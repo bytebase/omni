@@ -119,14 +119,14 @@ func (sc *fromScope) inputs(j *ast.JoinClause, natural bool) (ast.TableExpr, ast
 	return j.Left, j.Right
 }
 
-// tableColumns returns the columns of a registered table, in table order.
+// tableColumns returns the star-visible columns of a registered table, in table order.
 func (sc *fromScope) tableColumns(te ast.TableExpr) ([]joinColumn, bool) {
 	i, ok := sc.entries[te]
 	if !ok {
 		return nil, false
 	}
 	e := sc.tables[i]
-	cols := sortedResolverColumns(e.Table)
+	cols := sortedVisibleResolverColumns(e.Table)
 	out := make([]joinColumn, len(cols))
 	for k, c := range cols {
 		out[k] = joinColumn{table: i, qualifier: e.Name, name: c.Name, pos: c.Position}
