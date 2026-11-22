@@ -56,6 +56,16 @@ func (p *Parser) isSpannerIdent(kw string) bool {
 	return p.isSpannerIdentTok(p.cur, kw)
 }
 
+// peekTokenAfterNext returns the token two positions ahead of cur without
+// mutating parser, lexer, or completion state.
+func (p *Parser) peekTokenAfterNext() Token {
+	snap := p.snapshotTokenStreamAndCompletion()
+	p.advance()
+	tok := p.peekNext()
+	p.restoreTokenStreamAndCompletion(snap)
+	return tok
+}
+
 // isPG17SQLJsonKeyword reports whether tok is one of the SQL/JSON query
 // keywords added in PostgreSQL 17 that are ordinary function identifiers in
 // Spanner's PostgreSQL 16-based parser.
@@ -92,11 +102,13 @@ func (p *Parser) parseSpannerTableInterleave(allowFullKeyAction bool) (*nodes.Sp
 
 	inParent := false
 	// PARENT is an unreserved identifier; if it is followed by another ColId
-	// that is not ON and not TTL, treat it as the optional PARENT keyword.
-	// Otherwise PARENT itself is the parent table name.
+	// that is not ON and does not begin a trailing TTL INTERVAL clause (on
+	// CREATE TABLE), treat it as the optional PARENT keyword. Otherwise PARENT
+	// itself is the parent table name.
 	if p.isSpannerIdent("parent") {
 		next := p.peekNext()
-		if isColIdToken(next) && next.Type != ON && !p.isSpannerIdentTok(next, "ttl") {
+		if isColIdToken(next) && next.Type != ON &&
+			!(allowFullKeyAction && p.isSpannerIdentTok(next, "ttl") && p.peekTokenAfterNext().Type == INTERVAL) {
 			p.advance() // consume PARENT
 			inParent = true
 		}

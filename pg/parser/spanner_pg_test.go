@@ -265,4 +265,94 @@ func TestDialectSpannerPG_AST(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("InterleaveParentNamedTTL", func(t *testing.T) {
+		// Parent table explicitly named ttl after INTERLEAVE IN PARENT.
+		for _, tc := range []struct {
+			sql        string
+			wantInPar  bool
+			wantSchema string
+			wantRel    string
+			wantTTLCol string
+		}{
+			{
+				sql:       `CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN PARENT ttl`,
+				wantInPar: true,
+				wantRel:   "ttl",
+			},
+			{
+				sql:        `CREATE TABLE child (id bigint PRIMARY KEY, ts timestamptz) INTERLEAVE IN PARENT ttl TTL INTERVAL '30 days' ON ts`,
+				wantInPar:  true,
+				wantRel:    "ttl",
+				wantTTLCol: "ts",
+			},
+			{
+				sql:        `CREATE TABLE child (id bigint PRIMARY KEY, ts timestamptz) INTERLEAVE IN parent TTL INTERVAL '30 days' ON ts`,
+				wantInPar:  false,
+				wantRel:    "parent",
+				wantTTLCol: "ts",
+			},
+			{
+				sql:        `CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN PARENT ttl.p`,
+				wantInPar:  true,
+				wantSchema: "ttl",
+				wantRel:    "p",
+			},
+		} {
+			list, err := ParseWithDialect(tc.sql, DialectSpannerPG)
+			if err != nil {
+				t.Fatalf("parse %q: %v", tc.sql, err)
+			}
+			stmt := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.CreateStmt)
+			if stmt.Interleave == nil || stmt.Interleave.InParent != tc.wantInPar ||
+				stmt.Interleave.Parent.Schemaname != tc.wantSchema || stmt.Interleave.Parent.Relname != tc.wantRel {
+				t.Errorf("%q: got Interleave=%+v (Parent=%+v), want InParent=%v Schema=%q Rel=%q",
+					tc.sql, stmt.Interleave, stmt.Interleave.Parent, tc.wantInPar, tc.wantSchema, tc.wantRel)
+			}
+			if tc.wantTTLCol == "" {
+				if stmt.TTL != nil {
+					t.Errorf("%q: expected nil TTL, got %+v", tc.sql, stmt.TTL)
+				}
+			} else if stmt.TTL == nil || stmt.TTL.Column != tc.wantTTLCol {
+				t.Errorf("%q: got TTL=%+v, want Column=%q", tc.sql, stmt.TTL, tc.wantTTLCol)
+			}
+		}
+
+		// ALTER TABLE SET INTERLEAVE IN PARENT ttl (with and without ON DELETE).
+		for _, sql := range []string{
+			`ALTER TABLE child SET INTERLEAVE IN PARENT ttl`,
+			`ALTER TABLE child SET INTERLEAVE IN PARENT ttl ON DELETE CASCADE`,
+		} {
+			list, err := ParseWithDialect(sql, DialectSpannerPG)
+			if err != nil {
+				t.Fatalf("parse %q: %v", sql, err)
+			}
+			stmt := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.AlterTableStmt)
+			cmd := stmt.Cmds.Items[0].(*nodes.AlterTableCmd)
+			if cmd.Subtype != int(nodes.AT_SpannerSetInterleave) {
+				t.Fatalf("%q: got Subtype=%d, want AT_SpannerSetInterleave", sql, cmd.Subtype)
+			}
+			il := cmd.Def.(*nodes.SpannerInterleaveClause)
+			if !il.InParent || il.Parent.Relname != "ttl" {
+				t.Errorf("%q: got Interleave=%+v (Parent=%+v), want InParent=true Rel=ttl", sql, il, il.Parent)
+			}
+		}
+	})
+
+	t.Run("FuncTableCommonSubexprInSpannerPG", func(t *testing.T) {
+		for _, sql := range []string{
+			`SELECT * FROM COALESCE(1, 2)`,
+			`SELECT * FROM CAST(1 AS bigint)`,
+			`SELECT * FROM GREATEST(1, 2)`,
+			`SELECT * FROM NULLIF(1, 2)`,
+			`SELECT * FROM JSON_EXISTS(a)`,
+		} {
+			if _, err := ParseWithDialect(sql, DialectSpannerPG); err != nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+			}
+		}
+		if _, err := ParseWithDialect(`SELECT * FROM JSON_QUERY(a, a PASSING a AS a)`, DialectSpannerPG); err == nil {
+			t.Errorf("expected PG17 JSON_QUERY PASSING in FROM to fail in DialectSpannerPG")
+		}
+	})
 }
