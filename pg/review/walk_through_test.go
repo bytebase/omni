@@ -491,6 +491,7 @@ func TestWalkThroughTypesDomainsEnumsAndRanges(t *testing.T) {
 		"DROP TYPE mood;",
 		"CREATE TABLE typed OF pair;",
 		"CREATE TYPE mybase;\nCREATE TYPE mybase (INPUT = f_in, OUTPUT = f_out);",
+		"CREATE TYPE public.myrange;\nCREATE TYPE public.myrange AS RANGE (SUBTYPE = int4);",
 		"ALTER TYPE unsynced_base SET (storage = extended);",
 		"CREATE TYPE myrange AS RANGE (SUBTYPE = int4);",
 		"CREATE DOMAIN d AS int;\nALTER DOMAIN d SET NOT NULL;\nALTER DOMAIN d RENAME TO d2;\nALTER DOMAIN d2 SET SCHEMA s;\nDROP DOMAIN s.d2;",
@@ -620,6 +621,7 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		"ALTER POLICY unsynced_pol ON t USING (true);",
 		"CREATE INDEX IF NOT EXISTS t_a_idx ON t (nosuch);",
 		"CREATE INDEX IF NOT EXISTS t_a_idx ON t ((CURRENT_DATE));",
+		"CREATE INDEX ON t ((CASE WHEN false THEN CURRENT_DATE ELSE DATE '2000-01-01' END));",
 		"CREATE INDEX ON t (a);",
 		"CREATE VIEW v2 AS SELECT a FROM t WITH CHECK OPTION;",
 		"CREATE VIEW v2 (x, y) AS SELECT * FROM t;",
@@ -636,6 +638,20 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+
+	// Unresolved targets (when SessionUser is omitted so "$user" is unknown)
+	// weaken policy and trigger facts rather than causing false duplicates.
+	noUser := review.Target{Schema: schema}
+	for _, sql := range []string{
+		"CREATE POLICY p ON public.t;\nDROP POLICY p ON t;\nCREATE POLICY p ON public.t;",
+		"CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();\nDROP TRIGGER tr ON t;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+		"CREATE POLICY p ON public.t;\nALTER POLICY p ON t RENAME TO p2;\nCREATE POLICY p ON public.t;",
+		"CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();\nALTER TRIGGER tr ON t RENAME TO tr2;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+	} {
+		if got := walkFindings(t, sql, noUser); len(got) != 0 {
+			t.Errorf("%q (no SessionUser): findings = %+v, want none", sql, got)
 		}
 	}
 }

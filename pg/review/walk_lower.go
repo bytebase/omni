@@ -1180,7 +1180,8 @@ func (b *builder) createEnum(v *ast.CreateEnumStmt) bool {
 	return true
 }
 
-// createRange follows CREATE TYPE ... AS RANGE (...).
+// createRange follows CREATE TYPE ... AS RANGE (...). A range definition may
+// complete a shell type created earlier in the change (pg: DefineRange).
 func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 	parts := nameParts(v.TypeName)
 	if len(parts) == 3 {
@@ -1193,8 +1194,23 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 		}
 		parts = parts[1:]
 	}
-	if !b.createType(parts, typOther) {
+	schema, written, ok := splitName(parts)
+	if !ok {
 		return false
+	}
+	c := b.creationSchema(schema, written, false)
+	if c.fail != "" {
+		b.fail(c.keys, walk.Absent, c.code, c.fail)
+		return true
+	}
+	name, ok := walkName(written)
+	if c.fact != walk.Present || !ok {
+		b.placeUnknown(written, false)
+		return true
+	}
+	tk := typeKey(c.schema, name)
+	if f, _ := b.l.Lookup(tk); f != walk.Present || !b.w.shellTypes[tk] {
+		b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
 	}
 	hasSubtype := false
 	if v.Params != nil {
@@ -1206,7 +1222,11 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 	}
 	if !hasSubtype {
 		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE TYPE ... AS RANGE` without `SUBTYPE`")) // 42601
+		return true
 	}
+	b.set(tk, walk.Present, typOther)
+	b.session(func() { delete(b.w.shellTypes, tk) })
+	b.made(tk)
 	return true
 }
 
@@ -2489,6 +2509,8 @@ func (b *builder) dropUnknown(parts []string) {
 		b.mayRemove(walk.Scope{Space: spaceType, Deep: true, Prefix: name})
 	}
 	b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relIndex, relSequence}})
+	b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
+	b.mayRemove(walk.Scope{Space: spacePolicy, Deep: true})
 	for _, children := range b.w.partitions {
 		for _, c := range children {
 			b.set(c, walk.Unknown, "")
@@ -3167,6 +3189,12 @@ func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
 			}
 			b.set(tk, walk.Present, "")
 		}
+	} else {
+		if tn, ok := walkName(v.Trigname); ok {
+			b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: tn})
+		} else {
+			b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true})
+		}
 	}
 	return true
 }
@@ -3189,6 +3217,11 @@ func (b *builder) dropTrigger(parts []string, missingOK bool) {
 		}
 		return
 	case r.fact == walk.Unknown:
+		if tn, ok := walkName(trigWritten); ok {
+			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: tn})
+		} else {
+			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
+		}
 		return
 	}
 	if r.kind == relIndex || r.kind == relComposite {
@@ -3235,6 +3268,17 @@ func (b *builder) renameTrigger(v *ast.RenameStmt) bool {
 		} else {
 			b.forget(walk.Scope{Space: spaceTrigger, Parent: tableOf(r.key)})
 		}
+	} else {
+		if oldName, ok := walkName(v.Subname); ok {
+			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: oldName})
+		} else {
+			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
+		}
+		if newName, ok := walkName(v.Newname); ok {
+			b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: newName})
+		} else {
+			b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true})
+		}
 	}
 	return true
 }
@@ -3262,6 +3306,12 @@ func (b *builder) createPolicy(v *ast.CreatePolicyStmt) bool {
 			pk := polKey(r.key, pn)
 			b.need(pk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("policy", ident(v.PolicyName), relation(v.Table))}) // 42710
 			b.set(pk, walk.Present, "")
+		}
+	} else {
+		if pn, ok := walkName(v.PolicyName); ok {
+			b.mayAdd(walk.Scope{Space: spacePolicy, Deep: true, Prefix: pn})
+		} else {
+			b.mayAdd(walk.Scope{Space: spacePolicy, Deep: true})
 		}
 	}
 	return true
@@ -3300,6 +3350,11 @@ func (b *builder) dropPolicy(parts []string, missingOK bool) {
 		}
 		return
 	case r.fact == walk.Unknown:
+		if pn, ok := walkName(polWritten); ok {
+			b.mayRemove(walk.Scope{Space: spacePolicy, Deep: true, Prefix: pn})
+		} else {
+			b.mayRemove(walk.Scope{Space: spacePolicy, Deep: true})
+		}
 		return
 	}
 	if r.kind == relIndex || r.kind == relComposite {
@@ -3341,6 +3396,17 @@ func (b *builder) renamePolicy(v *ast.RenameStmt) bool {
 			b.set(nkKey, walk.Present, "")
 		} else {
 			b.forget(walk.Scope{Space: spacePolicy, Parent: tableOf(r.key)})
+		}
+	} else {
+		if oldName, ok := walkName(v.Subname); ok {
+			b.mayRemove(walk.Scope{Space: spacePolicy, Deep: true, Prefix: oldName})
+		} else {
+			b.mayRemove(walk.Scope{Space: spacePolicy, Deep: true})
+		}
+		if newName, ok := walkName(v.Newname); ok {
+			b.mayAdd(walk.Scope{Space: spacePolicy, Deep: true, Prefix: newName})
+		} else {
+			b.mayAdd(walk.Scope{Space: spacePolicy, Deep: true})
 		}
 	}
 	return true
@@ -3559,7 +3625,7 @@ func (b *builder) checkIndexElems(r resolved, v *ast.IndexStmt) {
 					b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: rangeOf(elem.Loc), absent: notFoundIn("column", ident(elem.Name), relation(v.Relation))}) // 42703
 				}
 			}
-			if elem.Expr != nil && containsSQLValueFunction(elem.Expr) {
+			if elem.Expr != nil && isDirectSQLValueFunction(elem.Expr) {
 				b.failAt(rangeOf(elem.Loc), nil, review.UnsupportedForm, unsupported("non-immutable expression in index")) // 42P17
 				return
 			}
@@ -3585,19 +3651,12 @@ func (b *builder) checkIndexElems(r resolved, v *ast.IndexStmt) {
 	}
 }
 
-func containsSQLValueFunction(n ast.Node) bool {
-	found := false
-	ast.Inspect(n, func(m ast.Node) bool {
-		if found {
-			return false
-		}
-		if _, ok := m.(*ast.SQLValueFunction); ok {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
+// isDirectSQLValueFunction reports whether n is a bare SQLValueFunction
+// (CURRENT_DATE, CURRENT_ROLE, etc.) that cannot be eliminated by PostgreSQL's
+// constant-folding simplification of unreachable branches or strict-NULL ops.
+func isDirectSQLValueFunction(n ast.Node) bool {
+	_, ok := n.(*ast.SQLValueFunction)
+	return ok
 }
 
 // checkViewQuery checks unconditional CREATE VIEW query rules: WITH CHECK
