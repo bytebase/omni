@@ -997,7 +997,18 @@ func (p *Parser) parseAlterColumnSpecListTail() error {
 	if !p.match(kwALTER, kwCHANGE) {
 		return p.errorf("expected ALTER or CHANGE")
 	}
-	p.match(kwCOLUMN)
+	if p.cur().Kind == kwCOLUMN {
+		cp := p.save()
+		p.advance()
+		if err := p.parseAlterColumnSpecs(); err == nil && p.isStatementEnd() {
+			return nil
+		}
+		p.restore(cp)
+	}
+	return p.parseAlterColumnSpecs()
+}
+
+func (p *Parser) parseAlterColumnSpecs() error {
 	if err := p.parseAlterColumnSpec(); err != nil {
 		return err
 	}
@@ -1049,7 +1060,18 @@ func (p *Parser) parseHiveChangeColumnTail() error {
 	if _, err := p.expect(kwCHANGE); err != nil {
 		return err
 	}
-	p.match(kwCOLUMN)
+	if p.cur().Kind == kwCOLUMN {
+		cp := p.save()
+		p.advance()
+		if err := p.parseHiveChangeColumnBody(); err == nil && p.isStatementEnd() {
+			return nil
+		}
+		p.restore(cp)
+	}
+	return p.parseHiveChangeColumnBody()
+}
+
+func (p *Parser) parseHiveChangeColumnBody() error {
 	if _, err := p.parseMultipartIdentifier(); err != nil {
 		return err
 	}

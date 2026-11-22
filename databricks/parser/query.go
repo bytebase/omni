@@ -1628,7 +1628,9 @@ func (p *Parser) parseLateralView() error {
 	if _, err := p.expect(kwVIEW); err != nil {
 		return err
 	}
-	p.match(kwOUTER)
+	if p.cur().Kind == kwOUTER && p.peek(1).Kind != tokLParen && p.peek(1).Kind != tokDot {
+		p.advance()
+	}
 	if _, err := p.parseQualifiedName(); err != nil {
 		return err
 	}

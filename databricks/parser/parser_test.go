@@ -456,6 +456,56 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "describe relation named table",
+			sql:  `DESCRIBE table`,
+			kind: StmtDescribe,
+		},
+		{
+			name: "describe qualified relation starting with table",
+			sql:  `DESCRIBE table.x`,
+			kind: StmtDescribe,
+		},
+		{
+			name: "describe relation named table with partition and as json",
+			sql:  `DESCRIBE table PARTITION (p = 1) AS JSON`,
+			kind: StmtDescribe,
+		},
+		{
+			name: "describe table keyword with relation named table",
+			sql:  `DESCRIBE TABLE table.x`,
+			kind: StmtDescribe,
+		},
+		{
+			name: "describe table query with order by",
+			sql:  `DESCRIBE TABLE t ORDER BY a, b`,
+			kind: StmtDescribe,
+		},
+		{
+			name: "lateral view function named outer",
+			sql:  `SELECT * FROM t LATERAL VIEW outer(x) v AS x`,
+			kind: StmtQuery,
+		},
+		{
+			name: "lateral view qualified function starting with outer",
+			sql:  `SELECT * FROM t LATERAL VIEW outer.f(x) v AS x`,
+			kind: StmtQuery,
+		},
+		{
+			name: "lateral view outer modifier with function named outer",
+			sql:  `SELECT * FROM t LATERAL VIEW OUTER outer(x) v AS x LATERAL VIEW OUTER outer.f(x) v2 AS y`,
+			kind: StmtQuery,
+		},
+		{
+			name: "alter table alter column named column",
+			sql:  `ALTER TABLE t ALTER column TYPE INT`,
+			kind: StmtAlterTable,
+		},
+		{
+			name: "alter table change column named column",
+			sql:  `ALTER TABLE t CHANGE column c2 INT`,
+			kind: StmtAlterTable,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,

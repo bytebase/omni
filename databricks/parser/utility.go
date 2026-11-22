@@ -553,21 +553,22 @@ func (p *Parser) parseDescribe() (Statement, error) {
 	}
 
 	// 4. DESCRIBE TABLE? (EXTENDED | FORMATTED)? identifierReference partitionSpec? describeColName? (AS JSON)?
-	hasTable := p.match(kwTABLE)
-	if (p.cur().Kind == kwEXTENDED || p.cur().Kind == kwFORMATTED) && !p.isStatementEndAt(1) {
-		cpOpt := p.save()
+	hasTable := p.cur().Kind == kwTABLE
+	if hasTable && !p.isStatementEndAt(1) && p.peek(1).Kind != tokDot &&
+		!(p.peek(1).Kind == kwAS && p.peek(2).Kind == kwJSON && p.isStatementEndAt(3)) &&
+		!(p.peek(1).Kind == kwPARTITION && p.peek(2).Kind == tokLParen) {
 		p.advance()
-		if target, err := p.parseDescribeRelationTail(); err == nil && p.isStatementEnd() {
+		if target, ok := p.tryParseDescribeRelationBody(); ok {
 			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
-		p.restore(cpOpt)
+		p.restore(cp)
 	}
-	if target, err := p.parseDescribeRelationTail(); err == nil && p.isStatementEnd() {
+	if target, ok := p.tryParseDescribeRelationBody(); ok {
 		return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
 	p.restore(cp)
 
-	// Fallback: DESCRIBE TABLE identRef as query `TABLE identRef` or bare relation when TABLE was consumed.
+	// Fallback: DESCRIBE TABLE identRef ... as query (`TABLE identRef` with set/pipe/organization clauses).
 	if hasTable {
 		if err := p.parseQuery(); err == nil && p.isStatementEnd() {
 			return &ParsedStmt{Kind: StmtDescribe, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -576,6 +577,21 @@ func (p *Parser) parseDescribe() (Statement, error) {
 	}
 
 	return nil, p.errorf("invalid DESCRIBE statement")
+}
+
+func (p *Parser) tryParseDescribeRelationBody() (string, bool) {
+	if (p.cur().Kind == kwEXTENDED || p.cur().Kind == kwFORMATTED) && !p.isStatementEndAt(1) {
+		cpOpt := p.save()
+		p.advance()
+		if target, err := p.parseDescribeRelationTail(); err == nil && p.isStatementEnd() {
+			return target, true
+		}
+		p.restore(cpOpt)
+	}
+	if target, err := p.parseDescribeRelationTail(); err == nil && p.isStatementEnd() {
+		return target, true
+	}
+	return "", false
 }
 
 func (p *Parser) parseDescribeRelationTail() (string, error) {
