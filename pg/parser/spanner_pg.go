@@ -643,12 +643,3 @@ func (p *Parser) parseDropLocalityGroupStmt() (*nodes.DropStmt, error) {
 		Missing_ok: missingOk,
 	}, nil
 }
-
-// isSpannerSeqOptElemLead reports whether cur starts a Spanner-PG-specific
-// sequence option (BIT_REVERSED_POSITIVE or SKIP RANGE).
-func (p *Parser) isSpannerSeqOptElemLead() bool {
-	if !p.isSpannerPG() {
-		return false
-	}
-	return p.isSpannerIdent("bit_reversed_positive") || p.cur.Type == SKIP
-}
