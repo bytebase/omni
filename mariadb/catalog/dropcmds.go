@@ -1,6 +1,10 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/mariadb/ast"
+import (
+	"fmt"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
+)
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 	for _, ref := range stmt.Tables {
@@ -88,6 +92,10 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		}
 		tbl := db.GetTable(ref.Name)
 		if tbl == nil {
+			if db.Sequences[toLower(ref.Name)] != nil {
+				return &Error{Code: 1031, SQLState: "HY000",
+					Message: fmt.Sprintf("Storage engine SEQUENCE of the table `%s`.`%s` doesn't have this option", db.Name, ref.Name)}
+			}
 			return errNoSuchTable(db.Name, ref.Name)
 		}
 		if tbl.SystemVersioned {

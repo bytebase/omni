@@ -813,3 +813,17 @@ func errUnknownSequence(name string) error {
 	return &Error{Code: 4091, SQLState: "42S02",
 		Message: fmt.Sprintf("Unknown SEQUENCE: '%s'", name)}
 }
+
+// errEventSameName is 1551: ALTER EVENT ... RENAME TO naming the same event.
+// Measured on mariadb:11.8.8.
+func errEventSameName() error {
+	return &Error{Code: 1551, SQLState: "HY000", Message: "Same old and new event name"}
+}
+
+// errOutOfRangeColumn is 1264: a numeric value out of range for a column
+// (e.g. ALTER SEQUENCE narrowing AS <type> with an out-of-range existing limit).
+// Measured on mariadb:11.8.8.
+func errOutOfRangeColumn(col string) error {
+	return &Error{Code: 1264, SQLState: "22003",
+		Message: fmt.Sprintf("Out of range value for column '%s' at row 1", col)}
+}
