@@ -640,59 +640,39 @@ func (p *Parser) parseJSONObject() (Expr, error) {
 	}
 	jo := &JSONObjectExpr{Loc: ast.Loc{Start: startTok.Loc.Start}}
 
-	// Members are present unless the next token closes the call or begins the
-	// trailing RETURNING clause. (Both NULL ON NULL / ABSENT ON NULL and the
-	// uniqueness clause may only FOLLOW at least one member, so an empty member
-	// list cannot start with them — confirmed by the oracle: `JSON_OBJECT(NULL
-	// ON NULL)` and `JSON_OBJECT(ABSENT ON NULL)` are SYNTAX_ERRORs.)
-	if p.cur.Kind != int(')') && p.cur.Kind != kwRETURNING {
-		first, err := p.parseJSONObjectMember()
-		if err != nil {
-			return nil, err
-		}
-		jo.Members = append(jo.Members, first)
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			member, err := p.parseJSONObjectMember()
-			if err != nil {
-				return nil, err
-			}
-			jo.Members = append(jo.Members, member)
-		}
-
-		// (NULL ON NULL | ABSENT ON NULL)?
-		if nh, ok, err := p.tryJSONNullHandling(); err != nil {
-			return nil, err
-		} else if ok {
-			jo.NullHandling = nh
-		}
-
-		// (WITH UNIQUE KEYS? | WITHOUT UNIQUE KEYS?)?
-		if p.cur.Kind == kwWITH || p.cur.Kind == kwWITHOUT {
-			if p.cur.Kind == kwWITH {
-				jo.Uniqueness = "WITH UNIQUE"
+	// RETURNING is non-reserved, so at the start of JSON_OBJECT(...) it can
+	// introduce either the trailing RETURNING clause (empty object) or a
+	// member's key expression (`JSON_OBJECT(RETURNING : 1)`). Try RETURNING
+	// first and fall back to the member reading when it does not close cleanly.
+	if p.cur.Kind == kwRETURNING {
+		cp := p.checkpoint()
+		typ, format, retErr := p.parseJSONReturning()
+		if retErr == nil {
+			if closeTok, err := p.expect(int(')')); err == nil {
+				jo.Returning = typ
+				jo.ReturningFormat = format
+				jo.Loc.End = closeTok.Loc.End
+				return jo, nil
 			} else {
-				jo.Uniqueness = "WITHOUT UNIQUE"
-			}
-			p.advance() // WITH or WITHOUT
-			if _, err := p.expect(kwUNIQUE); err != nil {
-				return nil, err
-			}
-			if p.cur.Kind == kwKEYS {
-				p.advance()
-				jo.UniqueKeys = true
+				retErr = err
 			}
 		}
+		p.restore(cp)
+		if err := p.parseJSONObjectBody(jo); err != nil {
+			return nil, furtherError(retErr, err)
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, furtherError(retErr, err)
+		}
+		jo.Loc.End = closeTok.Loc.End
+		return jo, nil
 	}
 
-	// (RETURNING type (FORMAT jsonRepresentation)?)?
-	if p.cur.Kind == kwRETURNING {
-		typ, format, err := p.parseJSONReturning()
-		if err != nil {
+	if p.cur.Kind != int(')') {
+		if err := p.parseJSONObjectBody(jo); err != nil {
 			return nil, err
 		}
-		jo.Returning = typ
-		jo.ReturningFormat = format
 	}
 
 	closeTok, err := p.expect(int(')'))
@@ -703,6 +683,59 @@ func (p *Parser) parseJSONObject() (Expr, error) {
 	return jo, nil
 }
 
+// parseJSONObjectBody parses the member list, optional null-handling, optional
+// uniqueness, and optional trailing RETURNING clause of JSON_OBJECT(...).
+func (p *Parser) parseJSONObjectBody(jo *JSONObjectExpr) error {
+	first, err := p.parseJSONObjectMember()
+	if err != nil {
+		return err
+	}
+	jo.Members = append(jo.Members, first)
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		member, err := p.parseJSONObjectMember()
+		if err != nil {
+			return err
+		}
+		jo.Members = append(jo.Members, member)
+	}
+
+	// (NULL ON NULL | ABSENT ON NULL)?
+	if nh, ok, err := p.tryJSONNullHandling(); err != nil {
+		return err
+	} else if ok {
+		jo.NullHandling = nh
+	}
+
+	// (WITH UNIQUE KEYS? | WITHOUT UNIQUE KEYS?)?
+	if p.cur.Kind == kwWITH || p.cur.Kind == kwWITHOUT {
+		if p.cur.Kind == kwWITH {
+			jo.Uniqueness = "WITH UNIQUE"
+		} else {
+			jo.Uniqueness = "WITHOUT UNIQUE"
+		}
+		p.advance() // WITH or WITHOUT
+		if _, err := p.expect(kwUNIQUE); err != nil {
+			return err
+		}
+		if p.cur.Kind == kwKEYS {
+			p.advance()
+			jo.UniqueKeys = true
+		}
+	}
+
+	// (RETURNING type (FORMAT jsonRepresentation)?)?
+	if p.cur.Kind == kwRETURNING {
+		typ, format, err := p.parseJSONReturning()
+		if err != nil {
+			return err
+		}
+		jo.Returning = typ
+		jo.ReturningFormat = format
+	}
+	return nil
+}
+
 // parseJSONObjectMember parses one `KEY? expression VALUE jsonValueExpression`
 // or `expression COLON jsonValueExpression` member (jsonObjectMember).
 //
@@ -711,49 +744,50 @@ func (p *Parser) parseJSONObject() (Expr, error) {
 // the current token is KEY, try consuming it as the keyword and parsing
 // `expression VALUE value`; if that does not fit (e.g. `KEY VALUE 1`, where KEY
 // is really the key column), rewind and parse the member with KEY as the
-// expression's first token.
+// expression's first token. When both fail, report whichever got further.
 func (p *Parser) parseJSONObjectMember() (JSONObjectMember, error) {
 	// Speculative KEY-as-keyword reading.
+	var keyErr error
 	if p.cur.Kind == kwKEY {
 		cp := p.checkpoint()
 		keyTok := p.advance() // tentatively consume KEY as the keyword
 		p.speculating++
-		member, ok := p.tryJSONObjectMemberBody(keyTok.Loc.Start, true)
+		member, err := p.tryJSONObjectMemberBody(keyTok.Loc.Start, true)
 		p.speculating--
-		if ok {
+		if err == nil {
 			return member, nil
 		}
+		keyErr = err
 		p.restore(cp)
 	}
 
 	// No leading KEY keyword: KEY (if present) is the key expression's first
 	// token. The member must use `: value` or `VALUE value`.
 	start := p.cur.Loc.Start
-	if member, ok := p.tryJSONObjectMemberBody(start, false); ok {
+	member, err := p.tryJSONObjectMemberBody(start, false)
+	if err == nil {
 		return member, nil
 	}
-	return JSONObjectMember{}, p.exprErrorAt("expected a JSON_OBJECT member (key VALUE value or key : value)")
+	if keyErr != nil {
+		return JSONObjectMember{}, furtherError(keyErr, err)
+	}
+	return JSONObjectMember{}, err
 }
 
 // tryJSONObjectMemberBody parses `expression (VALUE | COLON) jsonValueExpression`
-// after any leading KEY keyword has been handled, returning ok=false (leaving
-// the cursor for the caller's restore) when the shape does not fit. keyKeyword
-// records whether the caller consumed a leading KEY; start is the member's span
-// start. A hard error inside the value (after the separator commits the reading)
-// is surfaced via ok=false so the outer parser reports a single member error;
-// the separators here are mandatory, so a missing separator simply means "not
-// this reading."
-func (p *Parser) tryJSONObjectMemberBody(start int, keyKeyword bool) (JSONObjectMember, bool) {
+// after any leading KEY keyword has been handled, returning the parse error
+// (leaving the cursor for the caller's restore) when the shape does not fit.
+func (p *Parser) tryJSONObjectMemberBody(start int, keyKeyword bool) (JSONObjectMember, error) {
 	key, err := p.parseExpr()
 	if err != nil {
-		return JSONObjectMember{}, false
+		return JSONObjectMember{}, err
 	}
 	switch p.cur.Kind {
 	case kwVALUE:
 		p.advance() // consume VALUE
 		value, err := p.parseJSONValueExpr()
 		if err != nil {
-			return JSONObjectMember{}, false
+			return JSONObjectMember{}, err
 		}
 		return JSONObjectMember{
 			KeyKeyword: keyKeyword,
@@ -761,27 +795,27 @@ func (p *Parser) tryJSONObjectMemberBody(start int, keyKeyword bool) (JSONObject
 			Separator:  "VALUE",
 			Value:      value,
 			Loc:        ast.Loc{Start: start, End: value.Loc.End},
-		}, true
+		}, nil
 	case int(':'):
 		// The colon form has no leading KEY keyword in the grammar; if the caller
 		// consumed KEY this reading is invalid (forces a rewind to the non-keyword
 		// path, which will re-parse KEY as part of the key expression).
 		if keyKeyword {
-			return JSONObjectMember{}, false
+			return JSONObjectMember{}, p.exprErrorAt("expected VALUE after KEY expression")
 		}
 		p.advance() // consume ':'
 		value, err := p.parseJSONValueExpr()
 		if err != nil {
-			return JSONObjectMember{}, false
+			return JSONObjectMember{}, err
 		}
 		return JSONObjectMember{
 			Key:       key,
 			Separator: ":",
 			Value:     value,
 			Loc:       ast.Loc{Start: start, End: value.Loc.End},
-		}, true
+		}, nil
 	default:
-		return JSONObjectMember{}, false
+		return JSONObjectMember{}, p.exprErrorAt("expected a JSON_OBJECT member (key VALUE value or key : value)")
 	}
 }
 

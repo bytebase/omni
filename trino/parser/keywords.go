@@ -914,6 +914,7 @@ func buildTokenNames() map[TokenKind]string {
 	m[tokDouble] = "DOUBLE_VALUE"
 	m[tokString] = "STRING"
 	m[tokUnicodeString] = "UNICODE_STRING"
+	m[tokDollarString] = "DOLLAR_STRING"
 	m[tokBinaryLiteral] = "BINARY_LITERAL"
 	m[tokIdent] = "IDENTIFIER"
 	m[tokQuotedIdent] = "QUOTED_IDENTIFIER"

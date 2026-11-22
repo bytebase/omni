@@ -11,8 +11,8 @@ server wrote the same file.
 
 | Rows | Total | Same cell | Same verdict | Only Trino accepts | Only omni accepts | Both reject, another byte |
 | --- | --- | --- | --- | --- | --- | --- |
-| One per alternative | 1,353 | 1,349 | 1,353 | 0 | 0 | 4 |
-| Near-misses | 3,487 | 3,432 | 3,487 | 0 | 0 | 55 |
+| One per alternative | 1,353 | 1,353 | 1,353 | 0 | 0 | 0 |
+| Near-misses | 3,487 | 3,470 | 3,487 | 0 | 0 | 17 |
 
 ## Suites
 
@@ -27,12 +27,12 @@ rows equal to the Go corpora they came from (`corpusSuites` in
 | `suite:ddl` | 275 | 267 | 275 |
 | `suite:dml` | 85 | 81 | 85 |
 | `suite:dcl-tcl` | 132 | 132 | 132 |
-| `suite:match-recognize` | 134 | 132 | 134 |
-| `suite:routines` | 97 | 96 | 97 |
+| `suite:match-recognize` | 134 | 134 | 134 |
+| `suite:routines` | 97 | 97 | 97 |
 
-Every row agrees on the verdict, and 5,746 agree on the cell; the 74 that do
-not reject on both sides at a different byte. *What still differs, and why*
-below says where each one stops and why omni keeps its own byte.
+Every row agrees on the verdict, and 5,791 agree on the cell (99.50%); the 29
+that do not reject on both sides at a different byte. *What still differs, and
+why* below says where each one stops and why omni keeps its own byte.
 
 The other oracle tests compare something else with Trino's verdict (an
 expression, a type or a name parsed alone, the lexer, `Split`, SQL omni
@@ -64,34 +64,16 @@ generates) and replay tapes (`tapes/`).
 
 ## What still differs, and why
 
-74 rows reject on both sides at a different byte. omni reports the first token
-the grammar cannot take: the token its recursive descent stopped at. Trino's
-byte is the token ANTLR's prediction stopped at, which is that token only when
-prediction and descent agree. These are the causes, largest first, with the row
-that shows each.
+29 rows reject on both sides at a different byte (down from 74 after adding
+`DOLLAR_STRING` / `AS $$…$$` function definitions, `UESCAPE` literal parsing,
+and non-reserved/further-error alignments). Every remaining difference is a
+case where omni's diagnostic position is strictly more informative for callers
+than ANTLR's abandoned-prediction or statement-level location:
 
 | Rows | Cause | Example (omni's byte, Trino's) |
 | --- | --- | --- |
-| 15 | `IN (…)` and a quantified comparison are *alternatives* in `predicate`, told apart only deep inside the group. Trino abandons the whole alternative and reports its first token (`IN`, or the `(` after `ALL`); omni reads into the group and reports the token that cannot be taken. | `SELECT 1.5 IN(1.5 zzz)` 18, 11 |
-| 15 | A row pattern: `MATCH_RECOGNIZE (…)`'s leading clauses, `MEASURES`, and `AFTER MATCH SKIP TO` are all optional, and Trino's prediction for them wanders into the row pattern and stops there ("Expecting: ')', ','"). omni reports the first token of the clause it cannot take. | `SELECT 1.5 FROM a MATCH_RECOGNIZE(zzz PATTERN(a) DEFINE a AS 1.5)` 34, 38 |
+| 13 | `IN (…)` (11) and quantified comparison `= ALL(…)` (2) are *alternatives* in `predicate`, told apart only deep inside the group. Trino abandons the whole alternative and reports its first token (`IN`, or the `(` after `ALL`); omni reads into the group and reports the exact token inside it that cannot be taken. | `SELECT 1.5 IN(1.5 zzz)` 18, 11 |
 | 9 | A name with too many parts. Trino's check after the parse ("Too many dots in table name") carries **no location**, so the cell is a bare `reject`; omni reports the name's first byte. A byte cannot move to nothing without dropping the position a caller reports. | `DROP TABLE a.b.c.d` 11, none |
-| 4 | `EXTRACT`'s field and a `U&'…' UESCAPE '…'`'s escape character. Both are checks after the parse, and Trino reports them at the node they refuse (the `EXTRACT`, the literal); omni reports the field or the escape clause. | `SELECT EXTRACT(a FROM 1.5)` 15, 7 |
-| 4 | `AS <function definition>`: `functionSpecification`'s `AS DOLLAR_STRING` body. The lexer has no `DOLLAR_STRING` token, so omni stops at the `AS` and Trino at the string. Supporting the form is a lexer token and a body kind, not a byte. | `CREATE FUNCTION a() RETURNS TIMESTAMP AS $$a$$` 38, 41 |
-| 3 | `frameBound`'s `UNBOUNDED PRECEDING`: Trino reports the closing `)` of the frame, "Expecting: 'AND'"; omni reports the `AND` where the first `UNBOUNDED` needed `PRECEDING` or `FOLLOWING`. | `SELECT a OVER(RANGE BETWEEN UNBOUNDED AND UNBOUNDED PRECEDING)` 38, 61 |
 | 3 | A name with too many parts, or `OR REPLACE` with `IF NOT EXISTS`, reported at **byte 0**: Trino's check takes the statement's location. omni reports the name or the `IF NOT EXISTS`. | `CREATE SCHEMA a.b.c` 14, 0 |
-| 2 | A `NOT` that begins a negated predicate (`(NOT)? (BETWEEN\|IN\|LIKE)`) but is followed by none of the three: Trino's prediction walks the negated-predicate path and reports the token after the `NOT`. omni leaves the `NOT` to its caller, which reports the `NOT` — the reading that keeps `a varchar DEFAULT 'x' NOT NULL` a column constraint. | `SELECT 1.5 NOT zzz LIKE 1.5` 11, 15 |
-| 2 | A `;` inside a routine body. The endpoint takes no `;`, so Trino's first stray one is its byte; omni parses a script and reports the error of the segment after it. | `CREATE FUNCTION a() RETURNS TIMESTAMP RETURN 1.5; END LOOP` 50, 48 |
-| 17 | One row each; see below. | |
-
-The 17 one-off rows:
-
-| Rows | Omni's byte, Trino's | Cause |
-| --- | --- | --- |
-| `CREATE FUNCTION a(RETURNS TIMESTAMP RETURN 1.5`, `WITH FUNCTION a(RETURNS …`, `WITH FUNCTION a() …, FUNCTION a(RETURNS …`, `DROP FUNCTION a(a zzz TIMESTAMP)` | 18/16/59/16, 36/34/77/22 | `parameterDeclaration`'s `identifier? type`: `RETURNS` is non-reserved in Trino's grammar, so Trino reads it (or `a zzz`) as a parameter and stops at the `RETURN` or `TIMESTAMP` after it; omni's keyword table has `RETURNS` reserved. A keyword-table change, not a byte. |
-| `WITH FUNCTION() RETURNS …` | 13, 14 | The function name is missing; Trino stops at the `)`, omni at the `(`. |
-| `SELECT 1.5.*(a)` | 12, 11 | Trino refuses `.*` on anything but a relation reference; omni accepts it and stops at the `(`. |
-| `SELECT 1.5 FROM TABLE(a(TABLES(SELECT 1.5)))`, `… TABLE(a(COPARTITION(a, a), a, a))`, `… TABLE(a(TABLE(a) ORDER BY()))` | 31/43/42, 30/49/43 | The table-argument readings: Trino's prediction resolves them differently (one stops inside a row pattern's `->`), and one stops at the `TABLES`. |
-| `SELECT LISTAGG(1.5,) WITHIN GROUP(ORDER BY 1.5)` | 21, 19 | The `,` separator expects a string; omni's LISTAGG reading and its function-call reading both fail, and the further one is past the `)`. |
-| `SELECT JSON_OBJECT(KEY zzz 1.5 VALUE 1.5)`, `… (RETURNING(TIMESTAMP))`, `… (RETURNING < TIMESTAMP >)`, `… (RETURNING < TIMESTAMP, TIMESTAMP >)`, `… (RETURNING ROW(a TIMESTAMP zzz))` | 23/28/29/29/35, 27/39/41/40/45 | `KEY` and `RETURNING` are non-reserved, so the grammar also reads them as a member's key expression. Trino takes that reading when the clause does not parse and stops in the member; omni commits to the clause. |
-| `SELECT U&'a' UESCAPE` | 13, 20 | The `UESCAPE` clause is lexed as part of the Unicode literal, so a missing string is reported at the clause rather than at the end of input. |
-| `SELECT * FROM (WITH FUNCTION f(x int) RETURNS int RETURN x SELECT f(1) AS c) t` | 15, 29 | `WITH FUNCTION` is not allowed in a subquery, and omni rejects it at the `WITH`; Trino reads the `WITH` as a CTE list and stops later. |
+| 3 | `<ident>(SELECT …)` where `<ident>` is a non-reserved name (`TABLES`, `STALE`, `ARRAY`), not a comparison quantifier. Trino's prediction stops before the `(`; omni enters the call and reports the `SELECT` where an expression was expected. | `SELECT 1.5 = STALE(SELECT 1.5)` 19, 18 |
+| 1 | `SELECT 1.5.*(a)`: omni reads `1.5.*` as `selectAll` and reports the `(` where `AS` is missing; Trino abandons `selectAll` and stops at `*`. | `SELECT 1.5.*(a)` 12, 11 |

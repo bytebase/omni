@@ -111,7 +111,8 @@ const (
 type Literal struct {
 	Kind    LiteralKind
 	Value   string
-	Unicode bool // true for a U&'…' string literal
+	Unicode bool   // true for a U&'…' string literal
+	UEscape string // optional UESCAPE character for a U&'…' literal ("" for default '\')
 	Loc     ast.Loc
 }
 
@@ -991,18 +992,72 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 	}
 }
 
-// parseStringLiteral parses a basic or unicode string literal (string_ rule).
-// The lexer has already decoded the body and recorded whether it was a U&'…'
-// unicode string. A `UESCAPE '…'` clause, when present, has been consumed by the
-// lexer as part of the unicode-string token.
+// parseStringLiteral parses a basic or unicode string literal (string rule:
+// STRING | UNICODE_STRING (UESCAPE STRING)?).
 func (p *Parser) parseStringLiteral() (Expr, error) {
+	if p.cur.Kind != tokString && p.cur.Kind != tokUnicodeString {
+		return nil, p.syntaxErrorAtCur()
+	}
 	tok := p.advance()
-	return &Literal{
+	lit := &Literal{
 		Kind:    LiteralString,
 		Value:   tok.Str,
 		Unicode: tok.Kind == tokUnicodeString,
 		Loc:     tok.Loc,
-	}, nil
+	}
+	if tok.Kind == tokUnicodeString {
+		esc, end, err := p.parseOptionalUEscape(tok.Loc)
+		if err != nil {
+			return nil, err
+		}
+		if esc != "" {
+			lit.UEscape = esc
+			lit.Loc.End = end
+		}
+	}
+	return lit, nil
+}
+
+// parseOptionalUEscape parses the optional `UESCAPE STRING` suffix of a
+// unicodeStringLiteral (`UNICODE_STRING (UESCAPE STRING)?`). When absent it
+// returns ("", 0, nil). When the escape string is not a valid single Unicode
+// escape character (hex digit, quote, '+', or whitespace), the check is
+// deferred to the end of the statement at the literal's span, matching Trino's
+// AstBuilder.
+func (p *Parser) parseOptionalUEscape(litLoc ast.Loc) (string, int, error) {
+	if p.cur.Kind != kwUESCAPE {
+		return "", 0, nil
+	}
+	p.advance() // consume UESCAPE
+	if p.cur.Kind != tokString {
+		return "", 0, p.syntaxErrorAtCur()
+	}
+	escTok := p.advance()
+	span := ast.Loc{Start: litLoc.Start, End: escTok.Loc.End}
+	if !isValidUnicodeEscape(escTok.Str) {
+		p.deferCheck(span, "invalid Unicode escape character")
+	}
+	return escTok.Str, escTok.Loc.End, nil
+}
+
+// isValidUnicodeEscape reports whether s is a valid Trino UESCAPE argument: a
+// single character that is not a hexadecimal digit, '+', single quote, double
+// quote, or whitespace.
+func isValidUnicodeEscape(s string) bool {
+	if s == "" {
+		return false
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	if size != len(s) || r == utf8.RuneError || r > 0xFFFF {
+		return false
+	}
+	if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+		return false
+	}
+	if r == '+' || r == '\'' || r == '"' || unicode.IsSpace(r) {
+		return false
+	}
+	return true
 }
 
 // parseIntervalLiteral parses `INTERVAL [+|-] 'string' field [TO field]`

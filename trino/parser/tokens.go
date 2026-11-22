@@ -58,6 +58,7 @@ const (
 	tokDouble                       // DOUBLE_VALUE_:  ... EXPONENT
 	tokString                       // STRING_:        '...'  ('' escape)
 	tokUnicodeString                // UNICODE_STRING_: U&'...' [UESCAPE '...']
+	tokDollarString                 // DOLLAR_STRING:   $$...$$
 	tokBinaryLiteral                // BINARY_LITERAL_: X'...'
 	tokIdent                        // IDENTIFIER_:     (LETTER|'_') (LETTER|DIGIT|'_')*
 	tokQuotedIdent                  // QUOTED_IDENTIFIER_:     "..."  ("" escape)
@@ -87,9 +88,10 @@ type LexError struct {
 
 // Error messages emitted by the lexer.
 const (
-	errUnterminatedString  = "unterminated string literal"
-	errUnterminatedQuoted  = "unterminated quoted identifier"
-	errUnterminatedBinary  = "unterminated binary literal"
-	errUnterminatedComment = "unterminated bracketed comment"
-	errUnknownChar         = "unrecognized character"
+	errUnterminatedString       = "unterminated string literal"
+	errUnterminatedDollarString = "unterminated dollar-quoted string literal"
+	errUnterminatedQuoted       = "unterminated quoted identifier"
+	errUnterminatedBinary       = "unterminated binary literal"
+	errUnterminatedComment      = "unterminated bracketed comment"
+	errUnknownChar              = "unrecognized character"
 )

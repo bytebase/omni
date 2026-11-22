@@ -196,37 +196,58 @@ func (p *Parser) parsePatternRecognitionSuffix(input Relation) (Relation, error)
 	if p.cur.Kind != kwMATCH_RECOGNIZE {
 		return input, nil
 	}
+	cp := p.checkpoint()
 	p.advance() // consume MATCH_RECOGNIZE
+
+	var prErr error
 	if _, err := p.expect(int('(')); err != nil {
-		return nil, err
+		prErr = err
+	} else {
+		// The span starts at the wrapped relation (input), which already covers the
+		// table/subquery and its inner alias; the MATCH_RECOGNIZE keyword always
+		// follows it, so input.Span().Start is the node start.
+		pr := &PatternRecognition{
+			Input: input,
+			Loc:   ast.Loc{Start: input.Span().Start},
+		}
+		if err := p.parseMatchRecognizeBody(pr); err != nil {
+			prErr = err
+		} else if closeTok, err := p.expect(int(')')); err != nil {
+			prErr = err
+		} else {
+			pr.Loc.End = closeTok.Loc.End
+			// Optional trailing `AS? identifier columnAliases?` (M3).
+			if alias, cols, end, ok, err := p.parseTrailingMatchRecognizeAlias(); err != nil {
+				prErr = err
+			} else {
+				if ok {
+					pr.Alias = alias
+					pr.ColumnAliases = cols
+					pr.Loc.End = end
+				}
+				return pr, nil
+			}
+		}
 	}
 
-	// The span starts at the wrapped relation (input), which already covers the
-	// table/subquery and its inner alias; the MATCH_RECOGNIZE keyword always
-	// follows it, so input.Span().Start is the node start.
-	pr := &PatternRecognition{
-		Input: input,
-		Loc:   ast.Loc{Start: input.Span().Start},
+	// MATCH_RECOGNIZE is non-reserved, so on an unaliased relation a failing
+	// `MATCH_RECOGNIZE (...)` can also be read as bare alias `MATCH_RECOGNIZE`
+	// with columnAliases `(col, ...)`, e.g. `FROM t MATCH_RECOGNIZE (a, b)`.
+	if ar, ok := input.(*AliasedRelation); ok && ar.Alias == nil {
+		p.restore(cp)
+		alias := identFromToken(p.advance()) // consume MATCH_RECOGNIZE as alias
+		if p.cur.Kind == int('(') {
+			cols, end, aliasErr := p.parseColumnAliases()
+			if aliasErr == nil {
+				ar.Alias = alias
+				ar.ColumnAliases = cols
+				ar.Loc.End = end
+				return ar, nil
+			}
+			return nil, furtherError(prErr, aliasErr)
+		}
 	}
-	if err := p.parseMatchRecognizeBody(pr); err != nil {
-		return nil, err
-	}
-
-	closeTok, err := p.expect(int(')'))
-	if err != nil {
-		return nil, err
-	}
-	pr.Loc.End = closeTok.Loc.End
-
-	// Optional trailing `AS? identifier columnAliases?` (M3).
-	if alias, cols, end, ok, err := p.parseTrailingMatchRecognizeAlias(); err != nil {
-		return nil, err
-	} else if ok {
-		pr.Alias = alias
-		pr.ColumnAliases = cols
-		pr.Loc.End = end
-	}
-	return pr, nil
+	return nil, prErr
 }
 
 // parseTrailingMatchRecognizeAlias parses the optional `AS? identifier
@@ -380,10 +401,15 @@ func (p *Parser) atMeasuresClause() bool {
 	cp := p.checkpoint()
 	defer p.restore(cp)
 	p.advance() // consume MEASURES
-	if _, err := p.parseExpr(); err != nil {
-		return false
+	next := p.cur.Kind
+	if _, err := p.parseExpr(); err == nil && p.cur.Kind == kwAS {
+		return true
 	}
-	return p.cur.Kind == kwAS
+	// If the token after MEASURES cannot follow an existing window name
+	// (only PARTITION, ORDER, MEASURES, ROWS/RANGE/GROUPS, or ')' can), then
+	// MEASURES must be a MEASURES clause (even if malformed, e.g. missing AS).
+	return next != kwPARTITION && next != kwORDER && next != kwMEASURES &&
+		!isFrameTypeKeyword(next) && next != int(')')
 }
 
 // parseLeadingFrameMeasures parses the windowFrame's leading
@@ -713,8 +739,14 @@ func (p *Parser) tryParseSkipFirstLastKeyword() (SkipToKind, *ast.Identifier, bo
 		p.restore(cp)
 		return 0, nil, false
 	}
+	nextIsSuccessor := isSkipToSuccessor(p.cur.Kind)
 	name := identFromToken(p.advance())
-	if !isSkipToSuccessor(p.cur.Kind) {
+	// When the token after FIRST/LAST is itself a skipTo successor (e.g.
+	// `SKIP TO FIRST PATTERN (A)`) and is NOT followed by another successor,
+	// FIRST/LAST is the variable name. Otherwise FIRST/LAST is the keyword
+	// followed by the variable `name` (even if a stray token follows `name`,
+	// e.g. `SKIP TO FIRST a zzz)`).
+	if nextIsSuccessor && !isSkipToSuccessor(p.cur.Kind) {
 		p.restore(cp)
 		return 0, nil, false
 	}

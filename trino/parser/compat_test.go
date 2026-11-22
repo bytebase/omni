@@ -108,13 +108,17 @@ func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
 // grammar has no place for it, and a text with no statement is refused at
 // its end, where Trino finds no statement.
 func omniVerdict(sql string) string {
+	segs := Split(sql)
 	if _, err := Parse(sql); err != nil {
 		if errs := AllErrors(err); len(errs) > 0 && errs[0].Position >= 0 {
-			return compat.RejectAt(errs[0].Position)
+			pos := errs[0].Position
+			if len(segs) > 0 && segs[0].ByteEnd < len(sql) && segs[0].ByteEnd < pos {
+				return compat.RejectAt(segs[0].ByteEnd)
+			}
+			return compat.RejectAt(pos)
 		}
 		return compat.Reject
 	}
-	segs := Split(sql)
 	switch {
 	case len(segs) == 0:
 		return compat.RejectAt(len(sql))
