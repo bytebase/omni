@@ -596,3 +596,39 @@ var numericOnlyLeadTokens = []int{ICONST, FCONST, '+', '-'}
 func (p *Parser) isNumericOnlyStart() bool {
 	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }
+
+// keyActionLeadTokens is the FIRST set of key_action (NO ACTION | RESTRICT |
+// CASCADE | SET NULL | SET DEFAULT).
+//
+// Grammar reference: key_action in postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseKeyActionType in
+// create_table.go, and vice versa.
+var keyActionLeadTokens = []int{NO, RESTRICT, CASCADE, SET}
+
+// isKeyActionStart reports whether tok starts a PostgreSQL key_action.
+//
+// No PG oracle test: key_action only appears after ON UPDATE / ON DELETE in
+// REFERENCES clauses; TestIsKeyActionStartMatchesSlice checks the whole
+// Keywords table against keyActionLeadTokens.
+func isKeyActionStart(tok int) bool {
+	return slices.Contains(keyActionLeadTokens, tok)
+}
+
+// isSpannerColOnUpdateStart reports whether the current token begins Cloud
+// Spanner PG's column-level ON UPDATE b_expr constraint rather than a foreign
+// key ON UPDATE key_action clause.
+//
+// In Spanner-PG's parser.c lookahead, ON followed by UPDATE is reclassified as
+// the column-constraint lead whenever the token after UPDATE is not in
+// FIRST(key_action) (NO, RESTRICT, CASCADE, SET). Covered across all Keywords
+// by TestIsSpannerColOnUpdateStartMatchesKeywords in spanner_pg_test.go.
+func (p *Parser) isSpannerColOnUpdateStart() bool {
+	if !p.isSpannerPG() || p.cur.Type != ON {
+		return false
+	}
+	if p.peekNext().Type != UPDATE {
+		return false
+	}
+	return !isKeyActionStart(p.peekTokenAfterNext().Type)
+}

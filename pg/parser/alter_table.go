@@ -1819,6 +1819,13 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 				Def:     interleave,
 			}, nil
 		}
+		if p.isSpannerPG() && (p.cur.Type == 0 || p.cur.Type == ';' || p.cur.Type == ',') {
+			// Spanner-PG's modified alter_table_cmd grammar permits a bare SET
+			// subcommand when terminated by ',', ';', or EOF.
+			return &nodes.AlterTableCmd{
+				Subtype: int(nodes.AT_SpannerSetEmpty),
+			}, nil
+		}
 		// exhaustive-gap fix: SET <unknown>. No legal SET alternative matched.
 		return nil, p.syntaxErrorAtCur()
 	}

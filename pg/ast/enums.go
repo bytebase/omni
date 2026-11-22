@@ -154,6 +154,7 @@ const (
 	CONSTR_ATTR_NOT_DEFERRABLE
 	CONSTR_ATTR_DEFERRED
 	CONSTR_ATTR_IMMEDIATE
+	CONSTR_SPANNER_ON_UPDATE // Cloud Spanner PG column-level ON UPDATE b_expr
 )
 
 // CoercionForm represents how to display a node.
@@ -337,6 +338,7 @@ const (
 	AT_SpannerSetInterleave
 	AT_SpannerDropInterleave
 	AT_SpannerSetOnDelete
+	AT_SpannerSetEmpty // Cloud Spanner PG bare SET alter_table_cmd
 )
 
 // LockClauseStrength represents FOR UPDATE/SHARE strength.

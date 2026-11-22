@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -43,6 +44,17 @@ func TestDialectSpannerPG_Isolation(t *testing.T) {
 		`DROP SEARCH INDEX IF EXISTS idx`,
 		`CREATE LOCALITY GROUP IF NOT EXISTS lg`,
 		`DROP LOCALITY GROUP IF EXISTS lg`,
+		// Bare SET alter_table_cmd, PG 16 IDENT createdb_opt_name, and column-level ON UPDATE b_expr.
+		`ALTER TABLE a SET`,
+		`ALTER TABLE a SET, ADD COLUMN b int`,
+		`ALTER DATABASE a TARGET 1.5`,
+		`CREATE DATABASE a SOURCE 1.5`,
+		`CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION`,
+		`CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN`,
+		`CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED`,
+		`CREATE DOMAIN a a REFERENCES a ON UPDATE NULL`,
+		`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL`,
+		`CREATE TABLE t (a bigint PRIMARY KEY, ts timestamptz DEFAULT spanner.pending_commit_timestamp() ON UPDATE spanner.pending_commit_timestamp())`,
 	}
 
 	for _, sql := range spannerOnlyDDL {
@@ -355,4 +367,273 @@ func TestDialectSpannerPG_AST(t *testing.T) {
 			t.Errorf("expected PG17 JSON_QUERY PASSING in FROM to fail in DialectSpannerPG")
 		}
 	})
+
+	t.Run("BareSetAlterTableCmd", func(t *testing.T) {
+		accepted := []string{
+			`ALTER TABLE a SET`,
+			`ALTER TABLE a SET;`,
+			`ALTER TABLE a SET, ADD COLUMN b int`,
+			`ALTER TABLE a ADD COLUMN b int, SET`,
+			`ALTER TABLE a SET, SET`,
+			`ALTER VIEW a SET`,
+			`ALTER MATERIALIZED VIEW a SET`,
+			`ALTER FOREIGN TABLE a SET`,
+		}
+		for _, sql := range accepted {
+			list, err := ParseWithDialect(sql, DialectSpannerPG)
+			if err != nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+				continue
+			}
+			stmt := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.AlterTableStmt)
+			foundEmptySet := false
+			for _, item := range stmt.Cmds.Items {
+				if cmd, ok := item.(*nodes.AlterTableCmd); ok && cmd.Subtype == int(nodes.AT_SpannerSetEmpty) {
+					foundEmptySet = true
+				}
+			}
+			if !foundEmptySet {
+				t.Errorf("%q: expected an AT_SpannerSetEmpty AlterTableCmd, got %+v", sql, stmt.Cmds.Items)
+			}
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) in DialectDefault unexpectedly succeeded; want error", sql)
+			}
+		}
+
+		rejected := []string{
+			`ALTER TABLE a SET zzz`,
+			`ALTER TABLE a SET 1`,
+			`ALTER TABLE a SET ()`,
+			`ALTER TABLE a SET WITH`,
+			`ALTER TABLE a SET WITHOUT`,
+			`ALTER TABLE a SET ON`,
+			`ALTER TABLE a SET INTERLEAVE`,
+			`ALTER TABLE a ALTER COLUMN c SET`,
+			`ALTER INDEX a SET`,
+			`ALTER TABLE a RESET`,
+			`ALTER TABLE a DROP`,
+		}
+		for _, sql := range rejected {
+			if _, err := ParseWithDialect(sql, DialectSpannerPG); err == nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpectedly succeeded; want error", sql)
+			}
+		}
+	})
+
+	t.Run("CreatedbOptNamePG17Keywords", func(t *testing.T) {
+		// All 20 keywords added in PostgreSQL 17 were plain IDENTs in PG 16
+		// (Spanner-PG's embedded parser base), so createdb_opt_name accepts them.
+		pg17Keywords := []string{
+			"conditional", "empty", "error",
+			"json_exists", "json_query", "json_scalar", "json_serialize", "json_table", "json_value",
+			"keep", "merge_action", "nested", "omit", "path", "plan", "quotes",
+			"source", "string", "target", "unconditional",
+		}
+		for _, kw := range pg17Keywords {
+			for _, sql := range []string{
+				`ALTER DATABASE a ` + kw + ` 1.5`,
+				`CREATE DATABASE a ` + kw + ` 1.5`,
+			} {
+				if _, err := ParseWithDialect(sql, DialectSpannerPG); err != nil {
+					t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+				}
+				if _, err := Parse(sql); err == nil {
+					t.Errorf("Parse(%q) in DialectDefault unexpectedly succeeded; want error", sql)
+				}
+			}
+		}
+		for _, sql := range []string{
+			`ALTER DATABASE a TARGET = 1.5`,
+			`ALTER DATABASE a WITH TARGET 1.5`,
+			`ALTER DATABASE a TARGET 'foo'`,
+		} {
+			if _, err := ParseWithDialect(sql, DialectSpannerPG); err != nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+			}
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) in DialectDefault unexpectedly succeeded; want error", sql)
+			}
+		}
+
+		// PG 16 keywords (not in createdb_opt_name) and missing values must remain rejected.
+		for _, bad := range []string{
+			`ALTER DATABASE a TARGET`,
+			`ALTER DATABASE a JSON 1.5`,
+			`ALTER DATABASE a FORMAT 1.5`,
+			`ALTER DATABASE a INDENT 1.5`,
+			`ALTER DATABASE a SCALAR 1.5`,
+			`ALTER DATABASE a ACTION 1.5`,
+			`ALTER DATABASE a SELECT 1.5`,
+			`CREATE DATABASE a JSON 1.5`,
+		} {
+			if _, err := ParseWithDialect(bad, DialectSpannerPG); err == nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpectedly succeeded; want error", bad)
+			}
+		}
+	})
+
+	t.Run("ColumnOnUpdateConstraint", func(t *testing.T) {
+		accepted := []string{
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE NULL`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF DEFAULT 1`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NOT NULL`,
+			`CREATE DOMAIN d int ON UPDATE 1`,
+			`CREATE DOMAIN d int CONSTRAINT c ON UPDATE 1`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE (1))`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1 + 2)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE -1)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE spanner.pending_commit_timestamp())`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a = 1)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a::int)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE CASE WHEN true THEN 1 END)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE (SELECT 1))`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE (WITH x AS (UPDATE u SET a = DEFAULT RETURNING a) SELECT a FROM x))`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE ARRAY[1, 2])`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NULL)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int CONSTRAINT c ON UPDATE 1)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int DEFAULT 0 ON UPDATE 1)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1 NOT NULL)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON UPDATE ACTION NOT NULL)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON DELETE CASCADE ON UPDATE ACTION)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON UPDATE CASCADE ON UPDATE 1)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p DEFERRABLE ON UPDATE ACTION)`,
+			`ALTER TABLE t ADD COLUMN b int ON UPDATE 1`,
+		}
+		for _, sql := range accepted {
+			list, err := ParseWithDialect(sql, DialectSpannerPG)
+			if err != nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+				continue
+			}
+			foundOnUpdate := false
+			nodes.Inspect(list, func(n nodes.Node) bool {
+				if c, ok := n.(*nodes.Constraint); ok && c.Contype == nodes.CONSTR_SPANNER_ON_UPDATE && c.RawExpr != nil {
+					foundOnUpdate = true
+				}
+				return true
+			})
+			if !foundOnUpdate {
+				t.Errorf("%q: expected CONSTR_SPANNER_ON_UPDATE with non-nil RawExpr", sql)
+			}
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) in DialectDefault unexpectedly succeeded; want error", sql)
+			}
+		}
+
+		// Standard FK key_action clauses must continue to work in both dialects.
+		fkValid := []string{
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE NO ACTION`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADE`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SET NULL`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SET DEFAULT`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON UPDATE CASCADE ON DELETE CASCADE)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON DELETE SET NULL (a))`,
+		}
+		for _, sql := range fkValid {
+			if _, err := ParseWithDialect(sql, DialectSpannerPG); err != nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpected error: %v", sql, err)
+			}
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q) in DialectDefault unexpected error: %v", sql, err)
+			}
+		}
+
+		// Malformed / disallowed forms must remain rejected in DialectSpannerPG.
+		rejected := []string{
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE NO`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SET`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SET zzz`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF DEFAULT`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF zzz`,
+			`CREATE DOMAIN a a REFERENCES a ON UPDATE SELECT`,
+			`CREATE DOMAIN a a REFERENCES a ON DELETE ACTION`,
+			`CREATE DOMAIN a a REFERENCES a ON DELETE RETURN`,
+			`CREATE DOMAIN a a REFERENCES a ON DELETE CASCADED`,
+			`CREATE DOMAIN a a REFERENCES a ON DELETE NULL`,
+			`CREATE DOMAIN a a REFERENCES a ON DELETE SETOF NULL`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE DEFAULT)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE -DEFAULT)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1 + DEFAULT)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NO)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NO ACTION)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE SET)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE CASCADE)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE RESTRICT)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int CONSTRAINT c ON UPDATE CASCADE)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a IS NULL)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a AND b)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NOT a)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a BETWEEN 1 AND 2)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a IN (1, 2))`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a LIKE 'x')`,
+			`CREATE TABLE t (a int PRIMARY KEY, FOREIGN KEY (a) REFERENCES p ON UPDATE ACTION)`,
+			`CREATE TABLE t (a int PRIMARY KEY, FOREIGN KEY (a) REFERENCES p ON UPDATE SETOF NULL)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON UPDATE ACTION ON DELETE CASCADE)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p DEFERRABLE ON UPDATE CASCADE)`,
+			`CREATE TABLE t (a int PRIMARY KEY REFERENCES p ON UPDATE SET NULL (a))`,
+			`CREATE TABLE t (a int PRIMARY KEY) INTERLEAVE IN PARENT p ON DELETE ACTION`,
+		}
+		for _, sql := range rejected {
+			if _, err := ParseWithDialect(sql, DialectSpannerPG); err == nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpectedly succeeded; want error", sql)
+			}
+		}
+	})
+}
+
+func TestIsKeyActionStartMatchesSlice(t *testing.T) {
+	wantSet := make(map[int]bool, len(keyActionLeadTokens))
+	for _, tok := range keyActionLeadTokens {
+		wantSet[tok] = true
+	}
+	for _, kw := range Keywords {
+		got := isKeyActionStart(kw.Token)
+		want := wantSet[kw.Token]
+		if got != want {
+			t.Errorf("isKeyActionStart(%q/%d) = %v, want %v", kw.Name, kw.Token, got, want)
+		}
+	}
+	for _, nonKW := range []int{0, IDENT, ICONST, FCONST, SCONST, '(', ';', ','} {
+		if isKeyActionStart(nonKW) {
+			t.Errorf("isKeyActionStart(%d) = true, want false", nonKW)
+		}
+	}
+}
+
+func TestIsSpannerColOnUpdateStartMatchesKeywords(t *testing.T) {
+	keyActionSet := make(map[int]bool, len(keyActionLeadTokens))
+	for _, tok := range keyActionLeadTokens {
+		keyActionSet[tok] = true
+	}
+	for _, kw := range Keywords {
+		sql := "ON UPDATE " + kw.Name
+		pSpanner := &Parser{lexer: NewLexer(sql), source: sql, dialect: DialectSpannerPG}
+		pSpanner.advance()
+		want := !keyActionSet[kw.Token]
+		if got := pSpanner.isSpannerColOnUpdateStart(); got != want {
+			t.Errorf("DialectSpannerPG isSpannerColOnUpdateStart(%q) = %v, want %v", sql, got, want)
+		}
+
+		pDefault := &Parser{lexer: NewLexer(sql), source: sql, dialect: DialectDefault}
+		pDefault.advance()
+		if pDefault.isSpannerColOnUpdateStart() {
+			t.Errorf("DialectDefault isSpannerColOnUpdateStart(%q) = true, want false", sql)
+		}
+	}
+
+	// Deep left-associative ON UPDATE expression must be rejected cleanly by
+	// treeTooHigh rather than overflowing the stack.
+	deep := "CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1" + strings.Repeat("+1", maxTreeHeight+1) + ")"
+	if _, err := ParseWithDialect(deep, DialectSpannerPG); err == nil {
+		t.Errorf("expected deep ON UPDATE expression to fail with depth error, got nil")
+	}
 }

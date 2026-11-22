@@ -24,9 +24,9 @@ access** in offline replay. Recorded live against the pinned Spanner emulator
 | Rows | Total | Agree | Only Spanner-PG accepts | Only omni/pg accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | One per alternative | 3,394 | 3,394 | 0 | 0 | 100.00% |
-| Near-misses | 10,306 | 10,299 | 7 | 0 | 99.93% |
+| Near-misses | 10,306 | 10,306 | 0 | 0 | 100.00% |
 | `suite:spanner-pg-ddl` | 143 | 143 | 0 | 0 | 100.00% |
-| **All** | **13,843** | **13,836** | **7** | **0** | **99.95%** |
+| **All** | **13,843** | **13,843** | **0** | **0** | **100.00%** |
 
 13 `gram.y` alternatives get no generated row (same as `pg/parser`): the five
 internal `MODE_*` entry points (`MODE_TYPE_NAME`, `MODE_PLPGSQL_EXPR`,
@@ -106,12 +106,13 @@ the 7 PG 16 SQL/JSON function-name near-misses:
   `CREATE RULE` rejects `ON UPDATE`, and `CLUSTER (...)` requires a table name.
 - **Non-empty inputs**: rejects 0-statement inputs (`""`, `";"`).
 
-#### Remaining `Only Spanner-PG accepts` (7 rows: 0 alternatives, 7 near-misses)
+#### Spanner-PG modified grammar behaviors (0 `Only Spanner-PG accepts`)
 
-| Family | Rows | Notes |
-| --- | ---: | --- |
-| Permissive `ON UPDATE <action>` in `key_action` (`CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION\|RETURN\|CASCADED\|NULL\|SETOF NULL`) | 5 | Parsed by Spanner's modified `key_action` rule, then rejected post-parse (`Statement is not supported.`). |
-| Spanner-PG `ALTER TABLE` / `ALTER DATABASE` grammar quirks (`ALTER TABLE a SET`, `ALTER DATABASE a TARGET 1.5`) | 2 | Parsed by Spanner's modified DDL grammar before failing post-parse (`GOOGLESQL_RET_CHECK` in `pg_to_spanner_ddl_translator.cc` / `Statement is not supported.`). |
+All 7 Spanner-PG parser acceptances beyond PostgreSQL 17 are matched cleanly at their real grammar points in `DialectSpannerPG` (while remaining strictly rejected in `DialectDefault`):
+
+- **Column-level `ON UPDATE b_expr` constraint** (`ColConstraintElem`, 5 rows): accepts `ON UPDATE b_expr` on column/domain constraints whenever the token after `ON UPDATE` is not in `FIRST(key_action)` (`NO`, `RESTRICT`, `CASCADE`, `SET`), mirroring Spanner-PG's `parser.c` lookahead disambiguation against foreign-key `key_update`.
+- **PostgreSQL 16 `createdb_opt_name` identifiers** (1 row): treats the 20 keywords added in PostgreSQL 17 (`TARGET`, `SOURCE`, `MERGE_ACTION`, and the 17 PG 17 SQL/JSON query keywords) as ordinary `IDENT` option names in `CREATE`/`ALTER DATABASE`, matching Spanner-PG's PG 16 lexer.
+- **Bare `SET` in `alter_table_cmd`** (1 row): accepts a bare `SET` subcommand when terminated by `,`, `;`, or EOF in `ALTER TABLE`/`VIEW`/`MATERIALIZED VIEW`/`FOREIGN TABLE` (matching Spanner-PG's modified `alter_table_cmd` rule).
 
 #### `suite:spanner-pg-ddl` (143 rows: 91 accept, 52 reject, 100.00% agreement)
 

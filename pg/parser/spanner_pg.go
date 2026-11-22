@@ -77,6 +77,23 @@ func isPG17SQLJsonKeyword(tok int) bool {
 	return false
 }
 
+// isPG17AddedKeyword reports whether tok is one of the 20 keywords added in
+// PostgreSQL 17 (SQL/JSON query clauses and MERGE SOURCE/TARGET/MERGE_ACTION)
+// that lexed as ordinary IDENT tokens in PostgreSQL 16, Cloud Spanner's
+// embedded PostgreSQL parser base. Not a FIRST set — this is a lexer-version
+// token classification used where PG's grammar accepts bare IDENT (such as
+// createdb_opt_name).
+func isPG17AddedKeyword(tok int) bool {
+	switch tok {
+	case CONDITIONAL, EMPTY_P, ERROR_P,
+		JSON_EXISTS, JSON_QUERY, JSON_SCALAR, JSON_SERIALIZE, JSON_TABLE, JSON_VALUE,
+		KEEP, MERGE_ACTION, NESTED, OMIT, PATH, PLAN, QUOTES,
+		SOURCE, STRING_P, TARGET, UNCONDITIONAL:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) spannerXMLUnsupportedError() *ParseError {
 	return &ParseError{
 		Code:     "0A000",

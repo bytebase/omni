@@ -1930,7 +1930,7 @@ reject	reject	engine	alter_table_cmd/SET_WITHOUT_CLUSTER!insert	ALTER TABLE a SE
 reject	reject	engine	alter_table_cmd/SET_WITHOUT_CLUSTER!swap	ALTER TABLE a SETOF WITHOUT CLUSTER
 accept	accept	engine	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
 reject	reject	engine	alter_table_cmd/SET_LOGGED!drop-1	ALTER TABLE a LOGGED
-reject	accept	engine	alter_table_cmd/SET_LOGGED!drop-2	ALTER TABLE a SET
+accept	accept	engine	alter_table_cmd/SET_LOGGED!drop-2	ALTER TABLE a SET
 reject	reject	engine	alter_table_cmd/SET_LOGGED!insert	ALTER TABLE a SET LOGGED zzz
 reject	reject	engine	alter_table_cmd/SET_LOGGED!swap	ALTER TABLE a SETOF LOGGED
 accept	accept	engine	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
@@ -2915,20 +2915,20 @@ accept	accept	engine	key_actions/%empty	CREATE DOMAIN a a REFERENCES a
 accept	accept	engine	key_update/ON_UPDATE_key_action	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT
 accept	accept	engine	key_delete/ON_DELETE_P_key_action	CREATE DOMAIN a a REFERENCES a ON DELETE RESTRICT
 accept	accept	engine	key_action/NO_ACTION	CREATE DOMAIN a a REFERENCES a ON UPDATE NO ACTION
-reject	accept	engine	key_action/NO_ACTION!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION
+accept	accept	engine	key_action/NO_ACTION!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION
 reject	reject	engine	key_action/NO_ACTION!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE NO
 reject	reject	engine	key_action/NO_ACTION!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE NO ACTION zzz
 reject	reject	engine	key_action/NO_ACTION!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE NONE ACTION
 accept	accept	engine	key_action/RESTRICT	CREATE DOMAIN a a REFERENCES a ON UPDATE RESTRICT
-reject	accept	engine	key_action/RESTRICT!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN
+accept	accept	engine	key_action/RESTRICT!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN
 accept	accept	engine	key_action/CASCADE	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADE
 reject	reject	engine	key_action/CASCADE!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADE zzz
-reject	accept	engine	key_action/CASCADE!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED
+accept	accept	engine	key_action/CASCADE!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED
 accept	accept	engine	key_action/SET_NULL_P_opt_column_list	CREATE DOMAIN a a REFERENCES a ON UPDATE SET NULL
-reject	accept	engine	key_action/SET_NULL_P_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE NULL
+accept	accept	engine	key_action/SET_NULL_P_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE NULL
 reject	reject	engine	key_action/SET_NULL_P_opt_column_list!drop-2	CREATE DOMAIN a a REFERENCES a ON UPDATE SET
 reject	reject	engine	key_action/SET_NULL_P_opt_column_list!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE SET NULL zzz
-reject	accept	engine	key_action/SET_NULL_P_opt_column_list!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL
+accept	accept	engine	key_action/SET_NULL_P_opt_column_list!swap	CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL
 accept	accept	engine	key_action/SET_DEFAULT_opt_column_list	CREATE DOMAIN a a REFERENCES a ON UPDATE SET DEFAULT
 reject	reject	engine	key_action/SET_DEFAULT_opt_column_list!drop-1	CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT
 reject	reject	engine	key_action/SET_DEFAULT_opt_column_list!insert	CREATE DOMAIN a a REFERENCES a ON UPDATE SET DEFAULT zzz
@@ -7512,7 +7512,7 @@ reject	reject	engine	createdb_opt_name/OWNER!insert	ALTER DATABASE a OWNER zzz 1
 reject	reject	engine	createdb_opt_name/OWNER!swap	ALTER DATABASE a PARALLEL 1.5
 accept	accept	engine	createdb_opt_name/TABLESPACE	ALTER DATABASE a TABLESPACE 1.5
 reject	reject	engine	createdb_opt_name/TABLESPACE!insert	ALTER DATABASE a TABLESPACE zzz 1.5
-reject	accept	engine	createdb_opt_name/TABLESPACE!swap	ALTER DATABASE a TARGET 1.5
+accept	accept	engine	createdb_opt_name/TABLESPACE!swap	ALTER DATABASE a TARGET 1.5
 accept	accept	engine	createdb_opt_name/TEMPLATE	ALTER DATABASE a TEMPLATE 1.5
 reject	reject	engine	createdb_opt_name/TEMPLATE!insert	ALTER DATABASE a TEMPLATE zzz 1.5
 reject	reject	engine	createdb_opt_name/TEMPLATE!swap	ALTER DATABASE a TEMPORARY 1.5
