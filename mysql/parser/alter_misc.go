@@ -100,9 +100,13 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// SELECT statement — capture raw text
+	// SELECT statement — capture raw text.
+	// See parseCreateViewStmt: view queries use query_expression, not select_stmt_with_into.
 	selectStart := p.pos()
+	savedNoTrailingInto := p.noTrailingInto
+	p.noTrailingInto = true
 	sel, err := p.parseSelectStmt()
+	p.noTrailingInto = savedNoTrailingInto
 	if err != nil {
 		return nil, err
 	}

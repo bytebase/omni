@@ -128,7 +128,7 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
-		return rewriteDateArith(n)
+		return rewriteFuncCall(n)
 
 	case *ast.ExtractExpr:
 		n.Expr = rewriteExpr(n.Expr)
@@ -143,9 +143,13 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		return n
 
 	case *ast.PositionExpr:
-		n.Substr = rewriteExpr(n.Substr)
-		n.Str = rewriteExpr(n.Str)
-		return n
+		// MySQL 8.0 stores POSITION(substr IN str) as locate(substr, str) in views.
+		return &ast.FuncCallExpr{
+			Loc:       n.Loc,
+			Name:      "locate",
+			HasParens: true,
+			Args:      []ast.ExprNode{rewriteExpr(n.Substr), rewriteExpr(n.Str)},
+		}
 
 	case *ast.CastExpr:
 		n.Expr = rewriteExpr(n.Expr)
@@ -163,6 +167,32 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		// Leaf nodes (literals, column refs, etc.) — no rewriting needed
 		return node
 	}
+}
+
+// rewriteFuncCall folds MySQL 8.0 view-resolver function rewrites:
+//   - date-arithmetic functions (TIMESTAMPADD/DATE_ADD/ADDDATE/DATE_SUB/SUBDATE)
+//   - 1-arg WEEK(x) -> week(x, 0) (default_week_format=0)
+//   - MySQL SHOW CREATE VIEW's internal `cast_as_year`(x) -> cast(x as year), so
+//     an engine-readback view converges with omni's executable CAST(... AS YEAR).
+func rewriteFuncCall(n *ast.FuncCallExpr) ast.ExprNode {
+	if n.Schema == "" && !n.SpacedParen && n.Over == nil {
+		switch strings.ToUpper(n.Name) {
+		case "WEEK":
+			if len(n.Args) == 1 {
+				n.Args = append(n.Args, &ast.IntLit{Value: 0})
+				return n
+			}
+		case "CAST_AS_YEAR":
+			if len(n.Args) == 1 {
+				return &ast.CastExpr{
+					Loc:      n.Loc,
+					Expr:     n.Args[0],
+					TypeName: &ast.DataType{Name: "year"},
+				}
+			}
+		}
+	}
+	return rewriteDateArith(n)
 }
 
 // rewriteDateArith folds the date-arithmetic function family into INTERVAL

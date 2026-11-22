@@ -8,8 +8,10 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			return &ResolverTable{
 				Name: "t",
 				Columns: []ResolverColumn{
-					{Name: "a", Position: 1},
-					{Name: "b", Position: 2},
+					{Name: "a", Position: 1, DataType: "int"},
+					{Name: "b", Position: 2, DataType: "int"},
+					{Name: "dt3", Position: 3, DataType: "datetime", Scale: 3},
+					{Name: "s", Position: 4, DataType: "varchar"},
 				},
 			}
 		}
@@ -76,9 +78,19 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as date) AS `DATE(a)`,dayofmonth(`t`.`a`) AS `DAY(a)`,(`t`.`a` % `t`.`b`) AS `MOD(a, b)`,geomcollection() AS `GEOMETRYCOLLECTION()`,NULL AS `VALUES(a)` from `t`",
 		},
 		{
-			"time_timestamp_week_preserved",
-			"SELECT TIME('12:34:56.123456'), TIMESTAMP('2021-01-01 12:34:56.123456'), WEEK('2021-01-01') FROM t",
-			"select time('12:34:56.123456') AS `TIME('12:34:56.123456')`,timestamp('2021-01-01 12:34:56.123456') AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,week('2021-01-01') AS `WEEK('2021-01-01')` from `t`",
+			"time_timestamp_week_canonical",
+			"SELECT TIME(a), TIME(dt3), TIME('12:34:56.123456'), TIMESTAMP(a), TIMESTAMP(dt3), TIMESTAMP('2021-01-01 12:34:56.123456'), TIMESTAMP(a, '01:00:00'), WEEK(a), WEEK(a, 1) FROM t",
+			"select cast(`t`.`a` as time) AS `TIME(a)`,cast(`t`.`dt3` as time(3)) AS `TIME(dt3)`,cast('12:34:56.123456' as time(6)) AS `TIME('12:34:56.123456')`,cast(`t`.`a` as datetime) AS `TIMESTAMP(a)`,cast(`t`.`dt3` as datetime(3)) AS `TIMESTAMP(dt3)`,cast('2021-01-01 12:34:56.123456' as datetime(6)) AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,timestamp(`t`.`a`,'01:00:00') AS `TIMESTAMP(a, '01:00:00')`,week(`t`.`a`,0) AS `WEEK(a)`,week(`t`.`a`,1) AS `WEEK(a, 1)` from `t`",
+		},
+		{
+			"position_to_locate",
+			"SELECT POSITION(s IN s) FROM t",
+			"select locate(`t`.`s`,`t`.`s`) AS `POSITION(s IN s)` from `t`",
+		},
+		{
+			"cast_decimal_defaults",
+			"SELECT CAST(a AS DECIMAL), CAST(a AS DECIMAL(5)), CAST(a AS DECIMAL(5,2)) FROM t",
+			"select cast(`t`.`a` as decimal(10,0)) AS `CAST(a AS DECIMAL)`,cast(`t`.`a` as decimal(5,0)) AS `CAST(a AS DECIMAL(5))`,cast(`t`.`a` as decimal(5,2)) AS `CAST(a AS DECIMAL(5,2))` from `t`",
 		},
 		{
 			"schema_qualified_functions_not_rewritten",
@@ -94,6 +106,21 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"cast_as_year_stays_executable",
 			"SELECT CAST(a AS YEAR) FROM t",
 			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
+		},
+		{
+			"cast_as_year_readback_converges",
+			"SELECT `cast_as_year`(`t`.`a`) AS `CAST(a AS YEAR)` FROM `t`",
+			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
+		},
+		{
+			"explicit_table_expands",
+			"TABLE t",
+			"select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`dt3` AS `dt3`,`t`.`s` AS `s` from `t`",
+		},
+		{
+			"introducer_byte_literals_auto_alias",
+			"SELECT _utf8mb4 0x41, _utf8mb4 b'1000001' FROM t",
+			"select _utf8mb4'A' AS `_utf8mb4 0x41`,_utf8mb4'A' AS `_utf8mb4 b'1000001'` from `t`",
 		},
 		{
 			"window_single_bound_expansion",

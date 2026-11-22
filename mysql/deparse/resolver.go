@@ -223,7 +223,23 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 	if len(localCTETables) > 0 {
 		r.Lookup = r.withCTELookup(localCTETables)
 	}
-	sc := r.buildScope(stmt.From)
+	// Expand an explicit TABLE query primary into SELECT * FROM t so the
+	// resolved view body matches MySQL 8.0's SHOW CREATE VIEW form
+	// (`select t.c1 AS c1, ... from t`). Direct DeparseSelect without Resolver
+	// keeps `table t`.
+	if stmt.TableSource != nil && stmt.TableSource.Table != nil {
+		tbl := stmt.TableSource.Table
+		lookup := r.Lookup
+		if tbl.Schema != "" {
+			lookup = origLookup
+		}
+		if lookup != nil && lookup(tbl.Name) != nil {
+			stmt.From = []ast.TableExpr{tbl}
+			stmt.TargetList = []ast.ExprNode{&ast.StarExpr{Loc: stmt.TableSource.Loc}}
+			stmt.TableSource = nil
+		}
+	}
+	sc := r.buildScope(stmt.From, origLookup)
 	sc.parent = parentScope
 	sc.ctes = localCTETables
 	r.Lookup = origLookup
@@ -282,20 +298,29 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 }
 
 // buildScope constructs a scope from the FROM clause table expressions.
-func (r *Resolver) buildScope(from []ast.TableExpr) *fromScope {
+// baseLookup (when non-nil) resolves schema-qualified table references without
+// shadowing by local CTEs.
+func (r *Resolver) buildScope(from []ast.TableExpr, baseLookup TableLookup) *fromScope {
 	sc := newFromScope(from)
 	for _, tbl := range from {
-		r.addTableExprToScope(tbl, sc)
+		r.addTableExprToScope(tbl, sc, baseLookup)
 	}
 	return sc
 }
 
 // addTableExprToScope recursively adds table references from a table expression to the scope.
-func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
+func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLookup TableLookup) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		table := r.Lookup(t.Name)
+		lookup := r.Lookup
+		if t.Schema != "" && baseLookup != nil {
+			lookup = baseLookup
+		}
+		if lookup == nil {
+			return
+		}
+		table := lookup(t.Name)
 		if table == nil {
 			return
 		}
@@ -305,8 +330,8 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 		sc.add(t, effectiveName, table)
 	case *ast.JoinClause:
-		r.addTableExprToScope(t.Left, sc)
-		r.addTableExprToScope(t.Right, sc)
+		r.addTableExprToScope(t.Left, sc, baseLookup)
+		r.addTableExprToScope(t.Right, sc, baseLookup)
 	case *ast.SubqueryExpr:
 		// Derived table: resolve the inner SELECT, then build a virtual table
 		// from its target list so outer queries can reference derived columns.
@@ -509,6 +534,26 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		// Resolve window function OVER clause
 		if n.Over != nil {
 			r.resolveWindowDef(n.Over, sc)
+		}
+		// MySQL 8.0 rewrites 1-arg TIME(x) to cast(x as time[(fsp)]) and 1-arg
+		// TIMESTAMP(x) to cast(x as datetime[(fsp)]) in stored views, where fsp
+		// is derived from the argument's type. Only rewrite when the argument's
+		// fsp can be determined without losing precision.
+		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 && n.Over == nil {
+			upper := strings.ToUpper(n.Name)
+			if upper == "TIME" || upper == "TIMESTAMP" {
+				if fsp, ok := exprTemporalFSP(n.Args[0], sc); ok {
+					targetType := "time"
+					if upper == "TIMESTAMP" {
+						targetType = "datetime"
+					}
+					return &ast.CastExpr{
+						Loc:      n.Loc,
+						Expr:     n.Args[0],
+						TypeName: &ast.DataType{Name: targetType, Length: fsp},
+					}
+				}
+			}
 		}
 		return n
 	case *ast.CastExpr:
@@ -1128,4 +1173,96 @@ type AmbiguousColumnError struct {
 
 func (e *AmbiguousColumnError) Error() string {
 	return fmt.Sprintf("column %q is ambiguous, found in tables: %s", e.Column, strings.Join(e.Tables, ", "))
+}
+
+// exprTemporalFSP returns the fractional seconds precision MySQL 8.0 uses when
+// rewriting 1-arg TIME(expr) -> cast(expr as time[(fsp)]) or 1-arg
+// TIMESTAMP(expr) -> cast(expr as datetime[(fsp)]). Returns (0, false) when
+// the argument's type is not known.
+func exprTemporalFSP(expr ast.ExprNode, sc *fromScope) (int, bool) {
+	expr = unwrapParen(expr)
+	switch n := expr.(type) {
+	case *ast.IntLit, *ast.BoolLit, *ast.NullLit:
+		return 0, true
+	case *ast.StringLit, *ast.HexLit, *ast.BitLit:
+		return 6, true
+	case *ast.FloatLit:
+		if strings.ContainsAny(n.Value, "eE") {
+			return 6, true
+		}
+		if _, frac, ok := strings.Cut(n.Value, "."); ok {
+			return clampFSP(len(frac)), true
+		}
+		return 0, true
+	case *ast.TemporalLit:
+		if strings.EqualFold(n.Type, "DATE") {
+			return 0, true
+		}
+		if _, frac, ok := strings.Cut(n.Value, "."); ok {
+			return clampFSP(len(frac)), true
+		}
+		return 0, true
+	case *ast.CastExpr:
+		if n.TypeName == nil {
+			return 0, false
+		}
+		switch strings.ToLower(n.TypeName.Name) {
+		case "signed", "signed integer", "unsigned", "unsigned integer", "date", "year":
+			return 0, true
+		case "datetime", "time":
+			return clampFSP(n.TypeName.Length), true
+		case "decimal":
+			return clampFSP(n.TypeName.Scale), true
+		case "char", "binary", "float", "double", "json":
+			return 6, true
+		}
+		return 0, false
+	case *ast.ColumnRef:
+		col := lookupScopeColumn(n, sc)
+		if col == nil || col.DataType == "" {
+			return 0, false
+		}
+		switch strings.ToLower(col.DataType) {
+		case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "year", "date", "bit":
+			return 0, true
+		case "datetime", "timestamp", "time", "decimal", "numeric":
+			return clampFSP(col.Scale), true
+		case "float", "double",
+			"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+			"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+			"enum", "set", "json":
+			return 6, true
+		}
+		return 0, false
+	default:
+		return 0, false
+	}
+}
+
+func lookupScopeColumn(ref *ast.ColumnRef, sc *fromScope) *ResolverColumn {
+	if ref == nil || ref.Star {
+		return nil
+	}
+	for cur := sc; cur != nil; cur = cur.parent {
+		if ref.Table != "" {
+			if tbl := cur.GetTable(ref.Table); tbl != nil {
+				return tbl.GetColumn(ref.Column)
+			}
+			continue
+		}
+		if entry, ok := cur.FirstWithColumn(ref.Column); ok && entry.Table != nil {
+			return entry.Table.GetColumn(ref.Column)
+		}
+	}
+	return nil
+}
+
+func clampFSP(n int) int {
+	if n < 0 {
+		return 0
+	}
+	if n > 6 {
+		return 6
+	}
+	return n
 }

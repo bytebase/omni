@@ -2098,13 +2098,11 @@ func deparseDataType(dt *ast.DataType) string {
 	case "unsigned", "unsigned integer":
 		return "unsigned"
 	case "decimal":
-		if dt.Scale > 0 {
-			return fmt.Sprintf("decimal(%d,%d)", dt.Length, dt.Scale)
+		length := dt.Length
+		if length == 0 {
+			length = 10
 		}
-		if dt.Length > 0 {
-			return fmt.Sprintf("decimal(%d)", dt.Length)
-		}
-		return "decimal"
+		return fmt.Sprintf("decimal(%d,%d)", length, dt.Scale)
 	case "date":
 		return "date"
 	case "datetime":

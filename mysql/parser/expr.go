@@ -721,9 +721,10 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 					return nil, err
 				}
 				return &nodes.StringLit{
-					Loc:     nodes.Loc{Start: charsetTok.Loc, End: litTok.End},
-					Value:   value,
-					Charset: charsetTok.Str,
+					Loc:         nodes.Loc{Start: charsetTok.Loc, End: litTok.End},
+					Value:       value,
+					Charset:     charsetTok.Str,
+					ByteLiteral: true,
 				}, nil
 			}
 		}

@@ -72,6 +72,7 @@ type Catalog struct {
 	innodbPageSize            uint64 // configured innodb_page_size (0 => 16384)
 	foreignKeyChecks          bool   // SET foreign_key_checks (default true)
 	loadingSDL                bool   // true while LoadSDLWithVersion executes statements
+	validatingViewBody        bool   // true while analyzeViewBodyFor validates a view body
 	generateGIPK              bool   // SET sql_generate_invisible_primary_key
 	showGIPK                  bool   // SET show_gipk_in_create_table_and_information_schema
 	session                   SessionState

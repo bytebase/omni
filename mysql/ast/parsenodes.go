@@ -1090,6 +1090,10 @@ type StringLit struct {
 	// empty first segment falls back to the positional Name_exp_N form).
 	Concatenated bool
 	FirstSegment string
+	// ByteLiteral marks a string literal decoded from a charset-introduced hex
+	// or bit literal (_utf8mb4 0x1, _utf8mb4 b'1'). MySQL names an unaliased
+	// select item of this form after its source text rather than the decoded bytes.
+	ByteLiteral bool
 }
 
 func (l *StringLit) nodeTag()  {}

@@ -1,7 +1,10 @@
 package catalog
 
 import (
+	"errors"
 	"testing"
+
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 func TestViewQueryAndExpressionValidation(t *testing.T) {
@@ -9,8 +12,10 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		t.Helper()
 		c := New()
 		mustExec(t, c, "CREATE DATABASE db1; CREATE DATABASE db2; USE db1;")
-		mustExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(20));")
+		mustExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, a INT, s VARCHAR(20), b VARBINARY(20), j JSON, ts TIMESTAMP, dt DATETIME(3), g GEOMETRY, pt POINT);")
 		mustExec(t, c, "CREATE TABLE db2.t (id INT PRIMARY KEY, b INT);")
+		mustExec(t, c, "CREATE FUNCTION db1.my_fn(x INT) RETURNS INT DETERMINISTIC RETURN x;")
+		mustExec(t, c, "CREATE FUNCTION db2.other_fn(x INT) RETURNS INT DETERMINISTIC RETURN x;")
 		return c
 	}
 
@@ -24,9 +29,53 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"param_marker_limit", "CREATE VIEW v AS SELECT a FROM t LIMIT ?", 1064},
 		{"param_marker_ntile", "CREATE VIEW v AS SELECT NTILE(?) OVER () FROM t", 1064},
 
-		// SELECT ... INTO is refused with 1350 ahead of 1054.
+		// SELECT ... INTO is refused with 1350 ahead of 1054 in position 1.
 		{"select_into_var", "CREATE VIEW v AS SELECT missing INTO @x", ErrViewSelectClause},
 		{"select_into_outfile", "CREATE VIEW v AS SELECT missing INTO OUTFILE 'f'", ErrViewSelectClause},
+		{"select_into_before_for_update", "CREATE VIEW v AS SELECT missing INTO @x FOR UPDATE", ErrViewSelectClause},
+
+		// Unknown functions (1305), resolved ahead of argument column lookup (1054).
+		{"unknown_func_no_args", "CREATE VIEW v AS SELECT no_such_fn() FROM t", ErrNoSuchFunction},
+		{"unknown_func_schema_qualified", "CREATE VIEW v AS SELECT db2.no_such_fn() FROM t", ErrNoSuchFunction},
+		{"unknown_func_missing_arg_col", "CREATE VIEW v AS SELECT no_such_fn(missing_col) FROM t", ErrNoSuchFunction},
+		{"unknown_func_missing_schema", "CREATE VIEW v AS SELECT no_such_db.fn() FROM t", ErrNoSuchFunction},
+
+		// Temporal literal validation (1525).
+		{"invalid_date_literal", "CREATE VIEW v AS SELECT DATE 's' FROM t", ErrWrongValue},
+		{"invalid_date_calendar", "CREATE VIEW v AS SELECT DATE '2020-02-30' FROM t", ErrWrongValue},
+		{"invalid_date_zero", "CREATE VIEW v AS SELECT DATE '0000-00-00' FROM t", ErrWrongValue},
+		{"invalid_date_with_time", "CREATE VIEW v AS SELECT DATE '2020-01-01 12:00:00' FROM t", ErrWrongValue},
+		{"invalid_time_literal", "CREATE VIEW v AS SELECT TIME 's' FROM t", ErrWrongValue},
+		{"invalid_time_overflow", "CREATE VIEW v AS SELECT TIME '900:00:00' FROM t", ErrWrongValue},
+		{"invalid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP 's' FROM t", ErrWrongValue},
+		{"invalid_timestamp_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01' FROM t", ErrWrongValue},
+		{"invalid_timestamp_zero", "CREATE VIEW v AS SELECT TIMESTAMP '0000-00-00 00:00:00' FROM t", ErrWrongValue},
+
+		// CAST(... AT TIME ZONE ... AS DATETIME) requires TIMESTAMP or NULL (3998).
+		{"cast_at_tz_int", "CREATE VIEW v AS SELECT CAST(a AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
+		{"cast_at_tz_interval_int", "CREATE VIEW v AS SELECT CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
+		{"cast_at_tz_datetime", "CREATE VIEW v AS SELECT CAST(dt AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
+		{"cast_at_tz_varchar", "CREATE VIEW v AS SELECT CAST(s AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
+
+		// JSON_VALUE argument 1 requires JSON, string, binary, or NULL (3146).
+		{"json_value_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, '$.x') FROM t", ErrInvalidTypeForJSON},
+		{"json_value_int_lit", "CREATE VIEW v AS SELECT JSON_VALUE(123, '$.x') FROM t", ErrInvalidTypeForJSON},
+		{"json_value_returning_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, 's' RETURNING BINARY) FROM t", ErrInvalidTypeForJSON},
+		{"json_value_on_empty_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, 's' ERROR ON EMPTY) FROM t", ErrInvalidTypeForJSON},
+
+		// Geometry collection constructors require geometric arguments (1367).
+		{"linestring_int", "CREATE VIEW v AS SELECT LINESTRING(a) FROM t", ErrIllegalValueForType},
+		{"polygon_int", "CREATE VIEW v AS SELECT POLYGON(a, a) FROM t", ErrIllegalValueForType},
+		{"multipoint_varchar", "CREATE VIEW v AS SELECT MULTIPOINT(s) FROM t", ErrIllegalValueForType},
+		{"multilinestring_null", "CREATE VIEW v AS SELECT MULTILINESTRING(NULL) FROM t", ErrIllegalValueForType},
+		{"multipolygon_int", "CREATE VIEW v AS SELECT MULTIPOLYGON(a) FROM t", ErrIllegalValueForType},
+		{"geomcollection_int", "CREATE VIEW v AS SELECT GEOMETRYCOLLECTION(a) FROM t", ErrIllegalValueForType},
+
+		// DEFAULT(col) in CREATE VIEW: 1054 missing col, 1364 no default, 1143 top-level select item.
+		{"default_missing_col", "CREATE VIEW v AS SELECT DEFAULT(no_col) FROM t", ErrNoSuchColumn},
+		{"default_no_default_col", "CREATE VIEW v AS SELECT DEFAULT(id) FROM t", ErrNoDefaultForField},
+		{"default_top_level_select", "CREATE VIEW v AS SELECT DEFAULT(a) FROM t", ErrColumnAccessDenied},
+		{"default_top_level_aliased", "CREATE VIEW v AS SELECT DEFAULT(a) AS x FROM t", ErrColumnAccessDenied},
 
 		// Undeclared variable (1327) and user variable (1351) in LIMIT / NTILE.
 		{"limit_ident", "CREATE VIEW v AS SELECT missing LIMIT n", ErrSPUndeclaredVar},
@@ -93,6 +142,28 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		})
 	}
 
+	// Trailing INTO after FROM / LIMIT / locking clauses in CREATE/ALTER VIEW
+	// is rejected by the grammar with 1064 (mysql:8.0.46).
+	parseRefusals := []struct {
+		name string
+		sql  string
+	}{
+		{"select_for_update_into_syntax", "CREATE VIEW v AS SELECT a FOR UPDATE INTO @x"},
+		{"select_from_into_syntax", "CREATE VIEW v AS SELECT a FROM t INTO @x"},
+		{"select_limit_into_syntax", "CREATE VIEW v AS SELECT a FROM t LIMIT 1 INTO @x"},
+		{"alter_view_for_update_into_syntax", "ALTER VIEW v AS SELECT a FOR UPDATE INTO @x"},
+	}
+	for _, tc := range parseRefusals {
+		t.Run("syntax/"+tc.name, func(t *testing.T) {
+			c := setup(t)
+			_, err := c.Exec(tc.sql, nil)
+			var pe *mysqlparser.ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("%s: expected *parser.ParseError (1064), got %v", tc.sql, err)
+			}
+		})
+	}
+
 	// Valid cases that must continue to succeed.
 	accepted := []struct {
 		name string
@@ -132,6 +203,26 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"qualified_star_natural_join", "CREATE VIEW v AS SELECT d.id, d.b FROM (SELECT r.* FROM db1.t AS l NATURAL JOIN db2.t AS r) AS d"},
 		{"schema_qualified_star_multi_schema", "CREATE VIEW v AS SELECT d.b FROM (SELECT db2.t.* FROM db1.t JOIN db2.t ON db1.t.id = db2.t.id) AS d"},
 		{"dual_literal", "CREATE VIEW v AS SELECT 1 FROM DUAL"},
+		// Registered stored functions (current DB and cross-schema) and ST_COLLECT.
+		{"stored_func_current_db", "CREATE VIEW v AS SELECT my_fn(a) FROM t"},
+		{"stored_func_qualified", "CREATE VIEW v AS SELECT db2.other_fn(a) FROM t"},
+		{"st_collect_builtin", "CREATE VIEW v AS SELECT ST_COLLECT(pt) FROM t"},
+		// Valid temporal literals.
+		{"valid_date_literal", "CREATE VIEW v AS SELECT DATE '2020-01-01' FROM t"},
+		{"valid_time_literal", "CREATE VIEW v AS SELECT TIME '-838:59:59' FROM t"},
+		{"valid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01 12:34:56.123456' FROM t"},
+		// Valid CAST AT TIME ZONE, JSON_VALUE, geometry constructors, and non-top-level DEFAULT(col).
+		{"cast_at_tz_timestamp", "CREATE VIEW v AS SELECT CAST(ts AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
+		{"cast_at_tz_null", "CREATE VIEW v AS SELECT CAST(NULL AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
+		{"json_value_json_col", "CREATE VIEW v AS SELECT JSON_VALUE(j, '$.a') FROM t"},
+		{"json_value_varchar_col", "CREATE VIEW v AS SELECT JSON_VALUE(s, '$.a') FROM t"},
+		{"json_value_varbinary_col", "CREATE VIEW v AS SELECT JSON_VALUE(b, '$.a') FROM t"},
+		{"json_value_null", "CREATE VIEW v AS SELECT JSON_VALUE(NULL, '$.a') FROM t"},
+		{"linestring_geom_col", "CREATE VIEW v AS SELECT LINESTRING(g, pt) FROM t"},
+		{"linestring_point_expr", "CREATE VIEW v AS SELECT LINESTRING(POINT(a, a), POINT(a, a)) FROM t"},
+		{"geomcollection_empty", "CREATE VIEW v AS SELECT GEOMETRYCOLLECTION() FROM t"},
+		{"default_in_expr", "CREATE VIEW v AS SELECT DEFAULT(a) + 1 FROM t"},
+		{"default_in_where", "CREATE VIEW v AS SELECT a FROM t WHERE DEFAULT(a) IS NULL"},
 	}
 	for _, tc := range accepted {
 		t.Run("accept/"+tc.name, func(t *testing.T) {

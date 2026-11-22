@@ -70,6 +70,9 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		}
 		return n.Column, true
 	case *ast.StringLit:
+		if n.ByteLiteral {
+			return "", false
+		}
 		if n.Concatenated {
 			return n.FirstSegment, true
 		}

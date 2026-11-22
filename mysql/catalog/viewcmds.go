@@ -24,7 +24,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// of the body has, even when the name already belongs to a table (1050) or
 	// a view. A synced view's body is the engine's already, so it is not judged
 	// here.
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
+	analyzedQuery, bodyErr := c.analyzeViewBodyFor(stmt.Select, source, db, stmt.Name.Name)
 	if checkBody && bodyErr != nil {
 		return bodyErr
 	}
@@ -108,12 +108,16 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // unsupported analyzer expressions leave the view without AnalyzedQuery rather
 // than refusing a view the engine accepts.
 func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
+	return c.analyzeViewBodyFor(sel, source, nil, "")
+}
+
+func (c *Catalog) analyzeViewBodyFor(sel *nodes.SelectStmt, source string, viewDB *Database, viewName string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
 	body := collectViewBody(sel, source)
 	blocks := body.reachableBlocks()
-	if err := c.validateViewBodyPreAnalysis(blocks); err != nil {
+	if err := c.validateViewBodyPreAnalysis(blocks, viewDB); err != nil {
 		return nil, err
 	}
 	for _, block := range blocks {
@@ -121,7 +125,10 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 			return nil, err
 		}
 	}
+	savedValidating := c.validatingViewBody
+	c.validatingViewBody = true
 	q, err := c.analyzeSelectStmtIn(sel, nil, nil, body.reads, source)
+	c.validatingViewBody = savedValidating
 	if err != nil {
 		var refusal *Error
 		if errors.As(err, &refusal) {
@@ -131,9 +138,13 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 			if refusal.Code == ErrNoSuchColumn && !isAliasBearingColumnErr(refusal) && !hasSchemaQualifiedFuncCall(sel) {
 				return nil, refusal
 			}
+			switch refusal.Code {
+			case ErrNoDefaultForField, ErrIllegalValueForType, ErrInvalidTypeForJSON, ErrInvalidCastToTimestampWithTimeZone:
+				return nil, refusal
+			}
 		}
 	}
-	if postErr := validateViewBodyPostAnalysis(blocks); postErr != nil {
+	if postErr := validateViewBodyPostAnalysis(sel, blocks, viewName); postErr != nil {
 		return nil, postErr
 	}
 	if err != nil {
@@ -236,8 +247,9 @@ func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
 
 // validateViewBodyPreAnalysis checks view body restrictions that mysql:8.0.46
 // enforces ahead of column/table resolution (INTO clause, VALUES row errors,
-// LIMIT/NTILE variables, user variables, locking-clause table names).
-func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt) error {
+// LIMIT/NTILE variables, user variables, temporal literals, unknown functions,
+// locking-clause table names).
+func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt, viewDB *Database) error {
 	currentDB := c.CurrentDatabase()
 	for _, block := range blocks {
 		if block.Into != nil {
@@ -278,7 +290,16 @@ func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt) error 
 					blockErr = errViewSelectVariable()
 					return false
 				}
+			case *nodes.TemporalLit:
+				if err := validateTemporalLiteral(e); err != nil {
+					blockErr = err
+					return false
+				}
 			case *nodes.FuncCallExpr:
+				if err := c.validateViewFuncExists(e, viewDB); err != nil {
+					blockErr = err
+					return false
+				}
 				if strings.EqualFold(e.Name, "ntile") && !e.SpacedParen && e.Schema == "" && len(e.Args) >= 1 {
 					switch arg := e.Args[0].(type) {
 					case *nodes.ColumnRef:
@@ -302,6 +323,95 @@ func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt) error 
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) validateViewFuncExists(fc *nodes.FuncCallExpr, viewDB *Database) error {
+	if fc == nil || fc.Name == "" || c.loadingSDL {
+		return nil
+	}
+	lower := toLower(fc.Name)
+	if fc.Schema != "" {
+		if isSystemDatabaseName(fc.Schema) {
+			return nil
+		}
+		targetDB := c.GetDatabase(fc.Schema)
+		if targetDB == nil || targetDB.Functions[lower] == nil {
+			return errNoSuchFunction(fc.Schema + "." + fc.Name)
+		}
+		return nil
+	}
+	if fc.SpacedParen {
+		return nil
+	}
+	if isBuiltinMySQLFunction(lower) {
+		return nil
+	}
+	curDB := c.GetDatabase(c.CurrentDatabase())
+	if curDB == nil {
+		curDB = viewDB
+	}
+	if curDB != nil && curDB.Functions[lower] != nil {
+		return nil
+	}
+	qualName := fc.Name
+	if curDB != nil && curDB.Name != "" {
+		qualName = curDB.Name + "." + fc.Name
+	}
+	return errNoSuchFunction(qualName)
+}
+
+func isSystemDatabaseName(name string) bool {
+	switch toLower(name) {
+	case "information_schema", "performance_schema", "mysql", "sys":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateTemporalLiteral(lit *nodes.TemporalLit) error {
+	if lit == nil {
+		return nil
+	}
+	switch strings.ToUpper(lit.Type) {
+	case "DATE":
+		s := strings.TrimSpace(lit.Value)
+		if s == "" || strings.ContainsAny(s, " \t\n\rTt:") {
+			return errWrongValue("DATE", lit.Value)
+		}
+		if countDigitRuns(s) == 1 && len(s) > 8 {
+			return errWrongValue("DATE", lit.Value)
+		}
+		p, ok := parseMySQLStringDateTime("date", 0, s, false)
+		if !ok || p.allZero || p.month < 1 || p.day < 1 || p.day > daysInMonth(p.year, p.month) {
+			return errWrongValue("DATE", lit.Value)
+		}
+	case "TIME":
+		if _, _, _, _, _, ok := parseTimeValue(6, lit.Value, false, false); !ok {
+			return errWrongValue("TIME", lit.Value)
+		}
+	case "TIMESTAMP":
+		s := strings.TrimSpace(lit.Value)
+		if s == "" || !hasDateTimeTimePart(s) {
+			return errWrongValue("DATETIME", lit.Value)
+		}
+		p, ok := parseMySQLStringDateTime("datetime", 6, s, false)
+		if !ok || p.allZero || p.month < 1 || p.day < 1 || p.day > daysInMonth(p.year, p.month) {
+			return errWrongValue("DATETIME", lit.Value)
+		}
+	}
+	return nil
+}
+
+func hasDateTimeTimePart(s string) bool {
+	if strings.ContainsAny(s, " \tTt:") {
+		return true
+	}
+	head := s
+	if dot := strings.IndexByte(head, '.'); dot >= 0 {
+		head = head[:dot]
+	}
+	return countDigitRuns(head) == 1 && len(head) >= 12
 }
 
 func validateBlockLocking(block *nodes.SelectStmt, currentDB string) error {
@@ -340,8 +450,34 @@ func validateBlockLocking(block *nodes.SelectStmt, currentDB string) error {
 
 // validateViewBodyPostAnalysis checks view body restrictions enforced after
 // column/table resolution: window names & frames, top-level ROW() in target
-// list, GROUPING() without WITH ROLLUP, and non-constant ESCAPE / AGAINST args.
-func validateViewBodyPostAnalysis(blocks []*nodes.SelectStmt) error {
+// list, top-level DEFAULT(col) in view SELECT list, GROUPING() without WITH
+// ROLLUP, and non-constant ESCAPE / AGAINST args.
+func validateViewBodyPostAnalysis(sel *nodes.SelectStmt, blocks []*nodes.SelectStmt, viewName string) error {
+	if viewName != "" {
+		for _, outer := range viewOuterSelectBlocks(sel) {
+			for _, item := range outer.TargetList {
+				expr := item
+				alias := ""
+				if rt, ok := item.(*nodes.ResTarget); ok {
+					expr = rt.Val
+					alias = rt.Name
+				}
+				for {
+					p, ok := expr.(*nodes.ParenExpr)
+					if !ok {
+						break
+					}
+					expr = p.Expr
+				}
+				if d, ok := expr.(*nodes.DefaultExpr); ok && d.Column != "" {
+					if alias == "" {
+						alias = "DEFAULT(" + d.Column + ")"
+					}
+					return errColumnAccessDenied("create view", alias, viewName)
+				}
+			}
+		}
+	}
 	for _, block := range blocks {
 		if err := validateBlockWindows(block); err != nil {
 			return err
@@ -391,6 +527,21 @@ func validateViewBodyPostAnalysis(blocks []*nodes.SelectStmt) error {
 		}
 	}
 	return nil
+}
+
+// viewOuterSelectBlocks returns the top-level SELECT blocks of a view body,
+// unwrapping ParenSource and walking set-operation arms.
+func viewOuterSelectBlocks(sel *nodes.SelectStmt) []*nodes.SelectStmt {
+	if sel == nil {
+		return nil
+	}
+	if sel.ParenSource != nil {
+		return viewOuterSelectBlocks(sel.ParenSource)
+	}
+	if sel.SetOp != nodes.SetOpNone {
+		return append(viewOuterSelectBlocks(sel.Left), viewOuterSelectBlocks(sel.Right)...)
+	}
+	return []*nodes.SelectStmt{sel}
 }
 
 func validateBlockWindows(block *nodes.SelectStmt) error {
@@ -833,7 +984,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// The body is analyzed for semantic IR (used by lineage, SDL diff) and for
 	// the one failure MySQL's ALTER VIEW reports too.
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
+	analyzedQuery, err := c.analyzeViewBodyFor(stmt.Select, source, db, stmt.Name.Name)
 	if err != nil {
 		return err
 	}
@@ -1550,6 +1701,8 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 				cols[i] = deparse.ResolverColumn{
 					Name:     c.Name,
 					Position: c.Position,
+					DataType: toLower(c.DataType),
+					Scale:    columnDeparseScale(c),
 				}
 			}
 			return &deparse.ResolverTable{
@@ -1574,6 +1727,24 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 		}
 		return nil
 	}
+}
+
+// columnDeparseScale returns a column's fractional seconds precision (for
+// TIME/DATETIME/TIMESTAMP) or decimal scale (for DECIMAL/NUMERIC) for view
+// deparsing.
+func columnDeparseScale(col *Column) int {
+	if col == nil {
+		return 0
+	}
+	switch toLower(col.DataType) {
+	case "datetime", "timestamp", "time":
+		return columnTemporalFSP(col)
+	case "decimal", "numeric":
+		if pt := parseColumnType(col.ColumnType); pt.scale > 0 {
+			return pt.scale
+		}
+	}
+	return 0
 }
 
 // ShowCreateView produces MySQL 8.0-compatible SHOW CREATE VIEW output.
