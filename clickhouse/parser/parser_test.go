@@ -988,3 +988,23 @@ func TestParseOutputSettingsProjectionColTupleSpanTableFuncExprAndNullability(t 
 		t.Errorf("ALTER ADD COLUMN Nullability = %q, want NOT NULL", n2[0].(*AlterTableStmt).Clauses[0].Element.Nullability)
 	}
 }
+
+func TestParseAlterModifySettingFollowedByAction(t *testing.T) {
+	s1, err := Parse("ALTER TABLE t MODIFY SETTING index_granularity = 8192, ADD COLUMN c UInt64")
+	if err != nil {
+		t.Fatalf("Parse MODIFY SETTING + ADD COLUMN failed: %v", err)
+	}
+	cls1 := s1[0].(*AlterTableStmt).Clauses
+	if len(cls1) != 2 || cls1[0].Action != "MODIFY SETTING" || len(cls1[0].Settings) != 1 || cls1[1].Action != "ADD COLUMN" || cls1[1].Name != "c" {
+		t.Errorf("clauses = %+v, want MODIFY SETTING + ADD COLUMN c", cls1)
+	}
+
+	s2, err := Parse("ALTER TABLE t MODIFY SETTING index_granularity = 8192, min_bytes_for_wide_part = 0, DROP COLUMN old")
+	if err != nil {
+		t.Fatalf("Parse multi MODIFY SETTING + DROP COLUMN failed: %v", err)
+	}
+	cls2 := s2[0].(*AlterTableStmt).Clauses
+	if len(cls2) != 2 || len(cls2[0].Settings) != 2 || cls2[1].Action != "DROP COLUMN" || cls2[1].Name != "old" {
+		t.Errorf("clauses = %+v, want 2 settings + DROP COLUMN old", cls2)
+	}
+}

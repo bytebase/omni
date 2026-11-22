@@ -1866,7 +1866,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY TTL", TTL: ttls}, nil
 		case KwSetting:
 			p.advance()
-			settings, err := p.parseSettingExprList()
+			settings, err := p.parseAlterSettingExprList()
 			if err != nil {
 				return nil, err
 			}

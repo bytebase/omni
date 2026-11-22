@@ -476,6 +476,14 @@ func (p *parser) parseClusterClause() (string, error) {
 }
 
 func (p *parser) parseSettingExprList() ([]*SettingExpr, error) {
+	return p.parseSettingExprListMode(false)
+}
+
+func (p *parser) parseAlterSettingExprList() ([]*SettingExpr, error) {
+	return p.parseSettingExprListMode(true)
+}
+
+func (p *parser) parseSettingExprListMode(alterAware bool) ([]*SettingExpr, error) {
 	var list []*SettingExpr
 	for {
 		start := p.cur().Pos
@@ -495,6 +503,13 @@ func (p *parser) parseSettingExprList() ([]*SettingExpr, error) {
 			Name:  name,
 			Value: val,
 		})
+		if alterAware {
+			if p.cur().Type == TokComma && isIdentifier(p.peek(1)) && p.peek(2).Type == TokEq {
+				p.advance()
+				continue
+			}
+			break
+		}
 		if !p.match(TokComma) {
 			break
 		}
