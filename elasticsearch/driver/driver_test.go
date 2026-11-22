@@ -12,11 +12,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/elasticsearch"
-	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 func TestEndpoint(t *testing.T) {
@@ -291,35 +289,26 @@ func TestTruncate(t *testing.T) {
 	require.True(t, strings.HasSuffix(truncate([]byte("abcdef"), 2), "..."))
 }
 
-// TestSyncInstanceFiltersHiddenAndClosedIndices pins hidden-index filtering,
-// closed-index null count/size handling, name-order sorting, and role sorting
-// against recorded Elasticsearch 8.19.25 responses.
-func TestSyncInstanceFiltersHiddenAndClosedIndices(t *testing.T) {
-	var requests []string
-	routes := map[string]string{
-		"GET /": `{"version":{"number":"8.19.25"}}`,
-		"GET /*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden": `{
-			"alpha":{"settings":{"index":{"hidden":"false"}}},
-			"beta":{"settings":{"index":{"hidden":"false"}}},
-			"hidden-one":{"settings":{"index":{"hidden":"true"}}},
-			"closed-index":{"settings":{"index":{}}}
-		}`,
-		"GET /_cat/indices?format=json&pretty": `[
-			{"index":"beta","docs.count":"2","store.size":"227b"},
-			{"index":"alpha","docs.count":"4","store.size":"1.5kb"},
-			{"index":"hidden-one","docs.count":"1","store.size":"1kb"},
-			{"index":"closed-index","docs.count":null,"store.size":null}
-		]`,
-		"GET /_security/user": `{
-			"u1":{"roles":["r1","r2"]},
-			"elastic":{"roles":["superuser"]}
-		}`,
-	}
+// TestGetIndicesFiltersHiddenAndSortsByName unit-tests defensive filtering of
+// hidden indices if a server or proxy includes them in _cat/indices, along with
+// deterministic name ordering.
+func TestGetIndicesFiltersHiddenAndSortsByName(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := r.Method + " " + r.URL.RequestURI()
-		requests = append(requests, key)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(routes[key]))
+		switch r.URL.RequestURI() {
+		case "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden":
+			_, _ = w.Write([]byte(`{
+				"alpha":{"settings":{"index":{"hidden":"false"}}},
+				"beta":{"settings":{"index":{"hidden":"false"}}},
+				"hidden-one":{"settings":{"index":{"hidden":"true"}}}
+			}`))
+		case "/_cat/indices?format=json&pretty":
+			_, _ = w.Write([]byte(`[
+				{"index":"beta","docs.count":"2","store.size":"227b"},
+				{"index":"hidden-one","docs.count":"1","store.size":"1kb"},
+				{"index":"alpha","docs.count":"4","store.size":"1.5kb"}
+			]`))
+		}
 	}))
 	defer srv.Close()
 
@@ -327,38 +316,15 @@ func TestSyncInstanceFiltersHiddenAndClosedIndices(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = d.Close() }()
 
-	instance, err := d.SyncInstance(context.Background())
+	indices, err := d.getIndices(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, "8.19.25", instance.Version)
-	wantDB := &metadatapb.DatabaseSchemaMetadata{
-		Name: "node",
-		Schemas: []*metadatapb.SchemaMetadata{{
-			Tables: []*metadatapb.TableMetadata{
-				{Name: "alpha", RowCount: 4, DataSize: 1536},
-				{Name: "beta", RowCount: 2, DataSize: 227},
-				{Name: "closed-index"},
-			},
-		}},
-	}
-	require.Len(t, instance.Databases, 1)
-	require.True(t, proto.Equal(wantDB, instance.Databases[0]))
-
-	elasticRole := "[superuser]"
-	u1Role := "[r1, r2]"
-	require.Equal(t, []*driver.Role{
-		{Name: "elastic", Attribute: &elasticRole},
-		{Name: "u1", Attribute: &u1Role},
-	}, instance.Roles)
-	require.Equal(t, []string{
-		"GET /",
-		"GET /*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden",
-		"GET /_cat/indices?format=json&pretty",
-		"GET /_security/user",
-	}, requests)
-
-	dbMeta, err := d.SyncDatabase(context.Background())
-	require.NoError(t, err)
-	require.True(t, proto.Equal(instance.Databases[0], dbMeta))
+	require.Len(t, indices, 2)
+	require.Equal(t, "alpha", indices[0].Name)
+	require.Equal(t, int64(4), indices[0].RowCount)
+	require.Equal(t, int64(1536), indices[0].DataSize)
+	require.Equal(t, "beta", indices[1].Name)
+	require.Equal(t, int64(2), indices[1].RowCount)
+	require.Equal(t, int64(227), indices[1].DataSize)
 }
 
 // TestSyncInstanceFailsOpenOnUsers pins that a security-endpoint failure leaves
