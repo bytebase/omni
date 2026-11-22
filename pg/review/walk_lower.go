@@ -1530,8 +1530,13 @@ func (b *builder) alterType(v *ast.AlterTypeStmt) bool {
 			}
 		}
 	}
-	if setTypmodIn && r.fact == walk.Present && !r.builtin {
-		b.session(func() { b.w.typmodTypes[r.key] = true })
+	if setTypmodIn {
+		switch {
+		case r.fact == walk.Present && !r.builtin:
+			b.session(func() { b.w.typmodTypes[r.key] = true })
+		case r.fact == walk.Unknown:
+			b.session(func() { b.w.typmodTypes[walk.Key{}] = true })
+		}
 	}
 	return true
 }
@@ -2787,7 +2792,7 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 			b.failAt(rng, nil, review.UnsupportedForm, unsupported("invalid type modifier for "+review.Code(written))) // 22P02
 			return
 		}
-		if !r.builtin && !b.w.typmodTypes[r.key] {
+		if !r.builtin && !b.w.typmodTypes[r.key] && !b.w.typmodTypes[walk.Key{}] {
 			b.failAt(rng, r.keys, review.UnsupportedForm, unsupported("type modifier for "+review.Code(written))) // 42601
 			return
 		}
@@ -3976,6 +3981,8 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		b.set(rk, walk.Absent, "")
 		b.set(nrk, walk.Present, relComposite)
 		b.renamed(rk, nrk)
+	} else if rf == walk.Unknown {
+		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: walk.Path(s), Kinds: []string{relComposite}})
 	}
 	b.mayRemoveArrayType(s)
 	b.mayAddArrayType(s)
@@ -4086,6 +4093,8 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 			b.set(rk, walk.Absent, "")
 			b.set(nrk, walk.Present, relComposite)
 			b.renamed(rk, nrk)
+		} else if rf == walk.Unknown {
+			b.mayAdd(walk.Scope{Space: spaceRelation, Parent: walk.Path(ns), Kinds: []string{relComposite}})
 		}
 		// Moving a type also moves its companion array type (and companion
 		// multirange type for range types) into the destination schema.
@@ -4107,8 +4116,13 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 		return true
 	}
 	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: rng, absent: schemaNotFound(v.Newschema)}) // 3F000
+	if r.builtin {
+		return true
+	}
 	b.mayRemove(walk.Scope{Space: spaceType, Deep: true})
 	b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ns)})
+	b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relComposite}})
+	b.mayAdd(walk.Scope{Space: spaceRelation, Parent: walk.Path(ns), Kinds: []string{relComposite}})
 	return true
 }
 

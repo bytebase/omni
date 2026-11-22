@@ -665,6 +665,8 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		"CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();\nDROP TRIGGER tr ON t;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
 		"CREATE POLICY p ON public.t;\nALTER POLICY p ON t RENAME TO p2;\nCREATE POLICY p ON public.t;",
 		"CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();\nALTER TRIGGER tr ON t RENAME TO tr2;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+		"CREATE SCHEMA dest;\nCREATE TYPE public.c AS (a int);\nALTER TYPE c SET SCHEMA dest;\nCREATE TYPE public.c AS (a int);",
+		"CREATE TYPE public.bt;\nCREATE TYPE public.bt (INPUT = unsynced_in, OUTPUT = unsynced_out);\nALTER TYPE bt SET (TYPMOD_IN = unsynced_modin);\nDROP TYPE public.bt(1);",
 	} {
 		if got := walkFindings(t, sql, noUser); len(got) != 0 {
 			t.Errorf("%q (no SessionUser): findings = %+v, want none", sql, got)
