@@ -13,7 +13,7 @@ on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,480 | 28 | 2 |
+| One per alternative | 5,510 | 5,510 | 0 | 0 |
 | Near-misses | 11,960 | 11,960 | 0 | 0 |
 | `suite:lexer` | 66 | 66 | 0 | 0 |
 
@@ -129,38 +129,33 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,506 rows agree (99.83%, up from 17,441 / 17,537 = 99.45% under judge rev 2):
-12,212 when the file was first recorded, the rest closed family by family
-(#1034 to #1070, and then the batch's call by name, `ALTER AUTHORIZATION` and
-the refusals around it, `SELECT`'s table sources, ODBC escapes, graph `MATCH`,
-the security policies, sensitivity classifications and federation shapes, and
-then `ALTER TABLE`'s remaining clauses, DML targets,
-`WITH CHANGE_TRACKING_CONTEXT`, the `CREATE`/`DROP`/`ALTER` statement shapes,
-query-expression parentheses, `GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the
-search-condition-only boolean operators, the shapes a query expression's
-parentheses, a name's dot and a label's colon carry, and then the CTAS
-alternatives and a line comment's opening), followed by judge rev 2 closing all
-20 `only_mssql` lookup-hides-syntax rows and 18 context-only `only_omni` rows
-(`GOTO`, unused CTE, `PARSE`/`TRY_PARSE`, and `ALTER EXTERNAL LANGUAGE`), then
-closing the 27 parser bugs judge rev 2 exposed (18 loose `USE FEDERATION`
-near-misses in `utility.go` and 9 `ALTER FULLTEXT STOPLIST ... LANGUAGE ...`
-forms lacking `;` in `fulltext.go`), and then judge rev 3 falling back to the
-pinned `mssql/scriptdom` (`TSql160Parser`) for the PolyBase, Synapse, and Azure
-SQL Federation families (closing 93 valid `only_omni` rows while moving the 1
-intentionally review-layer 129-char identifier test into `../lexer_test.go`,
-and exposing 28 `only_mssql` and 2 `only_omni` real parser gaps).
+17,536 / 17,536 rows agree (**100.00%**, 0 `only_mssql`, 0 `only_omni`, up from
+17,506 / 17,536 = 99.83% after judge rev 3): 12,212 when the file was first
+recorded, the rest closed family by family (#1034 to #1070, and then the
+batch's call by name, `ALTER AUTHORIZATION` and the refusals around it,
+`SELECT`'s table sources, ODBC escapes, graph `MATCH`, the security policies,
+sensitivity classifications and federation shapes, and then `ALTER TABLE`'s
+remaining clauses, DML targets, `WITH CHANGE_TRACKING_CONTEXT`, the
+`CREATE`/`DROP`/`ALTER` statement shapes, query-expression parentheses,
+`GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the search-condition-only boolean
+operators, the shapes a query expression's parentheses, a name's dot and a
+label's colon carry, and then the CTAS alternatives and a line comment's
+opening), followed by judge rev 2 closing all 20 `only_mssql`
+lookup-hides-syntax rows and 18 context-only `only_omni` rows (`GOTO`, unused
+CTE, `PARSE`/`TRY_PARSE`, and `ALTER EXTERNAL LANGUAGE`), closing the 27 parser
+bugs judge rev 2 exposed (18 loose `USE FEDERATION` near-misses in `utility.go`
+and 9 `ALTER FULLTEXT STOPLIST ... LANGUAGE ...` forms lacking `;` in
+`fulltext.go`), judge rev 3 falling back to the pinned `mssql/scriptdom`
+(`TSql160Parser`) for the PolyBase, Synapse, and Azure SQL Federation families
+(closing 93 valid `only_omni` rows while moving the 1 intentionally
+review-layer 129-char identifier test into `../lexer_test.go`), and finally
+closing all 30 parser gaps judge rev 3 exposed in `external.go` (27 CETAS
+`CREATE EXTERNAL TABLE ... WITH (...) AS SELECT` rows, 1 `CREATE EXTERNAL
+STREAM` option-duplication row, 1 `COPY INTO ... WITH(IDENTITY_INSERT = a)`
+row, and 1 duplicate `FORMAT_OPTIONS(USE_TYPE_DEFAULT = ...)` row).
 
-30 rows disagree (all 11,960 near-misses and all 66 `suite:lexer` rows agree):
-- **2 rows only omni accepts:**
-  1. `COPY INTO a FROM 'a' WITH(IDENTITY_INSERT = a)` — `IDENTITY_INSERT` only
-     accepts `ON` / `OFF`, not an arbitrary identifier.
-  2. `CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USE_TYPE_DEFAULT = TRUE))` —
-     duplicate `USE_TYPE_DEFAULT` inside `FORMAT_OPTIONS(...)`.
-- **28 rows only the rev 3 judge accepts:**
-  1. 27 CETAS rows (`CREATE EXTERNAL TABLE a WITH(...) AS SELECT *`,
-     `ctasCreateExternalTableStatement` / `withExternalTableOptions`).
-  2. 1 `CREATE EXTERNAL STREAM` row
-     (`CREATE EXTERNAL STREAM a WITH(LOCATION = 'a', LOCATION = 'a')`).
+0 rows disagree: all 5,510 alternatives, all 11,960 near-misses, and all 66
+`suite:lexer` rows agree.
 
 ### Closed over-accepts (3)
 

@@ -423,23 +423,26 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 // ---------- EXTERNAL TABLE ----------
 
 // extTableOptions are the options of CREATE EXTERNAL TABLE ... WITH
-// (TSql160.g:27679-27880, ExternalTableOptionKind). ScriptDOM also takes
-// DISTRIBUTION = { SHARDED ( column ) | REPLICATED | ROUND_ROBIN }, which
-// only Azure SQL Database's elastic query reads, over an RDBMS or
-// SHARD_MAP_MANAGER data source that SQL Server 2022 refuses as well.
+// (TSql160.g:27679-27885, ExternalTableOptionKind).
 var extTableOptions = []string{
 	"DATA_SOURCE", "FILE_FORMAT", "LOCATION", "SCHEMA_NAME", "OBJECT_NAME",
 	"REJECTED_ROW_LOCATION", "TABLE_OPTIONS", "REJECT_TYPE", "REJECT_VALUE",
-	"REJECT_SAMPLE_VALUE",
+	"REJECT_SAMPLE_VALUE", "DISTRIBUTION",
 }
 
-// extTableWithOptions reads WITH ( option [ ,...n ] ) of CREATE EXTERNAL TABLE.
+// extTableWithOptions reads WITH ( option [ ,...n ] ) of CREATE EXTERNAL TABLE
+// (withExternalTableOptions, TSql160.g:27679).
 //
 //	DATA_SOURCE = name | FILE_FORMAT = name
 //	| { LOCATION | SCHEMA_NAME | OBJECT_NAME | REJECTED_ROW_LOCATION | TABLE_OPTIONS } = 'string'
 //	| REJECT_TYPE = { VALUE | PERCENTAGE }
 //	| { REJECT_VALUE | REJECT_SAMPLE_VALUE } = integer_or_numeric
-func (p *Parser) extTableWithOptions() ([]nodes.Node, error) {
+//	| DISTRIBUTION = { REPLICATED | ROUND_ROBIN | SHARDED ( column ) }
+//
+// Per TSql160.g:27687-27709, DATA_SOURCE bypasses CheckOptionDuplication while
+// the remaining options reject duplicates; per TSql160.g:561, CETAS disallows
+// REJECTED_ROW_LOCATION.
+func (p *Parser) extTableWithOptions(isCTAS bool) ([]nodes.Node, error) {
 	if _, err := p.expect(kwWITH); err != nil {
 		return nil, err
 	}
@@ -449,11 +452,25 @@ func (p *Parser) extTableWithOptions() ([]nodes.Node, error) {
 	var opts []nodes.Node
 	seen := map[string]bool{}
 	for {
-		key, _, err := p.extOptionHead(seen, extTableOptions...)
-		if err != nil {
+		key := p.extWordIn(extTableOptions...)
+		if key == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if isCTAS && key == "REJECTED_ROW_LOCATION" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if key != "DATA_SOURCE" {
+			if seen[key] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[key] = true
+		}
+		p.advance()
+		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
 		var val string
+		var err error
 		switch key {
 		case "DATA_SOURCE", "FILE_FORMAT":
 			val, err = p.extIdentifier()
@@ -461,6 +478,26 @@ func (p *Parser) extTableWithOptions() ([]nodes.Node, error) {
 			val, err = p.extExpectWordIn("VALUE", "PERCENTAGE")
 		case "REJECT_VALUE", "REJECT_SAMPLE_VALUE":
 			val, err = p.extIntegerOrNumeric()
+		case "DISTRIBUTION":
+			policy, perr := p.extExpectWordIn("REPLICATED", "ROUND_ROBIN", "SHARDED")
+			if perr != nil {
+				return nil, perr
+			}
+			if policy == "SHARDED" {
+				if _, err := p.expect('('); err != nil {
+					return nil, err
+				}
+				col, cerr := p.extIdentifier()
+				if cerr != nil {
+					return nil, cerr
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				val = "SHARDED(" + col + ")"
+			} else {
+				val = policy
+			}
 		default:
 			val, err = p.extString()
 		}
@@ -517,29 +554,57 @@ func (p *Parser) extTableColumnDef() (*nodes.ColumnDef, error) {
 	return col, nil
 }
 
-// parseCreateExternalTableStmt parses CREATE EXTERNAL TABLE. Caller has
+// parseCreateExternalTableStmt parses CREATE EXTERNAL TABLE (both column-list
+// definitions and PolyBase/Synapse CETAS: WITH (...) AS <select>). Caller has
 // consumed CREATE EXTERNAL TABLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-table-transact-sql
-// Grammar: TSql160.g:27638 (createExternalTableStatement)
+// Grammar: TSql160.g:27638 (createExternalTableStatement), TSql160.g:546 (ctasCreateExternalTableStatement)
 //
 //	CREATE EXTERNAL TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
 //	    ( <column_definition> [ ,...n ] )
 //	    WITH ( <option> [ ,...n ] )
 //
-// The table's column definitions define it: SQL Server refuses a name with
-// none (Msg 102). The AS <select> tail ScriptDOM also reads there
-// (ctasCreateExternalTableStatement, TSql160.g:546) is not read: the pinned
-// SQL Server 2022 refuses it at EXTERNAL, as it refuses every CREATE EXTERNAL
-// TABLE of an instance without PolyBase, and compat.tsv holds that verdict
-// for the tail's rows (mssql/parser/testdata/compat.tsv).
+//	CREATE EXTERNAL TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    WITH ( <option> [ ,...n ] )
+//	    AS <select_statement>
 func (p *Parser) parseCreateExternalTableStmt(createLoc int) (nodes.StmtNode, error) {
 	ref, err := p.extRequireTableRef()
 	if err != nil {
 		return nil, err
 	}
 
-	// ( column_definition [ ,...n ] )
+	if p.cur.Type == kwWITH {
+		// ctasCreateExternalTableStatement (TSql160.g:546)
+		opts, err := p.extTableWithOptions(true)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		var query *nodes.SelectStmt
+		if p.cur.Type == '(' {
+			query, err = p.parseQueryParenthesisStmt()
+		} else {
+			query, err = p.parseSelectStmtWithCTE()
+		}
+		if err != nil {
+			return nil, err
+		}
+		if query == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.SecurityStmt{
+			Action:     "CREATE",
+			ObjectType: "EXTERNAL TABLE",
+			Name:       extTableRefName(ref),
+			Options:    &nodes.List{Items: append(opts, query)},
+			Loc:        nodes.Loc{Start: createLoc, End: p.prevEnd()},
+		}, nil
+	}
+
+	// ( column_definition [ ,...n ] ) WITH ( <option> [ ,...n ] )
 	var colDefs []nodes.Node
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -559,7 +624,7 @@ func (p *Parser) parseCreateExternalTableStmt(createLoc int) (nodes.StmtNode, er
 		return nil, err
 	}
 
-	opts, err := p.extTableWithOptions()
+	opts, err := p.extTableWithOptions(false)
 	if err != nil {
 		return nil, err
 	}
@@ -652,11 +717,13 @@ func (p *Parser) parseCreateExternalFileFormatStmt() (*nodes.SecurityStmt, error
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
+		seenFmt := map[string]bool{}
 		for {
 			fkey := p.extWordIn(extFormatOptions...)
-			if fkey == "" {
+			if fkey == "" || seenFmt[fkey] {
 				return nil, p.syntaxErrorAtCur()
 			}
+			seenFmt[fkey] = true
 			p.advance()
 			if _, err := p.expect('='); err != nil {
 				return nil, err
@@ -1177,8 +1244,20 @@ func (p *Parser) parseCreateExternalStreamStmt() (*nodes.SecurityStmt, error) {
 	var opts []nodes.Node
 	seen := map[string]bool{}
 	for {
-		key, _, err := p.extOptionHead(seen, "LOCATION", "INPUT_OPTIONS", "OUTPUT_OPTIONS", "DATA_SOURCE", "FILE_FORMAT")
-		if err != nil {
+		key := p.extWordIn("LOCATION", "INPUT_OPTIONS", "OUTPUT_OPTIONS", "DATA_SOURCE", "FILE_FORMAT")
+		if key == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// Per TSql160.g:23903-23938, DATA_SOURCE and FILE_FORMAT call
+		// CheckOptionDuplication while LOCATION/INPUT_OPTIONS/OUTPUT_OPTIONS do not.
+		if key == "DATA_SOURCE" || key == "FILE_FORMAT" {
+			if seen[key] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[key] = true
+		}
+		p.advance()
+		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
 		var val string
@@ -1390,6 +1469,21 @@ func (p *Parser) extCopyOption(seen map[string]bool) (nodes.Node, error) {
 			return nil, err
 		}
 		return &nodes.String{Str: key + "=(" + val + ")"}, nil
+	}
+	if key == "IDENTITY_INSERT" {
+		if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		switch strings.ToUpper(p.cur.Str) {
+		case "ON", "OFF":
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		val, err := p.extString()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.String{Str: key + "=" + val}, nil
 	}
 	var val string
 	switch {

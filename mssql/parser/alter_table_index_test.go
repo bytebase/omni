@@ -170,11 +170,11 @@ func TestParseAlterTableAddIndexRejects(t *testing.T) {
 	}
 }
 
-// TestParseCreateExternalTableNoAsSelect pins that an external table's column
-// definitions and options end the statement: the AS SELECT tail ScriptDOM
-// reads (ctasCreateExternalTableStatement, TSql160.g:546) is refused by the
-// pinned SQL Server 2022, whose verdict compat.tsv holds.
-func TestParseCreateExternalTableNoAsSelect(t *testing.T) {
+// TestParseCreateExternalTableCETAS pins both column-list external tables and
+// PolyBase/Synapse CETAS (ctasCreateExternalTableStatement, TSql160.g:546) as
+// well as the forms ScriptDOM rejects (combining a column list with AS SELECT,
+// omitting WITH before AS SELECT, or passing REJECTED_ROW_LOCATION on CETAS).
+func TestParseCreateExternalTableCETAS(t *testing.T) {
 	sql := "CREATE EXTERNAL TABLE a (a INT NOT NULL, b NVARCHAR(10)) WITH (LOCATION = '/a/', DATA_SOURCE = ds, FILE_FORMAT = ff)"
 	result := ParseAndCheck(t, sql)
 	stmt, ok := result.Items[0].(*ast.SecurityStmt)
@@ -188,13 +188,31 @@ func TestParseCreateExternalTableNoAsSelect(t *testing.T) {
 		t.Errorf("Options = %v, want two columns and three options", stmt.Options)
 	}
 
-	for _, sql := range []string{
+	for _, cetas := range []string{
 		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a) AS SELECT *",
-		"CREATE EXTERNAL TABLE a (a INT) WITH (DATA_SOURCE = a) AS SELECT *",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, DISTRIBUTION = SHARDED(a)) AS SELECT 1",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a) AS (SELECT 1)",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a) AS WITH c AS (SELECT 1) SELECT * FROM c",
 	} {
-		t.Run(sql, func(t *testing.T) {
-			if _, err := Parse(sql); err == nil {
-				t.Errorf("Parse(%q): want an error", sql)
+		t.Run("accept/"+cetas, func(t *testing.T) {
+			res := ParseAndCheck(t, cetas)
+			s, ok := res.Items[0].(*ast.SecurityStmt)
+			if !ok || s.ObjectType != "EXTERNAL TABLE" {
+				t.Fatalf("Parse(%q): got %#v, want EXTERNAL TABLE *SecurityStmt", cetas, res.Items[0])
+			}
+		})
+	}
+
+	for _, bad := range []string{
+		"CREATE EXTERNAL TABLE a AS SELECT *",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a) AS",
+		"CREATE EXTERNAL TABLE a (a INT) WITH (DATA_SOURCE = a) AS SELECT *",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, REJECTED_ROW_LOCATION = '/err') AS SELECT *",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, DISTRIBUTION = REPLICATED, DISTRIBUTION = ROUND_ROBIN) AS SELECT *",
+	} {
+		t.Run("reject/"+bad, func(t *testing.T) {
+			if _, err := Parse(bad); err == nil {
+				t.Errorf("Parse(%q): want an error", bad)
 			}
 		})
 	}
