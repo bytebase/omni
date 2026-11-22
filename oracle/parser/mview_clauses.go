@@ -307,9 +307,10 @@ func (p *Parser) parseMviewScopeFor(ref bool) error {
 func (p *Parser) parseMviewEncryptionSpec() error {
 	if p.cur.Type == kwUSING {
 		p.advance() // consume USING
-		if err := p.expectCreateTableToken(tokSCONST); err != nil {
-			return err
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance() // consume IDENTIFIED
@@ -326,6 +327,9 @@ func (p *Parser) parseMviewEncryptionSpec() error {
 		}
 	}
 	if p.cur.Type == tokSCONST {
+		if !isValidOracleIntegrityAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
+		}
 		p.advance()
 	}
 	if p.isKeywordStr("NO") {
@@ -607,6 +611,7 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 	if err := p.parseCreateTableItem(); err != nil {
 		return err
 	}
+	objectRelational := false
 	if p.isKeywordStr("STORE") {
 		p.advance() // consume STORE
 		if err := p.expectCreateTableToken(kwAS); err != nil {
@@ -617,6 +622,7 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 			if err := p.expectCreateTableWord("RELATIONAL"); err != nil {
 				return err
 			}
+			objectRelational = true
 		} else {
 			if p.isKeywordStr("SECUREFILE") || p.isKeywordStr("BASICFILE") {
 				p.advance()
@@ -647,6 +653,9 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		}
 	}
 	if !p.isMviewXmlschemaSpecStart() {
+		if objectRelational {
+			return p.syntaxErrorAtCur()
+		}
 		return nil
 	}
 	if p.isKeywordStr("XMLSCHEMA") {

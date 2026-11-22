@@ -96,6 +96,26 @@ func (p *Parser) ixSize() (string, error) {
 	return v, nil
 }
 
+// ixExtentSize reads size_clause for ALLOCATE EXTENT / DEALLOCATE UNUSED KEEP,
+// where Oracle refuses P and E units at the integer (ORA-03277).
+func (p *Parser) ixExtentSize() (string, error) {
+	intTok := p.cur
+	v, err := p.ixInteger()
+	if err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "K", "M", "G", "T":
+			v += p.advance().Str
+		case "P", "E":
+			p.advance()
+			return "", p.syntaxErrorAtTok(intTok)
+		}
+	}
+	return v, nil
+}
+
 // ixString reads a required string literal.
 func (p *Parser) ixString() (string, error) {
 	if p.cur.Type != tokSCONST {
@@ -976,6 +996,9 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			case "PCTFREE":
 				stmt.PctFree = v
 			case "INITRANS":
+				if p.prev.Ival < 2 {
+					return p.syntaxErrorAtCur()
+				}
 				stmt.InitTrans = v
 			default:
 				stmt.MaxTrans = v
@@ -1432,6 +1455,9 @@ func (p *Parser) ixAlterSegmentOption(stmt *nodes.AlterIndexStmt, seen map[strin
 			return false, err
 		}
 		if word == "INITRANS" {
+			if p.prev.Ival < 2 {
+				return false, p.syntaxErrorAtCur()
+			}
 			stmt.InitTrans = v
 		} else {
 			stmt.MaxTrans = v
@@ -1480,7 +1506,7 @@ func (p *Parser) ixDeallocateUnused() (string, error) {
 		return "", nil
 	}
 	p.advance()
-	return p.ixSize()
+	return p.ixExtentSize()
 }
 
 // ixAllocateExtent reads allocate_extent_clause:
@@ -1504,7 +1530,7 @@ func (p *Parser) ixAllocateExtent() error {
 		case p.cur.Type == kwSIZE:
 			if err = p.ixOnce(seen, "SIZE"); err == nil {
 				p.advance()
-				_, err = p.ixSize()
+				_, err = p.ixExtentSize()
 			}
 		case p.isKeywordStr("DATAFILE"):
 			if err = p.ixOnce(seen, "DATAFILE"); err == nil {

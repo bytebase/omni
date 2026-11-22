@@ -592,6 +592,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	// construct, and it rejects the + inside it. Pseudo-columns stay
 	// pseudo-columns: Oracle reads SYSTIMESTAMP(+) as SYSTIMESTAMP(precision)
 	// and rejects it (ORA-30088) even when the table has such a column.
+	if p.cur.Type == kwSYSTIMESTAMP && p.nextIsOuterJoinMarker() {
+		p.advance() // consume SYSTIMESTAMP
+		p.advance() // consume (
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) &&
 		!isOraclePseudoColumnKeyword(p.cur.Type) && p.nextIsOuterJoinMarker() {
 		if keepsConstructBeforeOuterJoin(p.cur.Type) {
@@ -605,6 +610,14 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
+		// In SQL (outside PL/SQL range loops), 1..2 is lexed by Oracle as
+		// numeric literal "1." followed by ".2", blaming the second dot.
+		if !p.plsqlCode && p.cur.Type == tokDOTDOT && p.cur.Loc == tok.End {
+			return nil, &ParseError{
+				Message:  `syntax error at or near "."`,
+				Position: p.cur.Loc + 1,
+			}
+		}
 		return &nodes.NumberLiteral{
 			Val:  tok.Str,
 			Ival: tok.Ival,

@@ -249,6 +249,7 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 		}
 		return p.atOneOf("LOBS", "TABLES")
 	}
+	objectRelational := false
 	if p.atWord("STORE") {
 		p.advance()
 		if p.cur.Type == kwALL {
@@ -264,6 +265,7 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 				if err := p.atExpectWord("RELATIONAL"); err != nil {
 					return err
 				}
+				objectRelational = true
 			} else {
 				p.atOptOneOf("SECUREFILE", "BASICFILE")
 				clob := p.cur.Type == kwCLOB
@@ -316,6 +318,10 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 				return err
 			}
 		}
+	} else if objectRelational {
+		// STORE AS OBJECT RELATIONAL requires an XMLSCHEMA/ELEMENT specification
+		// (ORA-19002).
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }

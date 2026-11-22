@@ -876,17 +876,25 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	// precision
 	switch {
 	case p.cur.Type == tokICONST:
-		if maxPrecision >= 0 && (p.cur.Ival < minPrecision || p.cur.Ival > maxPrecision) {
-			return p.syntaxErrorAtCur()
+		numTok := p.cur
+		ival := p.cur.Ival
+		p.advance()
+		if maxPrecision >= 0 && (ival < minPrecision || ival > maxPrecision) {
+			if scale {
+				// NUMBER/DECIMAL/DEC/NUMERIC precision range (ORA-01727) is
+				// reported at the token after the precision (e.g. ')' in DEC(0)).
+				return p.syntaxErrorAtCur()
+			}
+			return p.syntaxErrorAtTok(numTok)
 		}
-		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: ival})
 	case star && p.cur.Type == '*':
 		// NUMBER(*) or NUMBER(*,s)
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
+		p.advance()
 	default:
 		return p.syntaxErrorAtCur()
 	}
-	p.advance()
 
 	// optional scale
 	if scale && p.cur.Type == ',' {
@@ -950,10 +958,22 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	p.advance()
 
 	// optional BYTE or CHAR semantic
+	national := false
+	if tn.Names.Len() > 0 {
+		if first, ok := tn.Names.Items[0].(*nodes.String); ok {
+			national = first.Str == "NCHAR" || first.Str == "NVARCHAR2" || first.Str == "NATIONAL"
+		}
+	}
 	if p.isIdentLikeStr("BYTE") {
+		if national {
+			return p.syntaxErrorAtCur()
+		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "BYTE"})
 		p.advance()
 	} else if p.cur.Type == kwCHAR {
+		if national && p.typeMods == typeModsSQL {
+			return p.syntaxErrorAtCur()
+		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "CHAR"})
 		p.advance()
 	}

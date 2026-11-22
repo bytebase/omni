@@ -1548,6 +1548,27 @@ func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
 	return p.parseCreateTableEditionClauses()
 }
 
+// isValidOracleEncryptionAlgorithm reports whether alg is a valid Oracle 23ai
+// TDE encryption algorithm name (case-insensitive, ORA-28339 for any other).
+func isValidOracleEncryptionAlgorithm(alg string) bool {
+	switch strings.ToUpper(alg) {
+	case "3DES168", "AES128", "AES192", "AES256",
+		"ARIA128", "ARIA192", "ARIA256", "GOST256", "SEED128", "SM4":
+		return true
+	}
+	return false
+}
+
+// isValidOracleIntegrityAlgorithm reports whether alg is a valid Oracle 23ai
+// TDE integrity algorithm name (case-insensitive, ORA-28339 for any other).
+func isValidOracleIntegrityAlgorithm(alg string) bool {
+	switch strings.ToUpper(alg) {
+	case "SHA-1", "NOMAC":
+		return true
+	}
+	return false
+}
+
 // parseEncryptionSpec parses the encryption_spec after ENCRYPT keyword.
 //
 // BNF (CREATE-TABLE.bnf lines 95-98):
@@ -1558,7 +1579,7 @@ func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
 func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
 	if p.cur.Type == kwUSING {
 		p.advance() // consume USING
-		if p.cur.Type != tokSCONST {
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
 			return p.syntaxErrorAtCur()
 		}
 		col.Encrypt = "ENCRYPT USING " + p.cur.Str
@@ -2094,8 +2115,22 @@ func (p *Parser) parseReferencedTable() (*nodes.ObjectName, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	// The table is local, with no database link and no bare @ (ORA-02021
-	// for REFERENCES o@ on Oracle 23ai).
+	// for REFERENCES o@ on Oracle 23ai, reported at '@').
 	if table.DBLink != "" || p.prev.Type == '@' {
+		inQuote := false
+		for i := table.Loc.Start; i < table.Loc.End; i++ {
+			switch p.source[i] {
+			case '"':
+				inQuote = !inQuote
+			case '@':
+				if !inQuote {
+					return nil, &ParseError{
+						Message:  `syntax error at or near "@"`,
+						Position: i,
+					}
+				}
+			}
+		}
 		return nil, p.syntaxErrorAtNode(table)
 	}
 	return table, nil
@@ -2410,8 +2445,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						stmt.Organization = "HEAP"
 						p.advance()
 					} else if p.cur.Type == kwINDEX {
+						indexTok := p.cur
 						stmt.Organization = "INDEX"
 						p.advance()
+						// An index-organized table must define a PRIMARY KEY
+						// constraint (ORA-25175 at INDEX).
+						if !createTableHasPrimaryKey(stmt) {
+							return p.syntaxErrorAtTok(indexTok)
+						}
 					} else if p.isIdentLikeStr("EXTERNAL") {
 						optStart := p.pos()
 						stmt.Organization = "EXTERNAL"
@@ -2904,6 +2945,33 @@ func (p *Parser) parseEnableDisableClause() error {
 		}
 	}
 	return nil
+}
+
+func createTableHasPrimaryKey(stmt *nodes.CreateTableStmt) bool {
+	if stmt == nil {
+		return false
+	}
+	if stmt.Constraints != nil {
+		for _, item := range stmt.Constraints.Items {
+			if tc, ok := item.(*nodes.TableConstraint); ok && tc.Type == nodes.CONSTRAINT_PRIMARY {
+				return true
+			}
+		}
+	}
+	if stmt.Columns != nil {
+		for _, item := range stmt.Columns.Items {
+			col, ok := item.(*nodes.ColumnDef)
+			if !ok || col.Constraints == nil {
+				continue
+			}
+			for _, citem := range col.Constraints.Items {
+				if cc, ok := citem.(*nodes.ColumnConstraint); ok && cc.Type == nodes.CONSTRAINT_PRIMARY {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // isStatementEnd returns true if the current token is at a statement boundary.

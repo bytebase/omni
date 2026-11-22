@@ -162,6 +162,17 @@ func (p *Parser) parseSetOperands(first *nodes.SelectStmt) (*nodes.SelectStmt, e
 func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectStmt, bool, error) {
 	open := p.pos()
 	p.advance() // consume '('
+	if p.cur.Type == kwWITH {
+		// Oracle 23ai reads a parenthesized WITH subquery and rejects it at
+		// its closing ')' (ORA-32034) when a parenthesized query cannot hold
+		// WITH.
+		withStmt, err := p.parseSelectStmt()
+		_ = withStmt
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, false, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 		return nil, false, p.syntaxErrorAtCur()
 	}
@@ -723,8 +734,16 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	}
 	// A query follows the operator (ORA-00928 on Oracle 23ai for UNION ),
 	// UNION (1), or UNION at the end), without a WITH clause of its own
-	// (ORA-32034 for UNION WITH w AS (...) SELECT ...).
-	if p.cur.Type == kwWITH || !p.atQuery() {
+	// (ORA-32034 for UNION WITH w AS (...) SELECT ..., reported at SELECT).
+	if p.cur.Type == kwWITH {
+		withClause, err := p.parseWithClause()
+		_ = withClause
+		if err != nil {
+			return false, err
+		}
+		return false, p.syntaxErrorAtCur()
+	}
+	if !p.atQuery() {
 		return false, p.syntaxErrorAtCur()
 	}
 	return true, nil

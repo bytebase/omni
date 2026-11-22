@@ -84,6 +84,11 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		p.createTableEngineCheck = true
 		return p.parseCreateTableReferencePartitioning(clause, hasColumns)
 	case p.isKeywordStr("SYSTEM"):
+		if p.createTablePartitionsOfMview {
+			// System partitioning is not supported on materialized views (ORA-32362).
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateTableSystemPartitioning(clause)
 	case p.isKeywordStr("CONSISTENT"):
 		// consistent_hash_partitions and consistent_hash_with_subpartitions
