@@ -15,7 +15,6 @@ import (
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/stdlib"
 
@@ -171,24 +170,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 // plans another plan. EXPLAIN ANALYZE executes what it plans, which an
 // explain request never does.
 func explainStatement(statement string, json bool) (string, error) {
-	parsed, err := crrawanalysis.Parse(statement)
-	if err != nil {
-		return "", err
-	}
-	if len(parsed) != 1 {
-		return "", fmt.Errorf("EXPLAIN plans a single statement")
-	}
-	planned := statement
-	switch node := parsed[0].AST.(type) {
-	case *crrawparsertree.ExplainAnalyze:
-		return "", pganalysis.ErrExplainAnalyzeExecutes
-	case *crrawparsertree.Explain:
-		planned = node.Statement.String()
-	}
-	if json {
-		return "EXPLAIN (DISTSQL) " + planned, nil
-	}
-	return "EXPLAIN " + planned, nil
+	return crrawanalysis.ExplainStatement(statement, json)
 }
 
 // validateQuery reports whether the statement returns rows. CockroachDB's
@@ -197,18 +179,9 @@ func explainStatement(statement string, json bool) (string, error) {
 // readOnly is Bytebase's editor question and comes from the PostgreSQL
 // grammar when that grammar accepts the statement.
 func validateQuery(statement string) (readOnly, returnsData bool, err error) {
-	parsed, err := crrawanalysis.Parse(statement)
+	returnsData, err = crrawanalysis.ReturnsRows(statement)
 	if err != nil {
 		return false, false, err
-	}
-	for _, stmt := range parsed {
-		node, ok := stmt.AST.(crrawparsertree.Statement)
-		if !ok {
-			continue
-		}
-		if node.StatementReturnType() == crrawparsertree.Rows {
-			returnsData = true
-		}
 	}
 	if stmts, perr := omnipg.Parse(statement); perr == nil {
 		nodes := make([]ast.Node, 0, len(stmts))
@@ -223,24 +196,7 @@ func validateQuery(statement string) (readOnly, returnsData bool, err error) {
 // describeExplain reports a directly submitted EXPLAIN's format and whether
 // it executed the statement it plans.
 func describeExplain(statement string) (format string, executed bool, ok bool) {
-	parsed, err := crrawanalysis.Parse(statement)
-	if err != nil || len(parsed) != 1 {
-		return "", false, false
-	}
-	switch node := parsed[0].AST.(type) {
-	case *crrawparsertree.Explain:
-		return explainFormat(node.ExplainOptions), false, true
-	case *crrawparsertree.ExplainAnalyze:
-		return explainFormat(node.ExplainOptions), true, true
-	}
-	return "", false, false
-}
-
-func explainFormat(opts crrawparsertree.ExplainOptions) string {
-	if opts.Flags[crrawparsertree.ExplainFlagJSON] {
-		return "JSON"
-	}
-	return "TEXT"
+	return crrawanalysis.DescribeExplain(statement)
 }
 
 func statementWithResultLimit(statement string, limit int) string {
@@ -250,12 +206,7 @@ func statementWithResultLimit(statement string, limit int) string {
 	// The PostgreSQL grammar cannot rewrite CockroachDB's native statements
 	// such as SHOW; a CTE wrapper would not be valid there either, so leave
 	// everything but a SELECT unchanged.
-	parsed, err := crrawanalysis.Parse(statement)
-	if err != nil || len(parsed) != 1 {
-		return statement
-	}
-	switch parsed[0].AST.(type) {
-	case *crrawparsertree.Select, *crrawparsertree.ParenSelect:
+	if crrawanalysis.IsSelectStatement(statement) {
 		return fmt.Sprintf("WITH result AS (\n%s\n) SELECT * FROM result LIMIT %d;", trimStatement(statement), limit)
 	}
 	return statement

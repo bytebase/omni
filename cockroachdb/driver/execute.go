@@ -5,12 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
@@ -447,45 +445,16 @@ func sqlIsolation(level driver.IsolationLevel) (sql.IsolationLevel, error) {
 	}
 }
 
-// vacuumReg is the one statement classification CockroachDB's parser cannot
-// answer: VACUUM has no tree node, so the anchored keyword is enough.
-var vacuumReg = regexp.MustCompile(`(?i)^\s*VACUUM`)
-
 // classifyStatement reports what Execute must do with one statement: run it
 // outside a transaction, run it once as a session role change, or run it with
-// superuser privileges. CockroachDB's own AST decides, so a keyword inside a
-// string literal or comment cannot change the classification.
+// superuser privileges.
 func classifyStatement(stmt string) (nonTransactional, sessionRole, superuser bool) {
-	parsed, err := crrawanalysis.Parse(stmt)
-	if err != nil || len(parsed) != 1 {
-		return false, false, false
-	}
-	switch node := parsed[0].AST.(type) {
-	case *crrawparsertree.DropDatabase:
-		return true, false, false
-	case *crrawparsertree.CreateIndex:
-		return node.Concurrently, false, false
-	case *crrawparsertree.DropIndex:
-		return node.Concurrently, false, false
-	case *crrawparsertree.SetVar:
-		return false, strings.EqualFold(node.Name, "role") && !node.Local, false
-	case *crrawparsertree.Grant, *crrawparsertree.GrantRole, *crrawparsertree.CreateExtension:
-		return false, false, true
-	}
-	return vacuumReg.MatchString(stmt), false, false
+	flags := crrawanalysis.ClassifyExecution(stmt)
+	return flags.NonTransactional, flags.SessionRole, flags.Superuser
 }
 
 func getDatabaseInCreateDatabaseStatement(createDatabaseStatement string) (string, error) {
-	parsed, err := crrawanalysis.Parse(createDatabaseStatement)
-	if err != nil {
-		return "", err
-	}
-	for _, stmt := range parsed {
-		if create, ok := stmt.AST.(*crrawparsertree.CreateDatabase); ok && create.Name != "" {
-			return string(create.Name), nil
-		}
-	}
-	return "", fmt.Errorf("database name not found")
+	return crrawanalysis.CreateDatabaseName(createDatabaseStatement)
 }
 
 // GetCurrentDatabaseOwner gets the role of the current database.
