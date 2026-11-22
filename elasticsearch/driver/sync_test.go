@@ -87,6 +87,44 @@ func TestSyncInstance(t *testing.T) {
 	writeOrCompareBytes(t, filepath.Join("testdata", "sync", "instance.json"), append(b, '\n'))
 }
 
+// TestSyncClosedAndHiddenIndices pins how SyncDatabase handles a closed index
+// (whose docs.count and store.size come back null from _cat/indices) alongside
+// open and hidden indices against the pinned Elasticsearch server.
+func TestSyncClosedAndHiddenIndices(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, `
+PUT /beta
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+PUT /alpha
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+PUT /hidden-one
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.hidden": true}}
+
+PUT /closed-index
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+POST /closed-index/_close
+`)
+
+	got, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "node", got.Name)
+	require.Len(t, got.Schemas, 1)
+
+	tables := got.Schemas[0].Tables
+	names := make([]string, len(tables))
+	byName := make(map[string]*metadatapb.TableMetadata, len(tables))
+	for i, table := range tables {
+		names[i] = table.Name
+		byName[table.Name] = table
+	}
+	require.Equal(t, []string{"alpha", "beta", "closed-index"}, names)
+	require.Zero(t, byName["closed-index"].RowCount)
+	require.Zero(t, byName["closed-index"].DataSize)
+}
+
 func writeOrCompareGolden(t *testing.T, path string, got *metadatapb.DatabaseSchemaMetadata) {
 	t.Helper()
 	if *update {
