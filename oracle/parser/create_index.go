@@ -441,7 +441,6 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 
 	seen := map[string]bool{}
 	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
-		withoutTok := p.cur
 		without := p.atWord("WITHOUT")
 		p.advance()
 		switch {
@@ -469,7 +468,7 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			}
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
 			if without {
-				return nil, p.syntaxErrorAtTok(withoutTok)
+				return nil, p.syntaxErrorAtCur()
 			}
 			if err := p.ixOnce(seen, "STORAGE"); err != nil {
 				return nil, err
@@ -564,10 +563,13 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 		p.advance()
 		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
 		// The page allows a list of pairs; Oracle takes one or more.
-		if p.cur.Type != ',' || p.peekNext().Type != '(' {
+		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ,
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	return pairs, nil
 }

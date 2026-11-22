@@ -10,14 +10,15 @@ server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
 are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
-#1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings), and
-Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings):
+#1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings),
+Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings), and
+Wave 4 (inline external table driver types and remaining grammar readings):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,550 | 370 | 4 | 610 |
-| Near-misses | 31,318 | 29,140 | 2,009 | 102 | 67 |
+| One per alternative | 14,534 | 13,599 | 367 | 4 | 564 |
+| Near-misses | 31,318 | 29,241 | 1,914 | 100 | 63 |
 | Hand rows | 1,010 | 893 | 98 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -452,8 +453,30 @@ to 98.29%):
 | `ALTER TABLE`/`MVIEW`/`MVLOG` `SPLIT [SUB]PARTITION INTO` and `SPLIT PARTITION ... NESTED TABLE` | 8 | `PARTITION` when `(` is missing after `INTO`, `,` on `SPLIT SUBPARTITION ... INTO`, or the nested table column when `INTO` is missing |
 | Other DDL (`PDB` `AS SEED`/`CONTAINER_MAP`/`CREATE SNAPSHOT`/`SET NOLOGGING`, `CREATE MLE MODULE`, `INMEMORY JOIN GROUP`, `KEY MANAGEMENT`, `DOMAIN`, `INDEX LOCAL(PARTITION PARAMETERS('s'`, `OPERATOR BINDING`, `RESTORE POINT AS OF`, `AUDIT POLICY BY WITH`, `PROPERTY GRAPH`) | 33 | the clause keyword, object/partition name, or `'s'` literal at EOF |
 
-The remaining rows are spread thin. These are the
-largest, and a row may be one of several, so the counts are not disjoint.
+Wave 4 moved 150 more rows to Oracle's exact cell (32 fewer `omni_first`, 66 net
+fewer `oracle_first`, 2 fewer only-Oracle-accepts, and 50 fewer only-omni-accepts
+including 2 rows narrowed from `accept` to both-reject, bringing exact byte match
+from 93.00% to 93.32% and verdict agreement from 98.29% to 98.40%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `SELECT`/`DELETE ... FROM EXTERNAL((...) TYPE <driver> ...)` | 95 | the invalid driver name (`ORA-00922`: inline external tables accept `ORACLE_LOADER`, `ORACLE_DATAPUMP`, `ORACLE_HDFS`, `ORACLE_HIVE`, `ORACLE_BIGDATA`); 2 more duplicate-column rows moved from `accept` to both-reject |
+| `ALTER TABLE MODIFY PARTITION BY` & `CREATE INDEX GLOBAL PARTITION BY` expression column lists | 9 | `VALUES` inside an unclosed `(a(PARTITION VALUES ...)` (matching `CREATE TABLE`) |
+| `CREATE MATERIALIZED VIEW ... XMLTYPE` (`XMLSCHEMA` name vs string literal, `ALLOW`/`DISALLOW NONSCHEMA`/`ANYSCHEMA`) | 9 | `'s'`, `a`, `ALLOW`, or `DISALLOW` (matching `ALTER TABLE`) |
+| `ALTER TABLE UPGRADE INCLUDING DATA VARRAY ... STORE AS LOB seg (...)` partition storage | 6 | the unexpected token inside `(` (`LOGGING`, `PARTITIONING`, `a`) or inside `PARTITION a ...` |
+| `ALTER TABLE MODIFY (a AS(1), a ...)` duplicate column name check | 5 | the repeated column name `a` (`ORA-00957`) before reading its trailing properties |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` `NESTED TABLE ... LOCAL STORE AS` | 4 | `LOCAL` (matching `ALTER TABLE`, which allows `GLOBAL` only) |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` / `CREATE MATERIALIZED VIEW LOG` empty `SUBPARTITION TEMPLATE ()` | 3 | accepts empty `SUBPARTITION TEMPLATE ()` on `MVIEW`/`MVLOG` (2 `only_oracle` closed) and reaches missing-columns blame on `CREATE TABLE` |
+| `CREATE`/`ALTER INDEXTYPE` `WITH ARRAY DML (a, a), ...` and `WITHOUT SYSTEM MANAGED STORAGE TABLES` | 3 | the missing `(` after `,` or `SYSTEM` after `WITHOUT` |
+| Query & DML table-alias and expression readings (`PERIOD`, `WINDOW` in `DELETE`, `LEFT` before `PARTITION BY`, `LATERAL` without `(`, reserved `ADD` in SQL expressions) | 8 | `FOR`, `a`, `1`, `SELECT`, or `ADD` |
+| Other DDL (`ALTER TABLE` top-level `NESTED TABLE`/`VARRAY` column properties, `ADD LOG DATA(ALL)`, `CREATE TABLE` duplicate `ANNOTATIONS` closing `)`, `CREATE SNAPSHOT`, `ALTER MVIEW MERGE SUBPARTITIONS INVALIDATE`, `ALTER MVLOG SPLIT PARTITION INTO`, `MOVE KEYS WITH IDENTIFIER IN a)`) | 8 | `RETURN`, `(`, `DATA`, closing `)`, `a`, `SUBPARTITION`, `PARTITION`, or `a` |
+
+The remaining 3,129 disagreeing rows are almost entirely non-grammar causes
+(117 `suite:*` corpus rows, 402 bare `reject` without position, 440 `reject@0`
+lookups/sub-parsers, 121 measured `only_oracle` lookups/checks, 629 measured
+`only_omni` engine/setup/duplicate-name checks, and ~1,350 `another_byte` rows
+from the documented engine checks below). These are the largest, and a row may
+be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |

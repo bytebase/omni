@@ -782,7 +782,7 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 			return err
 		}
 	}
-	if p.cur.Type == kwGLOBAL || p.isKeywordStr("LOCAL") {
+	if p.cur.Type == kwGLOBAL {
 		p.advance()
 	}
 	if err := p.expectCreateTableWord("STORE"); err != nil {
@@ -1322,6 +1322,7 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 		return nil, err
 	}
 	seen := map[string]bool{}
+	hasDup := false
 	for {
 		start := p.pos()
 		op := ""
@@ -1329,13 +1330,12 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 			op = "ADD"
 			p.advance()
 		}
-		dup := seen[p.cur.Str] && p.isCreateTableNameStart()
+		if seen[p.cur.Str] && p.isCreateTableNameStart() {
+			hasDup = true
+		}
 		name := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, err
-		}
-		if dup {
-			return nil, p.syntaxErrorAtCur()
 		}
 		seen[name] = true
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start}}
@@ -1352,6 +1352,9 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 	}
 	if err := p.expectCreateTableToken(')'); err != nil {
 		return nil, err
+	}
+	if hasDup {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return anns, nil
 }

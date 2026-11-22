@@ -1216,11 +1216,15 @@ func (p *Parser) parseATLobPartitionStorage() error {
 		// Oracle parses repeated storage clauses inside a partition item and
 		// rejects a second one at the token that closes or follows it.
 		count := 0
-		for p.isATLobStorageStart() {
+		for p.isATLobStorageStart() || p.atWord("LOB") {
 			if err := p.parseATLobStorage(); err != nil {
 				return err
 			}
 			count++
+		}
+		if count == 0 && p.cur.Type == '(' {
+			p.advance()
+			return p.atExpect(kwSUBPARTITION)
 		}
 		if count == 0 || count > 1 {
 			return p.syntaxErrorAtCur()
@@ -2591,7 +2595,7 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	case p.atWord("RANGE"), p.atWord("LIST"):
 		list := p.atWord("LIST")
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATPartitionColumnList(); err != nil {
 			return err
 		}
 		if !list && p.cur.Type == kwINTERVAL {
@@ -2629,7 +2633,7 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 		return nil
 	case p.atWord("HASH"):
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATPartitionColumnList(); err != nil {
 			return err
 		}
 		p.atOption(opts, start)
@@ -2693,6 +2697,32 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	return p.syntaxErrorAtCur()
 }
 
+// parseATPartitionColumnList reads ( column [, column ]... ) of a PARTITION BY
+// or SUBPARTITION BY clause using parseExpr (matching parseCreateTablePartitionColumns),
+// so a missing ')' like BY RANGE(a(PARTITION VALUES ...)) enters a(...) and stops at VALUES.
+func (p *Parser) parseATPartitionColumnList() error {
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	for {
+		if !p.isATNameStart() {
+			return p.syntaxErrorAtCur()
+		}
+		col, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if _, ok := col.(*nodes.ColumnRef); !ok {
+			return p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
 // parseATPartitionSpecList reads ( PARTITION [ partition ]
 // [ table_partition_description ] [, ...] ), the partitions of reference and
 // system partitioning.
@@ -2737,7 +2767,7 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if err := p.parseATNameList(); err != nil {
+	if err := p.parseATPartitionColumnList(); err != nil {
 		return err
 	}
 	if *method == atMethodHash && p.atWord("SUBPARTITIONS") {

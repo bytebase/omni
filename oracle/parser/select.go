@@ -1079,7 +1079,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	start := p.pos()
 
 	// LATERAL ( subquery )
-	if p.cur.Type == kwLATERAL {
+	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
 		return p.parseLateralRef(start)
 	}
 
@@ -1316,12 +1316,22 @@ func (p *Parser) isTableAliasCandidate() bool {
 	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
-		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE",
-			"SIBLINGS", "SEARCH", "CYCLE", "VERSIONS", "PERIOD",
+		case "WINDOW":
+			if p.inSelectQuery {
+				return false
+			}
+		case "QUALIFY", "MATCH_RECOGNIZE",
+			"SIBLINGS", "SEARCH", "CYCLE", "VERSIONS",
 			"XML":
 			return false
 		}
 		return true
+	}
+	if p.cur.Type == kwLEFT {
+		ahead := p.peekAhead(2)
+		if len(ahead) == 2 && ahead[0].Type == kwPARTITION && ahead[1].Type == kwBY {
+			return true
+		}
 	}
 	if p.cur.Type == kwRETURNING && !p.inSelectQuery {
 		return false

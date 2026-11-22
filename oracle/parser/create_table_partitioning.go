@@ -339,6 +339,11 @@ func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, creat
 			}
 			break
 		}
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance() // consume (
+			p.advance() // consume )
+			break
+		}
 		if err := p.parseCreateTableSubpartitionDescs(bound, sub.Partitions); err != nil {
 			return nil, 0, err
 		}
