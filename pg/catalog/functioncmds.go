@@ -77,8 +77,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	var isWindowFunc bool
 	var costStr, rowsStr string
 	var setConfig []string
-	hasAsClause := false
-	rowsSet := false
+	var hasAsClause, rowsSet, seenVolatility, seenStrict, seenSecurity, seenParallel, seenLeakproof, seenWindow, seenCost, seenRows, seenSupport, seenLanguage bool
 
 	if stmt.Options != nil {
 		for _, item := range stmt.Options.Items {
@@ -88,8 +87,15 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			}
 			switch strings.ToLower(de.Defname) {
 			case "language":
+				if seenLanguage {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenLanguage = true
 				language = defElemString(de)
 			case "as":
+				if hasAsClause {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
 				hasAsClause = true
 				switch v := de.Arg.(type) {
 				case *nodes.String:
@@ -107,6 +113,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenVolatility {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenVolatility = true
 				switch strings.ToLower(defElemString(de)) {
 				case "immutable":
 					volatile = 'i'
@@ -120,6 +130,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenParallel {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenParallel = true
 				switch strings.ToLower(defElemString(de)) {
 				case "safe":
 					parallel = 's'
@@ -127,22 +141,36 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 					parallel = 'r'
 				case "unsafe":
 					parallel = 'u'
+				default:
+					return &Error{Code: CodeSyntaxError, Message: `parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE`}
 				}
 			case "strict":
 				// pg: compute_common_attribute — procedures cannot have strict
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenStrict {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenStrict = true
 				isStrict = defElemBool(de)
 			case "called_on_null_input":
 				// pg: compute_common_attribute — same as strict (inverse), restricted for procedures
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenStrict {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenStrict = true
 				isStrict = !defElemBool(de)
 			case "security":
 				// pg: SECURITY DEFINER → Boolean(true), SECURITY INVOKER → Boolean(false)
 				// Also handle String("definer"/"invoker") for manually constructed AST.
+				if seenSecurity {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenSecurity = true
 				if s, ok := de.Arg.(*nodes.String); ok {
 					secDef = strings.ToLower(s.Str) == "definer"
 				} else {
@@ -150,15 +178,27 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				}
 			case "leakproof":
 				// pg: src/backend/commands/functioncmds.c — compute_common_attribute
+				if seenLeakproof {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenLeakproof = true
 				isLeakProof = defElemBool(de)
 			case "window":
 				// pg: compute_function_attributes — procedures cannot have WINDOW
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenWindow {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenWindow = true
 				isWindowFunc = defElemBool(de)
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
+				if seenCost {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenCost = true
 				raw, val, ok := defElemNumeric(de)
 				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
@@ -169,6 +209,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
+				if seenRows {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenRows = true
 				raw, val, ok := defElemNumeric(de)
 				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
@@ -190,6 +234,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
+				if seenSupport {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenSupport = true
 				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
 				if err != nil {
 					return err
@@ -1337,6 +1385,18 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 	if argErr != nil {
 		return nil, nil, nil, argErr
 	}
+	matchesObjKind := func(kind byte) bool {
+		switch objType {
+		case nodes.OBJECT_PROCEDURE:
+			return kind == 'p'
+		case nodes.OBJECT_FUNCTION:
+			return kind != 'p'
+		case nodes.OBJECT_AGGREGATE:
+			return kind == PROKIND_AGGREGATE
+		default:
+			return true
+		}
+	}
 	var schema *Schema
 	if schemaName == "" {
 		for _, nsOID := range c.routineSearchPathWithCatalog() {
@@ -1345,7 +1405,14 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 				continue
 			}
 			if argOIDs == nil {
-				if len(c.findUserProcsByName(ns, funcName)) > 0 {
+				foundKind := false
+				for _, up := range c.findUserProcsByName(ns, funcName) {
+					if matchesObjKind(up.Kind) {
+						foundKind = true
+						break
+					}
+				}
+				if foundKind {
 					schema = ns
 					break
 				}
@@ -1364,13 +1431,18 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 		}
 	}
 	if schema == nil {
-		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("could not find a %s named %q", kindStr, funcName)}
 	}
 	var bp *BuiltinProc
 	if argOIDs != nil {
 		bp = c.findExactProc(schema, funcName, argOIDs)
 	} else {
-		candidates := c.findUserProcsByName(schema, funcName)
+		var candidates []*UserProc
+		for _, up := range c.findUserProcsByName(schema, funcName) {
+			if matchesObjKind(up.Kind) {
+				candidates = append(candidates, up)
+			}
+		}
 		if len(candidates) > 1 {
 			return nil, nil, nil, errAmbiguousFunction(funcName)
 		}
@@ -1379,7 +1451,7 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 		}
 	}
 	if bp == nil {
-		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("could not find a %s named %q", kindStr, funcName)}
 	}
 	up := c.userProcs[bp.OID]
 	if up == nil {
@@ -1477,6 +1549,7 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 	}
 
 	// Validate every action before mutating bp, up, or catalog dependencies.
+	var seenVolatility, seenStrict, seenSecurity, seenParallel, seenCost, seenRows, seenLeakproof, seenSupport bool
 	if stmt.Actions != nil {
 		for _, item := range stmt.Actions.Items {
 			de, ok := item.(*nodes.DefElem)
@@ -1485,6 +1558,10 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			}
 			switch strings.ToLower(de.Defname) {
 			case "volatility":
+				if seenVolatility {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenVolatility = true
 				switch strings.ToLower(defElemString(de)) {
 				case "immutable":
 					nextVolatile = 'i'
@@ -1494,10 +1571,22 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					nextVolatile = 'v'
 				}
 			case "strict":
+				if seenStrict {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenStrict = true
 				nextStrict = defElemBool(de)
 			case "called_on_null_input":
+				if seenStrict {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenStrict = true
 				nextStrict = !defElemBool(de)
 			case "security":
+				if seenSecurity {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenSecurity = true
 				// pg: SECURITY DEFINER → Boolean(true), SECURITY INVOKER → Boolean(false)
 				if s, ok := de.Arg.(*nodes.String); ok {
 					nextSecDef = strings.ToLower(s.Str) == "definer"
@@ -1505,6 +1594,10 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					nextSecDef = defElemBool(de)
 				}
 			case "parallel":
+				if seenParallel {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenParallel = true
 				switch strings.ToLower(defElemString(de)) {
 				case "safe":
 					nextParallel = 's'
@@ -1512,8 +1605,14 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					nextParallel = 'r'
 				case "unsafe":
 					nextParallel = 'u'
+				default:
+					return &Error{Code: CodeSyntaxError, Message: `parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE`}
 				}
 			case "cost":
+				if seenCost {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenCost = true
 				// pg: src/backend/commands/functioncmds.c — AlterFunction
 				raw, val, ok := defElemNumeric(de)
 				if ok && val <= 0 {
@@ -1524,6 +1623,10 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					nextCost = raw
 				}
 			case "rows":
+				if seenRows {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenRows = true
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1429-1439)
 				raw, val, ok := defElemNumeric(de)
 				if ok && val <= 0 {
@@ -1538,6 +1641,10 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					nextRows = raw
 				}
 			case "leakproof":
+				if seenLeakproof {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenLeakproof = true
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1413-1420)
 				nextLeakProof = defElemBool(de)
 			case "set":
@@ -1551,6 +1658,10 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					}
 				}
 			case "support":
+				if seenSupport {
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				seenSupport = true
 				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
 				if err != nil {
 					return err
@@ -1650,7 +1761,15 @@ func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStm
 	}
 	out := removeVar(existing)
 	switch vs.Kind {
-	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+	case nodes.VAR_SET_DEFAULT:
+		return out, nil
+	case nodes.VAR_RESET:
+		if len(out) == len(existing) && !isKnownPGConfigParam(key) {
+			return nil, &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("unrecognized configuration parameter %q", vs.Name),
+			}
+		}
 		return out, nil
 	case nodes.VAR_SET_CURRENT:
 		resolved, ok := c.resolveCurrentSettingValue(key)
@@ -1670,6 +1789,43 @@ func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStm
 	default:
 		return out, nil
 	}
+}
+
+func isKnownPGConfigParam(key string) bool {
+	if strings.Contains(key, ".") {
+		return true
+	}
+	switch key {
+	case "search_path", "default_tablespace", "default_table_access_method", "role",
+		"timezone", "datestyle", "work_mem", "statement_timeout", "lock_timeout",
+		"idle_in_transaction_session_timeout", "client_min_messages",
+		"standard_conforming_strings", "check_function_bodies",
+		"default_transaction_isolation", "default_transaction_read_only",
+		"default_transaction_deferrable", "temp_tablespaces", "extra_float_digits",
+		"client_encoding", "application_name", "effective_cache_size",
+		"enable_seqscan", "enable_indexscan", "enable_bitmapscan",
+		"enable_hashjoin", "enable_mergejoin", "enable_nestloop",
+		"random_page_cost", "seq_page_cost", "from_collapse_limit",
+		"join_collapse_limit", "geqo", "row_security", "bytea_output",
+		"intervalstyle", "lc_monetary", "lc_numeric", "lc_time", "xmlbinary",
+		"xmloption", "gin_fuzzy_search_limit", "default_text_search_config",
+		"synchronous_commit", "commit_delay", "commit_siblings",
+		"maintenance_work_mem", "max_parallel_workers_per_gather", "jit",
+		"plan_cache_mode", "array_nulls", "backslash_quote",
+		"escape_string_warning", "quote_all_identifiers", "synchronize_seqscans",
+		"transform_null_equals", "lo_compat_privileges",
+		"operator_precedence_warning", "session_authorization", "log_statement",
+		"log_min_messages", "log_min_error_statement", "log_min_duration_statement",
+		"deadlock_timeout", "temp_buffers", "hash_mem_multiplier",
+		"cursor_tuple_fraction", "default_statistics_target",
+		"constraint_exclusion", "enable_partition_pruning", "enable_parallel_append",
+		"enable_parallel_hash", "enable_incremental_sort", "enable_memoize",
+		"enable_material", "enable_sort", "enable_tidscan", "enable_indexonlyscan",
+		"enable_gathermerge", "force_parallel_mode", "debug_parallel_query",
+		"zero_damaged_pages", "vacuum_cost_delay", "vacuum_cost_limit":
+		return true
+	}
+	return false
 }
 
 func (c *Catalog) resolveCurrentSettingValue(key string) (string, bool) {

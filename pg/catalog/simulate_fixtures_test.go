@@ -269,3 +269,137 @@ ALTER TABLE ch ADD PRIMARY KEY (a);
 		}
 	}
 }
+
+func TestWave3SimulationFixes(t *testing.T) {
+	fkSetup := `
+CREATE TABLE p (b int PRIMARY KEY, d int);
+CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+`
+	domainSetup := `CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);`
+	enumSetup := `CREATE TYPE a AS ENUM ('x', 'y');`
+	compSetup := `CREATE TYPE a AS (b int, a int, d int);`
+	funcSetup := `
+CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+CREATE FUNCTION a() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+CREATE FUNCTION "authorization"() RETURNS int LANGUAGE sql AS 'SELECT 1';
+`
+	trigSetup := funcSetup + `CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION a();`
+	polSetup := `
+CREATE TABLE a (b int PRIMARY KEY, a boolean, d int);
+ALTER TABLE a ENABLE ROW LEVEL SECURITY;
+CREATE POLICY a ON a USING (a);
+`
+	seqSetup := `CREATE SEQUENCE a;`
+	viewSetup := `CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE VIEW a AS SELECT b, a, d FROM t;`
+	mvSetup := `CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;`
+	partSetup := `CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a); CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);`
+
+	cases := []struct {
+		name  string
+		setup string
+		stmt  string
+		want  string
+	}{
+		// Domains & types
+		{"domain add constraint not null", domainSetup, "ALTER DOMAIN a ADD CONSTRAINT a NOT NULL", ""},
+		{"domain add not null", domainSetup, "ALTER DOMAIN a ADD NOT NULL", ""},
+		{"domain set default colref", domainSetup, "ALTER DOMAIN a SET DEFAULT a", CodeFeatureNotSupported},
+		{"domain add check bad col", domainSetup, "ALTER DOMAIN a ADD CHECK (a)", CodeUndefinedColumn},
+		{"domain rename constraint missing domain", "", "ALTER DOMAIN a RENAME CONSTRAINT a TO b", CodeUndefinedObject},
+		{"domain rename constraint non-domain", enumSetup, "ALTER DOMAIN a RENAME CONSTRAINT a TO b", CodeWrongObjectType},
+		{"domain rename constraint duplicate", domainSetup, "ALTER DOMAIN a RENAME CONSTRAINT a TO a", CodeDuplicateObject},
+		{"comment on domain constraint", domainSetup, "COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'", ""},
+		{"comment on domain constraint non-domain", enumSetup, "COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'", CodeWrongObjectType},
+		{"create domain dup before constraint", enumSetup, "CREATE DOMAIN a a PRIMARY KEY", CodeDuplicateObject},
+		{"create domain missing base before constraint", "", "CREATE DOMAIN a a DEFERRABLE", CodeUndefinedObject},
+		{"create enum dup label", "", "CREATE TYPE a AS ENUM ('s', 's')", CodeUniqueViolation},
+		{"create range unknown attr", "", "CREATE TYPE a AS RANGE (a)", CodeSyntaxError},
+		{"create type cross-db", "", "CREATE TYPE a.a.a", CodeFeatureNotSupported},
+		{"create type full without shell", "", "CREATE TYPE a(a)", CodeDuplicateObject},
+		{"create composite dup type", enumSetup, "CREATE TYPE a AS ()", CodeDuplicateObject},
+		{"create composite dup col before type", "", "CREATE TYPE a AS (a a, a a)", CodeDuplicateColumn},
+		{"alter type set missing", "", "ALTER TYPE a SET (a = 1)", CodeUndefinedObject},
+		{"alter type set unknown attr", enumSetup, "ALTER TYPE a SET (a = 1)", CodeSyntaxError},
+		{"alter type rename table rowtype", fkSetup, "ALTER TYPE a RENAME TO a", CodeWrongObjectType},
+		{"alter type rename attr on partitioned", partSetup, "ALTER TYPE a RENAME ATTRIBUTE a TO a", CodeInvalidTableDefinition},
+
+		// DROP TYPE / DOMAIN
+		{"drop builtin type", "", "DROP TYPE INT", CodeDependentObjects},
+		{"drop type bad typmod", "", "DROP TYPE BIT(a)", CodeInvalidTextRepresentation},
+		{"drop type table rowtype", fkSetup, "DROP TYPE a", CodeDependentObjects},
+		{"drop type if exists table rowtype", fkSetup, "DROP TYPE IF EXISTS a", CodeDependentObjects},
+		{"drop domain on enum", enumSetup, "DROP DOMAIN a", CodeWrongObjectType},
+		{"drop domain if exists on enum", enumSetup, "DROP DOMAIN IF EXISTS a", CodeWrongObjectType},
+
+		// Table/View/Matview vs standalone type & FK/Identity
+		{"create table if not exists vs enum", enumSetup, "CREATE TABLE IF NOT EXISTS a ()", CodeDuplicateObject},
+		{"create matview if not exists vs domain", domainSetup, "CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT", CodeDuplicateObject},
+		{"create view vs enum", enumSetup, "CREATE VIEW a AS SELECT", CodeDuplicateObject},
+		{"create table of composite dup col", compSetup, "CREATE TABLE a OF a (a, a)", CodeDuplicateColumn},
+		{"truncate fk referenced", fkSetup, "TRUNCATE a", CodeFeatureNotSupported},
+		{"alter table set unlogged with fk", fkSetup, "ALTER TABLE a SET UNLOGGED", CodeInvalidTableDefinition},
+		{"alter table add identity non-int", polSetup, "ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY", CodeInvalidParameterValue},
+		{"alter index rename composite", compSetup, "ALTER INDEX a RENAME TO a", CodeWrongObjectType},
+
+		// Functions & Procedures
+		{"create function dup window", "", "CREATE FUNCTION a() WINDOW WINDOW", CodeSyntaxError},
+		{"alter function bad parallel", funcSetup, "ALTER FUNCTION AUTHORIZATION PARALLEL a", CodeSyntaxError},
+		{"alter function dup strict", funcSetup, "ALTER FUNCTION AUTHORIZATION STRICT STRICT", CodeSyntaxError},
+		{"alter function reset unknown guc", funcSetup, "ALTER FUNCTION AUTHORIZATION RESET a", CodeUndefinedObject},
+		{"drop procedure if exists on func", funcSetup, "DROP PROCEDURE IF EXISTS AUTHORIZATION", ""},
+		{"drop procedure on func no parens", funcSetup, "DROP PROCEDURE AUTHORIZATION", CodeUndefinedFunction},
+		{"comment on procedure on func no parens", funcSetup, "COMMENT ON PROCEDURE AUTHORIZATION IS 's'", CodeUndefinedFunction},
+		{"alter function owner missing role first", "", "ALTER FUNCTION AUTHORIZATION OWNER TO a", CodeUndefinedObject},
+		{"alter domain owner missing role first", enumSetup, "ALTER DOMAIN a OWNER TO a", CodeUndefinedObject},
+
+		// Triggers & Policies & table_openrv
+		{"create trigger on matview", mvSetup, "CREATE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()", CodeWrongObjectType},
+		{"create trigger on composite", compSetup, "CREATE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()", CodeWrongObjectType},
+		{"create trigger referencing row on view", viewSetup, "CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW ROW a EXECUTE FUNCTION a()", CodeFeatureNotSupported},
+		{"alter trigger rename same name", trigSetup, "ALTER TRIGGER a ON a RENAME TO a", ""},
+		{"alter trigger rename on matview", mvSetup, "ALTER TRIGGER a ON a RENAME TO a", CodeWrongObjectType},
+		{"drop policy if exists on sequence", seqSetup, "DROP POLICY IF EXISTS a ON a", ""},
+		{"drop policy if exists on composite", compSetup, "DROP POLICY IF EXISTS a ON a", CodeWrongObjectType},
+		{"drop trigger on sequence", seqSetup, "DROP TRIGGER a ON a", CodeUndefinedObject},
+		{"comment on constraint on sequence", seqSetup, "COMMENT ON CONSTRAINT a ON a IS 's'", CodeUndefinedObject},
+		{"comment on policy on composite", compSetup, "COMMENT ON POLICY a ON a IS 's'", CodeWrongObjectType},
+		{"create policy unknown role first", "", "CREATE POLICY a ON a TO a", CodeUndefinedObject},
+		{"alter policy on view", viewSetup, "ALTER POLICY a ON a", CodeWrongObjectType},
+		{"alter policy bad expr before lookup", fkSetup, "ALTER POLICY a ON a USING (a)", CodeDatatypeMismatch},
+		{"alter policy if exists rename missing table", "", "ALTER POLICY IF EXISTS a ON a RENAME TO a", CodeUndefinedTable},
+		{"alter policy if exists rename missing policy", fkSetup, "ALTER POLICY IF EXISTS a ON a RENAME TO a", CodeUndefinedObject},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, _ := execCode(t, tc.setup, tc.stmt); got != tc.want {
+				t.Errorf("%s: got code %q, want %q", tc.stmt, got, tc.want)
+			}
+		})
+	}
+
+	// Verify SQL-parsed ALTER DOMAIN DROP NOT NULL and SET NOT NULL mutate NotNull accurately.
+	if got, c := execCode(t, domainSetup, "ALTER DOMAIN a DROP NOT NULL"); got != "" {
+		t.Fatalf("ALTER DOMAIN DROP NOT NULL failed: %s", got)
+	} else if oid, _, err := c.ResolveType(TypeName{Name: "a", TypeMod: -1}); err != nil {
+		t.Fatal(err)
+	} else if c.DomainInfo(oid).NotNull {
+		t.Fatalf("expected domain NotNull=false after DROP NOT NULL")
+	}
+
+	if got, c := execCode(t, "CREATE DOMAIN a AS int;", "ALTER DOMAIN a SET NOT NULL"); got != "" {
+		t.Fatalf("ALTER DOMAIN SET NOT NULL failed: %s", got)
+	} else if oid, _, err := c.ResolveType(TypeName{Name: "a", TypeMod: -1}); err != nil {
+		t.Fatal(err)
+	} else if !c.DomainInfo(oid).NotNull {
+		t.Fatalf("expected domain NotNull=true after SET NOT NULL")
+	}
+
+	if got, c := execCode(t, domainSetup, "ALTER DOMAIN a RENAME CONSTRAINT a TO a_renamed"); got != "" {
+		t.Fatalf("ALTER DOMAIN RENAME CONSTRAINT failed: %s", got)
+	} else if oid, _, err := c.ResolveType(TypeName{Name: "a", TypeMod: -1}); err != nil {
+		t.Fatal(err)
+	} else if cons := c.DomainInfo(oid).Constraints; len(cons) != 1 || cons[0].Name != "a_renamed" {
+		t.Fatalf("expected renamed constraint a_renamed, got %+v", cons)
+	}
+}

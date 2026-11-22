@@ -285,21 +285,37 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			return errUndefinedType(shownName)
 		}
 
-		isUserBaseOrShell := bt.OID >= FirstNormalObjectId && bt.Elem == 0 && (bt.Type == 'b' || !bt.IsDefined)
-		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) && !isUserBaseOrShell {
-			return errWrongObjectType(typeName, "a droppable type")
-		}
-
 		if tn != nil && tn.Typmods != nil {
 			// pg: src/backend/parser/parse_type.c — typenameTypeMod
-			return &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", typeName)}
+			if bt.ModIn == 0 {
+				return &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", typeName)}
+			}
+			if _, _, modErr := c.resolveTypeName(tn); modErr != nil {
+				return modErr
+			}
+		}
+		if nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_DOMAIN {
+			if (tn != nil && tn.ArrayBounds != nil) || bt.Type != 'd' {
+				return errWrongObjectType(shownName, "a domain")
+			}
 		}
 		if tn != nil && tn.ArrayBounds != nil {
 			// The array type is the object named; its element type owns it.
-			if nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_DOMAIN {
-				return errWrongObjectType(shownName, "a domain")
-			}
 			return &Error{Code: CodeDependentObjects, Message: fmt.Sprintf("cannot drop type %s because type %s requires it", shownName, typeName)}
+		}
+
+		// Built-in / system types are pinned and cannot be dropped (2BP01).
+		// pg: src/backend/catalog/dependency.c — findDependentObjects (DEPENDENCY_PIN)
+		if bt.OID < FirstNormalObjectId {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop type %s because it is required by the database system", bt.TypeName),
+			}
+		}
+
+		isUserBaseOrShell := bt.OID >= FirstNormalObjectId && bt.Elem == 0 && (bt.Type == 'b' || !bt.IsDefined)
+		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) && !isUserBaseOrShell {
+			return errWrongObjectType(typeName, "a droppable type")
 		}
 
 		if c.isExtensionMember(bt.OID) {
@@ -308,9 +324,21 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 
 		var compRel *Relation
 		if bt.Type == 'c' && bt.RelID != 0 {
-			if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
-				compRel = rel
-				dropRelOIDs[rel.OID] = true
+			if rel := c.relationByOID[bt.RelID]; rel != nil {
+				if rel.RelKind == 'c' {
+					compRel = rel
+					dropRelOIDs[rel.OID] = true
+				} else {
+					// Table/view/matview/sequence row type has an internal dependency on its relation.
+					if !cascade {
+						return &Error{
+							Code:    CodeDependentObjects,
+							Message: fmt.Sprintf("cannot drop type %s because table %s requires it", typeName, rel.Name),
+						}
+					}
+					compRel = rel
+					dropRelOIDs[rel.OID] = true
+				}
 			}
 		}
 		for _, oid := range c.typeFamilyOIDs(bt) {
@@ -645,7 +673,7 @@ func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
 			continue
 		}
 
-		_, rel, err := c.findRelation(schemaName, tableName)
+		rel, isSeq, err := c.openTableLikeRelation(schemaName, tableName)
 		if err != nil {
 			if stmt.Missing_ok && missingObject(err) {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("trigger %q for relation %q does not exist, skipping", trigName, tableName))
@@ -655,10 +683,12 @@ func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
 		}
 
 		var found *Trigger
-		for _, trig := range c.triggersByRel[rel.OID] {
-			if trig.Name == trigName {
-				found = trig
-				break
+		if !isSeq && rel != nil {
+			for _, trig := range c.triggersByRel[rel.OID] {
+				if trig.Name == trigName {
+					found = trig
+					break
+				}
 			}
 		}
 
@@ -733,7 +763,7 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 			continue
 		}
 
-		_, rel, err := c.findRelation(schemaName, tableName)
+		rel, isSeq, err := c.openTableLikeRelation(schemaName, tableName)
 		if err != nil {
 			if stmt.Missing_ok && missingObject(err) {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("policy %q for table %q does not exist, skipping", policyName, tableName))
@@ -743,10 +773,12 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 		}
 
 		var found *Policy
-		for _, p := range c.policiesByRel[rel.OID] {
-			if p.Name == policyName {
-				found = p
-				break
+		if !isSeq && rel != nil {
+			for _, p := range c.policiesByRel[rel.OID] {
+				if p.Name == policyName {
+					found = p
+					break
+				}
 			}
 		}
 

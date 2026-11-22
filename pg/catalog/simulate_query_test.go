@@ -50,7 +50,7 @@ func TestQuerySimulation(t *testing.T) {
 		Rows:     wrapped,
 		MadeUp:   nil,
 		Omni:     simulationOmni,
-		Engine:   simulationEngine,
+		Engine:   simulationEngineWithQuery(querySimulationFormsQuery),
 	})
 }
 

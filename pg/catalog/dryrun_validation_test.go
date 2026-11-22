@@ -707,7 +707,7 @@ func TestDryRunValidation_Enum(t *testing.T) {
 	t.Run("DuplicateLabel", func(t *testing.T) {
 		dryRunExpectError(t, "",
 			"CREATE TYPE color AS ENUM ('red', 'blue', 'red')",
-			CodeInvalidParameterValue, "")
+			CodeUniqueViolation, "")
 	})
 
 	t.Run("AddValueBeforeNonexistent", func(t *testing.T) {
@@ -862,7 +862,7 @@ func TestDryRunValidation_Trigger(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr INSTEAD OF INSERT ON t FOR EACH ROW EXECUTE FUNCTION trig()",
-			CodeInvalidObjectDefinition, "")
+			CodeWrongObjectType, "")
 	})
 
 	t.Run("RowTruncate", func(t *testing.T) {
@@ -876,7 +876,7 @@ func TestDryRunValidation_Trigger(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr INSTEAD OF INSERT ON v FOR EACH STATEMENT EXECUTE FUNCTION trig()",
-			CodeInvalidObjectDefinition, "")
+			CodeFeatureNotSupported, "")
 	})
 
 	t.Run("OldTableOnInsert", func(t *testing.T) {
@@ -925,7 +925,7 @@ func TestDryRunValidation_Trigger(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr BEFORE TRUNCATE ON v FOR EACH STATEMENT EXECUTE FUNCTION trig()",
-			CodeInvalidObjectDefinition, "")
+			CodeWrongObjectType, "")
 	})
 }
 

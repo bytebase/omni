@@ -6542,6 +6542,23 @@ func exprContainsVarExpr(expr AnalyzedExpr) bool {
 	return found
 }
 
+// AnalyzeDomainDefaultExpr analyzes a domain DEFAULT expression under
+// PostgreSQL's EXPR_KIND_COLUMN_DEFAULT semantics (column references and VALUE
+// are forbidden).
+//
+// pg: src/backend/commands/typecmds.c — DefineDomain / AlterDomainDefault
+func (c *Catalog) AnalyzeDomainDefaultExpr(expr nodes.Node) (AnalyzedExpr, error) {
+	if expr == nil {
+		return nil, nil
+	}
+	ac := &analyzeCtx{
+		catalog:  c,
+		query:    &Query{},
+		exprKind: analyzeExprKindColumnDefault,
+	}
+	return ac.transformExpr(expr)
+}
+
 // AnalyzeDomainExpr analyzes a raw expression node in the context of a domain
 // type. The "VALUE" keyword is intercepted in transformColumnRef and replaced
 // with CoerceToDomainValueExpr.

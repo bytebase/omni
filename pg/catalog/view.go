@@ -245,7 +245,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 
 	// Check conflict with existing type name.
 	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
-		return errDuplicateTable(viewName)
+		return errDuplicateObject("type", viewName)
 	}
 
 	// Allocate OIDs.

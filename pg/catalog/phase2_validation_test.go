@@ -274,7 +274,7 @@ func TestPhase2_TruncateRestrictFK(t *testing.T) {
 		Behavior: nodes.DROP_RESTRICT,
 	}
 	err := c.ExecuteTruncate(truncStmt)
-	assertErrorCode(t, err, CodeDependentObjects)
+	assertErrorCode(t, err, CodeFeatureNotSupported)
 }
 
 // TestPhase2_TruncateCascadeFK tests TRUNCATE CASCADE with FK references succeeds.

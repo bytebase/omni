@@ -924,7 +924,7 @@ func TestTriggerOldTransitionTable(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "tr_t", "my_trig", TriggerAfter, TriggerEventDelete, true, "", "tr_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "old_rows", IsNew: false},
+		&nodes.TriggerTransition{Name: "old_rows", IsNew: false, IsTable: true},
 	}}
 	if err := c.CreateTriggerStmt(stmt); err != nil {
 		t.Fatal(err)
@@ -955,7 +955,7 @@ func TestTriggerNewTransitionTable(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "tr_t2", "my_trig2", TriggerAfter, TriggerEventInsert, true, "", "tr_fn2")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_rows", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_rows", IsNew: true, IsTable: true},
 	}}
 	if err := c.CreateTriggerStmt(stmt); err != nil {
 		t.Fatal(err)

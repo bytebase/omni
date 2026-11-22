@@ -284,7 +284,7 @@ func TestTruncateTriggerOnView(t *testing.T) {
 
 	// TRUNCATE trigger on a view should be rejected.
 	err := c.CreateTriggerStmt(makeCreateTrigStmt("", "v", "trig", TriggerAfter, TriggerEventTruncate, false, "", "trig_fn"))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeWrongObjectType)
 }
 
 func TestTruncateTriggerOnTableOK(t *testing.T) {

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/bytebase/omni/enginetest/simulate"
+	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 	pgparser "github.com/bytebase/omni/pg/parser"
 )
@@ -48,30 +48,35 @@ func TestSimulation(t *testing.T) {
 
 // simulationFixtures are the starting schemas, in testdata/fixtures: one
 // table, with a key and an index, under four namings, plus views, materialized
-// views, sequences, and a partitioned table. A compat.tsv statement writes a
-// for every name it holds, so what a statement finds is set by what the
-// fixture names a: nothing, the table, a column of it too, an index, a view,
-// a materialized view, a sequence, or a partitioned table.
-// PostgreSQL keeps an index in the namespace of its table, so the index named
-// a is on a table named t.
+// views, sequences, a partitioned table, foreign keys, enum/domain/composite
+// types, functions, triggers, and row-level security policies. A compat.tsv
+// statement writes a for every name it holds, so what a statement finds is set
+// by what the fixture names a.
 var simulationFixtures = []string{
 	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
 	"objects@view", "objects@matview", "objects@sequence", "objects@partitioned",
+	"objects@fk", "objects@enum", "objects@domain", "objects@composite",
+	"objects@function", "objects@trigger", "objects@policy",
 }
 
 // simulatedStatement matches the statements the file holds: DDL on tables,
-// indexes, views, materialized views and sequences, and their comments,
-// whose whole effect is in the schema a row reads back. Temporary tables are
-// in no schema a row reads, so CREATE TEMP and its like are left out; so are
-// schemas, types, routines, triggers, policies, roles and the objects of
-// extensions, which a later fixture can take.
+// indexes, views, materialized views, sequences, types, domains, functions,
+// procedures, routines, triggers, policies, and their comments, whose whole
+// effect is in the schema a row reads back. Temporary tables are in no schema
+// a row reads, so CREATE TEMP and its like are left out; so are schemas, roles,
+// and extension-only objects.
 var simulatedStatement = regexp.MustCompile(`^(?:` +
 	`CREATE (?:UNLOGGED )?TABLE |ALTER TABLE |DROP TABLE |TRUNCATE ` +
 	`|CREATE (?:UNIQUE )?INDEX |ALTER INDEX |DROP INDEX ` +
 	`|CREATE (?:OR REPLACE )?(?:RECURSIVE )?VIEW |ALTER VIEW |DROP VIEW ` +
 	`|CREATE MATERIALIZED VIEW |ALTER MATERIALIZED VIEW |DROP MATERIALIZED VIEW |REFRESH MATERIALIZED VIEW ` +
 	`|CREATE (?:UNLOGGED )?SEQUENCE |ALTER SEQUENCE |DROP SEQUENCE ` +
-	`|COMMENT ON (?:TABLE|COLUMN|INDEX|VIEW|MATERIALIZED VIEW|SEQUENCE) ` +
+	`|CREATE TYPE |ALTER TYPE |DROP TYPE ` +
+	`|CREATE DOMAIN |ALTER DOMAIN |DROP DOMAIN ` +
+	`|CREATE (?:OR REPLACE )?(?:FUNCTION|PROCEDURE) |ALTER (?:FUNCTION|PROCEDURE|ROUTINE) |DROP (?:FUNCTION|PROCEDURE|ROUTINE) ` +
+	`|CREATE (?:OR REPLACE )?(?:CONSTRAINT )?TRIGGER |ALTER TRIGGER |DROP TRIGGER ` +
+	`|CREATE POLICY |ALTER POLICY |DROP POLICY ` +
+	`|COMMENT ON (?:TABLE|COLUMN|INDEX|VIEW|MATERIALIZED VIEW|SEQUENCE|TYPE|DOMAIN|FUNCTION|PROCEDURE|ROUTINE|TRIGGER|POLICY|CONSTRAINT) ` +
 	`)`)
 
 func simulated(statement string) bool { return simulatedStatement.MatchString(statement) }
@@ -81,42 +86,32 @@ func simulated(statement string) bool { return simulatedStatement.MatchString(st
 // the fixture, the statement, and after one PostgreSQL took, the schema's
 // objects as DDL. The test's database holds nothing else.
 func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
-	db := testcontainer.Open(t)
-	ctx := context.Background()
-	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
-		if _, err := db.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n"+fx.SQL); err != nil {
-			return simulate.Answer{}, fmt.Errorf("build fixture %s: %w", fx.Name, err)
-		}
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			var refusal *pgconn.PgError
-			if !errors.As(err, &refusal) {
-				return simulate.Answer{}, err
+	return simulationEngineWithQuery(simulationFormsQuery)(t)
+}
+
+func simulationEngineWithQuery(formsQuery string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return func(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+		db := testcontainer.Open(t)
+		ctx := context.Background()
+		return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
+			if _, err := db.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n"+fx.SQL); err != nil {
+				return simulate.Answer{}, fmt.Errorf("build fixture %s: %w", fx.Name, err)
 			}
-			return simulate.Answer{Code: refusal.Code}, nil
+			if _, err := db.ExecContext(ctx, statement); err != nil {
+				var refusal *pgconn.PgError
+				if !errors.As(err, &refusal) {
+					return simulate.Answer{}, err
+				}
+				return simulate.Answer{Code: refusal.Code}, nil
+			}
+			return simulationFormsWithQuery(ctx, db, formsQuery)
 		}
-		return simulationForms(ctx, db)
 	}
 }
 
-// simulationFormsQuery writes each object of the schema public as the DDL
-// that builds it, statements ending in ";\n", in name order:
-//
-//   - a sequence, but one an identity column makes, with its options;
-//   - a table, unlogged or partitioned, as CREATE TABLE with its local
-//     columns (type, collation, default or generation, identity, NOT NULL),
-//     parents and partition key, or as a partition of its parent; then its
-//     local constraints, the indexes no constraint and no parent index
-//     makes, its replica identity and row security, its comments, and the
-//     sequences its columns own;
-//   - a view or materialized view, with its options, query, indexes and
-//     comments.
-//
-// What Diff compares of a table is written, so the catalog is held to all of
-// it; Diff also compares a table's owner, which no row reaches with a schema
-// to compare, since the role the statements name does not exist. Storage,
-// statistics and privileges, which Diff does not read, are not written.
-// Every name is the stored one, quoted as needed.
-const simulationFormsQuery = `WITH rel AS (
+// querySimulationFormsQuery is the relation/sequence-only schema readout used
+// by TestQuerySimulation (so its recorded tape stays unchanged).
+const querySimulationFormsQuery = `WITH rel AS (
 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
@@ -198,10 +193,214 @@ SELECT kind, relname, text FROM (
 		WHERE r.relkind IN ('v', 'm')
 ) o ORDER BY relname COLLATE "C", kind`
 
-// simulationForms reads the schema public's objects as simulationFormsQuery
-// writes them.
-func simulationForms(ctx context.Context, db *sql.DB) (simulate.Answer, error) {
-	rows, err := db.QueryContext(ctx, simulationFormsQuery)
+// simulationFormsQuery writes each object of the schema public as the DDL
+// that builds it, statements ending in ";\n", in name order:
+//
+//   - a sequence, but one an identity column makes, with its options;
+//   - a table, unlogged or partitioned, as CREATE TABLE with its local
+//     columns (type, collation, default or generation, identity, NOT NULL),
+//     parents and partition key, or as a partition of its parent; then its
+//     local constraints, the indexes no constraint and no parent index
+//     makes, its replica identity and row security, its comments, the
+//     sequences its columns own, its triggers, and its policies;
+//   - a view or materialized view, with its options, query, indexes, triggers,
+//     and comments;
+//   - user-defined enum, domain, composite, range, and shell types with their
+//     constraints and comments;
+//   - user-defined functions and procedures with their comments.
+//
+// What Diff compares is written, so the catalog is held to all of it.
+// Every name is the stored one, quoted as needed.
+const simulationFormsQuery = `WITH rel AS (
+	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+	FROM pg_catalog.pg_class c
+	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+), comments AS (
+	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+			FROM pg_catalog.pg_constraint k
+			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+	FROM rel r
+), indexes AS (
+	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+	GROUP BY r.oid
+), triggers AS (
+	SELECT r.oid, coalesce(string_agg(
+			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+			|| CASE tg.tgenabled
+				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+				ELSE '' END
+			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+	GROUP BY r.oid
+), policies AS (
+	SELECT r.oid, coalesce(string_agg(
+			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+				pol.polname, r.relname,
+				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+			|| E';\n'
+			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+	GROUP BY r.oid
+)
+SELECT kind, relname, text FROM (
+	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+		WHERE r.relkind = 'S'
+	UNION ALL
+	SELECT 'TABLE', r.relname,
+		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+		END
+		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+		|| r.options || E';\n'
+		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+		|| coalesce(x.text, '')
+		|| CASE r.relreplident
+			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+			ELSE '' END
+		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+		|| m.text
+		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+		|| coalesce(tr.text, '')
+		|| coalesce(po.text, '')
+		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+		WHERE r.relkind IN ('r', 'p')
+	UNION ALL
+	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+			LEFT JOIN triggers tr ON tr.oid = r.oid
+		WHERE r.relkind IN ('v', 'm')
+	UNION ALL
+	SELECT 'TYPE', t.typname,
+		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+		FROM pg_catalog.pg_type t
+		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+	UNION ALL
+	SELECT 'DOMAIN', t.typname,
+		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+		|| E';\n'
+		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+	UNION ALL
+	SELECT 'TYPE', c.relname,
+		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+					', ' ORDER BY a.attnum)
+				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+		FROM pg_catalog.pg_class c
+		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+	UNION ALL
+	SELECT 'TYPE', t.typname,
+		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+	UNION ALL
+	SELECT 'TYPE', t.typname,
+		format(E'CREATE TYPE %I;\n', t.typname)
+		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+		FROM pg_catalog.pg_type t
+		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+	UNION ALL
+	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+				pg_catalog.obj_description(p.oid, 'pg_proc'))
+			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+		FROM pg_catalog.pg_proc p
+		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+) o ORDER BY relname COLLATE "C", kind`
+
+// simulationFormsWithQuery reads the schema public's objects using formsQuery.
+func simulationFormsWithQuery(ctx context.Context, db *sql.DB, formsQuery string) (simulate.Answer, error) {
+	rows, err := db.QueryContext(ctx, formsQuery)
 	if err != nil {
 		return simulate.Answer{}, fmt.Errorf("read the stored schema: %w", err)
 	}
@@ -264,34 +463,48 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 
 // loadForms builds a catalog from PostgreSQL's forms. The forms are in name
 // order, which is not the order they build in: sequences go first, then each
-// statement in turn, again and again while one that failed for want of
+// parsed statement in turn, again and again while one that failed for want of
 // another object now runs, as a partition does before its parent.
 func loadForms(forms []simulate.Form) (*Catalog, error) {
 	c := New()
-	var first, rest []string
+	type parsedStmt struct {
+		node nodes.Node
+		desc string
+	}
+	var first, rest []parsedStmt
 	for _, f := range forms {
-		stmts := strings.SplitAfter(f.Text, ";\n")
-		if stmts[len(stmts)-1] == "" {
-			stmts = stmts[:len(stmts)-1]
+		list, err := pgparser.Parse(f.Text)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s %s: %w\n%s", f.Kind, f.Name, err, f.Text)
 		}
-		if f.Kind == "SEQUENCE" {
-			first = append(first, stmts...)
-		} else {
-			rest = append(rest, stmts...)
+		if list == nil {
+			continue
+		}
+		for _, item := range list.Items {
+			stmt := unwrapRawStmt(item)
+			if stmt == nil || isDML(stmt) {
+				continue
+			}
+			ps := parsedStmt{node: stmt, desc: fmt.Sprintf("%s %s", f.Kind, f.Name)}
+			if f.Kind == "SEQUENCE" {
+				first = append(first, ps)
+			} else {
+				rest = append(rest, ps)
+			}
 		}
 	}
-	for _, s := range first {
-		if err := execOne(c, s); err != nil {
-			return nil, fmt.Errorf("%s: %w", strings.TrimSpace(s), err)
+	for _, ps := range first {
+		if err := c.ProcessUtility(ps.node); err != nil {
+			return nil, fmt.Errorf("%s: %w", ps.desc, err)
 		}
 	}
 	for len(rest) > 0 {
-		var failed []string
+		var failed []parsedStmt
 		var last error
-		for _, s := range rest {
-			if err := execOne(c, s); err != nil {
-				failed = append(failed, s)
-				last = fmt.Errorf("%s: %w", strings.TrimSpace(s), err)
+		for _, ps := range rest {
+			if err := c.ProcessUtility(ps.node); err != nil {
+				failed = append(failed, ps)
+				last = fmt.Errorf("%s: %w", ps.desc, err)
 			}
 		}
 		if len(failed) == len(rest) {
@@ -300,18 +513,4 @@ func loadForms(forms []simulate.Form) (*Catalog, error) {
 		rest = failed
 	}
 	return c, nil
-}
-
-// execOne runs one statement in the catalog and returns its error.
-func execOne(c *Catalog, stmt string) error {
-	results, err := c.Exec(stmt, nil)
-	if err != nil {
-		return err
-	}
-	for _, r := range results {
-		if r.Error != nil {
-			return r.Error
-		}
-	}
-	return nil
 }

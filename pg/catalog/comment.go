@@ -113,29 +113,10 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 
 	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		// pg: src/backend/commands/comment.c — CommentObject (OBJECT_FUNCTION etc.)
-		// PROCEDURE, ROUTINE, and AGGREGATE all resolve via the same function lookup.
 		if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
-			schemaName, name := qualifiedName(owa.Objname)
-			schema, err := c.resolveTargetSchema(schemaName)
+			_, bp, _, err := c.resolveRoutineTarget(nodes.ObjectType(stmt.Objtype), owa)
 			if err != nil {
 				return err
-			}
-			var argOIDs []uint32
-			if owa.Objargs != nil {
-				for _, item := range owa.Objargs.Items {
-					if tn, ok := item.(*nodes.TypeName); ok {
-						at := convertTypeNameToInternal(tn)
-						oid, _, err := c.ResolveType(at)
-						if err != nil {
-							return err
-						}
-						argOIDs = append(argOIDs, oid)
-					}
-				}
-			}
-			bp := c.findExactProc(schema, name, argOIDs)
-			if bp == nil {
-				return errUndefinedFunction(name, argOIDs)
 			}
 			key = commentKey{ObjType: 'f', ObjOID: bp.OID}
 		}
@@ -183,15 +164,17 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 				conName = stringVal(items[2])
 			}
 		}
-		_, rel, err := c.findRelation(schemaName, tableName)
+		rel, isSeq, err := c.openTableLikeRelation(schemaName, tableName)
 		if err != nil {
 			return err
 		}
 		var con *Constraint
-		for _, cc := range c.consByRel[rel.OID] {
-			if cc.Name == conName {
-				con = cc
-				break
+		if !isSeq && rel != nil {
+			for _, cc := range c.consByRel[rel.OID] {
+				if cc.Name == conName {
+					con = cc
+					break
+				}
 			}
 		}
 		if con == nil {
@@ -213,15 +196,17 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 				policyName = stringVal(items[2])
 			}
 		}
-		_, rel, err := c.findRelation(schemaName, tableName)
+		rel, isSeq, err := c.openTableLikeRelation(schemaName, tableName)
 		if err != nil {
 			return err
 		}
 		var policy *Policy
-		for _, p := range c.policiesByRel[rel.OID] {
-			if p.Name == policyName {
-				policy = p
-				break
+		if !isSeq && rel != nil {
+			for _, p := range c.policiesByRel[rel.OID] {
+				if p.Name == policyName {
+					policy = p
+					break
+				}
 			}
 		}
 		if policy == nil {
@@ -237,7 +222,11 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 			items := list.Items
 			switch len(items) {
 			case 2:
-				domainName = stringVal(items[0])
+				if tn, ok := items[0].(*nodes.TypeName); ok {
+					schemaName, domainName = qualifiedName(tn.Names)
+				} else {
+					domainName = stringVal(items[0])
+				}
 				conName = stringVal(items[1])
 			case 3:
 				schemaName = stringVal(items[0])
@@ -245,11 +234,21 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 				conName = stringVal(items[2])
 			}
 		}
-		schema, err := c.resolveTargetSchema(schemaName)
-		if err != nil {
-			return err
+		var bt *BuiltinType
+		if schemaName != "" {
+			schema, err := c.resolveTargetSchema(schemaName)
+			if err != nil {
+				return err
+			}
+			bt = c.typeByName[typeKey{ns: schema.OID, name: domainName}]
+		} else {
+			for _, nsOID := range c.searchPathWithCatalog() {
+				if found := c.typeByName[typeKey{ns: nsOID, name: domainName}]; found != nil {
+					bt = found
+					break
+				}
+			}
 		}
-		bt := c.typeByName[typeKey{ns: schema.OID, name: domainName}]
 		if bt == nil {
 			return errUndefinedType(domainName)
 		}
@@ -286,16 +285,18 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 				trigName = stringVal(items[2])
 			}
 		}
-		_, rel, err := c.findRelation(schemaName, tableName)
+		rel, isSeq, err := c.openTableLikeRelation(schemaName, tableName)
 		if err != nil {
 			return err
 		}
 		var found bool
-		for _, trig := range c.triggersByRel[rel.OID] {
-			if trig.Name == trigName {
-				key = commentKey{ObjType: 'g', ObjOID: trig.OID}
-				found = true
-				break
+		if !isSeq && rel != nil {
+			for _, trig := range c.triggersByRel[rel.OID] {
+				if trig.Name == trigName {
+					key = commentKey{ObjType: 'g', ObjOID: trig.OID}
+					found = true
+					break
+				}
 			}
 		}
 		if !found {

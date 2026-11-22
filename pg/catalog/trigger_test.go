@@ -257,7 +257,7 @@ func TestCreateTriggerInsteadOfOnTable(t *testing.T) {
 	createTriggerFunc(t, c)
 
 	err := c.CreateTriggerStmt(makeCreateTrigStmt("", "t", "my_trig", TriggerInsteadOf, TriggerEventInsert, false, "", "trig_fn"))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeWrongObjectType)
 }
 
 func TestCreateTriggerBeforeOnView(t *testing.T) {
@@ -273,7 +273,7 @@ func TestCreateTriggerBeforeOnView(t *testing.T) {
 
 	// ROW-level BEFORE triggers are rejected on views; STATEMENT-level is OK.
 	err := c.CreateTriggerStmt(makeCreateTrigStmt("", "v", "my_trig", TriggerBefore, TriggerEventInsert, true, "", "trig_fn"))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeWrongObjectType)
 }
 
 func TestCreateTriggerInsteadOfOnView(t *testing.T) {
