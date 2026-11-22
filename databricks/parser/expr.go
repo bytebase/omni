@@ -175,7 +175,7 @@ func (p *Parser) parseNotExpression() error {
 		cp := p.save()
 		p.advance()
 		p.advance()
-		if p.startsWithQueryKeywordAfterParens() {
+		if p.startsWithCompleteParenQuery() {
 			if err := p.parseQuery(); err == nil {
 				if _, err := p.expect(tokRParen); err == nil {
 					return nil
@@ -257,7 +257,7 @@ func (p *Parser) parseOptionalPredicate() error {
 		p.advance()
 		p.advance()
 		// Could be IN (query) or IN (expression (, expression)*)
-		if p.startsWithQueryKeywordAfterParens() {
+		if p.startsWithCompleteParenQuery() {
 			cpIn := p.save()
 			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
 				p.advance()
@@ -564,10 +564,14 @@ func (p *Parser) parsePrimaryAtom() error {
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
 			}
+			hasQuantifier := p.isFunctionSetQuantifier()
+			if hasQuantifier {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if p.match(kwAS) {
+			if !hasQuantifier && p.match(kwAS) {
 				if err := p.parseDataType(); err != nil {
 					return err
 				}
@@ -593,6 +597,9 @@ func (p *Parser) parsePrimaryAtom() error {
 			p.advance()
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
+			}
+			if p.isFunctionSetQuantifier() {
+				p.advance()
 			}
 			for {
 				if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
@@ -653,10 +660,14 @@ func (p *Parser) parsePrimaryAtom() error {
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
 			}
+			hasQuantifier := p.isFunctionSetQuantifier()
+			if hasQuantifier {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if p.match(kwIN) {
+			if !hasQuantifier && p.match(kwIN) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -693,6 +704,9 @@ func (p *Parser) parsePrimaryAtom() error {
 				}
 				return p.parseFunctionCallSuffixes()
 			}
+			if p.isFunctionSetQuantifier() {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
@@ -714,10 +728,14 @@ func (p *Parser) parsePrimaryAtom() error {
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
 			}
+			hasQuantifier := p.isFunctionSetQuantifier()
+			if hasQuantifier {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if p.match(kwFROM) {
+			if !hasQuantifier && p.match(kwFROM) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -735,7 +753,7 @@ func (p *Parser) parsePrimaryAtom() error {
 				if err := p.parseFunctionArgument(); err != nil {
 					return err
 				}
-				if p.match(kwFOR) {
+				if !hasQuantifier && p.match(kwFOR) {
 					if err := p.parseValueExpression(); err != nil {
 						return err
 					}
@@ -794,10 +812,14 @@ func (p *Parser) parsePrimaryAtom() error {
 				}
 				return p.parseFunctionCallSuffixes()
 			}
+			hasQuantifier := p.isFunctionSetQuantifier()
+			if hasQuantifier {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+			if !hasQuantifier && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
 				p.advance()
 				if err := p.parseValueExpression(); err != nil {
 					return err
@@ -826,10 +848,14 @@ func (p *Parser) parsePrimaryAtom() error {
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
 			}
+			hasQuantifier := p.isFunctionSetQuantifier() && p.peek(1).Kind != kwPLACING
+			if hasQuantifier {
+				p.advance()
+			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if p.match(kwPLACING) {
+			if !hasQuantifier && p.match(kwPLACING) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -866,6 +892,9 @@ func (p *Parser) parsePrimaryAtom() error {
 			p.advance()
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
+			}
+			if p.isFunctionSetQuantifier() {
+				p.advance()
 			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
@@ -941,9 +970,11 @@ func (p *Parser) parseParenthesizedPrimary() error {
 	}
 	p.restore(cp)
 
-	// 2. Subquery: (query) — only attempt when a query keyword follows any leading '('.
+	// 2. Subquery: (query) — only attempt when a complete parenthesized query
+	// can reach the matching ')' without hitting a row-constructor comma or
+	// expression operator after an inner parenthesized subquery.
 	p.advance() // '('
-	if p.startsWithQueryKeywordAfterParens() {
+	if p.startsWithCompleteParenQuery() {
 		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
 			p.advance()
 			return nil
@@ -1352,6 +1383,7 @@ func (p *Parser) isFunctionSetQuantifier() bool {
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
 		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		kwFROM, kwAS,
 		tokArrow, tokFatArrow:
 		return false
 	}

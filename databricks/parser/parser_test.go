@@ -376,6 +376,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "table argument partition and order by with parenthesized expression continuations",
+			sql:  `SELECT * FROM f(TABLE(t) PARTITION BY (x) + 1 ORDER BY (y) + 1 DESC)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "special-named function calls with ALL and DISTINCT set quantifiers",
+			sql:  `SELECT trim(ALL x), substring(ALL x, 1, 2), overlay(ALL x, 'a', 1, 1), position(ALL 'a', x), extract(ALL x), cast(ALL x), struct(ALL x), datediff(ALL d1, d2) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -582,6 +592,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested named table function call arg",
 			sql:  strings.Repeat("SELECT * FROM f(arg => TABLE((", 25) + "SELECT 1" + strings.Repeat("), k => 1))", 25),
+		},
+		{
+			name: "nested scalar subquery in row constructor",
+			sql:  strings.Repeat("SELECT ((", 30) + "SELECT 1" + strings.Repeat("), 1)", 30),
+		},
+		{
+			name: "nested scalar subquery in parenthesized arithmetic",
+			sql:  strings.Repeat("SELECT ((", 30) + "SELECT 1" + strings.Repeat(") + 1)", 30),
 		},
 		{
 			name: "nested parens",

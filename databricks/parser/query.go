@@ -29,27 +29,46 @@ func (p *Parser) looksLikeQueryStart() bool {
 // iteratively avoids exponential backtracking on deeply nested parenthesized
 // expressions or parenthesized table relations.
 func (p *Parser) startsWithQueryKeywordAfterParens() bool {
-	i := 0
-	for p.peek(i).Kind == tokLParen {
-		i++
+	return p.startsWithQueryKeywordAt(0)
+}
+
+// startsWithCompleteParenQuery reports whether the tokens starting at p.cur()
+// (immediately after an opening '(') can form a complete parenthesized query
+// up to its matching ')'. When p.cur() is itself '(', it checks that the
+// token after the inner matching ')' is either ')' or a query continuation
+// (set operator, pipe operator, or query organization clause), so expressions
+// and row constructors like `((SELECT 1), 1)` or `((SELECT 1) + 1)` skip
+// parseQuery() without reparsing the inner subquery.
+func (p *Parser) startsWithCompleteParenQuery() bool {
+	if !p.startsWithQueryKeywordAfterParens() {
+		return false
 	}
-	switch p.peek(i).Kind {
-	case kwSELECT, kwFROM:
+	if p.cur().Kind != tokLParen {
 		return true
-	case kwVALUES:
-		return p.isValuesQueryAt(i, true)
-	case kwWITH:
-		next := p.peek(i + 1).Kind
-		return next == kwRECURSIVE || next.isIdentifier()
-	case kwTABLE:
-		return p.peek(i + 1).Kind.isIdentifier()
-	case kwMAP, kwREDUCE:
-		// A MAP/REDUCE query (transformClause) always has a USING clause at
-		// the same paren depth, distinguishing it from ordinary MAP(...)/REDUCE(...)
-		// function calls so nested `(MAP(1, (MAP(1, ...))))` never backtracks.
-		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
-	return false
+	depth := 0
+	for i := 0; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				after := p.peek(i + 1).Kind
+				switch after {
+				case tokRParen, tokOperatorPipe,
+					kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+					kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
+					return true
+				default:
+					return false
+				}
+			}
+		}
+	}
 }
 
 // isValuesQueryAt reports whether `VALUES` at offset i can introduce an
@@ -874,8 +893,8 @@ func (p *Parser) parseRelationPrimary() error {
 	case tokLParen:
 		cp := p.save()
 		p.advance()
-		// Try (query) only when a query-introducing keyword follows any leading '('.
-		if p.startsWithQueryKeywordAfterParens() {
+		// Try (query) only when a complete parenthesized query can match up to ')'.
+		if p.startsWithCompleteParenQuery() {
 			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
 				p.advance()
 				if p.cur().Kind == kwTABLESAMPLE {
@@ -1291,7 +1310,7 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 		if _, err := p.expect(kwBY); err != nil {
 			return err
 		}
-		if p.cur().Kind == tokLParen {
+		if p.cur().Kind == tokLParen && p.isParenthesizedPartitionList(true) {
 			cpParen := p.save()
 			p.advance()
 			if err := p.parseExpressionSeq(); err == nil && p.match(tokRParen) {
@@ -1321,7 +1340,7 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 	if (p.cur().Kind == kwORDER || p.cur().Kind == kwSORT) && p.peek(1).Kind == kwBY {
 		p.advance()
 		p.advance()
-		if p.cur().Kind == tokLParen {
+		if p.cur().Kind == tokLParen && p.isParenthesizedPartitionList(false) {
 			cpParen := p.save()
 			p.advance()
 			if err := p.parseSortItemList(); err == nil && p.match(tokRParen) {
@@ -1349,6 +1368,38 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 		}
 	}
 	return nil
+}
+
+// isParenthesizedPartitionList reports whether a '(' after PARTITION/DISTRIBUTE BY
+// or ORDER/SORT BY is a parenthesized list (terminated at its matching ')' by
+// ')', ',', or — for PARTITION BY — ORDER/SORT BY) rather than the start of a
+// parenthesized expression with a continuation like `(x) + 1` or `(x) DESC`.
+func (p *Parser) isParenthesizedPartitionList(allowOrderBy bool) bool {
+	if p.cur().Kind != tokLParen {
+		return false
+	}
+	depth := 0
+	for i := 0; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				after := p.peek(i + 1).Kind
+				if after == tokRParen || after == tokComma {
+					return true
+				}
+				if allowOrderBy && (after == kwORDER || after == kwSORT) && p.peek(i+2).Kind == kwBY {
+					return true
+				}
+				return false
+			}
+		}
+	}
 }
 
 // parseTableAlias parses: (AS? strictIdentifier identifierList?)?
