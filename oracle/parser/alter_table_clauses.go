@@ -509,17 +509,19 @@ func (p *Parser) parseATInmemoryRest() error {
 		if p.atWord("AUTO") {
 			p.advance()
 		} else if p.cur.Type == kwBY {
+			byTok := p.cur
 			p.advance()
 			switch {
 			case p.cur.Type == kwROWID:
 				p.advance()
-				if err := p.atExpectWord("RANGE"); err != nil {
-					return err
+				if !p.atWord("RANGE") {
+					return p.syntaxErrorAtTok(byTok)
 				}
+				p.advance()
 			case p.cur.Type == kwPARTITION, p.cur.Type == kwSUBPARTITION:
 				p.advance()
 			default:
-				return p.syntaxErrorAtCur()
+				return p.syntaxErrorAtTok(byTok)
 			}
 		}
 		if p.cur.Type == kwFOR {
@@ -1200,13 +1202,17 @@ func (p *Parser) parseATLobPartitionStorage() error {
 		if err := p.parseATName(); err != nil {
 			return err
 		}
-		// Oracle takes one storage clause for each partition and
-		// subpartition (ORA-00907 at a second one).
-		if !p.isATLobStorageStart() {
-			return p.syntaxErrorAtCur()
+		// Oracle parses repeated storage clauses inside a partition item and
+		// rejects a second one at the token that closes or follows it.
+		count := 0
+		for p.isATLobStorageStart() {
+			if err := p.parseATLobStorage(); err != nil {
+				return err
+			}
+			count++
 		}
-		if err := p.parseATLobStorage(); err != nil {
-			return err
+		if count == 0 || count > 1 {
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1252,6 +1258,10 @@ func (p *Parser) parseATLobModify() error {
 		}
 		if err := p.parseATItemPath(); err != nil {
 			return err
+		}
+		if p.alterMview && p.cur.Type == ',' {
+			p.advance()
+			return p.syntaxErrorAtCur()
 		}
 		if err := p.atExpect(')'); err != nil {
 			return err

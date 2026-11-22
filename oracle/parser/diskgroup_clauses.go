@@ -699,6 +699,11 @@ func (p *Parser) parseDiskgroupReplace() (string, error) {
 	switch {
 	case p.adbWord("DISK"):
 		p.advance()
+		if p.cur.Type == kwWITH {
+			// Oracle reads WITH as the disk name and then expects WITH at the next token.
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -911,6 +916,10 @@ func (p *Parser) parseDiskgroupModify(verb string) (string, error) {
 		return "MODIFY_USERGROUP", p.dgList(p.dgString)
 	case p.adbWord("QUOTAGROUP"):
 		p.advance()
+		if p.cur.Type == kwSET {
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -1056,6 +1065,10 @@ func (p *Parser) parseDiskgroupMove() (string, error) {
 	switch {
 	case p.adbWord("FILEGROUP"):
 		p.advance()
+		if p.cur.Type == kwTO {
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -1066,8 +1079,10 @@ func (p *Parser) parseDiskgroupMove() (string, error) {
 		return "MOVE_FILEGROUP", p.dgName()
 	case p.cur.Type == kwFILE:
 		p.advance()
-		if err := p.dgString(); err != nil {
-			return "", err
+		if p.cur.Type == tokSCONST || p.isIdentLike() {
+			p.advance()
+		} else {
+			return "", p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != kwTO {
 			return "", p.syntaxErrorAtCur()

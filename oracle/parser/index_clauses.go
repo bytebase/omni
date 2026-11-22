@@ -436,7 +436,7 @@ func (b *ixDescBlame) clear() { b.set = false }
 // ixDescEnd ends a partition description: a word other than ',' or ')'
 // fails at the blamed token, when one is kept, or else where it stands.
 func (p *Parser) ixDescEnd(b *ixDescBlame) error {
-	if b.set && p.cur.Type != ',' && p.cur.Type != ')' {
+	if b.set && p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
 		return p.syntaxErrorAtTok(b.tok)
 	}
 	return nil
@@ -1032,6 +1032,9 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			}
 			stmt.AnnotationsSpec = value
 			appendCreateIndexOption(stmt, "ANNOTATIONS", value, nodes.Loc{Start: optStart, End: p.prev.End})
+		case p.isKeywordStr("INMEMORY"), p.isKeywordStr("NOMAPPING"):
+			p.advance()
+			return p.syntaxErrorAtCur()
 		case cluster:
 			return nil
 		case p.cur.Type == kwLOCAL && stmt.IndexType != nil:
@@ -1278,7 +1281,7 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 			return err
 		}
 		return p.syntaxErrorAtCur()
-	case "NOMAPPING":
+	case "NOMAPPING", "INMEMORY":
 		p.advance()
 		return p.syntaxErrorAtCur()
 	}

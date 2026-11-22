@@ -206,6 +206,9 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 			if err := p.parseClusterRangePartitions(); err != nil {
 				return nil, err
 			}
+		case p.isKeywordStr("INMEMORY"):
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -388,6 +391,9 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		case p.cur.Type == kwCACHE, p.cur.Type == kwNOCACHE:
 			p.advance()
 			physical()
+		case p.isKeywordStr("INMEMORY"):
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
 		case p.cur.Type == kwMODIFY:
 			p.advance() // MODIFY
 			stmt.Action = "MODIFY_PARTITION"

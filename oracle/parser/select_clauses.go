@@ -796,6 +796,10 @@ func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
 		if err := periodFor(); err != nil {
 			return nil, err
 		}
+		if !p.dmlFromClause && p.cur.Type == kwFOR {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != kwBETWEEN {
 			return nil, p.syntaxErrorAtCur()
 		}

@@ -624,6 +624,9 @@ func (p *Parser) pdbContainerMap() (string, error) {
 	case p.cur.Type == kwADD:
 		p.advance()
 		if p.cur.Type != kwPARTITION {
+			if p.isIdentLike() && p.peekNext().Type == kwVALUES {
+				p.advance()
+			}
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -680,6 +683,7 @@ func (p *Parser) pdbContainerMap() (string, error) {
 		}
 		p.advance()
 		var into []string
+		missingName := false
 		for i := 0; i < 2; i++ {
 			if i == 1 {
 				if p.cur.Type != ',' {
@@ -691,6 +695,10 @@ func (p *Parser) pdbContainerMap() (string, error) {
 				return "", p.syntaxErrorAtCur()
 			}
 			p.advance()
+			if (i == 0 && p.cur.Type == ',') || (i == 1 && p.cur.Type == ')') {
+				missingName = true
+				continue
+			}
 			part, err := p.adbName()
 			if err != nil {
 				return "", err
@@ -701,6 +709,12 @@ func (p *Parser) pdbContainerMap() (string, error) {
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
+		if missingName {
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+			return "", p.syntaxErrorAtCur()
+		}
 		v = "SPLIT PARTITION " + name + " AT (" + strings.Join(vals, ", ") + ") INTO (" + strings.Join(into, ", ") + ")"
 	default:
 		return "", p.syntaxErrorAtCur()

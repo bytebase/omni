@@ -123,7 +123,14 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 			if err := p.expectCreateTableToken(kwINDEX); err != nil {
 				return nil, err
 			}
+		default:
+			p.advance() // consume USING
+			return nil, p.syntaxErrorAtCur()
 		}
+	}
+	if p.cur.Type == kwON {
+		p.advance() // consume ON (expected ON PREBUILT TABLE)
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	switch {
@@ -306,9 +313,11 @@ func (p *Parser) parseMviewEncryptionSpec() error {
 	if p.cur.Type == tokSCONST {
 		p.advance()
 	}
-	if p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "SALT") {
+	if p.isKeywordStr("NO") {
 		p.advance() // consume NO
-		p.advance() // consume SALT
+		if err := p.expectCreateTableWord("SALT"); err != nil {
+			return err
+		}
 	} else if p.isKeywordStr("SALT") {
 		p.advance()
 	}
@@ -499,20 +508,36 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			// as Oracle refuses it), and parsePartitionClause reports it.
 			if p.isMviewReferencePartitioningStart() {
 				// Oracle refuses reference partitioning on a materialized
-				// view after its constraint (ORA-14655).
+				// view at its constraint name once the clause's ')' closes
+				// (ORA-14655).
 				p.advance() // consume PARTITION
 				p.advance() // consume BY
 				p.advance() // consume REFERENCE
-				if err := p.parseCreateTableColumnNames(); err != nil {
+				if err := p.expectCreateTableToken('('); err != nil {
 					return err
 				}
-				return p.syntaxErrorAtCur()
+				nameTok := p.cur
+				if err := p.parseCreateTableName(); err != nil {
+					return err
+				}
+				if err := p.expectCreateTableToken(')'); err != nil {
+					return err
+				}
+				return p.syntaxErrorAtTok(nameTok)
 			}
 			partition, err := p.parsePartitionClause(table, true)
 			if err != nil {
 				return err
 			}
 			_ = partition // the AST keeps no partitioning of a view
+		case p.isKeywordStr("CLUSTERING"):
+			p.advance() // consume CLUSTERING
+			if err := p.parseCreateTableClustering(); err != nil {
+				return err
+			}
+		case p.isKeywordStr("NOMAPPING"), p.cur.Type == kwIMMEDIATE:
+			p.advance()
+			return p.syntaxErrorAtCur()
 		case p.isKeywordStr("BUILD"):
 			p.advance() // consume BUILD
 			switch p.cur.Type {

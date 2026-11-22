@@ -128,6 +128,11 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 		}
 	}
 
+	if p.atWord("INMEMORY") || p.atWord("NOMAPPING") || p.cur.Type == kwIMMEDIATE {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -533,6 +538,9 @@ func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, er
 		err = p.parseMVLogMerge(stmt)
 	case p.cur.Type == kwADD && p.peekNext().Type == kwPARTITION:
 		err = p.parseMVLogAddPartitions(stmt)
+	case p.atWord("INMEMORY") || p.atWord("NOMAPPING") || p.cur.Type == kwIMMEDIATE:
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
 	default:
 		err = p.parseMVLogOptions(stmt)
 	}
