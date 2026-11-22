@@ -1,19 +1,10 @@
-# The servers this engine's committed answers come from. default records the
-# tapes and serves the catalog and review suites; parser judges
-# mysql/parser/testdata/compat.tsv at the same mysql:8.0.46 release so a
-# judge revision bump rejudges compat.tsv without touching the default-pinned
-# tapes. Its grammar is sql/sql_yacc.yy at the source tag (sources.tsv). The
-# other roles serve the review walk, which holds itself to the servers
-# Bytebase meets: lctn1 is the same release started with
+# The servers this engine's committed answers come from. default judges compat.tsv
+# and records the tapes. Its grammar is sql/sql_yacc.yy at the source tag
+# (sources.tsv). The other roles serve the review walk, which holds itself to
+# the servers Bytebase meets: lctn1 is the same release started with
 # lower_case_table_names=1, which is fixed when the server initializes, and
 # mysql84 is the 8.4 LTS release.
-#
-# parser judge revision 2 samples a real system variable (autocommit) for
-# lvalue_variable so SET near-misses parse past the 1193 variable lookup, and
-# re-asks 1128 (ER_FUNCTION_NOT_DEFINED) from WITH PARSER using MySQL's
-# built-in ngram full-text parser plugin.
-# columns: role, image, digest, source tag, judge revision
+# columns: role, image, digest, source tag
 default	mysql:8.0.46	sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b	mysql-8.0.46
-parser	mysql:8.0.46	sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b	mysql-8.0.46	2
 lctn1	mysql:8.0.46	sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b	mysql-8.0.46
 mysql84	mysql:8.4.13	sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902	mysql-8.4.13

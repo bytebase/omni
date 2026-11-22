@@ -279,7 +279,6 @@ ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREAT
 1146	1146	engine	one_table@missing	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1146	1146	engine	one_table@missing	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1146	1146	engine	one_table@missing	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	one_table@missing	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1146	1146	engine	one_table@missing	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1146	1146	engine	one_table@missing	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1146	1146	engine	one_table@missing	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -692,7 +691,6 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	delete_option/SET_SYM_DEF
 1072	1072	engine	one_table@table	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1072	1072	engine	one_table@table	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1072	1072	engine	one_table@table	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	one_table@table	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1072	1072	engine	one_table@table	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1072	1072	engine	one_table@table	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1072	1072	engine	one_table@table	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -1105,7 +1103,6 @@ ok:ae90a2db1cb7	ok:ae90a2db1cb7	engine	one_table@column	opt_unique/UNIQUE_SYM	CR
 1283	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	one_table@column	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1687	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1687	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1687	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -1518,7 +1515,6 @@ ok:87f84bd8df32	ok:87f84bd8df32	engine	one_table@index	key_or_index/INDEX_SYM	AL
 1283	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	one_table@index	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1687	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1687	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1687	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -1931,7 +1927,6 @@ ok:121ba474cb9b	ok:121ba474cb9b	engine	objects@view	simple_statement/drop_view_s
 1347	1347	engine	objects@view	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1347	1347	engine	objects@view	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1347	1347	engine	objects@view	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	objects@view	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1347	1347	engine	objects@view	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1347	1347	engine	objects@view	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1347	1347	engine	objects@view	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -2344,7 +2339,6 @@ ok:af2274615504	ok:af2274615504	engine	objects@partitioned	opt_unique/UNIQUE_SYM
 1214	1214	engine	objects@partitioned	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1214	1214	engine	objects@partitioned	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1214	1214	engine	objects@partitioned	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	objects@partitioned	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1687	1687	engine	objects@partitioned	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1687	1687	engine	objects@partitioned	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1687	1687	engine	objects@partitioned	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -2757,7 +2751,6 @@ ok:b127aa3ab3c3	ok:b127aa3ab3c3	engine	objects@fk	opt_unique/UNIQUE_SYM	CREATE U
 1283	1283	engine	objects@fk	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1283	1283	engine	objects@fk	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1283	1283	engine	objects@fk	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1128	1128	engine	objects@fk	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 1687	1687	engine	objects@fk	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1687	1687	engine	objects@fk	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1687	1687	engine	objects@fk	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;

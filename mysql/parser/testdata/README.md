@@ -17,9 +17,7 @@ the grammar and fails if the file holds others.
   table (`sql/lex.h`) and lexer (`sql/sql_lex.cc`). A new release's tokens need
   rows there.
 - **Names are `utf8mb4`,** a character set, because MySQL looks a character set
-  up while it parses (below). `lvalue_variable` is sampled as `autocommit`, a
-  built-in system variable, so `SET` near-misses parse past the variable lookup
-  (`1193`).
+  up while it parses (below).
 - **A statement ends in `;`.** `sql_statement` lists the terminated form first,
   and ties follow the grammar's order. `PREPARE` takes it.
 - **10 alternatives have no row,** because they need a token the lexer never
@@ -30,15 +28,13 @@ the grammar and fails if the file holds others.
 - **Optimizer hints have no rows.** The lexer hands them to a grammar of their
   own, `sql/sql_hints.yy`, which this file does not read.
 
-To judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`
-(this suite pins the `parser` role, judge revision `2`, leaving the
-`default`-pinned tapes untouched):
+To judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`:
 
 ```bash
 OMNI_RECORD=1 go test ./mysql/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 12,283 rows in about 15 seconds.
+It starts the pinned image and judges all 12,282 rows in about 15 seconds.
 After a parser fix, commit the rows that now agree:
 
 ```bash
@@ -52,12 +48,6 @@ parses a statement without running it (`compatJudge`), read by
 `compat.PrepareVerdict`:
 
 - **1064** is a rejection.
-- **1128 (`ER_FUNCTION_NOT_DEFINED`) on `WITH PARSER`** is a parse-time
-  full-text parser plugin lookup (`plugin_is_ready` in `fulltext_index_option`).
-  In judge revision 2, `compatJudge` re-asks the statement (and any tail probe)
-  with MySQL's built-in `ngram` plugin in place of the missing parser name so a
-  valid `WITH PARSER` clause accepts and a trailing near-miss still rejects with
-  `1064`.
 - **Any other error leaves the question open,** because a statement that
   parses can still be refused: a missing table, a statement `PREPARE` does not
   carry (1295). The judge prepares the statement again with `\n; SELECT FROM`
@@ -71,10 +61,11 @@ parses a statement without running it (`compatJudge`), read by
 What this cannot tell:
 
 - **A lookup hides what follows it.** It ends the parse, so a near-miss broken
-  after an unknown name reads as accepted. Sampling `IDENT` as `utf8mb4` avoids
-  unknown character sets (`1115`) and sampling `lvalue_variable` as `autocommit`
-  avoids unknown `SET` system variables (`1193`); unknown `@@` system variables
-  (`1193`) and collations (`COLLATE utf8mb4`, `1273`) still end the parse early.
+  after the name reads as accepted. In the recording 114 rows answered a
+  lookup: 71 a system variable (`@@utf8mb4`, `SET utf8mb4 = 1`), 40 a collation
+  (`COLLATE utf8mb4`) and 3 a keyword written as a character set; 29 of them
+  are near-misses. Writing names as `a` would add 34 near-misses behind
+  `CHARSET a`.
 - **`?` is a parameter marker,** as `PREPARE` reads it.
 
 ## `tapes/`: the server tests' recordings

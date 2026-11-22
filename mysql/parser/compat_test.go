@@ -26,7 +26,6 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join("..", "testdata", "pins.tsv"),
-		PinRole: "parser",
 		Grammar: enginetest.Fetched(t, filepath.Join("..", "testdata", "sources.tsv"), "sql_yacc.yy"),
 		Tokens:  filepath.Join("..", "testdata", "tokens.tsv"),
 		Omni:    omniVerdict,
@@ -62,14 +61,19 @@ const compatPrepareTimeout = time.Minute
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
 	// testcontainer registers the shared MySQL 8.0.46 server under the default
-	// role; verify parser still pins that exact server before reusing it.
-	serverPin, err := enginetest.LoadPin(testcontainer.Pins, testcontainer.Default)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if serverPin.Image != pin.Image || serverPin.Digest != pin.Digest || serverPin.Tag != pin.Tag {
-		t.Fatalf("parser pin (%s %s %s) differs from default server pin (%s %s %s)",
-			pin.Image, pin.Digest, pin.Tag, serverPin.Image, serverPin.Digest, serverPin.Tag)
+	// role; when a dedicated pin role (such as parser) shares that release,
+	// verify it pins the exact same server before reusing it.
+	serverPin := pin
+	if pin.Role != testcontainer.Default {
+		var err error
+		serverPin, err = enginetest.LoadPin(testcontainer.Pins, testcontainer.Default)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		if serverPin.Image != pin.Image || serverPin.Digest != pin.Digest || serverPin.Tag != pin.Tag {
+			t.Fatalf("%s pin (%s %s %s) differs from default server pin (%s %s %s)",
+				pin.Role, pin.Image, pin.Digest, pin.Tag, serverPin.Image, serverPin.Digest, serverPin.Tag)
+		}
 	}
 	ctx := context.Background()
 	db := testcontainer.Judge(t, serverPin, "compat")

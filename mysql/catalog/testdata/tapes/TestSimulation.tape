@@ -2000,13 +2000,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 < error
 | 1146 42S02 Table 'omni_t_simulation.utf8mb4' doesn't exist
@@ -8841,13 +8834,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 < error
 | 1072 42000 Key column 'utf8mb4' doesn't exist in table
@@ -13890,13 +13876,6 @@
 | ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
 < error
 | 1283 HY000 Column 'utf8mb4' cannot be part of FULLTEXT index
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -19348,13 +19327,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
 < ok 0 0
 > exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
-< ok 0 0
-> exec
 | ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column
@@ -23987,14 +23959,6 @@
 | CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
 < ok 0 0
 > exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
-| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
-< ok 0 0
-> exec
 | ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 < error
 | 1347 HY000 'omni_t_simulation.utf8mb4' is not BASE TABLE
@@ -28580,13 +28544,6 @@
 | ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
 < error
 | 1214 HY000 The used table type doesn't support FULLTEXT indexes
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
 < ok 0 0
@@ -35277,14 +35234,6 @@
 | ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
 < error
 | 1283 HY000 Column 'utf8mb4' cannot be part of FULLTEXT index
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
-< ok 0 0
-> exec
-| ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
-< error
-| 1128 HY000 Function 'utf8mb4' is not defined
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))

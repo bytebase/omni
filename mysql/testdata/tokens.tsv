@@ -5,14 +5,7 @@
 # (empty) is a token written as nothing; (unreachable) is a token the lexer never
 # produces under the default sql_mode, so the alternatives that need it get no
 # generated row.
-#
-# A row that names a rule gives the text other rows write where that rule stands.
-# MySQL looks up system variables while contextualizing SET, so an unknown name
-# answers 1193 before a trailing syntax error.
 # columns: token, form, note
-
-# Rules whose name the server looks up.
-lvalue_variable	autocommit	a system variable SET assigns: an unknown name answers 1193 before a trailing syntax error
 
 # Literals, operators and the tokens the lexer forms from other text.
 ABORT_SYM	(unreachable)	the lexer's error token
