@@ -321,6 +321,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "with recursive as cte name with column aliases",
+			sql:  `WITH recursive(x) AS (SELECT 1) SELECT x FROM recursive`,
+			kind: StmtQuery,
+		},
+		{
+			name: "with recursive as cte name without aliases",
+			sql:  `WITH recursive AS (SELECT 1) SELECT * FROM recursive`,
+			kind: StmtQuery,
+		},
+		{
+			name: "with recursive modifier on recursive cte name",
+			sql:  `WITH RECURSIVE recursive(x) AS (SELECT 1) SELECT x FROM recursive`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -503,6 +518,18 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested parenthesized reduce calls",
 			sql:  "SELECT " + strings.Repeat("(REDUCE(a, ", 40) + "0" + strings.Repeat(", (x, y) -> x + y))", 40),
+		},
+		{
+			name: "nested parenthesized values over calls",
+			sql:  "SELECT " + strings.Repeat("(VALUES(", 30) + "1" + strings.Repeat(") OVER ())", 30),
+		},
+		{
+			name: "nested parenthesized values filter calls",
+			sql:  "SELECT " + strings.Repeat("(VALUES(", 30) + "1" + strings.Repeat(") FILTER (WHERE true))", 30),
+		},
+		{
+			name: "nested parenthesized values aliased row constructors",
+			sql:  "SELECT " + strings.Repeat("(VALUES(", 30) + "1" + strings.Repeat(") AS a, 2)", 30),
 		},
 		{
 			name: "nested parens",

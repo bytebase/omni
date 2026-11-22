@@ -34,8 +34,10 @@ func (p *Parser) startsWithQueryKeywordAfterParens() bool {
 		i++
 	}
 	switch p.peek(i).Kind {
-	case kwSELECT, kwFROM, kwVALUES:
+	case kwSELECT, kwFROM:
 		return true
+	case kwVALUES:
+		return p.isValuesQueryAt(i)
 	case kwWITH:
 		next := p.peek(i + 1).Kind
 		return next == kwRECURSIVE || next.isIdentifier()
@@ -48,6 +50,107 @@ func (p *Parser) startsWithQueryKeywordAfterParens() bool {
 		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
 	return false
+}
+
+// isValuesQueryAt reports whether `VALUES` at offset i can introduce an
+// inlineTable query (`VALUES expr, ... [tableAlias]`) rather than a column
+// reference `values` or a `VALUES(...)` function call (with empty/star/quantified/
+// named args, window/filter/within-group/nulls suffixes, or row-constructor comma
+// after an alias). This avoids exponential reparsing on nested parenthesized
+// `(VALUES(<expr>) OVER ())` calls.
+func (p *Parser) isValuesQueryAt(i int) bool {
+	next := p.peek(i + 1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow, kwAS:
+		return false
+	case tokLParen:
+		inner := p.peek(i + 2).Kind
+		if inner == tokRParen || inner == tokAsterisk {
+			return false
+		}
+		if (inner == kwDISTINCT || inner == kwALL) && p.peek(i+3).Kind != tokRParen && p.peek(i+3).Kind != tokComma {
+			return false
+		}
+		// Scan to the matching ')' of VALUES(...), checking for depth-1 named
+		// arguments (`k => v`) and function-call suffixes immediately after ')'.
+		depth := 0
+		closeIdx := -1
+		for j := i + 1; ; j++ {
+			k := p.peek(j).Kind
+			if k == tokEOF || k == tokSemicolon {
+				return false
+			}
+			if k == tokLParen || k == tokLBracket {
+				depth++
+			} else if k == tokRParen || k == tokRBracket {
+				depth--
+				if depth == 0 {
+					closeIdx = j
+					break
+				}
+			} else if depth == 1 && k == tokFatArrow {
+				return false
+			}
+		}
+		after := p.peek(closeIdx + 1).Kind
+		switch after {
+		case kwOVER:
+			return false
+		case kwFILTER:
+			if p.peek(closeIdx+2).Kind == tokLParen {
+				return false
+			}
+		case kwWITHIN:
+			if p.peek(closeIdx+2).Kind == kwGROUP {
+				return false
+			}
+		case kwIGNORE, kwRESPECT:
+			if p.peek(closeIdx+2).Kind == kwNULLS {
+				return false
+			}
+		}
+	}
+	// In `(VALUES(...) AS a, 2)` or `(VALUES(...) a, 2)`, a depth-0 comma after
+	// an alias indicates a row constructor rather than an inlineTable (whose
+	// optional tableAlias only appears after all comma-separated expressions).
+	depth := 0
+	for j := i + 1; ; j++ {
+		k := p.peek(j).Kind
+		switch k {
+		case tokEOF, tokSemicolon:
+			return true
+		case tokLParen, tokLBracket:
+			depth++
+		case tokRParen, tokRBracket:
+			if depth == 0 {
+				return true
+			}
+			depth--
+			if depth == 0 {
+				// `(...) alias ,` where alias is an identifier (not a query clause keyword)
+				a := p.peek(j + 1).Kind
+				if a == kwAS && p.peek(j+2).Kind.isIdentifier() && p.peek(j+3).Kind == tokComma {
+					return false
+				}
+				if a.isIdentifier() && a != kwAS && a != kwUNION && a != kwINTERSECT && a != kwEXCEPT && a != kwMINUS &&
+					a != kwORDER && a != kwCLUSTER && a != kwDISTRIBUTE && a != kwSORT && a != kwWINDOW && a != kwLIMIT && a != kwOFFSET &&
+					p.peek(j+2).Kind == tokComma {
+					return false
+				}
+			}
+		case kwAS:
+			if depth == 0 && p.peek(j+1).Kind.isIdentifier() && p.peek(j+2).Kind == tokComma {
+				return false
+			}
+		}
+	}
 }
 
 func (p *Parser) hasKeywordAtDepthZero(startOffset int, target TokenKind) bool {
@@ -76,7 +179,12 @@ func (p *Parser) parseCTEs() error {
 	if _, err := p.expect(kwWITH); err != nil {
 		return err
 	}
-	p.match(kwRECURSIVE)
+	// RECURSIVE is non-reserved, so `WITH recursive AS (...)` and
+	// `WITH recursive(x) AS (...)` name the CTE `recursive` rather than
+	// using the RECURSIVE modifier.
+	if p.cur().Kind == kwRECURSIVE && p.peek(1).Kind != kwAS && p.peek(1).Kind != tokLParen {
+		p.advance()
+	}
 	if err := p.parseNamedQuery(); err != nil {
 		return err
 	}
