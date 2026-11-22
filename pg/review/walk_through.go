@@ -261,6 +261,9 @@ type walker struct {
 	// shellTypes marks shell types created by parameterless CREATE TYPE name
 	// in this change, which a subsequent full CREATE TYPE name (...) completes.
 	shellTypes map[walk.Key]bool
+	// typmodTypes marks user-defined base types in this change that accept
+	// type modifiers (defined or altered with TYPMOD_IN).
+	typmodTypes map[walk.Key]bool
 }
 
 func newWalker(stmts []statement, plan *run, target review.Target) *walker {
@@ -279,6 +282,7 @@ func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 		partitioned: make(map[walk.Key]bool),
 		partitions:  make(map[walk.Key][]walk.Key),
 		shellTypes:  make(map[walk.Key]bool),
+		typmodTypes: make(map[walk.Key]bool),
 	}
 	if w.user != "" && w.user == w.owner {
 		w.tenant = true

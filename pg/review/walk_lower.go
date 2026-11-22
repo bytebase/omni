@@ -1341,7 +1341,7 @@ func (b *builder) defineObject(v *ast.DefineStmt) bool {
 		b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
 		return true
 	}
-	hasInput, hasOutput := false, false
+	hasInput, hasOutput, hasTypmodIn := false, false, false
 	for _, item := range v.Definition.Items {
 		de, ok := item.(*ast.DefElem)
 		if !ok {
@@ -1352,6 +1352,8 @@ func (b *builder) defineObject(v *ast.DefineStmt) bool {
 			hasInput = true
 		case "output":
 			hasOutput = true
+		case "typmod_in":
+			hasTypmodIn = true
 		}
 	}
 	if !hasInput || !hasOutput {
@@ -1360,7 +1362,14 @@ func (b *builder) defineObject(v *ast.DefineStmt) bool {
 	}
 	b.set(tk, walk.Present, typOther)
 	b.mayAddArrayType(c.schema)
-	b.session(func() { delete(b.w.shellTypes, tk) })
+	b.session(func() {
+		delete(b.w.shellTypes, tk)
+		if hasTypmodIn {
+			b.w.typmodTypes[tk] = true
+		} else {
+			delete(b.w.typmodTypes, tk)
+		}
+	})
 	b.made(tk)
 	return true
 }
@@ -1488,8 +1497,9 @@ var validAlterTypeProps = map[string]bool{
 // alterType follows ALTER TYPE ... SET (...).
 func (b *builder) alterType(v *ast.AlterTypeStmt) bool {
 	parts := nameParts(v.TypeName)
+	var r resolved
 	if len(parts) > 0 {
-		r := b.resolveType(parts)
+		r = b.resolveType(parts)
 		switch {
 		case r.fail != "":
 			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
@@ -1503,17 +1513,25 @@ func (b *builder) alterType(v *ast.AlterTypeStmt) bool {
 			return true
 		}
 	}
+	setTypmodIn := false
 	if v.Options != nil {
 		for _, item := range v.Options.Items {
 			de, ok := item.(*ast.DefElem)
 			if !ok {
 				continue
 			}
-			if !validAlterTypeProps[strings.ToLower(de.Defname)] {
+			prop := strings.ToLower(de.Defname)
+			if !validAlterTypeProps[prop] {
 				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("type attribute "+review.Code(ident(de.Defname))+" in `ALTER TYPE ... SET`")) // 42601
 				return true
 			}
+			if prop == "typmod_in" {
+				setTypmodIn = true
+			}
 		}
+	}
+	if setTypmodIn && r.fact == walk.Present && !r.builtin {
+		b.session(func() { b.w.typmodTypes[r.key] = true })
 	}
 	return true
 }
@@ -2384,6 +2402,11 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 			shellTypes[rekey(k)] = true
 		}
 		w.shellTypes = shellTypes
+		typmodTypes := make(map[walk.Key]bool, len(w.typmodTypes))
+		for k := range w.typmodTypes {
+			typmodTypes[rekey(k)] = true
+		}
+		w.typmodTypes = typmodTypes
 		// What the synced schema listed in it is there under the new name.
 		for _, k := range w.pg.inSchema[oldName] {
 			w.made = append(w.made, rekey(k))
@@ -2681,6 +2704,11 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 				delete(w.shellTypes, k)
 			}
 		}
+		for k := range w.typmodTypes {
+			if in(k) {
+				delete(w.typmodTypes, k)
+			}
+		}
 	})
 	return true
 }
@@ -2759,7 +2787,7 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 			b.failAt(rng, nil, review.UnsupportedForm, unsupported("invalid type modifier for "+review.Code(written))) // 22P02
 			return
 		}
-		if !r.builtin {
+		if !r.builtin && !b.w.typmodTypes[r.key] {
 			b.failAt(rng, r.keys, review.UnsupportedForm, unsupported("type modifier for "+review.Code(written))) // 42601
 			return
 		}
@@ -2791,7 +2819,10 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 	s := schemaOfKey(r.key)
 	b.mayRemoveArrayType(s)
 	b.set(r.key, walk.Absent, "")
-	b.session(func() { delete(b.w.shellTypes, r.key) })
+	b.session(func() {
+		delete(b.w.shellTypes, r.key)
+		delete(b.w.typmodTypes, r.key)
+	})
 	rk := relKey(s, r.key.Name)
 	switch f, kind := b.l.Lookup(rk); {
 	case f == walk.Present && kind == relComposite:
@@ -3614,9 +3645,11 @@ func atAllowedKinds(sub ast.AlterTableType) ([]string, string) {
 		return []string{relTable, relForeign}, relTable
 	case ast.AT_AlterConstraint, ast.AT_SetExpression, ast.AT_DropExpression,
 		ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity, ast.AT_ForceRowSecurity, ast.AT_NoForceRowSecurity,
-		ast.AT_AttachPartition, ast.AT_DetachPartition, ast.AT_DetachPartitionFinalize,
+		ast.AT_DetachPartition, ast.AT_DetachPartitionFinalize,
 		ast.AT_AddOf, ast.AT_DropOf:
 		return []string{relTable}, relTable
+	case ast.AT_AttachPartition:
+		return []string{relTable, relIndex}, "table or index"
 	case ast.AT_SetLogged, ast.AT_SetUnLogged:
 		return []string{relTable, relSequence}, "table or sequence"
 	case ast.AT_ClusterOn, ast.AT_DropCluster, ast.AT_ReplicaIdentity, ast.AT_SetAccessMethod:
@@ -3683,7 +3716,11 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 		if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
 			pr := b.exists(pc.Name, false) // 42P01
 			if pr.fact == walk.Present {
-				b.need(pr.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(pc.Name.Loc), relation(pc.Name), relTable)) // 42809
+				if r.kind == relIndex {
+					b.need(pr.key, walk.Present, []string{relIndex}, ofKind(rangeOf(pc.Name.Loc), relation(pc.Name), relIndex)) // 42809
+				} else {
+					b.need(pr.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(pc.Name.Loc), relation(pc.Name), relTable)) // 42809
+				}
 				if pr.key == r.key {
 					b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("attaching "+review.Code(relation(rv))+" as a partition of itself")) // 42P17
 				}
@@ -3925,7 +3962,10 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		if rf == walk.Present && rkind == relComposite {
 			b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s), Kinds: []string{relComposite}})
 		}
-		b.session(func() { delete(b.w.shellTypes, r.key) })
+		b.session(func() {
+			delete(b.w.shellTypes, r.key)
+			delete(b.w.typmodTypes, r.key)
+		})
 		return true
 	}
 	nk := typeKey(s, newName)
@@ -3945,6 +3985,10 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		if b.w.shellTypes[r.key] {
 			delete(b.w.shellTypes, r.key)
 			b.w.shellTypes[nk] = true
+		}
+		if b.w.typmodTypes[r.key] {
+			delete(b.w.typmodTypes, r.key)
+			b.w.typmodTypes[nk] = true
 		}
 	})
 	b.made(nk)
@@ -4053,6 +4097,10 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 			if b.w.shellTypes[r.key] {
 				delete(b.w.shellTypes, r.key)
 				b.w.shellTypes[nk] = true
+			}
+			if b.w.typmodTypes[r.key] {
+				delete(b.w.typmodTypes, r.key)
+				b.w.typmodTypes[nk] = true
 			}
 		})
 		b.made(nk)
