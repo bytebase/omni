@@ -1,6 +1,8 @@
 # pin: default mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5
 # columns: expected, fixture, rule, statement
 ok	one_table@missing	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	one_table@missing	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	one_table@missing	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4902	one_table@missing	statement/alterTableStatement	ALTER TABLE a REBUILD
 1088	one_table@missing	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1088	one_table@missing	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -341,6 +343,8 @@ ok	one_table@missing	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP S
 4902	one_table@missing	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	one_table@missing	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	one_table@type	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	one_table@type	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	one_table@type	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4902	one_table@type	statement/alterTableStatement	ALTER TABLE a REBUILD
 1088	one_table@type	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1088	one_table@type	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -681,6 +685,8 @@ ok	one_table@type	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 4902	one_table@type	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	one_table@type	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 ok	one_table@table	statement/alterTableStatement	ALTER TABLE a REBUILD
 ok	one_table@table	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1911	one_table@table	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -1021,6 +1027,8 @@ ok	one_table@table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_su
 ok	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4924	one_table@table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 ok	one_table@column	statement/alterTableStatement	ALTER TABLE a REBUILD
 ok	one_table@column	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 ok	one_table@column	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -1361,6 +1369,8 @@ ok	one_table@column	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_s
 ok	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 1733	one_table@column	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 ok	one_table@index	statement/alterTableStatement	ALTER TABLE a REBUILD
 1913	one_table@index	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1927	one_table@index	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -1701,6 +1711,8 @@ ok	one_table@index	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_su
 ok	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	one_table@index	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@view	statement/alterTableStatement	ALTER TABLE a REBUILD
 35305	objects@view	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1939	objects@view	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -2041,6 +2053,8 @@ ok	objects@view	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXISTS
 4909	objects@view	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@view	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@sequence	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@sequence	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@sequence	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -2381,6 +2395,8 @@ ok	objects@sequence	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE
 4909	objects@sequence	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@sequence	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@procedure	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@procedure	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@procedure	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -2721,6 +2737,8 @@ ok	objects@procedure	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF E
 4909	objects@procedure	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@procedure	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@function	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@function	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@function	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -3061,6 +3079,8 @@ ok	objects@function	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EX
 4909	objects@function	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@function	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@synonym	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@synonym	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@synonym	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -3401,6 +3421,8 @@ ok	objects@synonym	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 4909	objects@synonym	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@synonym	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 2714	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4902	objects@schema	statement/alterTableStatement	ALTER TABLE a REBUILD
 1088	objects@schema	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1088	objects@schema	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -3741,6 +3763,8 @@ ok	objects@schema	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 4902	objects@schema	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	objects@schema	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 2714	objects@schema_nonempty	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@schema_nonempty	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@schema_nonempty	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4902	objects@schema_nonempty	statement/alterTableStatement	ALTER TABLE a REBUILD
 1088	objects@schema_nonempty	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1088	objects@schema_nonempty	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -4081,6 +4105,8 @@ ok	objects@schema_nonempty	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	
 4902	objects@schema_nonempty	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	objects@schema_nonempty	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@constraint	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@constraint	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@constraint	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@constraint	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@constraint	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@constraint	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -4421,6 +4447,8 @@ ok	objects@constraint	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF 
 4909	objects@constraint	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@constraint	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 4909	objects@trigger	statement/alterTableStatement	ALTER TABLE a REBUILD
 1914	objects@trigger	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1929	objects@trigger	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -4761,6 +4789,8 @@ ok	objects@trigger	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 4909	objects@trigger	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@trigger	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@xml_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@xml_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@xml_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 ok	objects@xml_table	statement/alterTableStatement	ALTER TABLE a REBUILD
 35343	objects@xml_table	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1977	objects@xml_table	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
@@ -5101,6 +5131,8 @@ ok	objects@xml_table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_
 ok	objects@xml_table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	objects@xml_table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 ok	objects@spatial_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
+102	objects@spatial_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+173	objects@spatial_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 ok	objects@spatial_table	statement/alterTableStatement	ALTER TABLE a REBUILD
 35343	objects@spatial_table	statement/createIndexStatement	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 1978	objects@spatial_table	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)

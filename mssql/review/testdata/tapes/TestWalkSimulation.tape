@@ -1120,6 +1120,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -5605,6 +5626,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -10018,6 +10060,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -14551,6 +14614,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < ok 0 -
 > exec
@@ -19039,6 +19123,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -23542,6 +23647,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -28017,6 +28143,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -32503,6 +32650,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -37002,6 +37170,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -41512,6 +41701,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -45994,6 +46204,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -50374,6 +50605,27 @@
 < error
 | 2714 6 16 1 There is already an object named 'a' in the database.
 | 2759 0 16 1 CREATE SCHEMA failed due to previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -54813,6 +55065,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -59302,6 +59575,27 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -63756,6 +64050,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -68228,6 +68543,27 @@
 > exec
 | CREATE SCHEMA a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a WITH(HEAP) AS SELECT *
+< error
+| 102 1 15 1 Incorrect syntax near 'HEAP'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+< error
+| 173 13 15 1 The definition for column 'a' must include a data type.
+| 319 1 15 1 Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

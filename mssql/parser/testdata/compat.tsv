@@ -1,4 +1,4 @@
-# pin: parser mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5 judge:2
+# pin: parser mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5 judge:3
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	script/batch_(Go_batch)*_EOF	
 accept	accept	engine	script/batch_(Go_batch)*_EOF!insert	zzz
@@ -27,7 +27,7 @@ accept	accept	engine	optSemicolons/(Semicolon)*!insert	a zzz
 accept	accept	engine	optSemicolons(Semicolon)*/%empty	a
 accept	accept	engine	optSemicolons(Semicolon)*/Semicolon_(Semicolon)*	a;
 reject	reject	engine	optSemicolons(Semicolon)*/Semicolon_(Semicolon)*!insert	a; zzz
-accept	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036	COPY INTO a FROM 'a'
+accept	accept	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036	COPY INTO a FROM 'a'
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!drop-1	INTO a FROM 'a'
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!drop-2	COPY a FROM 'a'
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!drop-3	COPY INTO FROM 'a'
@@ -35,20 +35,20 @@ reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColu
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!drop-5	COPY INTO a FROM
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!insert	COPY INTO a FROM 'a' zzz
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!swap	COUNTER INTO a FROM 'a'
-accept	reject	engine	copyStatement(copyColumnList)?/%empty	COPY INTO a FROM 'a'
+accept	accept	engine	copyStatement(copyColumnList)?/%empty	COPY INTO a FROM 'a'
 reject	reject	engine	copyStatement(copyColumnList)?/%empty!insert	COPY INTO a zzz FROM 'a'
-accept	reject	engine	copyStatement(copyColumnList)?/copyColumnList	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyStatement(copyColumnList)?/copyColumnList	COPY INTO a(a) FROM 'a'
 reject	reject	engine	copyStatement(copyColumnList)?/copyColumnList!drop-1	COPY INTO a a) FROM 'a'
 reject	reject	engine	copyStatement(copyColumnList)?/copyColumnList!drop-2	COPY INTO a() FROM 'a'
 reject	reject	engine	copyStatement(copyColumnList)?/copyColumnList!drop-3	COPY INTO a(a FROM 'a'
 reject	reject	engine	copyStatement(copyColumnList)?/copyColumnList!truncate	COPY INTO a(a
 reject	reject	engine	copyStatement(copyColumnList)?/copyColumnList!insert	COPY INTO a(a) zzz FROM 'a'
-accept	reject	engine	copyStatement(Comma_nonEmptyString)*/%empty	COPY INTO a FROM 'a'
-accept	reject	engine	copyStatement(Comma_nonEmptyString)*/Comma_nonEmptyString_(Comma_nonEmptyString)*	COPY INTO a FROM 'a', 'a'
+accept	accept	engine	copyStatement(Comma_nonEmptyString)*/%empty	COPY INTO a FROM 'a'
+accept	accept	engine	copyStatement(Comma_nonEmptyString)*/Comma_nonEmptyString_(Comma_nonEmptyString)*	COPY INTO a FROM 'a', 'a'
 reject	reject	engine	copyStatement(Comma_nonEmptyString)*/Comma_nonEmptyString_(Comma_nonEmptyString)*!drop-1	COPY INTO a FROM 'a' 'a'
 reject	reject	engine	copyStatement(Comma_nonEmptyString)*/Comma_nonEmptyString_(Comma_nonEmptyString)*!drop-2	COPY INTO a FROM 'a',
 reject	reject	engine	copyStatement(Comma_nonEmptyString)*/Comma_nonEmptyString_(Comma_nonEmptyString)*!insert	COPY INTO a FROM 'a', 'a' zzz
-accept	reject	engine	copyStatement(copyWithClause)?/%empty	COPY INTO a FROM 'a'
+accept	accept	engine	copyStatement(copyWithClause)?/%empty	COPY INTO a FROM 'a'
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause	COPY INTO a FROM 'a' WITH(a = a)
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!drop-1	COPY INTO a FROM 'a'(a = a)
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!drop-2	COPY INTO a FROM 'a' WITH a = a)
@@ -58,7 +58,7 @@ reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!drop-5	COPY I
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!drop-6	COPY INTO a FROM 'a' WITH(a = a
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!insert	COPY INTO a FROM 'a' WITH(a = a) zzz
 reject	reject	engine	copyStatement(copyWithClause)?/copyWithClause!swap	COPY INTO a FROM 'a' WITHIN(a = a)
-accept	reject	engine	copyStatement(optimizerHints)?/%empty	COPY INTO a FROM 'a'
+accept	accept	engine	copyStatement(optimizerHints)?/%empty	COPY INTO a FROM 'a'
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints	COPY INTO a FROM 'a' OPTION(a)
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!drop-1	COPY INTO a FROM 'a'(a)
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!drop-2	COPY INTO a FROM 'a' OPTION a)
@@ -66,24 +66,24 @@ reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!drop-3	COPY I
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!drop-4	COPY INTO a FROM 'a' OPTION(a
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!insert	COPY INTO a FROM 'a' OPTION(a) zzz
 reject	reject	engine	copyStatement(optimizerHints)?/optimizerHints!swap	COPY INTO a FROM 'a' OR(a)
-accept	reject	engine	copyColumnList/LeftParenthesis_copyColumnOption_(Comma_copyColumnOptio~b88d6cfe	COPY INTO a(a) FROM 'a'
-accept	reject	engine	copyColumnList(Comma_copyColumnOption)*/%empty	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyColumnList/LeftParenthesis_copyColumnOption_(Comma_copyColumnOptio~b88d6cfe	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyColumnList(Comma_copyColumnOption)*/%empty	COPY INTO a(a) FROM 'a'
 reject	reject	engine	copyColumnList(Comma_copyColumnOption)*/%empty!insert	COPY INTO a(a zzz) FROM 'a'
-accept	reject	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*	COPY INTO a(a, a) FROM 'a'
+accept	accept	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*	COPY INTO a(a, a) FROM 'a'
 reject	reject	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*!drop-1	COPY INTO a(a a) FROM 'a'
 reject	reject	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*!drop-2	COPY INTO a(a,) FROM 'a'
 reject	reject	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*!truncate	COPY INTO a(a,
 reject	reject	engine	copyColumnList(Comma_copyColumnOption)*/Comma_copyColumnOption_(Comma_copyColumnOption)*!insert	COPY INTO a(a, a zzz) FROM 'a'
-accept	reject	engine	copyColumnOption/identifier_(Default_defaultValueLiteral)?_(integer)?	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyColumnOption/identifier_(Default_defaultValueLiteral)?_(integer)?	COPY INTO a(a) FROM 'a'
 reject	reject	engine	copyColumnOption/identifier_(Default_defaultValueLiteral)?_(integer)?!truncate	COPY INTO a(
-accept	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/%empty	COPY INTO a(a) FROM 'a'
-accept	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	copyColumnOption(Default_defaultValueLiteral)?/%empty	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral	COPY INTO a(a DEFAULT 1) FROM 'a'
 reject	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral!drop-2	COPY INTO a(a DEFAULT) FROM 'a'
 reject	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral!truncate	COPY INTO a(a DEFAULT
 reject	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral!insert	COPY INTO a(a DEFAULT 1 zzz) FROM 'a'
 reject	reject	engine	copyColumnOption(Default_defaultValueLiteral)?/Default_defaultValueLiteral!swap	COPY INTO a(a DEFAULT_DATABASE 1) FROM 'a'
-accept	reject	engine	copyColumnOption(integer)?/%empty	COPY INTO a(a) FROM 'a'
-accept	reject	engine	copyColumnOption(integer)?/integer	COPY INTO a(a 1) FROM 'a'
+accept	accept	engine	copyColumnOption(integer)?/%empty	COPY INTO a(a) FROM 'a'
+accept	accept	engine	copyColumnOption(integer)?/integer	COPY INTO a(a 1) FROM 'a'
 reject	reject	engine	copyColumnOption(integer)?/integer!insert	COPY INTO a(a 1 zzz) FROM 'a'
 reject	reject	engine	copyWithClause/With_LeftParenthesis_copyOption_(Comma_copyOption)*_Rig~d9006631	COPY INTO a FROM 'a' WITH(a = a)
 reject	reject	engine	copyWithClause(Comma_copyOption)*/%empty	COPY INTO a FROM 'a' WITH(a = a)
@@ -129,7 +129,7 @@ reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!truncate	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET =
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET = 'a' zzz))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECURITY = 'a'))
-accept	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+accept	accept	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-1	CREATE TABLE a(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-2	CREATE TABLE a WITH HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-3	CREATE TABLE a WITH() AS SELECT *
@@ -139,15 +139,15 @@ reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-7	CREATE TABLE a WITH(HEAP) AS SELECT
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!insert	CREATE TABLE a WITH(HEAP) AS SELECT * zzz
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!swap	CREATE TABLE a WITHIN(HEAP) AS SELECT *
-accept	reject	engine	ctasCreateTableStatement(columnNameList)?/%empty	CREATE TABLE a WITH(HEAP) AS SELECT *
+accept	accept	engine	ctasCreateTableStatement(columnNameList)?/%empty	CREATE TABLE a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/%empty!insert	CREATE TABLE a zzz WITH(HEAP) AS SELECT *
-accept	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
+accept	accept	engine	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!drop-1	CREATE TABLE a a) WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!drop-2	CREATE TABLE a() WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!drop-3	CREATE TABLE a(a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!truncate	CREATE TABLE a(a
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!insert	CREATE TABLE a(a) zzz WITH(HEAP) AS SELECT *
-reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-1	CREATE EXTERNAL TABLE a(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-2	CREATE EXTERNAL TABLE a WITH DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-3	CREATE EXTERNAL TABLE a WITH(= a) AS SELECT *
@@ -184,7 +184,7 @@ reject	reject	engine	statement/createIndexStatement!drop-6	CREATE CLUSTERED COLU
 reject	reject	engine	statement/createIndexStatement!drop-7	CREATE CLUSTERED COLUMNSTORE INDEX a ON
 reject	reject	engine	statement/createIndexStatement!insert	CREATE CLUSTERED COLUMNSTORE INDEX a ON a zzz
 reject	reject	engine	statement/createIndexStatement!swap	CREATE_INDEX CLUSTERED COLUMNSTORE INDEX a ON a
-accept	reject	engine	statement/copyStatement	COPY INTO a FROM 'a'
+accept	accept	engine	statement/copyStatement	COPY INTO a FROM 'a'
 accept	accept	engine	statement/declareStatements	DECLARE @a a
 reject	reject	engine	statement/declareStatements!drop-1	@a a
 reject	reject	engine	statement/declareStatements!drop-2	DECLARE a
@@ -604,7 +604,7 @@ reject	reject	engine	lastStatement/alterFunctionStatement!drop-10	ALTER FUNCTION
 reject	reject	engine	lastStatement/alterFunctionStatement!insert	ALTER FUNCTION a() RETURNS a BEGIN SELECT 1 END zzz
 reject	reject	engine	lastStatement/alterFunctionStatement!swap	ALWAYS FUNCTION a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	lastStatement/createSchemaStatement	CREATE SCHEMA a
-accept	reject	engine	lastStatement/createIdentifierStatement	CREATE FEDERATION a(a a RANGE)
+accept	accept	engine	lastStatement/createIdentifierStatement	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	lastStatement/createIdentifierStatement!drop-1	FEDERATION a(a a RANGE)
 reject	reject	engine	lastStatement/createIdentifierStatement!drop-2	CREATE a(a a RANGE)
 reject	reject	engine	lastStatement/createIdentifierStatement!drop-3	CREATE FEDERATION(a a RANGE)
@@ -622,7 +622,7 @@ reject	reject	engine	lastStatement/alterIdentifierStatement!drop-4	ALTER MATERIA
 reject	reject	engine	lastStatement/alterIdentifierStatement!drop-5	ALTER MATERIALIZED VIEW a
 reject	reject	engine	lastStatement/alterIdentifierStatement!insert	ALTER MATERIALIZED VIEW a REBUILD zzz
 reject	reject	engine	lastStatement/alterIdentifierStatement!swap	ALWAYS MATERIALIZED VIEW a REBUILD
-accept	reject	engine	lastStatement/useFederationStatement	USE FEDERATION ROOT WITH RESET
+accept	accept	engine	lastStatement/useFederationStatement	USE FEDERATION ROOT WITH RESET
 reject	reject	engine	lastStatement/useFederationStatement!drop-1	FEDERATION ROOT WITH RESET
 reject	reject	engine	lastStatement/useFederationStatement!drop-2	USE ROOT WITH RESET
 reject	reject	engine	lastStatement/useFederationStatement!drop-3	USE FEDERATION WITH RESET
@@ -639,7 +639,7 @@ reject	reject	engine	lastStatement/createOrAlterStatements!drop-5	CREATE OR ALTE
 reject	reject	engine	lastStatement/createOrAlterStatements!drop-6	CREATE OR ALTER PROC a
 reject	reject	engine	lastStatement/createOrAlterStatements!insert	CREATE OR ALTER PROC a AS zzz
 reject	reject	engine	lastStatement/createOrAlterStatements!swap	CREATE_INDEX OR ALTER PROC a AS
-accept	reject	engine	createIdentifierStatement/Create_(createMaterializedViewStatement_MATE~799f03ed)	CREATE FEDERATION a(a a RANGE)
+accept	accept	engine	createIdentifierStatement/Create_(createMaterializedViewStatement_MATE~799f03ed)	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-1	CREATE VIEW a WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-2	CREATE MATERIALIZED a WITH(FOR_APPEND) AS SELECT *
@@ -653,12 +653,12 @@ reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_M
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-10	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT * zzz
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!swap	CREATE MAX VIEW a WITH(FOR_APPEND) AS SELECT *
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION	CREATE FEDERATION a(a a RANGE)
+accept	accept	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION!swap	CREATE FETCH a(a a RANGE)
 reject	reject	engine	alterIdentifierStatement/Alter_(alterMaterializedViewStatement_MATER~9627793e)	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED!swap	ALTER MAX VIEW a REBUILD
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION	ALTER FEDERATION a SPLIT AT(a = 1)
+accept	accept	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION	ALTER FEDERATION a SPLIT AT(a = 1)
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-1	ALTER a SPLIT AT(a = 1)
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-2	ALTER FEDERATION SPLIT AT(a = 1)
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-3	ALTER FEDERATION a AT(a = 1)
@@ -4183,7 +4183,7 @@ reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_str
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a' zzz)
 reject	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral	ALTER SEARCH PROPERTY LIST a DROP 'a'
 accept	accept	engine	createExternalStatements/External_(createExternalTableStatement|createE~94c12a25)	CREATE EXTERNAL RESOURCE POOL a
-reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-1	CREATE EXTERNAL a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-2	CREATE EXTERNAL TABLE WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!swap	CREATE EXTERNAL TABLESAMPLE a WITH(DATA_SOURCE = a) AS SELECT *
@@ -4199,7 +4199,7 @@ reject	reject	engine	createExternalStatements(createExternalTableStatement|creat
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalDataSourceStatement_DATA!drop-9	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalDataSourceStatement_DATA!insert	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP) zzz
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalDataSourceStatement_DATA!swap	CREATE EXTERNAL DATABASE SOURCE a WITH(TYPE = HADOOP)
-accept	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalFileFormatStatement	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
+accept	accept	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalFileFormatStatement	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalFileFormatStatement!drop-1	CREATE EXTERNAL FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalFileFormatStatement!drop-2	CREATE EXTERNAL FILE a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalFileFormatStatement!drop-3	CREATE EXTERNAL FILE FORMAT WITH(FORMAT_TYPE = DELIMITEDTEXT)
@@ -4240,7 +4240,7 @@ reject	reject	engine	createExternalStatements(createExternalTableStatement|creat
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalLanguageStatement_LANGUAGE!drop-12	CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a'
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalLanguageStatement_LANGUAGE!insert	CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a') zzz
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalLanguageStatement_LANGUAGE!swap	CREATE EXTERNAL LAST_NODE a FROM(CONTENT = 0x00, FILE_NAME = 'a')
-accept	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalStreamStatement_STREAM	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+accept	accept	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalStreamStatement_STREAM	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalStreamStatement_STREAM!drop-1	CREATE EXTERNAL a WITH(LOCATION = 'a')
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalStreamStatement_STREAM!drop-2	CREATE EXTERNAL STREAM WITH(LOCATION = 'a')
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalStreamStatement_STREAM!drop-3	CREATE EXTERNAL STREAM a(LOCATION = 'a')
@@ -6132,12 +6132,12 @@ accept	accept	engine	ifStatement(Else_(statementOptSemi))?/Else_statementOptSemi
 accept	accept	engine	whileStatement/While_booleanExpression_statementOptSemi	WHILE 1 = 1 SELECT 1
 accept	accept	engine	lineNoStatement/LineNo_integer	LINENO 1
 accept	accept	engine	useStatement/Use_identifier	USE a
-accept	reject	engine	useFederationStatement/Use_FEDERATION_(ROOT_With|identifier_LeftParenthesis~88~a8bc11d5	USE FEDERATION ROOT WITH RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With	USE FEDERATION ROOT WITH RESET
+accept	accept	engine	useFederationStatement/Use_FEDERATION_(ROOT_With|identifier_LeftParenthesis~88~a8bc11d5	USE FEDERATION ROOT WITH RESET
+accept	accept	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With	USE FEDERATION ROOT WITH RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!truncate	USE FEDERATION ROOT
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!insert	USE FEDERATION ROOT WITH zzz RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!swap	USE FEDERATION ROUND_ROBIN WITH RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
+accept	accept	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-1	USE FEDERATION(a = 1) WITH FILTERING = ON, RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-2	USE FEDERATION a a = 1) WITH FILTERING = ON, RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-3	USE FEDERATION a(= 1) WITH FILTERING = ON, RESET
@@ -6152,11 +6152,11 @@ reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!truncate	USE FEDERATION a(a = 1) WITH FILTERING = ON
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!insert	USE FEDERATION a(a = 1) WITH FILTERING = ON, zzz RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!swap	USE FEDERATION a(a = 1) WITHIN FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(On|Off)/On	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
+accept	accept	engine	useFederationStatement(On|Off)/On	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
 reject	reject	engine	useFederationStatement(On|Off)/On!truncate	USE FEDERATION a(a = 1) WITH FILTERING =
 reject	reject	engine	useFederationStatement(On|Off)/On!insert	USE FEDERATION a(a = 1) WITH FILTERING = ON zzz, RESET
 reject	reject	engine	useFederationStatement(On|Off)/On!swap	USE FEDERATION a(a = 1) WITH FILTERING = ONLINE, RESET
-accept	reject	engine	useFederationStatement(On|Off)/Off	USE FEDERATION a(a = 1) WITH FILTERING = OFF, RESET
+accept	accept	engine	useFederationStatement(On|Off)/Off	USE FEDERATION a(a = 1) WITH FILTERING = OFF, RESET
 reject	reject	engine	useFederationStatement(On|Off)/Off!insert	USE FEDERATION a(a = 1) WITH FILTERING = OFF zzz, RESET
 reject	reject	engine	useFederationStatement(On|Off)/Off!swap	USE FEDERATION a(a = 1) WITH FILTERING = OFFLINE, RESET
 accept	accept	engine	killStatements/Kill_(killStatement|killQueryNotificationS~5621282a)	KILL 1
@@ -6757,7 +6757,7 @@ accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!drop-2	DROP SEQUENCE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!insert	DROP SEQUENCE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!swap	DROP SEQUENCE_NUMBER_COLUMN_NAME a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION	DROP FEDERATION a
+accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION	DROP FEDERATION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!drop-2	DROP FEDERATION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!insert	DROP FEDERATION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!swap	DROP FETCH a
@@ -6774,7 +6774,7 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropColumnStatements!drop-4	DROP COLUMN MASTER KEY
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropColumnStatements!insert	DROP COLUMN MASTER KEY a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropColumnStatements!swap	DROP COLUMNSTORE MASTER KEY a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement	DROP EXTERNAL TABLE a
+accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement	DROP EXTERNAL TABLE a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!drop-2	DROP EXTERNAL a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!drop-3	DROP EXTERNAL TABLE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!insert	DROP EXTERNAL TABLE a zzz
@@ -7033,7 +7033,7 @@ reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop-2	DROP TRIGGER a ON
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!insert	DROP TRIGGER a ON DATABASE zzz
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!swap	DROP TRIGGER a ONLINE DATABASE
-accept	reject	engine	dropExternalTableStatement/Table_dropObjectList	DROP EXTERNAL TABLE a
+accept	accept	engine	dropExternalTableStatement/Table_dropObjectList	DROP EXTERNAL TABLE a
 reject	reject	engine	dropExternalTableStatement/Table_dropObjectList!swap	DROP EXTERNAL TABLESAMPLE a
 accept	accept	engine	dropObjectList/dropObject_(Comma_dropObject)*	DROP TABLE a
 accept	accept	engine	dropObjectList(Comma_dropObject)*/%empty	DROP TABLE a
@@ -7084,8 +7084,8 @@ reject	reject	engine	eventSessionDropScope(Database|SERVER)/Database!swap	DROP E
 accept	accept	engine	eventSessionDropScope(Database|SERVER)/SERVER	DROP EVENT SESSION a ON SERVER
 reject	reject	engine	eventSessionDropScope(Database|SERVER)/SERVER!insert	DROP EVENT SESSION a ON SERVER zzz
 reject	reject	engine	eventSessionDropScope(Database|SERVER)/SERVER!swap	DROP EVENT SESSION a ON SERVICE
-accept	reject	engine	dropExternalStatement/External_(dropExternalTableStatement|dropExter~cb3477b1)	DROP EXTERNAL TABLE a
-accept	reject	engine	dropExternalStatement(dropExternalTableStatement|dropExter~cb3477b1)/dropExternalTableStatement	DROP EXTERNAL TABLE a
+accept	accept	engine	dropExternalStatement/External_(dropExternalTableStatement|dropExter~cb3477b1)	DROP EXTERNAL TABLE a
+accept	accept	engine	dropExternalStatement(dropExternalTableStatement|dropExter~cb3477b1)/dropExternalTableStatement	DROP EXTERNAL TABLE a
 accept	accept	engine	dropExternalStatement(dropExternalTableStatement|dropExter~cb3477b1)/dropExternalDataSourceStatement_DATA	DROP EXTERNAL DATA SOURCE a
 reject	reject	engine	dropExternalStatement(dropExternalTableStatement|dropExter~cb3477b1)/dropExternalDataSourceStatement_DATA!drop-1	DROP EXTERNAL SOURCE a
 reject	reject	engine	dropExternalStatement(dropExternalTableStatement|dropExter~cb3477b1)/dropExternalDataSourceStatement_DATA!drop-2	DROP EXTERNAL DATA a
@@ -10710,27 +10710,27 @@ reject	reject	engine	externalStreamLiteralOrIdentifierOption/Identifier_EqualsSi
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/identifier	CREATE EXTERNAL STREAM a WITH(a = a)
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral	CREATE EXTERNAL STREAM a WITH(a = 'a')
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral!insert	CREATE EXTERNAL STREAM a WITH(a = 'a' zzz)
-accept	reject	engine	createExternalFileFormatStatement/File_FORMAT_identifier_With_LeftParenthesis_FORMAT_TYPE~70baeb0e	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
+accept	accept	engine	createExternalFileFormatStatement/File_FORMAT_identifier_With_LeftParenthesis_FORMAT_TYPE~70baeb0e	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE =
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT zzz)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/RCFILE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = RCFILE)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/RCFILE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = RCFILE)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/RCFILE!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = RCFILE zzz)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/RCFILE!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = RDBMS)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/ORC	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = ORC)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/ORC	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = ORC)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/ORC!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = ORC zzz)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/ORC!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = ORDER)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/PARQUET	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = PARQUET)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/PARQUET	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = PARQUET)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/PARQUET!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = PARQUET zzz)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/PARQUET!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = PARSE)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/JSON	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/JSON	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/JSON!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON zzz)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/JSON!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON_ARRAY)
-accept	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELTA	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELTA)
+accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELTA	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELTA)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELTA!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELTA zzz)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELTA!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DENY)
-accept	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
-accept	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
+accept	accept	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!drop-1	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT SERDE_METHOD = 'a')
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!drop-2	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, = 'a')
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!drop-3	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD 'a')
@@ -10738,8 +10738,8 @@ reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatO
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD =
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a' zzz)
 reject	reject	engine	createExternalFileFormatStatement(Comma_externalFileFormatOptions)?/Comma_externalFileFormatOptions!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERIALIZABLE = 'a')
-accept	reject	engine	externalFileFormatOptions/(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(Comma_~b53c04d6	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalFileFormatOptions/(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(Comma_~b53c04d6	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!drop-1	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT,(USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!drop-2	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!drop-3	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(= TRUE))
@@ -10749,16 +10749,16 @@ reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OP
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE) zzz)
 reject	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/externalFormatingOption_FORMAT_OPTIONS!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_TYPE(USE_TYPE_DEFAULT = TRUE))
-accept	reject	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/(externalFileFormatLiteralOptions_SER~ecc45def)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_SERDE_METHOD	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
+accept	accept	engine	externalFileFormatOptions(externalFormatingOption_FORMAT_OPTIO~6e542c73)/(externalFileFormatLiteralOptions_SER~ecc45def)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_SERDE_METHOD	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
 reject	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION!drop-2	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION 'a')
 reject	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION!drop-3	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION =)
 reject	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION =
 reject	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a' zzz)
 reject	reject	engine	externalFileFormatOptions(externalFileFormatLiteralOptions_SER~ecc45def)/externalFileFormatLiteralOptions_DATA_COMPRESSION!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_CONSISTENCY_CHECK = 'a')
-accept	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERDE_METHOD = 'a')
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!drop-1	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a' SERDE_METHOD = 'a')
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!drop-2	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', = 'a')
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!drop-3	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERDE_METHOD 'a')
@@ -10766,7 +10766,7 @@ reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FO
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERDE_METHOD =
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERDE_METHOD = 'a' zzz)
 reject	reject	engine	externalFileFormatOptions(Comma_(externalFormatingOption_FORMA~ffe9b25b)*/Comma_(externalFormatingOption_FORMAT_OPTIO~6e542c73)_(~88ee347c!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', SERIALIZABLE = 'a')
-accept	reject	engine	externalDataFormatOption/externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalDataFormatOption/externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalDataFormatOption/externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT =
 reject	reject	engine	externalDataFormatOption/externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE zzz))
 reject	reject	engine	externalDataFormatOption/externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USING = TRUE))
@@ -11621,12 +11621,12 @@ reject	reject	engine	execCtxtStmtType/LOGIN	EXECUTE('a') AS LOGIN
 reject	reject	engine	execCtxtStmtType/LOGIN!insert	EXECUTE('a') AS LOGIN zzz
 reject	reject	engine	execCtxtStmtType/LOGIN!swap	EXECUTE('a') AS LOGIN_TYPE
 reject	reject	engine	createTableStatement/Create_Table_schemaObjectThreePartName_((ctasCreateTabl~10776535	CREATE TABLE a AS
-accept	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/ctasCreateTableStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
+accept	accept	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/ctasCreateTableStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/LeftParenthesis_tableDefinitionCreateTable_RightParenth~3f9ba1d0	CREATE TABLE a(a)
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/LeftParenthesis_tableDefinitionCreateTable_RightParenth~3f9ba1d0!drop-1	CREATE TABLE a a)
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/LeftParenthesis_tableDefinitionCreateTable_RightParenth~3f9ba1d0!drop-2	CREATE TABLE a()
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/LeftParenthesis_tableDefinitionCreateTable_RightParenth~3f9ba1d0!insert	CREATE TABLE a(a) zzz
-accept	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/ctasCreateTableStatement#2	CREATE TABLE a WITH(HEAP) AS SELECT *
+accept	accept	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/ctasCreateTableStatement#2	CREATE TABLE a WITH(HEAP) AS SELECT *
 accept	accept	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/As_(FILETABLE|EDGE)	CREATE TABLE a AS FILETABLE
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/As_(FILETABLE|EDGE)!drop-1	CREATE TABLE a FILETABLE
 reject	reject	engine	createTableStatement((ctasCreateTableStatement)|(LeftPare~65a4c26e)/As_(FILETABLE|EDGE)!insert	CREATE TABLE a AS FILETABLE zzz
@@ -12016,8 +12016,8 @@ reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!dro
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!truncate	TRUNCATE TABLE a WITH(a(1 TO
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!insert	TRUNCATE TABLE a WITH(a(1 TO 1 zzz))
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!swap	TRUNCATE TABLE a WITH(a(1 TOP 1))
-reject	reject	engine	createExternalTableStatement/Table_schemaObjectThreePartName_((LeftParenthesis_exter~1df6b415	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
-accept	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
+reject	accept	engine	createExternalTableStatement/Table_schemaObjectThreePartName_((LeftParenthesis_exter~1df6b415	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+accept	accept	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-1	CREATE EXTERNAL TABLE a a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-2	CREATE EXTERNAL TABLE a(a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-4	CREATE EXTERNAL TABLE a(a a WITH(DATA_SOURCE = a)
@@ -12029,32 +12029,32 @@ reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTable
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-10	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!insert	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a) zzz
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!swap	CREATE EXTERNAL TABLE a(a a) WITHIN(DATA_SOURCE = a)
-reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/ctasCreateExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
-accept	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/%empty	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
+reject	accept	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/ctasCreateExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+accept	accept	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/%empty	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/%empty!insert	CREATE EXTERNAL TABLE a(a a zzz) WITH(DATA_SOURCE = a)
-accept	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45	CREATE EXTERNAL TABLE a(a a, a a) WITH(DATA_SOURCE = a)
+accept	accept	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45	CREATE EXTERNAL TABLE a(a a, a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45!drop-1	CREATE EXTERNAL TABLE a(a a a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45!drop-2	CREATE EXTERNAL TABLE a(a a, a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45!truncate	CREATE EXTERNAL TABLE a(a a, a
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45!insert	CREATE EXTERNAL TABLE a(a a, a a zzz) WITH(DATA_SOURCE = a)
-accept	reject	engine	externalTableColumnElement/columnDefinitionCreateExternalTable	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
+accept	accept	engine	externalTableColumnElement/columnDefinitionCreateExternalTable	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	externalTableColumnElement/columnDefinitionCreateExternalTable!truncate	CREATE EXTERNAL TABLE a(a
-reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a
 reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) zzz AS SELECT *
-reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE =
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!swap	CREATE EXTERNAL TABLE a WITH(DATEFIRST = a) AS SELECT *
-reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	accept	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-1	CREATE EXTERNAL TABLE a WITH(= VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE =) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!truncate	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE =
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!insert	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!swap	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = VALUE) AS SELECT *
-reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/%empty	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
-reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/%empty	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!drop-1	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!drop-2	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!drop-3	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE a) AS SELECT *
@@ -12062,15 +12062,15 @@ reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DAT
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE =
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE = a zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!swap	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATEFIRST = a) AS SELECT *
-reject	reject	engine	createExternalTableOption/externalTableRejectTypeOption_REJECT_TYPE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
-reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
+reject	accept	engine	createExternalTableOption/externalTableRejectTypeOption_REJECT_TYPE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	accept	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!drop-1	CREATE EXTERNAL TABLE a WITH(= REPLICATED) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!drop-2	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION REPLICATED) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!drop-3	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION =) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!truncate	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION =
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!insert	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED zzz) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!swap	CREATE EXTERNAL TABLE a WITH(DOUBLE = REPLICATED) AS SELECT *
-reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	accept	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-1	CREATE EXTERNAL TABLE a WITH(= 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE =) AS SELECT *
@@ -12082,8 +12082,8 @@ reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierO
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!drop-3	CREATE EXTERNAL TABLE a WITH(a =) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!truncate	CREATE EXTERNAL TABLE a WITH(a =
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!insert	CREATE EXTERNAL TABLE a WITH(a = a zzz) AS SELECT *
-reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
-reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
+reject	accept	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	accept	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE 1) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE =) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!truncate	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE =
@@ -12093,12 +12093,12 @@ reject	reject	engine	externalTableLiteralOrIdentifierOption/Identifier_EqualsSig
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/identifier	CREATE EXTERNAL TABLE a WITH(a = a) AS SELECT *
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral	CREATE EXTERNAL TABLE a WITH(a = 'a') AS SELECT *
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral!insert	CREATE EXTERNAL TABLE a WITH(a = 'a' zzz) AS SELECT *
-reject	reject	engine	externalTableDistributionPolicy/externalTableReplicatedDistributionPolicy_REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
+reject	accept	engine	externalTableDistributionPolicy/externalTableReplicatedDistributionPolicy_REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableReplicatedDistributionPolicy_REPLICATED!swap	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATION) AS SELECT *
-reject	reject	engine	externalTableDistributionPolicy/externalTableRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	accept	engine	externalTableDistributionPolicy/externalTableRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableRoundRobinDistributionPolicy_ROUND_ROBIN!insert	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN zzz) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableRoundRobinDistributionPolicy_ROUND_ROBIN!swap	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUTE) AS SELECT *
-reject	reject	engine	externalTableDistributionPolicy/externalTableShardedDistributionPolicy_SHARDED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *
+reject	accept	engine	externalTableDistributionPolicy/externalTableShardedDistributionPolicy_SHARDED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableShardedDistributionPolicy_SHARDED!drop-1	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION =(a)) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableShardedDistributionPolicy_SHARDED!drop-2	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED a)) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableShardedDistributionPolicy_SHARDED!drop-3	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED()) AS SELECT *
@@ -12624,9 +12624,9 @@ reject	reject	engine	columnDefinition((computedColumnBody_computedColumnCo~3aecb
 reject	reject	engine	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt!insert	ALTER TABLE a ADD a AS 1 zzz
 reject	reject	engine	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt!swap	ALTER TABLE a ADD a ASC 1
 reject	reject	engine	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/regularColumnBody_columnConstraintListOpt	ALTER TABLE a ADD a
-accept	reject	engine	columnDefinitionCreateExternalTable/columnDefinitionBasic_(nullableConstraint)?	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
-accept	reject	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/%empty	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
-accept	reject	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/nullableConstraint	CREATE EXTERNAL TABLE a(a a NULL) WITH(DATA_SOURCE = a)
+accept	accept	engine	columnDefinitionCreateExternalTable/columnDefinitionBasic_(nullableConstraint)?	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
+accept	accept	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/%empty	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
+accept	accept	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/nullableConstraint	CREATE EXTERNAL TABLE a(a a NULL) WITH(DATA_SOURCE = a)
 reject	reject	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/nullableConstraint!truncate	CREATE EXTERNAL TABLE a(a a
 reject	reject	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/nullableConstraint!insert	CREATE EXTERNAL TABLE a(a a NULL zzz) WITH(DATA_SOURCE = a)
 reject	reject	engine	columnDefinitionCreateExternalTable(nullableConstraint)?/nullableConstraint!swap	CREATE EXTERNAL TABLE a(a a NULLIF) WITH(DATA_SOURCE = a)
@@ -14293,10 +14293,10 @@ accept	accept	engine	signedInteger(Minus)?/%empty	KILL 1
 reject	reject	engine	signedInteger(Minus)?/%empty!insert	KILL zzz 1
 accept	accept	engine	signedInteger(Minus)?/Minus	KILL - 1
 reject	reject	engine	signedInteger(Minus)?/Minus!insert	KILL - zzz 1
-accept	reject	engine	signedIntegerOrReal/(Minus)?_integerOrRealOrNumeric	COPY INTO a(a DEFAULT 1) FROM 'a'
-accept	reject	engine	signedIntegerOrReal(Minus)?/%empty	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	signedIntegerOrReal/(Minus)?_integerOrRealOrNumeric	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	signedIntegerOrReal(Minus)?/%empty	COPY INTO a(a DEFAULT 1) FROM 'a'
 reject	reject	engine	signedIntegerOrReal(Minus)?/%empty!insert	COPY INTO a(a DEFAULT zzz 1) FROM 'a'
-accept	reject	engine	signedIntegerOrReal(Minus)?/Minus	COPY INTO a(a DEFAULT - 1) FROM 'a'
+accept	accept	engine	signedIntegerOrReal(Minus)?/Minus	COPY INTO a(a DEFAULT - 1) FROM 'a'
 reject	reject	engine	signedIntegerOrReal(Minus)?/Minus!insert	COPY INTO a(a DEFAULT - zzz 1) FROM 'a'
 accept	accept	engine	identifierOrVariable/variable	OPEN @a
 accept	accept	engine	identifierOrVariable/identifier	OPEN a
@@ -14405,9 +14405,9 @@ reject	reject	engine	variable/Variable	@a
 accept	accept	engine	integer/Integer	a 1
 accept	accept	engine	numeric/Numeric	a 1.5
 accept	accept	engine	real/Real	a 1E1
-accept	reject	engine	nonEmptyString/stringLiteral	COPY INTO a FROM 'a'
-accept	reject	engine	defaultValueLiteral/literal	COPY INTO a(a DEFAULT 1) FROM 'a'
-accept	reject	engine	defaultValueLiteral/signedIntegerOrReal	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	nonEmptyString/stringLiteral	COPY INTO a FROM 'a'
+accept	accept	engine	defaultValueLiteral/literal	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	defaultValueLiteral/signedIntegerOrReal	COPY INTO a(a DEFAULT 1) FROM 'a'
 accept	accept	engine	stringLiteral/AsciiStringLiteral	a 'a'
 accept	accept	engine	stringLiteral/UnicodeStringLiteral	a N'a'
 reject	reject	engine	stringLiteral/UnicodeStringLiteral!insert	a N'a' zzz
@@ -14942,19 +14942,19 @@ reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMa
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!truncate	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND,
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FOR_APPEND zzz) AS SELECT *
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!swap	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FREETEXT) AS SELECT *
-accept	reject	engine	createFederationStatement_FEDERATION/FEDERATION_identifier_LeftParenthesis_identifier_scalar~447eb3d3	CREATE FEDERATION a(a a RANGE)
+accept	accept	engine	createFederationStatement_FEDERATION/FEDERATION_identifier_LeftParenthesis_identifier_scalar~447eb3d3	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_(REBUILD|DISABLE)	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD!swap	ALTER MATERIALIZED VIEW a RECEIVE
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a DISABLE
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!insert	ALTER MATERIALIZED VIEW a DISABLE zzz
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a DISABLED
-accept	reject	engine	alterFederationStatement_FEDERATION/FEDERATION_identifier_(SPLIT_AT_LeftParenthesis|Drop_AT~acf65172	ALTER FEDERATION a SPLIT AT(a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis	ALTER FEDERATION a SPLIT AT(a = 1)
+accept	accept	engine	alterFederationStatement_FEDERATION/FEDERATION_identifier_(SPLIT_AT_LeftParenthesis|Drop_AT~acf65172	ALTER FEDERATION a SPLIT AT(a = 1)
+accept	accept	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis	ALTER FEDERATION a SPLIT AT(a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!truncate	ALTER FEDERATION a SPLIT AT
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!insert	ALTER FEDERATION a SPLIT AT(zzz a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!swap	ALTER FEDERATION a SQL AT(a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)	ALTER FEDERATION a DROP AT(LOW a = 1)
+accept	accept	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)	ALTER FEDERATION a DROP AT(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-1	ALTER FEDERATION a AT(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-2	ALTER FEDERATION a DROP(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-3	ALTER FEDERATION a DROP AT LOW a = 1)
@@ -14962,9 +14962,9 @@ reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesi
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!truncate	ALTER FEDERATION a DROP AT(
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!insert	ALTER FEDERATION a DROP AT(LOW zzz a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!swap	ALTER FEDERATION a DROP_INDEX AT(LOW a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW	ALTER FEDERATION a DROP AT(LOW a = 1)
+accept	accept	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW	ALTER FEDERATION a DROP AT(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW!swap	ALTER FEDERATION a DROP AT(MAINTAIN_INDEX a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH	ALTER FEDERATION a DROP AT(HIGH a = 1)
+accept	accept	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH	ALTER FEDERATION a DROP AT(HIGH a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!insert	ALTER FEDERATION a DROP AT(HIGH zzz a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!swap	ALTER FEDERATION a DROP AT(HINT a = 1)
 accept	accept	engine	disableTriggerStatement_DISABLE/DISABLE_enableDisableTriggerBody	DISABLE TRIGGER a ON a
@@ -16184,26 +16184,26 @@ reject	reject	engine	createExternalLanguageStatement_LANGUAGE(Comma_externalLang
 reject	reject	engine	createExternalLanguageStatement_LANGUAGE(Comma_externalLanguageFileOption)*/Comma_externalLanguageFileOption_(Comma_externalLanguag~16586716!drop-10	CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a'),(CONTENT = 0x00, FILE_NAME = 'a'
 reject	reject	engine	createExternalLanguageStatement_LANGUAGE(Comma_externalLanguageFileOption)*/Comma_externalLanguageFileOption_(Comma_externalLanguag~16586716!insert	CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a'),(CONTENT = 0x00, FILE_NAME = 'a') zzz
 reject	reject	engine	createExternalLanguageStatement_LANGUAGE(Comma_externalLanguageFileOption)*/Comma_externalLanguageFileOption_(Comma_externalLanguag~16586716!swap	CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a'),(CONTINUE = 0x00, FILE_NAME = 'a')
-accept	reject	engine	createExternalStreamStatement_STREAM/STREAM_identifier_With_LeftParenthesis_(externalStreamL~20039a25	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
-accept	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLocation_LOCATION	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+accept	accept	engine	createExternalStreamStatement_STREAM/STREAM_identifier_With_LeftParenthesis_(externalStreamL~20039a25	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+accept	accept	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLocation_LOCATION	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLocation_LOCATION!truncate	CREATE EXTERNAL STREAM a WITH(LOCATION =
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLocation_LOCATION!insert	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a' zzz)
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLocation_LOCATION!swap	CREATE EXTERNAL STREAM a WITH(LOCK_ESCALATION = 'a')
-accept	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a')
+accept	accept	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS!drop-2	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS!drop-3	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS =)
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS!truncate	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS =
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS!insert	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a' zzz)
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamInputOptions_INPUT_OPTIONS!swap	CREATE EXTERNAL STREAM a WITH(INSERT = 'a')
-accept	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a')
+accept	accept	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS!drop-2	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS!drop-3	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS =)
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS!truncate	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS =
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS!insert	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a' zzz)
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamOutputOptions_OUTPUT_OPTIONS!swap	CREATE EXTERNAL STREAM a WITH(OVER = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(externalStreamLocation_LOCATION|exte~5ada7f4e)/externalStreamLiteralOrIdentifierOption	CREATE EXTERNAL STREAM a WITH(a = a)
-accept	reject	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/%empty	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
-reject	reject	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/Comma_(externalStreamLocation_LOCATION|exte~5ada7f4e)_(~e04f5c7f	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a', LOCATION = 'a')
+accept	accept	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/%empty	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+reject	accept	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/Comma_(externalStreamLocation_LOCATION|exte~5ada7f4e)_(~e04f5c7f	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a', LOCATION = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/Comma_(externalStreamLocation_LOCATION|exte~5ada7f4e)_(~e04f5c7f!drop-1	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a' LOCATION = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/Comma_(externalStreamLocation_LOCATION|exte~5ada7f4e)_(~e04f5c7f!drop-2	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a', = 'a')
 reject	reject	engine	createExternalStreamStatement_STREAM(Comma_(externalStreamLocation_LOCATI~e6914b20)*/Comma_(externalStreamLocation_LOCATION|exte~5ada7f4e)_(~e04f5c7f!drop-3	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a', LOCATION 'a')
@@ -16775,7 +16775,7 @@ reject	reject	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists!drop-2
 reject	reject	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists!truncate	DROP SEQUENCE IF
 reject	reject	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists!insert	DROP SEQUENCE IF EXISTS zzz a
 reject	reject	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists!swap	DROP SEQUENCE IGNORE EXISTS a
-accept	reject	engine	dropFederationStatement_FEDERATION/FEDERATION_identifier	DROP FEDERATION a
+accept	accept	engine	dropFederationStatement_FEDERATION/FEDERATION_identifier	DROP FEDERATION a
 accept	accept	engine	dropSecurityPolicyStatement_SECURITY/SECURITY_POLICY_(If_Exists)?_dropObjectList	DROP SECURITY POLICY a
 accept	accept	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/%empty	DROP SECURITY POLICY a
 reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/%empty!insert	DROP SECURITY POLICY zzz a
@@ -17130,11 +17130,11 @@ reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/On!swap	A
 accept	accept	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFF
 reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off!insert	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFF zzz
 reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off!swap	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFFLINE
-accept	reject	engine	externalStreamLocation_LOCATION/LOCATION_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
-accept	reject	engine	externalStreamInputOptions_INPUT_OPTIONS/INPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a')
-accept	reject	engine	externalStreamOutputOptions_OUTPUT_OPTIONS/OUTPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a')
-accept	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS/FORMAT_OPTIONS_LeftParenthesis_externalDataFormatOption~f556ef92	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
-accept	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalStreamLocation_LOCATION/LOCATION_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+accept	accept	engine	externalStreamInputOptions_INPUT_OPTIONS/INPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a')
+accept	accept	engine	externalStreamOutputOptions_OUTPUT_OPTIONS/OUTPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a')
+accept	accept	engine	externalFormatingContainerOption_FORMAT_OPTIONS/FORMAT_OPTIONS_LeftParenthesis_externalDataFormatOption~f556ef92	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 accept	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!drop-1	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!drop-2	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, = TRUE))
@@ -17143,15 +17143,15 @@ reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_exter
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USE_TYPE_DEFAULT =
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USE_TYPE_DEFAULT = TRUE zzz))
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USING = TRUE))
-accept	reject	engine	externalFormatingOption_FORMAT_OPTIONS/externalFormatingContainerOption_FORMAT_OPTIONS	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
-accept	reject	engine	externalFileFormatLiteralOption_SERDE_METHOD/SERDE_METHOD_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatLiteralOptions_SERDE_METHOD/externalFileFormatLiteralOption_SERDE_METHOD	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
-accept	reject	engine	externalFileFormatLiteralOption_DATA_COMPRESSION/DATA_COMPRESSION_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
-accept	reject	engine	externalFileFormatLiteralOptions_DATA_COMPRESSION/externalFileFormatLiteralOption_DATA_COMPRESSION	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
-accept	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT/USE_TYPE_DEFAULT_EqualsSign_(TRUE|FALSE)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
-accept	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/TRUE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalFormatingOption_FORMAT_OPTIONS/externalFormatingContainerOption_FORMAT_OPTIONS	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalFileFormatLiteralOption_SERDE_METHOD/SERDE_METHOD_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatLiteralOptions_SERDE_METHOD/externalFileFormatLiteralOption_SERDE_METHOD	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatLiteralOption_DATA_COMPRESSION/DATA_COMPRESSION_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
+accept	accept	engine	externalFileFormatLiteralOptions_DATA_COMPRESSION/externalFileFormatLiteralOption_DATA_COMPRESSION	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
+accept	accept	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT/USE_TYPE_DEFAULT_EqualsSign_(TRUE|FALSE)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
+accept	accept	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/TRUE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/TRUE!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUNCATE))
-accept	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/FALSE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = FALSE))
+accept	accept	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/FALSE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = FALSE))
 reject	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/FALSE!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = FALSE zzz))
 reject	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/FALSE!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = FAN_IN))
 accept	accept	engine	boundingBoxSpatialIndexOption_BOUNDING_BOX/BOUNDING_BOX_EqualsSign_boundingBoxParameter	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1))
@@ -17255,19 +17255,19 @@ reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_i
 reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	CREATE TABLE a AS WITH(DISTRIBUTION = HASH(a,
 reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	CREATE TABLE a AS WITH(DISTRIBUTION = HASH(a, a zzz))
 reject	reject	engine	tableNonClusteredIndexType_HEAP/HEAP	CREATE TABLE a AS WITH(HEAP)
-reject	reject	engine	externalTableDataSource_DATA_SOURCE/DATA_SOURCE_EqualsSign_identifier	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
-reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE/REJECT_TYPE_EqualsSign_(VALUE|PERCENTAGE)	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
-reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	accept	engine	externalTableDataSource_DATA_SOURCE/DATA_SOURCE_EqualsSign_identifier	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	accept	engine	externalTableRejectTypeOption_REJECT_TYPE/REJECT_TYPE_EqualsSign_(VALUE|PERCENTAGE)	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	accept	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE!swap	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUES) AS SELECT *
-reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE) AS SELECT *
+reject	accept	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE!insert	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE zzz) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE!swap	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERIOD) AS SELECT *
-reject	reject	engine	externalTableDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_externalTableDistributionPolicy	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
-reject	reject	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
-reject	reject	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
-reject	reject	engine	externalTableReplicatedDistributionPolicy_REPLICATED/REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
-reject	reject	engine	externalTableRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
-reject	reject	engine	externalTableShardedDistributionPolicy_SHARDED/SHARDED_LeftParenthesis_identifier_RightParenthesis	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *
+reject	accept	engine	externalTableDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_externalTableDistributionPolicy	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
+reject	accept	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	accept	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
+reject	accept	engine	externalTableReplicatedDistributionPolicy_REPLICATED/REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
+reject	accept	engine	externalTableRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	accept	engine	externalTableShardedDistributionPolicy_SHARDED/SHARDED_LeftParenthesis_identifier_RightParenthesis	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *
 accept	accept	engine	alterTableSwitchStatement_SWITCH/SWITCH_(PARTITION_expression)?_To_schemaObjectThreePart~76569a95	ALTER TABLE a SWITCH TO a
 accept	accept	engine	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/%empty	ALTER TABLE a SWITCH TO a
 reject	reject	engine	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/%empty!insert	ALTER TABLE a SWITCH zzz TO a
@@ -17508,7 +17508,6 @@ accept	accept	engine	suite:lexer	SELECT * FROM ##a
 accept	accept	engine	suite:lexer	SELECT a$b FROM a
 accept	accept	engine	suite:lexer	SELECT _a
 accept	accept	engine	suite:lexer	SELECT é
-accept	reject	engine	suite:lexer	SELECT aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 accept	accept	engine	suite:lexer	SELECT 1 -- a
 accept	accept	engine	suite:lexer	SELECT /* a */ 1
 accept	accept	engine	suite:lexer	SELECT /* /* a */ */ 1
