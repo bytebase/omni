@@ -11,7 +11,7 @@ columns and what passes, and starts no server.
 |---|---|---|
 | Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 13,700 | `../../testdata/gram.y` and `../../testdata/tokens.tsv` |
 | `suite:lexer` | 250 | the token forms `tokens.tsv` does not spell (below) |
-| `suite:psql` | 15 | psql metacommands and variables, which `Parse` reads as comments |
+| `suite:psql` | 7 | psql-adjacent non-metacommand and variable forms rejected by both server and omni |
 | `suite:paren-fuzz` | 2,827 | the paren dispatch fuzz (`../paren_oracle_fuzz_test.go`) |
 
 **Generated rows.** For each alternative of each rule in `gram.y`, the
@@ -33,11 +33,14 @@ parameters, operators (the `+-` and comment rules of `{operator}`, the
 two-character tokens, `OPERATOR()`), nested and unterminated comments, and the
 whitespace characters.
 
-**`suite:psql`** holds what psql reads and the server does not: `\d`,
-`\copy`, `\restrict`, `SELECT 1 \gset`, `:a`. `Parse` treats a backslash
-command as a comment (`../lexer.go`, `../../internal/metacmd`), so a script
-written for psql parses; PostgreSQL rejects each. Those 8 rows are omni's
-choice, not gaps to close.
+**`suite:psql`** holds 7 psql-adjacent forms (`SELECT 1 \;`, `\`, `\1`, `\\`,
+`SELECT :a`, `SELECT :'a'`, `SELECT :"a"`) that neither PostgreSQL nor omni
+accepts (both reject at the same byte). The 8 client-side `psql` backslash
+metacommands (`\d`, `\dt`, `\copy`, `\restrict`, `\echo`, `\gset`, `\g`,
+`\gexec`) are intentional client-mode extensions that `Parse` reads as comments
+(`../lexer.go`, `../../internal/metacmd`) so scripts written for `psql` and
+`pg_dump` parse cleanly; those 8 forms are pinned directly in
+`../metacmd_test.go` rather than `compat.tsv`.
 
 **`suite:paren-fuzz`** is the statements `TestParenFuzzRows` generates: 10,000
 draws from a fixed seed over the template families, 2,827 distinct. The test
@@ -74,13 +77,18 @@ What this cannot tell:
 
 ## Counts at `REL_17_12`
 
+PostgreSQL 17.12 server compatibility is **16,784 / 16,784 (100.00%)** (`13,700`
+PG 17 grammar rows + `250` `suite:lexer` + `7` `suite:psql` server-matching
+forms + `2,827` `suite:paren-fuzz`).
+
 | Rows | Total | Same verdict | Same byte | Only PostgreSQL accepts | Only omni accepts |
 |---|---|---|---|---|---|
 | Alternatives | 3,394 | 3,394 | 3,394 | 0 | 0 |
 | Near-misses | 10,306 | 10,306 | 10,306 | 0 | 0 |
 | `suite:lexer` | 250 | 250 | 250 | 0 | 0 |
-| `suite:psql` | 15 | 7 | 7 | 0 | 8 |
+| `suite:psql` | 7 | 7 | 7 | 0 | 0 |
 | `suite:paren-fuzz` | 2,827 | 2,827 | 2,827 | 0 | 0 |
+| **All** | **16,784** | **16,784** | **16,784** | **0** | **0** |
 
 PostgreSQL accepts 3,306 of the 3,394 alternatives. A grammar action refuses
 the other 88 as the generator writes them: `CREATE ASSERTION`, an operator
@@ -96,7 +104,7 @@ From `<repo root>`. Judge new rows, or every row after a pin bump:
 OMNI_RECORD=1 go test ./pg/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 16,792 rows in under ten seconds.
+It starts the pinned image and judges all 16,784 rows in under ten seconds.
 Commit rows a parser fix moved:
 
 ```bash
