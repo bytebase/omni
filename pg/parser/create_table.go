@@ -717,20 +717,18 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		if p.isSpannerColOnUpdateStart() {
 			p.advance() // ON
 			p.advance() // UPDATE
-			// DEFAULT is not a valid b_expr in PostgreSQL's gram.y (omni's
-			// parseCExpr accepts it for INSERT/UPDATE targets), so reject it
-			// explicitly here to match Spanner-PG's b_expr rule.
-			if p.cur.Type == DEFAULT {
-				return nil, p.syntaxErrorAtCur()
-			}
+			// DEFAULT is not a valid b_expr operand in PostgreSQL's gram.y
+			// (omni's parseCExpr accepts it for INSERT/UPDATE targets). Reject
+			// it inside parseBExprAtom for this b_expr while leaving nested
+			// a_expr / subquery contexts unrestricted.
+			prevDisallow := p.disallowDefaultInBExpr
+			p.disallowDefaultInBExpr = true
 			expr, err := p.parseBExpr(0)
+			p.disallowDefaultInBExpr = prevDisallow
 			if err != nil {
 				return nil, err
 			}
 			if !p.collectMode() && expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if containsSetToDefault(expr) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			return &nodes.Constraint{

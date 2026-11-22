@@ -94,38 +94,6 @@ func isPG17AddedKeyword(tok int) bool {
 	return false
 }
 
-// isSpannerColOnUpdateStart reports whether the current token begins Cloud
-// Spanner PG's column-level ON UPDATE b_expr constraint rather than a foreign
-// key ON UPDATE key_action clause.
-//
-// In Spanner-PG's parser.c lookahead, ON followed by UPDATE is reclassified as
-// the column-constraint lead whenever the token after UPDATE is not in
-// FIRST(key_action) (NO, RESTRICT, CASCADE, SET).
-func (p *Parser) isSpannerColOnUpdateStart() bool {
-	if !p.isSpannerPG() || p.cur.Type != ON {
-		return false
-	}
-	if p.peekNext().Type != UPDATE {
-		return false
-	}
-	return !isKeyActionStart(p.peekTokenAfterNext().Type)
-}
-
-func containsSetToDefault(n nodes.Node) bool {
-	found := false
-	nodes.Inspect(n, func(cur nodes.Node) bool {
-		if found {
-			return false
-		}
-		if _, ok := cur.(*nodes.SetToDefault); ok {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
-}
-
 func (p *Parser) spannerXMLUnsupportedError() *ParseError {
 	return &ParseError{
 		Code:     "0A000",

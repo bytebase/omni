@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -491,6 +492,7 @@ func TestDialectSpannerPG_AST(t *testing.T) {
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a::int)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE CASE WHEN true THEN 1 END)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE (SELECT 1))`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE (WITH x AS (UPDATE u SET a = DEFAULT RETURNING a) SELECT a FROM x))`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE ARRAY[1, 2])`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NULL)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int CONSTRAINT c ON UPDATE 1)`,
@@ -559,6 +561,7 @@ func TestDialectSpannerPG_AST(t *testing.T) {
 			`CREATE DOMAIN a a REFERENCES a ON DELETE SETOF NULL`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE DEFAULT)`,
+			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE -DEFAULT)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1 + DEFAULT)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NO)`,
 			`CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE NO ACTION)`,
@@ -603,5 +606,34 @@ func TestIsKeyActionStartMatchesSlice(t *testing.T) {
 		if isKeyActionStart(nonKW) {
 			t.Errorf("isKeyActionStart(%d) = true, want false", nonKW)
 		}
+	}
+}
+
+func TestIsSpannerColOnUpdateStartMatchesKeywords(t *testing.T) {
+	keyActionSet := make(map[int]bool, len(keyActionLeadTokens))
+	for _, tok := range keyActionLeadTokens {
+		keyActionSet[tok] = true
+	}
+	for _, kw := range Keywords {
+		sql := "ON UPDATE " + kw.Name
+		pSpanner := &Parser{lexer: NewLexer(sql), source: sql, dialect: DialectSpannerPG}
+		pSpanner.advance()
+		want := !keyActionSet[kw.Token]
+		if got := pSpanner.isSpannerColOnUpdateStart(); got != want {
+			t.Errorf("DialectSpannerPG isSpannerColOnUpdateStart(%q) = %v, want %v", sql, got, want)
+		}
+
+		pDefault := &Parser{lexer: NewLexer(sql), source: sql, dialect: DialectDefault}
+		pDefault.advance()
+		if pDefault.isSpannerColOnUpdateStart() {
+			t.Errorf("DialectDefault isSpannerColOnUpdateStart(%q) = true, want false", sql)
+		}
+	}
+
+	// Deep left-associative ON UPDATE expression must be rejected cleanly by
+	// treeTooHigh rather than overflowing the stack.
+	deep := "CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE 1" + strings.Repeat("+1", maxTreeHeight+1) + ")"
+	if _, err := ParseWithDialect(deep, DialectSpannerPG); err == nil {
+		t.Errorf("expected deep ON UPDATE expression to fail with depth error, got nil")
 	}
 }

@@ -1442,6 +1442,11 @@ func (p *Parser) parseBExprAtom() (nodes.Node, error) {
 			return p.parseCExpr()
 		}
 		return p.parseQualOpPrefix(p.parseBExpr)
+	case DEFAULT:
+		if p.disallowDefaultInBExpr {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCExpr()
 	default:
 		return p.parseCExpr()
 	}

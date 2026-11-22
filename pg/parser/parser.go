@@ -46,6 +46,11 @@ type Parser struct {
 	// there is the row itself, not a parenthesized expression holding it.
 	lastRow    nodes.Node
 	lastRowEnd int
+	// disallowDefaultInBExpr rejects bare DEFAULT in parseBExprAtom while
+	// parsing DialectSpannerPG column-level ON UPDATE b_expr constraints
+	// (matching PostgreSQL gram.y's b_expr without restricting nested a_expr
+	// or subquery contexts).
+	disallowDefaultInBExpr bool
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates
