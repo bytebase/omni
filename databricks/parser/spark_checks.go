@@ -845,10 +845,21 @@ func isValidSparkIntervalString(s string) bool {
 		return false
 	}
 	var totalMonths, totalMicros int64
+	hasYearMonth := false
+	hasDayTime := false
 	for i := 0; i < len(fields); i += 2 {
 		numStr, unitStr := fields[i], strings.ToUpper(fields[i+1])
 		unitKind := lookupKeyword(unitStr)
 		if !isSupportedMultiUnit(unitKind) {
+			return false
+		}
+		switch unitKind {
+		case kwYEAR, kwYEARS, kwMONTH, kwMONTHS:
+			hasYearMonth = true
+		default:
+			hasDayTime = true
+		}
+		if hasYearMonth && hasDayTime {
 			return false
 		}
 		if !isValidMultiUnitNumber(numStr, unitKind) {

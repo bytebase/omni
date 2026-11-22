@@ -964,26 +964,26 @@ func (p *Parser) parseGrantRevoke() (Statement, error) {
 	if p.isStatementEnd() || p.cur().Kind == kwROLE {
 		return nil, p.errorf("expected privilege list after GRANT/REVOKE")
 	}
-	// Require privilege tokens before ON, securable tokens after ON, and TO (GRANT) or FROM (REVOKE) + principal.
-	sawPriv := false
-	for !p.isStatementEnd() && p.cur().Kind != kwON {
-		p.advance()
-		sawPriv = true
+	// Parse comma-separated privilege names before ON (each privilege is 1..4
+	// identifier/keyword words such as SELECT, ALL PRIVILEGES, USE CATALOG,
+	// CREATE EXTERNAL TABLE, READ FILES).
+	if err := p.parseGrantPrivilegeList(); err != nil {
+		return nil, err
 	}
-	if !sawPriv || !p.match(kwON) {
-		return nil, p.errorf("expected ON <securable> in GRANT/REVOKE")
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
-	dirKw, dirName := kwTO, "TO"
+	// Parse Databricks SQL securable object explicitly so trailing expressions
+	// or garbage before TO/FROM fail strict Parse.
+	if err := p.parseGrantSecurableObject(); err != nil {
+		return nil, err
+	}
+	dirKw := kwTO
 	if !isGrant {
-		dirKw, dirName = kwFROM, "FROM"
+		dirKw = kwFROM
 	}
-	sawObj := false
-	for !p.isStatementEnd() && p.cur().Kind != dirKw {
-		p.advance()
-		sawObj = true
-	}
-	if !sawObj || !p.match(dirKw) {
-		return nil, p.errorf("expected %s <principal> in GRANT/REVOKE", dirName)
+	if _, err := p.expect(dirKw); err != nil {
+		return nil, err
 	}
 	if p.isStatementEnd() {
 		return nil, p.errorf("expected principal in GRANT/REVOKE")
@@ -1000,4 +1000,68 @@ func (p *Parser) parseGrantRevoke() (Statement, error) {
 		return nil, err
 	}
 	return &ParsedStmt{Kind: StmtHiveNative, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+func (p *Parser) parseGrantPrivilegeList() error {
+	for {
+		words := 0
+		for !p.isStatementEnd() && p.cur().Kind != kwON && p.cur().Kind != tokComma {
+			k := p.cur().Kind
+			if k != tokIdent && !k.isKeyword() {
+				return p.errorf("invalid privilege token %q in GRANT/REVOKE", p.cur().Text)
+			}
+			p.advance()
+			words++
+			if words > 4 {
+				return p.errorf("invalid privilege specification in GRANT/REVOKE")
+			}
+		}
+		if words == 0 {
+			return p.errorf("expected privilege name in GRANT/REVOKE")
+		}
+		if !p.match(tokComma) {
+			return nil
+		}
+	}
+}
+
+func (p *Parser) parseGrantSecurableObject() error {
+	if p.isStatementEnd() {
+		return p.errorf("expected securable object after ON")
+	}
+	w0 := strings.ToUpper(p.cur().Text)
+	w1 := strings.ToUpper(p.peek(1).Text)
+	// Two-word nameless securable objects: ANY FILE, ANONYMOUS FUNCTION.
+	if (w0 == "ANY" && w1 == "FILE") || (w0 == "ANONYMOUS" && w1 == "FUNCTION") {
+		p.advance()
+		p.advance()
+		return nil
+	}
+	// Single-word nameless securable object: METASTORE.
+	if w0 == "METASTORE" {
+		p.advance()
+		return nil
+	}
+	// Two-word named securable object types.
+	if (w0 == "EXTERNAL" && (w1 == "LOCATION" || w1 == "METADATA")) ||
+		((w0 == "STORAGE" || w0 == "SERVICE") && w1 == "CREDENTIAL") ||
+		(w0 == "REGISTERED" && w1 == "MODEL") ||
+		(w0 == "CLEAN" && w1 == "ROOM") {
+		p.advance()
+		p.advance()
+		_, err := p.parseMultipartIdentifier()
+		return err
+	}
+	// Single-word named securable object types.
+	switch w0 {
+	case "CATALOG", "SCHEMA", "DATABASE", "TABLE", "VIEW", "FUNCTION",
+		"VOLUME", "SHARE", "RECIPIENT", "PROVIDER", "CONNECTION",
+		"MODEL", "CREDENTIAL":
+		p.advance()
+		_, err := p.parseMultipartIdentifier()
+		return err
+	}
+	// Bare table/object name without explicit TABLE keyword.
+	_, err := p.parseMultipartIdentifier()
+	return err
 }

@@ -10,6 +10,9 @@ func (p *Parser) parseQuery() error {
 		return err
 	}
 	defer p.leaveNesting()
+	prevWindowSeen := p.windowSpecSeen
+	p.windowSpecSeen = false
+	defer func() { p.windowSpecSeen = prevWindowSeen }()
 
 	if p.cur().Kind == kwWITH {
 		if err := p.parseCTEs(); err != nil {
@@ -356,25 +359,45 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 		return p.parseQueryPrimary()
 	case kwAGGREGATE:
 		p.advance()
+		prevWindowSeen := p.windowSpecSeen
+		defer func() { p.windowSpecSeen = prevWindowSeen }()
 		// Spark v4.0.5 requires at least one aggregate expression or a GROUP BY
-		// clause after |> AGGREGATE.
+		// clause after |> AGGREGATE, and rejects window expressions in both the
+		// aggregate and grouping lists whenever GROUP BY is present.
 		if p.cur().Kind == kwGROUP && p.peek(1).Kind == kwBY {
 			cpAgg := p.save()
+			p.windowSpecSeen = false
 			if err := p.parseAggregationClause(true); err == nil && (p.isStatementEnd() || p.cur().Kind == tokRParen || p.cur().Kind == tokOperatorPipe || p.isQueryOrgStart()) {
+				if p.windowSpecSeen {
+					return p.errorf("window expressions are not allowed in pipe AGGREGATE with GROUP BY")
+				}
 				return nil
 			}
 			p.restore(cpAgg)
 		}
 		hasAggExprs := false
+		aggHasWindow := false
 		if p.cur().Kind != tokEOF && p.cur().Kind != tokSemicolon &&
 			p.cur().Kind != tokRParen && p.cur().Kind != tokOperatorPipe && !p.isQueryOrgStart() {
+			p.windowSpecSeen = false
 			if err := p.parseNamedExpressionSeq(); err != nil {
 				return err
 			}
+			aggHasWindow = p.windowSpecSeen
 			hasAggExprs = true
 		}
 		if p.cur().Kind == kwGROUP {
-			return p.parseAggregationClause(true)
+			if aggHasWindow {
+				return p.errorf("window expressions are not allowed in pipe AGGREGATE with GROUP BY")
+			}
+			p.windowSpecSeen = false
+			if err := p.parseAggregationClause(true); err != nil {
+				return err
+			}
+			if p.windowSpecSeen {
+				return p.errorf("window expressions are not allowed in pipe AGGREGATE with GROUP BY")
+			}
+			return nil
 		}
 		if !hasAggExprs {
 			return p.errorf("AGGREGATE pipe operator requires aggregate expressions or a GROUP BY clause")

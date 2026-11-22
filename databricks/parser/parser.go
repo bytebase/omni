@@ -55,6 +55,7 @@ type Parser struct {
 	disallowColumnRefs     bool
 	disallowGeneratedCols  bool
 	relaxFunctionDataTypes bool
+	windowSpecSeen         bool
 	scriptScopes           []scriptScope
 }
 

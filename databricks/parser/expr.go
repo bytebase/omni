@@ -2060,6 +2060,7 @@ func (p *Parser) parseFunctionCallSuffixes() error {
 				}
 				return err
 			}
+			p.windowSpecSeen = true
 		}
 	}
 	return nil

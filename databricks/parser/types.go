@@ -1045,13 +1045,51 @@ func (p *Parser) parseExpressionProperty() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if p.match(tokEq) {
-		return key, p.parseExpression()
-	}
-	if p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
+	if !p.match(tokEq) && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
 		return "", p.errorf("a value must be specified for OPTIONS property key")
 	}
-	return key, p.parseExpression()
+	valStart := p.pos
+	if err := p.parseExpression(); err != nil {
+		return "", err
+	}
+	if strings.EqualFold(key, "path") && !isStringLiteralTokens(p.toks[valStart:p.pos]) {
+		return "", p.errorf("table option 'path' must be a string literal")
+	}
+	return key, nil
+}
+
+// isStringLiteralTokens reports whether toks consists solely of one or more
+// adjacent string literal tokens, optionally wrapped in balanced parentheses
+// (matching Spark v4.0.5 AstBuilder.cleanTableOptions for the 'path' option).
+func isStringLiteralTokens(toks []Token) bool {
+	for len(toks) >= 2 && toks[0].Kind == tokLParen && toks[len(toks)-1].Kind == tokRParen {
+		depth := 0
+		wrapsWhole := true
+		for i := 0; i < len(toks)-1; i++ {
+			switch toks[i].Kind {
+			case tokLParen:
+				depth++
+			case tokRParen:
+				depth--
+				if depth == 0 {
+					wrapsWhole = false
+				}
+			}
+		}
+		if !wrapsWhole {
+			break
+		}
+		toks = toks[1 : len(toks)-1]
+	}
+	if len(toks) == 0 {
+		return false
+	}
+	for _, t := range toks {
+		if t.Kind != tokString && t.Kind != tokDoubleQuoted {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Parser) parsePartitionSpec(requireValues bool) error {
