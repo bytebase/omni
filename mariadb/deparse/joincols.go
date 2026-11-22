@@ -26,12 +26,15 @@ import (
 // s ON 1=1) USING (k), q's columns come before p's (MySQL puts p's first).
 type fromScope struct {
 	*scopepkg.Scope
-	from []ast.TableExpr
+	parent *fromScope
+	from   []ast.TableExpr
 
 	// tables holds the scope entries of the FROM clause's tables and derived
-	// tables in the order they were registered; entries maps each such FROM
-	// item to its index there.
+	// tables in the order they were registered; schemas is parallel to tables
+	// and records the resolved schema name (if known); entries maps each such
+	// FROM item to its index there.
 	tables  []scopepkg.Entry
+	schemas []string
 	entries map[ast.TableExpr]int
 
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
@@ -82,9 +85,14 @@ func newFromScope(from []ast.TableExpr) *fromScope {
 
 // add registers a table or derived table of the FROM clause.
 func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
+	sc.addWithSchema(te, "", name, table)
+}
+
+func (sc *fromScope) addWithSchema(te ast.TableExpr, schema, name string, table *ResolverTable) {
 	sc.Add(name, table)
 	sc.entries[te] = len(sc.tables)
 	sc.tables = append(sc.tables, scopepkg.Entry{Name: name, Table: table})
+	sc.schemas = append(sc.schemas, schema)
 }
 
 // span records the tables registered for a FROM item since lo.

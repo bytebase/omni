@@ -24,9 +24,19 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// relation of the body has, even when the name already belongs to a table
 	// (1050) or a view. A synced view's body is the engine's already, so it is
 	// not judged here.
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select)
+	if checkBody {
+		if err := validateViewPreAnalysis(stmt.Select); err != nil {
+			return err
+		}
+	}
+	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
 	if checkBody && bodyErr != nil {
 		return bodyErr
+	}
+	if checkBody {
+		if err := c.validateViewPostAnalysis(stmt.Select, db); err != nil {
+			return err
+		}
 	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
@@ -66,6 +76,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	if checkBody {
+		if err := checkDuplicateViewColumns(viewCols); err != nil {
+			return err
+		}
+	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
@@ -99,88 +114,187 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 }
 
 // analyzeViewBody analyzes a view body for the semantic IR lineage and SDL
-// diff use, and reports the one failure MariaDB's CREATE VIEW reports too: a
-// target-list column in a SELECT with no FROM, which names no column at all
-// (1054). The analyzer models less than the engine here — it cannot resolve a
-// select alias a HAVING or ORDER BY reads, for one — so every other failure
-// leaves a view without AnalyzedQuery rather than refusing a view the engine
-// accepts.
-func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
+// diff use, and reports semantic failures MariaDB's CREATE VIEW reports too.
+// Alias-bearing clauses (GROUP BY, HAVING, ORDER BY) and unsupported analyzer
+// expressions leave the view without AnalyzedQuery rather than refusing a view
+// the engine accepts.
+func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
-	q, err := c.AnalyzeSelectStmt(sel)
+	q, err := c.analyzeSelectStmtWithSource(sel, source)
 	if err == nil {
 		return q, nil
 	}
 	var refusal *Error
-	if errors.As(err, &refusal) && refusal.Code == ErrNoSuchColumn && viewBodyMayNameNoColumn(sel) {
-		return nil, refusal
+	if errors.As(err, &refusal) {
+		switch refusal.Code {
+		case ErrNoTablesUsed, ErrUnknownTable, ErrOperandColumns:
+			return nil, refusal
+		case ErrNoSuchTable:
+			if !isSystemDatabaseTableErr(refusal) {
+				return nil, refusal
+			}
+		case ErrNoSuchColumn:
+			if !isAliasBearingColumnErr(refusal) {
+				return nil, refusal
+			}
+		}
 	}
 	return nil, nil
 }
 
-// viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that
-// therefore names nothing: a target expression, or a WHERE, outside a nested
-// query's own scope. The alias-bearing clauses (HAVING, GROUP BY, ORDER BY) are
-// left alone because the analyzer cannot resolve a select alias there, and a
-// schema-qualified call is left alone because its argument may name a stored
-// function's column. Measured on mariadb:11.8.8.
-func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
-	if sel == nil {
-		return false
-	}
-	// A set operation's root carries no FROM or target list of its own; each
-	// arm is a scope of its own.
-	if sel.Left != nil || sel.Right != nil {
-		return viewBodyMayNameNoColumn(sel.Left) || viewBodyMayNameNoColumn(sel.Right)
-	}
-	if len(sel.From) != 0 {
-		return false
-	}
-	if exprNamesColumn(sel.Where) {
-		return true
-	}
-	for _, item := range sel.TargetList {
-		var val nodes.ExprNode
-		switch target := item.(type) {
-		case *nodes.ResTarget:
-			val = target.Val
-		case nodes.ExprNode:
-			val = target
-		default:
-			continue
+// retagNoSuchColumn updates the clause context of an ErrNoSuchColumn error so
+// analyzeViewBody can tell alias-bearing clauses (GROUP BY, HAVING, ORDER BY)
+// apart from field-list / WHERE column lookups.
+func retagNoSuchColumn(err error, context string) error {
+	var ce *Error
+	if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn && strings.HasSuffix(ce.Message, "in 'field list'") {
+		return &Error{
+			Code:     ce.Code,
+			SQLState: ce.SQLState,
+			Message:  strings.TrimSuffix(ce.Message, "in 'field list'") + "in '" + context + "'",
 		}
-		if exprNamesColumn(val) {
+	}
+	return err
+}
+
+func isAliasBearingColumnErr(ce *Error) bool {
+	return strings.HasSuffix(ce.Message, "in 'group statement'") ||
+		strings.HasSuffix(ce.Message, "in 'having clause'") ||
+		strings.HasSuffix(ce.Message, "in 'order clause'")
+}
+
+func isSystemDatabaseTableErr(ce *Error) bool {
+	lower := strings.ToLower(ce.Message)
+	for _, sysDB := range []string{"'information_schema.", "'performance_schema.", "'mysql.", "'sys."} {
+		if strings.Contains(lower, sysDB) {
 			return true
 		}
 	}
 	return false
 }
 
-// exprNamesColumn reports whether expr reads a column of this scope. A nested
-// query has a scope of its own, and a schema-qualified call may name a stored
-// function's column.
-func exprNamesColumn(expr nodes.ExprNode) bool {
-	if expr == nil {
-		return false
+func checkDuplicateViewColumns(cols []string) error {
+	seen := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		key := toLower(col)
+		if seen[key] {
+			return errDupColumn(col)
+		}
+		seen[key] = true
 	}
-	found := false
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		switch e := n.(type) {
-		case *nodes.ColumnRef:
-			if !e.Star {
-				found = true
+	return nil
+}
+
+// validateViewPreAnalysis checks structural restrictions that MariaDB 11.8
+// enforces on a view body before resolving tables or columns:
+//   - [NO]WAIT on FOR UPDATE / LOCK IN SHARE MODE (1350)
+//   - schema-qualified special-syntax TRIM/SUBSTRING outside mariadb_schema/oracle_schema (1128)
+func validateViewPreAnalysis(sel *nodes.SelectStmt) error {
+	if sel == nil {
+		return nil
+	}
+	var err error
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		switch x := n.(type) {
+		case *nodes.SelectStmt:
+			if x.ForUpdate != nil && (x.ForUpdate.HasWait || x.ForUpdate.NoWait) {
+				err = errViewSelectClause("[NO]WAIT")
+				return false
 			}
-			return false
-		case *nodes.SubqueryExpr, *nodes.ExistsExpr:
-			return false
 		case *nodes.FuncCallExpr:
-			if e.Schema != "" {
+			if x.Schema != "" && x.SpecialSyntax &&
+				!strings.EqualFold(x.Schema, "mariadb_schema") && !strings.EqualFold(x.Schema, "oracle_schema") {
+				raw := x.RawName
+				if raw == "" {
+					raw = x.Name
+				}
+				err = errFunctionNotDefined(x.Schema + "." + raw)
 				return false
 			}
 		}
-		return !found
+		return true
+	})
+	return err
+}
+
+// validateViewPostAnalysis checks semantic restrictions MariaDB 11.8 reports
+// after resolving columns:
+//   - sequence expressions (NEXT/PREVIOUS VALUE FOR, NEXTVAL/LASTVAL/SETVAL)
+//     naming a regular table or view rather than a sequence (4089)
+//   - non-constant ESCAPE operand in LIKE or AGAINST operand in MATCH (1210)
+func (c *Catalog) validateViewPostAnalysis(sel *nodes.SelectStmt, defaultDB *Database) error {
+	if sel == nil {
+		return nil
+	}
+	var err error
+	checkSeqRef := func(schema, name string) {
+		targetDB := defaultDB
+		if schema != "" {
+			targetDB = c.GetDatabase(schema)
+		}
+		if targetDB == nil {
+			return
+		}
+		key := toLower(name)
+		if targetDB.Sequences[key] != nil {
+			return
+		}
+		if targetDB.Tables[key] != nil || targetDB.Views[key] != nil {
+			err = errNotSequence(4089, targetDB.Name, name)
+		}
+	}
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		switch x := n.(type) {
+		case *nodes.NextValueForExpr:
+			if x.Sequence != nil {
+				checkSeqRef(x.Sequence.Schema, x.Sequence.Name)
+			}
+		case *nodes.PreviousValueForExpr:
+			if x.Sequence != nil {
+				checkSeqRef(x.Sequence.Schema, x.Sequence.Name)
+			}
+		case *nodes.FuncCallExpr:
+			if x.Schema == "" && !x.SpacedParen && len(x.Args) >= 1 {
+				switch strings.ToUpper(x.Name) {
+				case "NEXTVAL", "LASTVAL", "SETVAL":
+					if cr, ok := x.Args[0].(*nodes.ColumnRef); ok && !cr.Star && cr.Schema == "" {
+						checkSeqRef(cr.Table, cr.Column)
+					}
+				}
+			}
+		case *nodes.LikeExpr:
+			if x.Escape != nil && exprContainsColumnRef(x.Escape) {
+				err = errWrongArguments("ESCAPE")
+			}
+		case *nodes.MatchExpr:
+			if x.Against != nil && exprContainsColumnRef(x.Against) {
+				err = errWrongArguments("AGAINST")
+			}
+		}
+		return err == nil
+	})
+	return err
+}
+
+func exprContainsColumnRef(expr nodes.ExprNode) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if cr, ok := n.(*nodes.ColumnRef); ok && !cr.Star {
+			found = true
+			return false
+		}
+		return true
 	})
 	return found
 }
@@ -257,9 +371,15 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	}
 
 	// The body is analyzed for semantic IR (used by lineage, SDL diff) and for
-	// the one failure MariaDB's ALTER VIEW reports too.
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select)
+	// the semantic failures MariaDB's ALTER VIEW reports too.
+	if err := validateViewPreAnalysis(stmt.Select); err != nil {
+		return err
+	}
+	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
 	if err != nil {
+		return err
+	}
+	if err := c.validateViewPostAnalysis(stmt.Select, db); err != nil {
 		return err
 	}
 
@@ -271,6 +391,9 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	viewCols := stmt.Columns
 	if !hasExplicit {
 		viewCols = derivedCols
+	}
+	if err := checkDuplicateViewColumns(viewCols); err != nil {
+		return err
 	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
@@ -836,6 +959,8 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
 		Lookup:              lookup,
+		SchemaLookup:        c.schemaTableLookup(db),
+		DefaultDB:           db.Name,
 		DefaultCharset:      charset,
 		ConnectionCollation: c.session.CollationConnection,
 		Source:              source,
@@ -937,6 +1062,21 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	return cols
 }
 
+// schemaTableLookup returns a schema-aware lookup function that resolves
+// schema-qualified references against the referenced database in c.
+func (c *Catalog) schemaTableLookup(defaultDB *Database) func(schema, tableName string) *deparse.ResolverTable {
+	return func(schema, tableName string) *deparse.ResolverTable {
+		targetDB := defaultDB
+		if schema != "" {
+			targetDB = c.GetDatabase(schema)
+		}
+		if targetDB == nil {
+			return nil
+		}
+		return tableLookupForDB(targetDB)(tableName)
+	}
+}
+
 // tableLookupForDB returns a deparse.TableLookup function that resolves table
 // and view names from the given database's Tables and Views maps.
 func tableLookupForDB(db *Database) deparse.TableLookup {
@@ -947,9 +1087,14 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 		if tbl != nil {
 			cols := make([]deparse.ResolverColumn, len(tbl.Columns))
 			for i, c := range tbl.Columns {
+				colType := c.ColumnType
+				if colType == "" {
+					colType = c.DataType
+				}
 				cols[i] = deparse.ResolverColumn{
-					Name:     c.Name,
-					Position: c.Position,
+					Name:       c.Name,
+					Position:   c.Position,
+					ColumnType: colType,
 				}
 			}
 			return &deparse.ResolverTable{
@@ -969,6 +1114,21 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 			}
 			return &deparse.ResolverTable{
 				Name:    v.Name,
+				Columns: cols,
+			}
+		}
+		// Fall back to sequences (MariaDB exposes sequences as 8-column tables).
+		if seq := db.Sequences[key]; seq != nil {
+			cols := make([]deparse.ResolverColumn, len(sequenceColumnNames))
+			for i, colName := range sequenceColumnNames {
+				cols[i] = deparse.ResolverColumn{
+					Name:       colName,
+					Position:   i + 1,
+					ColumnType: "bigint(21)",
+				}
+			}
+			return &deparse.ResolverTable{
+				Name:    seq.Name,
 				Columns: cols,
 			}
 		}

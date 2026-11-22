@@ -10,7 +10,7 @@ import (
 	"github.com/bytebase/omni/mariadb/deparse"
 )
 
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error {
 	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
@@ -92,7 +92,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// reads the SELECT, and 1054 only when the name is free.
 	var ctasQuery *Query
 	if stmt.Select != nil {
-		if ctasQuery, err = c.analyzeViewBody(stmt.Select); err != nil {
+		if ctasQuery, err = c.analyzeViewBody(stmt.Select, source); err != nil {
 			return err
 		}
 	}

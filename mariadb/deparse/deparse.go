@@ -1508,6 +1508,14 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		// MariaDB's value for "leave this column alone", in a VALUES row or an
 		// assignment.
 		b.WriteString("ignore")
+	case *ast.DefaultExpr:
+		if n.Column == "" {
+			b.WriteString("default")
+		} else {
+			b.WriteString("default(")
+			b.WriteString(deparseColumnRef(&ast.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}))
+			b.WriteString(")")
+		}
 	default:
 		fmt.Fprintf(b, "/* unsupported: %T */", node)
 	}
@@ -1576,6 +1584,9 @@ func bareLevel(node ast.ExprNode) int {
 			}
 		case *ast.InExpr:
 			if n.Select != nil {
+				if n.Not {
+					return printsDelimited
+				}
 				return printsPredicate
 			}
 		case *ast.BinaryExpr:
@@ -1706,7 +1717,12 @@ func exprPrec(node ast.ExprNode) int {
 		}
 	case *ast.IsExpr:
 		return precComparison
-	case *ast.InExpr, *ast.LikeExpr:
+	case *ast.InExpr:
+		if n.Select != nil && n.Not {
+			return precBang
+		}
+		return precIn
+	case *ast.LikeExpr:
 		return precIn
 	case *ast.BetweenExpr:
 		return precBetween
@@ -2025,8 +2041,17 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 	}
 
 	// IN subquery: a IN (SELECT ...), with no outer parenthesis and no AS
-	// aliases in the subquery's target list.
+	// aliases in the subquery's target list. MariaDB stores NOT IN (SELECT ...)
+	// as `!(a in (select ...))`.
 	if n.Select != nil {
+		if n.Not {
+			b.WriteString("!(")
+			writeBitOperandAt(b, n.Expr, precIn+1)
+			b.WriteString(" in (")
+			writeSelectStmt(b, n.Select, true)
+			b.WriteString("))")
+			return
+		}
 		writeBitOperandAt(b, n.Expr, precIn+1)
 		b.WriteString(keyword)
 		writeSelectStmt(b, n.Select, true)
@@ -2218,7 +2243,7 @@ func deparseDataType(dt *ast.DataType) string {
 	}
 	name := strings.ToLower(dt.Name)
 	switch name {
-	case "char":
+	case "char", "varchar":
 		result := "char"
 		if dt.Length > 0 {
 			result += fmt.Sprintf("(%d)", dt.Length)
@@ -2250,7 +2275,7 @@ func deparseDataType(dt *ast.DataType) string {
 		if dt.Length > 0 {
 			return fmt.Sprintf("decimal(%d)", dt.Length)
 		}
-		return "decimal"
+		return "decimal(10)"
 	case "date":
 		return "date"
 	case "datetime":
@@ -2316,6 +2341,7 @@ var funcNameRewrites = map[string]string{
 	// octet_length('ab') and mid('abc',1,1) comes back substr('abc',1,1).
 	"LENGTH": "octet_length",
 	"MID":    "substr",
+	"DAY":    "dayofmonth",
 }
 
 // writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -2386,7 +2412,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			// TRIM's own arms read one argument or remstr FROM str. Any other
 			// count is an ordinary call of a routine by that name, written as
 			// one below: oracle_schema.trim() parses (1630 comes later).
-			if (oracleTrim || mariadbTrim) && (len(n.Args) == 1 || len(n.Args) == 2) {
+			if (oracleTrim || mariadbTrim || (n.Schema == "" && !n.SpacedParen)) && (len(n.Args) == 1 || len(n.Args) == 2) {
 				b.WriteString(prefix)
 				if len(n.Args) == 2 {
 					// remstr FROM str trims both ends.
@@ -2399,6 +2425,10 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				return
 			}
 		}
+	}
+	if n.Schema == "" && !n.SpacedParen && name == "WEIGHT_STRING" && len(n.Args) == 1 {
+		writeWeightString(b, n)
+		return
 	}
 	if n.Schema == "" {
 		switch {
@@ -2473,7 +2503,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// sum(distinct `c1`) for every DISTINCT, DISTINCTROW and DISTINCT ALL
 		// spelling and drops a bare ALL, which is the default (oracle
 		// mysql:8.0, mariadb:11.8.8, TiDB v8.5.5: SHOW CREATE VIEW).
-		if n.Quantifier.RemovesDuplicates() {
+		if n.Quantifier.RemovesDuplicates() && (n.Schema != "" || n.SpacedParen || (name != "MIN" && name != "MAX")) {
 			b.WriteString("distinct ")
 		}
 		for i, arg := range n.Args {
@@ -2784,6 +2814,79 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(" ")
 		writeWindowDef(b, n.Over)
 	}
+}
+
+// writeWeightString writes WEIGHT_STRING(expr [AS CHAR|BINARY(n)] [LEVEL ...])
+// in the 4-argument canonical form MariaDB 11.8 stores in SHOW CREATE VIEW:
+// weight_string(expr, 0, nweights, flags).
+func writeWeightString(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString("weight_string(")
+	if strings.EqualFold(n.WeightAs, "BINARY") {
+		writeCastExpr(b, &ast.CastExpr{
+			Expr:     n.Args[0],
+			TypeName: &ast.DataType{Name: "binary", Length: int(n.WeightAsLen)},
+		})
+	} else {
+		writeExpr(b, n.Args[0])
+	}
+	var nweights uint64
+	flags := weightStringLevelFlags(n.WeightLevels)
+	if n.WeightAs != "" {
+		nweights = n.WeightAsLen
+		flags |= 64 // MY_STRXFRM_PAD_WITH_SPACE
+	}
+	fmt.Fprintf(b, ",0,%d,%d)", nweights, flags)
+}
+
+func weightStringLevelFlags(levels string) uint64 {
+	if strings.TrimSpace(levels) == "" {
+		return 1 // MY_STRXFRM_LEVEL1
+	}
+	var flags uint64
+	for _, part := range strings.Split(levels, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		// Range form: lo - hi (clamped to MariaDB's 6 supported collation levels)
+		if dash := strings.IndexByte(part, '-'); dash >= 0 {
+			lo, err1 := strconv.Atoi(strings.TrimSpace(part[:dash]))
+			hi, err2 := strconv.Atoi(strings.TrimSpace(part[dash+1:]))
+			if err1 == nil && err2 == nil {
+				if lo > hi {
+					lo, hi = hi, lo
+				}
+				lo = max(lo, 1)
+				hi = min(hi, 6)
+				for k := lo; k <= hi; k++ {
+					flags |= uint64(1) << (k - 1)
+				}
+			}
+			continue
+		}
+		fields := strings.Fields(part)
+		if len(fields) == 0 {
+			continue
+		}
+		k, err := strconv.Atoi(fields[0])
+		if err != nil || k < 1 || k > 6 {
+			continue
+		}
+		bit := uint64(1) << (k - 1)
+		flags |= bit
+		for _, flag := range fields[1:] {
+			switch strings.ToUpper(flag) {
+			case "DESC":
+				flags |= bit << 8
+			case "REVERSE":
+				flags |= bit << 16
+			}
+		}
+	}
+	if flags == 0 {
+		return 1
+	}
+	return flags
 }
 
 // quoteIdent quotes an identifier in backticks, doubling any backtick inside
