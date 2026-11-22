@@ -1070,9 +1070,14 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 		if tbl != nil {
 			cols := make([]deparse.ResolverColumn, len(tbl.Columns))
 			for i, c := range tbl.Columns {
+				colType := c.ColumnType
+				if colType == "" {
+					colType = c.DataType
+				}
 				cols[i] = deparse.ResolverColumn{
-					Name:     c.Name,
-					Position: c.Position,
+					Name:       c.Name,
+					Position:   c.Position,
+					ColumnType: colType,
 				}
 			}
 			return &deparse.ResolverTable{
@@ -1092,6 +1097,21 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 			}
 			return &deparse.ResolverTable{
 				Name:    v.Name,
+				Columns: cols,
+			}
+		}
+		// Fall back to sequences (MariaDB exposes sequences as 8-column tables).
+		if seq := db.Sequences[key]; seq != nil {
+			cols := make([]deparse.ResolverColumn, len(sequenceColumnNames))
+			for i, colName := range sequenceColumnNames {
+				cols[i] = deparse.ResolverColumn{
+					Name:       colName,
+					Position:   i + 1,
+					ColumnType: "bigint(21)",
+				}
+			}
+			return &deparse.ResolverTable{
+				Name:    seq.Name,
 				Columns: cols,
 			}
 		}

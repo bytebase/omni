@@ -180,11 +180,15 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 				}
 			case "TIME":
 				if len(n.Args) == 1 {
-					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "time"}}
+					if fsp, ok := inferLiteralTemporalPrecision(n.Args[0]); ok {
+						return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "time", Length: fsp}}
+					}
 				}
 			case "TIMESTAMP":
 				if len(n.Args) == 1 {
-					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "datetime"}}
+					if fsp, ok := inferLiteralTemporalPrecision(n.Args[0]); ok {
+						return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "datetime", Length: fsp}}
+					}
 				}
 			case "MOD":
 				if len(n.Args) == 2 {
@@ -895,4 +899,163 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 		stmt.Having = RewriteExpr(stmt.Having)
 	}
 	rewriteOrderBy(stmt.OrderBy)
+}
+
+// inferTemporalCastPrecision infers MariaDB's fractional-seconds precision
+// (0..6) for TIME(arg) and single-arg TIMESTAMP(arg) when rewriting to CAST.
+// Returns ok=false when the argument's precision cannot be determined safely.
+func inferTemporalCastPrecision(arg ast.ExprNode, sc *fromScope) (int, bool) {
+	arg = unwrapParen(arg)
+	if fsp, ok := inferLiteralTemporalPrecision(arg); ok {
+		return fsp, true
+	}
+	if cr, ok := arg.(*ast.ColumnRef); ok && sc != nil {
+		if rc := lookupResolvedColumn(cr, sc); rc != nil && rc.ColumnType != "" {
+			return columnTypeTemporalPrecision(rc.ColumnType)
+		}
+	}
+	return 0, false
+}
+
+func inferLiteralTemporalPrecision(arg ast.ExprNode) (int, bool) {
+	switch n := unwrapParen(arg).(type) {
+	case *ast.IntLit, *ast.BoolLit:
+		return 0, true
+	case *ast.StringLit:
+		return stringTemporalPrecision(n.Value)
+	case *ast.TemporalLit:
+		return stringTemporalPrecision(n.Value)
+	case *ast.FloatLit:
+		if strings.ContainsAny(n.Value, "eE") || strings.Count(n.Value, ".") != 1 {
+			return 0, false
+		}
+		frac := n.Value[strings.IndexByte(n.Value, '.')+1:]
+		if !allASCIIDigits(frac) {
+			return 0, false
+		}
+		return clampFSP(len(frac)), true
+	}
+	return 0, false
+}
+
+func stringTemporalPrecision(s string) (int, bool) {
+	trimmed := strings.TrimSpace(s)
+	dot := strings.LastIndexByte(trimmed, '.')
+	if dot < 0 {
+		return 0, true
+	}
+	prefix := trimmed[:dot]
+	suffix := trimmed[dot+1:]
+	if !allASCIIDigits(suffix) {
+		if !strings.Contains(suffix, ".") && strings.Contains(suffix, ":") {
+			return 0, true
+		}
+		return 0, false
+	}
+	if !strings.Contains(prefix, ":") && strings.Count(trimmed, ".") > 1 {
+		return 0, false
+	}
+	return clampFSP(len(suffix)), true
+}
+
+func lookupResolvedColumn(col *ast.ColumnRef, sc *fromScope) *ResolverColumn {
+	if col == nil || sc == nil {
+		return nil
+	}
+	for cur := sc; cur != nil; cur = cur.parent {
+		for _, entry := range cur.tables {
+			if col.Table != "" && !strings.EqualFold(entry.Name, col.Table) {
+				continue
+			}
+			if entry.Table == nil {
+				continue
+			}
+			if rc := entry.Table.GetColumn(col.Column); rc != nil {
+				return rc
+			}
+		}
+	}
+	return nil
+}
+
+func columnTypeTemporalPrecision(colType string) (int, bool) {
+	s := strings.ToLower(strings.TrimSpace(colType))
+	if s == "" {
+		return 0, false
+	}
+	base := s
+	args := ""
+	if idx := strings.IndexAny(s, " ("); idx >= 0 {
+		base = s[:idx]
+		if open := strings.IndexByte(s, '('); open >= 0 {
+			if closeIdx := strings.IndexByte(s[open+1:], ')'); closeIdx >= 0 {
+				args = strings.TrimSpace(s[open+1 : open+1+closeIdx])
+			}
+		}
+	}
+	switch base {
+	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "bit", "year", "date":
+		return 0, true
+	case "time", "datetime", "timestamp":
+		if args == "" {
+			return 0, true
+		}
+		if n, ok := parseSmallUint(args); ok {
+			return clampFSP(n), true
+		}
+		return 0, false
+	case "decimal", "numeric":
+		if args == "" {
+			return 0, true
+		}
+		parts := strings.Split(args, ",")
+		if len(parts) < 2 {
+			return 0, true
+		}
+		if scale, ok := parseSmallUint(strings.TrimSpace(parts[1])); ok {
+			return clampFSP(scale), true
+		}
+		return 0, false
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+		"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+		"enum", "set", "float", "double":
+		return 6, true
+	}
+	return 0, false
+}
+
+func allASCIIDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func parseSmallUint(s string) (int, bool) {
+	if !allASCIIDigits(s) {
+		return 0, false
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		n = n*10 + int(s[i]-'0')
+		if n > 100 {
+			return n, true
+		}
+	}
+	return n, true
+}
+
+func clampFSP(n int) int {
+	if n < 0 {
+		return 0
+	}
+	if n > 6 {
+		return 6
+	}
+	return n
 }

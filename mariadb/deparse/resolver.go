@@ -608,6 +608,22 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		if n.Over != nil {
 			r.resolveWindowDef(n.Over, sc)
 		}
+		// MariaDB stores TIME(x) as cast(x as time[(fsp)]) and single-arg
+		// TIMESTAMP(x) as cast(x as datetime[(fsp)]), choosing fsp from the
+		// argument's fractional precision. Rewrite only when fsp can be inferred
+		// accurately so fractional seconds are never silently truncated.
+		if n.Schema == "" && !n.SpacedParen && n.Over == nil && len(n.Args) == 1 {
+			switch strings.ToUpper(n.Name) {
+			case "TIME":
+				if fsp, ok := inferTemporalCastPrecision(n.Args[0], sc); ok {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "time", Length: fsp}}
+				}
+			case "TIMESTAMP":
+				if fsp, ok := inferTemporalCastPrecision(n.Args[0], sc); ok {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "datetime", Length: fsp}}
+				}
+			}
+		}
 		return n
 	case *ast.CastExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)

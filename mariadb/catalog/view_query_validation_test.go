@@ -405,3 +405,57 @@ func TestRound5ReviewEdgeCases(t *testing.T) {
 		}
 	}
 }
+
+func TestSequenceRelationAndTemporalPrecision(t *testing.T) {
+	c, err := LoadSQL(`
+		CREATE DATABASE test;
+		USE test;
+		CREATE SEQUENCE s;
+		CREATE TABLE tbl (i INT, s VARCHAR(30), tm TIME(3), dt DATETIME(4));
+	`)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// Selecting from a sequence in CREATE VIEW and CTAS must resolve (not fail with 1146).
+	for _, sql := range []string{
+		"CREATE VIEW v_seq_lit AS SELECT 1 AS x FROM s",
+		"CREATE VIEW v_seq_col AS SELECT next_not_cached_value FROM s",
+		"CREATE TABLE t_ctas_seq AS SELECT 1 AS x FROM s",
+	} {
+		if results, err := c.Exec(sql, nil); err != nil || results[0].Error != nil {
+			t.Fatalf("Exec(%q) failed: parse=%v results=%+v", sql, err, results)
+		}
+	}
+	if got := c.ShowCreateView("test", "v_seq_col"); !strings.Contains(got, "`s`.`next_not_cached_value`") {
+		t.Errorf("ShowCreateView(v_seq_col) = %q, want qualified sequence column", got)
+	}
+
+	// TIME() and single-arg TIMESTAMP() must preserve fractional seconds precision
+	// matching mariadb:11.8.8, and keep the function call when precision is unknown.
+	for _, tc := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"time_lit_fsp3", "CREATE VIEW v_t1 AS SELECT TIME('12:34:56.789') AS t", "cast('12:34:56.789' as time(3))"},
+		{"time_lit_fsp0", "CREATE VIEW v_t2 AS SELECT TIME('12:34:56') AS t", "cast('12:34:56' as time)"},
+		{"ts_lit_fsp3", "CREATE VIEW v_t3 AS SELECT TIMESTAMP('2020-01-01 12:34:56.789') AS ts", "cast('2020-01-01 12:34:56.789' as datetime(3))"},
+		{"time_col_fsp3", "CREATE VIEW v_t4 AS SELECT TIME(tm) AS t FROM tbl", "cast(`tbl`.`tm` as time(3))"},
+		{"ts_col_fsp4", "CREATE VIEW v_t5 AS SELECT TIMESTAMP(dt) AS ts FROM tbl", "cast(`tbl`.`dt` as datetime(4))"},
+		{"time_varchar", "CREATE VIEW v_t6 AS SELECT TIME(s) AS t FROM tbl", "cast(`tbl`.`s` as time(6))"},
+		{"time_int", "CREATE VIEW v_t7 AS SELECT TIME(i) AS t FROM tbl", "cast(`tbl`.`i` as time)"},
+		{"time_unknown_expr", "CREATE VIEW v_t8 AS SELECT TIME(CONCAT('12:34:56', '.789')) AS t", "time(concat('12:34:56','.789'))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if results, err := c.Exec(tc.sql, nil); err != nil || results[0].Error != nil {
+				t.Fatalf("Exec(%q) failed: parse=%v results=%+v", tc.sql, err, results)
+			}
+			viewName := strings.Fields(tc.sql)[2]
+			got := c.ShowCreateView("test", viewName)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("ShowCreateView(%s) = %q, want substring %q", viewName, got, tc.want)
+			}
+		})
+	}
+}

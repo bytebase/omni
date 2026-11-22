@@ -694,6 +694,29 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 		return rte, cols, nil
 	}
 
+	// Check sequences (MariaDB exposes sequences as 8-column read-only tables).
+	if seq := db.Sequences[toLower(ref.Name)]; seq != nil {
+		eref := ref.Name
+		if ref.Alias != "" {
+			eref = ref.Alias
+		}
+		cols := make([]*Column, len(sequenceColumnNames))
+		colNames := make([]string, len(sequenceColumnNames))
+		for i, name := range sequenceColumnNames {
+			cols[i] = &Column{Position: i + 1, Name: name}
+			colNames[i] = name
+		}
+		rte := &RangeTableEntryQ{
+			Kind:      RTERelation,
+			DBName:    db.Name,
+			TableName: seq.Name,
+			Alias:     ref.Alias,
+			ERef:      eref,
+			ColNames:  colNames,
+		}
+		return rte, cols, nil
+	}
+
 	// DUAL is MariaDB's dummy 0-column single-row table when unqualified.
 	if ref.Schema == "" && strings.EqualFold(ref.Name, "DUAL") {
 		rte := &RangeTableEntryQ{
@@ -705,6 +728,19 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 	}
 
 	return nil, nil, errNoSuchTable(dbName, ref.Name)
+}
+
+// sequenceColumnNames are the fixed 8 columns MariaDB exposes when a sequence
+// is queried as a table in FROM.
+var sequenceColumnNames = []string{
+	"next_not_cached_value",
+	"minimum_value",
+	"maximum_value",
+	"start_value",
+	"increment",
+	"cache_size",
+	"cycle_option",
+	"cycle_count",
 }
 
 // viewAlgorithmFromString converts a string algorithm value to ViewAlgorithm.
