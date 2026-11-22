@@ -861,6 +861,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "set raw value with unrecognized characters",
+			sql:  `SET spark.test = abc@def`,
+			kind: StmtSet,
+		},
+		{
+			name: "set raw value with variable interpolation syntax",
+			sql:  `SET spark.test = ${env:FOO}`,
+			kind: StmtSet,
+		},
+		{
 			name: "double parenthesized row constructor with subquery",
 			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,
@@ -994,6 +1004,8 @@ func TestParseErrors(t *testing.T) {
 		{"natural join lateral", "SELECT * FROM t NATURAL JOIN LATERAL (SELECT 1 AS x) s"},
 		{"empty tablesample in select", "SELECT * FROM t TABLESAMPLE ()"},
 		{"empty tablesample in pipe", "FROM t |> TABLESAMPLE ()"},
+		{"unrecognized character at in select", "SELECT @x"},
+		{"unrecognized character dollar in select", "SELECT $1"},
 		{"pipe set dotted target", "FROM t |> SET a.b = 1"},
 		{"qualified star on parenthesized expression", "SELECT (a + b).* FROM t"},
 		{"qualified star on star", "SELECT *.* FROM t"},

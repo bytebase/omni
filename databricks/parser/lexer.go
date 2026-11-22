@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"unicode"
 	"unicode/utf8"
 )
@@ -344,8 +343,12 @@ outer:
 				toks = append(toks, Token{Kind: tokGT, Text: ">", Start: start, End: i})
 			}
 		default:
+			// Match Spark's UNRECOGNIZED lexer token so raw wildcard tails
+			// (such as SET spark.test = abc@def or ${var}) can consume arbitrary
+			// characters while ordinary SQL grammar rules reject tokInvalid.
 			_, sz := utf8.DecodeRuneInString(src[i:])
-			return nil, &ParseError{Message: fmt.Sprintf("unexpected character %q", src[start:start+sz]), Position: start}
+			i += sz
+			toks = append(toks, Token{Kind: tokInvalid, Text: src[start:i], Start: start, End: i})
 		}
 	}
 
