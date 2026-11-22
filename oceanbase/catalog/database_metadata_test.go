@@ -2031,3 +2031,21 @@ func TestDatabaseMetadataStringArithmeticViewTypes(t *testing.T) {
 	}
 	require.Equal(t, "bigint", got["s7"])
 }
+
+func TestDatabaseMetadata_SyncedDerivedJoinView(t *testing.T) {
+	const synced = "CREATE DATABASE app; USE app;\n" +
+		"CREATE TABLE `j1` (`k1` int);\n" +
+		"CREATE TABLE `j2` (`k1` int);\n" +
+		"CREATE VIEW `v` AS select `d`.`k1` AS `k1` from ((select `j1`.`k1` AS `k1` from `j1`) `d` join `j2` on((`d`.`k1` = `j2`.`k1`)));\n"
+
+	c := New()
+	results, err := c.Exec(synced, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error)
+	}
+
+	views := c.DatabaseMetadata("app").GetSchemas()[0].GetViews()
+	require.Len(t, views, 1)
+	require.Equal(t, "v", views[0].GetName())
+}
