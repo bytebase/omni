@@ -23,6 +23,9 @@ func TestTableRequirePK(t *testing.T) {
 	schema := func(tables ...*metadata.TableMetadata) *v1review.Schema {
 		return &v1review.Schema{ObjectCaseSensitive: true, Metadata: &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{Name: "public", Tables: tables}}}}
 	}
+	multiSchema := func(schemas ...*metadata.SchemaMetadata) *v1review.Schema {
+		return &v1review.Schema{ObjectCaseSensitive: true, Metadata: &metadata.DatabaseSchemaMetadata{Schemas: schemas}}
+	}
 	type got struct {
 		Schema, Table string
 		Statement     int
@@ -54,6 +57,45 @@ func TestTableRequirePK(t *testing.T) {
 		{name: "nil final reports nothing", sqls: []string{"CREATE TABLE t (id int)"}, original: schema()},
 		{name: "nil original holds nothing", sqls: []string{"CREATE TABLE t (id int)"}, final: schema(table("t", false)), want: []got{{"public", "t", 0}}},
 		{name: "function body not read", sqls: []string{"CREATE FUNCTION f() RETURNS void AS $$ CREATE TABLE t (id int) $$ LANGUAGE sql"}, original: schema(), final: schema(table("t", false))},
+		{
+			name:     "unqualified drop PK in non-public schema",
+			sqls:     []string{"ALTER TABLE with_pk DROP CONSTRAINT with_pk_pkey"},
+			original: multiSchema(&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("with_pk", true)}}, &metadata.SchemaMetadata{Name: "public"}),
+			final:    multiSchema(&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("with_pk", false)}}, &metadata.SchemaMetadata{Name: "public"}),
+			want:     []got{{"app_schema", "with_pk", 0}},
+		},
+		{
+			name:     "unrelated alter on unkeyed table in non-public schema stays silent",
+			sqls:     []string{"ALTER TABLE without_pk ADD COLUMN note text"},
+			original: multiSchema(&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("without_pk", false)}}, &metadata.SchemaMetadata{Name: "public"}),
+			final:    multiSchema(&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("without_pk", false)}}, &metadata.SchemaMetadata{Name: "public"}),
+		},
+		{
+			name: "drop shadowed table then unqualified drop PK reports remaining schema",
+			sqls: []string{"DROP TABLE app_schema.shadow", "ALTER TABLE shadow DROP CONSTRAINT shadow_pkey"},
+			original: multiSchema(
+				&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("shadow", false)}},
+				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("shadow", true)}},
+			),
+			final: multiSchema(
+				&metadata.SchemaMetadata{Name: "app_schema"},
+				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("shadow", false)}},
+			),
+			want: []got{{"public", "shadow", 1}},
+		},
+		{
+			name: "qualified drop and recreate in one schema leaves same-named legacy table in another schema alone",
+			sqls: []string{"DROP TABLE app_schema.legacy", "CREATE TABLE app_schema.legacy (id int)"},
+			original: multiSchema(
+				&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("legacy", false)}},
+				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("legacy", false)}},
+			),
+			final: multiSchema(
+				&metadata.SchemaMetadata{Name: "app_schema", Tables: []*metadata.TableMetadata{table("legacy", false)}},
+				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("legacy", false)}},
+			),
+			want: []got{{"app_schema", "legacy", 1}},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var stmts []ast.Node
