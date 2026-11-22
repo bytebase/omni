@@ -416,3 +416,226 @@ func TestWalkThroughAlterTypeTakesACompositeType(t *testing.T) {
 		}
 	}
 }
+
+func TestWalkThroughTypesDomainsEnumsAndRanges(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Views = []*metadata.ViewMetadata{{Name: "v"}}
+	schema.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
+	schema.Schemas[0].CompositeTypes = []*metadata.CompositeTypeMetadata{{Name: "pair"}}
+	schema.Schemas = append(schema.Schemas, &metadata.SchemaMetadata{Name: "s"})
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	// Positive findings: built-in drops, row/array drops, wrong type kinds,
+	// shell/base/range/enum/composite errors, sequence-type collisions.
+	for sql, wantCode := range map[string]review.FindingCode{
+		"DROP TYPE int;":                                       review.UnsupportedForm,
+		"DROP TYPE IF EXISTS integer;":                         review.UnsupportedForm,
+		"DROP TYPE character(1);":                              review.UnsupportedForm,
+		"DROP TYPE bit(a);":                                    review.UnsupportedForm,
+		"DROP TYPE t;":                                         review.UnsupportedForm,
+		"DROP TYPE IF EXISTS t CASCADE;":                       review.UnsupportedForm,
+		"DROP TYPE mood[];":                                    review.UnsupportedForm,
+		"DROP TYPE mood(1);":                                   review.UnsupportedForm,
+		"DROP DOMAIN int;":                                     review.WrongObjectKind,
+		"DROP DOMAIN IF EXISTS t;":                             review.WrongObjectKind,
+		"DROP DOMAIN mood;":                                    review.WrongObjectKind,
+		"ALTER DOMAIN t SET NOT NULL;":                         review.WrongObjectKind,
+		"ALTER DOMAIN mood DROP DEFAULT;":                      review.WrongObjectKind,
+		"ALTER DOMAIN t RENAME TO t2;":                         review.WrongObjectKind,
+		"ALTER DOMAIN t RENAME CONSTRAINT c TO c2;":            review.WrongObjectKind,
+		"ALTER DOMAIN t SET SCHEMA s;":                         review.WrongObjectKind,
+		"COMMENT ON DOMAIN t IS 'x';":                          review.WrongObjectKind,
+		"COMMENT ON CONSTRAINT c ON DOMAIN t IS 'x';":          review.WrongObjectKind,
+		"ALTER TYPE t ADD VALUE 'x';":                          review.WrongObjectKind,
+		"ALTER TYPE pair RENAME VALUE 'a' TO 'b';":             review.WrongObjectKind,
+		"CREATE DOMAIN d AS int;\nALTER TYPE d ADD VALUE 'x';": review.WrongObjectKind,
+		"ALTER TYPE mood SET (bogus = 1);":                     review.UnsupportedForm,
+		"ALTER TYPE t RENAME TO t2;":                           review.WrongObjectKind,
+		"ALTER TYPE t SET SCHEMA s;":                           review.WrongObjectKind,
+		"CREATE TABLE x OF mood;":                              review.WrongObjectKind,
+		"CREATE TABLE x OF t;":                                 review.WrongObjectKind,
+		"CREATE TYPE mood AS ENUM ('a');":                      review.NameTaken,
+		"CREATE TYPE e2 AS ENUM ('a', 'a');":                   review.DuplicateName,
+		"CREATE TYPE c2 AS (x int, x text);":                   review.DuplicateName,
+		"CREATE TYPE mood AS RANGE (SUBTYPE = int);":           review.NameTaken,
+		"CREATE TYPE r2 AS RANGE (COLLATION = \"C\");":         review.UnsupportedForm,
+		"CREATE TYPE mood;":                                    review.NameTaken,
+		"CREATE TYPE other.public.bt;":                         review.CrossDatabaseReference,
+		"CREATE TYPE nosuch.bt;":                               review.ObjectNotFound,
+		"CREATE TYPE bt (INPUT = f_in);":                       review.UnsupportedForm,
+		"CREATE SEQUENCE mood;":                                review.NameTaken,
+		"CREATE SEQUENCE IF NOT EXISTS mood;":                  review.NameTaken,
+		"CREATE DOMAIN d AS int;\nDROP DOMAIN d;\nALTER DOMAIN d SET NOT NULL;": review.ObjectNotFound,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// Control cases (0 false positives): unsynced domains/ranges/base types,
+	// valid enum/composite/range/shell type operations, search_path shadowing.
+	for _, sql := range []string{
+		"DROP TYPE unsynced_domain;",
+		"DROP TYPE IF EXISTS unsynced_domain;",
+		"DROP DOMAIN unsynced_domain;",
+		"DROP DOMAIN IF EXISTS unsynced_domain;",
+		"ALTER DOMAIN unsynced_domain SET NOT NULL;",
+		"ALTER TYPE unsynced_enum ADD VALUE 'x';",
+		"ALTER TYPE mood ADD VALUE 'c';",
+		"ALTER TYPE mood RENAME TO mood2;",
+		"ALTER TYPE mood SET SCHEMA s;",
+		"ALTER TYPE pair RENAME TO pair2;",
+		"ALTER TYPE pair SET SCHEMA s;",
+		"DROP TYPE pair;",
+		"DROP TYPE mood;",
+		"CREATE TABLE typed OF pair;",
+		"CREATE TYPE mybase;\nCREATE TYPE mybase (INPUT = f_in, OUTPUT = f_out);",
+		"ALTER TYPE unsynced_base SET (storage = extended);",
+		"CREATE TYPE myrange AS RANGE (SUBTYPE = int4);",
+		"CREATE DOMAIN d AS int;\nALTER DOMAIN d SET NOT NULL;\nALTER DOMAIN d RENAME TO d2;\nALTER DOMAIN d2 SET SCHEMA s;\nDROP DOMAIN s.d2;",
+		// An earlier schema on search_path may hold an unsynced domain shadowing public.t.
+		"SET search_path = s, public;\nDROP DOMAIN t;\nALTER DOMAIN t SET NOT NULL;",
+		// Explicit public before pg_catalog may shadow a built-in type with an unsynced domain.
+		"SET search_path = public, pg_catalog;\nDROP TYPE text;",
+		"SET search_path = public, pg_catalog;\nDROP TYPE \"json\";",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+}
+
+func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Tables[0].Indexes = []*metadata.IndexMetadata{{Name: "t_a_idx"}}
+	schema.Schemas[0].Tables[0].Triggers = []*metadata.TriggerMetadata{{Name: "tr_existing"}}
+	schema.Schemas[0].Views = []*metadata.ViewMetadata{{Name: "v"}}
+	schema.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
+	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, wantCode := range map[string]review.FindingCode{
+		// Functions / procedures.
+		"CREATE FUNCTION f();":                                                           review.UnsupportedForm,
+		"CREATE FUNCTION f() RETURNS int;":                                               review.UnsupportedForm,
+		"CREATE FUNCTION f() RETURNS int AS 'SELECT 1';":                                 review.UnsupportedForm,
+		"CREATE FUNCTION f() LANGUAGE sql AS 'SELECT 1';":                                review.UnsupportedForm,
+		"CREATE FUNCTION f() RETURNS int LANGUAGE sql WINDOW WINDOW AS 'SELECT 1';":      review.UnsupportedForm,
+		"CREATE PROCEDURE p() LANGUAGE sql STRICT AS 'SELECT 1';":                        review.UnsupportedForm,
+		"CREATE FUNCTION f(SETOF int) RETURNS int LANGUAGE sql AS 'SELECT 1';":           review.UnsupportedForm,
+		"CREATE FUNCTION f(VARIADIC int[], int) RETURNS int LANGUAGE sql AS 'SELECT 1';": review.UnsupportedForm,
+		"CREATE FUNCTION nosuch.f() RETURNS int LANGUAGE sql AS 'SELECT 1';":             review.ObjectNotFound,
+		"ALTER FUNCTION f() STRICT STRICT;":                                              review.UnsupportedForm,
+		"ALTER FUNCTION f() PARALLEL bogus;":                                             review.UnsupportedForm,
+		"DROP FUNCTION nosuch.f();":                                                      review.ObjectNotFound,
+		// Triggers.
+		"CREATE TRIGGER tr INSTEAD OF INSERT ON t FOR EACH ROW EXECUTE FUNCTION f();":                  review.WrongObjectKind,
+		"CREATE TRIGGER tr BEFORE INSERT ON v FOR EACH ROW EXECUTE FUNCTION f();":                      review.WrongObjectKind,
+		"CREATE TRIGGER tr BEFORE INSERT ON q FOR EACH ROW EXECUTE FUNCTION f();":                      review.WrongObjectKind,
+		"CREATE TRIGGER tr BEFORE INSERT ON t_a_idx FOR EACH ROW EXECUTE FUNCTION f();":                review.WrongObjectKind,
+		"CREATE TRIGGER tr BEFORE TRUNCATE ON t FOR EACH ROW EXECUTE FUNCTION f();":                    review.UnsupportedForm,
+		"CREATE TRIGGER tr INSTEAD OF INSERT ON v FOR EACH STATEMENT EXECUTE FUNCTION f();":            review.UnsupportedForm,
+		"CREATE TRIGGER tr BEFORE INSERT ON t REFERENCING NEW ROW AS n EXECUTE FUNCTION f();":          review.UnsupportedForm,
+		"CREATE TRIGGER tr BEFORE INSERT ON t REFERENCING NEW TABLE AS n EXECUTE FUNCTION f();":        review.UnsupportedForm,
+		"CREATE TRIGGER tr_existing BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION f();":             review.NameTaken,
+		"CREATE OR REPLACE CONSTRAINT TRIGGER tr AFTER INSERT ON t FOR EACH ROW EXECUTE FUNCTION f();": review.UnsupportedForm,
+		"DROP TRIGGER tr ON nosuch;":           review.ObjectNotFound,
+		"DROP TRIGGER tr ON t_a_idx;":          review.WrongObjectKind,
+		"DROP TRIGGER tr ON mv;":               review.ObjectNotFound,
+		"ALTER TRIGGER tr ON q RENAME TO tr2;": review.WrongObjectKind,
+		// Policies.
+		"CREATE POLICY p ON v;":                              review.WrongObjectKind,
+		"CREATE POLICY p ON t FOR SELECT WITH CHECK (true);": review.UnsupportedForm,
+		"CREATE POLICY p ON t FOR INSERT USING (true);":      review.UnsupportedForm,
+		"CREATE POLICY p ON t;\nCREATE POLICY p ON t;":       review.NameTaken,
+		"ALTER POLICY p ON nosuch;":                          review.ObjectNotFound,
+		"ALTER POLICY p ON t_a_idx;":                         review.WrongObjectKind,
+		"DROP POLICY p ON v;":                                review.ObjectNotFound,
+		"DROP POLICY IF EXISTS p ON t_a_idx;":                review.WrongObjectKind,
+		"ALTER POLICY p ON v RENAME TO p2;":                  review.WrongObjectKind,
+		"COMMENT ON POLICY p ON t_a_idx IS 'x';":             review.WrongObjectKind,
+		"COMMENT ON POLICY p ON v IS 'x';":                   review.ObjectNotFound,
+		// ALTER TABLE per-subcommand relkinds & targets.
+		"ALTER TABLE v ADD COLUMN b int;":                 review.WrongObjectKind,
+		"ALTER TABLE q ADD COLUMN b int;":                 review.WrongObjectKind,
+		"ALTER TABLE t_a_idx DROP COLUMN a;":              review.WrongObjectKind,
+		"ALTER TABLE t OPTIONS (foo 'bar');":              review.WrongObjectKind,
+		"ALTER TABLE t CLUSTER ON t;":                     review.WrongObjectKind,
+		"ALTER TABLE t CLUSTER ON nosuch_idx;":            review.ObjectNotFound,
+		"ALTER TABLE t REPLICA IDENTITY USING INDEX t;":   review.WrongObjectKind,
+		"ALTER TABLE t OF t;":                             review.WrongObjectKind,
+		"ALTER TABLE t INHERIT t;":                        review.UnsupportedForm,
+		"ALTER TABLE t INHERIT v;":                        review.WrongObjectKind,
+		"ALTER TABLE t ATTACH PARTITION t DEFAULT;":       review.UnsupportedForm,
+		"ALTER TABLE t DETACH PARTITION t;":               review.UnsupportedForm,
+		"ALTER TABLE t ADD COLUMN self t;":                review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a TYPE t;":            review.UnsupportedForm,
+		"ALTER TABLE t ADD UNIQUE (nosuch);":              review.ObjectNotFound,
+		"ALTER TABLE t ALTER 1 SET STATISTICS 10;":        review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a SET STORAGE bogus;": review.UnsupportedForm,
+		"ALTER TABLE q RENAME COLUMN a TO b;":             review.WrongObjectKind,
+		"ALTER VIEW v RENAME COLUMN a TO a;":              review.DuplicateName,
+		"ALTER TABLE v RENAME CONSTRAINT c TO c2;":        review.WrongObjectKind,
+		// Indexes, views, CTAS, sequences, comments, depends.
+		"CREATE INDEX ON t (nosuch);":                       review.ObjectNotFound,
+		"CREATE INDEX ON t ((CURRENT_DATE));":               review.UnsupportedForm,
+		"CREATE INDEX ON t (a) INCLUDE ((a + 1));":          review.UnsupportedForm,
+		"CREATE VIEW v2 AS SELECT 1 WITH CHECK OPTION;":     review.UnsupportedForm,
+		"CREATE VIEW v2 (x, y) AS SELECT 1;":                review.UnsupportedForm,
+		"CREATE TABLE t2 ON COMMIT DROP AS SELECT 1;":       review.UnsupportedForm,
+		"CREATE TABLE t AS EXECUTE prep;":                   review.NameTaken,
+		"ALTER SEQUENCE q CYCLE CYCLE;":                     review.UnsupportedForm,
+		"ALTER SEQUENCE q INCREMENT 1.5;":                   review.UnsupportedForm,
+		"COMMENT ON COLUMN a IS 'x';":                       review.UnsupportedForm,
+		"COMMENT ON CONSTRAINT c ON nosuch IS 'x';":         review.ObjectNotFound,
+		"COMMENT ON CONSTRAINT c ON v IS 'x';":              review.ObjectNotFound,
+		"COMMENT ON CONSTRAINT c ON t_a_idx IS 'x';":        review.WrongObjectKind,
+		"ALTER MATERIALIZED VIEW t DEPENDS ON EXTENSION e;": review.WrongObjectKind,
+		"ALTER INDEX t DEPENDS ON EXTENSION e;":             review.WrongObjectKind,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// Control cases (0 false positives).
+	for _, sql := range []string{
+		"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';",
+		"CREATE FUNCTION f(OUT x int) LANGUAGE sql AS 'SELECT 1';",
+		"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT 1; END;",
+		"CREATE PROCEDURE p() LANGUAGE sql AS 'SELECT 1';",
+		"CREATE FUNCTION f() RETURNS int LANGUAGE plv8 AS 'return 1;';",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+		"CREATE OR REPLACE TRIGGER tr_existing BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+		"CREATE TRIGGER tr INSTEAD OF INSERT ON v FOR EACH ROW EXECUTE FUNCTION unsynced_fn();",
+		"CREATE TRIGGER tr AFTER INSERT ON t REFERENCING NEW TABLE AS nt FOR EACH STATEMENT EXECUTE FUNCTION unsynced_fn();",
+		"ALTER TRIGGER tr_existing ON t RENAME TO tr_existing;",
+		"DROP TRIGGER IF EXISTS tr ON mv;",
+		"DROP POLICY IF EXISTS p ON v;",
+		"DROP POLICY IF EXISTS p ON mv;",
+		"DROP POLICY IF EXISTS p ON q;",
+		"DROP POLICY unsynced_pol ON t;",
+		"ALTER POLICY unsynced_pol ON t USING (true);",
+		"CREATE INDEX IF NOT EXISTS t_a_idx ON t (nosuch);",
+		"CREATE INDEX IF NOT EXISTS t_a_idx ON t ((CURRENT_DATE));",
+		"CREATE INDEX ON t (a);",
+		"CREATE VIEW v2 AS SELECT a FROM t WITH CHECK OPTION;",
+		"CREATE VIEW v2 (x, y) AS SELECT * FROM t;",
+		"CREATE TEMP TABLE tmp ON COMMIT DROP AS SELECT 1;",
+		"CREATE TABLE t2 AS SELECT 1;",
+		"ALTER TABLE t ADD COLUMN self_arr t[];",
+		"ALTER TABLE t ADD COLUMN b int, ADD UNIQUE (b);",
+		"ALTER TABLE t CLUSTER ON t_a_idx;",
+		"ALTER TABLE t ALTER COLUMN a SET STORAGE extended;",
+		"ALTER INDEX t_a_idx ALTER COLUMN 1 SET STATISTICS 10;",
+		"ALTER SEQUENCE q INCREMENT 2 NO CYCLE;",
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION e;",
+		"ALTER INDEX t_a_idx DEPENDS ON EXTENSION e;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+}

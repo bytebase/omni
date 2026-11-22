@@ -30,9 +30,19 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.CompositeTypeStmt:
 		return b.createCompositeType(v)
 	case *ast.CreateEnumStmt:
-		return b.createType(nameParts(v.TypeName), typOther)
+		return b.createEnum(v)
 	case *ast.CreateDomainStmt:
 		return b.createType(nameParts(v.Domainname), typDomain)
+	case *ast.CreateRangeStmt:
+		return b.createRange(v)
+	case *ast.DefineStmt:
+		return b.defineObject(v)
+	case *ast.AlterDomainStmt:
+		return b.alterDomain(v)
+	case *ast.AlterEnumStmt:
+		return b.alterEnum(v)
+	case *ast.AlterTypeStmt:
+		return b.alterType(v)
 	case *ast.AlterTableStmt:
 		return b.alterTable(v)
 	case *ast.RenameStmt:
@@ -50,12 +60,7 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.LockStmt:
 		return b.lock(v)
 	case *ast.AlterSeqStmt:
-		// Another kind of relation fails, under IF EXISTS too (42809,
-		// verified on PostgreSQL 17).
-		if r := b.exists(v.Sequence, v.MissingOk); r.fact == walk.Present {
-			b.need(r.key, walk.Present, []string{relSequence}, ofKind(rangeOf(v.Sequence.Loc), relation(v.Sequence), relSequence))
-		}
-		return true
+		return b.alterSequence(v)
 	case *ast.RefreshMatViewStmt:
 		b.existsOfKind(v.Relation, relMatview, "materialized view")
 		// It runs the view's stored query, which may call a function
@@ -63,8 +68,11 @@ func (b *builder) statement(n ast.Node) bool {
 		b.Last = true
 		return true
 	case *ast.CreatePolicyStmt:
-		b.exists(v.Table, false)
-		return true
+		return b.createPolicy(v)
+	case *ast.AlterPolicyStmt:
+		return b.alterPolicy(v)
+	case *ast.AlterObjectDependsStmt:
+		return b.alterObjectDepends(v)
 	case *ast.InsertStmt:
 		return b.dml(v.Relation, v)
 	case *ast.UpdateStmt:
@@ -116,19 +124,16 @@ func (b *builder) statement(n ast.Node) bool {
 		// A rollback undoes statements the walk took as done.
 		return false
 	case *ast.CreateFunctionStmt:
-		parts := nameParts(v.Funcname)
-		if len(parts) > 0 {
-			name := parts[len(parts)-1]
-			b.session(func() { b.w.routines[name] = true })
-		}
-		return true
+		return b.createFunction(v)
+	case *ast.AlterFunctionStmt:
+		return b.alterFunction(v)
 	case *ast.CreateTrigStmt:
 		return b.createTrigger(v)
 	case *ast.VariableShowStmt, *ast.NotifyStmt, *ast.ListenStmt, *ast.UnlistenStmt,
 		*ast.CheckPointStmt, *ast.VacuumStmt, *ast.ReindexStmt, *ast.ClusterStmt,
-		*ast.AlterOwnerStmt, *ast.AlterFunctionStmt, *ast.AlterDefaultPrivilegesStmt,
+		*ast.AlterOwnerStmt, *ast.AlterDefaultPrivilegesStmt,
 		*ast.CreateRoleStmt, *ast.AlterRoleStmt, *ast.AlterRoleSetStmt, *ast.DropRoleStmt,
-		*ast.GrantRoleStmt, *ast.AlterPolicyStmt:
+		*ast.GrantRoleStmt:
 		// None changes a name the walk keeps.
 		return true
 	}
@@ -431,6 +436,13 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 				b.exists(con.Pktable, false)
 			}
 		}
+		if v.OfTypename != nil {
+			b.checkCompositeType(v.OfTypename, rangeOf(v.OfTypename.Loc))
+		}
+		if !temp && c.schema != tempSchema && v.OnCommit != ast.ONCOMMIT_NOOP && v.OnCommit != 0 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`ON COMMIT` on a non-temporary table")) // 42P16
+			return true
+		}
 		// Within the statement, judged from the text alone. A repeated
 		// column fails before a system column's name does (verified on
 		// PostgreSQL 17 and 18).
@@ -691,6 +703,9 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && alter {
 		b.exists(con.Pktable, false)
 	}
+	if alter && con.Indexname == "" {
+		b.checkConstraintColumns(t, rv, con, rng)
+	}
 	if con.Contype == ast.CONSTR_PRIMARY {
 		pk := primaryKeyOf(t)
 		if alter {
@@ -863,11 +878,15 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 		b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true})
 	}
 	if v.Idxname == "" {
+		b.checkIndexElems(r, v)
 		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s, Prefix: generatedPrefix(r.key.Name)})
 		return true
 	}
 	name, ok := walkName(v.Idxname)
 	if !ok {
+		if !v.IfNotExists {
+			b.checkIndexElems(r, v)
+		}
 		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s})
 		return true
 	}
@@ -876,6 +895,9 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	if !v.IfNotExists {
 		b.need(ik, walk.Absent, nil, taken(b.anchor(), relIndex, ident(v.Idxname))) // 42P07
 		prior = walk.Absent
+	}
+	if prior == walk.Absent {
+		b.checkIndexElems(r, v)
 	}
 	switch prior {
 	case walk.Absent:
@@ -933,6 +955,7 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 		// It creates the view, whose row type takes the name (42710).
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))})
 	}
+	b.checkViewQuery(v)
 	// OR REPLACE may create the view as well as replace it; holds asks
 	// the ledger whether it is still there.
 	b.made(k)
@@ -952,10 +975,12 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	if into == nil || into.Rel == nil {
 		return false
 	}
-	if _, ok := query.(*ast.ExecuteStmt); ok {
-		return false
-	}
-	if !into.SkipData && b.w.callsUserCode(query) {
+	_, isExecute := query.(*ast.ExecuteStmt)
+	if isExecute {
+		// EXECUTE runs a prepared statement whose effects are not followed,
+		// so end the walk after checking the target relation's existence.
+		b.Last = true
+	} else if !into.SkipData && b.w.callsUserCode(query) {
 		b.Last = true
 	}
 	rv := into.Rel
@@ -992,6 +1017,23 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		// IF NOT EXISTS looks at the relation alone (verified on
 		// PostgreSQL 17).
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
+	}
+	if prior == walk.Absent {
+		if !temp && c.schema != tempSchema && into.OnCommit != ast.ONCOMMIT_NOOP && into.OnCommit != 0 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`ON COMMIT` on a non-temporary table")) // 42P16
+			return true
+		}
+		if into.ColNames != nil && len(into.ColNames.Items) > 0 {
+			if sel, ok := query.(*ast.SelectStmt); ok && sel.Op == ast.SETOP_NONE && sel.ValuesLists == nil {
+				if n, exact := selectTargetCount(sel); exact && len(into.ColNames.Items) > n {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("more column names than columns in `CREATE TABLE AS`")) // 42601
+					return true
+				}
+			}
+		}
+	}
+	if isExecute {
+		return true
 	}
 	parent := tableOf(k)
 	if prior == walk.Absent {
@@ -1037,10 +1079,20 @@ func (b *builder) createSequence(v *ast.CreateSeqStmt) bool {
 		return true
 	}
 	k := relKey(c.schema, name)
+	tk := typeKey(c.schema, name)
 	prior, _ := b.l.Lookup(k)
-	if !v.IfNotExists {
-		b.need(k, walk.Absent, nil, taken(rng, relSequence, relation(rv))) // 42P07
+	switch {
+	case !v.IfNotExists:
+		b.need(k, walk.Absent, nil, taken(rng, relSequence, relation(rv)))                              // 42P07
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 		prior = walk.Absent
+	case prior == walk.Absent:
+		// IF NOT EXISTS skips a relation conflict, not a standalone type
+		// conflict in heap_create_with_catalog (42710, verified on PG 17).
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))})
+	}
+	if prior == walk.Absent {
+		b.checkSequenceOptions(v.Options)
 	}
 	switch prior {
 	case walk.Absent:
@@ -1081,10 +1133,299 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	tk := typeKey(c.schema, name)
 	b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	b.need(k, walk.Absent, nil, taken(rng, relComposite, relation(rv)))                             // 42P07
+	if v.Coldeflist != nil {
+		seen := make(map[string]bool, len(v.Coldeflist.Items))
+		for _, item := range v.Coldeflist.Items {
+			col, ok := item.(*ast.ColumnDef)
+			if !ok {
+				continue
+			}
+			cn, ok := storedKey(col.Colname)
+			if !ok {
+				continue
+			}
+			if seen[cn] {
+				b.failAt(rangeOf(col.Loc), nil, review.DuplicateName, twice("declares", "column", ident(col.Colname))) // 42701
+				return true
+			}
+			seen[cn] = true
+		}
+	}
 	b.set(k, walk.Present, relComposite)
 	b.set(tk, walk.Present, typOther)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	b.made(k)
+	return true
+}
+
+// createEnum follows CREATE TYPE ... AS ENUM (...).
+func (b *builder) createEnum(v *ast.CreateEnumStmt) bool {
+	if !b.createType(nameParts(v.TypeName), typOther) {
+		return false
+	}
+	if v.Vals != nil {
+		seen := make(map[string]bool, len(v.Vals.Items))
+		for _, item := range v.Vals.Items {
+			s, ok := item.(*ast.String)
+			if !ok {
+				continue
+			}
+			if seen[s.Str] {
+				b.fail(nil, walk.Present, review.DuplicateName, "This statement declares enum label "+review.Code("'"+s.Str+"'")+" twice.") // 23505
+				return true
+			}
+			seen[s.Str] = true
+		}
+	}
+	return true
+}
+
+// createRange follows CREATE TYPE ... AS RANGE (...).
+func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
+	parts := nameParts(v.TypeName)
+	if len(parts) == 3 {
+		if b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts)))
+			return true
+		}
+		if !b.w.currentDatabase(parts[0]) {
+			return false
+		}
+		parts = parts[1:]
+	}
+	if !b.createType(parts, typOther) {
+		return false
+	}
+	hasSubtype := false
+	if v.Params != nil {
+		for _, item := range v.Params.Items {
+			if de, ok := item.(*ast.DefElem); ok && strings.EqualFold(de.Defname, "subtype") {
+				hasSubtype = true
+			}
+		}
+	}
+	if !hasSubtype {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE TYPE ... AS RANGE` without `SUBTYPE`")) // 42601
+	}
+	return true
+}
+
+// defineObject follows CREATE TYPE name (shell type) and CREATE TYPE name (...)
+// (base type). Other DefineStmt kinds end the walk.
+func (b *builder) defineObject(v *ast.DefineStmt) bool {
+	if v.Kind != ast.OBJECT_TYPE {
+		return false
+	}
+	parts := nameParts(v.Defnames)
+	if len(parts) > 2 {
+		if len(parts) == 3 && b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts))) // 0A000
+			return true
+		}
+		if len(parts) > 3 {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts))) // 0A000
+			return true
+		}
+		if !b.w.currentDatabase(parts[0]) {
+			return false
+		}
+		parts = parts[1:]
+	}
+	schema, written, ok := splitName(parts)
+	if !ok {
+		return false
+	}
+	c := b.creationSchema(schema, written, false)
+	if c.fail != "" {
+		b.fail(c.keys, walk.Absent, c.code, c.fail) // 3F000
+		return true
+	}
+	name, ok := walkName(written)
+	if c.fact != walk.Present || !ok {
+		b.placeUnknown(written, false)
+		return true
+	}
+	tk := typeKey(c.schema, name)
+	isShell := v.Definition == nil || len(v.Definition.Items) == 0
+	if isShell {
+		b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
+		b.set(tk, walk.Present, typOther)
+		b.session(func() { b.w.shellTypes[tk] = true })
+		b.made(tk)
+		return true
+	}
+	if f, _ := b.l.Lookup(tk); f == walk.Present && !b.w.shellTypes[tk] {
+		b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
+		return true
+	}
+	hasInput, hasOutput := false, false
+	for _, item := range v.Definition.Items {
+		de, ok := item.(*ast.DefElem)
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(de.Defname) {
+		case "input":
+			hasInput = true
+		case "output":
+			hasOutput = true
+		}
+	}
+	if !hasInput || !hasOutput {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE TYPE` without `INPUT` and `OUTPUT` functions")) // 42P17 / 42710
+		return true
+	}
+	b.set(tk, walk.Present, typOther)
+	b.session(func() { delete(b.w.shellTypes, tk) })
+	b.made(tk)
+	return true
+}
+
+// checkCompositeType checks that tn is not certainly a non-composite type
+// (42809), used by CREATE TABLE ... OF and ALTER TABLE ... OF.
+func (b *builder) checkCompositeType(tn *ast.TypeName, rng review.Range) {
+	if tn == nil {
+		return
+	}
+	parts := nameParts(tn.Names)
+	if len(parts) == 0 {
+		return
+	}
+	r := b.resolveType(parts)
+	if r.fail != "" {
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+		return
+	}
+	if r.fact == walk.Absent {
+		if r.missingSchema != "" {
+			b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+		} else {
+			b.failAt(rng, r.keys, review.ObjectNotFound, notFound("type", typeName(tn)))
+		}
+		return
+	}
+	if r.fact != walk.Present {
+		return
+	}
+	if tn.ArrayBounds != nil || r.builtin || r.kind == typDomain {
+		b.failAt(rng, r.keys, review.WrongObjectKind, review.Code(typeName(tn))+" isn't a composite type.") // 42809
+		return
+	}
+	rk := relKey(schemaOfKey(r.key), r.key.Name)
+	rf, rkind := b.l.Lookup(rk)
+	switch {
+	case rf == walk.Present && rkind != "" && rkind != relComposite:
+		b.failAt(rng, []walk.Key{rk}, review.WrongObjectKind, review.Code(typeName(tn))+" is "+article(rkind)+", not a composite type.") // 42809
+	case rf == walk.Absent:
+		// Present in spaceType with no backing pg_class entry (e.g. an enum).
+		b.failAt(rng, []walk.Key{r.key, rk}, review.WrongObjectKind, review.Code(typeName(tn))+" isn't a composite type.") // 42809
+	}
+}
+
+// checkDomain checks that a type named by parts is not certainly absent or a
+// non-domain type (42809).
+func (b *builder) checkDomain(parts []string, rng review.Range) resolved {
+	r := b.resolveType(parts)
+	written := qualified(parts)
+	switch {
+	case r.fail != "":
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+	case r.fact == walk.Absent:
+		if r.missingSchema != "" {
+			b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+		} else {
+			b.failAt(rng, r.keys, review.ObjectNotFound, notFound("type", written))
+		}
+	case r.fact == walk.Present:
+		if r.builtin {
+			b.failAt(rng, r.keys, review.WrongObjectKind, review.Code(written)+" isn't a domain.") // 42809
+		} else {
+			b.need(r.key, walk.Present, []string{typDomain}, &walkNote{rng: rng, present: review.Code(written) + " isn't a domain."}) // 42809
+		}
+	}
+	return r
+}
+
+// alterDomain follows ALTER DOMAIN.
+func (b *builder) alterDomain(v *ast.AlterDomainStmt) bool {
+	parts := nameParts(v.Typname)
+	if len(parts) == 0 {
+		return true
+	}
+	b.checkDomain(parts, b.anchor())
+	return true
+}
+
+// alterEnum follows ALTER TYPE ... ADD VALUE / RENAME VALUE.
+func (b *builder) alterEnum(v *ast.AlterEnumStmt) bool {
+	parts := nameParts(v.Typname)
+	if len(parts) == 0 {
+		return true
+	}
+	written := qualified(parts)
+	rng := b.anchor()
+	r := b.resolveType(parts)
+	switch {
+	case r.fail != "":
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+	case r.fact == walk.Absent:
+		if r.missingSchema != "" {
+			b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+		} else {
+			b.failAt(rng, r.keys, review.ObjectNotFound, notFound("type", written))
+		}
+	case r.fact == walk.Present:
+		if r.builtin || r.kind == typDomain {
+			b.failAt(rng, r.keys, review.WrongObjectKind, review.Code(written)+" isn't an enum.") // 42809
+			return true
+		}
+		rk := relKey(schemaOfKey(r.key), r.key.Name)
+		if rf, rkind := b.l.Lookup(rk); rf == walk.Present && hasRowType(rkind) {
+			b.failAt(rng, []walk.Key{rk}, review.WrongObjectKind, review.Code(written)+" is "+article(rkind)+", not an enum.") // 42809
+		}
+	}
+	return true
+}
+
+// validAlterTypeProps lists the base-type properties ALTER TYPE ... SET (...)
+// accepts in PostgreSQL.
+//
+// pg: src/backend/commands/typecmds.c — AlterType
+var validAlterTypeProps = map[string]bool{
+	"receive": true, "send": true, "typmod_in": true, "typmod_out": true,
+	"analyze": true, "analyse": true, "subscript": true, "storage": true,
+}
+
+// alterType follows ALTER TYPE ... SET (...).
+func (b *builder) alterType(v *ast.AlterTypeStmt) bool {
+	parts := nameParts(v.TypeName)
+	if len(parts) > 0 {
+		r := b.resolveType(parts)
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+			return true
+		case r.fact == walk.Absent:
+			if r.missingSchema != "" {
+				b.fail(r.keys, walk.Absent, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+			} else {
+				b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("type", qualified(parts)))
+			}
+			return true
+		}
+	}
+	if v.Options != nil {
+		for _, item := range v.Options.Items {
+			de, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			if !validAlterTypeProps[strings.ToLower(de.Defname)] {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("type attribute "+review.Code(ident(de.Defname))+" in `ALTER TYPE ... SET`")) // 42601
+				return true
+			}
+		}
+	}
 	return true
 }
 
@@ -1210,6 +1551,15 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if b.wrongKind(r, v.Relation, objType, formAlter) {
 		return true
 	}
+	if r.fact == walk.Present && r.kind != "" && objType != ast.OBJECT_TYPE {
+		for _, cmd := range cmds {
+			sub := ast.AlterTableType(cmd.Subtype)
+			if allowed, word := atAllowedKinds(sub); allowed != nil && !slices.Contains(allowed, r.kind) {
+				b.need(r.key, walk.Present, allowed, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), word)) // 42809
+				return true
+			}
+		}
+	}
 	switch {
 	case r.fail != "":
 		return true
@@ -1217,10 +1567,19 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true // a notice under IF EXISTS
 	case r.fact == walk.Unknown, objType != ast.OBJECT_TABLE && objType != ast.OBJECT_FOREIGN_TABLE, !hasColumns(r.kind):
 		// Where the relation is, or what the subcommands do to a relation
-		// of its kind, is not followed: only subcommands that change
-		// nothing may pass.
+		// of its kind, is not followed: check known target-index/type
+		// subcommands on present relations, and pass only no-fact ones.
+		if r.fact == walk.Present && r.kind != "" && objType != ast.OBJECT_TYPE {
+			for _, cmd := range cmds {
+				b.checkAlterTargetSubcmd(v.Relation, r, cmd)
+			}
+		}
 		for _, cmd := range cmds {
 			if !atNoFacts[ast.AlterTableType(cmd.Subtype)] {
+				if r.fact == walk.Present && r.kind != "" && objType != ast.OBJECT_TYPE {
+					b.Last = true
+					return true
+				}
 				return false
 			}
 		}
@@ -1399,6 +1758,13 @@ func (b *builder) alterTableCmd(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTabl
 			return false
 		}
 		b.constraintExists(rv, t, con.Conname, rangeOf(cmd.Loc))
+	case sub == ast.AT_ClusterOn, sub == ast.AT_ReplicaIdentity, sub == ast.AT_AddOf,
+		sub == ast.AT_AddInherit, sub == ast.AT_DropInherit,
+		sub == ast.AT_AttachPartition, sub == ast.AT_DetachPartition, sub == ast.AT_DetachPartitionFinalize:
+		b.checkAlterTargetSubcmd(rv, resolved{fact: walk.Present, key: t, kind: relTable}, cmd)
+		if !atNoFacts[sub] {
+			b.Last = true
+		}
 	default:
 		return atNoFacts[sub]
 	}
@@ -1466,6 +1832,12 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 		// 18).
 		b.mayConstrain(t, def, inh)
 		return
+	}
+	if prior == walk.Absent && def.TypeName != nil && def.TypeName.ArrayBounds == nil {
+		if tr := b.resolveType(nameParts(def.TypeName.Names)); tr.fact == walk.Present && !tr.builtin && tr.key == typeKey(schemaOfKey(t), t.Name) {
+			b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("column of table "+review.Code(relation(rv))+"'s own row type")) // 42P16
+			return
+		}
 	}
 	if inh {
 		b.mayAdd(walk.Scope{Space: spaceColumn, Deep: true, Prefix: name})
@@ -1547,6 +1919,11 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 	rng := rangeOf(cmd.Loc)
 	sub := ast.AlterTableType(cmd.Subtype)
 	name, ok := walkName(cmd.Name)
+	if !ok && sub == ast.AT_SetStatistics && cmd.Num != 0 {
+		// Column-number ALTER COLUMN <n> SET STATISTICS is only valid on indexes (0A000).
+		b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("`ALTER TABLE ... ALTER COLUMN` by column number"))
+		return
+	}
 	if ok && systemColumns[name] {
 		switch sub {
 		case ast.AT_AlterColumnType, ast.AT_ColumnDefault, ast.AT_SetNotNull, ast.AT_DropNotNull:
@@ -1556,6 +1933,24 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 	}
 	if ok {
 		b.need(columnKey(t, name), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(cmd.Name), relation(rv))}) // 42703
+	}
+	if sub == ast.AT_AlterColumnType {
+		if def, ok := cmd.Def.(*ast.ColumnDef); ok && def.TypeName != nil && def.TypeName.ArrayBounds == nil {
+			if tr := b.resolveType(nameParts(def.TypeName.Names)); tr.fact == walk.Present && !tr.builtin && tr.key == typeKey(schemaOfKey(t), t.Name) {
+				b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("column of table "+review.Code(relation(rv))+"'s own row type")) // 42P16
+				return
+			}
+		}
+	}
+	if sub == ast.AT_SetStorage {
+		if s, ok := cmd.Def.(*ast.String); ok {
+			switch strings.ToLower(s.Str) {
+			case "plain", "external", "extended", "main", "default":
+			default:
+				b.failAt(rng, nil, review.UnsupportedForm, unsupported("storage mode "+review.Code(ident(s.Str)))) // 22023
+				return
+			}
+		}
 	}
 	parent := tableOf(t)
 	switch sub {
@@ -1626,11 +2021,19 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 		return b.renameConstraint(v)
 	case ast.OBJECT_SCHEMA:
 		return b.renameSchema(v)
+	case ast.OBJECT_DOMAIN, ast.OBJECT_DOMCONSTRAINT:
+		return b.renameDomain(v)
+	case ast.OBJECT_TYPE:
+		return b.renameType(v)
 	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE, ast.OBJECT_AGGREGATE:
 		name := v.Newname
 		b.session(func() { b.w.routines[name] = true })
 		return true
-	case ast.OBJECT_TRIGGER, ast.OBJECT_POLICY, ast.OBJECT_RULE, ast.OBJECT_EVENT_TRIGGER, ast.OBJECT_COLLATION,
+	case ast.OBJECT_TRIGGER:
+		return b.renameTrigger(v)
+	case ast.OBJECT_POLICY:
+		return b.renamePolicy(v)
+	case ast.OBJECT_RULE, ast.OBJECT_EVENT_TRIGGER, ast.OBJECT_COLLATION,
 		ast.OBJECT_CONVERSION, ast.OBJECT_STATISTIC_EXT, ast.OBJECT_OPCLASS, ast.OBJECT_OPFAMILY,
 		ast.OBJECT_PUBLICATION, ast.OBJECT_SUBSCRIPTION, ast.OBJECT_FDW, ast.OBJECT_FOREIGN_SERVER,
 		ast.OBJECT_LANGUAGE, ast.OBJECT_TABLESPACE, ast.OBJECT_TSCONFIGURATION, ast.OBJECT_TSDICTIONARY,
@@ -1743,6 +2146,14 @@ func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 	oldKey := columnKey(r.key, oldName)
 	newKey := columnKey(r.key, newName)
 	if !hasColumns(r.kind) {
+		if r.kind == relSequence {
+			b.need(r.key, walk.Present, []string{relTable, relView, relMatview, relForeign, relComposite}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), "table or view")) // 42809
+			return true
+		}
+		if oldName == newName && (r.kind == relView || r.kind == relMatview) {
+			b.failAt(rng, nil, review.DuplicateName, alreadyExistsIn("column", ident(v.Newname), relation(v.Relation))) // 42701 / 42703
+			return true
+		}
 		// Another kind's columns are not followed, and some kinds have
 		// none to rename (42809).
 		b.forget(walk.Scope{Space: spaceColumn, Parent: tableOf(r.key)})
@@ -1779,6 +2190,10 @@ func (b *builder) renameConstraint(v *ast.RenameStmt) bool {
 		return true
 	case r.fact == walk.Unknown:
 		return false
+	}
+	if r.kind != "" && r.kind != relTable && r.kind != relForeign {
+		b.need(r.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), relTable)) // 42809
+		return true
 	}
 	rng := b.anchor()
 	oldName, ok1 := walkName(v.Subname)
@@ -1856,6 +2271,11 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 		for i, k := range w.made {
 			w.made[i] = rekey(k)
 		}
+		shellTypes := make(map[walk.Key]bool, len(w.shellTypes))
+		for k := range w.shellTypes {
+			shellTypes[rekey(k)] = true
+		}
+		w.shellTypes = shellTypes
 		// What the synced schema listed in it is there under the new name.
 		for _, k := range w.pg.inSchema[oldName] {
 			w.made = append(w.made, rekey(k))
@@ -1872,6 +2292,10 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 	switch v.ObjectType {
 	case ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_SEQUENCE, ast.OBJECT_FOREIGN_TABLE:
+	case ast.OBJECT_DOMAIN:
+		return b.setSchemaDomain(v)
+	case ast.OBJECT_TYPE:
+		return b.setSchemaType(v)
 	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE, ast.OBJECT_AGGREGATE, ast.OBJECT_COLLATION,
 		ast.OBJECT_CONVERSION, ast.OBJECT_OPERATOR, ast.OBJECT_OPCLASS, ast.OBJECT_OPFAMILY, ast.OBJECT_STATISTIC_EXT,
 		ast.OBJECT_TSCONFIGURATION, ast.OBJECT_TSDICTIONARY, ast.OBJECT_TSPARSER, ast.OBJECT_TSTEMPLATE:
@@ -1986,29 +2410,40 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	case kind == ast.OBJECT_TYPE || kind == ast.OBJECT_DOMAIN:
 		for _, obj := range v.Objects.Items {
 			b.next()
-			// The parser gives each name as a list of strings.
 			var list *ast.List
+			var tn *ast.TypeName
 			switch o := obj.(type) {
 			case *ast.List:
 				list = o
 			case *ast.TypeName:
-				// An array or a modified type is refused (PostgreSQL's
-				// 2BP01, 42601); the walk does not follow it.
-				if o.ArrayBounds != nil || o.Typmods != nil {
-					return false
-				}
+				tn = o
 				list = o.Names
 			}
 			parts := nameParts(list)
 			if list == nil || len(parts) != len(list.Items) {
 				return false
 			}
-			b.dropType(parts, v.Missing_ok, kind == ast.OBJECT_DOMAIN)
+			b.dropType(parts, tn, v.Missing_ok, kind == ast.OBJECT_DOMAIN)
 		}
 	case dropKinds[kind].kind != "":
 		for _, obj := range v.Objects.Items {
 			b.next()
 			b.dropRelation(kind, nameParts(listOf(obj)), v.Missing_ok)
+		}
+	case kind == ast.OBJECT_FUNCTION || kind == ast.OBJECT_PROCEDURE || kind == ast.OBJECT_ROUTINE:
+		for _, obj := range v.Objects.Items {
+			b.next()
+			b.checkRoutineDropSchema(obj, v.Missing_ok)
+		}
+	case kind == ast.OBJECT_TRIGGER:
+		for _, obj := range v.Objects.Items {
+			b.next()
+			b.dropTrigger(nameParts(listOf(obj)), v.Missing_ok)
+		}
+	case kind == ast.OBJECT_POLICY:
+		for _, obj := range v.Objects.Items {
+			b.next()
+			b.dropPolicy(nameParts(listOf(obj)), v.Missing_ok)
 		}
 	case !dropNoFacts[kind]:
 		return false
@@ -2125,6 +2560,11 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 			}
 			w.partitions[parent] = slices.DeleteFunc(children, in)
 		}
+		for k := range w.shellTypes {
+			if in(k) {
+				delete(w.shellTypes, k)
+			}
+		}
 	})
 	return true
 }
@@ -2147,15 +2587,48 @@ func (b *builder) holds(schema string) (walk.Key, bool) {
 	return walk.Key{}, false
 }
 
-// dropType follows DROP TYPE and DROP DOMAIN. An unqualified type name may
-// be one of pg_catalog's, which the walk does not know, so only a
-// qualified one is placed.
-func (b *builder) dropType(parts []string, missingOK, domain bool) {
-	schema, written, ok := splitName(parts)
-	name, ok2 := walkName(written)
-	s, ok3 := walkName(schema)
-	if !ok || !ok2 || !ok3 || s == tempSchema || s == "pg_catalog" {
-		if ok2 {
+// dropType follows DROP TYPE and DROP DOMAIN.
+func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain bool) {
+	written := qualified(parts)
+	if tn != nil {
+		written = typeName(tn)
+	}
+	rng := b.anchor()
+	// Check built-in pg_catalog types explicitly qualified by the parser (e.g.
+	// INT, BIT, CHARACTER(1), INTERVAL, TIMESTAMP WITH TIME ZONE).
+	if len(parts) == 2 && parts[0] == "pg_catalog" && builtinCatalogTypes[parts[1]] {
+		if tn != nil && tn.Typmods != nil && hasNonConstTypmod(tn.Typmods) {
+			b.failAt(rng, nil, review.UnsupportedForm, unsupported("invalid type modifier for "+review.Code(written))) // 22P02
+			return
+		}
+		if domain {
+			b.failAt(rng, nil, review.WrongObjectKind, review.Code(written)+" isn't a domain.") // 42809
+			return
+		}
+		b.failAt(rng, nil, review.UnsupportedForm, "Built-in type "+review.Code(written)+" can't be dropped.") // 2BP01
+		return
+	}
+	r := b.resolveType(parts)
+	if r.fail != "" {
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+		return
+	}
+	if r.fact == walk.Absent {
+		if !missingOK {
+			if r.missingSchema != "" {
+				b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema)) // 3F000
+			} else {
+				kind := typOther
+				if domain {
+					kind = typDomain
+				}
+				b.failAt(rng, r.keys, review.ObjectNotFound, notFound(kind, written)) // 42704
+			}
+		}
+		return
+	}
+	if r.fact == walk.Unknown {
+		if name, ok := walkName(parts[len(parts)-1]); ok {
 			b.mayRemove(walk.Scope{Space: spaceType, Deep: true, Prefix: name})
 			b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Prefix: name, Kinds: []string{relComposite}})
 		} else {
@@ -2164,36 +2637,45 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 		}
 		return
 	}
-	sk := schemaKey(s)
-	switch f, _ := b.l.Lookup(sk); f {
-	case walk.Absent:
-		if !missingOK {
-			b.fail([]walk.Key{sk}, walk.Absent, review.ObjectNotFound, schemaNotFound(schema)) // 3F000
+	// r.fact == walk.Present.
+	if tn != nil && tn.Typmods != nil {
+		if r.builtin && hasNonConstTypmod(tn.Typmods) {
+			b.failAt(rng, nil, review.UnsupportedForm, unsupported("invalid type modifier for "+review.Code(written))) // 22P02
+			return
 		}
-		return
-	case walk.Unknown:
-		b.mayRemove(walk.Scope{Space: spaceType, Deep: true, Prefix: name})
-		b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Prefix: name, Kinds: []string{relComposite}})
-		return
+		if !r.builtin {
+			b.failAt(rng, r.keys, review.UnsupportedForm, unsupported("type modifier for "+review.Code(written))) // 42601
+			return
+		}
 	}
-	tk := typeKey(s, name)
-	kind := typOther
 	if domain {
-		kind = typDomain
-	}
-	// What else the type namespace holds is a type, which says nothing
-	// against a domain: only that it isn't one.
-	note := &walkNote{rng: b.anchor(), absent: notFound(kind, qualified(parts)), present: review.Code(qualified(parts)) + " isn't a domain."} // 42704
-	switch f, _ := b.l.Lookup(tk); {
-	case domain && (f == walk.Present || !missingOK):
+		if r.builtin || (tn != nil && tn.ArrayBounds != nil) {
+			b.failAt(rng, r.keys, review.WrongObjectKind, review.Code(written)+" isn't a domain.") // 42809
+			return
+		}
 		// DROP DOMAIN drops a domain and no other type, IF EXISTS or not
 		// (42809, verified on PostgreSQL 17 and 18).
-		b.need(tk, walk.Present, []string{typDomain}, note)
-	case !missingOK:
-		b.need(tk, walk.Present, nil, note)
+		b.need(r.key, walk.Present, []string{typDomain}, &walkNote{rng: rng, absent: notFound(typDomain, written), present: review.Code(written) + " isn't a domain."})
+	} else {
+		if tn != nil && tn.ArrayBounds != nil {
+			b.failAt(rng, r.keys, review.UnsupportedForm, "Array type "+review.Code(written)+" can't be dropped directly.") // 2BP01
+			return
+		}
+		if r.builtin {
+			b.failAt(rng, r.keys, review.UnsupportedForm, "Built-in type "+review.Code(written)+" can't be dropped.") // 2BP01
+			return
+		}
+		s := schemaOfKey(r.key)
+		rk := relKey(s, r.key.Name)
+		if rf, rkind := b.l.Lookup(rk); rf == walk.Present && hasRowType(rkind) && rkind != relComposite {
+			b.failAt(rng, []walk.Key{rk}, review.UnsupportedForm, "Row type "+review.Code(written)+" belongs to "+article(rkind)+" and can't be dropped directly.") // 2BP01
+			return
+		}
 	}
-	b.set(tk, walk.Absent, "")
-	rk := relKey(s, name)
+	s := schemaOfKey(r.key)
+	b.set(r.key, walk.Absent, "")
+	b.session(func() { delete(b.w.shellTypes, r.key) })
+	rk := relKey(s, r.key.Name)
 	switch f, kind := b.l.Lookup(rk); {
 	case f == walk.Present && kind == relComposite:
 		b.set(rk, walk.Absent, "")
@@ -2201,6 +2683,20 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 	case f == walk.Unknown, f == walk.Present && kind == "":
 		b.set(rk, walk.Unknown, "")
 	}
+}
+
+func hasNonConstTypmod(mods *ast.List) bool {
+	if mods == nil {
+		return false
+	}
+	for _, item := range mods.Items {
+		switch item.(type) {
+		case *ast.A_Const, *ast.Integer:
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 // commentKinds is the relation kind each COMMENT ON object kind names.
@@ -2233,6 +2729,7 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		}
 	case kind == ast.OBJECT_COLUMN:
 		if len(parts) < 2 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("unqualified column name in `COMMENT ON COLUMN`")) // 42601
 			return true
 		}
 		table := parts[:len(parts)-1]
@@ -2247,10 +2744,132 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 				b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("column", ident(parts[len(parts)-1]), qualified(table))}) // 42703
 			}
 		}
+	case kind == ast.OBJECT_TABCONSTRAINT:
+		if len(parts) < 2 {
+			return true
+		}
+		table := parts[:len(parts)-1]
+		r := b.nameList(table)
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+		case r.fact == walk.Absent:
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table))) // 42P01
+		case r.fact == walk.Present:
+			if r.kind == relIndex || r.kind == relComposite {
+				b.need(r.key, walk.Present, []string{relTable, relForeign}, ofKind(b.anchor(), qualified(table), relTable)) // 42809
+				return true
+			}
+			if r.kind == relView || r.kind == relMatview || r.kind == relSequence {
+				b.fail([]walk.Key{r.key}, walk.Present, review.ObjectNotFound, notFoundIn("constraint", ident(parts[len(parts)-1]), qualified(table))) // 42704
+				return true
+			}
+			if con, ok := walkName(parts[len(parts)-1]); ok {
+				b.need(constraintKey(r.key, con), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("constraint", ident(parts[len(parts)-1]), qualified(table))}) // 42704
+			}
+		}
+	case kind == ast.OBJECT_TRIGGER:
+		if len(parts) < 2 {
+			return true
+		}
+		table := parts[:len(parts)-1]
+		r := b.nameList(table)
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+		case r.fact == walk.Absent:
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table))) // 42P01
+		case r.fact == walk.Present:
+			if r.kind == relIndex || r.kind == relComposite {
+				b.need(r.key, walk.Present, []string{relTable, relView, relForeign}, ofKind(b.anchor(), qualified(table), "table or view")) // 42809
+				return true
+			}
+			if r.kind == relMatview || r.kind == relSequence {
+				b.fail([]walk.Key{r.key}, walk.Present, review.ObjectNotFound, notFoundIn("trigger", ident(parts[len(parts)-1]), qualified(table))) // 42704
+				return true
+			}
+			if trig, ok := walkName(parts[len(parts)-1]); ok {
+				b.need(trigKey(r.key, trig), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("trigger", ident(parts[len(parts)-1]), qualified(table))}) // 42704
+			}
+		}
+	case kind == ast.OBJECT_POLICY:
+		if len(parts) < 2 {
+			return true
+		}
+		table := parts[:len(parts)-1]
+		r := b.nameList(table)
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+		case r.fact == walk.Absent:
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table))) // 42P01
+		case r.fact == walk.Present:
+			if r.kind == relIndex || r.kind == relComposite {
+				b.need(r.key, walk.Present, []string{relTable}, ofKind(b.anchor(), qualified(table), relTable)) // 42809
+				return true
+			}
+			if r.kind != "" && r.kind != relTable {
+				b.fail([]walk.Key{r.key}, walk.Present, review.ObjectNotFound, notFoundIn("policy", ident(parts[len(parts)-1]), qualified(table))) // 42704
+				return true
+			}
+			if pol, ok := walkName(parts[len(parts)-1]); ok {
+				b.need(polKey(r.key, pol), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("policy", ident(parts[len(parts)-1]), qualified(table))}) // 42704
+			}
+		}
+	case kind == ast.OBJECT_TYPE:
+		var tParts []string
+		if tn, ok := v.Object.(*ast.TypeName); ok {
+			tParts = nameParts(tn.Names)
+		} else {
+			tParts = parts
+		}
+		if len(tParts) > 0 {
+			r := b.resolveType(tParts)
+			switch {
+			case r.fail != "":
+				b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+			case r.fact == walk.Absent:
+				if r.missingSchema != "" {
+					b.fail(r.keys, walk.Absent, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+				} else {
+					b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("type", qualified(tParts)))
+				}
+			}
+		}
 	case kind == ast.OBJECT_SCHEMA:
 		if s, ok := v.Object.(*ast.String); ok {
 			if name, ok := walkName(s.Str); ok {
 				b.need(schemaKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(s.Str)}) // 3F000
+			}
+		}
+	case kind == ast.OBJECT_DOMAIN:
+		var dParts []string
+		if tn, ok := v.Object.(*ast.TypeName); ok {
+			dParts = nameParts(tn.Names)
+		} else {
+			dParts = parts
+		}
+		if len(dParts) > 0 {
+			b.checkDomain(dParts, b.anchor())
+		}
+	case kind == ast.OBJECT_DOMCONSTRAINT:
+		if list := listOf(v.Object); list != nil && len(list.Items) >= 2 {
+			var dParts []string
+			if tn, ok := list.Items[0].(*ast.TypeName); ok {
+				dParts = nameParts(tn.Names)
+			} else if len(list.Items) == 2 {
+				if s, ok := list.Items[0].(*ast.String); ok {
+					dParts = []string{s.Str}
+				}
+			} else if len(list.Items) == 3 {
+				if s0, ok0 := list.Items[0].(*ast.String); ok0 {
+					if s1, ok1 := list.Items[1].(*ast.String); ok1 {
+						dParts = []string{s0.Str, s1.Str}
+					}
+				}
+			}
+			if len(dParts) > 0 {
+				b.checkDomain(dParts, b.anchor())
 			}
 		}
 	}
@@ -2380,9 +2999,19 @@ func (b *builder) setVariable(v *ast.VariableSetStmt) bool {
 	return true
 }
 
-// createTrigger follows CREATE TRIGGER: its table must exist, and from now
-// on DML may fire it.
+// createTrigger follows CREATE [OR REPLACE] [CONSTRAINT] TRIGGER: checks
+// target relation existence and relkind, PostgreSQL's unconditional timing /
+// event / transition-table rules, and duplicate trigger name on the target.
+//
+// pg: src/backend/commands/trigger.c — CreateTrigger
 func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
+	if v.Replace && v.IsConstraint {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE OR REPLACE CONSTRAINT TRIGGER`")) // 0A000
+		return true
+	}
+	if v.IsConstraint && v.Constrrel != nil {
+		b.exists(v.Constrrel, false)
+	}
 	r := b.exists(v.Relation, false)
 	b.session(func() { b.w.triggered = true })
 	if v.IsConstraint {
@@ -2391,6 +3020,1165 @@ func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
 			b.mayAdd(walk.Scope{Space: spaceConstraint, Parent: tableOf(r.key)})
 		} else {
 			b.mayAdd(walk.Scope{Space: spaceConstraint, Deep: true})
+		}
+	}
+	if r.fail != "" || r.fact == walk.Absent {
+		return true
+	}
+	rng := rangeOf(v.Relation.Loc)
+	isInstead := v.Timing&ast.TRIGGER_TYPE_INSTEAD != 0
+	isBefore := v.Timing&ast.TRIGGER_TYPE_BEFORE != 0
+	isAfter := !isInstead && !isBefore
+	hasTruncate := v.Events&ast.TRIGGER_TYPE_TRUNCATE != 0
+	hasInsert := v.Events&ast.TRIGGER_TYPE_INSERT != 0
+	hasUpdate := v.Events&ast.TRIGGER_TYPE_UPDATE != 0
+	hasDelete := v.Events&ast.TRIGGER_TYPE_DELETE != 0
+	hasTransitions := v.TransitionRels != nil && len(v.TransitionRels.Items) > 0
+
+	if r.fact == walk.Present && r.kind != "" {
+		switch r.kind {
+		case relTable:
+			if isInstead {
+				b.need(r.key, walk.Present, []string{relView}, ofKind(rng, relation(v.Relation), relView)) // 42809
+				return true
+			}
+			if v.Row && hasTransitions && b.w.partitioned[r.key] {
+				b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("`FOR EACH ROW` trigger with transition tables on partitioned table "+review.Code(relation(v.Relation)))) // 0A000
+				return true
+			}
+		case relView:
+			if !isInstead && (v.Row || v.IsConstraint) {
+				b.need(r.key, walk.Present, []string{relTable}, ofKind(rng, relation(v.Relation), relTable)) // 42809
+				return true
+			}
+			if hasTruncate {
+				b.need(r.key, walk.Present, []string{relTable}, ofKind(rng, relation(v.Relation), relTable)) // 42809
+				return true
+			}
+		case relForeign:
+			if isInstead {
+				b.need(r.key, walk.Present, []string{relView}, ofKind(rng, relation(v.Relation), relView)) // 42809
+				return true
+			}
+			if hasTruncate {
+				b.need(r.key, walk.Present, []string{relTable}, ofKind(rng, relation(v.Relation), relTable)) // 42809
+				return true
+			}
+		default:
+			b.need(r.key, walk.Present, []string{relTable, relView, relForeign}, ofKind(rng, relation(v.Relation), "table or view")) // 42809
+			return true
+		}
+	}
+	if v.Row && hasTruncate {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`TRUNCATE FOR EACH ROW` trigger")) // 42P17
+		return true
+	}
+	if isInstead {
+		if !v.Row {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`INSTEAD OF` trigger without `FOR EACH ROW`")) // 0A000
+			return true
+		}
+		if v.WhenClause != nil {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`INSTEAD OF` trigger with `WHEN` condition")) // 42P17
+			return true
+		}
+		if v.Columns != nil && len(v.Columns.Items) > 0 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`INSTEAD OF` trigger with column list")) // 42P17
+			return true
+		}
+	}
+	if hasTransitions {
+		for _, item := range v.TransitionRels.Items {
+			if tr, ok := item.(*ast.TriggerTransition); ok && !tr.IsTable {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`REFERENCING ... ROW` in `CREATE TRIGGER`")) // 0A000
+				return true
+			}
+		}
+		if r.fact == walk.Present && (r.kind == relView || r.kind == relForeign) {
+			b.need(r.key, walk.Present, []string{relTable}, ofKind(rng, relation(v.Relation), relTable)) // 42809
+			return true
+		}
+		if !isAfter {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("transition tables on a non-`AFTER` trigger")) // 42P17
+			return true
+		}
+		if hasTruncate {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("transition tables on a `TRUNCATE` trigger")) // 42P17
+			return true
+		}
+		dmlEvents := 0
+		if hasInsert {
+			dmlEvents++
+		}
+		if hasUpdate {
+			dmlEvents++
+		}
+		if hasDelete {
+			dmlEvents++
+		}
+		if dmlEvents > 1 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("transition tables on a trigger with multiple events")) // 42P17
+			return true
+		}
+		if v.Columns != nil && len(v.Columns.Items) > 0 {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("transition tables on a trigger with a column list")) // 42P17
+			return true
+		}
+		var seenNew, seenOld bool
+		seenNames := make(map[string]bool)
+		for _, item := range v.TransitionRels.Items {
+			tr, ok := item.(*ast.TriggerTransition)
+			if !ok {
+				continue
+			}
+			if tr.IsNew {
+				if seenNew {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("multiple `NEW TABLE` transition relations in `CREATE TRIGGER`")) // 42P17
+					return true
+				}
+				seenNew = true
+				if !hasInsert && !hasUpdate {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`NEW TABLE` transition relation on a `DELETE` trigger")) // 42P17
+					return true
+				}
+			} else {
+				if seenOld {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("multiple `OLD TABLE` transition relations in `CREATE TRIGGER`")) // 42P17
+					return true
+				}
+				seenOld = true
+				if !hasDelete && !hasUpdate {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`OLD TABLE` transition relation on an `INSERT` trigger")) // 42P17
+					return true
+				}
+			}
+			if seenNames[tr.Name] {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("duplicate transition table name "+review.Code(ident(tr.Name))+" in `CREATE TRIGGER`")) // 42P17
+				return true
+			}
+			seenNames[tr.Name] = true
+		}
+	}
+	if r.fact == walk.Present {
+		if tn, ok := walkName(v.Trigname); ok {
+			tk := trigKey(r.key, tn)
+			if !v.Replace {
+				b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("trigger", ident(v.Trigname), relation(v.Relation))}) // 42710
+			}
+			b.set(tk, walk.Present, "")
+		}
+	}
+	return true
+}
+
+// dropTrigger follows DROP TRIGGER [IF EXISTS] name ON table.
+func (b *builder) dropTrigger(parts []string, missingOK bool) {
+	if len(parts) < 2 {
+		return
+	}
+	table := parts[:len(parts)-1]
+	trigWritten := parts[len(parts)-1]
+	r := b.nameList(table)
+	switch {
+	case r.fail != "":
+		b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+		return
+	case r.fact == walk.Absent:
+		if !missingOK {
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table))) // 42P01
+		}
+		return
+	case r.fact == walk.Unknown:
+		return
+	}
+	if r.kind == relIndex || r.kind == relComposite {
+		b.need(r.key, walk.Present, []string{relTable, relView, relForeign}, ofKind(b.anchor(), qualified(table), "table or view")) // 42809
+		return
+	}
+	if r.kind == relMatview || r.kind == relSequence {
+		if !missingOK {
+			b.fail([]walk.Key{r.key}, walk.Present, review.ObjectNotFound, notFoundIn("trigger", ident(trigWritten), qualified(table))) // 42704
+		}
+		return
+	}
+	if tn, ok := walkName(trigWritten); ok {
+		tk := trigKey(r.key, tn)
+		if !missingOK {
+			b.need(tk, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("trigger", ident(trigWritten), qualified(table))}) // 42704
+		}
+		b.set(tk, walk.Absent, "")
+	}
+}
+
+// renameTrigger follows ALTER TRIGGER old ON table RENAME TO new.
+func (b *builder) renameTrigger(v *ast.RenameStmt) bool {
+	r := b.exists(v.Relation, false)
+	if r.fail != "" || r.fact == walk.Absent {
+		return true
+	}
+	if r.fact == walk.Present && r.kind != "" && r.kind != relTable && r.kind != relView && r.kind != relForeign {
+		b.need(r.key, walk.Present, []string{relTable, relView, relForeign}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), "table or view")) // 42809
+		return true
+	}
+	if r.fact == walk.Present {
+		oldName, ok1 := walkName(v.Subname)
+		newName, ok2 := walkName(v.Newname)
+		if ok1 && ok2 {
+			okKey := trigKey(r.key, oldName)
+			b.need(okKey, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("trigger", ident(v.Subname), relation(v.Relation))})
+			if oldName != newName {
+				nkKey := trigKey(r.key, newName)
+				b.need(nkKey, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("trigger", ident(v.Newname), relation(v.Relation))})
+				b.set(okKey, walk.Absent, "")
+				b.set(nkKey, walk.Present, "")
+			}
+		} else {
+			b.forget(walk.Scope{Space: spaceTrigger, Parent: tableOf(r.key)})
+		}
+	}
+	return true
+}
+
+// createPolicy follows CREATE POLICY name ON table.
+func (b *builder) createPolicy(v *ast.CreatePolicyStmt) bool {
+	r := b.exists(v.Table, false)
+	if r.fail != "" || r.fact == walk.Absent {
+		return true
+	}
+	if r.fact == walk.Present {
+		b.need(r.key, walk.Present, []string{relTable}, ofKind(rangeOf(v.Table.Loc), relation(v.Table), relTable)) // 42809
+	}
+	cmd := strings.ToLower(v.CmdName)
+	if (cmd == "select" || cmd == "delete") && v.WithCheck != nil {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`WITH CHECK` on a `"+strings.ToUpper(cmd)+"` policy")) // 42601
+		return true
+	}
+	if cmd == "insert" && v.Qual != nil {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`USING` on an `INSERT` policy")) // 42601
+		return true
+	}
+	if r.fact == walk.Present {
+		if pn, ok := walkName(v.PolicyName); ok {
+			pk := polKey(r.key, pn)
+			b.need(pk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("policy", ident(v.PolicyName), relation(v.Table))}) // 42710
+			b.set(pk, walk.Present, "")
+		}
+	}
+	return true
+}
+
+// alterPolicy follows ALTER POLICY name ON table.
+func (b *builder) alterPolicy(v *ast.AlterPolicyStmt) bool {
+	r := b.exists(v.Table, false)
+	if r.fail != "" || r.fact == walk.Absent {
+		return true
+	}
+	if r.fact == walk.Present {
+		b.need(r.key, walk.Present, []string{relTable}, ofKind(rangeOf(v.Table.Loc), relation(v.Table), relTable)) // 42809
+		if pn, ok := walkName(v.PolicyName); ok {
+			b.need(polKey(r.key, pn), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("policy", ident(v.PolicyName), relation(v.Table))}) // 42704
+		}
+	}
+	return true
+}
+
+// dropPolicy follows DROP POLICY [IF EXISTS] name ON table.
+func (b *builder) dropPolicy(parts []string, missingOK bool) {
+	if len(parts) < 2 {
+		return
+	}
+	table := parts[:len(parts)-1]
+	polWritten := parts[len(parts)-1]
+	r := b.nameList(table)
+	switch {
+	case r.fail != "":
+		b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
+		return
+	case r.fact == walk.Absent:
+		if !missingOK {
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table))) // 42P01
+		}
+		return
+	case r.fact == walk.Unknown:
+		return
+	}
+	if r.kind == relIndex || r.kind == relComposite {
+		b.need(r.key, walk.Present, []string{relTable}, ofKind(b.anchor(), qualified(table), relTable)) // 42809
+		return
+	}
+	if r.kind != "" && r.kind != relTable {
+		if !missingOK {
+			b.fail([]walk.Key{r.key}, walk.Present, review.ObjectNotFound, notFoundIn("policy", ident(polWritten), qualified(table))) // 42704
+		}
+		return
+	}
+	if pn, ok := walkName(polWritten); ok {
+		pk := polKey(r.key, pn)
+		if !missingOK {
+			b.need(pk, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("policy", ident(polWritten), qualified(table))}) // 42704
+		}
+		b.set(pk, walk.Absent, "")
+	}
+}
+
+// renamePolicy follows ALTER POLICY old ON table RENAME TO new.
+// PostgreSQL's rename_policy ignores MissingOk when opening the table.
+func (b *builder) renamePolicy(v *ast.RenameStmt) bool {
+	r := b.exists(v.Relation, false)
+	if r.fail != "" || r.fact == walk.Absent {
+		return true
+	}
+	if r.fact == walk.Present {
+		b.need(r.key, walk.Present, []string{relTable}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), relTable)) // 42809
+		oldName, ok1 := walkName(v.Subname)
+		newName, ok2 := walkName(v.Newname)
+		if ok1 && ok2 {
+			okKey := polKey(r.key, oldName)
+			nkKey := polKey(r.key, newName)
+			b.need(okKey, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("policy", ident(v.Subname), relation(v.Relation))})
+			b.need(nkKey, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("policy", ident(v.Newname), relation(v.Relation))})
+			b.set(okKey, walk.Absent, "")
+			b.set(nkKey, walk.Present, "")
+		} else {
+			b.forget(walk.Scope{Space: spacePolicy, Parent: tableOf(r.key)})
+		}
+	}
+	return true
+}
+
+// alterObjectDepends follows ALTER ... [NO] DEPENDS ON EXTENSION.
+func (b *builder) alterObjectDepends(v *ast.AlterObjectDependsStmt) bool {
+	switch v.ObjectType {
+	case ast.OBJECT_MATVIEW:
+		b.existsOfKind(v.Relation, relMatview, "materialized view")
+	case ast.OBJECT_INDEX:
+		b.existsOfKind(v.Relation, relIndex, relIndex)
+	case ast.OBJECT_TRIGGER:
+		r := b.exists(v.Relation, false)
+		if r.fact == walk.Present && r.kind != "" && r.kind != relTable && r.kind != relView && r.kind != relForeign {
+			b.need(r.key, walk.Present, []string{relTable, relView, relForeign}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), "table or view"))
+		}
+	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE:
+		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
+			parts := nameParts(owa.Objname)
+			if len(parts) == 3 && b.w.crossDatabase(parts[0]) {
+				b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts)))
+				return true
+			}
+			if len(parts) == 2 {
+				if s, ok := walkName(parts[0]); ok && s != tempSchema && s != "pg_catalog" {
+					b.need(schemaKey(s), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(parts[0])})
+				}
+			}
+		}
+	}
+	return true
+}
+
+// alterSequence follows ALTER SEQUENCE.
+func (b *builder) alterSequence(v *ast.AlterSeqStmt) bool {
+	// Another kind of relation fails, under IF EXISTS too (42809,
+	// verified on PostgreSQL 17).
+	if r := b.exists(v.Sequence, v.MissingOk); r.fact == walk.Present {
+		b.need(r.key, walk.Present, []string{relSequence}, ofKind(rangeOf(v.Sequence.Loc), relation(v.Sequence), relSequence))
+		if r.kind == relSequence || r.kind == "" {
+			b.checkSequenceOptions(v.Options)
+		}
+	}
+	return true
+}
+
+// checkSequenceOptions validates unconditional CREATE/ALTER SEQUENCE option
+// rules: duplicate options (42601) and non-integer float literals (22P02).
+func (b *builder) checkSequenceOptions(opts *ast.List) {
+	if opts == nil {
+		return
+	}
+	seen := make(map[string]bool)
+	for _, item := range opts.Items {
+		de, ok := item.(*ast.DefElem)
+		if !ok {
+			continue
+		}
+		name := strings.ToLower(de.Defname)
+		if seen[name] {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in sequence statement")) // 42601
+			return
+		}
+		seen[name] = true
+		switch name {
+		case "increment", "minvalue", "maxvalue", "start", "restart", "cache":
+			if f, ok := de.Arg.(*ast.Float); ok && strings.ContainsAny(f.Fval, ".eE") {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("non-integer value "+review.Code(f.Fval)+" for sequence option "+review.Code(name))) // 22P02
+				return
+			}
+		}
+	}
+}
+
+// atAllowedKinds returns the relation kinds PostgreSQL's ATSimplePermissions
+// accepts for sub, and the word a wrong-kind message uses, or nil when sub is
+// unrestricted or not judged.
+//
+// pg: src/backend/commands/tablecmds.c — ATSimplePermissions
+func atAllowedKinds(sub ast.AlterTableType) ([]string, string) {
+	switch sub {
+	case ast.AT_GenericOptions, ast.AT_AlterColumnGenericOptions:
+		return []string{relForeign}, "foreign table"
+	case ast.AT_AddColumn, ast.AT_DropColumn, ast.AT_AlterColumnType,
+		ast.AT_SetNotNull, ast.AT_DropNotNull,
+		ast.AT_AddConstraint, ast.AT_DropConstraint, ast.AT_ValidateConstraint,
+		ast.AT_AddInherit, ast.AT_DropInherit,
+		ast.AT_EnableTrig, ast.AT_EnableAlwaysTrig, ast.AT_EnableReplicaTrig, ast.AT_DisableTrig,
+		ast.AT_EnableTrigAll, ast.AT_DisableTrigAll, ast.AT_EnableTrigUser, ast.AT_DisableTrigUser:
+		return []string{relTable, relForeign}, relTable
+	case ast.AT_AlterConstraint, ast.AT_SetExpression, ast.AT_DropExpression,
+		ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity, ast.AT_ForceRowSecurity, ast.AT_NoForceRowSecurity,
+		ast.AT_AttachPartition, ast.AT_DetachPartition, ast.AT_DetachPartitionFinalize,
+		ast.AT_AddOf, ast.AT_DropOf:
+		return []string{relTable}, relTable
+	case ast.AT_SetLogged, ast.AT_SetUnLogged:
+		return []string{relTable, relSequence}, "table or sequence"
+	case ast.AT_ClusterOn, ast.AT_DropCluster, ast.AT_ReplicaIdentity, ast.AT_SetAccessMethod:
+		return []string{relTable, relMatview}, "table or materialized view"
+	case ast.AT_SetTableSpace:
+		return []string{relTable, relMatview, relIndex}, "table, materialized view, or index"
+	case ast.AT_ColumnDefault, ast.AT_AddIdentity, ast.AT_SetIdentity, ast.AT_DropIdentity:
+		return []string{relTable, relView, relForeign}, "table or view"
+	case ast.AT_EnableRule, ast.AT_EnableAlwaysRule, ast.AT_EnableReplicaRule, ast.AT_DisableRule:
+		return []string{relTable, relView}, "table or view"
+	case ast.AT_SetStatistics:
+		return []string{relTable, relMatview, relForeign, relIndex}, "table, materialized view, or index"
+	case ast.AT_SetOptions, ast.AT_ResetOptions, ast.AT_SetStorage, ast.AT_SetCompression:
+		return []string{relTable, relMatview, relForeign}, "table or materialized view"
+	case ast.AT_SetRelOptions, ast.AT_ResetRelOptions, ast.AT_ReplaceRelOptions:
+		return []string{relTable, relView, relMatview, relIndex}, "table, view, materialized view, or index"
+	}
+	return nil, ""
+}
+
+// checkAlterTargetSubcmd checks the secondary object named by ALTER TABLE
+// subcommands like CLUSTER ON, REPLICA IDENTITY USING INDEX, OF, INHERIT,
+// NO INHERIT, ATTACH PARTITION, and DETACH PARTITION.
+func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.AlterTableCmd) {
+	sub := ast.AlterTableType(cmd.Subtype)
+	rng := rangeOf(cmd.Loc)
+	s := schemaOfKey(r.key)
+	switch sub {
+	case ast.AT_ClusterOn:
+		if idx, ok := walkName(cmd.Name); ok {
+			ik := relKey(s, idx)
+			note := ofKind(rng, ident(cmd.Name), relIndex)
+			note.absent = notFound(relIndex, ident(cmd.Name))
+			b.need(ik, walk.Present, []string{relIndex}, note) // 42704 / 42809
+		}
+	case ast.AT_ReplicaIdentity:
+		if ri, ok := cmd.Def.(*ast.ReplicaIdentityStmt); ok && ri.IdentityType == 'i' && ri.Name != "" {
+			if idx, ok := walkName(ri.Name); ok {
+				ik := relKey(s, idx)
+				note := ofKind(rng, ident(ri.Name), relIndex)
+				note.absent = notFound(relIndex, ident(ri.Name))
+				b.need(ik, walk.Present, []string{relIndex}, note) // 42704 / 42809
+			}
+		}
+	case ast.AT_AddOf:
+		if tn, ok := cmd.Def.(*ast.TypeName); ok {
+			b.checkCompositeType(tn, rng) // 42809 / 42704
+		}
+	case ast.AT_AddInherit:
+		if parentRV, ok := cmd.Def.(*ast.RangeVar); ok {
+			pr := b.exists(parentRV, false) // 42P01
+			if pr.fact == walk.Present {
+				b.need(pr.key, walk.Present, []string{relTable}, ofKind(rangeOf(parentRV.Loc), relation(parentRV), relTable)) // 42809
+				if pr.key == r.key {
+					b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("circular inheritance on "+review.Code(relation(rv)))) // 42P07
+				}
+			}
+		}
+	case ast.AT_DropInherit:
+		if parentRV, ok := cmd.Def.(*ast.RangeVar); ok {
+			b.exists(parentRV, false) // 42P01
+		}
+	case ast.AT_AttachPartition:
+		if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
+			pr := b.exists(pc.Name, false) // 42P01
+			if pr.fact == walk.Present {
+				b.need(pr.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(pc.Name.Loc), relation(pc.Name), relTable)) // 42809
+				if pr.key == r.key {
+					b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("attaching "+review.Code(relation(rv))+" as a partition of itself")) // 42P17
+				}
+			}
+		}
+	case ast.AT_DetachPartition, ast.AT_DetachPartitionFinalize:
+		if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
+			pr := b.exists(pc.Name, false) // 42P01
+			if pr.fact == walk.Present && pr.key == r.key {
+				b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("detaching "+review.Code(relation(rv))+" from itself")) // 42P17 / 42P01
+			}
+		}
+	}
+}
+
+// checkConstraintColumns checks that columns named in ADD PRIMARY KEY / UNIQUE
+// / FOREIGN KEY exist in the table (42703).
+func (b *builder) checkConstraintColumns(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, rng review.Range) {
+	checkList := func(list *ast.List) {
+		if list == nil {
+			return
+		}
+		for _, item := range list.Items {
+			s, ok := item.(*ast.String)
+			if !ok {
+				continue
+			}
+			if n, ok := walkName(s.Str); ok && !systemColumns[n] {
+				b.need(columnKey(t, n), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(s.Str), relation(rv))}) // 42703
+			}
+		}
+	}
+	switch con.Contype {
+	case ast.CONSTR_PRIMARY, ast.CONSTR_UNIQUE:
+		checkList(con.Keys)
+		checkList(con.Including)
+	case ast.CONSTR_FOREIGN:
+		checkList(con.FkAttrs)
+	}
+}
+
+// checkIndexElems checks column existence (42703), non-immutable SQL value
+// functions (42P17), and invalid INCLUDE elements (42P17) on CREATE INDEX.
+func (b *builder) checkIndexElems(r resolved, v *ast.IndexStmt) {
+	if v.IndexParams != nil {
+		for _, item := range v.IndexParams.Items {
+			elem, ok := item.(*ast.IndexElem)
+			if !ok {
+				continue
+			}
+			if elem.Name != "" && elem.Expr == nil && hasColumns(r.kind) {
+				if col, ok := walkName(elem.Name); ok && !systemColumns[col] {
+					b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: rangeOf(elem.Loc), absent: notFoundIn("column", ident(elem.Name), relation(v.Relation))}) // 42703
+				}
+			}
+			if elem.Expr != nil && containsSQLValueFunction(elem.Expr) {
+				b.failAt(rangeOf(elem.Loc), nil, review.UnsupportedForm, unsupported("non-immutable expression in index")) // 42P17
+				return
+			}
+		}
+	}
+	if v.IndexIncludingParams != nil {
+		for _, item := range v.IndexIncludingParams.Items {
+			elem, ok := item.(*ast.IndexElem)
+			if !ok {
+				continue
+			}
+			if elem.Expr != nil || elem.Opclass != nil || elem.Collation != nil ||
+				elem.Ordering != ast.SORTBY_DEFAULT || elem.NullsOrdering != ast.SORTBY_NULLS_DEFAULT {
+				b.failAt(rangeOf(elem.Loc), nil, review.UnsupportedForm, unsupported("expressions or options in index `INCLUDE` list")) // 42P17
+				return
+			}
+			if elem.Name != "" && hasColumns(r.kind) {
+				if col, ok := walkName(elem.Name); ok && !systemColumns[col] {
+					b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: rangeOf(elem.Loc), absent: notFoundIn("column", ident(elem.Name), relation(v.Relation))}) // 42703
+				}
+			}
+		}
+	}
+}
+
+func containsSQLValueFunction(n ast.Node) bool {
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		if found {
+			return false
+		}
+		if _, ok := m.(*ast.SQLValueFunction); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// checkViewQuery checks unconditional CREATE VIEW query rules: WITH CHECK
+// OPTION without a FROM clause (0A000), too many column aliases (42601), and
+// CREATE RECURSIVE VIEW with too many column aliases or non-UNION query (42P10).
+func (b *builder) checkViewQuery(v *ast.ViewStmt) {
+	sel, ok := v.Query.(*ast.SelectStmt)
+	if !ok {
+		return
+	}
+	if v.WithCheckOption != 0 && sel.Op == ast.SETOP_NONE && (sel.FromClause == nil || len(sel.FromClause.Items) == 0) {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`WITH CHECK OPTION` on a non-updatable view")) // 0A000
+		return
+	}
+	if sel.WithClause != nil && sel.WithClause.Recursive && sel.WithClause.Ctes != nil && len(sel.WithClause.Ctes.Items) == 1 {
+		if cte, ok := sel.WithClause.Ctes.Items[0].(*ast.CommonTableExpr); ok && cte.Aliascolnames != nil && len(cte.Aliascolnames.Items) > 0 {
+			if inner, ok := cte.Ctequery.(*ast.SelectStmt); ok && inner.Op == ast.SETOP_NONE && inner.ValuesLists == nil {
+				if n, exact := selectTargetCount(inner); exact && len(cte.Aliascolnames.Items) > n {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("more column names than columns in `CREATE RECURSIVE VIEW`")) // 42P10
+					return
+				}
+			}
+		}
+	}
+	if v.Aliases != nil && len(v.Aliases.Items) > 0 && sel.Op == ast.SETOP_NONE && sel.ValuesLists == nil {
+		if n, exact := selectTargetCount(sel); exact && len(v.Aliases.Items) > n {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("more column names than columns in `CREATE VIEW`")) // 42601
+			return
+		}
+	}
+}
+
+// selectTargetCount returns the exact output column count of a plain SELECT
+// with no `*` star expansion, or (0, false) when it cannot be known statically.
+func selectTargetCount(sel *ast.SelectStmt) (int, bool) {
+	if sel.TargetList == nil {
+		return 0, true
+	}
+	for _, item := range sel.TargetList.Items {
+		rt, ok := item.(*ast.ResTarget)
+		if !ok {
+			return 0, false
+		}
+		switch v := rt.Val.(type) {
+		case *ast.ColumnRef:
+			if v.Fields != nil {
+				for _, f := range v.Fields.Items {
+					if _, star := f.(*ast.A_Star); star {
+						return 0, false
+					}
+				}
+			}
+		case *ast.A_Indirection:
+			if v.Indirection != nil {
+				for _, f := range v.Indirection.Items {
+					if _, star := f.(*ast.A_Star); star {
+						return 0, false
+					}
+				}
+			}
+		}
+	}
+	return len(sel.TargetList.Items), true
+}
+
+// renameDomain follows ALTER DOMAIN ... RENAME TO and RENAME CONSTRAINT.
+func (b *builder) renameDomain(v *ast.RenameStmt) bool {
+	var parts []string
+	if tn, ok := v.Object.(*ast.TypeName); ok {
+		parts = nameParts(tn.Names)
+	} else {
+		parts = nameParts(listOf(v.Object))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	r := b.checkDomain(parts, b.anchor())
+	if v.RenameType == ast.OBJECT_DOMCONSTRAINT {
+		return true
+	}
+	if r.fail != "" || r.fact == walk.Absent || r.builtin {
+		return true
+	}
+	if r.fact == walk.Unknown {
+		b.mayRemove(walk.Scope{Space: spaceType, Deep: true})
+		b.mayAdd(walk.Scope{Space: spaceType, Deep: true})
+		return true
+	}
+	newName, ok := walkName(v.Newname)
+	if !ok {
+		b.forget(walk.Scope{Space: spaceType, Parent: walk.Path(schemaOfKey(r.key))})
+		return true
+	}
+	s := schemaOfKey(r.key)
+	nk := typeKey(s, newName)
+	b.need(nk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", ident(v.Newname))}) // 42710
+	b.set(r.key, walk.Absent, "")
+	b.set(nk, walk.Present, typDomain)
+	b.made(nk)
+	return true
+}
+
+// renameType follows ALTER TYPE ... RENAME TO.
+func (b *builder) renameType(v *ast.RenameStmt) bool {
+	var parts []string
+	if tn, ok := v.Object.(*ast.TypeName); ok {
+		parts = nameParts(tn.Names)
+	} else {
+		parts = nameParts(listOf(v.Object))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	written := qualified(parts)
+	rng := b.anchor()
+	r := b.resolveType(parts)
+	switch {
+	case r.fail != "":
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+		return true
+	case r.fact == walk.Absent:
+		if r.missingSchema != "" {
+			b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+		} else {
+			b.failAt(rng, r.keys, review.ObjectNotFound, notFound("type", written))
+		}
+		return true
+	case r.fact == walk.Unknown:
+		b.mayRemove(walk.Scope{Space: spaceType, Deep: true})
+		b.mayAdd(walk.Scope{Space: spaceType, Deep: true})
+		b.mayRemove(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relComposite}})
+		b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true, Kinds: []string{relComposite}})
+		return true
+	case r.builtin:
+		return true
+	}
+	s := schemaOfKey(r.key)
+	rk := relKey(s, r.key.Name)
+	rf, rkind := b.l.Lookup(rk)
+	if rf == walk.Present && hasRowType(rkind) && rkind != relComposite {
+		b.failAt(rng, []walk.Key{rk}, review.WrongObjectKind, review.Code(written)+" is "+article(rkind)+", not a type.") // 42809
+		return true
+	}
+	newName, ok := walkName(v.Newname)
+	if !ok {
+		b.forget(walk.Scope{Space: spaceType, Parent: walk.Path(s)})
+		if rf == walk.Present && rkind == relComposite {
+			b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s), Kinds: []string{relComposite}})
+		}
+		return true
+	}
+	nk := typeKey(s, newName)
+	b.need(nk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", ident(v.Newname))}) // 42710
+	if rf == walk.Present && rkind == relComposite {
+		nrk := relKey(s, newName)
+		b.need(nrk, walk.Absent, nil, taken(rng, relComposite, ident(v.Newname))) // 42P07
+		b.set(rk, walk.Absent, "")
+		b.set(nrk, walk.Present, relComposite)
+		b.renamed(rk, nrk)
+	}
+	b.set(r.key, walk.Absent, "")
+	b.set(nk, walk.Present, r.kind)
+	b.made(nk)
+	return true
+}
+
+// setSchemaDomain follows ALTER DOMAIN ... SET SCHEMA.
+func (b *builder) setSchemaDomain(v *ast.AlterObjectSchemaStmt) bool {
+	var parts []string
+	if tn, ok := v.Object.(*ast.TypeName); ok {
+		parts = nameParts(tn.Names)
+	} else {
+		parts = nameParts(listOf(v.Object))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	r := b.checkDomain(parts, b.anchor())
+	if r.fail != "" || r.fact == walk.Absent || r.builtin {
+		return true
+	}
+	ns, ok := walkName(v.Newschema)
+	if !ok || ns == tempSchema || ns == "pg_catalog" {
+		return false
+	}
+	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(v.Newschema)}) // 3F000
+	if r.fact == walk.Unknown {
+		b.mayRemove(walk.Scope{Space: spaceType, Deep: true})
+		b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ns)})
+		return true
+	}
+	old := schemaOfKey(r.key)
+	if ns == old {
+		return true
+	}
+	nk := typeKey(ns, r.key.Name)
+	moved := qualified([]string{v.Newschema, r.key.Name})
+	b.need(nk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", moved)}) // 42710
+	b.set(r.key, walk.Absent, "")
+	b.set(nk, walk.Present, typDomain)
+	b.made(nk)
+	return true
+}
+
+// setSchemaType follows ALTER TYPE ... SET SCHEMA.
+func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
+	var parts []string
+	if tn, ok := v.Object.(*ast.TypeName); ok {
+		parts = nameParts(tn.Names)
+	} else {
+		parts = nameParts(listOf(v.Object))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	written := qualified(parts)
+	rng := b.anchor()
+	r := b.resolveType(parts)
+	switch {
+	case r.fail != "":
+		b.failAt(rng, nil, review.CrossDatabaseReference, r.fail)
+		return true
+	case r.fact == walk.Absent:
+		if r.missingSchema != "" {
+			b.failAt(rng, r.keys, review.ObjectNotFound, schemaNotFound(r.missingSchema))
+		} else {
+			b.failAt(rng, r.keys, review.ObjectNotFound, notFound("type", written))
+		}
+		return true
+	}
+	ns, ok := walkName(v.Newschema)
+	if !ok || ns == tempSchema || ns == "pg_catalog" {
+		return false
+	}
+	if r.fact == walk.Present && !r.builtin {
+		old := schemaOfKey(r.key)
+		rk := relKey(old, r.key.Name)
+		rf, rkind := b.l.Lookup(rk)
+		if rf == walk.Present && hasRowType(rkind) && rkind != relComposite {
+			b.failAt(rng, []walk.Key{rk}, review.WrongObjectKind, review.Code(written)+" is "+article(rkind)+", not a type.") // 42809
+			return true
+		}
+		b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: rng, absent: schemaNotFound(v.Newschema)}) // 3F000
+		if ns == old {
+			return true
+		}
+		nk := typeKey(ns, r.key.Name)
+		moved := qualified([]string{v.Newschema, r.key.Name})
+		b.need(nk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", moved)}) // 42710
+		if rf == walk.Present && rkind == relComposite {
+			nrk := relKey(ns, r.key.Name)
+			b.need(nrk, walk.Absent, nil, taken(rng, relComposite, moved)) // 42P07
+			b.set(rk, walk.Absent, "")
+			b.set(nrk, walk.Present, relComposite)
+			b.renamed(rk, nrk)
+		}
+		b.set(r.key, walk.Absent, "")
+		b.set(nk, walk.Present, r.kind)
+		b.made(nk)
+		return true
+	}
+	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: rng, absent: schemaNotFound(v.Newschema)}) // 3F000
+	b.mayRemove(walk.Scope{Space: spaceType, Deep: true})
+	b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ns)})
+	return true
+}
+
+// checkRoutineDropSchema checks that an explicit schema on DROP FUNCTION /
+// PROCEDURE / ROUTINE exists (3F000).
+func (b *builder) checkRoutineDropSchema(obj ast.Node, missingOK bool) {
+	owa, ok := obj.(*ast.ObjectWithArgs)
+	if !ok {
+		return
+	}
+	parts := nameParts(owa.Objname)
+	switch len(parts) {
+	case 3:
+		if b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts)))
+			return
+		}
+		if !b.w.currentDatabase(parts[0]) {
+			return
+		}
+		parts = parts[1:]
+	case 2:
+	default:
+		return
+	}
+	if missingOK {
+		return
+	}
+	if s, ok := walkName(parts[0]); ok && s != tempSchema && s != "pg_catalog" {
+		b.need(schemaKey(s), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(parts[0])}) // 3F000
+	}
+}
+
+// createFunction follows CREATE [OR REPLACE] FUNCTION / PROCEDURE: validates
+// unconditional PostgreSQL definition rules (schema, options, body, language,
+// return type, parameter modes) and records the routine name.
+//
+// pg: src/backend/commands/functioncmds.c — CreateFunction
+func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
+	parts := nameParts(v.Funcname)
+	if len(parts) > 0 {
+		name := parts[len(parts)-1]
+		b.session(func() { b.w.routines[name] = true })
+	}
+	if len(parts) == 3 {
+		if b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts))) // 0A000
+			return true
+		}
+		if b.w.currentDatabase(parts[0]) {
+			parts = parts[1:]
+		} else {
+			parts = nil
+		}
+	}
+	if len(parts) >= 1 && len(parts) <= 2 {
+		schema, written, ok := splitName(parts)
+		if ok {
+			c := b.creationSchema(schema, written, false)
+			if c.fail != "" {
+				b.fail(c.keys, walk.Absent, c.code, c.fail) // 3F000
+				return true
+			}
+		}
+	}
+
+	isProcedure := false
+	if v.Options != nil {
+		for _, item := range v.Options.Items {
+			if de, ok := item.(*ast.DefElem); ok && strings.EqualFold(de.Defname, "isProcedure") {
+				switch arg := de.Arg.(type) {
+				case nil:
+					isProcedure = true
+				case *ast.Boolean:
+					isProcedure = arg.Boolval
+				case *ast.Integer:
+					isProcedure = arg.Ival != 0
+				}
+			}
+		}
+	}
+
+	var hasAs, hasLang bool
+	var seenVolatility, seenStrict, seenSecurity, seenParallel, seenLeakproof, seenWindow, seenCost, seenRows, seenSupport, seenLang bool
+	if v.Options != nil {
+		for _, item := range v.Options.Items {
+			de, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(de.Defname) {
+			case "language":
+				if seenLang {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenLang = true
+				hasLang = true
+			case "as":
+				if hasAs {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				hasAs = true
+			case "volatility":
+				if isProcedure {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("volatility attribute in `CREATE PROCEDURE`")) // 42P13
+					return true
+				}
+				if seenVolatility {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenVolatility = true
+			case "parallel":
+				if isProcedure {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`PARALLEL` in `CREATE PROCEDURE`")) // 42P13
+					return true
+				}
+				if seenParallel {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenParallel = true
+				if s, ok := de.Arg.(*ast.String); ok {
+					switch strings.ToLower(s.Str) {
+					case "safe", "restricted", "unsafe":
+					default:
+						b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`PARALLEL "+s.Str+"` in `CREATE FUNCTION`")) // 42601
+						return true
+					}
+				}
+			case "strict", "called_on_null_input":
+				if isProcedure {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("strictness attribute in `CREATE PROCEDURE`")) // 42P13
+					return true
+				}
+				if seenStrict {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenStrict = true
+			case "security":
+				if seenSecurity {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenSecurity = true
+			case "leakproof":
+				if seenLeakproof {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenLeakproof = true
+			case "window":
+				if isProcedure {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`WINDOW` in `CREATE PROCEDURE`")) // 42P13
+					return true
+				}
+				if seenWindow {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenWindow = true
+			case "cost":
+				if seenCost {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenCost = true
+			case "rows":
+				if seenRows {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenRows = true
+			case "support":
+				if isProcedure {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`SUPPORT` in `CREATE PROCEDURE`")) // 42P13
+					return true
+				}
+				if seenSupport {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `CREATE FUNCTION`")) // 42601
+					return true
+				}
+				seenSupport = true
+			}
+		}
+	}
+
+	hasSqlBody := v.SqlBody != nil
+	if !hasAs && !hasSqlBody {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE FUNCTION` without a function body")) // 42P13
+		return true
+	}
+	if !hasLang && !hasSqlBody {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE FUNCTION` without a `LANGUAGE` clause")) // 42P13
+		return true
+	}
+
+	hasOutParam := false
+	seenVariadic := false
+	if v.Parameters != nil {
+		for _, item := range v.Parameters.Items {
+			fp, ok := item.(*ast.FunctionParameter)
+			if !ok {
+				continue
+			}
+			if fp.ArgType != nil && fp.ArgType.Setof {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`SETOF` parameter in `CREATE FUNCTION`")) // 42P13
+				return true
+			}
+			mode := fp.Mode
+			if mode == ast.FUNC_PARAM_DEFAULT {
+				mode = ast.FUNC_PARAM_IN
+			}
+			if mode != ast.FUNC_PARAM_OUT && mode != ast.FUNC_PARAM_TABLE {
+				if seenVariadic {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("parameter after `VARIADIC` in `CREATE FUNCTION`")) // 42P13
+					return true
+				}
+			}
+			if mode == ast.FUNC_PARAM_VARIADIC {
+				seenVariadic = true
+			}
+			if mode == ast.FUNC_PARAM_OUT || mode == ast.FUNC_PARAM_INOUT || mode == ast.FUNC_PARAM_TABLE {
+				hasOutParam = true
+			}
+		}
+	}
+	if !isProcedure && v.ReturnType == nil && !hasOutParam {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE FUNCTION` without a `RETURNS` clause")) // 42P13
+		return true
+	}
+	return true
+}
+
+// alterFunction follows ALTER FUNCTION / PROCEDURE / ROUTINE: validates
+// unconditional option checks and explicit missing schemas.
+func (b *builder) alterFunction(v *ast.AlterFunctionStmt) bool {
+	if v.Func != nil {
+		parts := nameParts(v.Func.Objname)
+		if len(parts) == 3 && b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts)))
+			return true
+		}
+		if len(parts) == 2 {
+			if s, ok := walkName(parts[0]); ok && s != tempSchema && s != "pg_catalog" {
+				b.need(schemaKey(s), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(parts[0])}) // 3F000
+			}
+		}
+	}
+	var seenVolatility, seenStrict, seenSecurity, seenParallel, seenLeakproof, seenCost, seenRows, seenSupport bool
+	if v.Actions != nil {
+		for _, item := range v.Actions.Items {
+			de, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(de.Defname) {
+			case "volatility":
+				if seenVolatility {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenVolatility = true
+			case "strict", "called_on_null_input":
+				if seenStrict {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenStrict = true
+			case "security":
+				if seenSecurity {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenSecurity = true
+			case "parallel":
+				if seenParallel {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenParallel = true
+				if s, ok := de.Arg.(*ast.String); ok {
+					switch strings.ToLower(s.Str) {
+					case "safe", "restricted", "unsafe":
+					default:
+						b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`PARALLEL "+s.Str+"` in `ALTER FUNCTION`")) // 42601
+						return true
+					}
+				}
+			case "leakproof":
+				if seenLeakproof {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenLeakproof = true
+			case "cost":
+				if seenCost {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenCost = true
+			case "rows":
+				if seenRows {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenRows = true
+			case "support":
+				if seenSupport {
+					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
+					return true
+				}
+				seenSupport = true
+			}
 		}
 	}
 	return true

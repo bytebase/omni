@@ -132,9 +132,13 @@ var walkForms = []walktest.Form{
 	{SQL: "SET ROLE bob;\nRESET ROLE;"},
 	{SQL: "SELECT pg_catalog.set_config('search_path', '', false);"},
 	{SQL: "BEGIN;\nSAVEPOINT a;\nRELEASE SAVEPOINT a;\nCOMMIT;"},
-	// Routines and triggers: recorded, then the walk goes on.
+	// Routines, triggers, policies, and types: recorded, then the walk goes on.
 	{SQL: "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';"},
 	{SQL: "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW EXECUTE FUNCTION f();"},
+	{SQL: "CREATE POLICY pol ON nokey USING (true);\nALTER POLICY pol ON nokey USING (false);\nDROP POLICY pol ON nokey;"},
+	{SQL: "CREATE TYPE r AS RANGE (SUBTYPE = int4);"},
+	{SQL: "ALTER TYPE mood ADD VALUE 'c';"},
+	{SQL: "CREATE DOMAIN d2 AS int;\nALTER DOMAIN d2 SET NOT NULL;\nALTER DOMAIN d2 RENAME TO d3;\nALTER DOMAIN d3 SET SCHEMA s;"},
 	// A refresh runs stored code: lowered, and the walk ends after it.
 	{SQL: "REFRESH MATERIALIZED VIEW mv;", Last: true},
 }

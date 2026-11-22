@@ -19,6 +19,8 @@ const (
 	spaceColumn     = "column"
 	spaceConstraint = "constraint"
 	spacePrimaryKey = "primary key"
+	spaceTrigger    = "trigger"
+	spacePolicy     = "policy"
 )
 
 // The kinds of a relation: every name in pg_class's namespace of a schema.
@@ -102,6 +104,7 @@ type pgSnapshot struct {
 	columns     map[[2]string]map[string]bool
 	constraints map[[2]string]map[string]string
 	primaryKeys map[[2]string]bool
+	triggers    map[[2]string]map[string]bool
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
@@ -122,6 +125,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		columns:     make(map[[2]string]map[string]bool),
 		constraints: make(map[[2]string]map[string]string),
 		primaryKeys: make(map[[2]string]bool),
+		triggers:    make(map[[2]string]map[string]bool),
 		anywhere:    make(map[string]bool),
 		inSchema:    make(map[string][]walk.Key),
 	}
@@ -171,6 +175,13 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				cons[x.GetName()] = conExclusion
 			}
 			s.constraints[key] = cons
+			if len(t.GetTriggers()) > 0 {
+				trigs := make(map[string]bool, len(t.GetTriggers()))
+				for _, tr := range t.GetTriggers() {
+					trigs[tr.GetName()] = true
+				}
+				s.triggers[key] = trigs
+			}
 			s.addPartitions(name, t.GetPartitions())
 		}
 		for _, t := range schema.GetExternalTables() {
@@ -316,6 +327,10 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Absent, ""
 		}
 	case spaceType:
+		if k.Parent == tempSchema {
+			// The session starts with no temporary types.
+			return walk.Absent, ""
+		}
 		if s.types[[2]string{k.Parent, k.Name}] {
 			// The sync lists no domain.
 			return walk.Present, typOther
@@ -343,8 +358,43 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if table, ok := splitTable(k.Parent); ok && s.primaryKeys[table] {
 			return walk.Present, ""
 		}
+	case spaceTrigger:
+		if table, ok := splitTable(k.Parent); ok && s.triggers[table][k.Name] {
+			return walk.Present, ""
+		}
 	}
 	return walk.Unknown, ""
+}
+
+// builtinCatalogTypes lists PostgreSQL's pinned built-in types in pg_catalog
+// (pg: src/include/catalog/pg_type.dat). None can be dropped, none is a domain,
+// none is an enum, and none is a composite type.
+var builtinCatalogTypes = map[string]bool{
+	"bool": true, "bytea": true, "char": true, "name": true,
+	"int8": true, "int2": true, "int2vector": true, "int4": true,
+	"regproc": true, "text": true, "oid": true, "tid": true, "xid": true, "cid": true,
+	"oidvector": true, "json": true, "xml": true, "pg_node_tree": true,
+	"point": true, "lseg": true, "path": true, "box": true, "polygon": true, "line": true,
+	"float4": true, "float8": true, "unknown": true, "circle": true, "money": true,
+	"macaddr": true, "inet": true, "cidr": true, "macaddr8": true,
+	"aclitem": true, "bpchar": true, "varchar": true, "date": true, "time": true,
+	"timestamp": true, "timestamptz": true, "interval": true, "timetz": true,
+	"bit": true, "varbit": true, "numeric": true, "refcursor": true,
+	"regprocedure": true, "regoper": true, "regoperator": true, "regclass": true,
+	"regcollation": true, "regtype": true, "regrole": true, "regnamespace": true,
+	"uuid": true, "pg_lsn": true, "tsvector": true, "gtsvector": true, "tsquery": true,
+	"regconfig": true, "regdictionary": true, "jsonb": true, "jsonpath": true,
+	"txid_snapshot": true, "pg_snapshot": true, "xid8": true,
+	"int4range": true, "numrange": true, "tsrange": true, "tstzrange": true, "daterange": true, "int8range": true,
+	"int4multirange": true, "nummultirange": true, "tsmultirange": true, "tstzmultirange": true, "datemultirange": true, "int8multirange": true,
+	"record": true, "cstring": true, "any": true, "anyarray": true, "void": true,
+	"trigger": true, "event_trigger": true, "language_handler": true, "internal": true,
+	"anyelement": true, "anynonarray": true, "anyenum": true, "fdw_handler": true,
+	"index_am_handler": true, "tsm_handler": true, "table_am_handler": true, "anyrange": true,
+	"anycompatible": true, "anycompatiblearray": true, "anycompatiblenonarray": true,
+	"anycompatiblerange": true, "anymultirange": true, "anycompatiblemultirange": true,
+	"pg_brin_bloom_summary": true, "pg_brin_minmax_multi_summary": true,
+	"pg_ndistinct": true, "pg_dependencies": true, "pg_mcv_list": true, "pg_ddl_command": true,
 }
 
 // splitTable reads the (schema, table) a column or constraint parent
