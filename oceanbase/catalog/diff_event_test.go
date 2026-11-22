@@ -262,9 +262,11 @@ func TestGenerateEventDDL_Shapes(t *testing.T) {
 	mod := genEventPlan(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x=1;", "CREATE EVENT e ON SCHEDULE EVERY 2 HOUR DISABLE DO SET @x=1;")
 	mustContain(t, mod, "ALTER EVENT `e` ON SCHEDULE EVERY 2 HOUR ON COMPLETION NOT PRESERVE DISABLE COMMENT '' DO SET @x=1")
 
-	// MODIFY that CLEARS a comment must render COMMENT '' (regression for the comment-removal bug).
+	// MODIFY that CLEARS a comment must DROP + CREATE on OceanBase because
+	// OceanBase 4.3.5.6's ALTER EVENT ... COMMENT '' leaves the old comment unchanged.
 	clr := genEventPlan(t, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'old' DO SET @x=1;", "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DO SET @x=1;")
-	mustContain(t, clr, "ALTER EVENT `e` ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SET @x=1")
+	mustContain(t, clr, "DROP EVENT IF EXISTS `e`")
+	mustContain(t, clr, "CREATE EVENT `e` ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SET @x=1")
 }
 
 func TestGenerateEventDDL_CommentEscaping(t *testing.T) {

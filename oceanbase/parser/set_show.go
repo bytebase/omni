@@ -903,14 +903,6 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
-		case kwEVENT:
-			stmt.Type = "CREATE EVENT"
-			p.advance()
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
 		case kwUSER:
 			stmt.Type = "CREATE USER"
 			p.advance()

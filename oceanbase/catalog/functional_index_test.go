@@ -23,7 +23,7 @@ func TestFunctionalIndexHiddenColumnsVisibleAndHiddenViews(t *testing.T) {
 	}
 	tbl.Columns = append(tbl.Columns, &Column{
 		Position:   3,
-		Name:       "!hidden!idx_lower!0!0",
+		Name:       "SYS_NC18$",
 		DataType:   "varchar",
 		ColumnType: "varchar(64)",
 		Hidden:     ColumnHiddenSystem,
@@ -39,7 +39,7 @@ func TestFunctionalIndexHiddenColumnsVisibleAndHiddenViews(t *testing.T) {
 	}
 
 	show := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(show, "!hidden!idx_lower!0!0") {
+	if strings.Contains(show, "SYS_NC18$") {
 		t.Fatalf("ShowCreateTable leaked system-hidden column:\n%s", show)
 	}
 }
@@ -75,8 +75,8 @@ func TestFunctionalIndexCreateTableAutoNamesAndHiddenColumns(t *testing.T) {
 		hiddenCol string
 		exprSub   string
 	}{
-		{"functional_index", "!hidden!functional_index!0!0", "`a` + 1"},
-		{"functional_index_2", "!hidden!functional_index_2!0!0", "`a` * 2"},
+		{"functional_index", "SYS_NC17$", "`a` + 1"},
+		{"functional_index_2", "SYS_NC18$", "`a` * 2"},
 	}
 	for _, want := range wantIndexes {
 		idx := findIndexForTest(tbl, want.name)
@@ -128,7 +128,7 @@ func TestFunctionalIndexCreateTableNamedMultiPartHiddenColumns(t *testing.T) {
 	if len(idx.Columns) != 2 {
 		t.Fatalf("index fx columns = %d, want 2", len(idx.Columns))
 	}
-	for i, wantName := range []string{"!hidden!fx!0!0", "!hidden!fx!1!0"} {
+	for i, wantName := range []string{"SYS_NC17$", "SYS_NC18$"} {
 		if idx.Columns[i].Name != wantName {
 			t.Fatalf("key part %d name = %q, want %q", i, idx.Columns[i].Name, wantName)
 		}
@@ -168,15 +168,15 @@ func TestFunctionalIndexCreateIndexSynthesizesHiddenColumn(t *testing.T) {
 	if len(idx.Columns) != 1 {
 		t.Fatalf("index idx_lower columns = %d, want 1", len(idx.Columns))
 	}
-	if idx.Columns[0].Name != "!hidden!idx_lower!0!0" {
-		t.Fatalf("index idx_lower column name = %q, want !hidden!idx_lower!0!0", idx.Columns[0].Name)
+	if idx.Columns[0].Name != "SYS_NC18$" {
+		t.Fatalf("index idx_lower column name = %q, want SYS_NC18$", idx.Columns[0].Name)
 	}
 	if !strings.Contains(strings.ToLower(idx.Columns[0].Expr), "lower(`name`)") {
 		t.Fatalf("index idx_lower expr = %q, want lower(`name`)", idx.Columns[0].Expr)
 	}
 
 	show := strings.ToLower(c.ShowCreateTable("testdb", "t"))
-	if strings.Contains(show, "!hidden!idx_lower!0!0") {
+	if strings.Contains(show, "sys_nc18$") {
 		t.Fatalf("ShowCreateTable leaked hidden column:\n%s", show)
 	}
 	if !strings.Contains(show, "key `idx_lower` ((lower(`name`)))") {
@@ -207,7 +207,7 @@ func TestFunctionalIndexDropIndexRemovesHiddenColumn(t *testing.T) {
 	if got := len(tbl.HiddenColumns()); got != 0 {
 		t.Fatalf("hidden columns = %d, want 0", got)
 	}
-	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+	if col := tbl.GetColumn("SYS_NC18$"); col != nil {
 		t.Fatalf("hidden column still present after DROP INDEX: %#v", col)
 	}
 }
@@ -217,7 +217,7 @@ func TestFunctionalIndexDropHiddenColumnRejected(t *testing.T) {
 	results, err := c.Exec(`
 		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
 		CREATE INDEX idx_lower ON t ((LOWER(name)));
-		ALTER TABLE t DROP COLUMN `+"`!hidden!idx_lower!0!0`"+`;
+		ALTER TABLE t DROP COLUMN `+"`SYS_NC18$`"+`;
 	`, nil)
 	if err != nil {
 		t.Fatalf("exec ddl: %v", err)
@@ -266,18 +266,15 @@ func TestFunctionalIndexRenameIndexRenamesHiddenColumn(t *testing.T) {
 	if tbl == nil {
 		t.Fatal("table t missing")
 	}
-	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
-		t.Fatalf("old hidden column still present after RENAME INDEX: %#v", col)
-	}
-	if col := tbl.GetColumn("!hidden!idx_lc!0!0"); col == nil || col.Hidden != ColumnHiddenSystem {
-		t.Fatalf("new hidden column missing or not system-hidden: %#v", col)
+	if col := tbl.GetColumn("SYS_NC18$"); col == nil || col.Hidden != ColumnHiddenSystem {
+		t.Fatalf("hidden column SYS_NC18$ missing or not system-hidden after RENAME INDEX: %#v", col)
 	}
 	idx := findIndexForTest(tbl, "idx_lc")
 	if idx == nil {
 		t.Fatal("index idx_lc missing")
 	}
-	if idx.Columns[0].Name != "!hidden!idx_lc!0!0" {
-		t.Fatalf("renamed index key part column = %q, want !hidden!idx_lc!0!0", idx.Columns[0].Name)
+	if idx.Columns[0].Name != "SYS_NC18$" {
+		t.Fatalf("renamed index key part column = %q, want SYS_NC18$", idx.Columns[0].Name)
 	}
 }
 
@@ -307,9 +304,9 @@ func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
 	if tbl == nil {
 		t.Fatal("table t missing")
 	}
-	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_sum!0!0", "bigint", "bigint", "", "")
-	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_low!0!0", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_0900_ai_ci")
-	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_cast!0!0", "bigint", "bigint unsigned", "", "")
+	assertHiddenColumnTypeForTest(t, tbl, "SYS_NC20$", "bigint", "bigint", "", "")
+	assertHiddenColumnTypeForTest(t, tbl, "SYS_NC21$", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_0900_ai_ci")
+	assertHiddenColumnTypeForTest(t, tbl, "SYS_NC22$", "bigint", "bigint unsigned", "", "")
 }
 
 func assertHiddenColumnTypeForTest(t *testing.T, tbl *Table, name, dataType, columnType, charset, collation string) {

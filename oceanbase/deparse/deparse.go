@@ -1232,7 +1232,11 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString("WEIGHT_STRING(")
 		writeExprAlias(b, n.Expr)
 		if n.AsChar != nil {
-			fmt.Fprintf(b, " AS CHAR(%d)", n.AsChar.Length)
+			if n.AsBinary {
+				fmt.Fprintf(b, " AS BINARY(%d)", n.AsChar.Length)
+			} else {
+				fmt.Fprintf(b, " AS CHAR(%d)", n.AsChar.Length)
+			}
 		}
 		for i, lv := range n.Levels {
 			if i == 0 {
@@ -1987,10 +1991,11 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	case *ast.FloatLit:
 		b.WriteString(n.Value)
 	case *ast.BoolLit:
+		// OceanBase 4.3.5.6 stores TRUE as (1 = 1) and FALSE as (0 = 1) in views.
 		if n.Value {
-			b.WriteString("true")
+			b.WriteString("(1 = 1)")
 		} else {
-			b.WriteString("false")
+			b.WriteString("(0 = 1)")
 		}
 	case *ast.StringLit:
 		b.WriteString(deparseStringLit(n))
@@ -2828,31 +2833,40 @@ func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
 	b.WriteString(")")
 }
 
-// writeWeightStringExpr renders WEIGHT_STRING in the engine-stored form:
-// weight_string('ab' as char(4)) on 8.0, with 5.7 readbacks additionally
-// carrying a level list — weight_string('ab' as char(4) level 1)
-// (oracle 8.0.32 + 5.7.25).
-func writeWeightStringExpr(b *strings.Builder, n *ast.WeightStringExpr) {
-	b.WriteString("weight_string(")
-	writeExpr(b, n.Expr)
+// WeightStringParams computes the trailing four integer parameters OceanBase
+// 4.3.5.6 writes for WEIGHT_STRING in SHOW CREATE VIEW and SHOW CREATE TABLE:
+// weight_string(expr, 0, nweights, flags, isBinary).
+func WeightStringParams(n *ast.WeightStringExpr) (nweights, flags, isBinary int) {
 	if n.AsChar != nil {
-		fmt.Fprintf(b, " as char(%d)", n.AsChar.Length)
+		nweights = n.AsChar.Length
+		flags |= 0x40 // MY_STRXFRM_PAD_WITH_SPACE
 	}
-	for i, lv := range n.Levels {
-		if i == 0 {
-			b.WriteString(" level ")
-		} else {
-			b.WriteString(",")
+	for _, lv := range n.Levels {
+		bit := uint(lv.Level - 1)
+		if lv.Level < 1 {
+			bit = 0
 		}
-		fmt.Fprintf(b, "%d", lv.Level)
+		flags |= 1 << bit
 		if lv.Desc {
-			b.WriteString(" desc")
+			flags |= 0x100 << bit
 		}
 		if lv.Reverse {
-			b.WriteString(" reverse")
+			flags |= 0x10000 << bit
 		}
 	}
-	b.WriteString(")")
+	if n.AsBinary {
+		isBinary = 1
+	}
+	return nweights, flags, isBinary
+}
+
+// writeWeightStringExpr renders WEIGHT_STRING in OceanBase 4.3.5.6's stored
+// five-argument form: weight_string(expr,0,nweights,flags,isBinary).
+func writeWeightStringExpr(b *strings.Builder, n *ast.WeightStringExpr) {
+	nweights, flags, isBinary := WeightStringParams(n)
+	b.WriteString("weight_string(")
+	writeExpr(b, n.Expr)
+	fmt.Fprintf(b, ",0,%d,%d,%d)", nweights, flags, isBinary)
 }
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
@@ -3172,6 +3186,15 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// trim-keyword-forms).
 		if len(n.Args) == 2 {
 			writeTrimDirectional(b, "both", n.Args)
+			return
+		}
+	case "WEIGHT_STRING":
+		// OceanBase 4.3.5.6 stores plain 1-arg WEIGHT_STRING(expr) as
+		// weight_string(expr,0,0,0,0).
+		if n.Schema == "" && len(n.Args) == 1 {
+			b.WriteString("weight_string(")
+			writeExpr(b, n.Args[0])
+			b.WriteString(",0,0,0,0)")
 			return
 		}
 	case "GET_FORMAT":

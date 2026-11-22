@@ -1,10 +1,12 @@
 package catalog
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode/utf16"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/deparse"
@@ -1410,11 +1412,28 @@ func normalizeViewLiteralExpr(expr nodes.ExprNode) nodes.ExprNode {
 	switch n := expr.(type) {
 	case *nodes.StringLit:
 		if n.Charset != "" {
-			if strings.EqualFold(strings.TrimPrefix(n.Charset, "_"), "binary") {
+			cs := strings.ToLower(strings.TrimPrefix(n.Charset, "_"))
+			switch cs {
+			case "binary":
 				return &nodes.HexLit{
 					Loc:   n.Loc,
 					Value: fmt.Sprintf("%X", []byte(n.Value)),
 				}
+			case "utf16le":
+				// OceanBase 4.3.5.6 reinterprets _utf16le string bytes as UTF-16LE
+				// (left-padding odd-length byte runs with a leading 0x00 byte) when
+				// storing the literal in SHOW CREATE VIEW.
+				raw := []byte(n.Value)
+				if len(raw)%2 == 1 {
+					padded := make([]byte, len(raw)+1)
+					copy(padded[1:], raw)
+					raw = padded
+				}
+				u16 := make([]uint16, len(raw)/2)
+				for i := range u16 {
+					u16[i] = binary.LittleEndian.Uint16(raw[2*i:])
+				}
+				n.Value = string(utf16.Decode(u16))
 			}
 			n.Charset = ""
 		}
@@ -1930,7 +1949,7 @@ func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool) (*Query,
 	if errors.As(err, &refusal) {
 		switch refusal.Code {
 		case ErrNoSuchTable, ErrNoSuchColumn, ErrUnknownTable, ErrUnknownTableInFieldList,
-			ErrNoTablesUsed, 1066, 1052, ErrWrongParamCount:
+			ErrNoTablesUsed, 1066, 1052, ErrWrongParamCount, 1583, ErrWrongArguments:
 			return nil, refusal
 		}
 	}
@@ -2048,10 +2067,22 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 			switch e := n.(type) {
 			case *nodes.FuncCallExpr:
 				if e.Schema == "" {
-					switch strings.ToLower(e.Name) {
+					lower := strings.ToLower(e.Name)
+					switch lower {
 					case "_st_asmvt", "check":
 						err = errOBSyntaxError()
 						return false
+					case "nth_value":
+						// OceanBase 4.3.5.6 validates that NTH_VALUE's second argument
+						// is a constant before resolving window names (5929).
+						if len(e.Args) == 2 && exprContainsColumnRef(e.Args[1]) {
+							err = &Error{
+								Code:     ErrWrongArguments,
+								SQLState: sqlState(ErrWrongArguments),
+								Message:  "Incorrect arguments to nth_value",
+							}
+							return false
+						}
 					}
 				}
 				if e.Over != nil {

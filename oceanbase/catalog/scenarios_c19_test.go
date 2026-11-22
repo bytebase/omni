@@ -51,9 +51,8 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("oracle: SHOW CREATE should contain ((lower(`name`))); got %q", mysqlCreate)
 		}
 
-		// omni: the IndexColumn carries an expression, over a hidden column.
-		// omni gap: the catalog names that column !hidden!idx_lower!0!0, as
-		// MySQL does, not SYS_NC18$.
+		// omni: the IndexColumn carries an expression, over OceanBase's hidden
+		// column SYS_NC18$ (OB_APP_MIN_COLUMN_ID = 16 + 2 user columns).
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Fatal("omni: table t not found")
@@ -70,18 +69,14 @@ func TestScenario_C19(t *testing.T) {
 		}
 		if len(idx.Columns) != 1 {
 			t.Errorf("omni: idx_lower expected 1 key part, got %d", len(idx.Columns))
-		} else if idx.Columns[0].Expr == "" {
-			t.Errorf("omni: idx_lower key part has no Expr; MySQL stores this as a hidden generated column")
-		}
-		hiddenFound := false
-		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") && col.Hidden == ColumnHiddenSystem {
-				hiddenFound = true
-				break
+		} else {
+			assertStringEq(t, "omni functional index COLUMN_NAME", idx.Columns[0].Name, "SYS_NC18$")
+			if idx.Columns[0].Expr == "" {
+				t.Errorf("omni: idx_lower key part has no Expr")
 			}
 		}
-		if !hiddenFound {
-			t.Errorf("omni: no hidden column synthesized for functional index (MySQL: !hidden!idx_lower!0!0)")
+		if col := tbl.GetColumn("SYS_NC18$"); col == nil || col.Hidden != ColumnHiddenSystem {
+			t.Errorf("omni: hidden column SYS_NC18$ missing or not system-hidden: %#v", col)
 		}
 	})
 
@@ -129,14 +124,14 @@ func TestScenario_C19(t *testing.T) {
 			{"k_cast", "bigint"},
 		} {
 			var hiddenCol *Column
-			for _, col := range tbl.Columns {
-				if strings.Contains(col.Name, want.idx) && strings.HasPrefix(col.Name, "!hidden!") {
-					hiddenCol = col
+			for _, idx := range tbl.Indexes {
+				if strings.EqualFold(idx.Name, want.idx) && len(idx.Columns) > 0 {
+					hiddenCol = tbl.GetColumn(idx.Columns[0].Name)
 					break
 				}
 			}
-			if hiddenCol == nil {
-				t.Errorf("omni %s: no hidden column synthesized; MySQL types this as %s", want.idx, want.wantType)
+			if hiddenCol == nil || hiddenCol.Hidden != ColumnHiddenSystem || !strings.HasPrefix(hiddenCol.Name, "SYS_NC") {
+				t.Errorf("omni %s: no SYS_NC hidden column synthesized; want type %s", want.idx, want.wantType)
 				continue
 			}
 			if !strings.EqualFold(hiddenCol.DataType, want.wantType) {
@@ -193,7 +188,7 @@ func TestScenario_C19(t *testing.T) {
 		}
 		var visible, hidden int
 		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
+			if col.Hidden == ColumnHiddenSystem && strings.HasPrefix(col.Name, "SYS_NC") {
 				hidden++
 			} else {
 				visible++
@@ -361,14 +356,12 @@ func TestScenario_C19(t *testing.T) {
 				t.Fatalf("omni: recreating idx_lower: %v", r.Error)
 			}
 		}
-		// Oracle: the table has no column of MySQL's hidden name, so dropping
-		// it is 1091. (OceanBase's own is SYS_NC18$.)
+		// Oracle & omni: the table has no column of MySQL's hidden name (OceanBase
+		// names it SYS_NC19$ after drop+recreate), so dropping `!hidden!idx_lower!0!0`
+		// is 1091 on both.
 		const dropHidden = "ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`"
 		oracleRefuses(t, mc, dropHidden, 1091)
-
-		// omni gap: the catalog holds a column of that name and refuses to
-		// drop it with MySQL's ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX (3108).
-		assertIntEq(t, "omni DROP COLUMN of the hidden column, error code", omniCode(c, dropHidden), 3108)
+		assertIntEq(t, "omni DROP COLUMN of MySQL hidden name, error code", omniCode(c, dropHidden), 1091)
 
 		runOnBoth(t, mc, c, "ALTER TABLE t RENAME INDEX idx_lower TO idx_lc")
 		mysqlCreate = oracleShow(t, mc, "SHOW CREATE TABLE t")
@@ -383,11 +376,8 @@ func TestScenario_C19(t *testing.T) {
 		if tbl == nil {
 			t.Fatalf("omni: table t missing after RENAME INDEX")
 		}
-		if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
-			t.Errorf("omni: old hidden column still present after RENAME INDEX: %#v", col)
-		}
-		if col := tbl.GetColumn("!hidden!idx_lc!0!0"); col == nil || col.Hidden != ColumnHiddenSystem {
-			t.Errorf("omni: renamed hidden column missing or not system-hidden: %#v", col)
+		if col := tbl.GetColumn("SYS_NC19$"); col == nil || col.Hidden != ColumnHiddenSystem {
+			t.Errorf("omni: hidden column SYS_NC19$ missing or not system-hidden after RENAME INDEX: %#v", col)
 		}
 	})
 }

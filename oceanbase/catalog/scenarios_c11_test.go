@@ -304,8 +304,7 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a * 2;`
 		// ALTER is a syntax error there, and the table keeps its trigger.
 		alter := `ALTER TABLE t COALESCE PARTITION 2`
 		oracleRefuses(t, mc, alter, 1064)
-		// omni gap: the catalog runs the ALTER, as MySQL does.
-		assertIntEq(t, "omni COALESCE PARTITION error code", omniCode(c, alter+";"), 0)
+		assertIntEq(t, "omni COALESCE PARTITION error code", omniCode(c, alter+";"), -1)
 
 		var trgCount int64
 		oracleScan(t, mc,

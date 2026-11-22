@@ -303,9 +303,6 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
-	case kwCOALESCE:
-		return p.parseAlterCoalescePartition(cmd)
-
 	case kwREORGANIZE:
 		return p.parseAlterReorganizePartition(cmd)
 
@@ -1587,25 +1584,6 @@ func (p *Parser) isNameOB(tok Token) bool {
 	return !oceanBaseKeywords[strings.ToLower(tok.Str)] && !strings.HasPrefix(tok.Str, "@") && !isCharsetIntroducer(tok.Str)
 }
 
-// parseAlterCoalescePartition parses COALESCE PARTITION number.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
-//
-//	COALESCE PARTITION number
-func (p *Parser) parseAlterCoalescePartition(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
-	p.advance() // consume COALESCE
-	if _, err := p.expect(kwPARTITION); err != nil {
-		return nil, err
-	}
-	cmd.Type = nodes.ATCoalescePartition
-	if p.cur.Type == tokICONST {
-		cmd.Number = int(p.cur.Ival)
-		p.advance()
-	}
-	cmd.Loc.End = p.prev.End
-	return cmd, nil
-}
-
 // parseAlterReorganizePartition parses REORGANIZE PARTITION partition_names INTO (partition_definitions).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
@@ -1683,22 +1661,16 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 	}
 	cmd.ExchangeTable = tblRef
 
-	// Optional [{WITH | WITHOUT} VALIDATION]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if _, err := p.expect(kwVALIDATION); err != nil {
-			return nil, err
-		}
-		v := true
-		cmd.WithValidation = &v
-	} else if p.cur.Type == kwWITHOUT {
-		p.advance()
-		if _, err := p.expect(kwVALIDATION); err != nil {
-			return nil, err
-		}
-		v := false
-		cmd.WithValidation = &v
+	// OceanBase's sql_parser_mysql_mode.y requires WITHOUT VALIDATION
+	// (EXCHANGE PARTITION relation_name WITH TABLE relation_factor WITHOUT VALIDATION).
+	if _, err := p.expect(kwWITHOUT); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(kwVALIDATION); err != nil {
+		return nil, err
+	}
+	v := false
+	cmd.WithValidation = &v
 
 	cmd.Loc.End = p.prev.End
 	return cmd, nil

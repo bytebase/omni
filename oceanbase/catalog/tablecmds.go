@@ -1429,13 +1429,6 @@ func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition 
 			}
 		}
 	}
-	if pc.Type == nodes.PartitionList {
-		for _, pd := range pc.Partitions {
-			if containsPartitionDefaultExpr(pd.Values) {
-				return &Error{Code: 1064, SQLState: "42000", Message: "DEFAULT is not valid in LIST partition values"}
-			}
-		}
-	}
 	// MySQL requires every partition to list the same number of subpartitions, or
 	// none to. OceanBase does not: 4.3.5.6 takes partitions with different numbers of
 	// subpartitions, partitions that list none beside ones that do, and lists that
@@ -1467,22 +1460,6 @@ func boundHasMaxValue(n nodes.Node) bool {
 	case *nodes.List:
 		for _, item := range v.Items {
 			if boundHasMaxValue(item) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func containsPartitionDefaultExpr(n nodes.Node) bool {
-	switch v := n.(type) {
-	case nil:
-		return false
-	case *nodes.DefaultExpr:
-		return true
-	case *nodes.List:
-		for _, item := range v.Items {
-			if containsPartitionDefaultExpr(item) {
 				return true
 			}
 		}
@@ -1557,8 +1534,8 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 // falls back to the verbatim deparse, so a literal bound (the common case) is rendered unchanged and
 // an unsupported expression is preserved (and flagged as a documented round-trip limitation).
 func partitionValueItemSQL(n nodes.ExprNode) string {
-	// An OceanBase LIST subpartition's VALUES IN (DEFAULT), which 4.3.5.6 prints as
-	// written. A partition's is refused before it gets here (validatePartitionClause).
+	// An OceanBase LIST partition or subpartition's VALUES IN (DEFAULT), which
+	// 4.3.5.6 prints as written.
 	if _, ok := n.(*nodes.DefaultExpr); ok {
 		return "DEFAULT"
 	}
@@ -2210,6 +2187,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		for _, a := range n.Args {
 			args = append(args, nodeToSQLGenerated(a, charset))
 		}
+		if n.Schema == "" && funcName == "weight_string" && len(args) == 1 {
+			return "weight_string(" + args[0] + ",0,0,0,0)"
+		}
 		return funcName + "(" + strings.Join(args, ",") + ")"
 	case *nodes.NullLit:
 		return "NULL"
@@ -2262,29 +2242,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// keeps the function under its other name.
 		return "locate(" + nodeToSQLGenerated(n.Substr, charset) + "," + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.WeightStringExpr:
-		// Oracle 8.0.32 stored form: weight_string(`s` as char(4)).
-		var b strings.Builder
-		b.WriteString("weight_string(")
-		b.WriteString(nodeToSQLGenerated(n.Expr, charset))
-		if n.AsChar != nil {
-			fmt.Fprintf(&b, " as char(%d)", n.AsChar.Length)
-		}
-		for i, lv := range n.Levels {
-			if i == 0 {
-				b.WriteString(" level ")
-			} else {
-				b.WriteString(",")
-			}
-			fmt.Fprintf(&b, "%d", lv.Level)
-			if lv.Desc {
-				b.WriteString(" desc")
-			}
-			if lv.Reverse {
-				b.WriteString(" reverse")
-			}
-		}
-		b.WriteString(")")
-		return b.String()
+		// OceanBase 4.3.5.6 stored form: weight_string(`s`,0,4,64,0) / (...,1).
+		nweights, flags, isBinary := deparse.WeightStringParams(n)
+		return fmt.Sprintf("weight_string(%s,0,%d,%d,%d)", nodeToSQLGenerated(n.Expr, charset), nweights, flags, isBinary)
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)

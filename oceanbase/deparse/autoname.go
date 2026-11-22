@@ -74,8 +74,6 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		return n.Value, true
 	case *ast.NullLit:
 		return "NULL", true
-	case *ast.IntLit, *ast.FloatLit:
-		return nodeText(source, n)
 	}
 	return "", false
 }

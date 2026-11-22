@@ -6,11 +6,11 @@ ok:2f0eb69e9bff	ok:2f0eb69e9bff	engine	one_table@column	stmt/pl_expr_stmt!insert
 1054	1054	engine	one_table@column	expr_list/expr	CREATE VIEW _v AS SELECT [ a ]
 1054	1054	engine	one_table@column	expr_list/expr_list_,_expr	CREATE VIEW _v AS SELECT [ a, a ]
 1054	1054	engine	one_table@column	expr_as_list/expr_with_opt_alias	CREATE VIEW _v AS SELECT STATISTICS(a)
-1054	1583	engine	one_table@column	expr_as_list/expr_with_opt_alias!insert	CREATE VIEW _v AS SELECT STATISTICS(a zzz)
+1583	1583	engine	one_table@column	expr_as_list/expr_with_opt_alias!insert	CREATE VIEW _v AS SELECT STATISTICS(a zzz)
 1054	1054	engine	one_table@column	expr_as_list/expr_as_list_,_expr_with_opt_alias	CREATE VIEW _v AS SELECT STATISTICS(a, a)
-1054	1583	engine	one_table@column	expr_as_list/expr_as_list_,_expr_with_opt_alias!insert	CREATE VIEW _v AS SELECT STATISTICS(a, a zzz)
-1054	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_column_label	CREATE VIEW _v AS SELECT STATISTICS(a a)
-1054	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE	CREATE VIEW _v AS SELECT STATISTICS(a 's')
+1583	1583	engine	one_table@column	expr_as_list/expr_as_list_,_expr_with_opt_alias!insert	CREATE VIEW _v AS SELECT STATISTICS(a, a zzz)
+1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_column_label	CREATE VIEW _v AS SELECT STATISTICS(a a)
+1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE	CREATE VIEW _v AS SELECT STATISTICS(a 's')
 ok	1305	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE!drop-1	CREATE VIEW _v AS SELECT STATISTICS('s')
 1109	1109	engine	one_table@column	column_ref/relation_name_._column_name	CREATE VIEW _v AS SELECT a . a
 1109	1109	engine	one_table@column	column_ref/relation_name_._column_name!insert	CREATE VIEW _v AS SELECT a . a zzz
@@ -78,7 +78,7 @@ ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_CP93
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_GB18030	CREATE VIEW _v AS SELECT _gb18030 's'
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_GB18030_2022	CREATE VIEW _v AS SELECT _gb18030_2022 's'
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_UTF16	CREATE VIEW _v AS SELECT _utf16 's'
-ok	ok:262331011573	engine	one_table@column	charset_introducer/_UTF16LE	CREATE VIEW _v AS SELECT _utf16le 's'
+ok:262331011573	ok:262331011573	engine	one_table@column	charset_introducer/_UTF16LE	CREATE VIEW _v AS SELECT _utf16le 's'
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_SJIS	CREATE VIEW _v AS SELECT _sjis 's'
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_BIG5	CREATE VIEW _v AS SELECT _big5 's'
 ok:b04e23ca8a40	ok:b04e23ca8a40	engine	one_table@column	charset_introducer/_HKSCS	CREATE VIEW _v AS SELECT _hkscs 's'
@@ -94,8 +94,8 @@ ok:45e4d0ddb7de	ok:45e4d0ddb7de	engine	one_table@column	literal/INTNUM	CREATE VI
 ok:668335eb68ce	ok:668335eb68ce	engine	one_table@column	literal/INTNUM!insert	CREATE VIEW _v AS SELECT 1 zzz
 ok:4d1e57527793	ok:4d1e57527793	engine	one_table@column	literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT 1.5
 ok:af59170443ea	ok:af59170443ea	engine	one_table@column	literal/DECIMAL_VAL!insert	CREATE VIEW _v AS SELECT 1.5 zzz
-ok	ok:c2a5dc0a8826	engine	one_table@column	literal/BOOL_VALUE	CREATE VIEW _v AS SELECT TRUE
-ok	ok:87fe585205e3	engine	one_table@column	literal/BOOL_VALUE!insert	CREATE VIEW _v AS SELECT TRUE zzz
+ok:c2a5dc0a8826	ok:c2a5dc0a8826	engine	one_table@column	literal/BOOL_VALUE	CREATE VIEW _v AS SELECT TRUE
+ok:87fe585205e3	ok:87fe585205e3	engine	one_table@column	literal/BOOL_VALUE!insert	CREATE VIEW _v AS SELECT TRUE zzz
 ok:e7ff2747a555	ok:e7ff2747a555	engine	one_table@column	literal/NULLX	CREATE VIEW _v AS SELECT NULL
 ok:71da5b0e5829	ok:71da5b0e5829	engine	one_table@column	literal/NULLX!insert	CREATE VIEW _v AS SELECT NULL zzz
 ok:e01b76fe315c	ok:e01b76fe315c	engine	one_table@column	literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT 0x41
@@ -367,8 +367,8 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT LEAD(a) OVER a zzz
 5929	5929	engine	one_table@column	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT LAG(a) OVER a
 5929	5929	engine	one_table@column	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT LAG(a) OVER a zzz
-5929	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a
-5929	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a zzz
+1210	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a
+1210	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a zzz
 5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a
 1054	1054	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-11	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') a
 5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a zzz
@@ -384,8 +384,8 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT BIT_XOR(a) OVER a
 1054	1054	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT BIT_XOR(a) a
 5929	5929	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT BIT_XOR(a) OVER a zzz
-5929	1210	engine	one_table@column	first_or_last/FIRST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM FIRST OVER a
-5929	1210	engine	one_table@column	first_or_last/LAST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM LAST OVER a
+1210	1210	engine	one_table@column	first_or_last/FIRST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM FIRST OVER a
+1210	1210	engine	one_table@column	first_or_last/LAST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM LAST OVER a
 5929	5929	engine	one_table@column	respect_or_ignore/RESPECT	CREATE VIEW _v AS SELECT FIRST_VALUE(a RESPECT NULLS) OVER a
 5929	5929	engine	one_table@column	respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT FIRST_VALUE(a IGNORE NULLS) OVER a
 5929	5929	engine	one_table@column	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS	CREATE VIEW _v AS SELECT FIRST_VALUE(a) RESPECT NULLS OVER a
@@ -1897,7 +1897,7 @@ ok:99a4b2110be5	ok:99a4b2110be5	engine	one_table@column	table_references/table_r
 ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_reference/{_OJ_table_factor_}	CREATE VIEW _v AS SELECT a FROM { OJ a }
 1066	1066	engine	one_table@column	table_reference/{_OJ_joined_table_}	CREATE VIEW _v AS SELECT a FROM { OJ a JOIN a }
 ok:99a4b2110be5	ok:99a4b2110be5	engine	one_table@column	table_reference/{_OJ_joined_table_}!drop-4	CREATE VIEW _v AS SELECT a FROM { OJ a a }
-ok	ok:8b9641dff3fa	engine	one_table@column	table_reference/table_reference_FULL	CREATE VIEW _v AS SELECT a FROM a FULL
+ok:8b9641dff3fa	ok:8b9641dff3fa	engine	one_table@column	table_reference/table_reference_FULL	CREATE VIEW _v AS SELECT a FROM a FULL
 1146	1146	engine	one_table@column	table_reference/table_reference_FULL!drop-1	CREATE VIEW _v AS SELECT a FROM FULL
 1054	1054	engine	one_table@column	table_factor/table_subquery	CREATE VIEW _v AS SELECT a FROM(SELECT a) a
 1054	1054	engine	one_table@column	table_factor/LATERAL_table_subquery	CREATE VIEW _v AS SELECT a FROM LATERAL(SELECT a) a
@@ -1997,7 +1997,7 @@ ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_factor/(_table_ref
 1066	1066	engine	one_table@column	joined_table/table_reference_natural_join_type_opt_full_table_factor	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN a
 ok:ef8e66362ba9	ok:ef8e66362ba9	engine	one_table@column	joined_table/table_reference_natural_join_type_opt_full_table_factor!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN a zzz
 1052	1052	engine	one_table@column	joined_table/table_reference_natural_join_type_opt_full_table_factor!swap	CREATE VIEW _v AS SELECT a FROM a NCHAR JOIN a
-ok	ok:58523c408684	engine	one_table@column	opt_full_table_factor/table_factor_FULL	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN a FULL
+ok:58523c408684	ok:58523c408684	engine	one_table@column	opt_full_table_factor/table_factor_FULL	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN a FULL
 1146	1146	engine	one_table@column	opt_full_table_factor/table_factor_FULL!drop-1	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN FULL
 1066	1066	engine	one_table@column	natural_join_type/NATURAL_except_full_outer_join_type	CREATE VIEW _v AS SELECT a FROM a NATURAL LEFT JOIN a
 1146	1146	engine	one_table@column	natural_join_type/NATURAL_except_full_outer_join_type!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL LEFT JOIN zzz a
@@ -2038,28 +2038,28 @@ ok	ok:58523c408684	engine	one_table@column	opt_full_table_factor/table_factor_FU
 1109	1109	engine	one_table@column	id_dot_id_dot_id/relation_name_._id_dot_id	CREATE VIEW _v AS SELECT a . a.a
 1109	1109	engine	one_table@column	id_dot_id_dot_id/relation_name_._id_dot_id!insert	CREATE VIEW _v AS SELECT a . a.a zzz
 ok	1305	engine	one_table@column	function_name/NAME_OB	CREATE VIEW _v AS SELECT a()
-ok	1582	engine	one_table@column	function_name/DUMP	CREATE VIEW _v AS SELECT DUMP()
-ok	1582	engine	one_table@column	function_name/CHARSET	CREATE VIEW _v AS SELECT CHARSET()
-ok	1582	engine	one_table@column	function_name/COLLATION	CREATE VIEW _v AS SELECT COLLATION()
+1582	1582	engine	one_table@column	function_name/DUMP	CREATE VIEW _v AS SELECT DUMP()
+1582	1582	engine	one_table@column	function_name/CHARSET	CREATE VIEW _v AS SELECT CHARSET()
+1582	1582	engine	one_table@column	function_name/COLLATION	CREATE VIEW _v AS SELECT COLLATION()
 ok:44b312fd5ab4	ok:44b312fd5ab4	engine	one_table@column	function_name/KEY_VERSION	CREATE VIEW _v AS SELECT KEY_VERSION()
 ok:8695d513bce3	ok:8695d513bce3	engine	one_table@column	function_name/USER	CREATE VIEW _v AS SELECT USER()
 ok:87e3a0306ce0	ok:87e3a0306ce0	engine	one_table@column	function_name/DATABASE	CREATE VIEW _v AS SELECT DATABASE()
 ok:71c5f9c4dde8	ok:71c5f9c4dde8	engine	one_table@column	function_name/SCHEMA	CREATE VIEW _v AS SELECT SCHEMA()
-ok	1582	engine	one_table@column	function_name/COALESCE	CREATE VIEW _v AS SELECT COALESCE()
+1582	1582	engine	one_table@column	function_name/COALESCE	CREATE VIEW _v AS SELECT COALESCE()
 ok	1305	engine	one_table@column	function_name/COALESCE!swap	CREATE VIEW _v AS SELECT COALESCE_AGGR()
-ok	1582	engine	one_table@column	function_name/REPEAT	CREATE VIEW _v AS SELECT REPEAT()
+1582	1582	engine	one_table@column	function_name/REPEAT	CREATE VIEW _v AS SELECT REPEAT()
 ok:9827537590a4	ok:9827537590a4	engine	one_table@column	function_name/ROW_COUNT	CREATE VIEW _v AS SELECT ROW_COUNT()
-ok	1582	engine	one_table@column	function_name/REVERSE	CREATE VIEW _v AS SELECT REVERSE()
-ok	1582	engine	one_table@column	function_name/RIGHT	CREATE VIEW _v AS SELECT RIGHT()
+1582	1582	engine	one_table@column	function_name/REVERSE	CREATE VIEW _v AS SELECT REVERSE()
+1582	1582	engine	one_table@column	function_name/RIGHT	CREATE VIEW _v AS SELECT RIGHT()
 ok:12b3751ff4bf	ok:12b3751ff4bf	engine	one_table@column	function_name/SYSTEM_USER	CREATE VIEW _v AS SELECT SYSTEM_USER()
 ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_USER	CREATE VIEW _v AS SELECT SESSION_USER()
-ok	1582	engine	one_table@column	function_name/REPLACE	CREATE VIEW _v AS SELECT REPLACE()
+1582	1582	engine	one_table@column	function_name/REPLACE	CREATE VIEW _v AS SELECT REPLACE()
 ok	1305	engine	one_table@column	function_name/REPLACE!swap	CREATE VIEW _v AS SELECT REPLACE_CONST()
-ok	1582	engine	one_table@column	function_name/TRUNCATE	CREATE VIEW _v AS SELECT TRUNCATE()
-ok	1582	engine	one_table@column	function_name/FORMAT	CREATE VIEW _v AS SELECT FORMAT()
-ok	1582	engine	one_table@column	function_name/NORMAL	CREATE VIEW _v AS SELECT NORMAL()
-ok	1582	engine	one_table@column	function_name/PASSWORD	CREATE VIEW _v AS SELECT PASSWORD()
-ok	1582	engine	one_table@column	function_name/ENCRYPT	CREATE VIEW _v AS SELECT ENCRYPT()
+1582	1582	engine	one_table@column	function_name/TRUNCATE	CREATE VIEW _v AS SELECT TRUNCATE()
+1582	1582	engine	one_table@column	function_name/FORMAT	CREATE VIEW _v AS SELECT FORMAT()
+1582	1582	engine	one_table@column	function_name/NORMAL	CREATE VIEW _v AS SELECT NORMAL()
+1582	1582	engine	one_table@column	function_name/PASSWORD	CREATE VIEW _v AS SELECT PASSWORD()
+1582	1582	engine	one_table@column	function_name/ENCRYPT	CREATE VIEW _v AS SELECT ENCRYPT()
 ok	1305	engine	one_table@column	function_name/DECRYPT	CREATE VIEW _v AS SELECT DECRYPT()
 1054	1054	engine	one_table@column	date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT a + INTERVAL a DAY_HOUR
 1054	1054	engine	one_table@column	date_unit/DAY_HOUR!insert	CREATE VIEW _v AS SELECT a + INTERVAL a DAY_HOUR zzz

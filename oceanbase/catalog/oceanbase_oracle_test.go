@@ -199,21 +199,8 @@ var obGaps = map[string]gap{
 		twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
 	},
 
-	// The one rewrite of a view's body the deparser does not follow: OceanBase prints
-	// WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0),
-	// which the parser reads now, but the user's WEIGHT_STRING(s) still deparses as
-	// weight_string(s), so the two forms are not the same text.
-	"TestOracle_ViewIdempotence/oceanbase/weight-string-forms": {
-		"OceanBase prints WEIGHT_STRING as its internal five-argument call, and the user form deparses as the plain call",
-		twoWays("CANONICALIZATION: user vs stored not empty for weight-string-forms", "CANONICALIZATION (reverse): stored vs user not empty for weight-string-forms"),
-	},
-
-	// Events. OceanBase keeps an event's comment when ALTER EVENT gives an empty one, and
-	// gives an altered event the server's sql_mode, not the session's.
-	"TestOracle_EventApplyCorrectness/oceanbase/alter-remove-comment": {
-		"OceanBase's ALTER EVENT ... COMMENT '' leaves the comment as it was, so the plan cannot take one away",
-		twoWays("APPLY-CORRECTNESS FAILED for alter-remove-comment: result != to", "APPLY-CORRECTNESS (reverse) FAILED for alter-remove-comment"),
-	},
+	// Events. OceanBase gives an event the server's sql_mode and time_zone
+	// rather than the session's, on both CREATE EVENT and ALTER EVENT.
 	"TestOracle_EventAlterPreservesSQLMode/oceanbase": {
 		"OceanBase gives an event altered under SET sql_mode the server's sql_mode, so the plan's SET does not carry the mode the event had",
 		[]string{"event sql_mode not preserved across ALTER"},
@@ -385,12 +372,8 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 						ie.Name, ie.Action, strings.TrimSpace(probe.create), strings.TrimSpace(readback))
 				}
 				if te.PartitionChanged {
-					if probe.id == "subpartition template" {
-						t.Errorf("the template does not canonicalize against its readback\n  user:   %s\n  stored: %s",
-							strings.TrimSpace(probe.create), strings.TrimSpace(readback))
-					} else {
-						t.Logf("known gap: the partition form also differs for %s", probe.id)
-					}
+					t.Errorf("the partition form does not canonicalize against its readback for %s\n  user:   %s\n  stored: %s",
+						probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(readback))
 				}
 			}
 		}))

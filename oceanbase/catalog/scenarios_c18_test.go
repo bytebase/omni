@@ -107,8 +107,7 @@ func TestScenario_C18(t *testing.T) {
 		// TABLESPACE=<name> is a syntax error.
 		stmt := "CREATE TABLE t_gts (a INT) TABLESPACE=innodb_system"
 		oracleRefuses(t, mc, stmt, 1064)
-		// omni gap: the parser takes the "=" form, as MySQL does.
-		assertIntEq(t, "omni TABLESPACE= error code", omniCode(c, stmt), 0)
+		assertIntEq(t, "omni TABLESPACE= error code", omniCode(c, stmt), -1)
 	})
 
 	// -----------------------------------------------------------------
