@@ -34,7 +34,22 @@ func (p *Parser) parseDMLStatementNoWith() (Statement, error) {
 
 func (p *Parser) parseSingleInsertQuery() (Statement, error) {
 	start := p.cur().Start
-	target, err := p.parseInsertInto()
+	cp := p.save()
+	ambiguous := p.hasAmbiguousInsertTableTarget()
+	target, err := p.parseInsertIntoWithTable(true)
+	if err == nil {
+		if err = p.parseQuery(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtInsert, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		}
+	}
+	if !ambiguous {
+		if err != nil {
+			return nil, err
+		}
+		return &ParsedStmt{Kind: StmtInsert, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	}
+	p.restore(cp)
+	target, err = p.parseInsertIntoWithTable(false)
 	if err != nil {
 		return nil, err
 	}
@@ -51,10 +66,21 @@ func (p *Parser) parseMultiInsertQuery() (Statement, error) {
 	}
 	count := 0
 	for p.cur().Kind == kwINSERT {
-		if _, err := p.parseInsertInto(); err != nil {
-			return nil, err
+		cp := p.save()
+		ambiguous := p.hasAmbiguousInsertTableTarget()
+		_, err := p.parseInsertIntoWithTable(true)
+		if err == nil {
+			err = p.parseFromStatementBody()
 		}
-		if err := p.parseFromStatementBody(); err != nil {
+		if (err != nil || (!p.isStatementEnd() && p.cur().Kind != kwINSERT)) && ambiguous {
+			p.restore(cp)
+			if _, err = p.parseInsertIntoWithTable(false); err != nil {
+				return nil, err
+			}
+			if err = p.parseFromStatementBody(); err != nil {
+				return nil, err
+			}
+		} else if err != nil {
 			return nil, err
 		}
 		count++
@@ -65,13 +91,35 @@ func (p *Parser) parseMultiInsertQuery() (Statement, error) {
 	return &ParsedStmt{Kind: StmtMultiInsert, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
+// hasAmbiguousInsertTableTarget reports whether `INSERT (INTO|OVERWRITE) TABLE <kw>`
+// is followed by a keyword (`SELECT`, `FROM`, `WITH`, `VALUES`, `TABLE`, `MAP`, `REDUCE`)
+// where `TABLE` could be either the optional keyword before a keyword-named target
+// (`INSERT INTO TABLE select SELECT 1`) or the target table itself
+// (`INSERT INTO table SELECT select FROM t`, `INSERT INTO table TABLE t`).
+func (p *Parser) hasAmbiguousInsertTableTarget() bool {
+	if p.cur().Kind != kwINSERT {
+		return false
+	}
+	if p.peek(1).Kind != kwINTO && p.peek(1).Kind != kwOVERWRITE {
+		return false
+	}
+	if p.peek(2).Kind != kwTABLE {
+		return false
+	}
+	switch p.peek(3).Kind {
+	case kwSELECT, kwFROM, kwWITH, kwVALUES, kwTABLE, kwMAP, kwREDUCE:
+		return true
+	}
+	return false
+}
+
 // parseInsertInto implements all 5 alternatives of insertInto in SqlBaseParser.g4:
 //  1. INSERT OVERWRITE TABLE? identifierReference optionsClause? (partitionSpec (IF NOT EXISTS)?)? ((BY NAME) | identifierList)?
 //  2. INSERT INTO TABLE? identifierReference optionsClause? partitionSpec? (IF NOT EXISTS)? ((BY NAME) | identifierList)?
 //  3. INSERT INTO TABLE? identifierReference optionsClause? REPLACE whereClause
 //  4. INSERT OVERWRITE LOCAL? DIRECTORY stringLit rowFormat? createFileFormat?
 //  5. INSERT OVERWRITE LOCAL? DIRECTORY stringLit? tableProvider (OPTIONS propertyList)?
-func (p *Parser) parseInsertInto() (string, error) {
+func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, error) {
 	if _, err := p.expect(kwINSERT); err != nil {
 		return "", err
 	}
@@ -118,7 +166,7 @@ func (p *Parser) parseInsertInto() (string, error) {
 			// Not a directory insert (e.g. `INSERT OVERWRITE DIRECTORY SELECT a` where DIRECTORY is a table name).
 			p.restore(cpDir)
 		}
-		if p.isOptionalInsertTableKeyword() {
+		if allowOptionalTable && p.isOptionalInsertTableKeyword() {
 			p.advance()
 		}
 		target, err := p.parseIdentifierReference()
@@ -161,7 +209,7 @@ func (p *Parser) parseInsertInto() (string, error) {
 	if _, err := p.expect(kwINTO); err != nil {
 		return "", err
 	}
-	if p.isOptionalInsertTableKeyword() {
+	if allowOptionalTable && p.isOptionalInsertTableKeyword() {
 		p.advance()
 	}
 	target, err := p.parseIdentifierReference()
@@ -217,13 +265,14 @@ func (p *Parser) isOptionalInsertTableKeyword() bool {
 	}
 	next := p.peek(1).Kind
 	switch next {
-	case tokEOF, tokSemicolon, tokDot, tokLParen,
-		kwSELECT, kwFROM, kwWITH:
+	case tokEOF, tokSemicolon, tokDot, tokLParen:
 		return false
-	case kwVALUES:
+	case kwSELECT, kwFROM, kwWITH, kwVALUES:
 		after := p.peek(2).Kind
-		return after == tokDot || after == kwSELECT || after == kwFROM || after == kwWITH ||
-			after == kwVALUES || after == kwTABLE || after == kwPARTITION || after == kwBY || after == kwREPLACE || after == kwIF
+		return after == tokDot || after == tokLParen ||
+			after == kwSELECT || after == kwFROM || after == kwWITH ||
+			after == kwVALUES || after == kwTABLE || after == kwMAP || after == kwREDUCE ||
+			after == kwPARTITION || after == kwBY || after == kwREPLACE || after == kwIF
 	case kwPARTITION:
 		return p.peek(2).Kind != tokLParen
 	case kwBY:

@@ -631,6 +631,51 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtSet,
 		},
 		{
+			name: "insert into TABLE keyword with keyword-named targets",
+			sql:  `INSERT INTO TABLE select SELECT 1`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert overwrite TABLE keyword with from target",
+			sql:  `INSERT OVERWRITE TABLE from SELECT 1`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into TABLE keyword with select target and column list",
+			sql:  `INSERT INTO TABLE select (a, b) SELECT 1, 2`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into TABLE keyword with with target and column list",
+			sql:  `INSERT INTO TABLE with (a, b) SELECT 1, 2`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into table named table with options clause",
+			sql:  `INSERT INTO table WITH (k = 'v') SELECT 1`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into TABLE keyword with parenthesized query",
+			sql:  `INSERT INTO TABLE select (SELECT 1)`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into table named table with inline TABLE query",
+			sql:  `INSERT INTO table TABLE t`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into table named table selecting keyword columns",
+			sql:  `INSERT INTO table SELECT select, from FROM t`,
+			kind: StmtInsert,
+		},
+		{
+			name: "multi-insert with TABLE keyword and keyword target",
+			sql:  `FROM s INSERT INTO TABLE from SELECT 1 INSERT INTO table SELECT from`,
+			kind: StmtMultiInsert,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
