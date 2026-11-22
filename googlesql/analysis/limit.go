@@ -36,7 +36,7 @@ func StatementWithResultLimit(statement string, limit int, dialect Dialect) stri
 // suffix or a table-returning statement with one, when statement parses as
 // exactly that.
 func suffixOnlyPipeline(statement string) (*ast.Subpipeline, bool) {
-	file, err := parser.Parse(statement)
+	file, err := parseFile(statement, DialectBigQuery)
 	if err != nil || len(file.Stmts) != 1 {
 		return nil, false
 	}

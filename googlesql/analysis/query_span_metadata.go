@@ -73,7 +73,7 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 	}
 
 	queryType := rawSpan.Type
-	if queryType == Unknown && q.opts.SetStatementIsSelect && isSetStatement(single) {
+	if queryType == Unknown && q.opts.SetStatementIsSelect && isSetStatement(single, q.opts.Dialect) {
 		// A SET statement classifies as Select; the span walker's classifier
 		// leaves it Unknown.
 		queryType = Select
@@ -150,8 +150,8 @@ func (q *querySpanResolver) singleNonEmptyStatement(statement string) (string, i
 }
 
 // isSetStatement reports whether the statement parses to a single SET statement.
-func isSetStatement(statement string) bool {
-	file, err := parser.Parse(statement)
+func isSetStatement(statement string, dialect Dialect) bool {
+	file, err := parseFile(statement, dialect)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return false
 	}

@@ -149,7 +149,7 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/create_external_table_sta
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_external_table_statement!drop-7	CREATE EXTERNAL TABLE a OPTIONS(
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_external_table_statement!insert	CREATE EXTERNAL TABLE a OPTIONS() zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_external_table_statement!swap	CROSS EXTERNAL TABLE a OPTIONS()
-reject	accept	engine	sql_statement_body_no_pipe_suffix/create_model_statement	CREATE MODEL a
+accept	accept	engine	sql_statement_body_no_pipe_suffix/create_model_statement	CREATE MODEL a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_model_statement!drop-1	MODEL a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_model_statement!drop-2	CREATE a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_model_statement!drop-3	CREATE MODEL
@@ -173,7 +173,7 @@ reject	accept	engine	sql_statement_body_no_pipe_suffix/create_view_statement!dro
 reject	accept	engine	sql_statement_body_no_pipe_suffix/create_view_statement!drop-6	CREATE VIEW a AS SELECT
 accept	accept	engine	sql_statement_body_no_pipe_suffix/create_view_statement!insert	CREATE VIEW a AS SELECT NULL zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_view_statement!swap	CROSS VIEW a AS SELECT NULL
-reject	accept	engine	sql_statement_body_no_pipe_suffix/explain_statement	EXPLAIN BEGIN
+accept	accept	engine	sql_statement_body_no_pipe_suffix/explain_statement	EXPLAIN BEGIN
 reject	accept	engine	sql_statement_body_no_pipe_suffix/explain_statement!drop-2	EXPLAIN
 reject	accept	engine	sql_statement_body_no_pipe_suffix/explain_statement!insert	EXPLAIN BEGIN zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/explain_statement!swap	EXPORT BEGIN
@@ -190,7 +190,7 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/export_model_statement!dr
 reject	accept	engine	sql_statement_body_no_pipe_suffix/export_model_statement!drop-3	EXPORT MODEL
 reject	accept	engine	sql_statement_body_no_pipe_suffix/export_model_statement!insert	EXPORT MODEL a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/export_model_statement!swap	EXTEND MODEL a
-accept	reject	engine	sql_statement_body_no_pipe_suffix/alter_statement	ALTER a SET AS 'a'
+reject	reject	engine	sql_statement_body_no_pipe_suffix/alter_statement	ALTER a SET AS 'a'
 reject	reject	engine	sql_statement_body_no_pipe_suffix/alter_statement!drop-1	a SET AS 'a'
 reject	reject	engine	sql_statement_body_no_pipe_suffix/alter_statement!drop-2	ALTER SET AS 'a'
 reject	reject	engine	sql_statement_body_no_pipe_suffix/alter_statement!drop-3	ALTER a AS 'a'
@@ -343,7 +343,7 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/create_sequence_statement
 accept	accept	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement	CREATE LOCALITY GROUP a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!drop-1	LOCALITY GROUP a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!drop-2	CREATE GROUP a
-accept	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!drop-3	CREATE LOCALITY a
+reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!drop-3	CREATE LOCALITY a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!drop-4	CREATE LOCALITY GROUP
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!insert	CREATE LOCALITY GROUP a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_locality_group_statement!swap	CROSS LOCALITY GROUP a
@@ -381,7 +381,7 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/create_snapshot_statement
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_snapshot_statement!drop-6	CREATE SNAPSHOT TABLE a CLONE
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_snapshot_statement!insert	CREATE SNAPSHOT TABLE a CLONE a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_snapshot_statement!swap	CROSS SNAPSHOT TABLE a CLONE a
-accept	reject	engine	sql_statement_body_no_pipe_suffix/create_entity_statement	CREATE a a
+reject	reject	engine	sql_statement_body_no_pipe_suffix/create_entity_statement	CREATE a a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_entity_statement!insert	CREATE a a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/create_entity_statement!swap	CROSS a a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_macro_statement	DEFINE MACRO a
@@ -389,7 +389,7 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/define_macro_statement!dr
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_macro_statement!drop-2	DEFINE a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_macro_statement!insert	DEFINE MACRO a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_macro_statement!swap	DEFINER MACRO a
-reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement	DEFINE TABLE a()
+accept	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement	DEFINE TABLE a()
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_table_statement!drop-2	DEFINE a()
 reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement!drop-3	DEFINE TABLE()
 reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement!drop-4	DEFINE TABLE a)
@@ -541,14 +541,14 @@ reject	reject	engine	macro_token_list/macro_token_list_MACRO_BODY_TOKEN	DEFINE M
 reject	reject	engine	macro_token_list/macro_token_list_MACRO_BODY_TOKEN!insert	DEFINE MACRO a a a zzz
 accept	accept	engine	query_statement/query	SELECT NULL
 accept	accept	engine	subpipeline_statement/subpipeline_no_parens	|> AGGREGATE
-accept	reject	engine	alter_action/SET_OPTIONS_options_list	ALTER a SET OPTIONS()
+reject	reject	engine	alter_action/SET_OPTIONS_options_list	ALTER a SET OPTIONS()
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!drop-1	ALTER a OPTIONS()
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!drop-2	ALTER a SET()
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!drop-3	ALTER a SET OPTIONS)
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!drop-4	ALTER a SET OPTIONS(
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!insert	ALTER a SET OPTIONS() zzz
 reject	reject	engine	alter_action/SET_OPTIONS_options_list!swap	ALTER a SETS OPTIONS()
-accept	reject	engine	alter_action/SET_AS_generic_entity_body	ALTER a SET AS 'a'
+reject	reject	engine	alter_action/SET_AS_generic_entity_body	ALTER a SET AS 'a'
 reject	reject	engine	alter_action/SET_AS_generic_entity_body!swap	ALTER a SETS AS 'a'
 reject	reject	engine	alter_action/ADD_table_constraint_spec	ALTER a ADD CHECK(NULL)
 reject	reject	engine	alter_action/ADD_table_constraint_spec!drop-1	ALTER a CHECK(NULL)
@@ -754,7 +754,7 @@ reject	reject	engine	alter_action/spanner_set_on_delete_action!drop-3	ALTER a SE
 reject	reject	engine	alter_action/spanner_set_on_delete_action!drop-4	ALTER a SET ON DELETE
 reject	reject	engine	alter_action/spanner_set_on_delete_action!insert	ALTER a SET ON DELETE RESTRICT zzz
 reject	reject	engine	alter_action/spanner_set_on_delete_action!swap	ALTER a SETS ON DELETE RESTRICT
-accept	reject	engine	alter_action_list/alter_action	ALTER a SET AS 'a'
+reject	reject	engine	alter_action_list/alter_action	ALTER a SET AS 'a'
 reject	reject	engine	alter_action_list/alter_action_list_,_alter_action	ALTER a SET AS 'a', SET AS 'a'
 reject	reject	engine	alter_action_list/alter_action_list_,_alter_action!drop-1	ALTER a AS 'a', SET AS 'a'
 reject	reject	engine	alter_action_list/alter_action_list_,_alter_action!drop-2	ALTER a SET 'a', SET AS 'a'
@@ -918,7 +918,7 @@ reject	reject	engine	schema_object_kind/MATERIALIZED_VIEW!drop-2	DROP MATERIALIZ
 reject	reject	engine	schema_object_kind/MATERIALIZED_VIEW!truncate	DROP MATERIALIZED
 reject	reject	engine	schema_object_kind/MATERIALIZED_VIEW!insert	DROP MATERIALIZED VIEW zzz a
 reject	reject	engine	schema_object_kind/MATERIALIZED_VIEW!swap	DROP MAX VIEW a
-reject	accept	engine	schema_object_kind/MODEL	DROP MODEL a
+accept	accept	engine	schema_object_kind/MODEL	DROP MODEL a
 reject	reject	engine	schema_object_kind/MODEL!insert	DROP MODEL zzz a
 reject	reject	engine	schema_object_kind/MODEL!swap	DROP MODULE a
 accept	reject	engine	schema_object_kind/PROCEDURE	DROP PROCEDURE a
@@ -955,14 +955,14 @@ reject	reject	engine	alter_statement/ALTER_schema_object_kind_opt_if_exists_path
 reject	reject	engine	alter_statement/ALTER_schema_object_kind_opt_if_exists_path_expression_~3ad791ae!drop-6	ALTER CONNECTION a SET AS
 reject	reject	engine	alter_statement/ALTER_schema_object_kind_opt_if_exists_path_expression_~3ad791ae!insert	ALTER CONNECTION a SET AS 'a' zzz
 reject	reject	engine	alter_statement/ALTER_schema_object_kind_opt_if_exists_path_expression_~3ad791ae!swap	ALWAYS CONNECTION a SET AS 'a'
-accept	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d	ALTER a a SET AS 'a'
+reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d	ALTER a a SET AS 'a'
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!drop-1	a a SET AS 'a'
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!drop-4	ALTER a a AS 'a'
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!drop-5	ALTER a a SET 'a'
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!drop-6	ALTER a a SET AS
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!insert	ALTER a a SET AS 'a' zzz
 reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_path_expression~97313f1d!swap	ALWAYS a a SET AS 'a'
-accept	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_alter_action_list	ALTER a SET AS 'a'
+reject	reject	engine	alter_statement/ALTER_generic_entity_type_opt_if_exists_alter_action_list	ALTER a SET AS 'a'
 reject	reject	engine	alter_statement/ALTER_PRIVILEGE_RESTRICTION_opt_if_exists_ON_privilege_~11dd09b8	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD()
 reject	reject	engine	alter_statement/ALTER_PRIVILEGE_RESTRICTION_opt_if_exists_ON_privilege_~11dd09b8!drop-1	PRIVILEGE RESTRICTION ON a ON a a ADD()
 reject	reject	engine	alter_statement/ALTER_PRIVILEGE_RESTRICTION_opt_if_exists_ON_privilege_~11dd09b8!drop-2	ALTER RESTRICTION ON a ON a a ADD()
@@ -1322,7 +1322,7 @@ reject	reject	engine	language/LANGUAGE_identifier	CREATE TABLE FUNCTION a LANGUA
 reject	reject	engine	language/LANGUAGE_identifier!drop-2	CREATE TABLE FUNCTION a LANGUAGE
 reject	reject	engine	language/LANGUAGE_identifier!insert	CREATE TABLE FUNCTION a LANGUAGE a zzz
 reject	reject	engine	language/LANGUAGE_identifier!swap	CREATE TABLE FUNCTION a LAST a
-reject	accept	engine	remote_with_connection_clause/REMOTE_(with_connection_clause)?	CREATE MODEL a REMOTE
+accept	accept	engine	remote_with_connection_clause/REMOTE_(with_connection_clause)?	CREATE MODEL a REMOTE
 reject	reject	engine	remote_with_connection_clause/REMOTE_(with_connection_clause)?!insert	CREATE MODEL a REMOTE zzz
 reject	reject	engine	remote_with_connection_clause/REMOTE_(with_connection_clause)?!swap	CREATE MODEL a REMOVE
 reject	reject	engine	remote_with_connection_clause/with_connection_clause	CREATE MODEL a WITH CONNECTION a
@@ -1331,7 +1331,7 @@ reject	reject	engine	remote_with_connection_clause/with_connection_clause!drop-2
 reject	reject	engine	remote_with_connection_clause/with_connection_clause!drop-3	CREATE MODEL a WITH CONNECTION
 reject	reject	engine	remote_with_connection_clause/with_connection_clause!insert	CREATE MODEL a WITH CONNECTION a zzz
 reject	reject	engine	remote_with_connection_clause/with_connection_clause!swap	CREATE MODEL a WRITE CONNECTION a
-reject	accept	engine	remote_with_connection_clause(with_connection_clause)?/%empty	CREATE MODEL a REMOTE
+accept	accept	engine	remote_with_connection_clause(with_connection_clause)?/%empty	CREATE MODEL a REMOTE
 reject	reject	engine	remote_with_connection_clause(with_connection_clause)?/with_connection_clause	CREATE MODEL a REMOTE WITH CONNECTION a
 reject	reject	engine	remote_with_connection_clause(with_connection_clause)?/with_connection_clause!drop-1	CREATE MODEL a REMOTE CONNECTION a
 reject	reject	engine	remote_with_connection_clause(with_connection_clause)?/with_connection_clause!drop-2	CREATE MODEL a REMOTE WITH a
@@ -1941,12 +1941,12 @@ reject	accept	engine	aux_load_data_statement(with_connection_clause)?/with_conne
 reject	accept	engine	aux_load_data_statement(with_connection_clause)?/with_connection_clause!drop-3	LOAD DATA INTO a FROM FILES() WITH CONNECTION
 reject	accept	engine	aux_load_data_statement(with_connection_clause)?/with_connection_clause!insert	LOAD DATA INTO a FROM FILES() WITH CONNECTION a zzz
 reject	accept	engine	aux_load_data_statement(with_connection_clause)?/with_connection_clause!swap	LOAD DATA INTO a FROM FILES() WRITE CONNECTION a
-accept	reject	engine	generic_entity_type_unchecked/IDENTIFIER	CREATE a a
+reject	reject	engine	generic_entity_type_unchecked/IDENTIFIER	CREATE a a
 reject	reject	engine	generic_entity_type_unchecked/IDENTIFIER!insert	CREATE a zzz a
 accept	reject	engine	generic_entity_type_unchecked/PROJECT	CREATE PROJECT a
 reject	reject	engine	generic_entity_type_unchecked/PROJECT!insert	CREATE PROJECT zzz a
 reject	reject	engine	generic_entity_type_unchecked/PROJECT!swap	CREATE PROPERTIES a
-accept	reject	engine	generic_entity_type/generic_entity_type_unchecked	CREATE a a
+reject	reject	engine	generic_entity_type/generic_entity_type_unchecked	CREATE a a
 reject	reject	engine	sub_entity_type_identifier/IDENTIFIER	ALTER a ADD a a
 reject	reject	engine	sub_entity_type_identifier/IDENTIFIER!truncate	ALTER a ADD
 reject	reject	engine	sub_entity_type_identifier/IDENTIFIER!insert	ALTER a ADD a zzz a
@@ -1954,40 +1954,40 @@ reject	reject	engine	sub_entity_type_identifier/REPLICA	ALTER a ADD REPLICA a
 reject	reject	engine	sub_entity_type_identifier/REPLICA!insert	ALTER a ADD REPLICA zzz a
 reject	reject	engine	sub_entity_type_identifier/REPLICA!swap	ALTER a ADD REPORT a
 reject	reject	engine	generic_sub_entity_type/sub_entity_type_identifier	ALTER a ADD a a
-accept	reject	engine	generic_entity_body/json_literal	ALTER a SET AS JSON 'a'
+reject	reject	engine	generic_entity_body/json_literal	ALTER a SET AS JSON 'a'
 reject	reject	engine	generic_entity_body/json_literal!drop-2	ALTER a SET AS JSON
 reject	reject	engine	generic_entity_body/json_literal!insert	ALTER a SET AS JSON 'a' zzz
 reject	reject	engine	generic_entity_body/json_literal!swap	ALTER a SET AS KEY 'a'
-accept	reject	engine	generic_entity_body/string_literal	ALTER a SET AS 'a'
-accept	reject	engine	opt_generic_entity_body/AS_generic_entity_body	CREATE a a AS 'a'
+reject	reject	engine	generic_entity_body/string_literal	ALTER a SET AS 'a'
+reject	reject	engine	opt_generic_entity_body/AS_generic_entity_body	CREATE a a AS 'a'
 reject	reject	engine	opt_generic_entity_body/AS_generic_entity_body!drop-1	CREATE a a 'a'
 reject	reject	engine	opt_generic_entity_body/AS_generic_entity_body!drop-2	CREATE a a AS
 reject	reject	engine	opt_generic_entity_body/AS_generic_entity_body!insert	CREATE a a AS 'a' zzz
 reject	reject	engine	opt_generic_entity_body/AS_generic_entity_body!swap	CREATE a a ASC 'a'
-accept	reject	engine	opt_generic_entity_body/%empty	CREATE a a
-accept	reject	engine	create_entity_statement/CREATE_opt_or_replace_generic_entity_type_opt_if_not_ex~cb06400a	CREATE a a
-reject	accept	engine	create_model_statement/CREATE_opt_or_replace_opt_create_scope_MODEL_opt_if_not~0b919f6a	CREATE MODEL a
-reject	accept	engine	create_model_statement(input_output_clause)?/%empty	CREATE MODEL a
+reject	reject	engine	opt_generic_entity_body/%empty	CREATE a a
+reject	reject	engine	create_entity_statement/CREATE_opt_or_replace_generic_entity_type_opt_if_not_ex~cb06400a	CREATE a a
+accept	accept	engine	create_model_statement/CREATE_opt_or_replace_opt_create_scope_MODEL_opt_if_not~0b919f6a	CREATE MODEL a
+accept	accept	engine	create_model_statement(input_output_clause)?/%empty	CREATE MODEL a
 reject	reject	engine	create_model_statement(input_output_clause)?/input_output_clause	CREATE MODEL a INPUT() OUTPUT()
-reject	accept	engine	create_model_statement(transform_clause)?/%empty	CREATE MODEL a
+accept	accept	engine	create_model_statement(transform_clause)?/%empty	CREATE MODEL a
 reject	reject	engine	create_model_statement(transform_clause)?/transform_clause	CREATE MODEL a TRANSFORM(NULL)
-reject	accept	engine	create_model_statement(remote_with_connection_clause)?/%empty	CREATE MODEL a
-reject	accept	engine	create_model_statement(remote_with_connection_clause)?/remote_with_connection_clause	CREATE MODEL a REMOTE
-reject	accept	engine	create_model_statement(options_)?/%empty	CREATE MODEL a
+accept	accept	engine	create_model_statement(remote_with_connection_clause)?/%empty	CREATE MODEL a
+accept	accept	engine	create_model_statement(remote_with_connection_clause)?/remote_with_connection_clause	CREATE MODEL a REMOTE
+accept	accept	engine	create_model_statement(options_)?/%empty	CREATE MODEL a
 reject	reject	engine	create_model_statement(options_)?/options_	CREATE MODEL a OPTIONS()
 reject	reject	engine	create_model_statement(options_)?/options_!drop-1	CREATE MODEL a()
 reject	reject	engine	create_model_statement(options_)?/options_!drop-2	CREATE MODEL a OPTIONS)
 reject	reject	engine	create_model_statement(options_)?/options_!drop-3	CREATE MODEL a OPTIONS(
 reject	reject	engine	create_model_statement(options_)?/options_!insert	CREATE MODEL a OPTIONS() zzz
 reject	reject	engine	create_model_statement(options_)?/options_!swap	CREATE MODEL a OR()
-reject	accept	engine	create_model_statement(as_query_or_aliased_query_list)?/%empty	CREATE MODEL a
+accept	accept	engine	create_model_statement(as_query_or_aliased_query_list)?/%empty	CREATE MODEL a
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list	CREATE MODEL a AS SELECT NULL
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list!drop-1	CREATE MODEL a SELECT NULL
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list!drop-2	CREATE MODEL a AS NULL
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list!drop-3	CREATE MODEL a AS SELECT
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list!insert	CREATE MODEL a AS SELECT NULL zzz
 reject	reject	engine	create_model_statement(as_query_or_aliased_query_list)?/as_query_or_aliased_query_list!swap	CREATE MODEL a ASC SELECT NULL
-accept	reject	engine	opt_table_element_list/table_element_list	CREATE TABLE a()
+reject	reject	engine	opt_table_element_list/table_element_list	CREATE TABLE a()
 reject	reject	engine	opt_table_element_list/table_element_list!drop-1	CREATE TABLE a)
 reject	reject	engine	opt_table_element_list/table_element_list!drop-2	CREATE TABLE a(
 reject	reject	engine	opt_table_element_list/table_element_list!insert	CREATE TABLE a() zzz
@@ -1997,7 +1997,7 @@ reject	reject	engine	table_element_list/table_element_list_prefix_)!drop-1	CREAT
 reject	reject	engine	table_element_list/table_element_list_prefix_)!drop-2	CREATE TABLE a(a)
 reject	reject	engine	table_element_list/table_element_list_prefix_)!drop-4	CREATE TABLE a(a a
 reject	reject	engine	table_element_list/table_element_list_prefix_)!insert	CREATE TABLE a(a a) zzz
-accept	reject	engine	table_element_list/(_)	CREATE TABLE a()
+reject	reject	engine	table_element_list/(_)	CREATE TABLE a()
 accept	reject	engine	table_element_list_prefix/(_table_element	CREATE TABLE a(a a)
 reject	reject	engine	table_element_list_prefix/(_table_element!truncate	CREATE TABLE a(a
 reject	reject	engine	table_element_list_prefix/(_table_element!insert	CREATE TABLE a(a a zzz)
@@ -2564,17 +2564,17 @@ reject	reject	engine	as_query_or_aliased_query_list/as_before_query_(_aliased_qu
 reject	reject	engine	as_query_or_aliased_query_list/as_before_query_(_aliased_query_list_)!drop-8	CREATE MODEL a AS(a AS(SELECT NULL)
 reject	reject	engine	as_query_or_aliased_query_list/as_before_query_(_aliased_query_list_)!insert	CREATE MODEL a AS(a AS(SELECT NULL)) zzz
 reject	reject	engine	as_query_or_aliased_query_list/as_before_query_(_aliased_query_list_)!swap	CREATE MODEL a ASC(a AS(SELECT NULL))
-reject	accept	engine	if_not_exists/IF_NOT_EXISTS	CREATE MODEL IF NOT EXISTS a
+accept	accept	engine	if_not_exists/IF_NOT_EXISTS	CREATE MODEL IF NOT EXISTS a
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!drop-1	CREATE MODEL NOT EXISTS a
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!drop-2	CREATE MODEL IF EXISTS a
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!drop-3	CREATE MODEL IF NOT a
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!truncate	CREATE MODEL IF NOT
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!insert	CREATE MODEL IF NOT EXISTS zzz a
 reject	reject	engine	if_not_exists/IF_NOT_EXISTS!swap	CREATE MODEL IGNORE NOT EXISTS a
-reject	accept	engine	opt_if_not_exists/(if_not_exists)?	CREATE MODEL a
+accept	accept	engine	opt_if_not_exists/(if_not_exists)?	CREATE MODEL a
 reject	reject	engine	opt_if_not_exists/(if_not_exists)?!insert	CREATE MODEL zzz a
-reject	accept	engine	opt_if_not_exists(if_not_exists)?/%empty	CREATE MODEL a
-reject	accept	engine	opt_if_not_exists(if_not_exists)?/if_not_exists	CREATE MODEL IF NOT EXISTS a
+accept	accept	engine	opt_if_not_exists(if_not_exists)?/%empty	CREATE MODEL a
+accept	accept	engine	opt_if_not_exists(if_not_exists)?/if_not_exists	CREATE MODEL IF NOT EXISTS a
 accept	accept	engine	describe_statement/describe_keyword_describe_info	DESCRIBE a
 accept	accept	engine	describe_info/identifier_maybe_slashed_or_dashed_path_expression_(fro~9e657a7a	DESCRIBE a a
 reject	accept	engine	describe_info/identifier_maybe_slashed_or_dashed_path_expression_(fro~9e657a7a!insert	DESCRIBE a a zzz
@@ -2585,7 +2585,7 @@ reject	accept	engine	describe_info(from_path_expression)?/from_path_expression!d
 reject	accept	engine	describe_info(from_path_expression)?/from_path_expression!insert	DESCRIBE a FROM a zzz
 reject	accept	engine	describe_info(from_path_expression)?/from_path_expression!swap	DESCRIBE a FULL a
 accept	accept	engine	from_path_expression/FROM_maybe_slashed_or_dashed_path_expression	DESCRIBE a FROM a
-reject	accept	engine	explain_statement/EXPLAIN_unterminated_sql_statement	EXPLAIN BEGIN
+accept	accept	engine	explain_statement/EXPLAIN_unterminated_sql_statement	EXPLAIN BEGIN
 accept	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list	|> EXPORT DATA
 reject	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!drop-1	|> DATA
 accept	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!drop-2	|> EXPORT
@@ -3195,7 +3195,7 @@ accept	accept	engine	pipe_order_by/order_by_clause_with_opt_comma	|> ORDER BY NU
 accept	accept	engine	pipe_extend/EXTEND_pipe_selection_item_list_opt_window_clause_with_~ca0944eb	|> EXTEND NULL
 accept	accept	engine	pipe_selection_item/select_column_expr	|> EXTEND NULL
 reject	accept	engine	pipe_selection_item/select_column_expr!swap	|> EXTEND NULLS
-reject	accept	engine	pipe_selection_item/select_column_dot_star	|> EXTEND NULL.*
+accept	accept	engine	pipe_selection_item/select_column_dot_star	|> EXTEND NULL.*
 reject	accept	engine	pipe_selection_item/select_column_dot_star!drop-1	|> EXTEND.*
 reject	accept	engine	pipe_selection_item/select_column_dot_star!drop-2	|> EXTEND NULL *
 reject	accept	engine	pipe_selection_item/select_column_dot_star!drop-3	|> EXTEND NULL.
@@ -3204,7 +3204,7 @@ reject	accept	engine	pipe_selection_item/select_column_dot_star!swap	|> EXTEND N
 accept	accept	engine	pipe_selection_item_with_order/select_column_expr_opt_selection_item_order	|> AGGREGATE NULL
 accept	accept	engine	pipe_selection_item_with_order/select_column_expr_opt_selection_item_order!insert	|> AGGREGATE NULL zzz
 reject	accept	engine	pipe_selection_item_with_order/select_column_expr_opt_selection_item_order!swap	|> AGGREGATE NULLS
-reject	accept	engine	pipe_selection_item_with_order/select_column_dot_star	|> AGGREGATE NULL.*
+accept	accept	engine	pipe_selection_item_with_order/select_column_dot_star	|> AGGREGATE NULL.*
 reject	accept	engine	pipe_selection_item_with_order/select_column_dot_star!drop-1	|> AGGREGATE.*
 reject	accept	engine	pipe_selection_item_with_order/select_column_dot_star!drop-2	|> AGGREGATE NULL *
 reject	accept	engine	pipe_selection_item_with_order/select_column_dot_star!drop-3	|> AGGREGATE NULL.
@@ -3676,7 +3676,7 @@ reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expr
 reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!truncate	@{ a.a =
 reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!insert	@{ a.a = NULL zzz } BEGIN
 reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!swap	@{ a.a = NULLS } BEGIN
-reject	accept	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54	@1@{ a = NULL } BEGIN
+accept	accept	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54	@1@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54!drop-1	1@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54!drop-2	@@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54!drop-3	@1 { a = NULL } BEGIN
@@ -3789,7 +3789,7 @@ accept	accept	engine	star_modifiers/star_modifiers_with_replace_prefix_)	SELECT 
 reject	reject	engine	star_modifiers/star_modifiers_with_replace_prefix_)!drop-6	SELECT * REPLACE(NULL AS a
 reject	reject	engine	star_modifiers/star_modifiers_with_replace_prefix_)!insert	SELECT * REPLACE(NULL AS a) zzz
 accept	accept	engine	select_column/select_column_expr	SELECT NULL
-reject	accept	engine	select_column/select_column_dot_star	SELECT NULL.*
+accept	accept	engine	select_column/select_column_dot_star	SELECT NULL.*
 reject	reject	engine	select_column/select_column_dot_star!drop-1	SELECT.*
 reject	reject	engine	select_column/select_column_dot_star!drop-2	SELECT NULL *
 reject	reject	engine	select_column/select_column_dot_star!drop-3	SELECT NULL.
@@ -3822,8 +3822,8 @@ reject	accept	engine	select_list_prefix_with_as_aliases/select_list_prefix_with_
 reject	accept	engine	select_list_prefix_with_as_aliases/select_list_prefix_with_as_aliases_,_select_column_expr~aec3a5af!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a, NULL AS a zzz PATTERN() DEFINE a AS NULL)
 reject	accept	engine	select_list_prefix_with_as_aliases/select_list_prefix_with_as_aliases_,_select_column_expr~aec3a5af!swap	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULLS AS a, NULL AS a PATTERN() DEFINE a AS NULL)
 accept	accept	engine	select_column_expr_with_as_alias/expression_AS_identifier	SELECT NULL AS a
-reject	accept	engine	select_column_dot_star/expression_higher_prec_than_and_._*	SELECT NULL.*
-reject	accept	engine	select_column_dot_star/expression_higher_prec_than_and_._*_star_modifiers	SELECT NULL.* EXCEPT(a)
+accept	accept	engine	select_column_dot_star/expression_higher_prec_than_and_._*	SELECT NULL.*
+accept	accept	engine	select_column_dot_star/expression_higher_prec_than_and_._*_star_modifiers	SELECT NULL.* EXCEPT(a)
 reject	reject	engine	select_column_dot_star/expression_higher_prec_than_and_._*_star_modifiers!drop-1	SELECT.* EXCEPT(a)
 reject	reject	engine	select_column_dot_star/expression_higher_prec_than_and_._*_star_modifiers!drop-2	SELECT NULL * EXCEPT(a)
 reject	reject	engine	select_column_dot_star/expression_higher_prec_than_and_._*_star_modifiers!drop-3	SELECT NULL.EXCEPT(a)
@@ -6990,7 +6990,7 @@ accept	accept	engine	function_name_from_keyword/RANGE!swap	SELECT READ()
 accept	accept	engine	identifier_or_function_name_from_keyword/identifier	SELECT NULL.a
 accept	accept	engine	identifier_or_function_name_from_keyword/function_name_from_keyword	SELECT NULL.IF
 accept	accept	engine	identifier_or_function_name_from_keyword/function_name_from_keyword!insert	SELECT NULL.IF zzz
-accept	reject	engine	identifier_or_function_name_from_keyword/function_name_from_keyword!swap	SELECT NULL.IGNORE
+reject	reject	engine	identifier_or_function_name_from_keyword/function_name_from_keyword!swap	SELECT NULL.IGNORE
 reject	reject	engine	function_call_expression_base/expression_higher_prec_than_and_(_opt_distinct	SELECT NULL()
 accept	accept	engine	function_call_expression_base/function_name_from_keyword_(_opt_distinct	SELECT IF()
 reject	reject	engine	function_call_expression_base/function_name_from_keyword_(_opt_distinct!drop-2	SELECT IF)
@@ -7542,8 +7542,8 @@ accept	accept	engine	common_keyword_as_identifier/FUNCTION	SELECT FUNCTION
 accept	accept	engine	common_keyword_as_identifier/FUNCTION!insert	SELECT FUNCTION zzz
 accept	accept	engine	common_keyword_as_identifier/GENERATED	SELECT GENERATED
 accept	accept	engine	common_keyword_as_identifier/GENERATED!insert	SELECT GENERATED zzz
-accept	reject	engine	common_keyword_as_identifier/GRAPH_TABLE	SELECT GRAPH_TABLE
-accept	reject	engine	common_keyword_as_identifier/GRAPH_TABLE!insert	SELECT GRAPH_TABLE zzz
+reject	reject	engine	common_keyword_as_identifier/GRAPH_TABLE	SELECT GRAPH_TABLE
+reject	reject	engine	common_keyword_as_identifier/GRAPH_TABLE!insert	SELECT GRAPH_TABLE zzz
 reject	reject	engine	common_keyword_as_identifier/GRAPH_TABLE!swap	SELECT GROUP
 accept	accept	engine	common_keyword_as_identifier/GRAPH	SELECT GRAPH
 accept	accept	engine	common_keyword_as_identifier/GRAPH!insert	SELECT GRAPH zzz
@@ -7596,7 +7596,7 @@ accept	accept	engine	common_keyword_as_identifier/LANGUAGE	SELECT LANGUAGE
 accept	accept	engine	common_keyword_as_identifier/LANGUAGE!insert	SELECT LANGUAGE zzz
 accept	accept	engine	common_keyword_as_identifier/LAST	SELECT LAST
 accept	accept	engine	common_keyword_as_identifier/LAST!insert	SELECT LAST zzz
-accept	reject	engine	common_keyword_as_identifier/LAST!swap	SELECT LATERAL
+reject	reject	engine	common_keyword_as_identifier/LAST!swap	SELECT LATERAL
 accept	accept	engine	common_keyword_as_identifier/LEAVE	SELECT LEAVE
 accept	accept	engine	common_keyword_as_identifier/LEAVE!insert	SELECT LEAVE zzz
 reject	reject	engine	common_keyword_as_identifier/LEAVE!swap	SELECT LEFT
@@ -7895,16 +7895,16 @@ accept	accept	engine	keyword_as_identifier/TRAIL	SELECT TRAIL
 accept	accept	engine	keyword_as_identifier/TRAIL!insert	SELECT TRAIL zzz
 accept	accept	engine	keyword_as_identifier/WALK	SELECT WALK
 accept	accept	engine	keyword_as_identifier/WALK!insert	SELECT WALK zzz
-reject	accept	engine	or_replace/OR_REPLACE	CREATE OR REPLACE MODEL a
+accept	accept	engine	or_replace/OR_REPLACE	CREATE OR REPLACE MODEL a
 reject	reject	engine	or_replace/OR_REPLACE!drop-1	CREATE REPLACE MODEL a
 reject	reject	engine	or_replace/OR_REPLACE!drop-2	CREATE OR MODEL a
 reject	reject	engine	or_replace/OR_REPLACE!truncate	CREATE OR
 reject	reject	engine	or_replace/OR_REPLACE!insert	CREATE OR REPLACE zzz MODEL a
 reject	reject	engine	or_replace/OR_REPLACE!swap	CREATE ORDER REPLACE MODEL a
-reject	accept	engine	opt_or_replace/(or_replace)?	CREATE MODEL a
+accept	accept	engine	opt_or_replace/(or_replace)?	CREATE MODEL a
 reject	reject	engine	opt_or_replace/(or_replace)?!insert	CREATE zzz MODEL a
-reject	accept	engine	opt_or_replace(or_replace)?/%empty	CREATE MODEL a
-reject	accept	engine	opt_or_replace(or_replace)?/or_replace	CREATE OR REPLACE MODEL a
+accept	accept	engine	opt_or_replace(or_replace)?/%empty	CREATE MODEL a
+accept	accept	engine	opt_or_replace(or_replace)?/or_replace	CREATE OR REPLACE MODEL a
 reject	reject	engine	create_scope/TEMP	CREATE TEMP MODEL a
 reject	reject	engine	create_scope/TEMP!insert	CREATE TEMP zzz MODEL a
 reject	reject	engine	create_scope/TEMPORARY	CREATE TEMPORARY MODEL a
@@ -7916,8 +7916,8 @@ reject	reject	engine	create_scope/PUBLIC!swap	CREATE QUALIFY MODEL a
 reject	reject	engine	create_scope/PRIVATE	CREATE PRIVATE MODEL a
 reject	reject	engine	create_scope/PRIVATE!insert	CREATE PRIVATE zzz MODEL a
 reject	reject	engine	create_scope/PRIVATE!swap	CREATE PRIVILEGE MODEL a
-reject	accept	engine	opt_create_scope/(create_scope)?	CREATE MODEL a
-reject	accept	engine	opt_create_scope(create_scope)?/%empty	CREATE MODEL a
+accept	accept	engine	opt_create_scope/(create_scope)?	CREATE MODEL a
+accept	accept	engine	opt_create_scope(create_scope)?/%empty	CREATE MODEL a
 reject	reject	engine	opt_create_scope(create_scope)?/create_scope	CREATE TEMP MODEL a
 accept	reject	engine	unique/UNIQUE	CREATE UNIQUE INDEX a ON a(NULL)
 reject	reject	engine	unique/UNIQUE!insert	CREATE UNIQUE zzz INDEX a ON a(NULL)
@@ -7970,7 +7970,7 @@ reject	accept	engine	opt_options_list(options_)?/options_!drop-2	MODULE a OPTION
 reject	accept	engine	opt_options_list(options_)?/options_!drop-3	MODULE a OPTIONS(
 reject	accept	engine	opt_options_list(options_)?/options_!insert	MODULE a OPTIONS() zzz
 reject	accept	engine	opt_options_list(options_)?/options_!swap	MODULE a OR()
-reject	accept	engine	define_table_statement/DEFINE_TABLE_path_expression_options_list	DEFINE TABLE a()
+accept	accept	engine	define_table_statement/DEFINE_TABLE_path_expression_options_list	DEFINE TABLE a()
 accept	accept	engine	dml_statement/insert_statement	INSERT a SELECT NULL
 reject	reject	engine	dml_statement/insert_statement!drop-1	a SELECT NULL
 reject	reject	engine	dml_statement/insert_statement!drop-2	INSERT SELECT NULL
@@ -8355,10 +8355,10 @@ reject	reject	engine	generalized_path_expression/generalized_path_expression_[_e
 accept	accept	engine	generalized_path_expression/generalized_path_expression_[_expression_]!insert	DELETE a [ NULL ] zzz
 reject	reject	engine	generalized_path_expression/generalized_path_expression_[_expression_]!swap	DELETE a [ NULLS ]
 accept	accept	engine	maybe_dashed_generalized_path_expression/generalized_path_expression	DELETE a
-accept	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression	DELETE a - a
+reject	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression	DELETE a - a
 reject	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression!drop-1	DELETE - a
 reject	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression!drop-3	DELETE a -
-accept	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression!insert	DELETE a - a zzz
+reject	reject	engine	maybe_dashed_generalized_path_expression/dashed_path_expression!insert	DELETE a - a zzz
 accept	accept	engine	generalized_extension_path/(_path_expression_)	DELETE a.(a)
 accept	accept	engine	generalized_extension_path/generalized_extension_path_._(_path_expression_)	DELETE a.(a).(a)
 reject	reject	engine	generalized_extension_path/generalized_extension_path_._(_path_expression_)!drop-1	DELETE a.a).(a)
@@ -8580,7 +8580,7 @@ reject	reject	engine	drop_statement/DROP_SNAPSHOT_TABLE_opt_if_exists_maybe_dash
 reject	reject	engine	drop_statement/DROP_SNAPSHOT_TABLE_opt_if_exists_maybe_dashed_path_expression!drop-4	DROP SNAPSHOT TABLE
 reject	reject	engine	drop_statement/DROP_SNAPSHOT_TABLE_opt_if_exists_maybe_dashed_path_expression!insert	DROP SNAPSHOT TABLE a zzz
 reject	reject	engine	drop_statement/DROP_SNAPSHOT_TABLE_opt_if_exists_maybe_dashed_path_expression!swap	DYNAMIC SNAPSHOT TABLE a
-accept	reject	engine	drop_statement/DROP_generic_entity_type_opt_if_exists_path_expression	DROP a a
+reject	reject	engine	drop_statement/DROP_generic_entity_type_opt_if_exists_path_expression	DROP a a
 reject	reject	engine	drop_statement/DROP_generic_entity_type_opt_if_exists_path_expression!insert	DROP a a zzz
 reject	reject	engine	drop_statement/DROP_generic_entity_type_opt_if_exists_path_expression!swap	DYNAMIC a a
 reject	reject	engine	drop_statement/DROP_schema_object_kind_opt_if_exists_path_expression_(~3ac5d024	DROP CONNECTION a

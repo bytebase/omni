@@ -518,6 +518,14 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 
 	switch p.cur.Type {
 	case tokString:
+		if p.isBigQuery() {
+			lit, err := p.parseStringLiteral()
+			if err != nil {
+				return nil, err
+			}
+			l := lit.(*ast.Literal)
+			return &ast.Grantee{Kind: ast.GranteeString, Value: l.Value, Loc: l.Loc}, nil
+		}
 		tok := p.advance()
 		return &ast.Grantee{Kind: ast.GranteeString, Value: tok.Str, Loc: tok.Loc}, nil
 

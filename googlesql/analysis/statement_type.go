@@ -248,6 +248,8 @@ func dropStatementType(kind ast.DropObjectKind) StatementType {
 		return DropSchema
 	case ast.DropDatabase:
 		return DropDatabase
+	case ast.DropTableFunction:
+		return DropFunction
 	default:
 		return StatementTypeUnspecified
 	}
@@ -257,7 +259,7 @@ func bqAlterStatementType(kind ast.BQAlterObjectKind) StatementType {
 	switch kind {
 	case ast.BQAlterMaterializedView, ast.BQAlterApproxView:
 		return AlterView
-	case ast.BQAlterVectorIndex:
+	case ast.BQAlterSearchIndex, ast.BQAlterVectorIndex:
 		return AlterIndex
 	default:
 		return StatementTypeUnspecified

@@ -53,34 +53,46 @@ func (p *Parser) parseFromClause() ([]ast.Node, error) {
 }
 
 // parseJoinTree parses one comma-separated FROM item: a primary source followed
-// by zero or more explicit JOIN suffixes, folded into a left-deep *JoinExpr.
+// by zero or more explicit JOIN suffixes. Left-to-right joins with immediate
+// ON/USING clauses fold left-deep; consecutive condition-needing joins followed
+// by consecutive ON/USING clauses (e.g.
+// `a JOIN b JOIN c USING (id) ON a.id = b.id`) reassociate right-to-left as
+// each ON/USING closes the most recent open join, producing
+// `a JOIN (b JOIN c USING (id)) ON a.id = b.id`.
 func (p *Parser) parseJoinTree() (ast.Node, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	left, err := p.parseTablePrimary()
+	cur, err := p.parseTablePrimary()
 	if err != nil {
 		return nil, err
 	}
+	var open []*ast.JoinExpr
 	for {
-		joined, ok, err := p.tryParseJoinSuffix(left)
+		next, ok, err := p.tryParseJoinSuffix(cur, &open)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
-			return left, nil
+			for i := len(open) - 1; i >= 0; i-- {
+				j := open[i]
+				j.Right = cur
+				j.Loc = ast.Loc{Start: qLoc(j.Left).Start, End: qLoc(cur).End}
+				cur = j
+			}
+			return cur, nil
 		}
-		left = joined
+		cur = next
 	}
 }
 
-// tryParseJoinSuffix parses one explicit join suffix on left if the current
+// tryParseJoinSuffix parses one explicit join suffix on cur if the current
 // position starts one (a [NATURAL] [join_type] [join_hint] JOIN). It returns
-// (joinExpr, true, nil) on success, (nil, false, nil) when no JOIN follows, or
+// (nextCur, true, nil) on success, (nil, false, nil) when no JOIN follows, or
 // (nil, false, err) on a malformed join. A comma is NOT consumed here — the
 // top-level comma is handled by parseFromClause (comma cross join binds looser).
-func (p *Parser) tryParseJoinSuffix(left ast.Node) (ast.Node, bool, error) {
+func (p *Parser) tryParseJoinSuffix(cur ast.Node, open *[]*ast.JoinExpr) (ast.Node, bool, error) {
 	natural, joinType, joinHint, ok, err := p.tryParseJoinKeywords()
 	if err != nil {
 		return nil, false, err
@@ -89,7 +101,7 @@ func (p *Parser) tryParseJoinSuffix(left ast.Node) (ast.Node, bool, error) {
 		return nil, false, nil
 	}
 
-	je := &ast.JoinExpr{Type: joinType, Natural: natural, JoinHint: joinHint, Left: left}
+	je := &ast.JoinExpr{Type: joinType, Natural: natural, JoinHint: joinHint, Left: cur}
 
 	// Optional per-join `@{...}` hint between JOIN and the right source.
 	if p.cur.Type == int('@') {
@@ -102,23 +114,60 @@ func (p *Parser) tryParseJoinSuffix(left ast.Node) (ast.Node, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	je.Right = right
-	je.Loc = ast.Loc{Start: qLoc(left).Start, End: qLoc(right).End}
 
-	// ON / USING criteria. NATURAL and CROSS joins take no criteria; the others
-	// require exactly one (the grammar's on_or_using_clause_list is one-or-more,
-	// but a single criterion is the universal case — repeated ON/USING is a rare
-	// ZetaSQL extension we accept by consuming additional ones into the same
-	// node, keeping the last for the structured fields).
-	if !natural && joinType != ast.JoinCross {
-		if err := p.parseJoinCriteria(je); err != nil {
-			return nil, false, err
+	// NATURAL and CROSS joins take no criteria and attach directly to cur.
+	if natural || joinType == ast.JoinCross {
+		je.Right = right
+		je.Loc = ast.Loc{Start: qLoc(cur).Start, End: qLoc(right).End}
+		return je, true, nil
+	}
+
+	// Condition-needing join: push je onto open with cur as its left operand,
+	// and let right become the active right-hand tree. Each immediately
+	// following ON/USING closes the top open join, reassociating consecutive
+	// joins right-to-left (e.g. `a JOIN b JOIN c USING (id) ON a.id = b.id`
+	// -> `a JOIN (b JOIN c USING (id)) ON a.id = b.id`). In BigQuery, excess
+	// ON/USING clauses beyond the open joins are left unconsumed so they fail.
+	*open = append(*open, je)
+	cur = right
+	for p.cur.Type == kwON || p.cur.Type == kwUSING {
+		var target *ast.JoinExpr
+		if len(*open) > 0 {
+			top := len(*open) - 1
+			target = (*open)[top]
+			*open = (*open)[:top]
+			target.Right = cur
+		} else {
+			if p.isBigQuery() {
+				break
+			}
+			j, ok := cur.(*ast.JoinExpr)
+			if !ok {
+				break
+			}
+			target = j
 		}
+		switch p.cur.Type {
+		case kwON:
+			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, false, err
+			}
+			target.On = expr
+			target.Using = nil
+		case kwUSING:
+			cols, err := p.parseUsingClause()
+			if err != nil {
+				return nil, false, err
+			}
+			target.Using = cols
+			target.On = nil
+		}
+		target.Loc = ast.Loc{Start: qLoc(target.Left).Start, End: p.prev.Loc.End}
+		cur = target
 	}
-	if je.On != nil || je.Using != nil {
-		je.Loc.End = p.prev.Loc.End
-	}
-	return je, true, nil
+	return cur, true, nil
 }
 
 // tryParseJoinKeywords parses the join-type keyword prefix
@@ -190,39 +239,6 @@ func (p *Parser) tryParseJoinKeywords() (natural bool, joinType ast.JoinType, jo
 	return natural, jt, joinHint, true, nil
 }
 
-// parseJoinCriteria parses the ON / USING clause(s) of a join (on_or_using_
-// clause_list). The current token is just past the right source. It consumes one
-// or more ON/USING clauses; the structured fields hold the criteria (multiple
-// criteria — a ZetaSQL extension — are all consumed, with On/Using reflecting
-// the last, which suffices for parse parity and query-span).
-func (p *Parser) parseJoinCriteria(je *ast.JoinExpr) error {
-	for {
-		switch p.cur.Type {
-		case kwON:
-			p.advance()
-			expr, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			je.On = expr
-			je.Using = nil
-		case kwUSING:
-			cols, err := p.parseUsingClause()
-			if err != nil {
-				return err
-			}
-			je.Using = cols
-			je.On = nil
-		default:
-			return nil
-		}
-		// A second ON/USING immediately following is the repeated-criteria form.
-		if p.cur.Type != kwON && p.cur.Type != kwUSING {
-			return nil
-		}
-	}
-}
-
 // parseUsingClause parses `USING ( column (, column)* )` (using_clause). USING is
 // the current token. Returns the column names.
 func (p *Parser) parseUsingClause() ([]string, error) {
@@ -272,11 +288,15 @@ func (p *Parser) parseTablePrimary() (ast.Node, error) {
 		src ast.Node
 		err error
 	)
-	switch p.cur.Type {
-	case int('('):
+	switch {
+	case p.cur.Type == int('('):
 		src, err = p.parseParenTableSource()
-	case kwUNNEST:
+	case p.cur.Type == kwUNNEST:
 		src, err = p.parseUnnestTableSource()
+	case p.curIsUnquotedWord("LATERAL"):
+		src, err = p.parseLateralTableSource()
+	case p.curIsUnquotedWord("GRAPH_TABLE") && p.peekNext().Type == int('('):
+		src, err = p.parseGraphTableQuery()
 	default:
 		src, err = p.parsePathTableSource()
 	}
@@ -284,22 +304,176 @@ func (p *Parser) parseTablePrimary() (ast.Node, error) {
 		return nil, err
 	}
 
-	// TABLESAMPLE wraps a complete table_primary (grammar:
-	// `table_primary sample_clause`), binding after the source's own alias /
-	// PIVOT / WITH OFFSET / FOR SYSTEM_TIME. It attaches to the TableExpr / UNNEST
-	// source shapes (a parenthesized join carries no sample field — sampling a
-	// raw join is not a documented form). The grammar allows it to chain
-	// (`table_primary sample_clause` is itself a table_primary), so loop.
-	for p.atTableSample() {
-		sc, serr := p.parseTableSample()
-		if serr != nil {
-			return nil, serr
+	// TABLESAMPLE and MATCH_RECOGNIZE wrap a complete table_primary.
+	for {
+		if p.atTableSample() {
+			sc, serr := p.parseTableSample()
+			if serr != nil {
+				return nil, serr
+			}
+			if !attachSample(src, sc) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			continue
 		}
-		if !attachSample(src, sc) {
-			return nil, p.syntaxErrorAtCur()
+		if p.isBigQuery() && p.cur.Type == kwMATCH_RECOGNIZE {
+			mr, merr := p.parseMatchRecognizeClause()
+			if merr != nil {
+				return nil, merr
+			}
+			if !attachMatchRecognize(src, mr) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		break
 	}
 	return src, nil
+}
+
+// parseLateralTableSource parses `LATERAL table_subquery` or
+// `LATERAL tvf [as_alias] [pivot_or_unpivot_clause]`. cur is at LATERAL.
+func (p *Parser) parseLateralTableSource() (ast.Node, error) {
+	latTok := p.advance() // LATERAL
+	if p.cur.Type == int('(') {
+		p.advance() // '('
+		if !p.atQueryStart() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		query, err := p.parseQuery()
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		te := &ast.TableExpr{
+			Subquery: query,
+			Lateral:  true,
+			Loc:      ast.Loc{Start: latTok.Loc.Start, End: closeTok.Loc.End},
+		}
+		if err := p.parseTableAliasOnly(te); err != nil {
+			return nil, err
+		}
+		return te, nil
+	}
+	// LATERAL tvf: requires '(' after path.
+	path, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != int('(') {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc, err := p.parseFuncCallSuffix(path)
+	if err != nil {
+		return nil, err
+	}
+	te := &ast.TableExpr{
+		Func:    fc.(*ast.FuncCall),
+		Lateral: true,
+		Loc:     ast.Loc{Start: latTok.Loc.Start, End: nodeLoc(fc).End},
+	}
+	if err := p.parseTableAliasOnly(te); err != nil {
+		return nil, err
+	}
+	return te, nil
+}
+
+// parseGraphTableQuery parses `GRAPH_TABLE '(' path_expression
+// (graph_match_operator graph_shape_clause | graph_operation_block) ')' as_alias?`.
+func (p *Parser) parseGraphTableQuery() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	gtTok := p.advance() // GRAPH_TABLE
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	graphPath, err := p.parsePathExpr()
+	if err != nil {
+		return nil, err
+	}
+	var ops []ast.Node
+	var cols []*ast.SelectItem
+	if p.cur.Type == kwMATCH {
+		// Could be `graph_match_operator graph_shape_clause` (no RETURN) or
+		// `graph_operation_block` (ending in RETURN).
+		matchOp, err := p.parseGraphMatchOp(false)
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwCOLUMNS || p.cur.Type == int(')') {
+			ops = []ast.Node{matchOp}
+			if p.cur.Type == kwCOLUMNS {
+				p.advance() // COLUMNS
+				if _, err := p.expect(int('(')); err != nil {
+					return nil, err
+				}
+				cols, err = p.parseSelectList()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(int(')')); err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			linOps := []ast.Node{matchOp}
+			for p.atGraphLinearOperator() {
+				op, err := p.parseGraphLinearOperator()
+				if err != nil {
+					return nil, err
+				}
+				linOps = append(linOps, op)
+			}
+			firstLin, err := p.finishGraphLinearQuery(linOps)
+			if err != nil {
+				return nil, err
+			}
+			firstBlock, err := p.parseGraphSetOpChain(firstLin)
+			if err != nil {
+				return nil, err
+			}
+			ops = append(ops, firstBlock)
+			for p.cur.Type == kwNEXT {
+				p.advance()
+				nextBlock, err := p.parseGraphCompositeQueryBlock()
+				if err != nil {
+					return nil, err
+				}
+				ops = append(ops, nextBlock)
+			}
+		}
+	} else {
+		var err error
+		ops, _, err = p.parseGraphOperationBlock()
+		if err != nil {
+			return nil, err
+		}
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	gt := &ast.GraphTableQuery{
+		Graph:   graphPath,
+		Ops:     ops,
+		Columns: cols,
+		Loc:     ast.Loc{Start: gtTok.Loc.Start, End: closeTok.Loc.End},
+	}
+	te := &ast.TableExpr{GraphTable: gt, Loc: gt.Loc}
+	if alias, ok, err := p.tryParseTableAlias(); err != nil {
+		return nil, err
+	} else if ok {
+		gt.Alias = alias
+		te.Alias = alias
+		gt.Loc.End = p.prev.Loc.End
+		te.Loc.End = p.prev.Loc.End
+	}
+	return te, nil
 }
 
 // attachSample stores a parsed TABLESAMPLE clause on a table source, updating
@@ -314,6 +488,36 @@ func attachSample(src ast.Node, sc *ast.SampleClause) bool {
 	case *ast.UnnestExpr:
 		s.Sample = sc
 		s.Loc.End = sc.Loc.End
+	default:
+		return false
+	}
+	return true
+}
+
+// attachMatchRecognize stores a parsed MATCH_RECOGNIZE clause on a table
+// source (TableExpr, UnnestExpr, or parenthesized JoinExpr), updating its end
+// Loc. Returns false if the source shape is unsupported or already carries a
+// MATCH_RECOGNIZE clause so the caller never silently drops it.
+func attachMatchRecognize(src ast.Node, mr *ast.MatchRecognizeClause) bool {
+	switch s := src.(type) {
+	case *ast.TableExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
+	case *ast.UnnestExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
+	case *ast.JoinExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
 	default:
 		return false
 	}
@@ -365,6 +569,13 @@ func (p *Parser) parseParenTableSource() (ast.Node, error) {
 	}
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
+	}
+	// table_primary: '(' join ')' requires an actual JOIN inside the parens in
+	// BigQuery (`FROM (a a)` without a JOIN is a syntax error).
+	if p.isBigQuery() {
+		if _, ok := inner.(*ast.JoinExpr); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	// A parenthesized join can itself be the left of a further join / carry an
 	// alias; return it directly (the grammar's table_primary: ( join ) has no
@@ -455,7 +666,7 @@ func (p *Parser) parsePathTableSource() (ast.Node, error) {
 // components. The dashed/slashed segments are folded into a single component
 // spelling so the path round-trips for query-span name resolution.
 func (p *Parser) parseTablePath() (*ast.PathExpr, error) {
-	if !isIdentifierStart(p.cur.Type) {
+	if !isIdentifierStart(p.cur.Type) || isExtraReservedIdent(p.cur) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	first := p.advance()
@@ -499,6 +710,10 @@ func (p *Parser) consumeDashedTail(base string) string {
 	for p.cur.Type == int('-') {
 		next := p.peekNext()
 		if !isAnyKeywordIdentifier(next.Type) && next.Type != tokInteger {
+			break
+		}
+		// GoogleSQL dashed identifiers forbid whitespace around '-'.
+		if p.prev.Loc.End != p.cur.Loc.Start || p.cur.Loc.End != next.Loc.Start {
 			break
 		}
 		p.advance() // '-'
@@ -568,10 +783,10 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 		}
 	}
 
-	// FOR SYSTEM_TIME AS OF expr (opt_at_system_time). Recognized here because it
-	// is a shared path-source time-travel suffix; the more exotic AT SYSTEM TIME
-	// variants are parser-query-clauses' concern.
-	if p.atForSystemTime() {
+	// FOR SYSTEM_TIME AS OF expr (opt_at_system_time). In GoogleSQL's grammar
+	// (`table_path_expression`), `as_alias` precedes `at_system_time`; BigQuery
+	// rejects a table alias after `FOR SYSTEM_TIME AS OF ...`.
+	if !p.isBigQuery() && p.atForSystemTime() {
 		if err := p.parseForSystemTime(te); err != nil {
 			return err
 		}
@@ -678,7 +893,7 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 		return alias, true, nil
 	}
 	// Implicit alias: a bare identifier that is not a clause/join continuation.
-	if isIdentifierStart(p.cur.Type) && !p.atTableAliasStop() {
+	if isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {

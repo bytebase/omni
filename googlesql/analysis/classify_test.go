@@ -210,11 +210,11 @@ func TestClassifyRecordsTheSpanTables(t *testing.T) {
 		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> PIVOT(SUM((SELECT x FROM secret)) FOR c IN (1))",
 		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> SELECT SUM(x) OVER w WINDOW w AS (PARTITION BY (SELECT y FROM secret))",
 	} {
-		file, err := parseFile(sql)
-		if err != nil {
-			t.Fatalf("parse %q: %v", sql, err)
-		}
 		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			file, err := parseFile(sql, dialect)
+			if err != nil {
+				t.Fatalf("parse %v %q: %v", dialect, sql, err)
+			}
 			full := &QuerySpan{}
 			newSpanWalker(full, dialect).analyzeStmt(file.Stmts[0])
 			got := collectAccessTables(file.Stmts[0], dialect)

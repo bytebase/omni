@@ -13,7 +13,7 @@ import (
 	googlesqlparser "github.com/bytebase/omni/googlesql/parser"
 )
 
-// Parse parses GoogleSQL / BigQuery input using googlesql/parser.Parse.
+// Parse parses BigQuery SQL input using googlesql/parser with DialectBigQuery.
 func Parse(sql string) (*ast.File, error) {
-	return googlesqlparser.Parse(sql)
+	return googlesqlparser.ParseWithDialect(sql, googlesqlparser.DialectBigQuery)
 }

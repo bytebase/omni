@@ -243,7 +243,7 @@ type ColumnRef struct {
 // error, never a silently smaller span. On empty input it returns a zero-valued
 // span with Type=Unknown.
 func GetQuerySpan(statement string, dialect Dialect) (*QuerySpan, error) {
-	file, err := parseFile(statement)
+	file, err := parseFile(statement, dialect)
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
@@ -338,9 +338,14 @@ type spanWalker struct {
 	// here (mirroring the legacy tableSourceFrom, which held each table AND the join
 	// anchor), so `x.id` over `t x JOIN t y` resolves against leaf `x`. Saved and
 	// restored around each SELECT so nested blocks do not leak relations.
-	leaves   *leafSet
-	accessed map[tableKey]bool
-	predSeen map[ColumnRef]bool
+	leaves *leafSet
+	// fromUnresolved records whether any FROM operand in the current SELECT
+	// resolved to no relation (such as a TVF or GRAPH_TABLE). Saved and restored
+	// per SELECT so a FROM-first query with a mix of resolvable and unresolvable
+	// operands fails closed instead of returning an incomplete projection.
+	fromUnresolved bool
+	accessed       map[tableKey]bool
+	predSeen       map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
 	// parses but cannot resolve to correct lineage without catalog metadata
 	// (NATURAL JOIN; JOIN USING over a deferred set-op projection). GetQuerySpan
@@ -412,6 +417,15 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	case *ast.TruncateStmt:
 		w.recordTable(n.Target, "")
 		w.walkPredicate(n.Where)
+	case *ast.ExplainStmt:
+		// EXPLAIN inspects its inner statement's tables while returning plan
+		// text rather than the inner query's rows. Walk the inner statement in
+		// tablesOnly mode so AccessTables, CTEReferences, CTEs, and
+		// PredicateColumns are recorded while span.Results remains empty.
+		prevTablesOnly := w.tablesOnly
+		w.tablesOnly = true
+		w.analyzeStmt(n.Stmt)
+		w.tablesOnly = prevTablesOnly
 	case *ast.SubpipelineStmt:
 		// A statement that is only a pipe suffix runs against an input table it
 		// never names, so its output columns cannot be resolved. The tables its
@@ -546,31 +560,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 				w.visitPipe(branch)
 			}
 		case *ast.PipeMatchRecognize:
-			if n.Clause != nil {
-				for _, expr := range n.Clause.PartitionBy {
-					w.walkPredicate(expr)
-				}
-				for _, item := range n.Clause.OrderBy {
-					if item != nil {
-						w.walkPredicate(item.Expr)
-					}
-				}
-				for _, item := range n.Clause.Measures {
-					if item != nil {
-						w.walkPredicate(item.Expr)
-					}
-				}
-				for _, def := range n.Clause.Definitions {
-					if def != nil {
-						w.walkPredicate(def.Expr)
-					}
-				}
-				for _, opt := range n.Clause.Options {
-					if opt != nil {
-						w.walkSubqueriesOnly(opt.Value)
-					}
-				}
-			}
+			w.walkMatchRecognize(n.Clause)
 		}
 	}
 	if scope != nil {
@@ -625,6 +615,37 @@ func (w *spanWalker) walkSampleExpressions(sc *ast.SampleClause) {
 		w.walkPredicate(expr)
 	}
 	w.walkPredicate(sc.Repeatable)
+}
+
+// walkMatchRecognize walks a MATCH_RECOGNIZE clause's expressions for
+// predicate columns and embedded subqueries.
+func (w *spanWalker) walkMatchRecognize(mr *ast.MatchRecognizeClause) {
+	if mr == nil {
+		return
+	}
+	for _, expr := range mr.PartitionBy {
+		w.walkPredicate(expr)
+	}
+	for _, item := range mr.OrderBy {
+		if item != nil {
+			w.walkPredicate(item.Expr)
+		}
+	}
+	for _, item := range mr.Measures {
+		if item != nil {
+			w.walkPredicate(item.Expr)
+		}
+	}
+	for _, def := range mr.Definitions {
+		if def != nil {
+			w.walkPredicate(def.Expr)
+		}
+	}
+	for _, opt := range mr.Options {
+		if opt != nil {
+			w.walkSubqueriesOnly(opt.Value)
+		}
+	}
 }
 
 // walkPipeItems walks a pipe selection item list for embedded subqueries: each
@@ -1173,7 +1194,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.fromAliases = map[string]bool{}
 	prevLeaves := w.leaves
 	w.leaves = &leafSet{}
-	defer func() { w.fromAliases = prevFrom; w.leaves = prevLeaves }()
+	prevUnresolved := w.fromUnresolved
+	w.fromUnresolved = false
+	defer func() {
+		w.fromAliases = prevFrom
+		w.leaves = prevLeaves
+		w.fromUnresolved = prevUnresolved
+	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
 	// one combined relation, used for a bare `*`); building them also populates
@@ -1278,6 +1305,10 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 		w.walkPredicate(n.Array)
 		w.walkPivotExpressions(n.Pivot)
 		w.walkUnpivotExpressions(n.Unpivot)
+		if n.MatchRecognize != nil {
+			w.walkMatchRecognize(n.MatchRecognize)
+			w.failClosed(fmt.Errorf("MATCH_RECOGNIZE changes a FROM source's output columns, which this walker does not resolve (fail closed)"))
+		}
 		w.walkSampleExpressions(n.Sample)
 		return w.finishUnnestRelation(w.unnestElementColumns(n.Array), n.Alias, n.WithOffset, n.WithOffsetAlias)
 	}
@@ -1342,6 +1373,10 @@ func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
 			if col != "" {
 				w.addPredicateColumn(ColumnRef{Column: col})
 			}
+		}
+		if join.MatchRecognize != nil {
+			w.walkMatchRecognize(join.MatchRecognize)
+			w.failClosed(fmt.Errorf("MATCH_RECOGNIZE changes a FROM source's output columns, which this walker does not resolve (fail closed)"))
 		}
 		acc = w.joinParts(b, acc, right, join)
 	}
@@ -1462,10 +1497,19 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 	case n.Subquery != nil:
 		// A FROM subquery: resolve its projection and expose it under the alias so a
 		// `SELECT *` / `alias.col` over it reproduces the subquery's resolved columns.
+		// A LATERAL subquery may reference columns from preceding FROM items, which
+		// visitSelect's fresh scope does not carry; walk its body for table discovery
+		// (Classify) and fail closed for span lineage.
 		cols := w.visitBody(n.Subquery)
 		w.registerFromAlias(n.Alias)
-		rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
-		w.addLeaf(rel)
+		if n.Lateral {
+			w.fromUnresolved = true
+			w.failClosed(fmt.Errorf("LATERAL subquery cannot be resolved to correlated column lineage (fail closed)"))
+			rel = nil
+		} else {
+			rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
+			w.addLeaf(rel)
+		}
 	case n.Func != nil:
 		// Table-valued function: its arguments may reference columns and
 		// subqueries. The argument columns are predicate-position references
@@ -1476,6 +1520,24 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		// info.
 		w.walkPredicate(n.Func)
 		w.registerFromAlias(n.Alias)
+		w.fromUnresolved = true
+		if n.Lateral {
+			w.failClosed(fmt.Errorf("LATERAL table-valued function cannot be resolved to correlated column lineage (fail closed)"))
+		}
+		rel = nil
+	case n.GraphTable != nil:
+		// A GRAPH_TABLE(graph MATCH ... [COLUMNS (...)]) source reads from a
+		// property graph whose backing tables and output columns are catalog-
+		// defined (not resolvable from SQL alone). Walk its operators and
+		// COLUMNS expressions through a graph boundary walker so any embedded
+		// SQL subqueries / CALL(TABLE ...) still record their AccessTables for
+		// Classify, and fail closed so GetQuerySpan never returns an empty
+		// span to masking or access-check consumers.
+		ew := &exprWalk{w: w, followSub: true}
+		ew.walkGraphNode(n.GraphTable)
+		w.registerFromAlias(n.Alias)
+		w.fromUnresolved = true
+		w.failClosed(fmt.Errorf("GRAPH_TABLE source cannot be resolved to table/column lineage without graph catalog metadata (fail closed)"))
 		rel = nil
 	case n.Path != nil:
 		// A multi-part path whose ROOT matches an earlier FROM alias/table in this
@@ -1496,10 +1558,19 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		} else {
 			rel = w.buildPathRelation(n.Path, n.Alias)
 		}
+		if rel == nil {
+			w.fromUnresolved = true
+		}
+	default:
+		w.fromUnresolved = true
 	}
 	w.walkPredicate(n.SystemTime)
 	w.walkPivotExpressions(n.Pivot)
 	w.walkUnpivotExpressions(n.Unpivot)
+	if n.MatchRecognize != nil {
+		w.walkMatchRecognize(n.MatchRecognize)
+		w.failClosed(fmt.Errorf("MATCH_RECOGNIZE changes a FROM source's output columns, which this walker does not resolve (fail closed)"))
+	}
 	w.walkSampleExpressions(n.Sample)
 	return rel
 }
@@ -1774,7 +1845,12 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		// Source tables a CREATE TABLE references (Codex finding #4).
 		w.recordTable(n.Like, "")
 		w.recordTable(n.Clone, "")
+		w.walkSubqueriesOnly(n.CloneSystemTime)
+		w.walkSubqueriesOnly(n.CloneWhere)
 		w.recordTable(n.Copy, "")
+		w.walkSubqueriesOnly(n.CopySystemTime)
+		w.walkSubqueriesOnly(n.CopyWhere)
+		w.walkOptionsSubqueries(n.Options)
 		if n.Interleave != nil {
 			w.recordTable(n.Interleave.Parent, "")
 		}
@@ -1850,6 +1926,43 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		w.walkOptionsSubqueries(n.Options)
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
+	case *ast.DefineTableStmt:
+		w.recordTable(n.Name, "")
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.CreateModelStmt:
+		w.visitBody(n.AsQuery)
+		for _, q := range n.AliasedQueries {
+			if q != nil {
+				w.visitBody(q.Query)
+			}
+		}
+		w.walkPipeItems(n.Transform)
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.CreateConnectionStmt:
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.CreateConstantStmt:
+		w.walkSubqueriesOnly(n.Value)
+	case *ast.PrivilegeRestrictionStmt:
+		if strings.EqualFold(n.ObjectType, "TABLE") || strings.EqualFold(n.ObjectType, "VIEW") {
+			w.recordTable(n.Path, "")
+		}
+	case *ast.AlterRowAccessPolicyStmt:
+		w.recordTable(n.Table, "")
+		for _, act := range n.Actions {
+			if act != nil {
+				w.walkSubqueriesOnly(act.Filter)
+			}
+		}
+	case *ast.BQAlterStmt:
+		if n.OnTable != nil {
+			w.recordTable(n.OnTable, "")
+		}
+		w.walkOptionsSubqueries(n.SetOptions)
+		for _, act := range n.IndexActions {
+			if act != nil {
+				w.walkOptionsSubqueries(act.Options)
+			}
+		}
 	default:
 		// Fallback: re-dispatch known query/DML nodes; otherwise nothing.
 		w.redispatch(node)
@@ -1871,7 +1984,7 @@ func (w *spanWalker) recordConstraintRefs(constraints []*ast.TableConstraint) {
 // statement it does not special-case).
 func (w *spanWalker) redispatch(node ast.Node) {
 	switch node.(type) {
-	case *ast.QueryStmt, *ast.SelectStmt, *ast.SetOperation,
+	case *ast.QueryStmt, *ast.SelectStmt, *ast.SetOperation, *ast.ExplainStmt,
 		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 		w.analyzeStmt(node)
 	}
@@ -2412,6 +2525,20 @@ func (ew *exprWalk) walkGraphNodes(nodes []ast.Node) {
 // expressions), so each one that holds an expression is listed here.
 func (ew *exprWalk) walkGraphNode(node ast.Node) {
 	switch n := node.(type) {
+	case *ast.GraphTableQuery:
+		ew.walkGraphNodes(n.Ops)
+		for _, item := range n.Columns {
+			if item != nil {
+				ew.walk(item.Expr)
+				if item.Modifiers != nil {
+					for _, r := range item.Modifiers.Replace {
+						if r != nil {
+							ew.walk(r.Value)
+						}
+					}
+				}
+			}
+		}
 	case *ast.GraphSubqueryExpr:
 		ew.walkGraphNodes(n.Blocks)
 	case *ast.GraphExistsExpr:

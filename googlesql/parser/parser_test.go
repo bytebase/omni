@@ -56,7 +56,7 @@ func TestParse_UnknownStatement(t *testing.T) {
 // MODEL / METADATA, LOAD DATA, CLONE DATA, parser-dml-ext) are now implemented
 // and no longer stubbed.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	_, errs := parseForTest("DEFINE TABLE a()")
+	_, errs := parseForTest("DEFINE MACRO m 1")
 	if len(errs) != 1 {
 		t.Fatalf("parseForTest(\"DEFINE ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
@@ -71,9 +71,9 @@ func TestParse_KnownStatementUnsupported(t *testing.T) {
 // TestParse_MultiStatementErrorsCollected verifies ParseBestEffort collects
 // errors from every segment, not just the first. The leading `SELECT 1` now
 // parses cleanly (parser-select) and the INSERT now parses cleanly
-// (parser-dml), so only the two still-stubbed DEFINE segments contribute errors.
+// (parser-dml), so only the two still-stubbed DEFINE MACRO segments contribute errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); DEFINE TABLE a(); DEFINE TABLE b()")
+	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); DEFINE MACRO a 1; DEFINE MACRO b 2")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}
@@ -353,12 +353,12 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 // diagnostic. (Pre-parser-select this test asserted File.Stmts stayed empty for
 // SELECT.)
 func TestParse_QueryStatementsParse(t *testing.T) {
-	file, errs := parseForTest("SELECT 1; INSERT INTO t VALUES (1); CALL p(); DEFINE TABLE a()")
+	file, errs := parseForTest("SELECT 1; INSERT INTO t VALUES (1); CALL p(); DEFINE MACRO m 1")
 	if len(file.Stmts) != 3 {
-		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; DEFINE is still stubbed)", len(file.Stmts))
+		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; DEFINE MACRO is still stubbed)", len(file.Stmts))
 	}
 	if len(errs) != 1 {
-		t.Errorf("errors = %d, want 1 (the stubbed DEFINE): %v", len(errs), errs)
+		t.Errorf("errors = %d, want 1 (the stubbed DEFINE MACRO): %v", len(errs), errs)
 	}
 }
 

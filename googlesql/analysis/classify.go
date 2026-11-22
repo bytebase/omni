@@ -173,8 +173,14 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		// queryTypeListener lists create_property_graph_statement directly among the
 		// DDL forms (plugin/parser/{bigquery,spanner}/query_type.go), same as every
 		// other CREATE.
-		*ast.CreatePropertyGraphStmt:
+		*ast.CreatePropertyGraphStmt,
+		// Extended GoogleSQL / BigQuery DDL statements.
+		*ast.DefineTableStmt, *ast.CreateModelStmt, *ast.CreateConnectionStmt,
+		*ast.CreateConstantStmt, *ast.PrivilegeRestrictionStmt, *ast.AlterRowAccessPolicyStmt:
 		return DDL
+
+	case *ast.ExplainStmt:
+		return Explain
 
 	// DCL — GRANT / REVOKE are DDL in the legacy listener (its rule list groups
 	// privilege statements under DDL alongside CREATE/ALTER/DROP).
@@ -281,7 +287,7 @@ func mergeQueryTypes(a, b QueryType) QueryType {
 // something else, and Unknown is the verdict that grants nothing. Empty,
 // whitespace, or comment-only input is Unknown as well.
 func ClassifySQL(sql string, dialect Dialect) QueryType {
-	file, err := parseFile(sql)
+	file, err := parseFile(sql, dialect)
 	if err != nil {
 		return Unknown
 	}
@@ -297,10 +303,29 @@ func ClassifyFromFile(file *ast.File, dialect Dialect) QueryType {
 	return Classify(file.Stmts[0], dialect)
 }
 
-// parseFile runs the strict GoogleSQL parser. It is the single parse entry
-// point both classification and query-span share, so they never disagree about
-// which statement is "first" or whether the input parsed at all.
-func parseFile(sql string) (*ast.File, error) {
+// parseFile runs the strict GoogleSQL parser in the given dialect. It is the
+// single parse entry point classification, query-span, and limit rewriting
+// share, so they never disagree about which statement is "first" or whether
+// the input parsed at all.
+//
+// For DialectBigQuery, it parses with parser.DialectBigQuery first so
+// BigQuery-specific syntax (such as FROM-first pipe queries, EXTERNAL TABLE,
+// and BigQuery ML clauses) agrees with bigquery/parser. If that rejects a
+// union-grammar form accepted by Bytebase's legacy ANTLR BigQuery corpus (e.g.
+// Spanner DDL or combined ON/USING clauses in testdata/query-span/bigquery.yaml),
+// it falls back to parser.DialectDefault; if both fail, the BigQuery error is
+// returned.
+func parseFile(sql string, dialect Dialect) (*ast.File, error) {
+	if dialect == DialectBigQuery {
+		file, err := parser.ParseWithDialect(sql, parser.DialectBigQuery)
+		if err == nil {
+			return file, nil
+		}
+		if fallback, ferr := parser.Parse(sql); ferr == nil {
+			return fallback, nil
+		}
+		return nil, err
+	}
 	return parser.Parse(sql)
 }
 
