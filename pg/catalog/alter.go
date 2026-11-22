@@ -2178,11 +2178,17 @@ func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
 		return err
 	}
 
-	// ALTER TYPE ... RENAME ATTRIBUTE does not recurse to children (inh=false),
-	// so renaming a column on a table with ordinary inheritance children or
-	// partitions fails with 42P16.
-	if rel.RelKind == 'p' || len(c.findChildRelations(rel.OID)) > 0 {
-		if _, exists := rel.colByName[stmt.Subname]; exists {
+	// ALTER TYPE ... RENAME ATTRIBUTE does not recurse to children (inh=false):
+	// renaming an inherited column on a child/partition or a column on a table
+	// with ordinary inheritance children or partitions fails with 42P16.
+	if idx, exists := rel.colByName[stmt.Subname]; exists {
+		if rel.Columns[idx].InhCount > 0 {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot rename inherited column %q", stmt.Subname),
+			}
+		}
+		if rel.RelKind == 'p' || len(c.findChildRelations(rel.OID)) > 0 {
 			return &Error{
 				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("inherited column %q must be renamed in child tables too", stmt.Subname),

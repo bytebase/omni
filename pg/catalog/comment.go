@@ -113,8 +113,9 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 
 	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		// pg: src/backend/commands/comment.c — CommentObject (OBJECT_FUNCTION etc.)
+		// LookupFuncWithArgs allows aggregates when objtype is OBJECT_FUNCTION.
 		if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
-			_, bp, _, err := c.resolveRoutineTarget(nodes.ObjectType(stmt.Objtype), owa)
+			_, bp, _, err := c.resolveRoutineTargetOpts(nodes.ObjectType(stmt.Objtype), owa, false)
 			if err != nil {
 				return err
 			}

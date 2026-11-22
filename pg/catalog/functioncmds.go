@@ -1371,6 +1371,10 @@ func (c *Catalog) removeFunction(procOID uint32, name string) {
 // resolveRoutineTarget resolves an ObjectWithArgs to a user-defined routine,
 // searching search_path when unqualified and enforcing routine-kind rules.
 func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.ObjectWithArgs) (*Schema, *BuiltinProc, *UserProc, error) {
+	return c.resolveRoutineTargetOpts(objType, owa, true)
+}
+
+func (c *Catalog) resolveRoutineTargetOpts(objType nodes.ObjectType, owa *nodes.ObjectWithArgs, rejectAggForFunc bool) (*Schema, *BuiltinProc, *UserProc, error) {
 	kindStr := "function"
 	switch objType {
 	case nodes.OBJECT_PROCEDURE:
@@ -1466,7 +1470,7 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 		if bp.Kind == 'p' {
 			return nil, nil, nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a function", funcName)}
 		}
-		if bp.Kind == PROKIND_AGGREGATE {
+		if rejectAggForFunc && bp.Kind == PROKIND_AGGREGATE {
 			return nil, nil, nil, &Error{Code: CodeWrongObjectType,
 				Message: fmt.Sprintf("%q is an aggregate function\nHint: Use DROP AGGREGATE to drop aggregate functions.", funcName)}
 		}

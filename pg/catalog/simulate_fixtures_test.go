@@ -324,6 +324,8 @@ CREATE POLICY a ON a USING (a);
 		{"alter type rename table rowtype", fkSetup, "ALTER TYPE a RENAME TO a", CodeWrongObjectType},
 		{"alter type rename attr on partitioned", partSetup, "ALTER TYPE a RENAME ATTRIBUTE a TO a", CodeInvalidTableDefinition},
 		{"alter type rename attr on ordinary inheritance parent", "CREATE TABLE parent (id int); CREATE TABLE child () INHERITS (parent);", "ALTER TYPE parent RENAME ATTRIBUTE id TO renamed", CodeInvalidTableDefinition},
+		{"alter type rename inherited attr on leaf child", "CREATE TABLE parent (id int); CREATE TABLE child () INHERITS (parent);", "ALTER TYPE child RENAME ATTRIBUTE id TO renamed", CodeInvalidTableDefinition},
+		{"comment on function accepts aggregate", "CREATE AGGREGATE total(integer) (SFUNC = int4pl, STYPE = integer);", "COMMENT ON FUNCTION total(integer) IS 'sum'", ""},
 
 		// DROP TYPE / DOMAIN
 		{"drop builtin type", "", "DROP TYPE INT", CodeDependentObjects},
