@@ -468,6 +468,17 @@
 : string
 | {"verdict":"accept","kind":"ddl","reason":"ok","code":"OK"}
 > query
+| CREATE MODEL TextEmbedder
+|   INPUT (text STRING(MAX))
+|   OUTPUT (embeddings ARRAY<FLOAT64>)
+|   REMOTE
+|   OPTIONS (endpoints = ['//aiplatform.googleapis.com/projects/my_project/locations/us-central1/publishers/google/models/textembedding-gecko'])
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"verdict":"accept","kind":"ddl","reason":"ok","code":"OK"}
+> query
 | DROP MODEL TextEmbedder
 < result
 < column "verdict" "JSON"

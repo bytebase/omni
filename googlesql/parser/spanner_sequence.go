@@ -33,10 +33,10 @@ import (
 // --- SEQUENCE ---
 
 // parseCreateSequence parses a CREATE SEQUENCE body after the shared CREATE prefix.
-// cur is at the SEQUENCE keyword. create_sequence has no opt_or_replace /
-// opt_create_scope, so a leading OR REPLACE / scope rejects.
+// cur is at the SEQUENCE keyword. Spanner rejects OR REPLACE on SEQUENCE, while
+// BigQuery/GoogleSQL's create_sequence_statement allows opt_or_replace.
 func (p *Parser) parseCreateSequence(create Token, orReplace bool, scope string) (ast.Node, error) {
-	if orReplace || scope != "" {
+	if (orReplace && p.isSpanner()) || scope != "" {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // SEQUENCE

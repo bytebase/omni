@@ -82,11 +82,11 @@ func (p *Parser) parseDefineStmt() (ast.Node, error) {
 //	  [OPTIONS options_list]
 //	  [AS query | AS ( aliased_query_list )]
 //
-// In DialectDefault (Spanner-compatible), only the shared base clauses
-// (OR REPLACE, IF NOT EXISTS, non-empty INPUT/OUTPUT, REMOTE) are accepted.
-// In DialectBigQuery, all BigQuery ML clauses are accepted.
+// In DialectSpanner, only the shared base clauses (OR REPLACE, IF NOT EXISTS,
+// non-empty INPUT/OUTPUT, REMOTE) are accepted. In DialectDefault and
+// DialectBigQuery, all BigQuery ML clauses are accepted.
 func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (ast.Node, error) {
-	if scope != "" && !p.isBigQuery() {
+	if scope != "" && p.isSpanner() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // MODEL
@@ -135,7 +135,7 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	}
 
 	// transform_clause?: TRANSFORM ( select_list ) (BigQuery)
-	if p.isBigQuery() && p.cur.Type == kwTRANSFORM {
+	if !p.isSpanner() && p.cur.Type == kwTRANSFORM {
 		p.advance() // TRANSFORM
 		if _, err := p.expect(int('(')); err != nil {
 			return nil, err
@@ -155,14 +155,14 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	if p.cur.Type == kwREMOTE {
 		p.advance() // REMOTE
 		stmt.Remote = true
-		if p.isBigQuery() && p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
+		if !p.isSpanner() && p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
 			conn, err := p.parseWithConnectionPath()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Connection = conn
 		}
-	} else if p.isBigQuery() && p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
+	} else if !p.isSpanner() && p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
 		conn, err := p.parseWithConnectionPath()
 		if err != nil {
 			return nil, err
@@ -171,7 +171,7 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	}
 
 	// options_?: OPTIONS options_list (BigQuery)
-	if p.isBigQuery() && p.cur.Type == kwOPTIONS {
+	if !p.isSpanner() && p.cur.Type == kwOPTIONS {
 		opts, err := p.parseOptionsList()
 		if err != nil {
 			return nil, err
@@ -180,7 +180,7 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	}
 
 	// as_query_or_aliased_query_list?: AS query | AS ( aliased_query_list ) (BigQuery)
-	if p.isBigQuery() && p.cur.Type == kwAS {
+	if !p.isSpanner() && p.cur.Type == kwAS {
 		p.advance() // AS
 		if p.cur.Type == int('(') && p.isAliasedQueryListAhead() {
 			p.advance() // '('
@@ -285,6 +285,12 @@ func (p *Parser) parseCreateExternalTable(create Token, orReplace bool, scope st
 		cols, cons, err := p.parseTableElementList()
 		if err != nil {
 			return nil, err
+		}
+		if len(cols) == 0 && len(cons) == 0 {
+			return nil, &ParseError{
+				Position: stmt.Loc.Start, End: p.prev.Loc.End,
+				Message: "syntax error: a table must define at least one column",
+			}
 		}
 		stmt.Columns = cols
 		stmt.Constraints = cons

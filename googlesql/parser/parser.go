@@ -91,6 +91,12 @@ type Parser struct {
 	// rejects). It is never set for a CAST target or any general `type` position.
 	inArrayColumnSchema bool
 
+	// inFromFirstQuery is set while parsing the FROM clause of a BigQuery-only
+	// FROM-first pipe query (`FROM ...`), where Spanner does not accept the
+	// statement and BigQuery reserves QUALIFY (so bare QUALIFY is never a table
+	// alias there). Cleared when entering a nested SELECT/TABLE query.
+	inFromFirstQuery bool
+
 	// parsedSubqueries holds, by the offset of its body, every expression
 	// subquery parseSubqueryBodyRaw parsed in place. fillSubqueries attaches
 	// these instead of reparsing the body text, which reparsed every nested
@@ -573,18 +579,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// --- Utility / metadata ---
 	case kwEXPLAIN:
 		return p.parseExplainStmt()
-	case kwDESCRIBE:
-		// DESCRIBE may carry a pipe suffix in shared GoogleSQL; BigQuery and
-		// Spanner reject pipe operators on DESCRIBE (googlesql.tm:1269).
-		if p.isBigQuery() || p.isSpanner() {
-			return p.parseStmtWithSubqueries(p.parseDescribeStmt)
-		}
-		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
-	case kwDESC:
-		if p.isBigQuery() || p.isSpanner() {
-			return p.parseStmtWithSubqueries(p.parseDescribeStmt)
-		}
-		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
+	case kwDESCRIBE, kwDESC:
+		// Both BigQuery and Spanner reject pipe operators on DESCRIBE
+		// (googlesql.tm:1269).
+		return p.parseStmtWithSubqueries(p.parseDescribeStmt)
 	case kwSHOW:
 		// SHOW show_target [FROM path] [LIKE 'str'] (show_statement), one of the
 		// statements that may carry a pipe suffix

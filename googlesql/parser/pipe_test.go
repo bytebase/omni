@@ -81,15 +81,19 @@ func TestPipe_StatementForms(t *testing.T) {
 	})
 
 	t.Run("table-returning statement suffix", func(t *testing.T) {
-		stmt, ok := firstStmt(t, "DESCRIBE t |> AGGREGATE COUNT(*)").(*ast.PipeStatement)
+		stmt, ok := firstStmt(t, "SHOW TABLES |> AGGREGATE COUNT(*)").(*ast.PipeStatement)
 		if !ok {
 			t.Fatalf("statement is not an *ast.PipeStatement")
 		}
-		if stmt.Head.Tag() != ast.T_DescribeStmt {
-			t.Errorf("head is %v, want DescribeStmt", stmt.Head.Tag())
+		if stmt.Head.Tag() != ast.T_ShowStmt {
+			t.Errorf("head is %v, want ShowStmt", stmt.Head.Tag())
 		}
-		if stmt.Loc.Start != 0 || stmt.Loc.End != len("DESCRIBE t |> AGGREGATE COUNT(*)") {
-			t.Errorf("statement Loc = %+v, want [0,%d)", stmt.Loc, len("DESCRIBE t |> AGGREGATE COUNT(*)"))
+		if stmt.Loc.Start != 0 || stmt.Loc.End != len("SHOW TABLES |> AGGREGATE COUNT(*)") {
+			t.Errorf("statement Loc = %+v, want [0,%d)", stmt.Loc, len("SHOW TABLES |> AGGREGATE COUNT(*)"))
+		}
+		// Both Spanner and BigQuery reject pipe operators on DESCRIBE (googlesql.tm:1269).
+		if _, err := Parse("DESCRIBE t |> AGGREGATE COUNT(*)"); err == nil {
+			t.Errorf("DESCRIBE with pipe suffix: want error, got nil")
 		}
 	})
 }

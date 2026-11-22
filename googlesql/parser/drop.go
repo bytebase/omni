@@ -70,7 +70,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			p.advance() // EXTERNAL
 			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)
 		}
-		if p.isBigQuery() && p.peekNext().Type == kwTABLE {
+		if !p.isSpanner() && p.peekNext().Type == kwTABLE {
 			p.advance() // EXTERNAL
 			if p.peekNext().Type == kwFUNCTION {
 				p.advance() // TABLE
@@ -82,17 +82,17 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwMODEL:
 		return p.parseDropObject(drop, ast.DropModel, false)
 	case kwCONNECTION:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseDropObject(drop, ast.DropConnection, false)
 		}
 		return p.unsupported("DROP CONNECTION")
 	case kwCONSTANT:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseDropObject(drop, ast.DropConstant, false)
 		}
 		return p.unsupported("DROP CONSTANT")
 	case kwPRIVILEGE:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseDropPrivilegeRestriction(drop)
 		}
 		return p.unsupported("DROP PRIVILEGE")
@@ -241,6 +241,17 @@ func (p *Parser) parseDropIndex(drop Token) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Name = name
+
+	// BigQuery accepts an optional `ON <table>` tail on DROP INDEX, whereas
+	// Spanner rejects `ON <table>` on plain DROP INDEX.
+	if !p.isSpanner() && p.cur.Type == kwON {
+		p.advance() // ON
+		onTable, err := p.parseTablePath()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OnTable = onTable
+	}
 
 	// opt_drop_mode?  — RESTRICT | CASCADE (schema_object_kind INDEX).
 	switch p.cur.Type {

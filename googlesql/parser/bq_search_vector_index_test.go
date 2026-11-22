@@ -151,9 +151,8 @@ func TestAlterVectorIndex_RebuildOptions(t *testing.T) {
 
 func TestAlterVectorIndex_Rejects(t *testing.T) {
 	cases := []string{
-		"ALTER VECTOR INDEX i ON t",    // missing REBUILD
-		"ALTER VECTOR INDEX i REBUILD", // missing ON table
-		"ALTER VECTOR i ON t REBUILD",  // missing INDEX
+		"ALTER VECTOR INDEX i ON t",   // missing action
+		"ALTER VECTOR i ON t REBUILD", // missing INDEX
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)

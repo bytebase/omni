@@ -101,7 +101,7 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	// the exotic array-index forms).
 
 	// as_alias? (BigQuery index table alias before key list).
-	if p.isBigQuery() && p.cur.Type != int('(') {
+	if !p.isSpanner() && p.cur.Type != int('(') {
 		if alias, ok, err := p.tryParseTableAlias(); err != nil {
 			return nil, err
 		} else if ok {
@@ -185,8 +185,39 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 		return nil, err
 	}
 
+	// NULL_FILTERED and `, INTERLEAVE IN` are Spanner-only index forms (BigQuery
+	// rejects both); require Spanner-valid index keys (column identifiers or
+	// parenthesized expressions, never bare literals such as `NULL` or
+	// `ALL COLUMNS`) so hybrids rejected by both engines are not accepted.
+	if stmt.NullFiltered || stmt.Interleave != nil {
+		if stmt.AllColumns {
+			return nil, &ParseError{
+				Position: stmt.Loc.Start, End: p.prev.Loc.End,
+				Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
+			}
+		}
+		for _, k := range stmt.Keys {
+			if !isSpannerIndexKey(k) {
+				return nil, &ParseError{
+					Position: k.Loc.Start, End: k.Loc.End,
+					Message: "syntax error: Spanner index key must be a column name or parenthesized expression",
+				}
+			}
+		}
+	}
+
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// isSpannerIndexKey reports whether k is a column identifier or parenthesized
+// expression, as required by Spanner ordinary CREATE INDEX keys.
+func isSpannerIndexKey(k *ast.KeyPart) bool {
+	if k.Name != "" {
+		return true
+	}
+	_, ok := k.Expr.(*ast.ParenExpr)
+	return ok
 }
 
 // parseStoringIdentList parses a Spanner index STORING column identifier list

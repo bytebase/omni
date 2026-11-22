@@ -86,9 +86,12 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 	// BigQuery FROM-first pipe query: `[WITH ...] FROM <from_clause> [|> ...]`.
 	// Unlike SELECT-led queries, a FROM-first query cannot take trailing SQL
 	// set-ops, ORDER BY, or LIMIT directly (those must be pipe operators).
-	if p.isBigQuery() && p.cur.Type == kwFROM {
+	if !p.isSpanner() && p.cur.Type == kwFROM {
 		fromStart := p.cur.Loc.Start
+		prevFromFirst := p.inFromFirstQuery
+		p.inFromFirstQuery = true
 		from, err := p.parseFromClause()
+		p.inFromFirstQuery = prevFromFirst
 		if err != nil {
 			return nil, err
 		}
@@ -105,6 +108,12 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 		}
 		return q, nil
 	}
+
+	// Entering a non-FROM-first query (e.g. a subquery inside a FROM-first
+	// query): clear inFromFirstQuery for the nested query body.
+	prevFromFirst := p.inFromFirstQuery
+	p.inFromFirstQuery = false
+	defer func() { p.inFromFirstQuery = prevFromFirst }()
 
 	// The query body: a query_primary or a left-recursive set-operation chain.
 	body, err := p.parseQueryPrimaryOrSetOp()

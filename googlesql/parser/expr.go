@@ -2423,7 +2423,7 @@ func (p *Parser) parseUnnestExpression() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.isBigQuery() {
+	if !p.isSpanner() {
 		if fc, ok := n.(*ast.FuncCall); ok && len(fc.Args) == 0 {
 			return nil, &ParseError{
 				Position: unnestTok.Loc.Start, End: fc.Loc.End,

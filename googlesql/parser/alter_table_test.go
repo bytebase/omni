@@ -359,13 +359,21 @@ func TestAlterSearchIndex_Rejects(t *testing.T) {
 		// generic table alter actions must NOT be accepted (review finding F1: the
 		// initial impl reused the unrestricted alter_action_list).
 		"ALTER SEARCH INDEX idx RENAME TO idx2",                                    // RENAME forbidden
-		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",                                 // SET OPTIONS forbidden
-		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",                                // ADD COLUMN (non-STORED) forbidden
 		"ALTER SEARCH INDEX idx ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES t(b)", // ADD CONSTRAINT forbidden
 		"ALTER SEARCH INDEX idx ADD STORED COLUMN a, DROP STORED COLUMN b",         // single action only, not a list
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)
+	}
+	// BigQuery ALTER SEARCH INDEX actions (SET OPTIONS / ADD COLUMN) are
+	// accepted in union mode but rejected in DialectSpanner.
+	for _, sql := range []string{
+		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",
+		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",
+	} {
+		if _, err := ParseWithDialect(sql, DialectSpanner); err == nil {
+			t.Errorf("ParseWithDialect(%q, DialectSpanner): want error, got nil", sql)
+		}
 	}
 }
 

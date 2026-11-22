@@ -54,7 +54,7 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwINDEX:
 		kind = ast.AlterIndex
 	case kwSEARCH:
-		if p.isBigQuery() {
+		if p.isBigQuery() || (!p.isSpanner() && !p.isSpannerAlterSearchIndexAhead()) {
 			return p.parseBQAlterSearchVectorIndex(alter)
 		}
 		if p.peekNext().Type != kwINDEX {
@@ -74,21 +74,17 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER MATERIALIZED|APPROX VIEW SET OPTIONS (bq_materialized_view.go).
 		return p.parseBQAlterMaterializedView(alter)
 	case kwVECTOR:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseBQAlterSearchVectorIndex(alter)
 		}
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// ALTER VECTOR INDEX … ON … REBUILD (bq_search_vector_index.go).
-		return p.parseBQAlterVectorIndex(alter)
+		return nil, p.syntaxErrorAtCur()
 	case kwPRIVILEGE:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseAlterPrivilegeRestriction(alter)
 		}
 		return p.unsupported("ALTER PRIVILEGE")
 	case kwROW, kwALL:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseAlterRowAccessPolicy(alter)
 		}
 		return p.unsupported("ALTER")
@@ -804,6 +800,46 @@ func (p *Parser) parseOptionsListBody() ([]*ast.OptionsEntry, error) {
 		return nil, err
 	}
 	return entries, nil
+}
+
+// isSpannerAlterSearchIndexAhead reports whether the current `SEARCH ...`
+// tokens form a Spanner DDL-049 `ALTER SEARCH INDEX [IF EXISTS] <path>
+// {ADD|DROP} STORED ...` statement rather than BigQuery's `ALTER SEARCH INDEX`.
+func (p *Parser) isSpannerAlterSearchIndexAhead() bool {
+	startIdx := absIndex(p, p.cur.Loc.Start)
+	if startIdx < 0 || startIdx > len(p.input) {
+		return false
+	}
+	lx := NewLexerWithOffset(p.input[startIdx:], 0)
+	if lx.NextToken().Type != kwSEARCH {
+		return false
+	}
+	if lx.NextToken().Type != kwINDEX {
+		return false
+	}
+	tok := lx.NextToken()
+	if tok.Type == kwIF {
+		if lx.NextToken().Type != kwEXISTS {
+			return false
+		}
+		tok = lx.NextToken()
+	}
+	// Path expression: ident (. ident)* (also allow dashed segments for safety).
+	if !isIdentifierStart(tok.Type) {
+		return false
+	}
+	tok = lx.NextToken()
+	for tok.Type == int('.') {
+		seg := lx.NextToken()
+		if seg.Type == tokEOF {
+			return false
+		}
+		tok = lx.NextToken()
+	}
+	if tok.Type != kwADD && tok.Type != kwDROP {
+		return false
+	}
+	return lx.NextToken().Type == kwSTORED
 }
 
 // locTo builds a Loc from a start Loc through the end of an end token.

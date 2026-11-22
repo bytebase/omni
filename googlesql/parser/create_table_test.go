@@ -448,12 +448,15 @@ func TestCreateTable_Rejects(t *testing.T) {
 	cases := []string{
 		"CREATE TABLE",                                     // missing name
 		"CREATE TABLE T (x INT64) PRIMARY KEY x",           // missing parens on PK
-		"CREATE TABLE T (x)",                               // column missing type
 		"CREATE TABLE T (x INT64) PRIMARY KEY (x) garbage", // trailing junk
 		"CREATE TABLE T (CONSTRAINT FOREIGN KEY (x))",      // CONSTRAINT missing name
 		"CREATE TABLE T (x INT64,,)",                       // double comma in element list
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)
+	}
+	// Untyped columns are valid in BigQuery/union mode, rejected in DialectSpanner.
+	if _, err := ParseWithDialect("CREATE TABLE T (x)", DialectSpanner); err == nil {
+		t.Errorf("ParseWithDialect(CREATE TABLE T (x), DialectSpanner): want error, got nil")
 	}
 }
