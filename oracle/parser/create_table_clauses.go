@@ -102,30 +102,14 @@ func (p *Parser) parseCreateTableName() error {
 	return nil
 }
 
-// parseCreateTableColumnNames reads ( column [, column ] ... ), rejecting
-// duplicate column names at the repeated token (ORA-00957).
+// parseCreateTableColumnNames reads ( column [, column ] ... ).
 func (p *Parser) parseCreateTableColumnNames() error {
-	return p.parseCreateTableColumnNamesUnique(true)
-}
-
-func (p *Parser) parseCreateTableColumnNamesUnique(unique bool) error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
-	var seen map[string]bool
-	if unique {
-		seen = map[string]bool{}
-	}
 	for {
-		tok := p.cur
 		if err := p.parseCreateTableName(); err != nil {
 			return err
-		}
-		if unique {
-			if seen[tok.Str] {
-				return p.syntaxErrorAtTok(tok)
-			}
-			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break

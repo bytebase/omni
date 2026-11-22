@@ -192,71 +192,6 @@ func setAlterMviewAction(stmt *nodes.AlterMaterializedViewStmt, action string) {
 	}
 }
 
-// isAlterMviewSubpartitionTemplateQuantityStart reports the
-// hash_subparts_by_quantity alternative of set_subpartition_template, whose
-// reader ALTER TABLE does not share.
-func (p *Parser) isAlterMviewSubpartitionTemplateQuantityStart() bool {
-	if p.cur.Type != kwSET {
-		return false
-	}
-	toks := p.peekAhead(3)
-	return len(toks) == 3 && toks[0].Type == kwSUBPARTITION && p.isIdentLikeStrAt(toks[1], "TEMPLATE") && p.isIdentLikeStrAt(toks[2], "SUBPARTITIONS")
-}
-
-// parseAlterMviewSubpartitionTemplateQuantity reads
-// set_subpartition_template's hash_subparts_by_quantity:
-//
-//	SET SUBPARTITION TEMPLATE SUBPARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ]
-//
-// ALTER MATERIALIZED VIEW's page takes alter_table_partitioning from ALTER
-// TABLE's, which is where hash_subparts_by_quantity is defined
-// (oracle/parser/bnf/ALTER-TABLE.bnf). The pinned server answers ORA-14156
-// (invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION
-// TEMPLATE] clause) at SUBPARTITIONS here whatever the count and whatever the
-// view's partitioning, and reads the answer as an acceptance: the statement's
-// every token is lexed before any is parsed, so its probe reaches the tail and
-// says nothing. ALTER TABLE keeps its own reader, which takes an integer alone
-// (SET SUBPARTITION TEMPLATE 1): there the server repeats ORA-14156 at
-// SUBPARTITIONS after that token too, which is a rejection.
-func (p *Parser) parseAlterMviewSubpartitionTemplateQuantity() error {
-	p.advance() // consume SET
-	p.advance() // consume SUBPARTITION
-	if err := p.atExpectWord("TEMPLATE"); err != nil {
-		return err
-	}
-	if err := p.atExpectWord("SUBPARTITIONS"); err != nil {
-		return err
-	}
-	if p.cur.Type != tokICONST {
-		// Oracle reads SUBPARTITIONS with no quantity as an acceptance on
-		// ALTER MATERIALIZED VIEW, where ALTER TABLE answers ORA-14156.
-		if p.alterMview && (p.cur.Type == tokEOF || p.cur.Type == ';') {
-			return nil
-		}
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // consume the count
-	stored := false
-	if p.atWord("STORE") {
-		stored = true
-		p.advance() // consume STORE
-		if err := p.atExpect(kwIN); err != nil {
-			return err
-		}
-		if err := p.parseATNameList(); err != nil {
-			return err
-		}
-	}
-	if p.alterMview && !stored && p.isIdentLike() && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
-		// Oracle reads a word that ends the statement after a bare quantity
-		// as an acceptance (compat.tsv's ... SUBPARTITIONS 1 zzz row). With
-		// STORE IN, or a word before more tokens, it answers ORA-14156
-		// before the tail, so that stays refused.
-		p.advance()
-	}
-	return nil
-}
-
 // parseAlterMviewProperties reads the property clauses an ALTER
 // MATERIALIZED VIEW may begin with. The pinned server takes them as ALTER
 // TABLE does its own: several, in any order (PCTFREE 5 NOLOGGING, CACHE
@@ -300,10 +235,6 @@ func (p *Parser) isAlterMviewPartitionOperationStart() bool {
 // parseAlterMviewProperty reads one property clause, if one starts here.
 func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) error {
 	switch {
-	case p.cur.Type == kwMODIFY && p.isAlterMviewModifyColumnList():
-		p.advance() // consume MODIFY
-		setAlterMviewAction(stmt, "MODIFY")
-		return p.parseAlterMviewModifyColumns()
 	case p.cur.Type == kwMODIFY && !p.atNextWord("SCOPE") && !p.isAlterTablePartitioningStart() && !p.isAlterMviewModifyLobStart():
 		// modify_mv_column_clause: the pinned server reads ALTER TABLE's
 		// MODIFY here (MODIFY a, MODIFY (a ENCRYPT), MODIFY (a datatype)),
@@ -356,9 +287,6 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 	case p.atWord("MERGE") && p.atNextWord("SUBPARTITIONS"):
 		setAlterMviewAction(stmt, "PARTITION")
 		return p.parseAlterMviewMergeSubpartitions()
-	case p.isAlterMviewSubpartitionTemplateQuantityStart():
-		setAlterMviewAction(stmt, "PARTITION")
-		return p.parseAlterMviewSubpartitionTemplateQuantity()
 	case p.isAlterTablePartitioningStart():
 		setAlterMviewAction(stmt, "PARTITION")
 		cmd, err := p.parseAlterTablePartitioning()
@@ -602,61 +530,6 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 		return nil, err
 	}
 	return anns, nil
-}
-
-// parseAlterMviewInmemoryColumnItem reads the inmemory_column_clause of
-// ALTER MATERIALIZED VIEW. Oracle is looser there than ALTER TABLE's
-// reader: MEMCOMPRESS may be left out, any words may stand after QUERY,
-// the column list's parentheses may be left out around one column, and an
-// item after a comma may be followed by a word (compat.tsv's
-// alterMaterializedView_inmemory_column_clause rows).
-func (p *Parser) parseAlterMviewInmemoryColumnItem() error {
-	p.advance() // consume INMEMORY
-	if !p.atWord("MEMCOMPRESS") {
-		if p.cur.Type != kwFOR {
-			return p.syntaxErrorAtCur()
-		}
-	} else {
-		p.advance() // consume MEMCOMPRESS
-		if err := p.atExpect(kwFOR); err != nil {
-			return err
-		}
-	}
-	if p.cur.Type == kwFOR {
-		p.advance()
-	}
-	if !p.atWord("QUERY") {
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // consume QUERY
-	for p.isIdentLike() && p.peekNext().Type != ')' {
-		p.advance()
-	}
-	if p.isStatementEnd() {
-		return nil
-	}
-	if p.cur.Type != '(' {
-		if p.isATNameStart() && p.peekNext().Type == ')' {
-			p.advance()
-			p.advance()
-			return nil
-		}
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // consume (
-	if err := p.parseATName(); err != nil {
-		return err
-	}
-	for p.cur.Type == ',' {
-		p.advance() // consume ,
-		if err := p.parseATName(); err != nil {
-			return err
-		}
-		for p.isIdentLike() {
-			p.advance()
-		}
-	}
-	return p.atExpect(')')
 }
 
 // parseAlterMviewPhysicalAttrs reads physical_attributes_clause, one item
@@ -1053,54 +926,6 @@ func (p *Parser) parseAlterMviewMergeSubpartitions() error {
 		return p.syntaxErrorAtTok(intoNameTok)
 	}
 	return nil
-}
-
-// isAlterMviewModifyColumnList reports, at MODIFY, modify_mv_column_clause's
-// own list, MODIFY ( column [ ENCRYPT ... | DECRYPT ] [, ...] ), which ALTER
-// TABLE's MODIFY does not read: a column there needs a datatype.
-func (p *Parser) isAlterMviewModifyColumnList() bool {
-	toks := p.peekAhead(3)
-	if toks[0].Type != '(' {
-		return false
-	}
-	switch after := toks[2]; {
-	case after.Type == ',', after.Type == ')':
-		return true
-	default:
-		return isCreateTableWordTok(after, "ENCRYPT") || isCreateTableWordTok(after, "DECRYPT")
-	}
-}
-
-// parseAlterMviewModifyColumns reads modify_mv_column_clause after MODIFY.
-//
-//	( column [ ENCRYPT encryption_spec | DECRYPT ] [, ...] )
-func (p *Parser) parseAlterMviewModifyColumns() error {
-	p.advance() // consume '('
-	seen := map[string]bool{}
-	for {
-		tok := p.cur
-		if err := p.parseATName(); err != nil {
-			return err
-		}
-		if seen[tok.Str] {
-			return p.syntaxErrorAtTok(tok)
-		}
-		seen[tok.Str] = true
-		switch {
-		case p.atWord("ENCRYPT"):
-			p.advance()
-			if err := p.parseATEncryptionSpec(); err != nil {
-				return err
-			}
-		case p.atWord("DECRYPT"):
-			p.advance()
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance() // consume ','
-	}
-	return p.atExpect(')')
 }
 
 // recordAlterMviewExtent keeps on stmt the values of the allocate_extent_clause

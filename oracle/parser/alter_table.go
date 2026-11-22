@@ -337,16 +337,8 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		var constraints []*nodes.AlterTableCmd
 		savedAddList := p.alterTableAddList
 		p.alterTableAddList = true
-		// Oracle refuses a column named twice in the list at the second
-		// name (ORA-00957), as it does in CREATE TABLE's. omni checks the
-		// names of the columns the list leaves its datatype to: a repeated
-		// name that both define is one of compat.tsv's recorded over-accepts
-		// (ALTER TABLE a ADD (a NUMBER, a NUMBER)), which oracle/review's
-		// walk sends as a statement it expects the server to refuse.
-		listed := map[string]bool{}
 		for {
 			itemStart := p.pos()
-			itemTok := p.cur
 			var tc *nodes.TableConstraint
 			var err error
 			switch {
@@ -360,12 +352,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 					err = p.syntaxErrorAtCur()
 				}
 				if err == nil {
-					if col.TypeName == nil && col.Domain == nil && listed[col.Name] {
-						err = p.syntaxErrorAtTok(itemTok)
-					} else {
-						listed[col.Name] = true
-						cols.Items = append(cols.Items, col)
-					}
+					cols.Items = append(cols.Items, col)
 				}
 			}
 			if err != nil {
@@ -620,12 +607,12 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 		cols := &nodes.List{}
-		named := map[string]bool{}
+		seenPartition := false
 		var col *nodes.ColumnDef
 		for {
 			var err error
 			colTok := p.cur
-			if p.isATNameStart() && named[colTok.Str] {
+			if colTok.Type == kwPARTITION && seenPartition {
 				return nil, p.syntaxErrorAtTok(colTok)
 			}
 			col, err = p.parseATModifyColumn(true)
@@ -635,11 +622,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 			if col == nil {
 				return nil, p.syntaxErrorAtCur()
 			}
-			// A column stands once in the list (ORA-00957).
-			if named[col.Name] {
-				return nil, p.syntaxErrorAtTok(colTok)
+			if colTok.Type == kwPARTITION {
+				seenPartition = true
 			}
-			named[col.Name] = true
 			cols.Items = append(cols.Items, col)
 			if p.cur.Type != ',' {
 				break
@@ -755,7 +740,7 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 		tc.Type = nodes.CONSTRAINT_PRIMARY
 	default:
 		p.advance() // UNIQUE
-		if err := p.parseATUniqueNameList(); err != nil {
+		if err := p.parseATNameList(); err != nil {
 			return nil, err
 		}
 		cmd.Subtype = "UNIQUE"
@@ -925,7 +910,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		} else {
 			p.advance()
 			var err error
-			columns, err = p.parseATUniqueNameListStrings()
+			columns, err = p.parseATNameListStrings()
 			if err != nil {
 				return nil, err
 			}
@@ -1308,7 +1293,7 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	case kwUNIQUE:
 		constraintType = "UNIQUE"
 		p.advance()
-		if err := p.parseATUniqueNameList(); err != nil {
+		if err := p.parseATNameList(); err != nil {
 			return nil, err
 		}
 	case kwPRIMARY:
@@ -1545,13 +1530,7 @@ func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 	p.atOption(cmd.Options, start)
 	for p.isATInmemoryStart() {
 		optStart := p.pos()
-		var err error
-		if p.alterMview {
-			err = p.parseAlterMviewInmemoryColumnItem()
-		} else {
-			err = p.parseATInmemoryColumnItem()
-		}
-		if err != nil {
+		if err := p.parseATInmemoryColumnItem(); err != nil {
 			return nil, err
 		}
 		p.atOption(cmd.Options, optStart)

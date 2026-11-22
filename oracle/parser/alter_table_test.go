@@ -519,21 +519,21 @@ func TestParseAlterTableNestedTableStorageStrict(t *testing.T) {
 }
 
 // TestParseAlterTableModifyBareColumn covers MODIFY of a column with nothing
-// after it, which Oracle 23ai runs, and a column named twice in the list,
-// which it refuses (ORA-00957).
+// after it, which Oracle 23ai runs (duplicate column names like ORA-00957 are
+// left to semantic review rather than syntax rejection).
 func TestParseAlterTableModifyBareColumn(t *testing.T) {
 	for _, sql := range []string{
 		"ALTER TABLE t MODIFY a",
 		"ALTER TABLE t MODIFY (a)",
 		"ALTER TABLE t MODIFY (a, b)",
+		"ALTER TABLE t MODIFY (a, a)",
+		"ALTER TABLE t MODIFY (a NUMBER, a NUMBER)",
 		"ALTER TABLE t MODIFY a LOGGING",
 		"ALTER TABLE t MODIFY (a) LOGGING",
 		"ALTER TABLE t MODIFY a DROP IDENTITY",
 	} {
 		ParseAndCheck(t, sql)
 	}
-	ParseShouldFail(t, "ALTER TABLE t MODIFY (a, a)")
-	ParseShouldFail(t, "ALTER TABLE t MODIFY (a NUMBER, a NUMBER)")
 	// A bare column takes the column name rules of a defined one.
 	ParseShouldFail(t, `ALTER TABLE t MODIFY "ROWID"`)
 	ParseShouldFail(t, `ALTER TABLE t MODIFY ("ROWID")`)

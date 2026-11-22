@@ -466,12 +466,6 @@ func (p *Parser) parseATSetPartitioning(cmd *nodes.AlterTableCmd) error {
 	defer func(saved bool) { p.atSubpartitionTemplate = saved }(p.atSubpartitionTemplate)
 	p.atSubpartitionTemplate = true
 	switch {
-	case p.alterMview && p.cur.Type == kwSUBPARTITION && p.peekNext().Type == ')':
-		p.advance()
-		p.advance()
-	case p.alterMview && p.isIdentLike() && p.cur.Type != kwSUBPARTITION && p.peekNext().Type == tokICONST:
-		p.advance()
-		p.advance()
 	case p.cur.Type == tokICONST:
 		p.advance()
 	case p.cur.Type == '(' && p.peekNext().Type == ')':
@@ -887,8 +881,10 @@ func (p *Parser) parseATSplitNestedTablePart() error {
 		if err := p.atExpect(kwPARTITION); err != nil {
 			return err
 		}
-		if err := p.parseATName(); err != nil {
-			return err
+		if p.isATNameStart() && !p.isATSegmentAttrStart() {
+			if err := p.parseATName(); err != nil {
+				return err
+			}
 		}
 		if p.isATSegmentAttrStart() {
 			if err := p.parseATSegmentAttrs(nil); err != nil {

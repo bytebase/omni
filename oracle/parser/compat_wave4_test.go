@@ -42,12 +42,12 @@ func TestWave4CompatReadings(t *testing.T) {
 		{`ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB a) STORE AS(LOGGING))`, 77},
 		{`ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a(a) STORE AS(LOGGING))`, 73},
 
-		// ALTER TABLE MODIFY duplicate column name checked at the repeated column name.
-		{`ALTER TABLE a MODIFY(a AS(1), a AS 1))`, 30},
-		{`ALTER TABLE a MODIFY(a AS(1), a AS())`, 30},
-		{`ALTER TABLE a MODIFY(a AS(1), a AS(1`, 30},
-		{`ALTER TABLE a MODIFY(a AS(1), a ASC(1))`, 30},
-		{`ALTER TABLE a MODIFY(a AS(1), a(1))`, 30},
+		// ALTER TABLE MODIFY virtual column near-misses report exact inner error tokens.
+		{`ALTER TABLE a MODIFY(a AS(1), a AS 1))`, 35},
+		{`ALTER TABLE a MODIFY(a AS(1), a AS())`, 35},
+		{`ALTER TABLE a MODIFY(a AS(1), a AS(1`, 36},
+		{`ALTER TABLE a MODIFY(a AS(1), a ASC(1))`, 32},
+		{`ALTER TABLE a MODIFY(a AS(1), a(1))`, 31},
 
 		// CREATE TABLE / CREATE MATERIALIZED VIEW NESTED TABLE LOCAL refusal.
 		{`CREATE TABLE a NESTED TABLE a LOCAL STORE AS a`, 30},

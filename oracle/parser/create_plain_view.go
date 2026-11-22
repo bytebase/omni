@@ -191,7 +191,6 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // (
 	stmt.Columns = &nodes.List{}
-	seenCols := map[string]bool{}
 	for {
 		if p.isViewConstraintStart() || p.cur.Type == kwUNIQUE {
 			if (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS) &&
@@ -222,15 +221,10 @@ func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 			stmt.Constraints.Items = append(stmt.Constraints.Items, viewConstraint)
 		} else {
 			// Oracle 23ai takes an alias after an out-of-line constraint too.
-			aliasTok := p.cur
-			name := aliasTok.Str
+			name := p.cur.Str
 			if !p.isCreateTableNameStart() {
 				return p.syntaxErrorAtCur()
 			}
-			if seenCols[name] {
-				return p.syntaxErrorAtTok(aliasTok)
-			}
-			seenCols[name] = true
 			p.advance()
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("VISIBLE") || p.isKeywordStr("INVISIBLE") {

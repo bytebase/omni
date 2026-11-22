@@ -14,16 +14,15 @@ import (
 //
 //	CREATE [ OR REPLACE ] [ EDITIONABLE | NONEDITIONABLE ]
 //	    LIBRARY [ schema. ] library_name
-//	    { IS | AS } library_path
-//	    [ AGENT agent_dblink ]
-//	    [ CREDENTIAL credential_name ]
 //	    [ SHARING = { METADATA | NONE } ]
+//	    { IS | AS } 'library_path'
+//	    [ AGENT 'agent_dblink' ]
+//	    [ CREDENTIAL [ schema. ] credential_name ]
 //
 // Oracle 23ai rejects a reserved word as either part of the name (ORA-04050)
-// and IF NOT EXISTS, which the page lists (ORA-00901). It checks the
-// privilege to create a library before it reads past the name (ORA-01031 for
-// the judge's account), so what follows the name is read as before: the
-// options above where they appear, any other token passed over.
+// and IF NOT EXISTS, which the page lists (ORA-00901). It places SHARING
+// before IS/AS, requires a string literal after IS/AS and after AGENT, and
+// takes an optional CREDENTIAL name after AGENT.
 func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool, edition *Token) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
@@ -49,48 +48,60 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool, edition *Toke
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	// { IS | AS } library_path
-	optStart := p.pos()
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
+	// Optional [ SHARING = { METADATA | NONE } ] before IS | AS.
+	if p.isKeywordStr("SHARING") {
+		optStart := p.pos()
 		p.advance()
-	}
-	if p.cur.Type == tokSCONST {
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("NONE") {
+			return nil, p.syntaxErrorAtCur()
+		}
 		value := p.cur.Str
 		p.advance()
-		add("PATH", value, optStart)
+		add("SHARING", value, optStart)
 	}
 
-	// The options, and any other token passed over.
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+	// Required { IS | AS } 'library_path'.
+	optStart := p.pos()
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	pathVal := p.cur.Str
+	p.advance()
+	add("PATH", pathVal, optStart)
+
+	// Optional [ AGENT 'agent_dblink' ].
+	if p.isKeywordStr("AGENT") {
 		optStart := p.pos()
-		switch {
-		case p.isKeywordStr("AGENT"):
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				value := p.cur.Str
-				p.advance()
-				add("AGENT", value, optStart)
-			}
-		case p.isKeywordStr("CREDENTIAL"):
-			p.advance()
-			if p.isIdentLike() {
-				value := p.cur.Str
-				p.advance()
-				add("CREDENTIAL", value, optStart)
-			}
-		case p.isKeywordStr("SHARING"):
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.isIdentLike() {
-				value := p.cur.Str
-				p.advance()
-				add("SHARING", value, optStart)
-			}
-		default:
-			p.advance()
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		value := p.cur.Str
+		p.advance()
+		add("AGENT", value, optStart)
+	}
+
+	// Optional [ CREDENTIAL [ schema. ] credential_name ].
+	if p.isKeywordStr("CREDENTIAL") {
+		optStart := p.pos()
+		p.advance()
+		cred, err := p.parsePlainObjectName()
+		if err != nil {
+			return nil, err
+		}
+		val := cred.Name
+		if cred.Schema != "" {
+			val = cred.Schema + "." + val
+		}
+		add("CREDENTIAL", val, optStart)
 	}
 
 	if len(opts.Items) > 0 {

@@ -85,16 +85,10 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 				if err := p.atExpect('('); err != nil {
 					return err
 				}
-				seenCols := map[string]bool{}
 				for {
-					colTok := p.cur
 					if err := p.parseATName(); err != nil {
 						return err
 					}
-					if seenCols[colTok.Str] {
-						return p.syntaxErrorAtTok(colTok)
-					}
-					seenCols[colTok.Str] = true
 					if p.atWord("NO") {
 						p.advance()
 						if err := p.atExpectWord("LOG"); err != nil {
@@ -201,11 +195,23 @@ func (p *Parser) parseATColumnProperties(opts *nodes.List) error {
 		case p.atWord("XMLTYPE"):
 			err = p.parseATXMLTypeColumnProperties()
 		case p.cur.Type == kwJSON:
-			// json_storage_clause: JSON ( column [, column ]... ) STORE AS
-			// [ lob_segname ] ( LOB_parameters )
+			// json_storage_clause: JSON ( column [, column ]... ) [ STORE ] AS
+			// [ LOB_segname [ ( LOB_parameters ) ] | ( LOB_parameters ) ]
 			p.advance()
 			if err = p.parseATNameList(); err == nil {
-				err = p.parseATLobStoreAs()
+				if p.atWord("STORE") {
+					p.advance()
+				}
+				if err = p.atExpect(kwAS); err == nil {
+					if p.cur.Type == '(' {
+						err = p.parseATLobStorageParameters()
+					} else if p.isATNameStart() && !p.isATAfterLobStorage() {
+						p.advance()
+						if p.cur.Type == '(' {
+							err = p.parseATLobStorageParameters()
+						}
+					}
+				}
 			}
 		default:
 			return nil

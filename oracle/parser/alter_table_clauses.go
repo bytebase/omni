@@ -100,31 +100,12 @@ func (p *Parser) parseATInteger() error {
 
 // parseATNameList reads ( name [, name ]... ).
 func (p *Parser) parseATNameList() error {
-	return p.parseATNameListUnique(false)
-}
-
-func (p *Parser) parseATUniqueNameList() error {
-	return p.parseATNameListUnique(true)
-}
-
-func (p *Parser) parseATNameListUnique(unique bool) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
-	var seen map[string]bool
-	if unique {
-		seen = map[string]bool{}
-	}
 	for {
-		tok := p.cur
 		if err := p.parseATName(); err != nil {
 			return err
-		}
-		if unique {
-			if seen[tok.Str] {
-				return p.syntaxErrorAtTok(tok)
-			}
-			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -136,33 +117,14 @@ func (p *Parser) parseATNameListUnique(unique bool) error {
 
 // parseATNameListStrings reads ( name [, name ]... ) and returns the names.
 func (p *Parser) parseATNameListStrings() ([]string, error) {
-	return p.parseATNameListStringsUnique(false)
-}
-
-func (p *Parser) parseATUniqueNameListStrings() ([]string, error) {
-	return p.parseATNameListStringsUnique(true)
-}
-
-func (p *Parser) parseATNameListStringsUnique(unique bool) ([]string, error) {
 	if err := p.atExpect('('); err != nil {
 		return nil, err
 	}
 	var names []string
-	var seen map[string]bool
-	if unique {
-		seen = map[string]bool{}
-	}
 	for {
-		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return nil, err
-		}
-		if unique {
-			if seen[name] {
-				return nil, p.syntaxErrorAtTok(tok)
-			}
-			seen[name] = true
 		}
 		names = append(names, name)
 		if p.cur.Type != ',' {
@@ -661,11 +623,6 @@ func (p *Parser) parseATInmemoryColumnItem() error {
 		p.advance() // INMEMORY
 	} else {
 		p.advance() // INMEMORY
-		if p.atWord("NO") && (p.peekNext().Type == ';' || p.peekNext().Type == tokEOF) {
-			// Oracle takes INMEMORY NO ending the statement.
-			p.advance()
-			return nil
-		}
 		if p.atWord("NO") && p.atNextWord("MEMCOMPRESS") {
 			noTok = p.cur
 			hasNo = true
@@ -677,7 +634,7 @@ func (p *Parser) parseATInmemoryColumnItem() error {
 	if p.cur.Type != '(' && hasNo {
 		return p.syntaxErrorAtTok(noTok)
 	}
-	return p.parseATUniqueNameList()
+	return p.parseATNameList()
 }
 
 // parseATIlmClause reads ilm_clause:
@@ -1279,6 +1236,9 @@ func (p *Parser) parseATLobStorage() error {
 	}
 	if err := p.atExpect(kwAS); err != nil {
 		return err
+	}
+	if p.isStatementEnd() {
+		return nil
 	}
 	file := p.atOptOneOf("SECUREFILE", "BASICFILE")
 	if err := p.atExpectWord("LOB"); err != nil {
@@ -2340,6 +2300,10 @@ func (p *Parser) parseATIndexPartitionDescription() error {
 // parseATRangeValues reads range_values_clause:
 // VALUES LESS THAN ( { value | MAXVALUE } [, { value | MAXVALUE } ]... ).
 func (p *Parser) parseATRangeValues() error {
+	return p.parseATRangeValuesArity(0)
+}
+
+func (p *Parser) parseATRangeValuesArity(wantCols int) error {
 	if err := p.atExpect(kwVALUES); err != nil {
 		return err
 	}
@@ -2349,7 +2313,7 @@ func (p *Parser) parseATRangeValues() error {
 	if err := p.atExpectWord("THAN"); err != nil {
 		return err
 	}
-	return p.parseATBoundValues(true)
+	return p.parseATBoundValuesArity(true, wantCols)
 }
 
 // parseATBoundValues reads the values of a partition bound,
@@ -2358,19 +2322,31 @@ func (p *Parser) parseATRangeValues() error {
 // interval literal, or a function of literals such as TO_DATE: a name is
 // refused (ORA-14019) and so is an operator (ORA-00907 at 1+1).
 func (p *Parser) parseATBoundValues(maxvalue bool) error {
+	return p.parseATBoundValuesArity(maxvalue, 0)
+}
+
+func (p *Parser) parseATBoundValuesArity(maxvalue bool, wantCols int) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	count := 0
 	for {
+		if wantCols > 0 && count >= wantCols && p.cur.Type != tokEOF {
+			return p.syntaxErrorAtCur()
+		}
 		if maxvalue && p.atWord("MAXVALUE") {
 			p.advance()
 		} else if err := p.parseATBoundValue(); err != nil {
 			return err
 		}
+		count++
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
+	}
+	if wantCols > 0 && count < wantCols {
+		return p.syntaxErrorAtCur()
 	}
 	return p.atExpect(')')
 }
@@ -2697,7 +2673,8 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	case p.atWord("RANGE"), p.atWord("LIST"):
 		list := p.atWord("LIST")
 		p.advance()
-		if err := p.parseATPartitionColumnList(); err != nil {
+		colCount, err := p.parseATPartitionColumnListCount()
+		if err != nil {
 			return err
 		}
 		if !list && p.cur.Type == kwINTERVAL {
@@ -2717,8 +2694,10 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 		}
 		p.atOption(opts, start)
 		method, sub := atMethodRange, atMethodAny
+		rangeCols := colCount
 		if list {
 			method = atMethodList
+			rangeCols = 0
 		}
 		if p.cur.Type == kwSUBPARTITION {
 			s := p.pos()
@@ -2728,7 +2707,7 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 			p.atOption(opts, s)
 		}
 		s := p.pos()
-		if err := p.parseATValuePartitionList(method, sub); err != nil {
+		if err := p.parseATValuePartitionList(method, sub, rangeCols); err != nil {
 			return err
 		}
 		p.atOption(opts, s)
@@ -2804,38 +2783,43 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 // before "(PARTITION VALUES ...)"), parseExpr enters the parenthesized group to
 // match Oracle's error token while rejecting completed function-call expressions.
 func (p *Parser) parseATPartitionColumnList() error {
+	count, err := p.parseATPartitionColumnListCount()
+	_ = count
+	return err
+}
+
+func (p *Parser) parseATPartitionColumnListCount() (int, error) {
 	if err := p.atExpect('('); err != nil {
-		return err
+		return 0, err
 	}
-	seen := map[string]bool{}
+	count := 0
 	for {
 		if !p.isATNameStart() {
-			return p.syntaxErrorAtCur()
+			return 0, p.syntaxErrorAtCur()
 		}
 		if p.peekNext().Type == '(' {
 			expr, err := p.parseExpr()
 			if err != nil {
-				return err
+				return 0, err
 			}
 			if expr != nil {
-				return p.syntaxErrorAtCur()
+				return 0, p.syntaxErrorAtCur()
 			}
-			return p.syntaxErrorAtCur()
+			return 0, p.syntaxErrorAtCur()
 		}
-		tok := p.cur
 		if err := p.parseATName(); err != nil {
-			return err
+			return 0, err
 		}
-		if seen[tok.Str] {
-			return p.syntaxErrorAtTok(tok)
-		}
-		seen[tok.Str] = true
+		count++
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
 	}
-	return p.atExpect(')')
+	if err := p.atExpect(')'); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // parseATPartitionSpecList reads ( PARTITION [ partition ]
@@ -2909,20 +2893,6 @@ func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
 	if err := p.atExpectWord("TEMPLATE"); err != nil {
 		return err
 	}
-	if p.alterMview {
-		// Oracle reads a bare SUBPARTITION here, and a word where
-		// SUBPARTITIONS stands, as acceptances on ALTER MATERIALIZED VIEW.
-		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == ')' {
-			p.advance()
-			p.advance()
-			return nil
-		}
-		if p.isIdentLike() && p.cur.Type != kwSUBPARTITION && p.peekNext().Type == tokICONST {
-			p.advance()
-			p.advance()
-			return nil
-		}
-	}
 	if p.cur.Type == tokICONST {
 		p.advance()
 		if method != atMethodAny && method != atMethodHash {
@@ -2949,7 +2919,7 @@ func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
 // method is RANGE or LIST, and sub the subpartitioning method of a
 // composite method, atMethodAny for none: a quantity of subpartitions
 // stands for hash subpartitions only (ORA-14639).
-func (p *Parser) parseATValuePartitionList(method, sub atMethod) error {
+func (p *Parser) parseATValuePartitionList(method, sub atMethod, rangeCols int) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
@@ -2962,7 +2932,13 @@ func (p *Parser) parseATValuePartitionList(method, sub atMethod) error {
 				return err
 			}
 		}
-		if err := p.parseATMethodValues(method); err != nil {
+		var err error
+		if method == atMethodRange && rangeCols > 0 {
+			err = p.parseATRangeValuesArity(rangeCols)
+		} else {
+			err = p.parseATMethodValues(method)
+		}
+		if err != nil {
 			return err
 		}
 		if err := p.parseATClauses(atcTablePartitionDescription, nil); err != nil {

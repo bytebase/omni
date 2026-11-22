@@ -89,7 +89,7 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 	}
 	p.advance()
 	programs := on == grantOnNone && p.isGrantProgramUnitStart()
-	if stmt.Grantees, err = p.parseGrantees(programs, false); err != nil {
+	if stmt.Grantees, err = p.parseGrantees(programs); err != nil {
 		return nil, err
 	}
 	if programs {
@@ -189,15 +189,6 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume REVOKE
-	// The page states each revoke_roles_from_programs branch with the
-	// statement's own REVOKE, so Oracle 23ai reads a repeated REVOKE before
-	// the roles there (REVOKE REVOKE r FROM PROCEDURE p). It does not before
-	// a revokee (REVOKE REVOKE r FROM u) and refuses that statement.
-	repeated := false
-	if p.cur.Type == kwREVOKE && p.revokeRepeatsBeforeRoles() {
-		p.advance()
-		repeated = true
-	}
 
 	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
 	privs, err := p.parseGrantPrivileges()
@@ -220,15 +211,12 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 	}
 	p.advance()
 	programs := on == grantOnNone && p.isGrantProgramUnitStart()
-	if repeated && !programs {
-		return nil, p.syntaxErrorAtCur()
-	}
 	if programs {
 		if err := privs.checkProgramRoles(p); err != nil {
 			return nil, err
 		}
 	}
-	if stmt.Grantees, err = p.parseGrantees(programs, repeated); err != nil {
+	if stmt.Grantees, err = p.parseGrantees(programs); err != nil {
 		return nil, err
 	}
 	if programs {
@@ -569,57 +557,15 @@ func (p *Parser) parseGrantObjectName(qualified bool) (*nodes.ObjectName, error)
 	return obj, nil
 }
 
-// revokeRepeatsBeforeRoles reports whether the REVOKE the parser stands on
-// repeats the statement's keyword before a program-unit revoke's roles. A
-// FROM there may itself be a role (REVOKE REVOKE FROM, r FROM PROCEDURE p);
-// only a FROM followed by the target's kind is the delimiter.
-func (p *Parser) revokeRepeatsBeforeRoles() bool {
-	if p.peekNext().Type == ';' || p.peekNext().Type == ',' {
-		return false
-	}
-	if p.peekNext().Type == kwFROM {
-		ahead := p.peekAhead(2)
-		if isGrantProgramUnitKind(ahead[1]) {
-			return false
-		}
-	}
-	return p.revokeProgramTargetAhead()
-}
-
-// revokeProgramTargetAhead reports whether the statement's FROM names a
-// program unit.
-func (p *Parser) revokeProgramTargetAhead() bool {
-	lexer := *p.lexer
-	next := lexer.NextToken
-	var tok Token
-	if p.hasNext {
-		tok = p.nextBuf
-	} else {
-		tok = next()
-	}
-	for tok.Type != tokEOF && tok.Type != ';' {
-		if tok.Type == kwFROM {
-			tok = next()
-			if isGrantProgramUnitKind(tok) {
-				return true
-			}
-			continue
-		}
-		tok = next()
+// isGrantProgramUnitStart reports whether the grantees of a GRANT or
+// REVOKE are program units: { FUNCTION | PROCEDURE | PACKAGE } [ schema. ]
+// name. A kind word alone names a grantee: GRANT r TO FUNCTION parses on
+// Oracle 23ai.
+func (p *Parser) isGrantProgramUnitStart() bool {
+	if isGrantProgramUnitKind(p.cur) {
+		return isGrantWordToken(p.peekNext())
 	}
 	return false
-}
-
-// isGrantProgramUnitStart reports whether the grantees of a GRANT or
-// REVOKE are program units: [ schema. ] { FUNCTION | PROCEDURE | PACKAGE }
-// and a name. A kind word alone names a grantee: GRANT r TO FUNCTION
-// parses on Oracle 23ai.
-func (p *Parser) isGrantProgramUnitStart() bool {
-	ahead := p.peekAhead(3)
-	if isGrantProgramUnitKind(p.cur) {
-		return isGrantWordToken(ahead[0])
-	}
-	return p.isIdentLike() && ahead[0].Type == '.' && isGrantProgramUnitKind(ahead[1])
 }
 
 // isGrantWordToken reports whether tok is a word: an identifier, quoted or
@@ -637,13 +583,13 @@ func isGrantProgramUnitKind(tok Token) bool {
 }
 
 // parseGrantees parses the grantees of a GRANT or revokees of a REVOKE:
-// names, or with programs program units, each [ schema. ] { FUNCTION |
-// PROCEDURE | PACKAGE } name. A program unit is kept as its kind and name.
-func (p *Parser) parseGrantees(programs bool, repeatedKind bool) (*nodes.List, error) {
+// names, or with programs program units, each { FUNCTION | PROCEDURE |
+// PACKAGE } [ schema. ] name. A program unit is kept as its kind and name.
+func (p *Parser) parseGrantees(programs bool) (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
 		if programs {
-			item, err := p.parseGrantProgramUnit(repeatedKind)
+			item, err := p.parseGrantProgramUnit()
 			if err != nil {
 				return nil, err
 			}
@@ -666,97 +612,13 @@ func (p *Parser) parseGrantees(programs bool, repeatedKind bool) (*nodes.List, e
 }
 
 // parseGrantProgramUnit reads one program-unit grantee or revokee:
-// [ schema. ] { FUNCTION | PROCEDURE | PACKAGE } name. With repeatedKind,
-// the page's revoke_program_unit carries its own kind after the one the
-// statement gives (FROM PROCEDURE FUNCTION p), optionally schema-qualified.
-func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
-	prefix := ""
-	if !isGrantProgramUnitKind(p.cur) {
-		// revoke_roles_from_programs names the outer kind immediately after
-		// FROM; a schema there belongs to a grant's grantee, not a repeated
-		// program revoke.
-		if repeatedKind || !p.isIdentLike() {
-			return "", p.syntaxErrorAtCur()
-		}
-		schema, err := p.parseIdentifier()
-		if err != nil {
-			return "", err
-		}
-		if p.cur.Type != '.' {
-			return "", p.syntaxErrorAtCur()
-		}
-		p.advance() // consume '.'
-		prefix = schema + "."
-	}
+// { FUNCTION | PROCEDURE | PACKAGE } [ schema. ] name.
+func (p *Parser) parseGrantProgramUnit() (string, error) {
 	if !isGrantProgramUnitKind(p.cur) {
 		return "", p.syntaxErrorAtCur()
 	}
 	kind := p.cur.Str
 	p.advance()
-	// CONTAINER = is the statement's suffix, not a program name, so a kind
-	// word before it is the name of the simplified program unit.
-	container := p.isIdentLikeStrAt(p.peekNext(), "CONTAINER") && p.peekAhead(2)[1].Type == '='
-	if repeatedKind && !container && isGrantProgramUnitKind(p.cur) && isGrantWordToken(p.peekNext()) {
-		unitKind := p.cur.Str
-		p.advance()
-		obj, err := p.parseGrantObjectName(false)
-		if err != nil {
-			return "", err
-		}
-		name := obj.Name
-		if obj.Schema != "" {
-			name = obj.Schema + "." + name
-		}
-		return prefix + kind + " " + unitKind + " " + name, nil
-	}
-	if repeatedKind && p.isIdentLike() && p.peekNext().Type == '.' {
-		// The outer kind takes its own optional schema before the program
-		// unit's, as in FROM PROCEDURE s.t.FUNCTION p.
-		ahead5 := p.peekAhead(5)
-		if ahead5[2].Type == '.' && isGrantProgramUnitKind(ahead5[3]) && isGrantWordToken(ahead5[4]) {
-			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
-				return "", err
-			}
-			outerSchema, err := p.parseIdentifier()
-			if err != nil {
-				return "", err
-			}
-			p.advance() // consume '.'
-			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
-				return "", err
-			}
-			innerSchema, err := p.parseIdentifier()
-			if err != nil {
-				return "", err
-			}
-			p.advance() // consume '.'
-			unitKind := p.cur.Str
-			p.advance()
-			obj, err := p.parseGrantObjectName(false)
-			if err != nil {
-				return "", err
-			}
-			return prefix + kind + " " + outerSchema + "." + innerSchema + "." + unitKind + " " + obj.Name, nil
-		}
-		ahead := p.peekAhead(3)
-		if isGrantProgramUnitKind(ahead[1]) && isGrantWordToken(ahead[2]) {
-			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
-				return "", err
-			}
-			schema, err := p.parseIdentifier()
-			if err != nil {
-				return "", err
-			}
-			p.advance() // consume '.'
-			unitKind := p.cur.Str
-			p.advance()
-			obj, err := p.parseGrantObjectName(false)
-			if err != nil {
-				return "", err
-			}
-			return prefix + kind + " " + schema + "." + unitKind + " " + obj.Name, nil
-		}
-	}
 	obj, err := p.parseGrantObjectName(true)
 	if err != nil {
 		return "", err
@@ -765,7 +627,7 @@ func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 	if obj.Schema != "" {
 		name = obj.Schema + "." + name
 	}
-	return prefix + kind + " " + name, nil
+	return kind + " " + name, nil
 }
 
 // parseGrantContainer parses [ CONTAINER = value ], whose value Oracle 23ai

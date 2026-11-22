@@ -70,9 +70,6 @@ func TestWave6CompatReadings(t *testing.T) {
 		// CREATE MATERIALIZED VIEW refuses PARTITION BY SYSTEM (ORA-32362).
 		{`CREATE MATERIALIZED VIEW a PARTITION BY SYSTEM AS SELECT 1 FROM dual`, 47},
 
-		// INSERT ALL INTO refuses duplicate column names (ORA-00957).
-		{`INSERT ALL INTO a(a, a) SELECT 1 FROM dual`, 18},
-
 		// suite:lexer and suite:reference exact byte-offset fixes.
 		{`SELECT 1..2 FROM dual`, 9},
 		{`SELECT 1 FROM t, s WHERE systimestamp(+) = s.x`, 38},

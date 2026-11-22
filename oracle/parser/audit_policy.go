@@ -115,6 +115,10 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Name = p.advance().Str
+	// Oracle 23ai requires at least one policy clause after the name (ORA-46373).
+	if p.atStatementEnd() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwPRIVILEGES {
 		privs, err := p.parseAuditPrivileges()
 		if err != nil {

@@ -88,24 +88,25 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwUSING {
-		p.advance()
-	}
-	var parseErr804 error
+	// USING source — optional in Oracle 23ai when ON directly follows target [alias].
+	if p.cur.Type != kwON {
+		if p.cur.Type == kwUSING {
+			p.advance()
+		}
+		var parseErr804 error
 
-	// Source table or subquery
-	stmt.Source, parseErr804 = p.parseTableRef()
-	if parseErr804 !=
+		// Source table or subquery
+		stmt.Source, parseErr804 = p.parseTableRef()
+		if parseErr804 != nil {
+			return nil, parseErr804
+		}
 
 		// Optional source alias — parseTableRef already handles alias on TableRef,
 		// but for MergeStmt we want it in SourceAlias. Extract it.
-		nil {
-		return nil, parseErr804
-	}
-
-	if tr, ok := stmt.Source.(*nodes.TableRef); ok && tr.Alias != nil {
-		stmt.SourceAlias = tr.Alias
-		tr.Alias = nil
+		if tr, ok := stmt.Source.(*nodes.TableRef); ok && tr.Alias != nil {
+			stmt.SourceAlias = tr.Alias
+			tr.Alias = nil
+		}
 	}
 
 	// ON ( condition )

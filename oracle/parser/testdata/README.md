@@ -35,16 +35,19 @@ UNTIL ... DAYS`, `DEFAULT COLLATION`, `CREATE SYNONYM SHARING`, `CREATE PFILE`,
 traditional `AUDIT` options, `CREATE FUNCTION SHARING` placement, `ALTER TYPE`
 modifiers & `CASCADE`, `ALTER MATERIALIZED VIEW USING ROLLBACK`, `CREATE
 MATERIALIZED VIEW` column `INMEMORY`, `CREATE`/`ALTER PLUGGABLE DATABASE`
-`AS CLONE`/`RECOVER`, and `ASSOCIATE STATISTICS USING NULL`), and judge revision
+`AS CLONE`/`RECOVER`, and `ASSOCIATE STATISTICS USING NULL`), judge revision
 5 (coarse `accept`/`reject` verdicts, expanded `JudgeFixture`, `CREATE LIBRARY`/
-`CREATE MLE` grants, and rev-5 stand-ins and stack diagnostics):
-45,852 generated rows and 1,010 hand rows, 46,862 in all.
+`CREATE MLE` grants, and rev-5 stand-ins and stack diagnostics), and Wave 10
+(closing all 143 remaining parser gaps and switching `omniVerdict` to coarse
+`accept`/`reject` while pinning exact byte offsets in `TestErrorPositions`):
+45,852 generated rows and 1,010 hand rows, 46,862 in all (**46,862 / 46,862 =
+100.00%** agreement).
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 8,612 | 5,837 | 47 | 38 |
-| Near-misses | 31,318 | 1,283 | 29,978 | 11 | 46 |
-| Hand rows | 1,010 | 616 | 393 | 1 | 0 |
+| One per alternative | 14,534 | 14,534 | 0 | 0 | 0 |
+| Near-misses | 31,318 | 31,318 | 0 | 0 | 0 |
+| Hand rows | 1,010 | 1,010 | 0 | 0 | 0 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -86,9 +89,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 55 | 22 | 0 | 0 |
-| `suite:reference` | 321 | 133 | 188 | 0 | 0 |
-| `suite:manifest` | 612 | 428 | 183 | 1 | 0 |
+| `suite:lexer` | 77 | 77 | 0 | 0 | 0 |
+| `suite:reference` | 321 | 321 | 0 | 0 | 0 |
+| `suite:manifest` | 612 | 612 | 0 | 0 | 0 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -680,9 +683,9 @@ addressed in judge revision 5 below.
 Rejudging `compat.tsv` at `parser` pin revision 5 (`OMNI_RECORD=1` followed by
 full 46,862-row `OMNI_RECORD=verify` on a fresh container, zero Go edits)
 switches the engine's `expected` column to coarse `accept`/`reject` verdicts
-(while `omni` cells stay untouched at `reject@<byte>` in this pin-bump commit
-so `compatcheck` records zero regressions; `omniVerdictOnly` switches `omni` to
-coarse `reject` once Wave 10 closes the remaining 143 verdict gaps). Verdict
+(while `omni` cells stayed untouched at `reject@<byte>` in that pin-bump commit
+so `compatcheck` recorded zero regressions; Wave 10 below switches `omniVerdict` to
+coarse `accept`/`reject` once it closes the remaining 143 verdict gaps). Verdict
 agreement moved from `46,671 / 46,862` (99.59%) to **`46,719 / 46,862`
 (99.69%)** (`10,511` exact `accept`/`accept` + `36,208` both-reject `reject@N`/
 `reject`; exact `ParseError.Position` byte offsets remain pinned in
@@ -710,10 +713,33 @@ agreement moved from `46,671 / 46,862` (99.59%) to **`46,719 / 46,862`
   truncated `ALTER PLUGGABLE DATABASE SNAPSHOT` row, and 1 `ALTER TABLE ...
   INMEMORY INMEMORY NO` row)
 
-All 143 remaining verdict gaps (`59 only_oracle` + `84 only_omni`) are real
-`oracle/parser` updates deferred to Wave 10 in a separate PR (keeping this
-pin-bump recording free of Go edits), followed by switching `Omni` to
-`omniVerdictOnly` for `46,862 / 46,862 (100.00%)`.
+All 143 remaining verdict gaps (`59 only_oracle` + `84 only_omni`) were real
+`oracle/parser` updates closed in Wave 10 below.
+
+### Wave 10 (closing all remaining 143 parser gaps + coarse `omniVerdict` -> 46,862 / 46,862 = 100.00%)
+
+Wave 10 closed all remaining **143 verdict discrepancies** (`-59 only_oracle`,
+`-84 only_omni`) and switched `TestCompatibility`'s `omniVerdict` to coarse
+`accept`/`reject` (exact `ParseError.Position` byte offsets remain pinned in
+`TestErrorPositions` in `../parse_errors_test.go`), bringing `compat.tsv` from
+`46,719 / 46,862` (99.69% verdict) to **`46,862 / 46,862` (100.00%)** (`0`
+`only_oracle`, `0` `only_omni`, `0` `another_byte`, `0` `undocumented`, `0`
+`unjudged`):
+
+| Cause | Verdict rows closed | What changed |
+| --- | --- | --- |
+| Duplicate column/alias `(a, a)` checks | 45 `oj` | remove Wave 5 parser-level `ORA-00957` duplicate-column checks (leaving duplicate-column checks to semantic review consistently across all statements), while enforcing range partition bound arity (`ORA-14030`), single-column inline `REFERENCES` (`ORA-02256`), cluster `OBJECT` datatype refusal, and duplicate unquoted `PARTITION` column checks |
+| `CREATE LIBRARY` strict Oracle 23ai grammar | 29 `oo` | remove old loose skip loop; place optional `SHARING = { METADATA \| NONE }` before `IS \| AS`, require quoted string literals for path and `AGENT`, and parse optional `CREDENTIAL [schema.]name` |
+| `GRANT` / `REVOKE` program-unit grammar | 24 `oo` | remove rev-3/4 `REVOKE REVOKE` and `schema.FUNCTION` workarounds; require `{ FUNCTION \| PROCEDURE \| PACKAGE } [ schema. ] name` |
+| `ALTER MATERIALIZED VIEW ... SET SUBPARTITION TEMPLATE` | 12 `oo` | remove rev-3/4 `SUBPARTITIONS` quantity and `alterMview` template workarounds (`ORA-14156`) |
+| `ALTER MATERIALIZED VIEW` / `ALTER TABLE` `INMEMORY` column clauses | 10 `oo` | remove loose `parseAlterMviewInmemoryColumnItem` and trailing `INMEMORY NO` workarounds (`ORA-64350`) |
+| Bare `CREATE AUDIT POLICY a` & `ALTER PLUGGABLE DATABASE SNAPSHOT` | 9 `oo` | require at least one policy clause after `CREATE AUDIT POLICY name` (`ORA-46373`) and a refresh mode after `ALTER PLUGGABLE DATABASE SNAPSHOT` |
+| `ALTER TABLE UPGRADE INCLUDING DATA` `JSON`/`VARRAY` `STORE AS` | 4 `oj` | accept optional `STORE` and optional segment/parameters in `JSON(a) [STORE] AS` (matching `CREATE TABLE` and `CREATE MATERIALIZED VIEW`) and statement-end `VARRAY a STORE AS` |
+| `ALTER TABLE` / `ALTER MATERIALIZED VIEW` `SPLIT PARTITION ... NESTED TABLE ... INTO (PARTITION, ...)` | 4 `oj` | make nested-table split partition name optional after `PARTITION` |
+| `ALTER MATERIALIZED VIEW LOG ... SPLIT [SUB]PARTITION` `DEPENDENT TABLES` / `ALLOW CLUSTERING` | 4 `oj` | parse optional `DEPENDENT TABLES (...)` and `{ ALLOW \| DISALLOW } CLUSTERING` per `ALTER-MATERIALIZED-VIEW-LOG.bnf` |
+| `CREATE INMEMORY JOIN GROUP` comma-optional members | 1 `oj` | allow space-separated `[schema.]table(col)` members alongside comma-separated lists |
+| `MERGE INTO` optional `USING` (`suite:manifest`) | 1 `oj` | allow `ON (condition)` directly after target `[alias]` when `USING <source>` is omitted |
+| `ALTER MATERIALIZED VIEW MODIFY (...)` | (part of 45 `oj`) | route `MODIFY (...)` through `parseAlterTableModify` so column datatype modifications parse |
 
 ## Tapes
 

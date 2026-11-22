@@ -58,7 +58,6 @@ func TestParseFollowupForms(t *testing.T) {
 		{`CREATE TABLE a PARTITION BY REFERENCE(a)(PARTITION p)`, 38},
 		{`CREATE TABLE a PARTITION BY REFERENCE(a) zzz`, 38},
 		{`PURGE TABLESPACE SET a`, 21},
-		{`ALTER TABLE a ADD(a NUMBER, a)`, 28},
 		// DROP RESTORE POINT takes no IF [NOT] EXISTS (ORA-11600 at the
 		// name) and no FORCE (ORA-03049 at the word).
 		{`DROP RESTORE POINT IF EXISTS a`, 29},

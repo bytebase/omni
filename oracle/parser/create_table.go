@@ -582,7 +582,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
 	periods, supplemental, domains := 0, 0, 0
-	seenCols := map[string]bool{}
+	seenPartition := false
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
@@ -626,21 +626,17 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		} else {
 			// Column definition
 			colTok := p.cur
-			if p.isIdentLike() && seenCols[colTok.Str] {
-				ahead := p.peekNext()
-				if ahead.Type == ',' || ahead.Type == ')' || (ahead.Type == tokIDENT && !isOracleBuiltInScalarTypeName(ahead) && !isColumnPropertyKeyword(ahead) && p.peekAhead(2)[1].Type == ')') {
-					return p.syntaxErrorAtTok(colTok)
-				}
+			if colTok.Type == kwPARTITION && seenPartition {
+				return p.syntaxErrorAtTok(colTok)
 			}
 			col, parseErr496 := p.parseColumnDef()
 			if parseErr496 != nil {
 				return parseErr496
 			}
 			if col != nil {
-				if col.TypeName == nil && col.Domain == nil && seenCols[col.Name] {
-					return p.syntaxErrorAtTok(colTok)
+				if colTok.Type == kwPARTITION {
+					seenPartition = true
 				}
-				seenCols[col.Name] = true
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
@@ -1814,11 +1810,11 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 			p.advance()
 			var // consume '('
 			parseErr527 error
-			cc.RefColumns, parseErr527 = p.parseUniqueIdentifierList()
+			cc.RefColumns, parseErr527 = p.parseIdentifierList()
 			if parseErr527 != nil {
 				return nil, parseErr527
 			}
-			if cc.RefColumns.Len() == 0 || p.prev.Type == ',' {
+			if cc.RefColumns.Len() != 1 || p.prev.Type == ',' {
 				return nil, p.syntaxErrorAtCur()
 			}
 			if err := p.expectCreateTableToken(')'); err != nil {
@@ -1935,7 +1931,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		}
 		p.advance()
 		var parseErr530 error
-		tc.Columns, parseErr530 = p.parseUniqueIdentifierList()
+		tc.Columns, parseErr530 = p.parseIdentifierList()
 		if parseErr530 != nil {
 			return nil, parseErr530
 		}
@@ -1952,7 +1948,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		}
 		p.advance()
 		var parseErr531 error
-		tc.Columns, parseErr531 = p.parseUniqueIdentifierList()
+		tc.Columns, parseErr531 = p.parseIdentifierList()
 		if parseErr531 != nil {
 			return nil, parseErr531
 		}
@@ -2011,7 +2007,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		if p.cur.Type == '(' {
 			p.advance()
 			var parseErr535 error
-			tc.RefColumns, parseErr535 = p.parseUniqueIdentifierList()
+			tc.RefColumns, parseErr535 = p.parseIdentifierList()
 			if parseErr535 != nil {
 				return nil, parseErr535
 			}
@@ -2044,21 +2040,8 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 // parseIdentifierList parses a comma-separated list of identifiers,
 // returning a *List of *String nodes.
 func (p *Parser) parseIdentifierList() (*nodes.List, error) {
-	return p.parseIdentifierListUnique(false)
-}
-
-func (p *Parser) parseUniqueIdentifierList() (*nodes.List, error) {
-	return p.parseIdentifierListUnique(true)
-}
-
-func (p *Parser) parseIdentifierListUnique(unique bool) (*nodes.List, error) {
 	list := &nodes.List{}
-	var seen map[string]bool
-	if unique {
-		seen = map[string]bool{}
-	}
 	for {
-		tok := p.cur
 		name, parseErr537 := p.parseIdentifier()
 		if parseErr537 != nil {
 			return nil, parseErr537
@@ -2069,12 +2052,6 @@ func (p *Parser) parseIdentifierListUnique(unique bool) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
-		}
-		if unique {
-			if seen[name] {
-				return nil, p.syntaxErrorAtTok(tok)
-			}
-			seen[name] = true
 		}
 		list.Items = append(list.Items, &nodes.String{Str: name})
 		if p.cur.Type != ',' {

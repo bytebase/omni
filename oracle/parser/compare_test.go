@@ -8764,7 +8764,7 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 
 	// CREATE LIBRARY
 	t.Run("create_library", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE LIBRARY my_lib AS '/usr/lib/mylib.so' AGENT dblink1")
+		result := ParseAndCheck(t, "CREATE LIBRARY my_lib AS '/usr/lib/mylib.so' AGENT 'dblink1'")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {

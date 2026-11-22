@@ -238,7 +238,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		returns = true
 		p.advance()
 		var parseErr781 error
-		stmt.SetClauses, parseErr781 = p.parseSetClausesUnique(true)
+		stmt.SetClauses, parseErr781 = p.parseSetClauses()
 		if parseErr781 != nil {
 			return nil, parseErr781
 
@@ -435,7 +435,7 @@ func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 
 	if p.cur.Type == '(' {
 		var parseErr793 error
-		clause.Columns, parseErr793 = p.parseParenColumnListUnique(true)
+		clause.Columns, parseErr793 = p.parseParenColumnList()
 		if parseErr793 !=
 
 			// VALUES (...)
@@ -478,35 +478,16 @@ func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 
 // parseParenColumnList parses ( col1, col2, ... ) as a list of ColumnRef nodes.
 func (p *Parser) parseParenColumnList() (*nodes.List, error) {
-	return p.parseParenColumnListUnique(false)
-}
-
-func (p *Parser) parseParenColumnListUnique(unique bool) (*nodes.List, error) {
 	p.advance() // consume '('
 	list := &nodes.List{}
-	var seen map[string]Token
-	if unique {
-		seen = map[string]Token{}
-	}
-	var dupTok Token
-	hasDup := false
 	for {
 		if !p.isIdentLike() {
 			return nil, p.syntaxErrorAtCur()
 		}
-		colTok := p.cur
 		colStart := p.pos()
 		name, parseErr795 := p.parseIdentifier()
 		if parseErr795 != nil {
 			return nil, parseErr795
-		}
-		if unique {
-			if firstTok, ok := seen[name]; ok && !hasDup {
-				dupTok = firstTok
-				hasDup = true
-			} else if !ok {
-				seen[name] = colTok
-			}
 		}
 		list.Items = append(list.Items, &nodes.ColumnRef{
 			Column: name,
@@ -524,9 +505,6 @@ func (p *Parser) parseParenColumnListUnique(unique bool) (*nodes.List, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if hasDup {
-		return nil, p.syntaxErrorAtTok(dupTok)
-	}
 	return list, nil
 }
 

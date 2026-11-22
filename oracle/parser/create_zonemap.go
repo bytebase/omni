@@ -133,7 +133,7 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 		if stmt.OnTable, err = p.parseObjectName(); err != nil {
 			return nil, err
 		}
-		if stmt.OnColumns, err = p.parseGraphNameListUnique(true); err != nil {
+		if stmt.OnColumns, err = p.parseGraphNameListUnique(false); err != nil {
 			return nil, err
 		}
 	case p.cur.Type == '(' || p.cur.Type == kwAS:
@@ -141,16 +141,11 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 			if err := p.expectCreateTableToken('('); err != nil {
 				return nil, err
 			}
-			firstTok := map[string]Token{}
 			for {
 				tok := p.cur
 				if err := p.parseCreateTableName(); err != nil {
 					return nil, err
 				}
-				if prev, dup := firstTok[tok.Str]; dup {
-					return nil, p.syntaxErrorAtTok(prev)
-				}
-				firstTok[tok.Str] = tok
 				stmt.ColumnAliases = append(stmt.ColumnAliases, tok.Str)
 				if p.cur.Type != ',' {
 					break
