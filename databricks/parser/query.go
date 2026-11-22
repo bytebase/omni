@@ -2648,7 +2648,12 @@ func (p *Parser) parseWindowClause() error {
 	if _, err := p.expect(kwWINDOW); err != nil {
 		return err
 	}
-	defined := make(map[string]struct{})
+	// Map normalized window name -> true if defined with a concrete windowDef,
+	// false if defined as a reference to another named window (`WINDOW w2 AS (w1)`).
+	// Spark v4.0.5 AstBuilder.withWindows requires every window reference to
+	// target a concrete window specification (rejecting self-references, cycles,
+	// and reference chains).
+	concrete := make(map[string]bool)
 	var refs []string
 	for {
 		name, err := p.parseErrorCapturingIdentifier()
@@ -2656,10 +2661,9 @@ func (p *Parser) parseWindowClause() error {
 			return err
 		}
 		norm := normalizeIdentName(name)
-		if _, dup := defined[norm]; dup {
+		if _, dup := concrete[norm]; dup {
 			return p.errorf("repetitive window definition %q", name)
 		}
-		defined[norm] = struct{}{}
 		if _, err := p.expect(kwAS); err != nil {
 			return err
 		}
@@ -2672,6 +2676,7 @@ func (p *Parser) parseWindowClause() error {
 		if err != nil {
 			return err
 		}
+		concrete[norm] = ref == ""
 		if ref != "" {
 			refs = append(refs, ref)
 		}
@@ -2680,8 +2685,8 @@ func (p *Parser) parseWindowClause() error {
 		}
 	}
 	for _, ref := range refs {
-		if _, ok := defined[normalizeIdentName(ref)]; !ok {
-			return p.errorf("unresolved window reference %q", ref)
+		if !concrete[normalizeIdentName(ref)] {
+			return p.errorf("window reference %q does not target a concrete window specification", ref)
 		}
 	}
 	return nil
@@ -2767,7 +2772,11 @@ func (p *Parser) parseFrameBound() error {
 		p.advance()
 		return nil
 	}
-	if err := p.parseExpression(); err != nil {
+	prevDisallow := p.disallowColumnRefs
+	p.disallowColumnRefs = true
+	err := p.parseExpression()
+	p.disallowColumnRefs = prevDisallow
+	if err != nil {
 		return err
 	}
 	if !p.match(kwPRECEDING, kwFOLLOWING) {

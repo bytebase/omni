@@ -19,8 +19,8 @@ run with no container, credentials, or network.
 | Near-misses | 4,209 | 4,209 | 0 | 0 |
 | `suite:keywords` | 45 | 45 | 0 | 0 |
 | `suite:overcorrections` | 11 | 11 | 0 | 0 |
-| `suite:spark-astbuilder` | 103 | 103 | 0 | 0 |
-| **All** | **6,597** | **6,597** | **0** | **0** |
+| `suite:spark-astbuilder` | 125 | 125 | 0 | 0 |
+| **All** | **6,619** | **6,619** | **0** | **0** |
 
 - **The judge** is the pinned official `apache/spark:4.0.5` container image
   (`../../testdata/pins.tsv`, role `default`, digest
@@ -74,12 +74,12 @@ go test ./databricks/parser/ -run '^TestCompatibility$' -update-compat
 
 ## Who judges what
 
-- **Live Spark 4.0.5 engine judge (`SourceEngine`), 6,597 rows.** All 6,438
-  grammar-generated rows plus 159 hand-curated `suite:` rows
+- **Live Spark 4.0.5 engine judge (`SourceEngine`), 6,619 rows.** All 6,438
+  grammar-generated rows plus 181 hand-curated `suite:` rows
   (`suite:keywords`, `suite:overcorrections`, `suite:spark-astbuilder`) are
   judged by `apache/spark:4.0.5`'s `SparkSession.sessionState.sqlParser.parsePlan`
   with `spark.sql.scripting.enabled=true` and replayed offline in CI.
-- **Agreement: 6,597 / 6,597 (100.00%)** — 0 `judge-only` rows and 0 `omni-only`
+- **Agreement: 6,619 / 6,619 (100.00%)** — 0 `judge-only` rows and 0 `omni-only`
   rows.
 
 ## Databricks SQL dialect deltas beyond Apache Spark 4.0.5

@@ -197,7 +197,8 @@ func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 			return err
 		}
 	}
-	if err := p.parseCreateTableClauses(hasUsing); err != nil {
+	hasTypedPartitionCols, err := p.parseCreateTableClauses(hasUsing)
+	if err != nil {
 		return err
 	}
 	hasQuery := false
@@ -205,6 +206,9 @@ func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 		hasQuery = true
 		if hasColDefs {
 			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
+		}
+		if hasTypedPartitionCols {
+			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify partition column types")
 		}
 		if isTemporary {
 			return p.errorf("CREATE TEMPORARY TABLE AS SELECT is not supported")
@@ -216,6 +220,9 @@ func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 		hasQuery = true
 		if hasColDefs {
 			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
+		}
+		if hasTypedPartitionCols {
+			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify partition column types")
 		}
 		if isTemporary {
 			return p.errorf("CREATE TEMPORARY TABLE AS SELECT is not supported")
@@ -230,123 +237,137 @@ func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 	return nil
 }
 
-func (p *Parser) parseCreateTableClauses(hasUsing bool) error {
+func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 	var (
-		hasOptions       bool
-		hasPartitionedBy bool
-		hasClusterBy     bool
-		hasClusteredBy   bool
-		hasRowFormat     bool
-		hasStoredAs      bool
-		hasLocation      bool
-		hasComment       bool
-		hasCollation     bool
-		hasTblProps      bool
+		hasOptions            bool
+		hasPartitionedBy      bool
+		hasTypedPartitionCols bool
+		hasClusterBy          bool
+		hasClusteredBy        bool
+		hasRowFormat          bool
+		rowFmt                rowFormatKind
+		hasStoredAs           bool
+		storedAsFormat        string
+		hasLocation           bool
+		hasComment            bool
+		hasCollation          bool
+		hasTblProps           bool
 	)
 	for {
 		switch p.cur().Kind {
 		case kwOPTIONS:
 			if hasOptions {
-				return p.errorf("duplicate OPTIONS clause in CREATE TABLE")
+				return false, p.errorf("duplicate OPTIONS clause in CREATE TABLE")
 			}
 			hasOptions = true
 			p.advance()
 			if err := p.parseExpressionPropertyList(); err != nil {
-				return err
+				return false, err
 			}
 		case kwPARTITIONED:
 			if hasPartitionedBy {
-				return p.errorf("duplicate PARTITIONED BY clause in CREATE TABLE")
+				return false, p.errorf("duplicate PARTITIONED BY clause in CREATE TABLE")
 			}
 			if hasClusterBy {
-				return p.errorf("PARTITIONED BY cannot be combined with CLUSTER BY")
+				return false, p.errorf("PARTITIONED BY cannot be combined with CLUSTER BY")
 			}
 			hasPartitionedBy = true
 			p.advance()
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return false, err
 			}
-			if err := p.parsePartitionFieldList(); err != nil {
-				return err
+			typed, err := p.parsePartitionFieldList()
+			if err != nil {
+				return false, err
+			}
+			if typed {
+				hasTypedPartitionCols = true
 			}
 		case kwSKEWED:
-			return p.errorf("CREATE TABLE ... SKEWED BY is not valid")
+			return false, p.errorf("CREATE TABLE ... SKEWED BY is not valid")
 		case kwCLUSTER:
 			if hasClusterBy {
-				return p.errorf("duplicate CLUSTER BY clause in CREATE TABLE")
+				return false, p.errorf("duplicate CLUSTER BY clause in CREATE TABLE")
 			}
 			if hasPartitionedBy {
-				return p.errorf("CLUSTER BY cannot be combined with PARTITIONED BY")
+				return false, p.errorf("CLUSTER BY cannot be combined with PARTITIONED BY")
 			}
 			hasClusterBy = true
 			if err := p.parseClusterBySpec(); err != nil {
-				return err
+				return false, err
 			}
 		case kwCLUSTERED:
 			if hasClusteredBy {
-				return p.errorf("duplicate CLUSTERED BY clause in CREATE TABLE")
+				return false, p.errorf("duplicate CLUSTERED BY clause in CREATE TABLE")
 			}
 			hasClusteredBy = true
 			if err := p.parseBucketSpec(); err != nil {
-				return err
+				return false, err
 			}
 		case kwROW:
 			if hasUsing {
-				return p.errorf("ROW FORMAT cannot be combined with USING")
+				return false, p.errorf("ROW FORMAT cannot be combined with USING")
 			}
 			if hasRowFormat {
-				return p.errorf("duplicate ROW FORMAT clause in CREATE TABLE")
+				return false, p.errorf("duplicate ROW FORMAT clause in CREATE TABLE")
 			}
 			hasRowFormat = true
-			if err := p.parseRowFormat(); err != nil {
-				return err
+			rf, err := p.parseRowFormatKind()
+			if err != nil {
+				return false, err
 			}
+			rowFmt = rf
 		case kwSTORED:
 			if hasUsing {
-				return p.errorf("STORED AS cannot be combined with USING")
+				return false, p.errorf("STORED AS cannot be combined with USING")
 			}
 			if hasStoredAs {
-				return p.errorf("duplicate STORED AS clause in CREATE TABLE")
+				return false, p.errorf("duplicate STORED AS clause in CREATE TABLE")
 			}
 			hasStoredAs = true
-			if err := p.parseCreateFileFormat(false); err != nil {
-				return err
+			ff, err := p.parseCreateFileFormat(false)
+			if err != nil {
+				return false, err
 			}
+			storedAsFormat = ff
 		case kwLOCATION:
 			if hasLocation {
-				return p.errorf("duplicate LOCATION clause in CREATE TABLE")
+				return false, p.errorf("duplicate LOCATION clause in CREATE TABLE")
 			}
 			hasLocation = true
 			if err := p.parseLocationSpec(); err != nil {
-				return err
+				return false, err
 			}
 		case kwCOMMENT:
 			if hasComment {
-				return p.errorf("duplicate COMMENT clause in CREATE TABLE")
+				return false, p.errorf("duplicate COMMENT clause in CREATE TABLE")
 			}
 			hasComment = true
 			if err := p.parseCommentSpec(); err != nil {
-				return err
+				return false, err
 			}
 		case kwDEFAULT:
 			if hasCollation {
-				return p.errorf("duplicate DEFAULT COLLATION clause in CREATE TABLE")
+				return false, p.errorf("duplicate DEFAULT COLLATION clause in CREATE TABLE")
 			}
 			hasCollation = true
 			if err := p.parseCollationSpec(); err != nil {
-				return err
+				return false, err
 			}
 		case kwTBLPROPERTIES:
 			if hasTblProps {
-				return p.errorf("duplicate TBLPROPERTIES clause in CREATE TABLE")
+				return false, p.errorf("duplicate TBLPROPERTIES clause in CREATE TABLE")
 			}
 			hasTblProps = true
 			p.advance()
 			if err := p.parsePropertyList(); err != nil {
-				return err
+				return false, err
 			}
 		default:
-			return nil
+			if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
+				return false, p.errorf("%s", msg)
+			}
+			return hasTypedPartitionCols, nil
 		}
 	}
 }
@@ -371,6 +392,8 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 		return nil, err
 	}
 	var hasUsing, hasRowFormat, hasStoredAs, hasLocation, hasTblProps bool
+	var rowFmt rowFormatKind
+	var storedAsFormat string
 	for {
 		switch p.cur().Kind {
 		case kwUSING:
@@ -386,17 +409,21 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 				return nil, p.errorf("duplicate ROW FORMAT clause in CREATE TABLE LIKE")
 			}
 			hasRowFormat = true
-			if err := p.parseRowFormat(); err != nil {
+			rf, err := p.parseRowFormatKind()
+			if err != nil {
 				return nil, err
 			}
+			rowFmt = rf
 		case kwSTORED:
 			if hasStoredAs {
 				return nil, p.errorf("duplicate STORED AS clause in CREATE TABLE LIKE")
 			}
 			hasStoredAs = true
-			if err := p.parseCreateFileFormat(true); err != nil {
+			ff, err := p.parseCreateFileFormat(true)
+			if err != nil {
 				return nil, err
 			}
+			storedAsFormat = ff
 		case kwLOCATION:
 			if hasLocation {
 				return nil, p.errorf("duplicate LOCATION clause in CREATE TABLE LIKE")
@@ -415,6 +442,9 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 				return nil, err
 			}
 		default:
+			if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
+				return nil, p.errorf("%s", msg)
+			}
 			return &ParsedStmt{Kind: StmtCreateTableLike, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
 	}

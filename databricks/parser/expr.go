@@ -3,6 +3,7 @@ package parser
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 func (p *Parser) parseExpression() error {
@@ -566,7 +567,12 @@ func (p *Parser) parseOptionalPredicate() error {
 		}
 		if p.cur().Kind == kwESCAPE && p.isStringLitAt(1) {
 			p.advance()
-			return p.parseStringLit()
+			tok := p.advance()
+			decoded := unquoteStringLit(tok.Text)
+			if utf8.RuneCountInString(decoded) != 1 {
+				return p.errorf("LIKE/ILIKE ESCAPE string %s must be a single character", tok.Text)
+			}
+			return nil
 		}
 		return nil
 	}

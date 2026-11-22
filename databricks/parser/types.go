@@ -1161,155 +1161,197 @@ func (p *Parser) parseNestedConstantList() error {
 	return err
 }
 
+type rowFormatKind int
+
+const (
+	rowFormatNone rowFormatKind = iota
+	rowFormatDelimited
+	rowFormatSerde
+)
+
 func (p *Parser) parseRowFormat() error {
+	_, err := p.parseRowFormatKind()
+	return err
+}
+
+func (p *Parser) parseRowFormatKind() (rowFormatKind, error) {
 	if _, err := p.expect(kwROW); err != nil {
-		return err
+		return rowFormatNone, err
 	}
 	if _, err := p.expect(kwFORMAT); err != nil {
-		return err
+		return rowFormatNone, err
 	}
 	if p.match(kwSERDE) {
 		if err := p.parseStringLit(); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if p.match(kwWITH) {
 			if _, err := p.expect(kwSERDEPROPERTIES); err != nil {
-				return err
+				return rowFormatNone, err
 			}
-			return p.parsePropertyList()
+			return rowFormatSerde, p.parsePropertyList()
 		}
-		return nil
+		return rowFormatSerde, nil
 	}
 	if _, err := p.expect(kwDELIMITED); err != nil {
-		return err
+		return rowFormatNone, err
 	}
 	if p.match(kwFIELDS) {
 		if _, err := p.expect(kwTERMINATED); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwBY); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if err := p.parseStringLit(); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if p.match(kwESCAPED) {
 			if _, err := p.expect(kwBY); err != nil {
-				return err
+				return rowFormatNone, err
 			}
 			if err := p.parseStringLit(); err != nil {
-				return err
+				return rowFormatNone, err
 			}
 		}
 	}
 	if p.match(kwCOLLECTION) {
 		if _, err := p.expect(kwITEMS); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwTERMINATED); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwBY); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if err := p.parseStringLit(); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 	}
 	if p.match(kwMAP) {
 		if _, err := p.expect(kwKEYS); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwTERMINATED); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwBY); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if err := p.parseStringLit(); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 	}
 	if p.match(kwLINES) {
 		if _, err := p.expect(kwTERMINATED); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwBY); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if !p.isStringLit() {
-			return p.errorf("expected string literal after LINES TERMINATED BY")
+			return rowFormatNone, p.errorf("expected string literal after LINES TERMINATED BY")
 		}
 		tok := p.advance()
 		if unquoteStringLit(tok.Text) != "\n" {
-			return p.errorf("LINES TERMINATED BY only supports newline '\\n'")
+			return rowFormatNone, p.errorf("LINES TERMINATED BY only supports newline '\\n'")
 		}
 	}
 	if p.match(kwNULL) {
 		if _, err := p.expect(kwDEFINED); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if _, err := p.expect(kwAS); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 		if err := p.parseStringLit(); err != nil {
-			return err
+			return rowFormatNone, err
 		}
 	}
-	return nil
+	return rowFormatDelimited, nil
 }
 
-func (p *Parser) parseCreateFileFormat(validateHiveSerDe bool) error {
+// validateRowAndFileFormat checks Spark v4.0.5 AstBuilder compatibility rules
+// between ROW FORMAT and STORED AS <format>:
+//   - ROW FORMAT DELIMITED is only compatible with 'textfile' (or INPUTFORMAT/OUTPUTFORMAT).
+//   - ROW FORMAT SERDE is incompatible with formats that specify their own serde
+//     ('parquet', 'orc', 'avro').
+func validateRowAndFileFormat(rf rowFormatKind, fileFormat string) string {
+	if rf == rowFormatNone || fileFormat == "" {
+		return ""
+	}
+	fmtLower := strings.ToLower(exactIdentName(fileFormat))
+	switch rf {
+	case rowFormatDelimited:
+		if fmtLower != "textfile" {
+			return "ROW FORMAT DELIMITED is only compatible with TEXTFILE"
+		}
+	case rowFormatSerde:
+		switch fmtLower {
+		case "parquet", "orc", "avro":
+			return "ROW FORMAT SERDE is incompatible with " + fileFormat
+		}
+	}
+	return ""
+}
+
+func (p *Parser) parseCreateFileFormat(validateHiveSerDe bool) (string, error) {
 	if _, err := p.expect(kwSTORED); err != nil {
-		return err
+		return "", err
 	}
 	if p.match(kwAS) {
 		if p.match(kwINPUTFORMAT) {
 			if err := p.parseStringLit(); err != nil {
-				return err
+				return "", err
 			}
 			if _, err := p.expect(kwOUTPUTFORMAT); err != nil {
-				return err
+				return "", err
 			}
-			return p.parseStringLit()
+			return "", p.parseStringLit()
 		}
 		name, err := p.parseIdentifier()
 		if err != nil {
-			return err
+			return "", err
 		}
 		if validateHiveSerDe && !isValidHiveSerDeFormat(name) {
-			return p.errorf("unsupported STORED AS file format %q", name)
+			return "", p.errorf("unsupported STORED AS file format %q", name)
 		}
-		return nil
+		return name, nil
 	}
-	return p.errorf("STORED BY is not valid")
+	return "", p.errorf("STORED BY is not valid")
 }
 
-func (p *Parser) parsePartitionFieldList() error {
+func (p *Parser) parsePartitionFieldList() (bool, error) {
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return false, err
 	}
+	hasTypedCol := false
 	for {
-		if err := p.parsePartitionField(); err != nil {
-			return err
+		typed, err := p.parsePartitionField()
+		if err != nil {
+			return false, err
+		}
+		if typed {
+			hasTypedCol = true
 		}
 		if !p.match(tokComma) {
 			break
 		}
 	}
 	_, err := p.expect(tokRParen)
-	return err
+	return hasTypedCol, err
 }
 
-func (p *Parser) parsePartitionField() error {
+func (p *Parser) parsePartitionField() (bool, error) {
 	// partitionField : transform | colType ;
 	// Try transform first if it's ident(args) or ident(.ident)* followed by ',' or ')'.
 	cp := p.save()
 	if err := p.parseTransform(); err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
-		return nil
+		return false, nil
 	}
 	p.restore(cp)
-	return p.parseColType()
+	return true, p.parseColType()
 }
 
 func (p *Parser) parseTransform() error {

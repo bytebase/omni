@@ -38,7 +38,9 @@ func exactIdentName(s string) string {
 }
 
 // unquoteStringLit decodes a Spark single-quoted, double-quoted, or raw string
-// literal (R'...' / R"...") into its logical value.
+// literal (R'...' / R"...") into its logical value, matching Spark v4.0.5
+// ParserUtils.unescapeSQLString (including \uXXXX, \UXXXXXXXX, and 3-digit
+// octal \[0-3][0-7][0-7] escapes).
 func unquoteStringLit(s string) string {
 	if len(s) >= 3 && (s[0] == 'R' || s[0] == 'r') && (s[1] == '\'' || s[1] == '"') && s[len(s)-1] == s[1] {
 		return s[2 : len(s)-1]
@@ -60,6 +62,40 @@ func unquoteStringLit(s string) string {
 		if inner[i] == '\\' && i+1 < len(inner) {
 			i++
 			switch inner[i] {
+			case '0':
+				if i+2 < len(inner) && isOctalDigit(inner[i+1]) && isOctalDigit(inner[i+2]) {
+					val := (inner[i]-'0')*64 + (inner[i+1]-'0')*8 + (inner[i+2] - '0')
+					b.WriteByte(val)
+					i += 2
+				} else {
+					b.WriteByte(0)
+				}
+			case '1', '2', '3':
+				if i+2 < len(inner) && isOctalDigit(inner[i+1]) && isOctalDigit(inner[i+2]) {
+					val := (inner[i]-'0')*64 + (inner[i+1]-'0')*8 + (inner[i+2] - '0')
+					b.WriteByte(val)
+					i += 2
+				} else {
+					b.WriteByte(inner[i])
+				}
+			case 'u':
+				if i+4 < len(inner) {
+					if v, err := strconv.ParseUint(inner[i+1:i+5], 16, 32); err == nil {
+						b.WriteRune(rune(v))
+						i += 4
+						continue
+					}
+				}
+				b.WriteByte('u')
+			case 'U':
+				if i+8 < len(inner) {
+					if v, err := strconv.ParseUint(inner[i+1:i+9], 16, 32); err == nil && v <= 0x10FFFF {
+						b.WriteRune(rune(v))
+						i += 8
+						continue
+					}
+				}
+				b.WriteByte('U')
 			case 'n':
 				b.WriteByte('\n')
 			case 'r':
@@ -70,10 +106,12 @@ func unquoteStringLit(s string) string {
 				b.WriteByte('\b')
 			case 'f':
 				b.WriteByte('\f')
-			case '\\', '\'', '"':
+			case 'Z':
+				b.WriteByte(0x1A)
+			case '%', '_':
+				b.WriteByte('\\')
 				b.WriteByte(inner[i])
 			default:
-				b.WriteByte('\\')
 				b.WriteByte(inner[i])
 			}
 			continue
@@ -81,6 +119,10 @@ func unquoteStringLit(s string) string {
 		b.WriteByte(inner[i])
 	}
 	return b.String()
+}
+
+func isOctalDigit(c byte) bool {
+	return c >= '0' && c <= '7'
 }
 
 // decodePropertyKey returns the decoded key name for a property key token or

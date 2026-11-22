@@ -169,15 +169,24 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 						}
 						return "", nil
 					}
+					var rowFmt rowFormatKind
+					var storedAsFormat string
 					if p.cur().Kind == kwROW && p.peek(1).Kind == kwFORMAT {
-						if err := p.parseRowFormat(); err != nil {
+						rf, err := p.parseRowFormatKind()
+						if err != nil {
 							return "", err
 						}
+						rowFmt = rf
 					}
 					if p.cur().Kind == kwSTORED {
-						if err := p.parseCreateFileFormat(true); err != nil {
+						ff, err := p.parseCreateFileFormat(true)
+						if err != nil {
 							return "", err
 						}
+						storedAsFormat = ff
+					}
+					if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
+						return "", p.errorf("%s", msg)
 					}
 					return "", nil
 				}

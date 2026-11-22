@@ -6597,3 +6597,25 @@ reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 
 reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING (1 AS x, 2 AS x)
 accept	accept	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 1 AS x, 2 AS X
 reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 1 x, 2 x
+reject	reject	engine	suite:spark-astbuilder	SELECT 'a' LIKE 'a' ESCAPE 'ab'
+reject	reject	engine	suite:spark-astbuilder	SELECT 'a' ILIKE 'a' ESCAPE ''
+accept	accept	engine	suite:spark-astbuilder	SELECT 'a' LIKE 'a' ESCAPE '\\'
+accept	accept	engine	suite:spark-astbuilder	SELECT 'a' LIKE 'a' ESCAPE '\u0021'
+accept	accept	engine	suite:spark-astbuilder	SELECT DATE '\u0032020-01-01'
+accept	accept	engine	suite:spark-astbuilder	SELECT DATE '\062020-01-01'
+reject	reject	engine	suite:spark-astbuilder	SELECT DATE R'\u0032020-01-01'
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) TBLPROPERTIES ('k'='a','\u006b'='b')
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) TBLPROPERTIES ('k'='a','\153'='b')
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ORDER BY ts ROWS n PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ORDER BY ts RANGE BETWEEN n PRECEDING AND CURRENT ROW) FROM t
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ORDER BY ts ROWS (1 + 2) PRECEDING) FROM t
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER (ORDER BY ts ROWS ? PRECEDING) FROM t
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER w FROM t WINDOW w AS (w)
+reject	reject	engine	suite:spark-astbuilder	SELECT sum(x) OVER w3 FROM t WINDOW w1 AS (), w2 AS (w1), w3 AS (w2)
+accept	accept	engine	suite:spark-astbuilder	SELECT sum(x) OVER w2 FROM t WINDOW w1 AS (), w2 AS (w1)
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t USING parquet PARTITIONED BY (p INT) AS SELECT 1 AS p
+reject	reject	engine	suite:spark-astbuilder	REPLACE TABLE t USING parquet PARTITIONED BY (p INT) AS SELECT 1 AS p
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS PARQUET
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) STORED AS PARQUET ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT SERDE 'org.example.SerDe' STORED AS PARQUET
