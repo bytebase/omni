@@ -671,7 +671,7 @@ func TestProgramSimulationBugFixes(t *testing.T) {
 		}
 	})
 
-	t.Run("event single-statement BEGIN END body is unwrapped", func(t *testing.T) {
+	t.Run("event single-statement BEGIN END body unwraps simple statements but preserves declarations", func(t *testing.T) {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN COMMIT; END;")
 		if err != nil {
 			t.Fatalf("LoadSQL: %v", err)
@@ -684,6 +684,30 @@ func TestProgramSimulationBugFixes(t *testing.T) {
 		}
 		if got := c.GetDatabase("d").Events["e"].Body; got != "SET @x = 1" {
 			t.Errorf("ALTER EVENT body = %q, want %q", got, "SET @x = 1")
+		}
+		for _, tc := range []struct {
+			name string
+			body string
+		}{
+			{"declare_var", "BEGIN DECLARE x INT; END"},
+			{"declare_condition", "BEGIN DECLARE c CONDITION FOR 1062; END"},
+			{"declare_handler", "BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END"},
+			{"declare_cursor", "BEGIN DECLARE cur CURSOR FOR SELECT 1; END"},
+			{"nested_if", "BEGIN IF 1 THEN COMMIT; END IF; END"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				stmt := fmt.Sprintf("CREATE EVENT %s ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO %s", tc.name, tc.body)
+				if got := omniCode(c, stmt); got != 0 {
+					t.Fatalf("%s failed with %d", stmt, got)
+				}
+				if got := c.GetDatabase("d").Events[tc.name].Body; got != tc.body {
+					t.Errorf("body = %q, want %q", got, tc.body)
+				}
+				ddl := "CREATE DATABASE d; USE d;\n" + c.ShowCreateEvent("d", tc.name)
+				if _, err := LoadSQL(ddl); err != nil {
+					t.Fatalf("ShowCreateEvent(%s) did not round-trip: %v\n%s", tc.name, err, ddl)
+				}
+			})
 		}
 	})
 }

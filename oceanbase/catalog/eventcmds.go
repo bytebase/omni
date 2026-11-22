@@ -59,12 +59,20 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 }
 
 // normalizeEventBody trims an event body and unwraps a single-statement
-// unlabeled BEGIN <stmt>; END wrapper, matching OceanBase 4.3.5.6's
-// information_schema.EVENTS.EVENT_DEFINITION storage.
+// unlabeled BEGIN <stmt>; END wrapper when the inner statement can stand alone
+// outside a compound block, matching OceanBase 4.3.5.6's
+// information_schema.EVENTS.EVENT_DEFINITION storage. Declarations and
+// compound-only statements keep the BEGIN ... END wrapper so ShowCreateEvent
+// and migrations never emit invalid standalone DDL such as `DO DECLARE x INT`.
 func normalizeEventBody(body nodes.Node, bodyText string) string {
 	trimmed := strings.TrimSpace(bodyText)
 	blk, ok := body.(*nodes.BeginEndBlock)
 	if !ok || blk.Label != "" || len(blk.Stmts) != 1 {
+		return trimmed
+	}
+	switch blk.Stmts[0].(type) {
+	case *nodes.DeclareVarStmt, *nodes.DeclareConditionStmt, *nodes.DeclareHandlerStmt, *nodes.DeclareCursorStmt,
+		*nodes.BeginEndBlock, *nodes.IfStmt, *nodes.CaseStmtNode, *nodes.LoopStmt, *nodes.WhileStmt, *nodes.RepeatStmt:
 		return trimmed
 	}
 	if len(trimmed) < len("BEGIN")+len("END") {
