@@ -99,6 +99,7 @@ func identifiers(node ast.Node) []identifier {
 			add(x.Name, x.Loc)
 		case *ast.PartitionDef:
 			add(x.Name, x.Loc)
+			return false
 		case *ast.ResTarget:
 			add(x.Name, x.Loc)
 		case *ast.Alias:

@@ -489,6 +489,16 @@ func compareSchemaObjects(diff *MetadataDiff, schemaName string, oldSchema, newS
 		}
 	}
 
+	synDefaultSchema := schemaName
+	if synDefaultSchema == "" {
+		synDefaultSchema = oldSchema.GetName()
+	}
+	if synDefaultSchema == "" {
+		synDefaultSchema = diff.OldDatabase.GetName()
+	}
+	if synDefaultSchema == "" {
+		synDefaultSchema = diff.NewDatabase.GetName()
+	}
 	oldSyns, newSyns := synonymByName(oldSchema.GetSynonyms()), synonymByName(newSchema.GetSynonyms())
 	for name, oldSyn := range oldSyns {
 		if _, ok := newSyns[name]; !ok {
@@ -499,7 +509,7 @@ func compareSchemaObjects(diff *MetadataDiff, schemaName string, oldSchema, newS
 		oldSyn, ok := oldSyns[name]
 		if !ok {
 			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionCreate, SchemaName: schemaName, SynonymName: name, NewSynonym: newSyn})
-		} else if !synonymEqual(oldSyn, newSyn, schemaName) {
+		} else if !synonymEqual(oldSyn, newSyn, synDefaultSchema) {
 			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionAlter, SchemaName: schemaName, SynonymName: name, OldSynonym: oldSyn, NewSynonym: newSyn})
 		}
 	}
@@ -514,6 +524,10 @@ func comparePublicSynonyms(diff *MetadataDiff, oldMeta, newMeta *metadatapb.Data
 	if newDB == "" && len(newMeta.GetSchemas()) > 0 {
 		newDB = newMeta.GetSchemas()[0].GetName()
 	}
+	defaultDB := newDB
+	if defaultDB == "" {
+		defaultDB = oldDB
+	}
 	oldSyns := synonymByName(dumpablePublicSynonyms(oldMeta.GetPublicSynonyms(), oldDB))
 	newSyns := synonymByName(dumpablePublicSynonyms(newMeta.GetPublicSynonyms(), newDB))
 	for name, oldSyn := range oldSyns {
@@ -525,7 +539,7 @@ func comparePublicSynonyms(diff *MetadataDiff, oldMeta, newMeta *metadatapb.Data
 		oldSyn, ok := oldSyns[name]
 		if !ok {
 			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionCreate, SynonymName: name, Public: true, NewSynonym: newSyn})
-		} else if !synonymEqual(oldSyn, newSyn, newDB) {
+		} else if !synonymEqual(oldSyn, newSyn, defaultDB) {
 			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionAlter, SynonymName: name, Public: true, OldSynonym: oldSyn, NewSynonym: newSyn})
 		}
 	}

@@ -875,6 +875,8 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		}
 		if def.Collation != "" {
 			column.Collation = def.Collation
+		} else if def.TypeName != nil && !oracleTypeSupportsCollation(column.Type) {
+			column.Collation = ""
 		}
 		if def.Virtual != nil {
 			column.Generation = &metadatapb.GenerationMetadata{
@@ -2737,16 +2739,22 @@ func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionCl
 		}
 		if subType != metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
 			subItems := listItems(def.Subpartitions)
-			if len(subItems) == 0 {
+			fromTemplate := false
+			if len(subItems) == 0 && len(templateSubs) > 0 {
 				subItems = templateSubs
+				fromTemplate = true
 			}
 			for _, subItem := range subItems {
 				subDef, ok := subItem.(*ast.PartitionDef)
 				if !ok {
 					continue
 				}
+				subName := subDef.Name
+				if fromTemplate && def.Name != "" && subName != "" {
+					subName = def.Name + "_" + subName
+				}
 				pm.Subpartitions = append(pm.Subpartitions, &metadatapb.TablePartitionMetadata{
-					Name:       subDef.Name,
+					Name:       subName,
 					Type:       subType,
 					Expression: subKeyExpr,
 					Value:      e.extractPartitionValues(subDef.Values),

@@ -1639,7 +1639,32 @@ func rebuildsColumn(colDiff *ColumnDiff) bool {
 }
 
 func columnCollationChanged(colDiff *ColumnDiff) bool {
-	return explicitOracleCollation(colDiff.OldColumn.GetCollation()) != explicitOracleCollation(colDiff.NewColumn.GetCollation())
+	if explicitOracleCollation(colDiff.OldColumn.GetCollation()) == explicitOracleCollation(colDiff.NewColumn.GetCollation()) {
+		return false
+	}
+	if !oracleTypeSupportsCollation(colDiff.NewColumn.GetType()) && explicitOracleCollation(colDiff.NewColumn.GetCollation()) == "" {
+		return false
+	}
+	return true
+}
+
+func oracleTypeSupportsCollation(dataType string) bool {
+	trimmed := strings.TrimSpace(dataType)
+	if trimmed == "" {
+		return true
+	}
+	words, _ := leadingWords(trimmed, 2)
+	if len(words) == 0 {
+		return false
+	}
+	switch words[0] {
+	case "CHAR", "CHARACTER", "VARCHAR", "VARCHAR2", "NCHAR", "NVARCHAR2":
+		return true
+	case "NATIONAL":
+		return len(words) >= 2 && (words[1] == "CHAR" || words[1] == "CHARACTER")
+	default:
+		return false
+	}
 }
 
 // columnNotNull is how a rebuilt column's NOT NULL is handled: dropped means a

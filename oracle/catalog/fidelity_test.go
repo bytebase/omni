@@ -179,6 +179,10 @@ END PKG;
 		require.NoError(t, err)
 		require.Equal(t, def, def2)
 
+		// Synced APP snapshot compared against its unqualified LoadSQL dump produces an empty diff
+		syncedSyns := loadMeta(t, meta)
+		require.Empty(t, GenerateMigration(syncedSyns, c, nil).SQL())
+
 		// Migration: create and drop
 		empty := New()
 		createPlan := GenerateMigration(empty, c, nil)
@@ -388,7 +392,7 @@ END PKG;
 		require.Contains(t, initCompMig, `SUBPARTITION "P2025_US" VALUES ('US')`)
 		require.Contains(t, initCompMig, `SUBPARTITION "P2025_OTHER" VALUES (DEFAULT)`)
 
-		// Composite RANGE-LIST with SUBPARTITION TEMPLATE
+		// Composite RANGE-LIST with SUBPARTITION TEMPLATE across multiple partitions generates unique names
 		cTemplate, err := LoadSQL(`
 CREATE TABLE comp_tpl (
   y NUMBER,
@@ -397,14 +401,17 @@ CREATE TABLE comp_tpl (
   SUBPARTITION sp_us VALUES ('US'),
   SUBPARTITION sp_other VALUES (DEFAULT)
 ) (
-  PARTITION p2025 VALUES LESS THAN (2026)
+  PARTITION p2025 VALUES LESS THAN (2026),
+  PARTITION p2026 VALUES LESS THAN (2027)
 )`)
 		require.NoError(t, err)
 		defTpl, err := DatabaseDefinition(cTemplate.Metadata())
 		require.NoError(t, err)
 		require.Contains(t, defTpl, `PARTITION BY RANGE ("Y") SUBPARTITION BY LIST ("R")`)
-		require.Contains(t, defTpl, `SUBPARTITION "SP_US" VALUES ('US')`)
-		require.Contains(t, defTpl, `SUBPARTITION "SP_OTHER" VALUES (DEFAULT)`)
+		require.Contains(t, defTpl, `SUBPARTITION "P2025_SP_US" VALUES ('US')`)
+		require.Contains(t, defTpl, `SUBPARTITION "P2025_SP_OTHER" VALUES (DEFAULT)`)
+		require.Contains(t, defTpl, `SUBPARTITION "P2026_SP_US" VALUES ('US')`)
+		require.Contains(t, defTpl, `SUBPARTITION "P2026_SP_OTHER" VALUES (DEFAULT)`)
 
 		// Quoted partition and subpartition key column containing a comma
 		cComma, err := LoadSQL(`CREATE TABLE p_comma ("A,B" NUMBER) PARTITION BY RANGE ("A,B") (PARTITION p1 VALUES LESS THAN (10))`)
@@ -733,5 +740,18 @@ CREATE INDEX APP.T2_UPPER_IDX ON APP.T2 (UPPER(CODE));
 		sqlBoth := GenerateMigration(fromBoth, toBoth, nil).SQL()
 		require.Equal(t, 1, strings.Count(sqlBoth, `DROP INDEX "APP"."T2_UPPER_IDX";`), sqlBoth)
 		require.Equal(t, 1, strings.Count(sqlBoth, `CREATE INDEX "APP"."T2_UPPER_IDX"`), sqlBoth)
+
+		// Converting a collated VARCHAR2 column to a non-character type (NUMBER) must not emit COLLATE
+		fromChar, err := LoadSQL(`CREATE TABLE APP.T3 (C VARCHAR2(20 BYTE) COLLATE BINARY_CI);`)
+		require.NoError(t, err)
+		toNum, err := LoadSQL(`CREATE TABLE APP.T3 (C NUMBER);`)
+		require.NoError(t, err)
+		sqlToNum := GenerateMigration(fromChar, toNum, nil).SQL()
+		require.Contains(t, sqlToNum, `ALTER TABLE "APP"."T3" MODIFY "C" NUMBER;`)
+		require.NotContains(t, sqlToNum, `COLLATE`)
+		_, err = fromChar.Exec(sqlToNum, nil)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(fromChar, toNum, nil).SQL())
+		require.Empty(t, Diff(fromChar, toNum).TableChanges)
 	})
 }
