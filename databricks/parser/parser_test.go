@@ -47,6 +47,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "trim with column names leading trailing both",
+			sql:  `SELECT trim(leading), trim(trailing), trim(both), trim(leading, 'x'), trim(leading || 'a') FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "identifier dynamic function and table call",
+			sql:  `SELECT IDENTIFIER('upper')('abc') FROM IDENTIFIER('main.t')(1)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "digit-leading identifier with exponent prefix",
 			sql:  `CREATE TABLE 1e2data (id INT)`,
 			kind: StmtCreateTable,
@@ -390,6 +400,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested row constructor",
 			sql:  "SELECT " + strings.Repeat("(", depth) + "1" + strings.Repeat(", 2)", depth),
+		},
+		{
+			name: "nested identifier",
+			sql:  "SELECT " + strings.Repeat("IDENTIFIER(", depth) + "'x'" + strings.Repeat(")", depth),
+		},
+		{
+			name: "nested datediff",
+			sql:  "SELECT " + strings.Repeat("DATEDIFF('2026-01-01', ", depth) + "d" + strings.Repeat(")", depth),
 		},
 		{
 			name: "nested parens",

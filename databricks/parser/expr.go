@@ -178,9 +178,11 @@ func (p *Parser) parseNotExpression() error {
 		cp := p.save()
 		p.advance()
 		p.advance()
-		if err := p.parseQuery(); err == nil {
-			if _, err := p.expect(tokRParen); err == nil {
-				return nil
+		if p.startsWithQueryKeywordAfterParens() {
+			if err := p.parseQuery(); err == nil {
+				if _, err := p.expect(tokRParen); err == nil {
+					return nil
+				}
 			}
 		}
 		p.restore(cp)
@@ -235,12 +237,14 @@ func (p *Parser) parseOptionalPredicate() error {
 		p.advance()
 		p.advance()
 		// Could be IN (query) or IN (expression (, expression)*)
-		cpIn := p.save()
-		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-			p.advance()
-			return nil
+		if p.startsWithQueryKeywordAfterParens() {
+			cpIn := p.save()
+			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+				p.advance()
+				return nil
+			}
+			p.restore(cpIn)
 		}
-		p.restore(cpIn)
 		if err := p.parseExpression(); err != nil {
 			return err
 		}
@@ -714,13 +718,16 @@ func (p *Parser) parsePrimaryAtom() error {
 		case kwTRIM:
 			// Single-pass parsing for both SQL TRIM([BOTH|LEADING|TRAILING] [chars] FROM str)
 			// and ordinary function calls TRIM(str [, chars]) to avoid exponential reparsing
-			// on deeply nested TRIM(TRIM(...)) expressions.
+			// on deeply nested TRIM(TRIM(...)) expressions and preserve columns named
+			// `leading`, `trailing`, or `both`.
 			p.advance()
 			p.advance()
 			if p.match(tokRParen) {
 				return p.parseFunctionCallSuffixes()
 			}
-			if p.match(kwBOTH, kwLEADING, kwTRAILING) {
+			if (p.cur().Kind == kwBOTH || p.cur().Kind == kwLEADING || p.cur().Kind == kwTRAILING) &&
+				p.startsTrimOptionForm() {
+				p.advance()
 				if p.cur().Kind != kwFROM {
 					if err := p.parseValueExpression(); err != nil {
 						return err
@@ -813,22 +820,25 @@ func (p *Parser) parsePrimaryAtom() error {
 			return p.parseFunctionCallSuffixes()
 
 		case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
-			cp := p.save()
+			// Single-pass parsing for both 3-arg SQL TIMESTAMPADD/DATEDIFF(unit, a, b)
+			// and 2-arg function calls DATE_ADD(d, n) / DATEDIFF(d1, d2) without reparsing.
 			p.advance()
 			p.advance()
-			if p.isDatetimeUnit() || p.isStringLit() {
-				p.advance()
-				if p.match(tokComma) {
-					if err := p.parseValueExpression(); err == nil && p.match(tokComma) {
-						if err := p.parseValueExpression(); err == nil {
-							if _, err := p.expect(tokRParen); err == nil {
-								return nil
-							}
-						}
-					}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 		}
 	}
 
@@ -977,62 +987,126 @@ func (p *Parser) canStartFunctionCall() bool {
 	return p.peek(i).Kind == tokLParen
 }
 
-func (p *Parser) parseFunctionName() error {
-	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
-		// Could be IDENTIFIER(expr)(args) or IDENTIFIER(args).
-		cp := p.save()
-		p.advance()
-		p.advance()
-		if err := p.parseExpression(); err == nil && p.match(tokRParen) && p.cur().Kind == tokLParen {
-			return nil
-		}
-		p.restore(cp)
-		p.advance()
-		return nil
+// startsTrimOptionForm reports whether a leading BOTH/LEADING/TRAILING token
+// inside TRIM(...) introduces the SQL trim option syntax (e.g.
+// `TRIM(BOTH FROM x)` or `TRIM(LEADING '0' FROM x)`) rather than an ordinary
+// column/expression argument (e.g. `TRIM(leading)` or `TRIM(leading, 'x')` or
+// `TRIM(leading || 'a')`).
+func (p *Parser) startsTrimOptionForm() bool {
+	next := p.peek(1).Kind
+	if next == kwFROM {
+		return true
 	}
-	_, err := p.parseQualifiedName()
-	return err
+	switch next {
+	case tokRParen, tokComma, tokEOF, tokSemicolon,
+		tokDot, tokLParen, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwNOT,
+		tokArrow, tokFatArrow:
+		return false
+	}
+	return true
 }
 
 func (p *Parser) parseFunctionCall() error {
-	if err := p.parseFunctionName(); err != nil {
-		return err
-	}
-	if _, err := p.expect(tokLParen); err != nil {
-		return err
-	}
-	if !p.match(tokRParen) {
-		// Optional setQuantifier (DISTINCT | ALL) if followed by an argument.
-		if p.cur().Kind == kwDISTINCT || p.cur().Kind == kwALL {
-			cp := p.save()
-			p.advance()
-			if err := p.parseFunctionArgument(); err == nil {
+	// Single-pass handling for IDENTIFIER(expr) vs IDENTIFIER(expr)(args) so
+	// deeply nested IDENTIFIER(IDENTIFIER(...)) never reparses its argument.
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		p.advance()
+		p.advance()
+		singlePlainArg := false
+		if !p.match(tokRParen) {
+			if p.isFunctionSetQuantifier() {
+				p.advance()
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
 				for p.match(tokComma) {
 					if err := p.parseFunctionArgument(); err != nil {
 						return err
 					}
 				}
-				if _, err := p.expect(tokRParen); err != nil {
+			} else {
+				isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
+				if err := p.parseFunctionArgument(); err != nil {
 					return err
 				}
-				goto afterArgs
+				argCount := 1
+				for p.match(tokComma) {
+					if err := p.parseFunctionArgument(); err != nil {
+						return err
+					}
+					argCount++
+				}
+				singlePlainArg = !isNamed && argCount == 1
 			}
-			p.restore(cp)
-		}
-		if err := p.parseFunctionArgument(); err != nil {
-			return err
-		}
-		for p.match(tokComma) {
-			if err := p.parseFunctionArgument(); err != nil {
+			if _, err := p.expect(tokRParen); err != nil {
 				return err
 			}
 		}
-		if _, err := p.expect(tokRParen); err != nil {
+		if singlePlainArg && p.cur().Kind == tokLParen {
+			// It was `IDENTIFIER(expr)` as functionName; now parse the actual call argument list.
+			if err := p.parseFunctionCallArgList(); err != nil {
+				return err
+			}
+		}
+		return p.parseFunctionCallSuffixes()
+	}
+
+	if _, err := p.parseQualifiedName(); err != nil {
+		return err
+	}
+	if err := p.parseFunctionCallArgList(); err != nil {
+		return err
+	}
+	return p.parseFunctionCallSuffixes()
+}
+
+func (p *Parser) parseFunctionCallArgList() error {
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
+		return nil
+	}
+	if p.isFunctionSetQuantifier() {
+		p.advance()
+	}
+	if err := p.parseFunctionArgument(); err != nil {
+		return err
+	}
+	for p.match(tokComma) {
+		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
 	}
-afterArgs:
-	return p.parseFunctionCallSuffixes()
+	_, err := p.expect(tokRParen)
+	return err
+}
+
+// isFunctionSetQuantifier reports whether a leading DISTINCT/ALL inside a
+// function call argument list acts as a set quantifier (e.g. COUNT(DISTINCT x))
+// rather than an ordinary column/expression named `distinct` or `all`.
+func (p *Parser) isFunctionSetQuantifier() bool {
+	if p.cur().Kind != kwDISTINCT && p.cur().Kind != kwALL {
+		return false
+	}
+	next := p.peek(1).Kind
+	switch next {
+	case tokRParen, tokComma, tokEOF, tokSemicolon,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow:
+		return false
+	}
+	return true
 }
 
 func (p *Parser) parseFunctionCallSuffixes() error {

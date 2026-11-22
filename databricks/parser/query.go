@@ -762,7 +762,50 @@ func (p *Parser) parseInlineTable() error {
 }
 
 func (p *Parser) parseFunctionTable() error {
-	if err := p.parseFunctionName(); err != nil {
+	// Single-pass handling for IDENTIFIER(expr)(tableArgs) vs IDENTIFIER(tableArgs)
+	// without reparsing nested IDENTIFIER(...) arguments.
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		p.advance()
+		p.advance()
+		singlePlainArg := false
+		if !p.match(tokRParen) {
+			isTableOrNamed := p.cur().Kind == kwTABLE ||
+				(p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow)
+			if err := p.parseFunctionTableArgument(); err != nil {
+				return err
+			}
+			argCount := 1
+			for p.match(tokComma) {
+				if err := p.parseFunctionTableArgument(); err != nil {
+					return err
+				}
+				argCount++
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			singlePlainArg = !isTableOrNamed && argCount == 1
+		}
+		if singlePlainArg && p.cur().Kind == tokLParen {
+			p.advance()
+			if !p.match(tokRParen) {
+				for {
+					if err := p.parseFunctionTableArgument(); err != nil {
+						return err
+					}
+					if !p.match(tokComma) {
+						break
+					}
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+			}
+		}
+		return p.parseTableAlias()
+	}
+
+	if _, err := p.parseQualifiedName(); err != nil {
 		return err
 	}
 	if _, err := p.expect(tokLParen); err != nil {
