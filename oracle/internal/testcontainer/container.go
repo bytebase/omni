@@ -63,21 +63,26 @@ const (
 )
 
 // JudgeFixture builds the scratch schema's objects again after every
-// statement that ran: the table t, on which a trigger row's header stands
-// (tokens.tsv's TRIGGER_SOURCE), so the trigger's body reaches the PL/SQL
-// compiler; the materialized view v on it; the object type y and varray type w
-// for ALTER TYPE; and the dimensions d (without level/hierarchy a, for ADD)
-// and e (with unreferenced level a and hierarchy a, for DROP/COMPILE/ATTRIBUTE)
-// for ALTER DIMENSION. None is named a, the name every other row gives, so the
-// rows on an object a find none and answer at once. compat.OracleVerdict asks
-// ALTER TABLE a, ALTER MATERIALIZED VIEW a, ALTER TYPE a, ALTER DIMENSION a,
-// and INMEMORY JOIN GROUP again on these fixture objects, since Oracle looks
-// them up before it reads the rest.
+// statement that ran: the primary-key table t, on which trigger headers
+// (tokens.tsv's TRIGGER_SOURCE) and materialized view logs stand; the second
+// table t2 for multi-table dimension hierarchies; the composite-partitioned
+// table p for LOCK TABLE [SUB]PARTITION and SPLIT [SUB]PARTITION stand-ins;
+// the materialized view v on t; the object type y, varray type w, and nested
+// table type nt_t for ALTER TYPE and nested-table storage stand-ins; and the
+// dimensions d (without level/hierarchy a, for ADD) and e (with unreferenced
+// level a and hierarchy a, for DROP/COMPILE/ATTRIBUTE) for ALTER DIMENSION.
+// None is named a, the name every other row gives, so the rows on an object a
+// find none and answer at once. compat.OracleVerdict / OracleVerdictOnly ask
+// statements whose objects Oracle looks up before reading the rest again on
+// these fixture objects.
 const JudgeFixture = `BEGIN
-  EXECUTE IMMEDIATE 'CREATE TABLE t (a NUMBER, b NUMBER, c NUMBER, d NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE TABLE t (a NUMBER PRIMARY KEY, b NUMBER, c NUMBER, d NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE TABLE t2 (a NUMBER, b NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE TABLE p (a NUMBER, b NUMBER) PARTITION BY RANGE (a) SUBPARTITION BY HASH (b) (PARTITION p1 VALUES LESS THAN (10))';
   EXECUTE IMMEDIATE 'CREATE MATERIALIZED VIEW v AS SELECT a FROM t';
   EXECUTE IMMEDIATE 'CREATE TYPE y AS OBJECT (b NUMBER)';
   EXECUTE IMMEDIATE 'CREATE TYPE w AS VARRAY(1) OF VARCHAR2(1)';
+  EXECUTE IMMEDIATE 'CREATE TYPE nt_t AS TABLE OF NUMBER';
   EXECUTE IMMEDIATE 'CREATE DIMENSION d LEVEL l IS (t.d)';
   EXECUTE IMMEDIATE 'CREATE DIMENSION e LEVEL a IS (t.a) LEVEL b IS (t.b) LEVEL c IS (t.c) HIERARCHY a (b CHILD OF c)';
 END;`
@@ -461,7 +466,7 @@ func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 	stmts = append(stmts,
 		fmt.Sprintf("CREATE USER %s IDENTIFIED BY %s QUOTA UNLIMITED ON users", judgeUser, judgeSecret),
 		"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE MATERIALIZED VIEW, "+
-			"CREATE PROCEDURE, CREATE TYPE, CREATE TRIGGER, CREATE DIMENSION TO "+judgeUser)
+			"CREATE PROCEDURE, CREATE TYPE, CREATE TRIGGER, CREATE DIMENSION, CREATE LIBRARY, CREATE MLE TO "+judgeUser)
 	for _, stmt := range stmts {
 		if _, err := admin.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("Oracle: %s: %v", stmt, err)

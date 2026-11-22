@@ -29,8 +29,10 @@ import (
 // SQL statement inside the PL/SQL ("PL/SQL: ORA-00942", whose code
 // USER_ERRORS keeps only in its text): for ORA-24344, a unit created with
 // compilation errors, those USER_ERRORS lists (PLS-00000 is "Statement
-// ignored", which follows another), and for ORA-06550, an
-// anonymous block that did not compile, those of its error stack.
+// ignored", which follows another), for ORA-06550 / ORA-22324 (an anonymous
+// block or ALTER TYPE that did not compile), the PLS-/ORA- codes from its
+// error stack, and for ORA-02425 / ORA-02426 (CREATE SCHEMA inner CREATE TABLE
+// / GRANT wrappers), the underlying ORA- codes from its error stack.
 const OracleParse = `DECLARE
   c INTEGER := DBMS_SQL.OPEN_CURSOR;
   code PLS_INTEGER := 0;
@@ -55,10 +57,15 @@ BEGIN
                         ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
              WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
-  ELSIF code = 6550 THEN
+  ELSIF code IN (6550, 22324) THEN
     FOR i IN 1 .. REGEXP_COUNT(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, 'm') LOOP
       compile := compile || CASE WHEN i > 1 THEN ',' END ||
         REPLACE(REGEXP_SUBSTR(stack, '^(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i, 'm'), 'PL/SQL: ', '');
+    END LOOP;
+  ELSIF code IN (2425, 2426) THEN
+    FOR i IN 2 .. REGEXP_COUNT(stack, '^ORA-[0-9]{5}', 1, 'm') LOOP
+      compile := compile || CASE WHEN i > 2 THEN ',' END ||
+        REGEXP_SUBSTR(stack, '^ORA-[0-9]{5}', 1, i, 'm');
     END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
@@ -66,7 +73,7 @@ BEGIN
       FOR o IN (SELECT object_name, object_type FROM user_objects
                  WHERE object_type NOT IN ('LOB', 'LOB PARTITION', 'LOB SUBPARTITION', 'TABLE PARTITION',
                                            'TABLE SUBPARTITION', 'INDEX PARTITION', 'INDEX SUBPARTITION')
-                 ORDER BY DECODE(object_type, 'MATERIALIZED VIEW', 1, 'TRIGGER', 2, 'VIEW', 3, 'TABLE', 5, 4)) LOOP
+                 ORDER BY DECODE(object_type, 'MATERIALIZED VIEW', 1, 'TRIGGER', 2, 'VIEW', 3, 'TABLE', 4, 'TYPE', 6, 5)) LOOP
         BEGIN
           IF o.object_type = 'TABLE' THEN
             EXECUTE IMMEDIATE 'ALTER TABLE "' || o.object_name || '" ENABLE TABLE LOCK';
@@ -227,6 +234,70 @@ var (
 	reStandInCreateAuditNoAct   = regexp.MustCompile(`(?i)^\s*CREATE\s+AUDIT\s+POLICY\s+\S+\s+(WHEN\s+('s')|ONLY|CONTAINER)(?:\s|$)`)
 	reStandInSchemaObject       = regexp.MustCompile(`(?i)^\s*(?:ALTER|CREATE|DROP)\s+(?:DIMENSION|MATERIALIZED\s+VIEW|MATERIALIZED\s+ZONEMAP|DOMAIN|INDEXTYPE|OPERATOR)\s+(a)\.`)
 	reStandInColumnDomainSchema = regexp.MustCompile(`(?i)\bDOMAIN\s+(a)\.`)
+
+	// Judge rev 5 stand-ins.
+	reStandInCreateAuditNoActRev5     = regexp.MustCompile(`(?i)^\s*CREATE\s+AUDIT\s+POLICY\s+\S+\s+(WHEN\s+('s')|ONLY\s+TOPLEVEL|CONTAINER)(?:\s|$)`)
+	reStandInLockTable                = regexp.MustCompile(`(?i)^\s*LOCK\s+TABLE\s+(a)\s+(?:SUB)?PARTITION\s*\(`)
+	reStandInCreateMVLogTablespaceSet = regexp.MustCompile(`(?i)^\s*CREATE\s+MATERIALIZED\s+VIEW\s+LOG\s+ON\s+(a)\b.*\bTABLESPACE\s+SET\b`)
+	reStandInUpgradeNestedTable       = regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+t\s+UPGRADE\s+(?:NOT\s+)?INCLUDING\s+DATA\s+(NESTED\s+TABLE\s+a\b.*)$`)
+	reStandInCreateMVNestedTable      = regexp.MustCompile(`(?i)^\s*CREATE\s+MATERIALIZED\s+VIEW\s+\S+\s+(NESTED\s+TABLE\s+a\s+.*?)\s+AS\s+SELECT\b`)
+	reStandInCreatePLSQLSchema        = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:EDITIONABLE\s+|NONEDITIONABLE\s+)?(?:FUNCTION|PROCEDURE|PACKAGE(?:\s+BODY)?|TYPE\s+BODY|LIBRARY)\s+(a)\.`)
+	reStandInCreateSchemaAuth         = regexp.MustCompile(`(?i)^\s*CREATE\s+SCHEMA\s+AUTHORIZATION\s+(a)(?:\s|$)`)
+	reStandInCreateSchemaDupTable     = regexp.MustCompile(`(?i)(CREATE\s+TABLE\s+a\b.*?CREATE\s+TABLE\s+)(a)(\b)`)
+	reStandInCreateSchemaGrant        = regexp.MustCompile(`(?i)\bGRANT\s+SELECT\s+ON\s+a\s+TO\s+a\b`)
+	reStandInGrantIdentifiedBy        = regexp.MustCompile(`(?i)^\s*GRANT\s+.+?\s+TO\s+(a)\s+IDENTIFIED\s+BY\b`)
+	reStandInDropTablespaceSet        = regexp.MustCompile(`(?i)^\s*DROP\s+TABLESPACE\s+(SET\s+)`)
+	reStandInSeqPrefix                = regexp.MustCompile(`(?i)^\s*(?:CREATE|ALTER)\s+SEQUENCE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:(?:"(?:""|[^"])*"|[^\s."]+)\s*\.\s*)?(?:"(?:""|[^"])*"|[^\s."]+)(?:\s+|$)`)
+	reStandInSeqShard                 = regexp.MustCompile(`(?i)\b(?:NO)?SHARD\b`)
+	reStandInSeqShardClause           = regexp.MustCompile(`(?i)\b(?:SHARD(?:\s+(?:NO)?EXTEND)?|NOSHARD)\b`)
+	reStandInSeqScale                 = regexp.MustCompile(`(?i)\b(?:NO)?SCALE\b`)
+	reStandInSeqOrder                 = regexp.MustCompile(`(?i)\b(?:NO)?ORDER\b`)
+	reStandInSeqCycle                 = regexp.MustCompile(`(?i)\b(?:NO)?CYCLE\b`)
+	reStandInSeqKeep                  = regexp.MustCompile(`(?i)\b(?:NO)?KEEP\b`)
+	reStandInSeqExtend                = regexp.MustCompile(`(?i)^\s*(?:NO)?EXTEND\b`)
+	reStandInSeqAnyExtend             = regexp.MustCompile(`(?i)\b(?:NO)?EXTEND\b`)
+	reStandInIdentifiedGlobally       = regexp.MustCompile(`(?i)^\s*(CREATE|ALTER)\s+(ROLE|USER)\s+(\S+)\s+IDENTIFIED\s+(GLOBALLY)\b`)
+	reStandInPDBSnapshot              = regexp.MustCompile(`(?i)^\s*ALTER\s+PLUGGABLE\s+DATABASE\s+(SNAPSHOT)\b`)
+	reStandInNumberCollate            = regexp.MustCompile(`(?i)\b(NUMBER)\s+COLLATE\b`)
+	reStandInSplitNestedTable         = regexp.MustCompile(`(?i)^\s*ALTER\s+(TABLE|MATERIALIZED\s+VIEW)\s+(a|t|v)\s+SPLIT\s+PARTITION\s+(a)\s+AT\s*\(\s*1\s*\)\s+(NESTED\s+TABLE\s+a\s+)INTO\b`)
+	reStandInDimSelfLoop              = regexp.MustCompile(`(?i)\b(a\s+CHILD\s+OF\s+)(a)\b`)
+	reStandInDimReferencesA           = regexp.MustCompile(`(?i)\bREFERENCES\s+(a)\b`)
+	reStandInCreateDimLevelA          = regexp.MustCompile(`(?i)^\s*CREATE\s+DIMENSION\s+\S+\s+LEVEL\s+a\s+IS\s*\(\s*a\.a\s*\)`)
+	reStandInAlterDimHeadA            = regexp.MustCompile(`(?i)^\s*ALTER\s+DIMENSION\s+(a)\b`)
+	reStandInUsingIndexA              = regexp.MustCompile(`(?i)\bUSING\s+INDEX\s+(a)(?:\s|$)`)
+	reStandInFlashbackArchiveA        = regexp.MustCompile(`(?i)\bFLASHBACK\s+ARCHIVE\s+(a)(?:\s|$)`)
+	reStandInMandatoryProfile         = regexp.MustCompile(`(?i)^\s*CREATE\s+(MANDATORY\s+)PROFILE\b`)
+	reStandInCreateSpfileFromPfile    = regexp.MustCompile(`(?i)^\s*CREATE\s+(SPFILE)\s*=\s*'s'\s+FROM\s+(PFILE)(?:\s|$)`)
+	reStandInCreateSpfileAsCopy       = regexp.MustCompile(`(?i)^\s*CREATE\s+SPFILE\s+FROM\s+(PFILE)(?:\s|$)`)
+	reStandInCreateTablespaceSetTmpl  = regexp.MustCompile(`(?i)^\s*CREATE\s+TABLESPACE\s+SET\s+(\S+)\s+USING\s+TEMPLATE\s*\((.*)\)\s*$`)
+	reStandInTradAudit                = regexp.MustCompile(`(?is)^\s*AUDIT\s+(.+)$`)
+	reStandInTradAuditBy              = regexp.MustCompile(`(?i)\s+BY\s+(?:SESSION|ACCESS)(\s+(?:WHENEVER|CONTAINER)\b|\s*$)`)
+	reStandInRecoverStandbyPrefix     = regexp.MustCompile(`(?i)^\s*ALTER\s+DATABASE\s+RECOVER\s+MANAGED\s+STANDBY\s+DATABASE\s+`)
+	reStandInRecoverFinishForce       = regexp.MustCompile(`(?i)\bFINISH\s+FORCE\b`)
+	reStandInRecoverFinish            = regexp.MustCompile(`(?i)\bFINISH\b`)
+	reStandInRecoverUsingAll          = regexp.MustCompile(`(?i)\bUSING\s+INSTANCES\s+ALL\b`)
+	reStandInRecoverUsingOne          = regexp.MustCompile(`(?i)\bUSING\s+INSTANCES\s+1\b`)
+	reStandInRecoverHasParallel       = regexp.MustCompile(`(?i)\b(?:NO)?PARALLEL\b`)
+	reStandInRecoverHasDisconnect     = regexp.MustCompile(`(?i)\bDISCONNECT\b`)
+	reStandInRecoverHasDelay          = regexp.MustCompile(`(?i)\b(?:NO)?DELAY\b`)
+	reStandInRecoverLogicalKeep       = regexp.MustCompile(`(?i)\bTO\s+LOGICAL\s+STANDBY\s+a\s+KEEP\s+IDENTITY\b`)
+	reStandInRecoverLogical           = regexp.MustCompile(`(?i)\bTO\s+LOGICAL\s+STANDBY\s+a\b`)
+	reStandInMVLogSplitCrash          = regexp.MustCompile(`(?i)^\s*ALTER\s+MATERIALIZED\s+VIEW\s+LOG\s+ON\s+a\s+SPLIT\s+(SUB)?PARTITION\s+a\b`)
+	reStandInRefMissingType           = regexp.MustCompile(`(?i)\bREF\s+(omni_missing_t)\b`)
+	reCreateMLEModule                 = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:EDITIONABLE\s+|NONEDITIONABLE\s+)?MLE\s+MODULE\b`)
+	reRawSourceHead                   = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:AND\s+(?:RESOLVE|COMPILE)|NOFORCE|EDITIONABLE|NONEDITIONABLE)\s+)*(?:JAVA|MLE\s+MODULE)\b`)
+	reRawSourceAs                     = regexp.MustCompile(`(?i)\bAS\b`)
+	reInquiryNamedArg                 = regexp.MustCompile(`(?i)\$\$[A-Za-z_][A-Za-z0-9_$#]*\s*=>`)
+	reCondComp                        = regexp.MustCompile(`(?i)\$IF\b`)
+	reRowLimitingForUpdate            = regexp.MustCompile(`(?i)\b(?:OFFSET|FETCH\s+(?:FIRST|NEXT)\b.*?\bWITH\s+TIES)\b.*\bFOR\s+UPDATE\b`)
+	reGrantByClause                   = regexp.MustCompile(`(?i)^\s*GRANT\b.*\bTO\b.*\bBY\b`)
+	reCreateTableBareColumnIsOf       = regexp.MustCompile(`(?i)^\s*CREATE\b.*\bTABLE\b.*\bCOLUMN\b.*\bIS\s+OF\b`)
+	reBareDropContext                 = regexp.MustCompile(`(?i)^\s*DROP\s+CONTEXT\s*$`)
+	reTrailingForUpdateWait           = regexp.MustCompile(`(?i)\bFOR\s+UPDATE\b.*\bWAIT\s*$`)
+	reCharsetRefOrRowtype             = regexp.MustCompile(`(?i)(?:\bREF\s+\S+|%ROWTYPE)\s+CHARACTER\s+SET\b`)
+	reCharsetPredefinedNonChar        = regexp.MustCompile(`(?i)\b(?:NUMBER|INTEGER|INT|SMALLINT|DECIMAL|DEC|NUMERIC|FLOAT|REAL|DOUBLE\s+PRECISION|BINARY_FLOAT|BINARY_DOUBLE|SIMPLE_FLOAT|SIMPLE_DOUBLE|PLS_INTEGER|BINARY_INTEGER|SIMPLE_INTEGER|NATURALN?|POSITIVEN?|SIGNTYPE|BOOL(?:EAN)?|DATE|TIMESTAMP|INTERVAL|RAW|LONG|ROWID|UROWID|BLOB|BFILE|JSON|VECTOR|MLSLABEL|SYS_REFCURSOR|NCHAR|NVARCHAR2|NCLOB)\b(?:\s*\([^)]*\))?\s+CHARACTER\s+SET\b`)
+	reCharsetAttr                     = regexp.MustCompile(`(?i)\bCHARACTER\s+SET\s+([A-Za-z_][A-Za-z0-9_$#]*)%CHARSET\b`)
+	reNonCharTypeWord                 = regexp.MustCompile(`(?i)^(?:NUMBER|INTEGER|INT|SMALLINT|DECIMAL|DEC|NUMERIC|FLOAT|REAL|DOUBLE\s+PRECISION|BINARY_FLOAT|BINARY_DOUBLE|SIMPLE_FLOAT|SIMPLE_DOUBLE|PLS_INTEGER|BINARY_INTEGER|SIMPLE_INTEGER|NATURALN?|POSITIVEN?|SIGNTYPE|BOOL(?:EAN)?|DATE|TIMESTAMP|INTERVAL|RAW|LONG|ROWID|UROWID|BLOB|BFILE|JSON|VECTOR|MLSLABEL|SYS_REFCURSOR|NCHAR|NVARCHAR2|NCLOB)\b`)
 )
 
 // oracleStandIn returns statement rewritten with a fixture object, valid
@@ -328,6 +399,543 @@ func oracleStandIn(statement string, e oracleError) (string, func(int) int, bool
 	return "", nil, false
 }
 
+func isWordByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '_' || b == '$' || b == '#'
+}
+
+// oracleStandInRev5 returns statement rewritten for judge revision 5 stand-ins,
+// using schema as the connected scratch account name, and falling back to
+// rev-4 oracleStandIn where rev 5 does not override it.
+func oracleStandInRev5(statement, schema string, e oracleError) (string, func(int) int, bool) {
+	if schema == "" {
+		schema = "OMNI_JUDGE"
+	}
+	replaceSubmatch := func(re *regexp.Regexp, rep string, allowPos func(start int) bool) (string, func(int) int, bool) {
+		m := re.FindStringSubmatchIndex(statement)
+		if m == nil || len(m) < 4 || m[2] < 0 {
+			return "", nil, false
+		}
+		if allowPos != nil && !allowPos(m[2]) {
+			return "", nil, false
+		}
+		rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{m[2], m[3], rep}})
+		if rewritten == statement {
+			return "", nil, false
+		}
+		return rewritten, mapPos, true
+	}
+
+	atZeroOrStart := func(start int) bool { return e.position == 0 || e.position == start }
+
+	switch e.code {
+	case 46373:
+		// Rev 5 requires ONLY TOPLEVEL (not bare ONLY) so broken CREATE AUDIT
+		// POLICY a ONLY is not rewritten to a valid-headed policy.
+		if e.position == 0 {
+			if m := reStandInCreateAuditNoActRev5.FindStringSubmatchIndex(statement); m != nil {
+				edits := []standInEdit{{m[2], m[2], "ACTIONS SELECT ON t "}}
+				if m[4] >= 0 {
+					edits = append(edits, standInEdit{m[4], m[5], "'1=1'"})
+				}
+				rewritten, mapPos := applyStandInEdits(statement, edits)
+				return rewritten, mapPos, true
+			}
+		}
+		return "", nil, false
+	case 942:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInLockTable, "p", atZeroOrStart); ok {
+			return rewritten, mapPos, true
+		}
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInCreateMVLogTablespaceSet, "t", atZeroOrStart); ok {
+			return rewritten, mapPos, true
+		}
+	case 1735:
+		if e.position == 0 {
+			if m := reStandInUpgradeNestedTable.FindStringSubmatch(statement); m != nil && !strings.Contains(m[1], "(") {
+				return "CREATE TABLE omni_u (a nt_t) " + m[1], func(pos int) int { return pos }, true
+			}
+		}
+	case 904:
+		if m := reStandInCreateMVNestedTable.FindStringSubmatch(statement); m != nil && !strings.Contains(m[1], "(") {
+			return "CREATE TABLE omni_u (a nt_t) " + m[1], func(pos int) int { return pos }, true
+		}
+	case 1031:
+		if e.position == 0 {
+			if rewritten, mapPos, ok := replaceSubmatch(reStandInCreatePLSQLSchema, schema, nil); ok {
+				return rewritten, mapPos, true
+			}
+		}
+	case 2421:
+		if e.position == 0 {
+			if m := reStandInCreateSchemaAuth.FindStringSubmatchIndex(statement); m != nil {
+				rewritten := statement[:m[2]] + schema + statement[m[3]:]
+				rewritten = reStandInCreateSchemaDupTable.ReplaceAllString(rewritten, "${1}b${3}")
+				rewritten = reStandInCreateSchemaGrant.ReplaceAllString(rewritten, "GRANT SELECT ON t TO "+schema)
+				if rewritten != statement {
+					return rewritten, func(pos int) int { return pos }, true
+				}
+			}
+		}
+	case 957:
+		if e.position >= 0 && e.position < len(statement) {
+			// In CREATE INMEMORY JOIN GROUP a(t(a), t(a)), Oracle reports
+			// ORA-00957 at the second 't' rather than the 'a' inside t(a).
+			if e.position+4 <= len(statement) &&
+				(statement[e.position] == 't' || statement[e.position] == 'T') &&
+				statement[e.position+1] == '(' &&
+				(statement[e.position+2] == 'a' || statement[e.position+2] == 'A') &&
+				statement[e.position+3] == ')' {
+				rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{e.position + 2, e.position + 3, "b"}})
+				return rewritten, mapPos, true
+			}
+			if (statement[e.position] == 'a' || statement[e.position] == 'A') &&
+				(e.position == 0 || !isWordByte(statement[e.position-1])) &&
+				(e.position+1 == len(statement) || !isWordByte(statement[e.position+1])) {
+				rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{e.position, e.position + 1, "b"}})
+				return rewritten, mapPos, true
+			}
+		}
+	case 1700:
+		if e.position >= 0 && e.position < len(statement) &&
+			(statement[e.position] == 'a' || statement[e.position] == 'A') &&
+			(e.position == 0 || !isWordByte(statement[e.position-1])) &&
+			(e.position+1 == len(statement) || !isWordByte(statement[e.position+1])) {
+			rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{e.position, e.position + 1, "b"}})
+			return rewritten, mapPos, true
+		}
+	case 989:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInGrantIdentifiedBy, "a, b", nil); ok {
+			return rewritten, mapPos, true
+		}
+	case 2557:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInDropTablespaceSet, "", nil); ok {
+			return rewritten, mapPos, true
+		}
+	case 2511:
+		if rewritten, mapPos, ok := rewriteSeqShardStandIn(statement); ok {
+			return rewritten, mapPos, true
+		}
+	case 439:
+		if e.position == 0 {
+			if m := reStandInIdentifiedGlobally.FindStringSubmatchIndex(statement); m != nil {
+				edits := []standInEdit{
+					{m[4], m[5], "USER"},
+					{m[8], m[9], "EXTERNALLY"},
+				}
+				rewritten, mapPos := applyStandInEdits(statement, edits)
+				return rewritten, mapPos, true
+			}
+		}
+	case 12754:
+		if e.position == 0 {
+			if rewritten, mapPos, ok := replaceSubmatch(reStandInPDBSnapshot, "REFRESH MODE", nil); ok {
+				return rewritten, mapPos, true
+			}
+		}
+	case 43911:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInNumberCollate, "VARCHAR2(10)", nil); ok {
+			return rewritten, mapPos, true
+		}
+	case 22912:
+		if m := reStandInSplitNestedTable.FindStringSubmatchIndex(statement); m != nil {
+			kind := strings.ToUpper(statement[m[2]:m[3]])
+			var edits []standInEdit
+			if kind == "TABLE" {
+				edits = append(edits,
+					standInEdit{m[4], m[5], "p"},
+					standInEdit{m[6], m[7], "p1"},
+					standInEdit{m[8], m[9], ""},
+				)
+			} else {
+				edits = append(edits,
+					standInEdit{m[4], m[5], "v"},
+					standInEdit{m[8], m[9], ""},
+				)
+			}
+			rewritten, mapPos := applyStandInEdits(statement, edits)
+			return rewritten, mapPos, true
+		}
+	case 30336:
+		if reStandInDimSelfLoop.MatchString(statement) {
+			rewritten := reStandInDimSelfLoop.ReplaceAllString(statement, "${1}b")
+			rewritten = reStandInDimReferencesA.ReplaceAllString(rewritten, "REFERENCES b")
+			if reStandInCreateDimLevelA.MatchString(rewritten) {
+				rewritten = reStandInCreateDimLevelA.ReplaceAllString(rewritten, "CREATE DIMENSION a LEVEL a IS(t.a) LEVEL b IS(t2.b)")
+			} else if m := reStandInAlterDimHeadA.FindStringSubmatchIndex(rewritten); m != nil {
+				rewritten = rewritten[:m[2]] + "d" + rewritten[m[3]:]
+			}
+			if rewritten != statement {
+				return rewritten, func(pos int) int { return pos }, true
+			}
+		}
+	case 3049:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInUsingIndexA, "idx1", func(start int) bool { return e.position == start }); ok {
+			return rewritten, mapPos, true
+		}
+	case 55643:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInFlashbackArchiveA, "fa1", func(start int) bool { return e.position == start }); ok {
+			return rewritten, mapPos, true
+		}
+	case 2387:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInMandatoryProfile, "", nil); ok {
+			return rewritten, mapPos, true
+		}
+	case 65136:
+		if m := reStandInCreateSpfileFromPfile.FindStringSubmatchIndex(statement); m != nil {
+			rewritten, mapPos := applyStandInEdits(statement, []standInEdit{
+				{m[2], m[3], "PFILE"},
+				{m[4], m[5], "SPFILE"},
+			})
+			return rewritten, mapPos, true
+		}
+	case 65168:
+		if rewritten, mapPos, ok := replaceSubmatch(reStandInCreateSpfileAsCopy, "PFILE = 's'", nil); ok {
+			return rewritten, mapPos, true
+		}
+	case 2537:
+		if m := reStandInCreateTablespaceSetTmpl.FindStringSubmatch(statement); m != nil {
+			return "CREATE TABLESPACE " + m[1] + " " + m[2], func(pos int) int { return pos }, true
+		}
+	case 46401:
+		if m := reStandInTradAudit.FindStringSubmatch(statement); m != nil {
+			body := m[1]
+			// Remove at most one properly positioned BY SESSION/ACCESS clause
+			// (before WHENEVER, CONTAINER, or end of statement — ignoring SQL
+			// comments) so duplicate or misplaced BY clauses remain for Oracle
+			// to reject.
+			maskedBody := maskSQLCommentsAndQuotes(body)
+			if loc := reStandInTradAuditBy.FindStringSubmatchIndex(maskedBody); loc != nil {
+				body = body[:loc[0]] + body[loc[2]:loc[3]] + body[loc[1]:]
+			}
+			return "NOAUDIT " + body, func(pos int) int { return pos }, true
+		}
+	case 274:
+		if e.position == 0 {
+			masked := maskSQLCommentsAndQuotes(statement)
+			if reStandInRecoverStandbyPrefix.MatchString(masked) {
+				replaceAllMasked := func(re *regexp.Regexp, rep string) (string, func(int) int, bool) {
+					matches := re.FindAllStringIndex(masked, -1)
+					if len(matches) == 0 {
+						return "", nil, false
+					}
+					edits := make([]standInEdit, 0, len(matches))
+					for _, m := range matches {
+						edits = append(edits, standInEdit{m[0], m[1], rep})
+					}
+					rewritten, mapPos := applyStandInEdits(statement, edits)
+					return rewritten, mapPos, true
+				}
+				switch {
+				case reStandInRecoverFinishForce.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverFinishForce, "CANCEL IMMEDIATE")
+				case reStandInRecoverFinish.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverFinish, "CANCEL")
+				case reStandInRecoverUsingAll.MatchString(masked), reStandInRecoverUsingOne.MatchString(masked):
+					usingRe := reStandInRecoverUsingAll
+					parRep := "PARALLEL"
+					if !reStandInRecoverUsingAll.MatchString(masked) {
+						usingRe = reStandInRecoverUsingOne
+						parRep = "PARALLEL 1"
+					}
+					switch {
+					case !reStandInRecoverHasParallel.MatchString(masked):
+						return replaceAllMasked(usingRe, parRep)
+					case !reStandInRecoverHasDisconnect.MatchString(masked):
+						return replaceAllMasked(usingRe, "DISCONNECT")
+					case !reStandInRecoverHasDelay.MatchString(masked):
+						return replaceAllMasked(usingRe, "NODELAY")
+					default:
+						matches := usingRe.FindAllStringIndex(masked, -1)
+						if len(matches) == 1 {
+							rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{matches[0][0], matches[0][1], ""}})
+							return rewritten, mapPos, true
+						}
+						return replaceAllMasked(usingRe, parRep)
+					}
+				case reStandInRecoverLogicalKeep.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverLogicalKeep, "UNTIL CONSISTENT")
+				case reStandInRecoverLogical.MatchString(masked):
+					return replaceAllMasked(reStandInRecoverLogical, "UNTIL CONSISTENT")
+				}
+			}
+		}
+	}
+	return oracleStandIn(statement, e)
+}
+
+// rewriteSeqShardStandIn rewrites SHARD/NOSHARD on CREATE/ALTER SEQUENCE when
+// Oracle reports ORA-02511 in a non-sharded database. When SCALE/NOSCALE is
+// not already present, SHARD/NOSHARD maps directly to SCALE/NOSCALE so Oracle
+// checks EXTEND/NOEXTEND natively. When SCALE/NOSCALE is already present,
+// every SHARD [EXTEND|NOEXTEND] / NOSHARD maps in one pass to an unused
+// mutually-exclusive sequence option pair (ORDER/NOORDER, CYCLE/NOCYCLE,
+// KEEP/NOKEEP) so independent SCALE options are preserved while duplicates and
+// invalid NOSHARD EXTEND remain rejected by Oracle.
+func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
+	prefix := reStandInSeqPrefix.FindStringIndex(statement)
+	if prefix == nil {
+		return "", nil, false
+	}
+	base := prefix[1]
+	rest := statement[base:]
+	// Mask comments and quoted text with spaces (preserving byte offsets) so
+	// option and EXTEND/NOEXTEND counts ignore words inside comments or quotes.
+	masked := maskSQLCommentsAndQuotes(rest)
+	if !reStandInSeqShard.MatchString(masked) {
+		return "", nil, false
+	}
+	if !reStandInSeqScale.MatchString(masked) {
+		matches := reStandInSeqShard.FindAllStringIndex(masked, -1)
+		edits := make([]standInEdit, 0, len(matches))
+		for _, m := range matches {
+			rep := "SCALE"
+			if strings.HasPrefix(strings.ToUpper(rest[m[0]:m[1]]), "NO") {
+				rep = "NOSCALE"
+			}
+			edits = append(edits, standInEdit{base + m[0], base + m[1], rep})
+		}
+		rewritten, mapPos := applyStandInEdits(statement, edits)
+		return rewritten, mapPos, true
+	}
+
+	// SCALE/NOSCALE is already present. Oracle allows at most one
+	// EXTEND/NOEXTEND modifier across SCALE and SHARD combined; only consume
+	// SHARD's EXTEND/NOEXTEND modifier when it is the sole modifier in the
+	// statement so duplicate modifiers like "SCALE EXTEND SHARD NOEXTEND"
+	// remain visible for Oracle to reject.
+	extendCount := len(reStandInSeqAnyExtend.FindAllStringIndex(masked, -1))
+	clauseRe := reStandInSeqShardClause
+	if extendCount > 1 {
+		clauseRe = reStandInSeqShard
+	}
+	matches := clauseRe.FindAllStringIndex(masked, -1)
+	if len(matches) == 0 {
+		return "", nil, false
+	}
+	posRep, negRep := "", ""
+	switch {
+	case !reStandInSeqOrder.MatchString(masked):
+		posRep, negRep = "ORDER", "NOORDER"
+	case !reStandInSeqCycle.MatchString(masked):
+		posRep, negRep = "CYCLE", "NOCYCLE"
+	case !reStandInSeqKeep.MatchString(masked):
+		posRep, negRep = "KEEP", "NOKEEP"
+	}
+	if posRep == "" && extendCount <= 1 && len(matches) == 1 && !reStandInSeqExtend.MatchString(masked[matches[0][1]:]) {
+		rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{base + matches[0][0], base + matches[0][1], ""}})
+		return rewritten, mapPos, true
+	}
+	if posRep == "" {
+		// All fallback boolean pairs are already present and the statement
+		// either repeats SHARD/NOSHARD or has an invalid trailing EXTEND.
+		// Map to an already-used pair so Oracle still rejects it.
+		posRep, negRep = "ORDER", "NOORDER"
+	}
+	edits := make([]standInEdit, 0, len(matches))
+	for _, m := range matches {
+		rep := posRep
+		if strings.HasPrefix(strings.ToUpper(rest[m[0]:m[1]]), "NO") {
+			rep = negRep
+		}
+		edits = append(edits, standInEdit{base + m[0], base + m[1], rep})
+	}
+	rewritten, mapPos := applyStandInEdits(statement, edits)
+	return rewritten, mapPos, true
+}
+
+// maskSQLCommentsAndQuotes returns a copy of s of the same byte length with
+// SQL line comments (-- ...), block comments (/* ... */), Oracle q-quoted
+// strings, single-quoted strings, and double-quoted identifiers replaced by
+// spaces.
+func maskSQLCommentsAndQuotes(s string) string {
+	b := []byte(s)
+	for i := 0; i < len(b); {
+		switch {
+		case b[i] == '-' && i+1 < len(b) && b[i+1] == '-':
+			for i < len(b) && b[i] != '\n' {
+				b[i] = ' '
+				i++
+			}
+		case b[i] == '/' && i+1 < len(b) && b[i+1] == '*':
+			b[i] = ' '
+			b[i+1] = ' '
+			i += 2
+			for i < len(b) {
+				if b[i] == '*' && i+1 < len(b) && b[i+1] == '/' {
+					b[i] = ' '
+					b[i+1] = ' '
+					i += 2
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		case (b[i] == 'q' || b[i] == 'Q') && i+2 < len(b) && b[i+1] == '\'' &&
+			(i == 0 || !isWordByte(s[i-1]) || ((s[i-1] == 'n' || s[i-1] == 'N') && (i == 1 || !isWordByte(s[i-2])))):
+			openDelim := b[i+2]
+			closeDelim := openDelim
+			switch openDelim {
+			case '[':
+				closeDelim = ']'
+			case '{':
+				closeDelim = '}'
+			case '(':
+				closeDelim = ')'
+			case '<':
+				closeDelim = '>'
+			}
+			b[i], b[i+1], b[i+2] = ' ', ' ', ' '
+			i += 3
+			for i < len(b) {
+				if b[i] == closeDelim && i+1 < len(b) && b[i+1] == '\'' {
+					b[i], b[i+1] = ' ', ' '
+					i += 2
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		case b[i] == '\'' || b[i] == '"':
+			q := b[i]
+			b[i] = ' '
+			i++
+			for i < len(b) {
+				if b[i] == q {
+					b[i] = ' '
+					i++
+					if i < len(b) && b[i] == q {
+						b[i] = ' '
+						i++
+						continue
+					}
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		default:
+			i++
+		}
+	}
+	return string(b)
+}
+
+// oracleFailureStandInRev5 rewrites a statement that crashes Oracle 23ai's own
+// code (ORA-00600 in PTI/prspo_set_up on ALTER MATERIALIZED VIEW LOG ON a SPLIT
+// [SUB]PARTITION a) onto the partitioned fixture table p so Oracle's real
+// SPLIT [SUB]PARTITION parser judges the syntax (including trailing near-misses).
+func oracleFailureStandInRev5(statement string, err error) (string, bool) {
+	if !strings.Contains(firstLine(err), "ORA-00600") {
+		return "", false
+	}
+	m := reStandInMVLogSplitCrash.FindStringSubmatchIndex(statement)
+	if m == nil {
+		return "", false
+	}
+	sub := ""
+	if m[2] >= 0 {
+		sub = statement[m[2]:m[3]]
+	}
+	return "ALTER TABLE p SPLIT " + sub + "PARTITION p1" + statement[m[1]:], true
+}
+
+// hasUnclosedParen reports whether statement has an unclosed '(' outside
+// single-quoted strings, Oracle q-quoted strings, double-quoted identifiers,
+// SQL comments, and raw Java/MLE source bodies. Used in judge revision 5 to
+// catch truncated statements where Oracle raised an early lookup, privilege,
+// or semantic error before reaching EOF.
+func hasUnclosedParen(statement string) bool {
+	scanEnd := len(statement)
+	if m := reRawSourceHead.FindStringIndex(statement); m != nil {
+		if as := reRawSourceAs.FindStringIndex(statement[m[1]:]); as != nil {
+			scanEnd = m[1] + as[0]
+		}
+	}
+	depth := 0
+	for i := 0; i < scanEnd; {
+		c := statement[i]
+		// Line comment: -- ... \n
+		if c == '-' && i+1 < scanEnd && statement[i+1] == '-' {
+			nl := strings.IndexByte(statement[i+2:scanEnd], '\n')
+			if nl < 0 {
+				break
+			}
+			i += 2 + nl + 1
+			continue
+		}
+		// Block comment: /* ... */
+		if c == '/' && i+1 < scanEnd && statement[i+1] == '*' {
+			end := strings.Index(statement[i+2:scanEnd], "*/")
+			if end < 0 {
+				break
+			}
+			i += 2 + end + 2
+			continue
+		}
+		// Oracle q-quoted string: [n|N](q|Q)'<delim>...<close>'
+		if (c == 'q' || c == 'Q') && i+2 < scanEnd && statement[i+1] == '\'' &&
+			(i == 0 || !isWordByte(statement[i-1]) || ((statement[i-1] == 'n' || statement[i-1] == 'N') && (i == 1 || !isWordByte(statement[i-2])))) {
+			openDelim := statement[i+2]
+			closeDelim := openDelim
+			switch openDelim {
+			case '[':
+				closeDelim = ']'
+			case '{':
+				closeDelim = '}'
+			case '(':
+				closeDelim = ')'
+			case '<':
+				closeDelim = '>'
+			}
+			i += 3
+			for i < scanEnd {
+				if statement[i] == closeDelim && i+1 < scanEnd && statement[i+1] == '\'' {
+					i += 2
+					break
+				}
+				i++
+			}
+			continue
+		}
+		// Single-quoted string literal: '...' (with '' escape)
+		if c == '\'' {
+			i++
+			for i < scanEnd {
+				if statement[i] == '\'' {
+					if i+1 < scanEnd && statement[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+		// Double-quoted identifier: "..."
+		if c == '"' {
+			i++
+			for i < scanEnd {
+				if statement[i] == '"' {
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+		switch c {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		i++
+	}
+	return depth > 0
+}
+
 // oracleKindChecked are errors Oracle raises at byte 0, where no token
 // stands, when the statement asks of its object what that kind of object
 // does not take: ORA-01735 on ALTER TABLE, as OVERFLOW ALLOCATE EXTENT on
@@ -347,9 +955,67 @@ var oracleKindChecked = map[int]bool{1735: true}
 // less the codes of those ranges raised after the parse, in oracleResolved.
 // It decides an error whose probe says nothing, and a SQL statement's error
 // inside PL/SQL.
-func oracleParserCode(code int) bool {
+func oracleParserCode(code int, rev5 bool) bool {
+	if rev5 && oracleStatementRev5[code] {
+		return true
+	}
 	return (code >= 900 && code <= 999 || oracleLexer[code] || oracleStatement[code] ||
 		code >= 2000 && code <= 2099 || code >= 3046 && code <= 3050) && !oracleResolved[code]
+}
+
+// oracleStatementRev5 are additional statement-parser and structural syntax
+// error codes classified in judge revision 5, each measured on the pinned
+// server (0 false rejects across all valid compat.tsv rows):
+//   - 2538: invalid TABLESPACE SET clause on hash-partitioned MV / MV log
+//   - 4125: empty MLE module body (CREATE MLE MODULE ... AS)
+//   - 14108, 14173: invalid partition/subpartition name (LOCK TABLE p [SUB]PARTITION(1))
+//   - 14156: invalid SUBPARTITIONS count in SET SUBPARTITION TEMPLATE
+//   - 22913: missing storage table name in NESTED TABLE ... STORE AS
+//   - 28025: missing or null external name after IDENTIFIED EXTERNALLY AS
+//   - 28700, 28701: GRANT/REVOKE to/from program units syntax errors
+//   - 46373: unified audit policy missing required audit option
+//   - 64350: duplicate INMEMORY clause
+var oracleStatementRev5 = map[int]bool{
+	2538: true, 4125: true,
+	14108: true, 14156: true, 14173: true, 22913: true,
+	28025: true, 28700: true, 28701: true, 46373: true, 64350: true,
+}
+
+// isRev5StructuralUnimplemented reports whether masked (comment/quote-masked
+// SQL) is one of the structural syntax forms where Oracle raises ORA-03001
+// ("unimplemented feature") instead of a parser error: GRANT ... TO ... BY or
+// CREATE TABLE ... COLUMN ... IS OF. Semantic ORA-03001 failures such as
+// same-name RENAME t TO t return false and remain accepted.
+func isRev5StructuralUnimplemented(masked string) bool {
+	return reGrantByClause.MatchString(masked) || reCreateTableBareColumnIsOf.MatchString(masked)
+}
+
+// isRev5RejectedAtEnd reports whether a code normally accepted at EOF in
+// oracleCheckedAtEnd fires on a truncated/invalid structural form in judge
+// revision 5: DROP CONTEXT (1804), CREATE TABLE ... COLUMN ... IS OF (3001),
+// or trailing FOR UPDATE ... WAIT (30020).
+func isRev5RejectedAtEnd(code int, masked string) bool {
+	switch code {
+	case 1804:
+		return reBareDropContext.MatchString(masked)
+	case 3001:
+		return isRev5StructuralUnimplemented(masked)
+	case 30020:
+		return reTrailingForUpdateWait.MatchString(masked)
+	}
+	return false
+}
+
+// oracleCompileStructuralRev5 are PL/SQL compiler structural errors (beyond
+// PLS-001xx) rejected by omni and pinned in suite:reference / ALTER TYPE
+// (including PLS-00716 for duplicate attribute/method in a single ALTER TYPE
+// statement), with 0 hits on any accepted PL/SQL or ALTER TYPE row in
+// compat.tsv. PLS-00306 (inquiry directive named arg) and PLS-00550
+// (textually non-character CHARACTER SET target) are scoped separately in
+// oracleCompileSyntax so semantic failures stay accepted.
+var oracleCompileStructuralRev5 = map[int]bool{
+	312: true, 431: true, 505: true,
+	572: true, 589: true, 710: true, 712: true, 716: true, 856: true, 999: true,
 }
 
 // oracleStatement are the errors of the parsers Oracle keeps for its
@@ -526,41 +1192,131 @@ func oracleFailed(err error) bool {
 // rather than records agreement: an error OracleParse did not raise and
 // that is no failure of Oracle's (a timeout), and a probe the server took.
 func OracleVerdict(statement string, parse func(text string) error) (string, error) {
-	return oracleVerdict(statement, parse, 0)
+	return oracleVerdict(statement, "", parse, 0, false)
 }
 
-func oracleVerdict(statement string, parse func(text string) error, depth int) (string, error) {
+// OracleVerdictOnly reads Oracle's answer as a coarse accept/reject verdict
+// for judge revision 5 using the default scratch schema OMNI_JUDGE.
+func OracleVerdictOnly(statement string, parse func(text string) error) (string, error) {
+	return OracleVerdictOnlySchema(statement, "OMNI_JUDGE", parse)
+}
+
+// OracleVerdictOnlySchema reads Oracle's answer as a coarse accept/reject
+// verdict for judge revision 5, using schema as the connected scratch account
+// name for schema-qualified stand-in rewrites (such as ORACLE_PARSER_REF_DSN
+// sessions connected as a non-OMNI_JUDGE scratch user). It applies judge
+// revision 5's stand-ins, error-code classifications, ORA-00600 MV-log
+// stand-in, and unclosed-'(' check while keeping OracleVerdict's strict error
+// propagation for non-server errors and probes taken by the server, and strips
+// any @<byte> offset from rejections.
+func OracleVerdictOnlySchema(statement, schema string, parse func(text string) error) (string, error) {
+	v, err := oracleVerdict(statement, schema, parse, 0, true)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(v, Reject+"@") {
+		v = Reject
+	}
+	return v, nil
+}
+
+func oracleVerdict(statement, schema string, parse func(text string) error, depth int, rev5 bool) (string, error) {
+	var masked string
+	if rev5 {
+		masked = maskSQLCommentsAndQuotes(statement)
+	}
+	// acceptEarlyError returns Accept unless judge rev 5 sees an unclosed '('
+	// (outside PL/SQL conditional compilation $IF branches), which means Oracle
+	// raised an early lookup, privilege, or semantic error before reaching EOF.
+	acceptEarlyError := func() (string, error) {
+		if rev5 && !reCondComp.MatchString(masked) && hasUnclosedParen(statement) {
+			return Reject, nil
+		}
+		return Accept, nil
+	}
+
 	err := parse(statement)
 	if err != nil && oracleFailed(err) {
 		// Again, on the new session database/sql opens for a dropped one.
 		if err = parse(statement); err != nil && oracleFailed(err) {
+			if rev5 && depth < maxOracleStandIns {
+				if standIn, ok := oracleFailureStandInRev5(statement, err); ok {
+					return oracleVerdict(standIn, schema, parse, depth+1, rev5)
+				}
+			}
 			return Reject, nil
 		}
 	}
 	if err == nil {
+		// Preserve successful server parses (including PL/SQL $IF branches that
+		// Oracle skipped), except Oracle 23ai's CREATE INMEMORY JOIN GROUP
+		// parser bug that succeeds without a closing ')'.
+		if rev5 && reStandInInmemJoinGroup.MatchString(statement) && hasUnclosedParen(statement) {
+			return Reject, nil
+		}
 		return Accept, nil
 	}
 	e, ok := readOracle(err)
 	if !ok {
 		return "", err
 	}
+	if rev5 && (e.code == 22324 || e.code == 2425 || e.code == 2426) {
+		// ORA-22324 (ALTER TYPE compilation errors) and ORA-02425/02426
+		// (CREATE SCHEMA inner CREATE TABLE / GRANT wrappers) carry their
+		// underlying diagnostics in e.compile (extracted from
+		// DBMS_UTILITY.FORMAT_ERROR_STACK in OracleParse). Reject only when
+		// an underlying error is a syntax/structural error (such as PLS-00103,
+		// PLS-00716, ORA-00922, or ORA-00933), so fixture-dependent semantic
+		// failures (PLS-00410, PLS-00201, ORA-00955, ORA-01917) stay accepted.
+		for _, c := range e.compile {
+			if oracleCompileSyntax(c, statement, rev5) {
+				return Reject, nil
+			}
+		}
+		return acceptEarlyError()
+	}
 	if e.code == 24344 || e.code == 6550 {
 		if len(e.compile) == 0 {
 			return "", fmt.Errorf("Oracle answered ORA-%05d and lists no PL/SQL error: %w", e.code, err)
 		}
+		if rev5 && depth < maxOracleStandIns && e.code == 6550 {
+			hasMissingIdent := false
+			for _, c := range e.compile {
+				if c == "PLS-00201" {
+					hasMissingIdent = true
+					break
+				}
+			}
+			if hasMissingIdent {
+				if m := reStandInRefMissingType.FindStringSubmatchIndex(statement); m != nil {
+					rewritten, _ := applyStandInEdits(statement, []standInEdit{{m[2], m[3], "y"}})
+					return oracleVerdict(rewritten, schema, parse, depth+1, rev5)
+				}
+			}
+		}
 		for _, c := range e.compile {
-			if oracleCompileSyntax(c) {
+			if oracleCompileSyntax(c, statement, rev5) {
 				if e.code == 6550 && e.position >= 0 && e.position <= len(statement) {
 					return RejectAt(e.position), nil
 				}
 				return Reject, nil
 			}
 		}
-		return Accept, nil
+		return acceptEarlyError()
 	}
 	if depth < maxOracleStandIns {
-		if standIn, mapPos, ok := oracleStandIn(statement, e); ok {
-			v, err := oracleVerdict(standIn, parse, depth+1)
+		var (
+			standIn string
+			mapPos  func(int) int
+			ok      bool
+		)
+		if rev5 {
+			standIn, mapPos, ok = oracleStandInRev5(statement, schema, e)
+		} else {
+			standIn, mapPos, ok = oracleStandIn(statement, e)
+		}
+		if ok {
+			v, err := oracleVerdict(standIn, schema, parse, depth+1, rev5)
 			if err != nil {
 				return "", err
 			}
@@ -568,24 +1324,41 @@ func oracleVerdict(statement string, parse func(text string) error, depth int) (
 		}
 	}
 	if oracleAfterParse[e.code] || e.position == 0 && oracleKindChecked[e.code] {
-		return Accept, nil
+		return acceptEarlyError()
+	}
+	if rev5 {
+		if e.code == 1501 && e.position == 0 {
+			return acceptEarlyError()
+		}
+		if e.code == 29538 && e.position == 0 && reRawSourceHead.MatchString(masked) && reRawSourceAs.MatchString(masked) {
+			return acceptEarlyError()
+		}
+		if e.code == 439 && e.position == 0 && reCreateMLEModule.MatchString(masked) {
+			return acceptEarlyError()
+		}
+		if e.code == 15260 && e.position == 0 && strings.HasSuffix(strings.TrimSpace(masked), ",") {
+			return Reject, nil
+		}
 	}
 	reject := Reject
 	if e.position >= 0 && e.position <= len(statement) {
 		reject = RejectAt(e.position)
 	}
 	byCode := func() string {
-		if oracleParserCode(e.code) {
+		if oracleParserCode(e.code, rev5) ||
+			(rev5 && e.code == 2014 && reRowLimitingForUpdate.MatchString(masked)) ||
+			(rev5 && e.code == 3001 && isRev5StructuralUnimplemented(masked)) {
 			return reject
 		}
-		return Accept
+		v, _ := acceptEarlyError()
+		return v
 	}
 	if e.position == len(statement) {
 		// Past the last token nothing is looked up: what the parser wanted
 		// is missing, whatever the code, unless it is a check Oracle makes
 		// of the whole statement after the parse.
-		if oracleCheckedAtEnd[e.code] {
-			return Accept, nil
+		if oracleCheckedAtEnd[e.code] && !(rev5 && isRev5RejectedAtEnd(e.code, masked)) {
+			return acceptEarlyError()
 		}
 		return reject, nil
 	}
@@ -606,7 +1379,7 @@ func oracleVerdict(statement string, parse func(text string) error, depth int) (
 		// the first answer's code decides.
 		return byCode(), nil
 	case p.position == len(statement)+oracleTail:
-		return Accept, nil
+		return acceptEarlyError()
 	}
 	return byCode(), nil
 }
@@ -614,8 +1387,9 @@ func oracleVerdict(statement string, parse func(text string) error, depth int) (
 // oracleCompileSyntax reports whether a PL/SQL compilation error is a
 // syntax error: the PL/SQL parser's (PLS-00100 to 00199), or the SQL
 // parser's on a statement inside the PL/SQL (an ORA-nnnnn of
-// oracleParserCode).
-func oracleCompileSyntax(e string) bool {
+// oracleParserCode). Judge revision 5 also classifies the structural PL/SQL
+// compiler errors in oracleCompileStructuralRev5 and ORA-32551.
+func oracleCompileSyntax(e, statement string, rev5 bool) bool {
 	kind, num, ok := strings.Cut(e, "-")
 	n, err := strconv.Atoi(num)
 	if !ok || err != nil {
@@ -623,9 +1397,44 @@ func oracleCompileSyntax(e string) bool {
 	}
 	switch kind {
 	case "PLS":
-		return n >= 100 && n <= 199
+		if n >= 100 && n <= 199 {
+			return true
+		}
+		if rev5 && n == 306 {
+			return reInquiryNamedArg.MatchString(maskSQLCommentsAndQuotes(statement))
+		}
+		if rev5 && n == 550 {
+			return hasTextualNonCharCharset(statement)
+		}
+		return rev5 && oracleCompileStructuralRev5[n]
 	case "ORA":
-		return oracleParserCode(n)
+		if rev5 && n == 32551 {
+			return true
+		}
+		return oracleParserCode(n, rev5)
+	}
+	return false
+}
+
+// hasTextualNonCharCharset reports whether statement applies a CHARACTER SET
+// clause to a type that is textually non-character without database metadata:
+// REF <type>, %ROWTYPE, a predefined non-character SQL/PL/SQL type, or
+// <ident>%CHARSET where <ident> is declared in the statement itself with a
+// predefined non-character type. Metadata-dependent targets like t.a%TYPE or
+// a user object type return false so semantic PLS-00550 failures stay accepted.
+func hasTextualNonCharCharset(statement string) bool {
+	masked := maskSQLCommentsAndQuotes(statement)
+	if reCharsetRefOrRowtype.MatchString(masked) || reCharsetPredefinedNonChar.MatchString(masked) {
+		return true
+	}
+	for _, m := range reCharsetAttr.FindAllStringSubmatch(masked, -1) {
+		ident := m[1]
+		declRe := regexp.MustCompile(`(?i)(?:^|[(\s,;])` + regexp.QuoteMeta(ident) + `\s+(?:(?:IN\s+OUT|IN|OUT|NOCOPY|CONSTANT)\s+)*([A-Za-z_][A-Za-z0-9_$#]*(?:\s+PRECISION)?)`)
+		for _, dm := range declRe.FindAllStringSubmatch(masked, -1) {
+			if reNonCharTypeWord.MatchString(dm[1]) {
+				return true
+			}
+		}
 	}
 	return false
 }
