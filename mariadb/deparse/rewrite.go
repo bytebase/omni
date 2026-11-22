@@ -963,9 +963,18 @@ func lookupResolvedColumn(col *ast.ColumnRef, sc *fromScope) *ResolverColumn {
 		return nil
 	}
 	for cur := sc; cur != nil; cur = cur.parent {
-		for _, entry := range cur.tables {
+		for i, entry := range cur.tables {
 			if col.Table != "" && !strings.EqualFold(entry.Name, col.Table) {
 				continue
+			}
+			if col.Schema != "" {
+				entrySchema := ""
+				if i < len(cur.schemas) {
+					entrySchema = cur.schemas[i]
+				}
+				if entrySchema == "" || !strings.EqualFold(entrySchema, col.Schema) {
+					continue
+				}
 			}
 			if entry.Table == nil {
 				continue

@@ -959,6 +959,8 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
 		Lookup:              lookup,
+		SchemaLookup:        c.schemaTableLookup(db),
+		DefaultDB:           db.Name,
 		DefaultCharset:      charset,
 		ConnectionCollation: c.session.CollationConnection,
 		Source:              source,
@@ -1058,6 +1060,21 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 		}
 	}
 	return cols
+}
+
+// schemaTableLookup returns a schema-aware lookup function that resolves
+// schema-qualified references against the referenced database in c.
+func (c *Catalog) schemaTableLookup(defaultDB *Database) func(schema, tableName string) *deparse.ResolverTable {
+	return func(schema, tableName string) *deparse.ResolverTable {
+		targetDB := defaultDB
+		if schema != "" {
+			targetDB = c.GetDatabase(schema)
+		}
+		if targetDB == nil {
+			return nil
+		}
+		return tableLookupForDB(targetDB)(tableName)
+	}
 }
 
 // tableLookupForDB returns a deparse.TableLookup function that resolves table

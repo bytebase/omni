@@ -459,3 +459,33 @@ func TestSequenceRelationAndTemporalPrecision(t *testing.T) {
 		})
 	}
 }
+
+func TestCrossDBTemporalPrecisionAndHavingAliasShadowing(t *testing.T) {
+	c, err := LoadSQL(`
+		CREATE DATABASE db1;
+		CREATE DATABASE db2;
+		CREATE TABLE db1.t (c TIME, x INT);
+		CREATE TABLE db2.t (c TIME(3));
+		USE db1;
+	`)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// Cross-DB TIME(db2.t.c) must use db2.t.c's TIME(3) precision, not db1.t.c's TIME(0).
+	if results, err := c.Exec("CREATE VIEW v_xtime AS SELECT TIME(db2.t.c) AS x FROM db2.t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("v_xtime failed: parse=%v results=%+v", err, results)
+	}
+	if got := c.ShowCreateView("db1", "v_xtime"); !strings.Contains(got, "cast(`db2`.`t`.`c` as time(3))") {
+		t.Errorf("ShowCreateView(v_xtime) = %q, want cast(`db2`.`t`.`c` as time(3))", got)
+	}
+
+	// Local HAVING alias in a subquery must shadow outer column t.x rather than
+	// qualifying as `t`.`x`.
+	if results, err := c.Exec("CREATE VIEW v_having_shadow AS SELECT (SELECT 1 AS x HAVING x > 0) AS y FROM t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("v_having_shadow failed: parse=%v results=%+v", err, results)
+	}
+	if got := c.ShowCreateView("db1", "v_having_shadow"); !strings.Contains(got, "having `x` > 0") || strings.Contains(got, "having `t`.`x`") {
+		t.Errorf("ShowCreateView(v_having_shadow) = %q, want local alias `having `x` > 0`", got)
+	}
+}

@@ -25,6 +25,12 @@ type TableLookup func(tableName string) *ResolverTable
 // Resolver resolves column references in a SelectStmt using catalog metadata.
 type Resolver struct {
 	Lookup TableLookup
+	// SchemaLookup optionally resolves schema-qualified table references
+	// against the referenced database rather than the default database.
+	SchemaLookup func(schema, tableName string) *ResolverTable
+	// DefaultDB is the name of the default database used for unqualified table
+	// references when checking schema-qualified column references.
+	DefaultDB string
 	// DefaultCharset is the database's default character set (e.g., "utf8mb4", "latin1").
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
@@ -47,6 +53,9 @@ type Resolver struct {
 	// aliasColumnsOnly limits that to a target that is a column reference,
 	// which is ORDER BY's rule where GROUP BY takes any target.
 	aliasColumnsOnly bool
+	// havingTargets holds the query whose HAVING clause is being resolved so
+	// local SELECT output aliases shadow enclosing correlated scopes.
+	havingTargets *ast.SelectStmt
 	// activeCTEs holds CTEs visible in the current query scope so correlated
 	// subqueries can resolve them.
 	activeCTEs map[string]*ResolverTable
@@ -58,15 +67,25 @@ func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
 	// A query of its own resolves against its own target list, so the one an
 	// outer ordering item was being resolved for does not reach into it.
 	saved := r.aliasTargets
+	savedHaving := r.havingTargets
 	r.aliasTargets = nil
-	defer func() { r.aliasTargets = saved }()
+	r.havingTargets = nil
+	defer func() {
+		r.aliasTargets = saved
+		r.havingTargets = savedHaving
+	}()
 	return r.resolveWithScope(stmt, nil, nil)
 }
 
 func (r *Resolver) resolveSubquery(stmt *ast.SelectStmt, parentScope *fromScope) {
 	saved := r.aliasTargets
+	savedHaving := r.havingTargets
 	r.aliasTargets = nil
-	defer func() { r.aliasTargets = saved }()
+	r.havingTargets = nil
+	defer func() {
+		r.aliasTargets = saved
+		r.havingTargets = savedHaving
+	}()
 	r.resolveWithScope(stmt, r.activeCTEs, parentScope)
 }
 
@@ -288,6 +307,8 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
+				SchemaLookup:   r.SchemaLookup,
+				DefaultDB:      r.DefaultDB,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
@@ -343,7 +364,10 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 	// Resolve HAVING
 	if stmt.Having != nil {
+		savedHaving := r.havingTargets
+		r.havingTargets = stmt
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
+		r.havingTargets = savedHaving
 	}
 
 	// Resolve WINDOW clause, each entry as the specification it is
@@ -378,7 +402,30 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		table := r.Lookup(t.Name)
+		var table *ResolverTable
+		schema := t.Schema
+		if t.Schema != "" {
+			if r.SchemaLookup != nil {
+				table = r.SchemaLookup(t.Schema, t.Name)
+			} else if r.Lookup != nil {
+				// Without a schema-aware lookup, strip column types so cross-db
+				// references never borrow precision metadata from another DB.
+				if found := r.Lookup(t.Name); found != nil {
+					cols := make([]ResolverColumn, len(found.Columns))
+					for i, c := range found.Columns {
+						cols[i] = ResolverColumn{Name: c.Name, Position: c.Position}
+					}
+					table = &ResolverTable{Name: found.Name, Columns: cols}
+				}
+			}
+		} else {
+			if r.Lookup != nil {
+				table = r.Lookup(t.Name)
+			}
+			if _, isCTE := r.activeCTEs[strings.ToLower(t.Name)]; !isCTE {
+				schema = r.DefaultDB
+			}
+		}
 		if table == nil {
 			return
 		}
@@ -386,7 +433,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
-		sc.add(t, effectiveName, table)
+		sc.addWithSchema(t, schema, effectiveName, table)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -724,6 +771,13 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 				}
 				// A local non-column alias in ORDER BY shadows any outer column
 				// of the same name and is kept as the alias.
+				return col
+			}
+		}
+		// In HAVING, a local SELECT output alias shadows any outer-scope column
+		// and stays unqualified as the output alias.
+		if r.havingTargets != nil {
+			if _, ok := orderByTargetAlias(r.havingTargets, col); ok {
 				return col
 			}
 		}
