@@ -423,20 +423,25 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwDENY:
 		return p.parseDenyStmt()
 	case kwUSE:
-		// Check for USE FEDERATION
-		{
-			next := p.peekNext()
-			if next.Type == kwFEDERATION {
-				loc := p.pos()
-				p.advance() // consume USE
+		// Check for USE FEDERATION ... vs bare USE FEDERATION (a database named FEDERATION).
+		if p.peekNext().Type == kwFEDERATION {
+			loc := p.pos()
+			p.advance() // consume USE
+			if after := p.peekNext(); after.Type == tokEOF || after.Type == ';' || after.Type == kwGO {
+				name := p.cur.Str
 				p.advance() // consume FEDERATION
-				stmt, err := p.parseUseFederationStmt()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Loc.Start = loc
-				return stmt, nil
+				return &nodes.UseStmt{
+					Database: name,
+					Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+				}, nil
 			}
+			p.advance() // consume FEDERATION
+			stmt, err := p.parseUseFederationStmt()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Loc.Start = loc
+			return stmt, nil
 		}
 		return p.parseUseStmt()
 	case kwPRINT:

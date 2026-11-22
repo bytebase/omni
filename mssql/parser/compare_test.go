@@ -6088,6 +6088,12 @@ func TestParseFulltextRefusedForms(t *testing.T) {
 		"CREATE FULLTEXT STOPLIST s",
 		"DROP FULLTEXT STOPLIST s",
 		"ALTER FULLTEXT STOPLIST s DROP ALL",
+		"ALTER FULLTEXT STOPLIST s ADD 'a' LANGUAGE 'English'",
+		"ALTER FULLTEXT STOPLIST s ADD N'a' LANGUAGE 1033",
+		"ALTER FULLTEXT STOPLIST s ADD 'a' LANGUAGE a",
+		"ALTER FULLTEXT STOPLIST s ADD 'a' LANGUAGE 0x00",
+		"ALTER FULLTEXT STOPLIST s DROP 'a' LANGUAGE 'English'",
+		"ALTER FULLTEXT STOPLIST s DROP ALL LANGUAGE 'English'",
 		"CREATE SEARCH PROPERTY LIST l",
 		"DROP SEARCH PROPERTY LIST l",
 		"ALTER SEARCH PROPERTY LIST l DROP 'p'",
@@ -6153,13 +6159,13 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			action string
 		}{
 			// ADD stopword
-			{`ALTER FULLTEXT STOPLIST CombinedList ADD 'en' LANGUAGE 'Spanish'`, "CombinedList", "ADD"},
+			{`ALTER FULLTEXT STOPLIST CombinedList ADD 'en' LANGUAGE 'Spanish';`, "CombinedList", "ADD"},
 			// ADD with N prefix
-			{`ALTER FULLTEXT STOPLIST sl1 ADD N'the' LANGUAGE 1033`, "sl1", "ADD"},
+			{`ALTER FULLTEXT STOPLIST sl1 ADD N'the' LANGUAGE 1033;`, "sl1", "ADD"},
 			// DROP single stopword
-			{`ALTER FULLTEXT STOPLIST sl1 DROP 'en' LANGUAGE 'French'`, "sl1", "DROP"},
+			{`ALTER FULLTEXT STOPLIST sl1 DROP 'en' LANGUAGE 'French';`, "sl1", "DROP"},
 			// DROP ALL LANGUAGE
-			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English'`, "sl1", "DROP"},
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English';`, "sl1", "DROP"},
 			// DROP ALL
 			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL;`, "sl1", "DROP"},
 		}
@@ -19478,7 +19484,7 @@ func TestParseIndexBnfReview(t *testing.T) {
 
 	// ALTER FULLTEXT STOPLIST DROP N'stopword'
 	t.Run("alter fulltext stoplist drop n-string", func(t *testing.T) {
-		sql := "ALTER FULLTEXT STOPLIST sl1 DROP N'the' LANGUAGE 1033"
+		sql := "ALTER FULLTEXT STOPLIST sl1 DROP N'the' LANGUAGE 1033;"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.AlterFulltextStoplistStmt)
 		if stmt.Action != "DROP" {
@@ -23835,6 +23841,50 @@ func TestParseFederationStatements(t *testing.T) {
 		stmt := result.Items[0].(*ast.UseFederationStmt)
 		if stmt.Filtering {
 			t.Errorf("expected Filtering=false")
+		}
+	})
+
+	// Bare USE FEDERATION targets a database named FEDERATION (not UseFederationStmt)
+	t.Run("use_database_named_federation", func(t *testing.T) {
+		for _, sql := range []string{"USE FEDERATION", "USE FEDERATION;", "USE [FEDERATION]"} {
+			result := ParseAndCheck(t, sql)
+			stmt, ok := result.Items[0].(*ast.UseStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.UseStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Database != "FEDERATION" {
+				t.Errorf("Parse(%q): Database = %q, want FEDERATION", sql, stmt.Database)
+			}
+		}
+	})
+
+	// Refused USE FEDERATION near-misses (TSql160.g:13647 requires every clause)
+	t.Run("use_federation_refused_forms", func(t *testing.T) {
+		for _, sql := range []string{
+			"USE FEDERATION WITH RESET",
+			"USE FEDERATION ROOT RESET",
+			"USE FEDERATION ROOT WITH",
+			"USE FEDERATION ROOT",
+			"USE FEDERATION ROUND_ROBIN WITH RESET",
+			"USE FEDERATION (a = 1) WITH FILTERING = ON, RESET",
+			"USE FEDERATION a a = 1) WITH FILTERING = ON, RESET",
+			"USE FEDERATION a (= 1) WITH FILTERING = ON, RESET",
+			"USE FEDERATION a (a 1) WITH FILTERING = ON, RESET",
+			"USE FEDERATION a (a =) WITH FILTERING = ON, RESET",
+			"USE FEDERATION a (a = 1 WITH FILTERING = ON, RESET",
+			"USE FEDERATION a (a = 1) FILTERING = ON, RESET",
+			"USE FEDERATION a (a = 1) WITH = ON, RESET",
+			"USE FEDERATION a (a = 1) WITH FILTERING ON, RESET",
+			"USE FEDERATION a (a = 1) WITH FILTERING =, RESET",
+			"USE FEDERATION a (a = 1) WITH FILTERING = ON RESET",
+			"USE FEDERATION a (a = 1) WITH FILTERING = ON",
+			"USE FEDERATION a (a = 1) WITH FILTERING =",
+			"USE FEDERATION a (a = 1) WITH FILTERING = ON, [RESET]",
+			"USE FEDERATION [ROOT] WITH RESET",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want syntax error, got nil", sql)
+			}
 		}
 	})
 }

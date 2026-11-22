@@ -625,9 +625,9 @@ reject	reject	engine	lastStatement/alterIdentifierStatement!swap	ALWAYS MATERIAL
 accept	reject	engine	lastStatement/useFederationStatement	USE FEDERATION ROOT WITH RESET
 reject	reject	engine	lastStatement/useFederationStatement!drop-1	FEDERATION ROOT WITH RESET
 reject	reject	engine	lastStatement/useFederationStatement!drop-2	USE ROOT WITH RESET
-accept	reject	engine	lastStatement/useFederationStatement!drop-3	USE FEDERATION WITH RESET
-accept	reject	engine	lastStatement/useFederationStatement!drop-4	USE FEDERATION ROOT RESET
-accept	reject	engine	lastStatement/useFederationStatement!drop-5	USE FEDERATION ROOT WITH
+reject	reject	engine	lastStatement/useFederationStatement!drop-3	USE FEDERATION WITH RESET
+reject	reject	engine	lastStatement/useFederationStatement!drop-4	USE FEDERATION ROOT RESET
+reject	reject	engine	lastStatement/useFederationStatement!drop-5	USE FEDERATION ROOT WITH
 reject	reject	engine	lastStatement/useFederationStatement!insert	USE FEDERATION ROOT WITH RESET zzz
 reject	reject	engine	lastStatement/useFederationStatement!swap	USED FEDERATION ROOT WITH RESET
 accept	accept	engine	lastStatement/createOrAlterStatements	CREATE OR ALTER PROC a AS
@@ -4112,7 +4112,7 @@ reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltext
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-4	ALTER FULLTEXT STOPLIST a DROP
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!insert	ALTER FULLTEXT STOPLIST a DROP ALL zzz
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!swap	ALTER FULLTEXT STREAM a DROP ALL
-accept	reject	engine	fulltextStoplistAction/addFulltextStoplistAction	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-1	ALTER FULLTEXT STOPLIST a 'a' LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-2	ALTER FULLTEXT STOPLIST a ADD LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-3	ALTER FULLTEXT STOPLIST a ADD 'a' 'a'
@@ -4121,18 +4121,18 @@ reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!insert	ALT
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!swap	ALTER FULLTEXT STOPLIST a ADMIN 'a' LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction!swap	ALTER FULLTEXT STOPLIST a DROP_INDEX ALL
-accept	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)!swap	ALTER FULLTEXT STOPLIST a ADD 'a' LAST_NODE 'a'
-accept	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
-accept	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1
+reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1 zzz
-accept	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE a
+reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE a
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/identifier!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE a zzz
-accept	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00
+reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00 zzz
-accept	reject	engine	addFulltextStoplistAction/Add_stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	addFulltextStoplistAction/Add_stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction/Drop_(stringLiteral_languageTerm|(All_(lan~e2a840b3)	ALTER FULLTEXT STOPLIST a DROP ALL
-accept	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a'
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-1	ALTER FULLTEXT STOPLIST a DROP LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-3	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE
@@ -4141,7 +4141,7 @@ reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?!swap	ALTER FULLTEXT STOPLIST a DROP ALLOW_CONNECTIONS
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/%empty	ALTER FULLTEXT STOPLIST a DROP ALL
-accept	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a'
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL 'a'
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a' zzz
@@ -6134,26 +6134,26 @@ accept	accept	engine	lineNoStatement/LineNo_integer	LINENO 1
 accept	accept	engine	useStatement/Use_identifier	USE a
 accept	reject	engine	useFederationStatement/Use_FEDERATION_(ROOT_With|identifier_LeftParenthesis~88~a8bc11d5	USE FEDERATION ROOT WITH RESET
 accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With	USE FEDERATION ROOT WITH RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!truncate	USE FEDERATION ROOT
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!truncate	USE FEDERATION ROOT
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!insert	USE FEDERATION ROOT WITH zzz RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!swap	USE FEDERATION ROUND_ROBIN WITH RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/ROOT_With!swap	USE FEDERATION ROUND_ROBIN WITH RESET
 accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-1	USE FEDERATION(a = 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-2	USE FEDERATION a a = 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-3	USE FEDERATION a(= 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-4	USE FEDERATION a(a 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-5	USE FEDERATION a(a =) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-6	USE FEDERATION a(a = 1 WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-7	USE FEDERATION a(a = 1) FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-8	USE FEDERATION a(a = 1) WITH = ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-9	USE FEDERATION a(a = 1) WITH FILTERING ON, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-10	USE FEDERATION a(a = 1) WITH FILTERING =, RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-11	USE FEDERATION a(a = 1) WITH FILTERING = ON RESET
-accept	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!truncate	USE FEDERATION a(a = 1) WITH FILTERING = ON
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-1	USE FEDERATION(a = 1) WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-2	USE FEDERATION a a = 1) WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-3	USE FEDERATION a(= 1) WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-4	USE FEDERATION a(a 1) WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-5	USE FEDERATION a(a =) WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-6	USE FEDERATION a(a = 1 WITH FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-7	USE FEDERATION a(a = 1) FILTERING = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-8	USE FEDERATION a(a = 1) WITH = ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-9	USE FEDERATION a(a = 1) WITH FILTERING ON, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-10	USE FEDERATION a(a = 1) WITH FILTERING =, RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!drop-11	USE FEDERATION a(a = 1) WITH FILTERING = ON RESET
+reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!truncate	USE FEDERATION a(a = 1) WITH FILTERING = ON
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!insert	USE FEDERATION a(a = 1) WITH FILTERING = ON, zzz RESET
 reject	reject	engine	useFederationStatement(ROOT_With|identifier_LeftParenthesis~8848d25b)/identifier_LeftParenthesis_identifier_EqualsSign_expres~aa8758b1!swap	USE FEDERATION a(a = 1) WITHIN FILTERING = ON, RESET
 accept	reject	engine	useFederationStatement(On|Off)/On	USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET
-accept	reject	engine	useFederationStatement(On|Off)/On!truncate	USE FEDERATION a(a = 1) WITH FILTERING =
+reject	reject	engine	useFederationStatement(On|Off)/On!truncate	USE FEDERATION a(a = 1) WITH FILTERING =
 reject	reject	engine	useFederationStatement(On|Off)/On!insert	USE FEDERATION a(a = 1) WITH FILTERING = ON zzz, RESET
 reject	reject	engine	useFederationStatement(On|Off)/On!swap	USE FEDERATION a(a = 1) WITH FILTERING = ONLINE, RESET
 accept	reject	engine	useFederationStatement(On|Off)/Off	USE FEDERATION a(a = 1) WITH FILTERING = OFF, RESET
