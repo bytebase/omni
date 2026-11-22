@@ -47,6 +47,11 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "case expression parenthesized value and case column",
+			sql:  `SELECT CASE (x) WHEN 1 THEN 'a' ELSE 'b' END, case, case(1, 2) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "select all and distinct as identifier prefixes",
 			sql:  `SELECT all.x, distinct.x, all[0], distinct::STRING FROM t AS all`,
 			kind: StmtQuery,
@@ -420,6 +425,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested struct with named arg",
 			sql:  "SELECT " + strings.Repeat("STRUCT(", depth) + "1" + strings.Repeat(", k => 1)", depth),
+		},
+		{
+			name: "nested case function",
+			sql:  "SELECT " + strings.Repeat("CASE(", depth) + "x" + strings.Repeat(")", depth),
 		},
 		{
 			name: "nested parens",

@@ -518,13 +518,21 @@ func (p *Parser) parsePrimaryAtom() error {
 		return nil
 	}
 
-	// CASE ... END
+	// CASE ... END (searched or simple) vs ordinary function call CASE(...) or column `case`.
 	if k == kwCASE {
-		cp := p.save()
-		if err := p.parseCaseExpression(); err == nil {
-			return nil
+		if p.peek(1).Kind == kwWHEN {
+			return p.parseCaseExpression()
 		}
-		p.restore(cp)
+		if p.peek(1).Kind == tokLParen {
+			return p.parseCaseOrCaseFuncCall()
+		}
+		if !p.isCaseColumnReference() {
+			cp := p.save()
+			if err := p.parseCaseExpression(); err == nil {
+				return nil
+			}
+			p.restore(cp)
+		}
 	}
 
 	// Special keyword expressions that take parentheses.
@@ -951,6 +959,92 @@ func (p *Parser) parseParenthesizedPrimary() error {
 	return err
 }
 
+func (p *Parser) isCaseColumnReference() bool {
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow, kwAS,
+		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER,
+		kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwTHEN, kwELSE, kwEND:
+		return true
+	}
+	return false
+}
+
+// parseCaseOrCaseFuncCall parses `CASE(...)` (either a function call or a simple
+// `CASE (expr) WHEN ... END` expression) in a single pass without reparsing the
+// parenthesized argument.
+func (p *Parser) parseCaseOrCaseFuncCall() error {
+	if _, err := p.expect(kwCASE); err != nil {
+		return err
+	}
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
+		return p.parseFunctionCallSuffixes()
+	}
+	if p.isFunctionSetQuantifier() {
+		p.advance()
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+	}
+	isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
+	if isNamed {
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+	}
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
+		if p.cur().Kind == kwWHEN {
+			return p.parseCaseWhenTail()
+		}
+		return p.parseFunctionCallSuffixes()
+	}
+	// Multi-argument CASE(a, b, ...) function call or row constructor CASE (a, b) WHEN ... END.
+	for p.match(tokComma) {
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+	}
+	if _, err := p.expect(tokRParen); err != nil {
+		return err
+	}
+	if p.cur().Kind == kwWHEN {
+		return p.parseCaseWhenTail()
+	}
+	return p.parseFunctionCallSuffixes()
+}
+
 func (p *Parser) parseCaseExpression() error {
 	if _, err := p.expect(kwCASE); err != nil {
 		return err
@@ -960,6 +1054,10 @@ func (p *Parser) parseCaseExpression() error {
 			return err
 		}
 	}
+	return p.parseCaseWhenTail()
+}
+
+func (p *Parser) parseCaseWhenTail() error {
 	whenCount := 0
 	for p.match(kwWHEN) {
 		if err := p.parseExpression(); err != nil {
