@@ -1,4 +1,4 @@
-# pin: default mysql:8.0.46 sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b mysql-8.0.46
+# pin: parser mysql:8.0.46 sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b mysql-8.0.46 judge:2
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	start_entry/sql_statement	
 reject	reject	engine	start_entry/sql_statement!insert	zzz
@@ -4167,7 +4167,7 @@ accept	accept	engine	fulltext_index_options/fulltext_index_options_fulltext_inde
 reject	reject	engine	fulltext_index_options/fulltext_index_options_fulltext_index_option!insert	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE zzz;
 reject	reject	engine	fulltext_index_options/fulltext_index_options_fulltext_index_option!swap	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WAIT VISIBLE;
 accept	accept	engine	fulltext_index_option/common_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
-accept	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
+accept	accept	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-1	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) PARSER utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-2	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH utf8mb4;
 reject	reject	engine	fulltext_index_option/WITH_PARSER_SYM_IDENT_sys!drop-3	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) WITH PARSER;
@@ -8508,12 +8508,12 @@ reject	reject	engine	values_row_list/values_row_list_,_row_value_explicit!insert
 reject	reject	engine	values_row_list/values_row_list_,_row_value_explicit!swap	VALUES ROWS(), ROW();
 accept	accept	engine	values_row_list/row_value_explicit	VALUES ROW();
 reject	reject	engine	values_row_list/row_value_explicit!swap	VALUES ROWS();
-accept	accept	engine	equal/EQ	SET utf8mb4 = utf8mb4;
-reject	reject	engine	equal/EQ!drop-1	SET utf8mb4 utf8mb4;
-reject	reject	engine	equal/EQ!truncate	SET utf8mb4
-reject	accept	engine	equal/EQ!insert	SET utf8mb4 = zzz utf8mb4;
-accept	accept	engine	equal/SET_VAR	SET utf8mb4 := utf8mb4;
-reject	accept	engine	equal/SET_VAR!insert	SET utf8mb4 := zzz utf8mb4;
+accept	accept	engine	equal/EQ	SET autocommit = utf8mb4;
+reject	reject	engine	equal/EQ!drop-1	SET autocommit utf8mb4;
+reject	reject	engine	equal/EQ!truncate	SET autocommit
+reject	reject	engine	equal/EQ!insert	SET autocommit = zzz utf8mb4;
+accept	accept	engine	equal/SET_VAR	SET autocommit := utf8mb4;
+reject	reject	engine	equal/SET_VAR!insert	SET autocommit := zzz utf8mb4;
 accept	accept	engine	opt_equal/%empty	ALTER DATABASE COLLATE utf8mb4;
 accept	accept	engine	opt_equal/%empty!insert	ALTER DATABASE COLLATE zzz utf8mb4;
 accept	accept	engine	opt_equal/equal	ALTER DATABASE COLLATE = utf8mb4;
@@ -10566,13 +10566,13 @@ reject	reject	engine	start_option_value_list/TRANSACTION_SYM_transaction_charact
 reject	reject	engine	start_option_value_list/TRANSACTION_SYM_transaction_characteristics!truncate	SET TRANSACTION READ
 reject	reject	engine	start_option_value_list/TRANSACTION_SYM_transaction_characteristics!insert	SET TRANSACTION READ ONLY zzz;
 reject	reject	engine	start_option_value_list/TRANSACTION_SYM_transaction_characteristics!swap	SET TRIGGER READ ONLY;
-accept	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type	SET GLOBAL utf8mb4 = utf8mb4;
+accept	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type	SET GLOBAL autocommit = utf8mb4;
 reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-2	SET GLOBAL = utf8mb4;
-reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-3	SET GLOBAL utf8mb4 utf8mb4;
-reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-4	SET GLOBAL utf8mb4 =;
-reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!truncate	SET GLOBAL utf8mb4 =
-reject	accept	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!insert	SET GLOBAL utf8mb4 = utf8mb4 zzz;
-reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!swap	SET GRANT utf8mb4 = utf8mb4;
+reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-3	SET GLOBAL autocommit utf8mb4;
+reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!drop-4	SET GLOBAL autocommit =;
+reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!truncate	SET GLOBAL autocommit =
+reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!insert	SET GLOBAL autocommit = utf8mb4 zzz;
+reject	reject	engine	start_option_value_list/option_type_start_option_value_list_following_option_type!swap	SET GRANT autocommit = utf8mb4;
 accept	accept	engine	start_option_value_list/PASSWORD_equal_TEXT_STRING_password_opt_replace_password_opt_retain_current_password	SET PASSWORD = 's';
 reject	reject	engine	start_option_value_list/PASSWORD_equal_TEXT_STRING_password_opt_replace_password_opt_retain_current_password!drop-1	SET = 's';
 reject	reject	engine	start_option_value_list/PASSWORD_equal_TEXT_STRING_password_opt_replace_password_opt_retain_current_password!drop-2	SET PASSWORD 's';
@@ -10669,7 +10669,7 @@ accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num	SET 
 accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!truncate	SET RESOURCE GROUP utf8mb4 FOR 1
 reject	reject	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!insert	SET RESOURCE GROUP utf8mb4 FOR 1 1 zzz;
 accept	accept	engine	thread_id_list_options/thread_id_list	SET RESOURCE GROUP utf8mb4 FOR 1;
-accept	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_option_value_list_continued	SET GLOBAL utf8mb4 = utf8mb4;
+accept	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_option_value_list_continued	SET GLOBAL autocommit = utf8mb4;
 accept	accept	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics	SET GLOBAL TRANSACTION READ ONLY;
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics!drop-1	SET GLOBAL READ ONLY;
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics!drop-2	SET GLOBAL TRANSACTION ONLY;
@@ -10695,28 +10695,28 @@ reject	reject	engine	option_value_list/option_value_list_,_option_value!drop-5	S
 reject	reject	engine	option_value_list/option_value_list_,_option_value!truncate	SET CHARSET utf8mb4, CHARSET utf8mb4, CHARSET
 reject	reject	engine	option_value_list/option_value_list_,_option_value!insert	SET CHARSET utf8mb4, CHARSET utf8mb4, CHARSET utf8mb4 zzz;
 reject	reject	engine	option_value_list/option_value_list_,_option_value!swap	SET CHARSET utf8mb4, CHECK utf8mb4, CHARSET utf8mb4;
-accept	accept	engine	option_value/option_type_option_value_following_option_type	SET CHARSET utf8mb4, GLOBAL utf8mb4 = utf8mb4;
-accept	accept	engine	option_value/option_type_option_value_following_option_type!drop-1	SET CHARSET utf8mb4, utf8mb4 = utf8mb4;
+accept	accept	engine	option_value/option_type_option_value_following_option_type	SET CHARSET utf8mb4, GLOBAL autocommit = utf8mb4;
+accept	accept	engine	option_value/option_type_option_value_following_option_type!drop-1	SET CHARSET utf8mb4, autocommit = utf8mb4;
 reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-2	SET CHARSET utf8mb4, GLOBAL = utf8mb4;
-reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-3	SET CHARSET utf8mb4, GLOBAL utf8mb4 utf8mb4;
-reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-4	SET CHARSET utf8mb4, GLOBAL utf8mb4 =;
-reject	reject	engine	option_value/option_type_option_value_following_option_type!truncate	SET CHARSET utf8mb4, GLOBAL utf8mb4 =
-reject	accept	engine	option_value/option_type_option_value_following_option_type!insert	SET CHARSET utf8mb4, GLOBAL utf8mb4 = utf8mb4 zzz;
-reject	reject	engine	option_value/option_type_option_value_following_option_type!swap	SET CHARSET utf8mb4, GRANT utf8mb4 = utf8mb4;
+reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-3	SET CHARSET utf8mb4, GLOBAL autocommit utf8mb4;
+reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-4	SET CHARSET utf8mb4, GLOBAL autocommit =;
+reject	reject	engine	option_value/option_type_option_value_following_option_type!truncate	SET CHARSET utf8mb4, GLOBAL autocommit =
+reject	reject	engine	option_value/option_type_option_value_following_option_type!insert	SET CHARSET utf8mb4, GLOBAL autocommit = utf8mb4 zzz;
+reject	reject	engine	option_value/option_type_option_value_following_option_type!swap	SET CHARSET utf8mb4, GRANT autocommit = utf8mb4;
 accept	accept	engine	option_value/option_value_no_option_type	SET CHARSET utf8mb4, CHARSET utf8mb4;
-accept	accept	engine	option_type/GLOBAL_SYM	SET GLOBAL utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/GLOBAL_SYM!insert	SET GLOBAL zzz utf8mb4 = utf8mb4;
-accept	accept	engine	option_type/PERSIST_SYM	SET PERSIST utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/PERSIST_SYM!insert	SET PERSIST zzz utf8mb4 = utf8mb4;
-accept	accept	engine	option_type/PERSIST_ONLY_SYM	SET PERSIST_ONLY utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/PERSIST_ONLY_SYM!insert	SET PERSIST_ONLY zzz utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/PERSIST_ONLY_SYM!swap	SET PHASE utf8mb4 = utf8mb4;
-accept	accept	engine	option_type/LOCAL_SYM	SET LOCAL utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/LOCAL_SYM!insert	SET LOCAL zzz utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/LOCAL_SYM!swap	SET LOCK utf8mb4 = utf8mb4;
-accept	accept	engine	option_type/SESSION_SYM	SET SESSION utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/SESSION_SYM!insert	SET SESSION zzz utf8mb4 = utf8mb4;
-reject	reject	engine	option_type/SESSION_SYM!swap	SET SET utf8mb4 = utf8mb4;
+accept	accept	engine	option_type/GLOBAL_SYM	SET GLOBAL autocommit = utf8mb4;
+reject	reject	engine	option_type/GLOBAL_SYM!insert	SET GLOBAL zzz autocommit = utf8mb4;
+accept	accept	engine	option_type/PERSIST_SYM	SET PERSIST autocommit = utf8mb4;
+reject	reject	engine	option_type/PERSIST_SYM!insert	SET PERSIST zzz autocommit = utf8mb4;
+accept	accept	engine	option_type/PERSIST_ONLY_SYM	SET PERSIST_ONLY autocommit = utf8mb4;
+reject	reject	engine	option_type/PERSIST_ONLY_SYM!insert	SET PERSIST_ONLY zzz autocommit = utf8mb4;
+reject	reject	engine	option_type/PERSIST_ONLY_SYM!swap	SET PHASE autocommit = utf8mb4;
+accept	accept	engine	option_type/LOCAL_SYM	SET LOCAL autocommit = utf8mb4;
+reject	reject	engine	option_type/LOCAL_SYM!insert	SET LOCAL zzz autocommit = utf8mb4;
+reject	reject	engine	option_type/LOCAL_SYM!swap	SET LOCK autocommit = utf8mb4;
+accept	accept	engine	option_type/SESSION_SYM	SET SESSION autocommit = utf8mb4;
+reject	reject	engine	option_type/SESSION_SYM!insert	SET SESSION zzz autocommit = utf8mb4;
+reject	reject	engine	option_type/SESSION_SYM!swap	SET SET autocommit = utf8mb4;
 accept	accept	engine	opt_var_type/%empty	SHOW STATUS;
 reject	reject	engine	opt_var_type/%empty!insert	SHOW zzz STATUS;
 accept	accept	engine	opt_var_type/GLOBAL_SYM	SHOW GLOBAL STATUS;
@@ -10746,50 +10746,51 @@ reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!drop-2	DO@@SE
 reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!truncate	DO@@SESSION
 accept	accept	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!insert	DO@@SESSION.zzz utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!swap	DO@@SET.utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/%empty	SET@@utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/%empty!insert	SET@@zzz utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/PERSIST_SYM_.	SET@@PERSIST.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!drop-1	SET@@.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!drop-2	SET@@PERSIST utf8mb4 = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/%empty	SET@@autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/%empty!insert	SET@@zzz autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/PERSIST_SYM_.	SET@@PERSIST.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!drop-1	SET@@.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!drop-2	SET@@PERSIST autocommit = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!truncate	SET@@PERSIST
-reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!insert	SET@@PERSIST.zzz utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.	SET@@PERSIST_ONLY.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!drop-2	SET@@PERSIST_ONLY utf8mb4 = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/PERSIST_SYM_.!insert	SET@@PERSIST.zzz autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.	SET@@PERSIST_ONLY.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!drop-2	SET@@PERSIST_ONLY autocommit = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!truncate	SET@@PERSIST_ONLY
-reject	reject	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!insert	SET@@PERSIST_ONLY.zzz utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!swap	SET@@PHASE.utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/GLOBAL_SYM_.	SET@@GLOBAL.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!drop-2	SET@@GLOBAL utf8mb4 = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!insert	SET@@PERSIST_ONLY.zzz autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/PERSIST_ONLY_SYM_.!swap	SET@@PHASE.autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/GLOBAL_SYM_.	SET@@GLOBAL.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!drop-2	SET@@GLOBAL autocommit = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!truncate	SET@@GLOBAL
-reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!insert	SET@@GLOBAL.zzz utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!swap	SET@@GRANT.utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/LOCAL_SYM_.	SET@@LOCAL.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!drop-2	SET@@LOCAL utf8mb4 = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!insert	SET@@GLOBAL.zzz autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/GLOBAL_SYM_.!swap	SET@@GRANT.autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/LOCAL_SYM_.	SET@@LOCAL.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!drop-2	SET@@LOCAL autocommit = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!truncate	SET@@LOCAL
-reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!insert	SET@@LOCAL.zzz utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!swap	SET@@LOCK.utf8mb4 = utf8mb4;
-accept	accept	engine	opt_set_var_ident_type/SESSION_SYM_.	SET@@SESSION.utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!drop-2	SET@@SESSION utf8mb4 = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!insert	SET@@LOCAL.zzz autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/LOCAL_SYM_.!swap	SET@@LOCK.autocommit = utf8mb4;
+accept	accept	engine	opt_set_var_ident_type/SESSION_SYM_.	SET@@SESSION.autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!drop-2	SET@@SESSION autocommit = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!truncate	SET@@SESSION
-reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!insert	SET@@SESSION.zzz utf8mb4 = utf8mb4;
-reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!swap	SET@@SET.utf8mb4 = utf8mb4;
-accept	accept	engine	option_value_following_option_type/lvalue_variable_equal_set_expr_or_default	SET GLOBAL utf8mb4 = utf8mb4;
-accept	accept	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default	SET utf8mb4 = utf8mb4;
-reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!drop-3	SET utf8mb4 =;
-reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!truncate	SET utf8mb4 =
-reject	accept	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!insert	SET utf8mb4 = utf8mb4 zzz;
+reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!insert	SET@@SESSION.zzz autocommit = utf8mb4;
+reject	reject	engine	opt_set_var_ident_type/SESSION_SYM_.!swap	SET@@SET.autocommit = utf8mb4;
+accept	accept	engine	option_value_following_option_type/lvalue_variable_equal_set_expr_or_default	SET GLOBAL autocommit = utf8mb4;
+accept	accept	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default	SET autocommit = utf8mb4;
+reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!drop-3	SET autocommit =;
+reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!truncate	SET autocommit =
+reject	reject	engine	option_value_no_option_type/lvalue_variable_equal_set_expr_or_default!insert	SET autocommit = utf8mb4 zzz;
 accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr	SET@utf8mb4 = utf8mb4;
 accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-2	SET@= utf8mb4;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-3	SET@utf8mb4 utf8mb4;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!drop-4	SET@utf8mb4 =;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!truncate	SET@utf8mb4 =
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_expr!insert	SET@utf8mb4 = utf8mb4 zzz;
-accept	accept	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default	SET@@utf8mb4 = utf8mb4;
+accept	accept	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default	SET@@autocommit = utf8mb4;
+accept	accept	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-1	SET@autocommit = utf8mb4;
 reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-3	SET@@= utf8mb4;
-reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-4	SET@@utf8mb4 utf8mb4;
-reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-5	SET@@utf8mb4 =;
-reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!truncate	SET@@utf8mb4 =
-reject	accept	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!insert	SET@@utf8mb4 = utf8mb4 zzz;
+reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-4	SET@@autocommit utf8mb4;
+reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!drop-5	SET@@autocommit =;
+reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!truncate	SET@@autocommit =
+reject	reject	engine	option_value_no_option_type/@_@_opt_set_var_ident_type_lvalue_variable_equal_set_expr_or_default!insert	SET@@autocommit = utf8mb4 zzz;
 accept	accept	engine	option_value_no_option_type/character_set_old_or_new_charset_name_or_default	SET CHARSET utf8mb4;
 reject	reject	engine	option_value_no_option_type/NAMES_SYM_equal_expr	SET NAMES = utf8mb4;
 reject	reject	engine	option_value_no_option_type/NAMES_SYM_equal_expr!drop-3	SET NAMES =;
@@ -10870,25 +10871,25 @@ reject	reject	engine	isolation_types/REPEATABLE_SYM_READ_SYM!insert	SET TRANSACT
 reject	reject	engine	isolation_types/REPEATABLE_SYM_READ_SYM!swap	SET TRANSACTION ISOLATION LEVEL REPLACE READ;
 accept	accept	engine	isolation_types/SERIALIZABLE_SYM	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 reject	reject	engine	isolation_types/SERIALIZABLE_SYM!swap	SET TRANSACTION ISOLATION LEVEL SERVER;
-accept	accept	engine	set_expr_or_default/expr	SET utf8mb4 = utf8mb4;
-accept	accept	engine	set_expr_or_default/DEFAULT_SYM	SET utf8mb4 = DEFAULT;
-reject	accept	engine	set_expr_or_default/DEFAULT_SYM!insert	SET utf8mb4 = DEFAULT zzz;
-accept	accept	engine	set_expr_or_default/DEFAULT_SYM!swap	SET utf8mb4 = DEFAULT_AUTH;
-accept	accept	engine	set_expr_or_default/ON_SYM	SET utf8mb4 = ON;
-reject	accept	engine	set_expr_or_default/ON_SYM!insert	SET utf8mb4 = ON zzz;
-accept	accept	engine	set_expr_or_default/ON_SYM!swap	SET utf8mb4 = ONE;
-accept	accept	engine	set_expr_or_default/ALL	SET utf8mb4 = ALL;
-reject	accept	engine	set_expr_or_default/ALL!insert	SET utf8mb4 = ALL zzz;
-reject	reject	engine	set_expr_or_default/ALL!swap	SET utf8mb4 = ALTER;
-accept	accept	engine	set_expr_or_default/BINARY_SYM	SET utf8mb4 = BINARY;
-accept	accept	engine	set_expr_or_default/BINARY_SYM!insert	SET utf8mb4 = BINARY zzz;
-accept	accept	engine	set_expr_or_default/BINARY_SYM!swap	SET utf8mb4 = BINLOG;
-accept	accept	engine	set_expr_or_default/ROW_SYM	SET utf8mb4 = ROW;
-reject	accept	engine	set_expr_or_default/ROW_SYM!insert	SET utf8mb4 = ROW zzz;
-reject	reject	engine	set_expr_or_default/ROW_SYM!swap	SET utf8mb4 = ROWS;
-accept	accept	engine	set_expr_or_default/SYSTEM_SYM	SET utf8mb4 = SYSTEM;
-reject	accept	engine	set_expr_or_default/SYSTEM_SYM!insert	SET utf8mb4 = SYSTEM zzz;
-reject	reject	engine	set_expr_or_default/SYSTEM_SYM!swap	SET utf8mb4 = TABLE;
+accept	accept	engine	set_expr_or_default/expr	SET autocommit = utf8mb4;
+accept	accept	engine	set_expr_or_default/DEFAULT_SYM	SET autocommit = DEFAULT;
+reject	reject	engine	set_expr_or_default/DEFAULT_SYM!insert	SET autocommit = DEFAULT zzz;
+accept	accept	engine	set_expr_or_default/DEFAULT_SYM!swap	SET autocommit = DEFAULT_AUTH;
+accept	accept	engine	set_expr_or_default/ON_SYM	SET autocommit = ON;
+reject	reject	engine	set_expr_or_default/ON_SYM!insert	SET autocommit = ON zzz;
+accept	accept	engine	set_expr_or_default/ON_SYM!swap	SET autocommit = ONE;
+accept	accept	engine	set_expr_or_default/ALL	SET autocommit = ALL;
+reject	reject	engine	set_expr_or_default/ALL!insert	SET autocommit = ALL zzz;
+reject	reject	engine	set_expr_or_default/ALL!swap	SET autocommit = ALTER;
+accept	accept	engine	set_expr_or_default/BINARY_SYM	SET autocommit = BINARY;
+accept	accept	engine	set_expr_or_default/BINARY_SYM!insert	SET autocommit = BINARY zzz;
+accept	accept	engine	set_expr_or_default/BINARY_SYM!swap	SET autocommit = BINLOG;
+accept	accept	engine	set_expr_or_default/ROW_SYM	SET autocommit = ROW;
+reject	reject	engine	set_expr_or_default/ROW_SYM!insert	SET autocommit = ROW zzz;
+reject	reject	engine	set_expr_or_default/ROW_SYM!swap	SET autocommit = ROWS;
+accept	accept	engine	set_expr_or_default/SYSTEM_SYM	SET autocommit = SYSTEM;
+reject	reject	engine	set_expr_or_default/SYSTEM_SYM!insert	SET autocommit = SYSTEM zzz;
+reject	reject	engine	set_expr_or_default/SYSTEM_SYM!swap	SET autocommit = TABLE;
 accept	accept	engine	lock/LOCK_SYM_table_or_tables_table_lock_list	LOCK TABLE utf8mb4 READ;
 accept	accept	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM	LOCK INSTANCE FOR BACKUP;
 reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-1	INSTANCE FOR BACKUP;
@@ -12142,40 +12143,40 @@ reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!drop-3	XA END '
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!truncate	XA END 's' SUSPEND FOR
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!insert	XA END 's' SUSPEND FOR MIGRATE zzz;
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!swap	XA END 's' SWAPS FOR MIGRATE;
-accept	accept	engine	install_option_type/%empty	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
-reject	reject	engine	install_option_type/%empty!insert	INSTALL COMPONENT 's' SET zzz utf8mb4 = utf8mb4;
-accept	accept	engine	install_option_type/GLOBAL_SYM	INSTALL COMPONENT 's' SET GLOBAL utf8mb4 = utf8mb4;
+accept	accept	engine	install_option_type/%empty	INSTALL COMPONENT 's' SET autocommit = utf8mb4;
+reject	reject	engine	install_option_type/%empty!insert	INSTALL COMPONENT 's' SET zzz autocommit = utf8mb4;
+accept	accept	engine	install_option_type/GLOBAL_SYM	INSTALL COMPONENT 's' SET GLOBAL autocommit = utf8mb4;
 reject	reject	engine	install_option_type/GLOBAL_SYM!truncate	INSTALL COMPONENT 's' SET
-reject	reject	engine	install_option_type/GLOBAL_SYM!insert	INSTALL COMPONENT 's' SET GLOBAL zzz utf8mb4 = utf8mb4;
-reject	reject	engine	install_option_type/GLOBAL_SYM!swap	INSTALL COMPONENT 's' SET GRANT utf8mb4 = utf8mb4;
-accept	accept	engine	install_option_type/PERSIST_SYM	INSTALL COMPONENT 's' SET PERSIST utf8mb4 = utf8mb4;
-reject	reject	engine	install_option_type/PERSIST_SYM!insert	INSTALL COMPONENT 's' SET PERSIST zzz utf8mb4 = utf8mb4;
-reject	reject	engine	install_option_type/PERSIST_SYM!swap	INSTALL COMPONENT 's' SET PERSIST_ONLY utf8mb4 = utf8mb4;
-accept	accept	engine	install_set_rvalue/expr	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_rvalue/expr!drop-1	INSTALL COMPONENT 's' SET utf8mb4 =;
-reject	reject	engine	install_set_rvalue/expr!truncate	INSTALL COMPONENT 's' SET utf8mb4 =
-reject	reject	engine	install_set_rvalue/expr!insert	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4 zzz;
-accept	accept	engine	install_set_rvalue/ON_SYM	INSTALL COMPONENT 's' SET utf8mb4 = ON;
-reject	reject	engine	install_set_rvalue/ON_SYM!insert	INSTALL COMPONENT 's' SET utf8mb4 = ON zzz;
-accept	accept	engine	install_set_rvalue/ON_SYM!swap	INSTALL COMPONENT 's' SET utf8mb4 = ONE;
-accept	accept	engine	install_set_value/install_option_type_lvalue_variable_equal_install_set_rvalue	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
+reject	reject	engine	install_option_type/GLOBAL_SYM!insert	INSTALL COMPONENT 's' SET GLOBAL zzz autocommit = utf8mb4;
+reject	reject	engine	install_option_type/GLOBAL_SYM!swap	INSTALL COMPONENT 's' SET GRANT autocommit = utf8mb4;
+accept	accept	engine	install_option_type/PERSIST_SYM	INSTALL COMPONENT 's' SET PERSIST autocommit = utf8mb4;
+reject	reject	engine	install_option_type/PERSIST_SYM!insert	INSTALL COMPONENT 's' SET PERSIST zzz autocommit = utf8mb4;
+reject	reject	engine	install_option_type/PERSIST_SYM!swap	INSTALL COMPONENT 's' SET PERSIST_ONLY autocommit = utf8mb4;
+accept	accept	engine	install_set_rvalue/expr	INSTALL COMPONENT 's' SET autocommit = utf8mb4;
+reject	reject	engine	install_set_rvalue/expr!drop-1	INSTALL COMPONENT 's' SET autocommit =;
+reject	reject	engine	install_set_rvalue/expr!truncate	INSTALL COMPONENT 's' SET autocommit =
+reject	reject	engine	install_set_rvalue/expr!insert	INSTALL COMPONENT 's' SET autocommit = utf8mb4 zzz;
+accept	accept	engine	install_set_rvalue/ON_SYM	INSTALL COMPONENT 's' SET autocommit = ON;
+reject	reject	engine	install_set_rvalue/ON_SYM!insert	INSTALL COMPONENT 's' SET autocommit = ON zzz;
+accept	accept	engine	install_set_rvalue/ON_SYM!swap	INSTALL COMPONENT 's' SET autocommit = ONE;
+accept	accept	engine	install_set_value/install_option_type_lvalue_variable_equal_install_set_rvalue	INSTALL COMPONENT 's' SET autocommit = utf8mb4;
 reject	reject	engine	install_set_value/install_option_type_lvalue_variable_equal_install_set_rvalue!drop-1	INSTALL COMPONENT 's' SET = utf8mb4;
-reject	reject	engine	install_set_value/install_option_type_lvalue_variable_equal_install_set_rvalue!drop-2	INSTALL COMPONENT 's' SET utf8mb4 utf8mb4;
-accept	accept	engine	install_set_value_list/install_set_value	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
-accept	accept	engine	install_set_value_list/install_set_value_list_,_install_set_value	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-1	INSTALL COMPONENT 's' SET = utf8mb4, utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-2	INSTALL COMPONENT 's' SET utf8mb4 utf8mb4, utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-3	INSTALL COMPONENT 's' SET utf8mb4 =, utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-4	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4 utf8mb4 = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-5	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, = utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-6	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, utf8mb4 utf8mb4;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-7	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, utf8mb4 =;
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!truncate	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, utf8mb4 =
-reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!insert	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4, utf8mb4 = utf8mb4 zzz;
+reject	reject	engine	install_set_value/install_option_type_lvalue_variable_equal_install_set_rvalue!drop-2	INSTALL COMPONENT 's' SET autocommit utf8mb4;
+accept	accept	engine	install_set_value_list/install_set_value	INSTALL COMPONENT 's' SET autocommit = utf8mb4;
+accept	accept	engine	install_set_value_list/install_set_value_list_,_install_set_value	INSTALL COMPONENT 's' SET autocommit = utf8mb4, autocommit = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-1	INSTALL COMPONENT 's' SET = utf8mb4, autocommit = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-2	INSTALL COMPONENT 's' SET autocommit utf8mb4, autocommit = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-3	INSTALL COMPONENT 's' SET autocommit =, autocommit = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-4	INSTALL COMPONENT 's' SET autocommit = utf8mb4 autocommit = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-5	INSTALL COMPONENT 's' SET autocommit = utf8mb4, = utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-6	INSTALL COMPONENT 's' SET autocommit = utf8mb4, autocommit utf8mb4;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!drop-7	INSTALL COMPONENT 's' SET autocommit = utf8mb4, autocommit =;
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!truncate	INSTALL COMPONENT 's' SET autocommit = utf8mb4, autocommit =
+reject	reject	engine	install_set_value_list/install_set_value_list_,_install_set_value!insert	INSTALL COMPONENT 's' SET autocommit = utf8mb4, autocommit = utf8mb4 zzz;
 accept	accept	engine	opt_install_set_value_list/%empty	INSTALL COMPONENT 's';
-accept	accept	engine	opt_install_set_value_list/SET_SYM_install_set_value_list	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
-reject	reject	engine	opt_install_set_value_list/SET_SYM_install_set_value_list!drop-1	INSTALL COMPONENT 's' utf8mb4 = utf8mb4;
-reject	reject	engine	opt_install_set_value_list/SET_SYM_install_set_value_list!swap	INSTALL COMPONENT 's' SHARE utf8mb4 = utf8mb4;
+accept	accept	engine	opt_install_set_value_list/SET_SYM_install_set_value_list	INSTALL COMPONENT 's' SET autocommit = utf8mb4;
+reject	reject	engine	opt_install_set_value_list/SET_SYM_install_set_value_list!drop-1	INSTALL COMPONENT 's' autocommit = utf8mb4;
+reject	reject	engine	opt_install_set_value_list/SET_SYM_install_set_value_list!swap	INSTALL COMPONENT 's' SHARE autocommit = utf8mb4;
 accept	accept	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys	INSTALL PLUGIN utf8mb4 SONAME 's';
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-1	PLUGIN utf8mb4 SONAME 's';
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-2	INSTALL utf8mb4 SONAME 's';
