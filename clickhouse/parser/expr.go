@@ -295,7 +295,7 @@ func (p *parser) parseOptionalAlias(expr Expr) (Expr, error) {
 			Alias: alias,
 		}, nil
 	}
-	if isBareAlias(p.cur()) && !p.isFetchClauseStart() {
+	if isBareAlias(p.cur()) && !p.isFetchClauseStart() && !p.isTrailingCommentClause() {
 		tok := p.advance()
 		return &AliasExpr{
 			span:  span{Pos: expr.StartPos(), End: tok.End},

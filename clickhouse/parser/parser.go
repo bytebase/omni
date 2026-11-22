@@ -449,6 +449,10 @@ func isBareAlias(tok Token) bool {
 	}
 }
 
+func (p *parser) isTrailingCommentClause() bool {
+	return p.cur().Type == KwComment && isStringTok(p.peek(1).Type)
+}
+
 func isIntervalUnit(tt TokenType) bool {
 	switch tt {
 	case KwNanosecond, KwMicrosecond, KwMillisecond, KwSecond,

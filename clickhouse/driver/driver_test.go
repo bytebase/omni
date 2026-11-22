@@ -310,6 +310,7 @@ func TestSplitKeyExpressions(t *testing.T) {
 		{"id, name", []string{"id", "name"}},
 		{"a, tuple(b, c), d", []string{"a", "tuple(b, c)", "d"}},
 		{"f('x,y'), `a,b`", []string{"f('x,y')", "`a,b`"}},
+		{"f('it''s,here'), $tag$a,b$tag$, g(1, 2)", []string{"f('it''s,here')", "$tag$a,b$tag$", "g(1, 2)"}},
 	} {
 		if got := splitKeyExpressions(tc.in); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("splitKeyExpressions(%q) = %q, want %q", tc.in, got, tc.want)

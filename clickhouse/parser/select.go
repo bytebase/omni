@@ -700,9 +700,20 @@ func (p *parser) parseGroupByClause() (*GroupByClause, error) {
 }
 
 func (p *parser) parseOrderExprList() ([]*OrderByItem, error) {
+	return p.parseOrderExprListMode(true)
+}
+
+// parseEngineOrderExprList parses ORDER BY expressions inside a table or
+// materialized view ENGINE clause without consuming trailing `AS SELECT ...`
+// as an expression alias.
+func (p *parser) parseEngineOrderExprList() ([]*OrderByItem, error) {
+	return p.parseOrderExprListMode(false)
+}
+
+func (p *parser) parseOrderExprListMode(allowExplicitAlias bool) ([]*OrderByItem, error) {
 	var items []*OrderByItem
 	for {
-		item, err := p.parseOrderExpr()
+		item, err := p.parseOrderExprMode(allowExplicitAlias)
 		if err != nil {
 			return nil, err
 		}
@@ -714,8 +725,14 @@ func (p *parser) parseOrderExprList() ([]*OrderByItem, error) {
 	return items, nil
 }
 
-func (p *parser) parseOrderExpr() (*OrderByItem, error) {
-	expr, err := p.parseExprWithExplicitAlias()
+func (p *parser) parseOrderExprMode(allowExplicitAlias bool) (*OrderByItem, error) {
+	var expr Expr
+	var err error
+	if allowExplicitAlias {
+		expr, err = p.parseExprWithExplicitAlias()
+	} else {
+		expr, err = p.parseExpr()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1152,7 +1169,7 @@ func (p *parser) parseTableExpr() (*TableExpr, error) {
 			te.ColumnAliases = cols
 			te.End = rpEnd
 		}
-	} else if isBareAlias(p.cur()) && !p.isFetchClauseStart() {
+	} else if isBareAlias(p.cur()) && !p.isFetchClauseStart() && !p.isTrailingCommentClause() {
 		tok := p.advance()
 		te.Alias = tok.Val
 		te.End = tok.End
