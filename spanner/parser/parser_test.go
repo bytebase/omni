@@ -107,9 +107,13 @@ func TestSpannerAcceptedSyntax(t *testing.T) {
 		"RENAME TABLE a TO b",
 		"ANALYZE",
 		"BEGIN",
-		"BEGIN END",
-		"a : BEGIN END",
 		"SET a = NULL",
+		"DESCRIBE a",
+		"LOAD DATA INTO a FROM FILES()",
+		"|> EXPORT DATA",
+		"|> AGGREGATE GROUP BY NULL",
+		"|> INSERT OR REPLACE a",
+		"|> INSERT OR UPDATE a",
 	}
 
 	for _, sql := range accepted {
@@ -145,6 +149,23 @@ func TestSpannerRejectsBigQueryOnlySyntax(t *testing.T) {
 		"RAISE USING MESSAGE = 'err'",
 		"lbl: LOOP END LOOP",
 		"lbl: WHILE NULL DO END WHILE",
+		"BEGIN END",
+		"a : BEGIN END",
+		"BEGIN EXCEPTION WHEN ERROR THEN END",
+
+		// Spanner-rejected pipe / DESCRIBE / LOAD DATA / bare INSERT REPLACE|UPDATE forms
+		"DESCRIBE a |> AGGREGATE",
+		"LOAD DATA INTO TEMP TABLE a FROM FILES()",
+		"LOAD DATA INTO TEMPORARY TABLE a FROM FILES()",
+		"LOAD DATA INTO a() FROM FILES()",
+		"LOAD DATA INTO a PARTITIONS(NULL) FROM FILES()",
+		"LOAD DATA INTO a OVERWRITE PARTITIONS(NULL) FROM FILES()",
+		"|> EXPORT",
+		"|> EXPORT AS",
+		"|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)",
+		"|> AGGREGATE GROUP AND ORDER BY NULL",
+		"|> INSERT REPLACE a",
+		"|> INSERT UPDATE a",
 
 		// BigQuery-only query clauses
 		"SELECT NULL QUALIFY NULL",

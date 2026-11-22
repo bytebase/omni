@@ -89,7 +89,6 @@ func TestValidateQueryShared(t *testing.T) {
 		{name: "begin transaction", sql: "BEGIN TRANSACTION"},
 		{name: "commit", sql: "COMMIT"},
 		{name: "rollback", sql: "ROLLBACK"},
-		{name: "begin end block", sql: "BEGIN SELECT 1; END;"},
 		{name: "analyze", sql: "ANALYZE"},
 		{name: "assert", sql: "ASSERT 1 = 1"},
 
@@ -173,6 +172,7 @@ func TestValidateQueryDialectSpecific(t *testing.T) {
 		{name: "bigquery create table with inline pk is write", dialect: DialectBigQuery, sql: "CREATE TABLE ds.t (a INT64, PRIMARY KEY (a) NOT ENFORCED)"},
 		{name: "bigquery declare is write", dialect: DialectBigQuery, sql: "DECLARE x INT64 DEFAULT 1"},
 		{name: "bigquery if script is write", dialect: DialectBigQuery, sql: "IF TRUE THEN SELECT 1; END IF"},
+		{name: "bigquery begin end block is write", dialect: DialectBigQuery, sql: "BEGIN SELECT 1; END;"},
 		{name: "bigquery for update is syntax error", dialect: DialectBigQuery, sql: "SELECT * FROM t FOR UPDATE", wantErr: true},
 		{name: "bigquery from-first pipe insert is write", dialect: DialectBigQuery, sql: "FROM t |> INSERT dest (x)"},
 
@@ -184,7 +184,8 @@ func TestValidateQueryDialectSpecific(t *testing.T) {
 		{name: "spanner scalar subquery for update rejected", dialect: DialectSpanner, sql: "SELECT (SELECT a FROM t FOR UPDATE)"},
 		{name: "spanner explain for update rejected", dialect: DialectSpanner, sql: "EXPLAIN SELECT * FROM t FOR UPDATE"},
 		{name: "spanner create change stream is write", dialect: DialectSpanner, sql: "CREATE CHANGE STREAM cs FOR ALL"},
-		{name: "spanner describe with pipe", dialect: DialectSpanner, sql: "DESCRIBE t |> AGGREGATE COUNT(*)", readOnly: true, returnsData: true},
+		{name: "spanner rejects describe with pipe", dialect: DialectSpanner, sql: "DESCRIBE t |> AGGREGATE COUNT(*)", wantErr: true},
+		{name: "spanner rejects begin end block", dialect: DialectSpanner, sql: "BEGIN SELECT 1; END;", wantErr: true},
 		{name: "spanner rejects bigquery from-first", dialect: DialectSpanner, sql: "FROM t |> SELECT x", wantErr: true},
 		{name: "spanner rejects bigquery qualify clause", dialect: DialectSpanner, sql: "SELECT x FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY x) = 1", wantErr: true},
 		{name: "spanner rejects truncate", dialect: DialectSpanner, sql: "TRUNCATE TABLE t", wantErr: true},

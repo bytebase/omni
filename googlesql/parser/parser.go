@@ -545,6 +545,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if isTCLBeginFollower(p.peekNext()) {
 			return p.parseBeginStmt()
 		}
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseBeginEndBlock()
 	case kwSTART:
 		// START TRANSACTION (begin_statement) | START BATCH (start_batch_statement).
@@ -571,14 +574,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwEXPLAIN:
 		return p.parseExplainStmt()
 	case kwDESCRIBE:
-		// DESCRIBE may carry a pipe suffix in shared GoogleSQL; BigQuery
-		// rejects pipe operators on DESCRIBE.
-		if p.isBigQuery() {
+		// DESCRIBE may carry a pipe suffix in shared GoogleSQL; BigQuery and
+		// Spanner reject pipe operators on DESCRIBE (googlesql.tm:1269).
+		if p.isBigQuery() || p.isSpanner() {
 			return p.parseStmtWithSubqueries(p.parseDescribeStmt)
 		}
 		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
 	case kwDESC:
-		if p.isBigQuery() {
+		if p.isBigQuery() || p.isSpanner() {
 			return p.parseStmtWithSubqueries(p.parseDescribeStmt)
 		}
 		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
