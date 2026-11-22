@@ -23844,7 +23844,8 @@ func TestParseFederationStatements(t *testing.T) {
 		}
 	})
 
-	// Bare USE FEDERATION targets a database named FEDERATION (not UseFederationStmt)
+	// Bare USE FEDERATION targets a database named FEDERATION (not UseFederationStmt),
+	// with or without a trailing semicolon before another statement.
 	t.Run("use_database_named_federation", func(t *testing.T) {
 		for _, sql := range []string{"USE FEDERATION", "USE FEDERATION;", "USE [FEDERATION]"} {
 			result := ParseAndCheck(t, sql)
@@ -23856,6 +23857,25 @@ func TestParseFederationStatements(t *testing.T) {
 				t.Errorf("Parse(%q): Database = %q, want FEDERATION", sql, stmt.Database)
 			}
 		}
+		for _, tc := range []struct {
+			sql       string
+			wantStmts int
+		}{
+			{"USE FEDERATION\nSELECT 1", 2},
+			{"USE FEDERATION\nTHROW 50000, 'err', 1", 2},
+			{"USE FEDERATION\nROOT: SELECT 1", 3},
+			{"USE FEDERATION\n(SELECT 1)", 2},
+		} {
+			result := ParseAndCheck(t, tc.sql)
+			if result.Len() != tc.wantStmts {
+				t.Fatalf("Parse(%q): got %d statements, want %d", tc.sql, result.Len(), tc.wantStmts)
+			}
+			stmt, ok := result.Items[0].(*ast.UseStmt)
+			if !ok || stmt.Database != "FEDERATION" {
+				t.Errorf("Parse(%q): first stmt = %T (%+v), want *ast.UseStmt{Database: FEDERATION}", tc.sql, result.Items[0], result.Items[0])
+			}
+		}
+		ParseAndCheck(t, "IF 1 = 1 BEGIN USE FEDERATION END")
 	})
 
 	// Refused USE FEDERATION near-misses (TSql160.g:13647 requires every clause)
