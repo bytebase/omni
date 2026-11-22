@@ -207,12 +207,17 @@ func splitBySemicolonFrom(sql string, idx *review.Text, start int, prevEnd Posit
 			}
 		case '/':
 			if i+1 < len(sql) && sql[i+1] == '*' {
+				commentStart := i
 				end, closed := skipTSQLBlockComment(sql, i)
 				i = end
 				if !closed {
 					// Unterminated block comment is malformed SQL, not empty trivia.
 					hasContent = true
 					lastContentEnd = i
+				} else if strings.Contains(sql[commentStart:end], "\n") {
+					// A closed multi-line block comment leaves the scanner at
+					// line-leading trivia on its closing line, preserving GO eligibility.
+					atLineStart = true
 				}
 			} else {
 				i++
@@ -255,14 +260,15 @@ func isTSQLLineComment(sql string, i, limit int) bool {
 }
 
 // matchStandaloneGoLine checks whether sql[lineStart:] is a standalone T-SQL GO
-// batch separator line: optional horizontal whitespace, case-insensitive "GO",
-// optional positive integer repeat count, and only horizontal whitespace,
-// closed block comments, or a line comment until the end of the line or input.
-// It returns the byte offset immediately after GO (or its repeat count).
+// batch separator line: optional leading horizontal whitespace or closed block
+// comments, case-insensitive "GO", optional positive integer repeat count, and
+// only horizontal whitespace, closed block comments, or a line comment until
+// the end of the line or input. It returns the byte offset immediately after GO
+// (or its repeat count).
 func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
-	j := lineStart
-	for j < len(sql) && (sql[j] == ' ' || sql[j] == '\t') {
-		j++
+	j, ok := skipGoInlineTrivia(sql, lineStart)
+	if !ok {
+		return 0, false
 	}
 	if j+2 > len(sql) || (sql[j] != 'g' && sql[j] != 'G') || (sql[j+1] != 'o' && sql[j+1] != 'O') {
 		return 0, false
@@ -273,7 +279,7 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 	}
 	goEnd := j
 
-	j, ok := skipGoInlineTrivia(sql, j)
+	j, ok = skipGoInlineTrivia(sql, j)
 	if !ok {
 		return 0, false
 	}
