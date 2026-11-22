@@ -1,32 +1,53 @@
 # GoogleSQL parser test data
 
-## `compat.tsv`: the Spanner emulator's verdicts
+## `compat.tsv`: the BigQuery ∪ Spanner union judge verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
 `../../testdata/GoogleSQL.g4`, then its near-misses, plus 626 hand-written
 `suite:` rows, with omni's union-mode verdict (`googlesql/parser.Parse`,
-`DialectDefault`) and the pinned Spanner emulator's verdict
-(`../../testdata/pins.tsv`, `parser` role, judge revision 3:
-`gcr.io/cloud-spanner-emulator/emulator:1.5.54`). `GoogleSQL.g4` is converted
+`DialectDefault`) and the union judge's verdict (`../../testdata/pins.tsv`,
+`parser` role, judge revision 4: pinned Cloud Spanner emulator
+`gcr.io/cloud-spanner-emulator/emulator:1.5.54` ∪ live BigQuery dry-run
+`gcp:bigquery:bytebase-dev:US`, `bigquery` role). `GoogleSQL.g4` is converted
 by `../cmd/tm2g4` from `googlesql.tm`, the Textmapper grammar of the GoogleSQL
 release the emulator builds against, beside it as published.
 `TestCompatibility` (`../compat_test.go`) reads the file through
-`enginetest/compat` and starts no server in offline replay. Recorded against
-the pinned Spanner emulator `1.5.54` through `googlesql/spanner-oracle` (~40
-seconds for all 9,463 rows) and verified end-to-end with `OMNI_RECORD=verify`
-with zero differences.
+`enginetest/compat` and starts no server and requires no credentials in offline
+replay. Recorded against pinned Spanner emulator `1.5.54` (through
+`googlesql/spanner-oracle`) ∪ live BigQuery dry-run (`bytebase-dev`, `US`) and
+verified end-to-end with `OMNI_RECORD=verify` with zero differences.
 
-| Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
+| Rows | Total | Agree | Only union accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,181 | 0 | 433 | 83.44% |
-| Near-misses | 6,223 | 6,178 | 1 | 44 | 99.28% |
-| Suites (`suite:*`) | 626 | 577 | 0 | 49 | 92.17% |
-| **All** | **9,463** | **8,936** | **1** | **526** | **94.43%** |
+| One per alternative | 2,614 | 2,442 | 154 | 18 | 93.42% |
+| Near-misses | 6,223 | 6,180 | 41 | 2 | 99.31% |
+| Suites (`suite:*`) | 626 | 618 | 8 | 0 | 98.72% |
+| **All** | **9,463** | **9,240** | **203** | **20** | **97.64%** |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
 Spanner runs. `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no row:
 it refuses every input (`../../testdata/tokens.tsv`).
+
+### Judge revision 4 (`PinRole: "parser"`, BigQuery ∪ Spanner union judge)
+
+At judge revision 3 (Spanner emulator alone, plus bare `QUALIFY` table alias
+closure in union mode), `compat.tsv` had **8,937 / 9,463 (94.44%)** agreement
+with **0 `Only Spanner accepts`** and **526 `Only omni accepts`** (477
+generated + 49 `suite:` rows). Judge revision 4 judges each statement as
+`accept` iff either the pinned Spanner emulator `1.5.54` (rev 3 rules) OR live
+BigQuery dry-run (`bytebase-dev:US`, matching `bigquery/parser/compat_test.go`)
+accepts it, moving **709** rows from `reject` to `accept`:
+
+- **506** previously `Only omni accepts` rows (457 generated + all 49 `suite:`
+  BigQuery rows) now agree (`accept` / `accept`), leaving only **20** rows
+  rejected by both Spanner and BigQuery (`DESCRIBE a |> ...` (2),
+  `ANALYZE OPTIONS(zzz)` (1), and 17 Spanner-only DDL clauses attached to
+  columnless `CREATE TABLE` or non-identifier `CREATE INDEX` keys).
+- **203** BigQuery-accepted forms (195 generated rows currently gated on
+  `DialectBigQuery` plus 8 `suite:` rows) are now surfaced as
+  `Only union accepts`, bringing agreement to **9,240 / 9,463 (97.64%)** ahead
+  of closing the remaining union-mode parser gaps.
 
 ### Judge revision 3 (`PinRole: "parser"`)
 
@@ -280,24 +301,25 @@ The hand-written corpora that held `Parse` to a live emulator are `suite:`
 rows, judged by the same recording: the fixtures of the `*_oracle_test.go`
 files that compared `Parse` of a statement with the emulator's verdict on it.
 
-| Suite | Rows | Agree | Only Spanner accepts | Only omni accepts |
+| Suite | Rows | Agree | Only union accepts | Only omni accepts |
 | --- | ---: | ---: | ---: | ---: |
-| `suite:select` | 95 | 94 | 0 | 1 |
+| `suite:select` | 95 | 94 | 1 | 0 |
 | `suite:pivot-unpivot` | 49 | 49 | 0 | 0 |
 | `suite:dml` | 68 | 68 | 0 | 0 |
-| `suite:ddl` | 91 | 91 | 0 | 0 |
-| `suite:spanner-ddl` | 81 | 81 | 0 | 0 |
+| `suite:ddl` | 91 | 89 | 2 | 0 |
+| `suite:spanner-ddl` | 81 | 80 | 1 | 0 |
 | `suite:utility` | 67 | 67 | 0 | 0 |
-| `suite:scripting` | 47 | 20 | 0 | 27 |
-| `suite:graph-query` | 86 | 86 | 0 | 0 |
-| `suite:bq-ddl` | 24 | 4 | 0 | 20 |
-| `suite:export-load-clone` | 18 | 17 | 0 | 1 |
+| `suite:scripting` | 47 | 47 | 0 | 0 |
+| `suite:graph-query` | 86 | 82 | 4 | 0 |
+| `suite:bq-ddl` | 24 | 24 | 0 | 0 |
+| `suite:export-load-clone` | 18 | 18 | 0 | 0 |
 
-The 49 disagreeing suite rows are BigQuery forms that `googlesql/parser`
-accepts in union mode and the Spanner emulator refuses (`suite:scripting` 27,
-`suite:bq-ddl` 20, `suite:select` 1, `suite:export-load-clone` 1). A statement
-added to a suite is a row with `?` in both verdict cells, judged by a
-recording:
+All 49 previously disagreeing BigQuery `suite:` rows now agree under the union
+judge; the 8 `Only union accepts` suite rows are BigQuery-accepted forms
+(`FROM t`, `CREATE TABLE T (x)`, `DROP INDEX idx ON T`,
+`CREATE OR REPLACE SEQUENCE s_or`, and 4 BigQuery `CREATE PROPERTY GRAPH`
+variants). A statement added to a suite is a row with `?` in both verdict
+cells, judged by a recording:
 
 ```text
 ?	?	-	suite:select	<statement>
@@ -343,16 +365,17 @@ Offline replay (CI default, zero Docker, zero network):
 go test ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
-Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
-(~40 seconds for all 9,463 rows):
+Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54` ∪
+live BigQuery dry-run `gcp:bigquery:bytebase-dev:US` (~14 minutes for all 9,463
+rows; dry-run creates/mutates no BigQuery datasets):
 
 ```bash
-OMNI_RECORD=1 go test -v -timeout 20m ./googlesql/parser/ -run '^TestCompatibility$'
+BIGQUERY_CREDENTIALS=default BIGQUERY_PROJECT=bytebase-dev OMNI_RECORD=1 go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
-Read-only live verification against the pinned emulator (re-judges all 9,463
+Read-only live verification against both pinned engines (re-judges all 9,463
 rows, writes nothing, fails on any diff):
 
 ```bash
-OMNI_RECORD=verify go test -v -timeout 20m ./googlesql/parser/ -run '^TestCompatibility$'
+BIGQUERY_CREDENTIALS=default BIGQUERY_PROJECT=bytebase-dev OMNI_RECORD=verify go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
 ```
