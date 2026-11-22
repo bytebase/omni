@@ -1,16 +1,11 @@
-# The servers this engine's committed answers come from. default records the
-# tapes and judges simulate.tsv; parser judges parser/testdata/compat.tsv at
-# the same mariadb:11.8.8 image with judge revision 2 (database a selected,
-# key cache omni_cache created, and parse-time lookup errors re-asked with
-# known-valid stand-ins so trailing syntax errors are not hidden).
+# The servers this engine's committed answers come from. default judges compat.tsv.
 # It reports revision 46a8eb42a520193686d9a16d4cea4b3e002917e4 in
 # @@version_source_revision: the commit of the source tag. The other roles serve
 # the catalog's version tests, which hold the stored forms to the releases
 # Bytebase supports: mariadb107 is 10.7, the oldest, and mariadb1011 and
 # mariadb114 the 10.11 and 11.4 LTS releases.
-# columns: role, image, digest, source tag, judge revision
+# columns: role, image, digest, source tag
 default	mariadb:11.8.8	sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c	mariadb-11.8.8
-parser	mariadb:11.8.8	sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c	mariadb-11.8.8	2
 mariadb107	mariadb:10.7.8	sha256:9a48ac9f196f3d4fd6fea2cab59a49df9e7ca459bf14b2f7b85a0e38a5454571	mariadb-10.7.8
 mariadb1011	mariadb:10.11.19	sha256:7d829180b5b2a9ba74f6242876ab401a0d7dd338a807e522ef92bc9698760f20	mariadb-10.11.19
 mariadb114	mariadb:11.4.13	sha256:5e73baf8179b29f115101bb102763a47a017361f3e9792daccba6646c3ab1532	mariadb-11.4.13

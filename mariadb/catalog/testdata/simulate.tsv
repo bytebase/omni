@@ -265,9 +265,11 @@ ok:508ab4f0fdd2	ok:508ab4f0fdd2	engine	one_table@missing	create_body/create_fiel
 1146	1146	engine	one_table@missing	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1146	1146	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1146	1146	engine	one_table@missing	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1146	1146	engine	one_table@missing	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -319,6 +321,7 @@ ok:508ab4f0fdd2	ok:508ab4f0fdd2	engine	one_table@missing	create_body/create_fiel
 1146	1146	engine	one_table@missing	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1146	1146	engine	one_table@missing	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1146	1146	engine	one_table@missing	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1146	1146	engine	one_table@missing	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1146	1146	engine	one_table@missing	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -436,7 +439,6 @@ ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	opt_if_exists/IF_SYM_EX
 1054	1054	engine	one_table@missing	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	one_table@missing	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	one_table@missing	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@missing	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	one_table@missing	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	one_table@missing	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	one_table@missing	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -724,9 +726,11 @@ ok:175d0c31fefb	ok:175d0c31fefb	engine	one_table@table	binary/BINARY_charset_or_
 ok:627a90e65d2c	ok:627a90e65d2c	engine	one_table@table	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 ok:720e65d31f2b	ok:720e65d31f2b	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 ok:627a90e65d2c	ok:627a90e65d2c	engine	one_table@table	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 ok:55596351ff04	ok:55596351ff04	engine	one_table@table	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 ok:fb90786a5789	ok:fb90786a5789	engine	one_table@table	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 ok:32b777d74de9	ok:32b777d74de9	engine	one_table@table	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1068	1068	engine	one_table@table	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -778,6 +782,7 @@ ok:32b777d74de9	ok:32b777d74de9	engine	one_table@table	opt_bin_mod/BINARY	ALTER 
 1072	1072	engine	one_table@table	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1072	1072	engine	one_table@table	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1072	1072	engine	one_table@table	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1072	1072	engine	one_table@table	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@table	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -895,7 +900,6 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@table	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@table	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 ok:f988031a1679	ok:f988031a1679	engine	one_table@table	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@table	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1091	1091	engine	one_table@table	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 ok:f71f3a78a417	ok:f71f3a78a417	engine	one_table@table	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -1183,9 +1187,11 @@ ok:54a7c03caa19	ok:54a7c03caa19	engine	one_table@column	opt_constraint_no_id/CON
 1060	1060	engine	one_table@column	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	one_table@column	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	one_table@column	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -1237,6 +1243,7 @@ ok:6ade727c275c	ok:6ade727c275c	engine	one_table@column	all_key_opt/COMMENT_SYM_
 ok:1c8e88b0261e	ok:1c8e88b0261e	engine	one_table@column	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1911	1911	engine	one_table@column	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1210	1210	engine	one_table@column	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:d1cbc87e14ba	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@column	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -1354,7 +1361,6 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_table_sym/TABLE_SYM	
 1050	1050	engine	one_table@column	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@column	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@column	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@column	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@column	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -1642,9 +1648,11 @@ ok:733164ea26b9	ok:733164ea26b9	engine	one_table@index	opt_constraint_no_id/CONS
 1060	1060	engine	one_table@index	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	one_table@index	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	one_table@index	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -1696,6 +1704,7 @@ ok:bb737ef05ab6	ok:bb737ef05ab6	engine	one_table@index	all_key_opt/COMMENT_SYM_T
 ok:a79b40ab9f1f	ok:a79b40ab9f1f	engine	one_table@index	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1911	1911	engine	one_table@index	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1210	1210	engine	one_table@index	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:27bf6ad5f57e	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 ok:a2549cac2404	ok:a2549cac2404	engine	one_table@index	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -1813,7 +1822,6 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_table_sym/TABLE_SYM	T
 1050	1050	engine	one_table@index	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	one_table@index	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	one_table@index	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	one_table@index	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	one_table@index	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -2101,9 +2109,11 @@ ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	opt_if_not_exists/IF_SYM_not
 1347	1347	engine	objects@view	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1347	1347	engine	objects@view	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@view	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@view	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1347	1347	engine	objects@view	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1347	1347	engine	objects@view	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@view	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@view	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1347	1347	engine	objects@view	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1347	1347	engine	objects@view	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1347	1347	engine	objects@view	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -2155,6 +2165,7 @@ ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	opt_if_not_exists/IF_SYM_not
 1347	1347	engine	objects@view	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1347	1347	engine	objects@view	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@view	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@view	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1347	1347	engine	objects@view	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1347	1347	engine	objects@view	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1347	1347	engine	objects@view	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -2272,7 +2283,6 @@ ok:8b84ba332b08	ok:8b84ba332b08	engine	objects@view	drop/DROP_VIEW_SYM_opt_if_ex
 1050	1050	engine	objects@view	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@view	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1347	1347	engine	objects@view	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@view	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1347	1347	engine	objects@view	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1347	1347	engine	objects@view	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@view	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -2560,9 +2570,11 @@ ok:992160405c9f	ok:992160405c9f	engine	objects@partitioned	opt_constraint_no_id/
 1060	1060	engine	objects@partitioned	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	objects@partitioned	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@partitioned	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@partitioned	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	objects@partitioned	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	objects@partitioned	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@partitioned	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@partitioned	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	objects@partitioned	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	objects@partitioned	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	objects@partitioned	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -2614,6 +2626,7 @@ ok:529f1f5d94b0	ok:529f1f5d94b0	engine	objects@partitioned	all_key_opt/COMMENT_S
 ok:0774f15a9563	ok:0774f15a9563	engine	objects@partitioned	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1911	1911	engine	objects@partitioned	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@partitioned	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@partitioned	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1210	1210	engine	objects@partitioned	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:b6be38ae8308	ok:b6be38ae8308	engine	objects@partitioned	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	objects@partitioned	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -2731,7 +2744,6 @@ ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	opt_table_sym/TABLE_S
 1050	1050	engine	objects@partitioned	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@partitioned	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	objects@partitioned	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@partitioned	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1072	1072	engine	objects@partitioned	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	objects@partitioned	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -3019,9 +3031,11 @@ ok:27c7942f76cf	ok:27c7942f76cf	engine	objects@fk	opt_constraint_no_id/CONSTRAIN
 1060	1060	engine	objects@fk	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	objects@fk	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@fk	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@fk	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	objects@fk	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	objects@fk	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@fk	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@fk	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	objects@fk	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	objects@fk	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	objects@fk	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -3073,6 +3087,7 @@ ok:cb3770e50d77	ok:cb3770e50d77	engine	objects@fk	all_key_opt/COMMENT_SYM_TEXT_S
 ok:703a0bda6a2f	ok:703a0bda6a2f	engine	objects@fk	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1911	1911	engine	objects@fk	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@fk	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@fk	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1210	1210	engine	objects@fk	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:1e5ccaf4d992	ok:1e5ccaf4d992	engine	objects@fk	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 ok:703a0bda6a2f	ok:703a0bda6a2f	engine	objects@fk	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -3190,7 +3205,6 @@ ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	opt_table_sym/TABLE_SYM	TRUNCA
 1050	1050	engine	objects@fk	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@fk	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1060	1060	engine	objects@fk	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@fk	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1553	1553	engine	objects@fk	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1060	1060	engine	objects@fk	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -3478,9 +3492,11 @@ ok:f09350955cc7	ok:f09350955cc7	engine	objects@sequence	int_type/BIGINT	ALTER SE
 4086	4086	engine	objects@sequence	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 4086	4086	engine	objects@sequence	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@sequence	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@sequence	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 4086	4086	engine	objects@sequence	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 4086	4086	engine	objects@sequence	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@sequence	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@sequence	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 4086	4086	engine	objects@sequence	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 4086	4086	engine	objects@sequence	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 4086	4086	engine	objects@sequence	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -3532,6 +3548,7 @@ ok:f09350955cc7	ok:f09350955cc7	engine	objects@sequence	int_type/BIGINT	ALTER SE
 4086	4086	engine	objects@sequence	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 4086	4086	engine	objects@sequence	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@sequence	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@sequence	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 4086	4086	engine	objects@sequence	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 4086	4086	engine	objects@sequence	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	objects@sequence	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -3649,7 +3666,6 @@ ok:f09350955cc7	ok:f09350955cc7	engine	objects@sequence	opt_by/BY	ALTER SEQUENCE
 1050	1050	engine	objects@sequence	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1050	1050	engine	objects@sequence	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 4086	4086	engine	objects@sequence	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@sequence	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1091	1091	engine	objects@sequence	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 4086	4086	engine	objects@sequence	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1031	1031	engine	objects@sequence	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -3937,9 +3953,11 @@ ok:5d9f29bf2dd5	ok:5d9f29bf2dd5	engine	objects@routine	create_body/create_field_
 1146	1146	engine	objects@routine	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1146	1146	engine	objects@routine	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@routine	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@routine	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1146	1146	engine	objects@routine	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1146	1146	engine	objects@routine	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@routine	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@routine	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1146	1146	engine	objects@routine	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1146	1146	engine	objects@routine	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1146	1146	engine	objects@routine	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -3991,6 +4009,7 @@ ok:5d9f29bf2dd5	ok:5d9f29bf2dd5	engine	objects@routine	create_body/create_field_
 1146	1146	engine	objects@routine	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1146	1146	engine	objects@routine	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@routine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@routine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1146	1146	engine	objects@routine	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1146	1146	engine	objects@routine	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1146	1146	engine	objects@routine	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -4108,7 +4127,6 @@ ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	opt_if_exists/IF_SYM_EXIS
 1054	1054	engine	objects@routine	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@routine	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@routine	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@routine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@routine	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@routine	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@routine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -4396,9 +4414,11 @@ ok:809a2c5c5689	ok:809a2c5c5689	engine	objects@trigger	create_body/create_field_
 1146	1146	engine	objects@trigger	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1146	1146	engine	objects@trigger	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@trigger	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@trigger	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1146	1146	engine	objects@trigger	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1146	1146	engine	objects@trigger	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@trigger	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@trigger	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1146	1146	engine	objects@trigger	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1146	1146	engine	objects@trigger	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1146	1146	engine	objects@trigger	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -4450,6 +4470,7 @@ ok:809a2c5c5689	ok:809a2c5c5689	engine	objects@trigger	create_body/create_field_
 1146	1146	engine	objects@trigger	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1146	1146	engine	objects@trigger	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@trigger	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@trigger	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1146	1146	engine	objects@trigger	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1146	1146	engine	objects@trigger	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1146	1146	engine	objects@trigger	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -4567,7 +4588,6 @@ ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	opt_if_exists/IF_SYM_EXIS
 1054	1054	engine	objects@trigger	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@trigger	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@trigger	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@trigger	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@trigger	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@trigger	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@trigger	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
@@ -4855,9 +4875,11 @@ ok:beed7843e0b6	ok:beed7843e0b6	engine	objects@event	create_body/create_field_li
 1146	1146	engine	objects@event	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1146	1146	engine	objects@event	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
 1253	1253	engine	objects@event	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	objects@event	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1146	1146	engine	objects@event	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1146	1146	engine	objects@event	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
 1253	1253	engine	objects@event	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	objects@event	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1146	1146	engine	objects@event	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1146	1146	engine	objects@event	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1146	1146	engine	objects@event	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -4909,6 +4931,7 @@ ok:beed7843e0b6	ok:beed7843e0b6	engine	objects@event	create_body/create_field_li
 1146	1146	engine	objects@event	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1146	1146	engine	objects@event	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	objects@event	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	objects@event	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1146	1146	engine	objects@event	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1146	1146	engine	objects@event	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1146	1146	engine	objects@event	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -5026,7 +5049,6 @@ ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	opt_if_exists/IF_SYM_EXISTS
 1054	1054	engine	objects@event	opt_duplicate/REPLACE	CREATE TABLE a REPLACE SELECT a;
 1054	1054	engine	objects@event	opt_duplicate/IGNORE_SYM	CREATE TABLE a IGNORE SELECT a;
 1146	1146	engine	objects@event	signed_literal/-_NUM_literal	ALTER TABLE a ADD a INT DEFAULT - 1;
-1064	1102	engine	objects@event	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 1146	1146	engine	objects@event	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 1146	1146	engine	objects@event	reserved_keyword_udt_not_param_type/BETWEEN_SYM!swap	ALTER TABLE a ADD a BIGINT;
 1146	1146	engine	objects@event	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;

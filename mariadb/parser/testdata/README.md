@@ -7,11 +7,10 @@
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped, followed by 7 `suite:json-operators` rows pinning the `->` and `->>`
 operators MariaDB has no grammar for (12,960 generated rows and 7 `suite:`
-rows, 12,967 in all: 12,966 agreeing, 1 only MariaDB accepts
-(`ALTER TABLE a DROP a.a.a;`, where MariaDB accepts a 3-part `field_ident`
-whose database qualifier matches the session database `a`, while omni's
-`parseFieldIdent` requires an explicit database on the target table), and 0
-only omni accepts).
+rows, 12,967 in all: 12,901 agreeing, 65 only MariaDB accepts and 1 only omni
+(`DELETE a.a FROM a;`, where MariaDB's current-database lookup rejects target
+`a.a` with 1109 when the session database is not `a`, while omni leaves the
+unqualified table's database to the server).
 Each row has omni's verdict and MariaDB's. `TestCompatibility`
 (`compat_test.go`) reads it through `enginetest/compat`, which describes the
 columns and what passes. It starts no server, and it regenerates the generated
@@ -50,31 +49,16 @@ go test ./mariadb/parser/ -run '^TestCompatibility$' -update-compat
 ### How MariaDB judges a row
 
 The verdict is the server's answer to `PREPARE omni_compat_stmt FROM ?`, which
-parses a statement without running it (`compatJudge`, pinned under the `parser`
-role at judge revision 2 in `../../testdata/pins.tsv` on `mariadb:11.8.8`):
+parses a statement without running it (`compatJudge`):
 
-- **Session setup:** The judge selects database `a` (`CREATE DATABASE IF NOT
-  EXISTS a; USE a`) so generated statements that qualify `a.a` against an
-  unqualified table `a` (such as `DELETE a.a FROM a;` and
-  `ALTER TABLE a DROP a.a.a;`) resolve to the same database instead of failing
-  on current-database mismatch, and creates a key cache
-  (`SET GLOBAL omni_cache.key_buffer_size = 1048576`) for structured system
-  variable stand-ins.
 - **1064** is a rejection.
-- **Parse-time lookup errors are re-asked with a stand-in.** MariaDB's grammar
-  actions look names up while the parser runs and abort before reading later
-  tokens: a character set (1115), a plugin or loadable function (1128), a
-  system variable (1193, 1272, 4081), a collation (1253, 1273), a storage
-  engine (1286), and `SHOW ... CODE` in non-debug builds (1289). Whenever
-  `PREPARE` answers one of these, `compatJudge` substitutes a known-valid
-  MariaDB 11.8.8 stand-in of the same syntactic category (`utf8mb4`,
-  `utf8mb4_bin`, `InnoDB`, `autocommit`, `max_statement_time`,
-  `omni_cache.key_buffer_size`, `mariadb_schema`, `COMMENT 's'`, or
-  `SHOW CREATE ...`) for the offending lookup and re-prepares so MariaDB parses
-  past the lookup and rejects any trailing syntax error (e.g. `zzz`) with 1064.
-  All 163 lookup-error rows are re-asked with a stand-in (0 blind lookup
-  acceptances). `prepareParses`, which the hand-written cases of this package
-  ask, reads lookup errors directly.
+- **A name the server does not have counts as read.** MariaDB's grammar
+  actions look names up while the parser runs: a character set (1115), a
+  plugin or loadable function (1128), a system variable (1193, 1272, 4081), a
+  collation (1253, 1273), a storage engine (1286), and a form the build
+  leaves out (1289). They are about what the server holds, and omni keeps no
+  such list. `prepareParses`, which the hand-written cases of this package
+  ask, reads them the same way.
 - **Any other error leaves the question open,** because a statement that
   parses can still be refused: a missing table (1146), an unknown column
   (1054). The judge prepares the statement again with `; SELECT FROM` on a new
@@ -89,6 +73,15 @@ role at judge revision 2 in `../../testdata/pins.tsv` on `mariadb:11.8.8`):
 
 What this cannot tell:
 
+- **A name the server does not have answers before a later syntax error.**
+  `SET GLOBAL a = a zzz` answers 1193, not 1064, and reads as accepted. Where
+  the grammar gives such a name a rule of its own, `tokens.tsv` writes a name
+  that exists (`charset_name` is `utf8mb4`), and the rows that pass through
+  the rule are judged on their syntax. 163 rows are still answered by such an
+  error: the alternatives that are the lookup itself (`SET NAMES a`), and the
+  `SET GLOBAL`, `SET STATEMENT` and `@@DEFAULT.` forms, whose variable is any
+  identifier. A near-miss among them may be wrong. The recording logs the
+  list.
 - **A refusal made by an action is a rejection,** though the text follows the
   grammar. The commonest on the pinned server: an identifier as a data type
   (4161, 731 rows, mostly the keywords the grammar lets stand for a type

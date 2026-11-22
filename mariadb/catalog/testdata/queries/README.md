@@ -10,7 +10,7 @@ expression accepted by the pinned MariaDB (`../../../testdata/pins.tsv`,
 expression. `TestQuerySimulation` (`../../simulate_query_test.go`) replays it
 from `../tapes/TestQuerySimulation.tape` with no server.
 
-457 rows: 415 agree (100% of stored views matching byte-for-byte with 0 schema
+459 rows: 417 agree (100% of stored views matching byte-for-byte with 0 schema
 mismatches) and 42 disagree.
 
 ## Commands

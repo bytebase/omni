@@ -2566,6 +2566,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
@@ -2581,6 +2588,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -2938,6 +2952,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -3909,13 +3930,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -10462,6 +10476,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < ok 0 0
 > query
@@ -10539,6 +10560,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -10958,6 +10986,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -12708,13 +12743,6 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -17267,6 +17295,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -17282,6 +17317,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -18104,6 +18146,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -20186,13 +20235,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1060 42S21 Duplicate column name 'a'
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -24619,6 +24661,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -24634,6 +24683,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -25452,6 +25508,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -27498,13 +27561,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1060 42S21 Duplicate column name 'a'
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -30957,6 +31013,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1347 HY000 'omni_simulation.a' is not of type 'BASE TABLE'
@@ -30974,6 +31038,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -31382,6 +31454,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -32554,14 +32634,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1347 HY000 'omni_simulation.a' is not of type 'BASE TABLE'
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -37306,6 +37378,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -37321,6 +37400,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -38188,6 +38274,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -40619,13 +40712,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1060 42S21 Duplicate column name 'a'
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -46803,6 +46889,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -46820,6 +46914,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -47993,6 +48095,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -51153,14 +51263,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1060 42S21 Duplicate column name 'a'
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -55663,6 +55765,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 4086 HY000 Sequence 'omni_simulation.a' table structure is invalid (Wrong number of columns)
@@ -55678,6 +55787,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -56035,6 +56151,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -57702,13 +57825,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 4086 HY000 Sequence 'omni_simulation.a' table structure is invalid (Wrong number of columns)
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
 < ok 0 0
@@ -61234,6 +61350,14 @@
 | CREATE FUNCTION a() RETURNS INT RETURN 1
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
+| CREATE FUNCTION a() RETURNS INT RETURN 1
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
@@ -61251,6 +61375,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
+| CREATE FUNCTION a() RETURNS INT RETURN 1
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -61659,6 +61791,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
+| CREATE FUNCTION a() RETURNS INT RETURN 1
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -62987,14 +63127,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
-| CREATE FUNCTION a() RETURNS INT RETURN 1
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
 | CREATE FUNCTION a() RETURNS INT RETURN 1
@@ -66392,6 +66524,14 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
@@ -66409,6 +66549,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -66817,6 +66965,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -68085,14 +68241,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
-| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
@@ -71781,6 +71929,13 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
@@ -71796,6 +71951,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
@@ -72153,6 +72315,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
@@ -73178,13 +73347,6 @@
 | ALTER TABLE a ADD a INT DEFAULT - 1;
 < error
 | 1146 42S02 Table 'omni_simulation.a' doesn't exist
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
-< ok 0 0
-> exec
-| ALTER TABLE a DROP a.a.a;
-< error
-| 1102 42000 Incorrect database name 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 < ok 0 0
