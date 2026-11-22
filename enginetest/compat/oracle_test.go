@@ -626,6 +626,24 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"SELECT * FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE":                   {2014, 0, "", nil},
 			"SELECT * FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE" + OracleProbeTail: {911, 60, "", nil},
 		}, Accept},
+		{"string literal OFFSET in FOR UPDATE stays accepted on ORA-02014", "SELECT 'OFFSET' FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE", map[string]*answer{
+			"SELECT 'OFFSET' FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE":                   {2014, 0, "", nil},
+			"SELECT 'OFFSET' FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE" + OracleProbeTail: {911, 67, "", nil},
+		}, Accept},
+		{"RENAME t TO t same-name ORA-03001 stays accepted", "RENAME t TO t", map[string]*answer{
+			"RENAME t TO t":                   {3001, 0, "", nil},
+			"RENAME t TO t" + OracleProbeTail: {911, 15, "", nil},
+		}, Accept},
+		{"RENAME t TO t same-name ORA-03001 at EOF stays accepted", "RENAME t TO t", map[string]*answer{
+			"RENAME t TO t": {3001, 13, "", nil},
+		}, Accept},
+		{"GRANT ... TO ... BY structural ORA-03001 rejected", "GRANT a TO a BY a", map[string]*answer{
+			"GRANT a TO a BY a":                   {3001, 0, "", nil},
+			"GRANT a TO a BY a" + OracleProbeTail: {911, 19, "", nil},
+		}, Reject},
+		{"CREATE TABLE bare COLUMN IS OF structural ORA-03001 at EOF rejected", "CREATE TABLE a COLUMN a IS OF(a)", map[string]*answer{
+			"CREATE TABLE a COLUMN a IS OF(a)": {3001, 32, "", nil},
+		}, Reject},
 		{"ALTER DISKGROUP trailing comma rejected on ORA-15260", "ALTER DISKGROUP a REBALANCE WITH RESTORE,", map[string]*answer{
 			"ALTER DISKGROUP a REBALANCE WITH RESTORE,": {15260, 0, "", nil},
 		}, Reject},
@@ -637,6 +655,9 @@ func TestOracleVerdictOnly(t *testing.T) {
 		}, Reject},
 		{"PL/SQL ordinary PLS-00306 signature mismatch stays accepted", "DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; END;", map[string]*answer{
 			"DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; END;": {6550, 56, "PLS-00306", nil},
+		}, Accept},
+		{"PL/SQL PLS-00306 ignores inquiry directive inside SQL comment", "DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; /* $$name => */ END;", map[string]*answer{
+			"DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; /* $$name => */ END;": {6550, 56, "PLS-00306", nil},
 		}, Accept},
 		{"PL/SQL REF omni_missing_t stand-in rejects PLS-00550", "DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;", map[string]*answer{
 			"DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;": {6550, 14, "PLS-00201", nil},

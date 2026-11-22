@@ -287,6 +287,10 @@ var (
 	reInquiryNamedArg                 = regexp.MustCompile(`(?i)\$\$[A-Za-z_][A-Za-z0-9_$#]*\s*=>`)
 	reCondComp                        = regexp.MustCompile(`(?i)\$IF\b`)
 	reRowLimitingForUpdate            = regexp.MustCompile(`(?i)\b(?:OFFSET|FETCH\s+(?:FIRST|NEXT)\b.*?\bWITH\s+TIES)\b.*\bFOR\s+UPDATE\b`)
+	reGrantByClause                   = regexp.MustCompile(`(?i)^\s*GRANT\b.*\bTO\b.*\bBY\b`)
+	reCreateTableBareColumnIsOf       = regexp.MustCompile(`(?i)^\s*CREATE\b.*\bTABLE\b.*\bCOLUMN\b.*\bIS\s+OF\b`)
+	reBareDropContext                 = regexp.MustCompile(`(?i)^\s*DROP\s+CONTEXT\s*$`)
+	reTrailingForUpdateWait           = regexp.MustCompile(`(?i)\bFOR\s+UPDATE\b.*\bWAIT\s*$`)
 	reCharsetRefOrRowtype             = regexp.MustCompile(`(?i)(?:\bREF\s+\S+|%ROWTYPE)\s+CHARACTER\s+SET\b`)
 	reCharsetPredefinedNonChar        = regexp.MustCompile(`(?i)\b(?:NUMBER|INTEGER|INT|SMALLINT|DECIMAL|DEC|NUMERIC|FLOAT|REAL|DOUBLE\s+PRECISION|BINARY_FLOAT|BINARY_DOUBLE|SIMPLE_FLOAT|SIMPLE_DOUBLE|PLS_INTEGER|BINARY_INTEGER|SIMPLE_INTEGER|NATURALN?|POSITIVEN?|SIGNTYPE|BOOL(?:EAN)?|DATE|TIMESTAMP|INTERVAL|RAW|LONG|ROWID|UROWID|BLOB|BFILE|JSON|VECTOR|MLSLABEL|SYS_REFCURSOR|NCHAR|NVARCHAR2|NCLOB)\b(?:\s*\([^)]*\))?\s+CHARACTER\s+SET\b`)
 	reCharsetAttr                     = regexp.MustCompile(`(?i)\bCHARACTER\s+SET\s+([A-Za-z_][A-Za-z0-9_$#]*)%CHARSET\b`)
@@ -702,8 +706,9 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 }
 
 // maskSQLCommentsAndQuotes returns a copy of s of the same byte length with
-// SQL line comments (-- ...), block comments (/* ... */), single-quoted
-// strings, and double-quoted identifiers replaced by spaces.
+// SQL line comments (-- ...), block comments (/* ... */), Oracle q-quoted
+// strings, single-quoted strings, and double-quoted identifiers replaced by
+// spaces.
 func maskSQLCommentsAndQuotes(s string) string {
 	b := []byte(s)
 	for i := 0; i < len(b); {
@@ -721,6 +726,31 @@ func maskSQLCommentsAndQuotes(s string) string {
 				if b[i] == '*' && i+1 < len(b) && b[i+1] == '/' {
 					b[i] = ' '
 					b[i+1] = ' '
+					i += 2
+					break
+				}
+				b[i] = ' '
+				i++
+			}
+		case (b[i] == 'q' || b[i] == 'Q') && i+2 < len(b) && b[i+1] == '\'' &&
+			(i == 0 || !isWordByte(s[i-1]) || ((s[i-1] == 'n' || s[i-1] == 'N') && (i == 1 || !isWordByte(s[i-2])))):
+			openDelim := b[i+2]
+			closeDelim := openDelim
+			switch openDelim {
+			case '[':
+				closeDelim = ']'
+			case '{':
+				closeDelim = '}'
+			case '(':
+				closeDelim = ')'
+			case '<':
+				closeDelim = '>'
+			}
+			b[i], b[i+1], b[i+2] = ' ', ' ', ' '
+			i += 3
+			for i < len(b) {
+				if b[i] == closeDelim && i+1 < len(b) && b[i+1] == '\'' {
+					b[i], b[i+1] = ' ', ' '
 					i += 2
 					break
 				}
@@ -899,7 +929,6 @@ func oracleParserCode(code int, rev5 bool) bool {
 // error codes classified in judge revision 5, each measured on the pinned
 // server (0 false rejects across all valid compat.tsv rows):
 //   - 2538: invalid TABLESPACE SET clause on hash-partitioned MV / MV log
-//   - 3001: unimplemented feature (GRANT a TO a BY a, CREATE TABLE a COLUMN a IS OF(a))
 //   - 4125: empty MLE module body (CREATE MLE MODULE ... AS)
 //   - 14108, 14173: invalid partition/subpartition name (LOCK TABLE p [SUB]PARTITION(1))
 //   - 14156: invalid SUBPARTITIONS count in SET SUBPARTITION TEMPLATE
@@ -909,17 +938,34 @@ func oracleParserCode(code int, rev5 bool) bool {
 //   - 46373: unified audit policy missing required audit option
 //   - 64350: duplicate INMEMORY clause
 var oracleStatementRev5 = map[int]bool{
-	2538: true, 3001: true, 4125: true,
+	2538: true, 4125: true,
 	14108: true, 14156: true, 14173: true, 22913: true,
 	28025: true, 28700: true, 28701: true, 46373: true, 64350: true,
 }
 
-// oracleCheckedAtEndRemovedRev5 are codes that rev 4 accepted at EOF but rev 5
-// rejects because each fires on truncated/invalid syntax at EOF on the pinned
-// server: DROP CONTEXT (1804), CREATE TABLE a COLUMN a IS OF(a) (3001), and
-// SELECT * FOR UPDATE WAIT (30020).
-var oracleCheckedAtEndRemovedRev5 = map[int]bool{
-	1804: true, 3001: true, 30020: true,
+// isRev5StructuralUnimplemented reports whether masked (comment/quote-masked
+// SQL) is one of the structural syntax forms where Oracle raises ORA-03001
+// ("unimplemented feature") instead of a parser error: GRANT ... TO ... BY or
+// CREATE TABLE ... COLUMN ... IS OF. Semantic ORA-03001 failures such as
+// same-name RENAME t TO t return false and remain accepted.
+func isRev5StructuralUnimplemented(masked string) bool {
+	return reGrantByClause.MatchString(masked) || reCreateTableBareColumnIsOf.MatchString(masked)
+}
+
+// isRev5RejectedAtEnd reports whether a code normally accepted at EOF in
+// oracleCheckedAtEnd fires on a truncated/invalid structural form in judge
+// revision 5: DROP CONTEXT (1804), CREATE TABLE ... COLUMN ... IS OF (3001),
+// or trailing FOR UPDATE ... WAIT (30020).
+func isRev5RejectedAtEnd(code int, masked string) bool {
+	switch code {
+	case 1804:
+		return reBareDropContext.MatchString(masked)
+	case 3001:
+		return isRev5StructuralUnimplemented(masked)
+	case 30020:
+		return reTrailingForUpdateWait.MatchString(masked)
+	}
+	return false
 }
 
 // oracleCompileStructuralRev5 are PL/SQL compiler structural errors (beyond
@@ -1137,11 +1183,15 @@ func OracleVerdictOnlySchema(statement, schema string, parse func(text string) e
 }
 
 func oracleVerdict(statement, schema string, parse func(text string) error, depth int, rev5 bool) (string, error) {
+	var masked string
+	if rev5 {
+		masked = maskSQLCommentsAndQuotes(statement)
+	}
 	// acceptEarlyError returns Accept unless judge rev 5 sees an unclosed '('
 	// (outside PL/SQL conditional compilation $IF branches), which means Oracle
 	// raised an early lookup, privilege, or semantic error before reaching EOF.
 	acceptEarlyError := func() (string, error) {
-		if rev5 && !reCondComp.MatchString(statement) && hasUnclosedParen(statement) {
+		if rev5 && !reCondComp.MatchString(masked) && hasUnclosedParen(statement) {
 			return Reject, nil
 		}
 		return Accept, nil
@@ -1242,13 +1292,13 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		if e.code == 1501 && e.position == 0 {
 			return acceptEarlyError()
 		}
-		if e.code == 29538 && e.position == 0 && reRawSourceHead.MatchString(statement) && reRawSourceAs.MatchString(statement) {
+		if e.code == 29538 && e.position == 0 && reRawSourceHead.MatchString(masked) && reRawSourceAs.MatchString(masked) {
 			return acceptEarlyError()
 		}
-		if e.code == 439 && e.position == 0 && reCreateMLEModule.MatchString(statement) {
+		if e.code == 439 && e.position == 0 && reCreateMLEModule.MatchString(masked) {
 			return acceptEarlyError()
 		}
-		if e.code == 15260 && e.position == 0 && strings.HasSuffix(strings.TrimSpace(statement), ",") {
+		if e.code == 15260 && e.position == 0 && strings.HasSuffix(strings.TrimSpace(masked), ",") {
 			return Reject, nil
 		}
 	}
@@ -1257,7 +1307,9 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		reject = RejectAt(e.position)
 	}
 	byCode := func() string {
-		if oracleParserCode(e.code, rev5) || (rev5 && e.code == 2014 && reRowLimitingForUpdate.MatchString(statement)) {
+		if oracleParserCode(e.code, rev5) ||
+			(rev5 && e.code == 2014 && reRowLimitingForUpdate.MatchString(masked)) ||
+			(rev5 && e.code == 3001 && isRev5StructuralUnimplemented(masked)) {
 			return reject
 		}
 		v, _ := acceptEarlyError()
@@ -1267,7 +1319,7 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		// Past the last token nothing is looked up: what the parser wanted
 		// is missing, whatever the code, unless it is a check Oracle makes
 		// of the whole statement after the parse.
-		if oracleCheckedAtEnd[e.code] && !(rev5 && oracleCheckedAtEndRemovedRev5[e.code]) {
+		if oracleCheckedAtEnd[e.code] && !(rev5 && isRev5RejectedAtEnd(e.code, masked)) {
 			return acceptEarlyError()
 		}
 		return reject, nil
@@ -1311,7 +1363,7 @@ func oracleCompileSyntax(e, statement string, rev5 bool) bool {
 			return true
 		}
 		if rev5 && n == 306 {
-			return reInquiryNamedArg.MatchString(statement)
+			return reInquiryNamedArg.MatchString(maskSQLCommentsAndQuotes(statement))
 		}
 		if rev5 && n == 550 {
 			return hasTextualNonCharCharset(statement)
