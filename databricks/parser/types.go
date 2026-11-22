@@ -248,11 +248,11 @@ func (p *Parser) isStringLit() bool {
 }
 
 func (p *Parser) matchNot() bool {
-	return p.match(kwNOT, tokBang)
+	return p.match(kwNOT)
 }
 
 func (p *Parser) isNot() bool {
-	return p.cur().Kind == kwNOT || p.cur().Kind == tokBang
+	return p.cur().Kind == kwNOT
 }
 
 func (p *Parser) matchNamespace() bool {

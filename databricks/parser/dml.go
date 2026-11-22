@@ -303,7 +303,7 @@ func (p *Parser) isOptionalInsertTableKeyword() bool {
 	case kwREPLACE:
 		return p.peek(2).Kind != kwWHERE
 	case kwIF:
-		return p.peek(2).Kind != kwNOT && p.peek(2).Kind != tokBang
+		return p.peek(2).Kind != kwNOT
 	}
 	return next.isIdentifier() || next == kwIDENTIFIER
 }
@@ -516,8 +516,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 }
 
 func (p *Parser) isNotAt(offset int) bool {
-	k := p.peek(offset).Kind
-	return k == kwNOT || k == tokBang
+	return p.peek(offset).Kind == kwNOT
 }
 
 func (p *Parser) parseMatchedAction() error {

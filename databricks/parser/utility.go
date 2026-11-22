@@ -161,17 +161,42 @@ func (p *Parser) parseSetResetStatement() (Statement, error) {
 	if raw == "" || raw == "-v" {
 		return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: endPos}}, nil
 	}
-	if eqIdx := strings.IndexByte(raw, '='); eqIdx >= 0 {
-		key := strings.TrimSpace(raw[:eqIdx])
-		if !isValidSparkSetKey(key) {
-			return nil, p.errorf("invalid configuration key %q in SET statement", key)
-		}
-		return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: endPos}}, nil
-	}
-	if !isValidSparkSetKey(raw) {
+	if !isValidSparkSetTail(raw) {
 		return nil, p.errorf("invalid SET syntax %q; expected 'SET', 'SET key', or 'SET key=value'", raw)
 	}
 	return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: endPos}}, nil
+}
+
+// isValidSparkSetTail validates the trimmed text after SET for either
+// `key` or `key = value`, parsing backtick-quoted keys as whole tokens so
+// `=` inside a quoted key is not mistaken for the assignment separator.
+func isValidSparkSetTail(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	if raw[0] == '`' {
+		end := -1
+		for i := 1; i < len(raw); i++ {
+			if raw[i] == '`' {
+				if i+1 < len(raw) && raw[i+1] == '`' {
+					i++
+					continue
+				}
+				end = i
+				break
+			}
+		}
+		if end < 0 {
+			return false
+		}
+		rest := strings.TrimSpace(raw[end+1:])
+		return rest == "" || rest[0] == '='
+	}
+	if eqIdx := strings.IndexByte(raw, '='); eqIdx >= 0 {
+		key := strings.TrimSpace(raw[:eqIdx])
+		return isValidSparkSetKey(key)
+	}
+	return isValidSparkSetKey(raw)
 }
 
 func isValidSparkSetKey(key string) bool {

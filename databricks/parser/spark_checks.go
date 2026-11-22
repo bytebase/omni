@@ -716,6 +716,121 @@ func daysInMonth(year, month int) int {
 	return 0
 }
 
+var (
+	bigMinInt32 = big.NewInt(math.MinInt32)
+	bigMaxInt32 = big.NewInt(math.MaxInt32)
+	bigMinInt64 = big.NewInt(math.MinInt64)
+	bigMaxInt64 = big.NewInt(math.MaxInt64)
+)
+
+func checkedInt32(v *big.Int) (int64, bool) {
+	if v.Cmp(bigMinInt32) < 0 || v.Cmp(bigMaxInt32) > 0 {
+		return 0, false
+	}
+	return v.Int64(), true
+}
+
+func checkedInt64(v *big.Int) (int64, bool) {
+	if v.Cmp(bigMinInt64) < 0 || v.Cmp(bigMaxInt64) > 0 {
+		return 0, false
+	}
+	return v.Int64(), true
+}
+
+func checkedAddInt32(a, b int64) (int64, bool) {
+	sum := a + b
+	if sum < math.MinInt32 || sum > math.MaxInt32 {
+		return 0, false
+	}
+	return sum, true
+}
+
+func checkedAddInt64(a, b int64) (int64, bool) {
+	sum := new(big.Int).Add(big.NewInt(a), big.NewInt(b))
+	return checkedInt64(sum)
+}
+
+func parseUnsignedBigInt(s string) (*big.Int, bool) {
+	if s == "" {
+		return nil, false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return nil, false
+		}
+	}
+	v, ok := new(big.Int).SetString(s, 10)
+	return v, ok
+}
+
+// intervalUnitDuration computes the checked (months, microseconds) duration of
+// a single multi-unit interval term, matching Spark v4.0.5's int32 month and
+// int64 microsecond bounds.
+func intervalUnitDuration(sign int64, numStr string, unit TokenKind) (months int64, micros int64, ok bool) {
+	s := numStr
+	if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	} else if strings.HasPrefix(s, "-") {
+		sign = -sign
+		s = s[1:]
+	}
+	intPart, fracPart, hasDot := strings.Cut(s, ".")
+	v := new(big.Int)
+	if intPart != "" {
+		parsed, valid := parseUnsignedBigInt(intPart)
+		if !valid {
+			return 0, 0, false
+		}
+		v = parsed
+	}
+	const secUS int64 = 1_000_000
+	applySign := func(mag *big.Int) *big.Int {
+		if sign < 0 {
+			return new(big.Int).Neg(mag)
+		}
+		return mag
+	}
+	switch unit {
+	case kwYEAR, kwYEARS:
+		m, valid := checkedInt32(applySign(new(big.Int).Mul(v, big.NewInt(12))))
+		return m, 0, valid
+	case kwMONTH, kwMONTHS:
+		m, valid := checkedInt32(applySign(v))
+		return m, 0, valid
+	case kwMICROSECOND, kwMICROSECONDS:
+		// Spark parses microsecond magnitude before applying sign, rejecting
+		// -9223372036854775808 MICROSECOND as well as positive overflow.
+		if v.Cmp(bigMaxInt64) > 0 {
+			return 0, 0, false
+		}
+		us, valid := checkedInt64(applySign(v))
+		return 0, us, valid
+	case kwMILLISECOND, kwMILLISECONDS:
+		us, valid := checkedInt64(applySign(new(big.Int).Mul(v, big.NewInt(1_000))))
+		return 0, us, valid
+	case kwSECOND, kwSECONDS:
+		mag := new(big.Int).Mul(v, big.NewInt(secUS))
+		if hasDot && fracPart != "" {
+			mag.Add(mag, big.NewInt(parseFracToMicros(fracPart)))
+		}
+		us, valid := checkedInt64(applySign(mag))
+		return 0, us, valid
+	case kwMINUTE, kwMINUTES:
+		us, valid := checkedInt64(applySign(new(big.Int).Mul(v, big.NewInt(60*secUS))))
+		return 0, us, valid
+	case kwHOUR, kwHOURS:
+		us, valid := checkedInt64(applySign(new(big.Int).Mul(v, big.NewInt(3600*secUS))))
+		return 0, us, valid
+	case kwDAY, kwDAYS:
+		us, valid := checkedInt64(applySign(new(big.Int).Mul(v, big.NewInt(86400*secUS))))
+		return 0, us, valid
+	case kwWEEK, kwWEEKS:
+		us, valid := checkedInt64(applySign(new(big.Int).Mul(v, big.NewInt(7*86400*secUS))))
+		return 0, us, valid
+	}
+	return 0, 0, false
+}
+
 func isValidSparkIntervalString(s string) bool {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -729,16 +844,28 @@ func isValidSparkIntervalString(s string) bool {
 	if len(fields) == 0 || len(fields)%2 != 0 {
 		return false
 	}
+	var totalMonths, totalMicros int64
 	for i := 0; i < len(fields); i += 2 {
 		numStr, unitStr := fields[i], strings.ToUpper(fields[i+1])
-		unitKind, ok := lookupKeyword(unitStr), true
+		unitKind := lookupKeyword(unitStr)
 		if !isSupportedMultiUnit(unitKind) {
 			return false
 		}
 		if !isValidMultiUnitNumber(numStr, unitKind) {
 			return false
 		}
-		_ = ok
+		m, us, ok := intervalUnitDuration(1, numStr, unitKind)
+		if !ok {
+			return false
+		}
+		totalMonths, ok = checkedAddInt32(totalMonths, m)
+		if !ok {
+			return false
+		}
+		totalMicros, ok = checkedAddInt64(totalMicros, us)
+		if !ok {
+			return false
+		}
 	}
 	return true
 }
@@ -799,7 +926,7 @@ func isValidMultiUnitNumber(s string, unit TokenKind) bool {
 }
 
 // parseUnitToUnitIntervalValue validates Spark's from-to interval string literal
-// and returns its duration in (months, microseconds) for timezone bounds checking.
+// and returns its checked duration in (months, microseconds).
 func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerSign int64) (months int64, micros int64, ok bool) {
 	s := strings.TrimSpace(val)
 	if s == "" {
@@ -813,102 +940,129 @@ func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerS
 		s = s[1:]
 	}
 	const secUS int64 = 1_000_000
+	applySign := func(mag *big.Int) *big.Int {
+		if sign < 0 {
+			return new(big.Int).Neg(mag)
+		}
+		return mag
+	}
 	switch {
 	case fromUnit == kwYEAR && toUnit == kwMONTH:
 		parts := strings.Split(s, "-")
 		if len(parts) != 2 {
 			return 0, 0, false
 		}
-		y, err1 := strconv.ParseInt(parts[0], 10, 64)
-		m, err2 := strconv.ParseInt(parts[1], 10, 64)
-		if err1 != nil || err2 != nil || m < 0 || m > 11 {
+		y, ok1 := parseUnsignedBigInt(parts[0])
+		m, ok2 := parseDigits(parts[1], 1, 2)
+		if !ok1 || !ok2 || m < 0 || m > 11 {
 			return 0, 0, false
 		}
-		return sign * (y*12 + m), 0, true
+		total := new(big.Int).Mul(y, big.NewInt(12))
+		total.Add(total, big.NewInt(int64(m)))
+		res, valid := checkedInt32(applySign(total))
+		return res, 0, valid
 
 	case fromUnit == kwDAY && toUnit == kwHOUR:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
 			return 0, 0, false
 		}
-		d, err1 := strconv.ParseInt(parts[0], 10, 64)
-		h, err2 := strconv.ParseInt(parts[1], 10, 64)
-		if err1 != nil || err2 != nil || h < 0 || h > 23 {
+		d, ok1 := parseUnsignedBigInt(parts[0])
+		h, ok2 := parseDigits(parts[1], 1, 2)
+		if !ok1 || !ok2 || h < 0 || h > 23 {
 			return 0, 0, false
 		}
-		return 0, sign * (d*86400 + h*3600) * secUS, true
+		total := new(big.Int).Mul(d, big.NewInt(86400*secUS))
+		total.Add(total, big.NewInt(int64(h)*3600*secUS))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 
 	case fromUnit == kwDAY && toUnit == kwMINUTE:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
 			return 0, 0, false
 		}
-		d, err1 := strconv.ParseInt(parts[0], 10, 64)
+		d, ok1 := parseUnsignedBigInt(parts[0])
 		hm := strings.Split(parts[1], ":")
-		if err1 != nil || len(hm) != 2 {
+		if !ok1 || len(hm) != 2 {
 			return 0, 0, false
 		}
-		h, err2 := strconv.ParseInt(hm[0], 10, 64)
-		m, err3 := strconv.ParseInt(hm[1], 10, 64)
-		if err2 != nil || err3 != nil || h < 0 || h > 23 || m < 0 || m > 59 {
+		h, ok2 := parseDigits(hm[0], 1, 2)
+		m, ok3 := parseDigits(hm[1], 1, 2)
+		if !ok2 || !ok3 || h < 0 || h > 23 || m < 0 || m > 59 {
 			return 0, 0, false
 		}
-		return 0, sign * (d*86400 + h*3600 + m*60) * secUS, true
+		total := new(big.Int).Mul(d, big.NewInt(86400*secUS))
+		total.Add(total, big.NewInt((int64(h)*3600+int64(m)*60)*secUS))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 
 	case fromUnit == kwDAY && toUnit == kwSECOND:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
 			return 0, 0, false
 		}
-		d, err1 := strconv.ParseInt(parts[0], 10, 64)
+		d, ok1 := parseUnsignedBigInt(parts[0])
 		hms := strings.Split(parts[1], ":")
-		if err1 != nil || len(hms) != 3 {
+		if !ok1 || len(hms) != 3 {
 			return 0, 0, false
 		}
-		h, err2 := strconv.ParseInt(hms[0], 10, 64)
-		m, err3 := strconv.ParseInt(hms[1], 10, 64)
-		secMicros, ok := parseSecondsMicros(hms[2])
-		if err2 != nil || err3 != nil || !ok || h < 0 || h > 23 || m < 0 || m > 59 {
+		h, ok2 := parseDigits(hms[0], 1, 2)
+		m, ok3 := parseDigits(hms[1], 1, 2)
+		secMicros, ok4 := parseSecondsMicros(hms[2])
+		if !ok2 || !ok3 || !ok4 || h < 0 || h > 23 || m < 0 || m > 59 {
 			return 0, 0, false
 		}
-		return 0, sign * ((d*86400+h*3600+m*60)*secUS + secMicros), true
+		total := new(big.Int).Mul(d, big.NewInt(86400*secUS))
+		total.Add(total, big.NewInt((int64(h)*3600+int64(m)*60)*secUS+secMicros))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 
 	case fromUnit == kwHOUR && toUnit == kwMINUTE:
 		hm := strings.Split(s, ":")
 		if len(hm) != 2 {
 			return 0, 0, false
 		}
-		h, err1 := strconv.ParseInt(hm[0], 10, 64)
-		m, err2 := strconv.ParseInt(hm[1], 10, 64)
-		if err1 != nil || err2 != nil || m < 0 || m > 59 {
+		h, ok1 := parseUnsignedBigInt(hm[0])
+		m, ok2 := parseDigits(hm[1], 1, 2)
+		if !ok1 || !ok2 || m < 0 || m > 59 {
 			return 0, 0, false
 		}
-		return 0, sign * (h*3600 + m*60) * secUS, true
+		total := new(big.Int).Mul(h, big.NewInt(3600*secUS))
+		total.Add(total, big.NewInt(int64(m)*60*secUS))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 
 	case fromUnit == kwHOUR && toUnit == kwSECOND:
 		hms := strings.Split(s, ":")
 		if len(hms) != 3 {
 			return 0, 0, false
 		}
-		h, err1 := strconv.ParseInt(hms[0], 10, 64)
-		m, err2 := strconv.ParseInt(hms[1], 10, 64)
-		secMicros, ok := parseSecondsMicros(hms[2])
-		if err1 != nil || err2 != nil || !ok || m < 0 || m > 59 {
+		h, ok1 := parseUnsignedBigInt(hms[0])
+		m, ok2 := parseDigits(hms[1], 1, 2)
+		secMicros, ok3 := parseSecondsMicros(hms[2])
+		if !ok1 || !ok2 || !ok3 || m < 0 || m > 59 {
 			return 0, 0, false
 		}
-		return 0, sign * ((h*3600+m*60)*secUS + secMicros), true
+		total := new(big.Int).Mul(h, big.NewInt(3600*secUS))
+		total.Add(total, big.NewInt(int64(m)*60*secUS+secMicros))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 
 	case fromUnit == kwMINUTE && toUnit == kwSECOND:
 		ms := strings.Split(s, ":")
 		if len(ms) != 2 {
 			return 0, 0, false
 		}
-		m, err1 := strconv.ParseInt(ms[0], 10, 64)
-		secMicros, ok := parseSecondsMicros(ms[1])
-		if err1 != nil || !ok {
+		m, ok1 := parseUnsignedBigInt(ms[0])
+		secMicros, ok2 := parseSecondsMicros(ms[1])
+		if !ok1 || !ok2 {
 			return 0, 0, false
 		}
-		return 0, sign * (m*60*secUS + secMicros), true
+		total := new(big.Int).Mul(m, big.NewInt(60*secUS))
+		total.Add(total, big.NewInt(secMicros))
+		res, valid := checkedInt64(applySign(total))
+		return 0, res, valid
 	}
 	return 0, 0, false
 }
@@ -916,8 +1070,8 @@ func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerS
 // parseSecondsMicros parses SS[.fffffffff] (0 <= SS <= 59) and returns total microseconds.
 func parseSecondsMicros(s string) (int64, bool) {
 	secPart, fracPart, hasDot := strings.Cut(s, ".")
-	sec, err := strconv.ParseInt(secPart, 10, 64)
-	if err != nil || sec < 0 || sec > 59 {
+	sec, ok := parseDigits(secPart, 1, 2)
+	if !ok || sec < 0 || sec > 59 {
 		return 0, false
 	}
 	var fracMicros int64
@@ -932,25 +1086,17 @@ func parseSecondsMicros(s string) (int64, bool) {
 		}
 		fracMicros = parseFracToMicros(fracPart)
 	}
-	return sec*1_000_000 + fracMicros, true
+	return int64(sec)*1_000_000 + fracMicros, true
 }
 
 // parseFracToMicros converts a decimal fraction string (digits after '.') to
-// microseconds (truncated/padded to 6 digits, flagging any nonzero sub-microsecond
-// digits as 1 microsecond so non-whole-second checks reject them).
+// microseconds (truncated/padded to 6 digits, matching Spark's microsecond precision).
 func parseFracToMicros(frac string) int64 {
 	var us int64
 	for i := 0; i < 6; i++ {
 		us *= 10
 		if i < len(frac) {
 			us += int64(frac[i] - '0')
-		}
-	}
-	if us == 0 {
-		for i := 6; i < len(frac); i++ {
-			if frac[i] != '0' {
-				return 1
-			}
 		}
 	}
 	return us

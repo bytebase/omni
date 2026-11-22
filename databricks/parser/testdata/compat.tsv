@@ -6696,3 +6696,23 @@ accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) TBLPROPERTIES
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) TBLPROPERTIES ("k"."v" = "x")
 accept	accept	engine	suite:spark-astbuilder	SELECT "a" "b"
 reject	reject	engine	suite:spark-astbuilder	SELECT a COLLATE "utf8_binary"
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL 2147483647 MONTH
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 2147483648 MONTH
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL 178956970 YEAR 7 MONTH
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 178956970 YEAR 8 MONTH
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL 9223372036854775807 MICROSECONDS
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 9223372036854775808 MICROSECONDS
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL -9223372036854775808 MICROSECONDS
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 5000000000000000000 MICROSECOND 5000000000000000000 MICROSECOND
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL '106751991 04:00:54.775807' DAY TO SECOND
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL '106751991 04:00:54.775808' DAY TO SECOND
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL '-106751991 04:00:54.775808' DAY TO SECOND
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL '-106751991 04:00:54.775809' DAY TO SECOND
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL '178956970-8' YEAR TO MONTH
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL '2147483648 months'
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t ADD IF ! EXISTS PARTITION (p=1)
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t ADD COLUMN a INT ! NULL
+accept	accept	engine	suite:spark-astbuilder	SET `foo=bar` = 1
+accept	accept	engine	suite:spark-astbuilder	SET `foo=bar`
+accept	accept	engine	suite:spark-astbuilder	SET `a``b=c` = x=y
+reject	reject	engine	suite:spark-astbuilder	SET `a=b` c = 1

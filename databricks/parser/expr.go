@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -2326,64 +2325,24 @@ func (p *Parser) parseMultiUnitsInterval() (int64, int64, error) {
 		if !isValidMultiUnitNumber(numStr, unitTok.Kind) {
 			return 0, 0, p.errorf("invalid interval value %q for unit %q", rawVal, unitTok.Text)
 		}
-		m, us := intervalUnitDuration(sign, numStr, unitTok.Kind)
-		totalMonths += m
-		totalMicros += us
+		m, us, ok := intervalUnitDuration(sign, numStr, unitTok.Kind)
+		if !ok {
+			return 0, 0, p.errorf("interval value %q overflows unit %q", rawVal, unitTok.Text)
+		}
+		totalMonths, ok = checkedAddInt32(totalMonths, m)
+		if !ok {
+			return 0, 0, p.errorf("year-month interval overflows int32 months")
+		}
+		totalMicros, ok = checkedAddInt64(totalMicros, us)
+		if !ok {
+			return 0, 0, p.errorf("day-time interval overflows int64 microseconds")
+		}
 		count++
 	}
 	if count == 0 {
 		return 0, 0, p.errorf("expected interval value and unit")
 	}
 	return totalMonths, totalMicros, nil
-}
-
-func intervalUnitDuration(sign int64, numStr string, unit TokenKind) (months int64, micros int64) {
-	s := numStr
-	if strings.HasPrefix(s, "+") {
-		s = s[1:]
-	} else if strings.HasPrefix(s, "-") {
-		sign = -sign
-		s = s[1:]
-	}
-	intPart, fracPart, hasDot := strings.Cut(s, ".")
-	var v int64
-	if intPart != "" {
-		parsed, err := strconv.ParseInt(intPart, 10, 64)
-		if err != nil {
-			const overflowUS int64 = 1_000_000_000 * 1_000_000
-			if unit == kwYEAR || unit == kwYEARS || unit == kwMONTH || unit == kwMONTHS {
-				return sign * 1_000_000, 0
-			}
-			return 0, sign * overflowUS
-		}
-		v = parsed
-	}
-	const secUS int64 = 1_000_000
-	switch unit {
-	case kwMICROSECOND, kwMICROSECONDS:
-		return 0, sign * v
-	case kwMILLISECOND, kwMILLISECONDS:
-		return 0, sign * v * 1_000
-	case kwSECOND, kwSECONDS:
-		us := v * secUS
-		if hasDot && fracPart != "" {
-			us += parseFracToMicros(fracPart)
-		}
-		return 0, sign * us
-	case kwMINUTE, kwMINUTES:
-		return 0, sign * v * 60 * secUS
-	case kwHOUR, kwHOURS:
-		return 0, sign * v * 3600 * secUS
-	case kwDAY, kwDAYS:
-		return 0, sign * v * 86400 * secUS
-	case kwWEEK, kwWEEKS:
-		return 0, sign * v * 7 * 86400 * secUS
-	case kwMONTH, kwMONTHS:
-		return sign * v, 0
-	case kwYEAR, kwYEARS:
-		return sign * v * 12, 0
-	}
-	return 0, 0
 }
 
 func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
