@@ -894,8 +894,13 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 	}
 	// Implicit alias: a bare identifier that is not a clause/join continuation.
 	// In Spanner, QUALIFY is not a clause keyword and is accepted as a bare
-	// table alias (e.g. `TABLE a() QUALIFY`).
-	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || (p.isSpanner() && p.cur.Type == kwQUALIFY)) && !p.atTableAliasStop() {
+	// table alias (e.g. `TABLE a() QUALIFY`). In union mode (DialectDefault),
+	// QUALIFY is also accepted as a bare table alias when no QUALIFY <expr>
+	// clause can follow (EOF, ';', ')', ',', or a following clause/join
+	// keyword), while `FROM t QUALIFY <expr>` keeps the QUALIFY clause reading.
+	// BigQuery reserves QUALIFY, so DialectBigQuery disables bare QUALIFY aliases.
+	isBareQualifyAlias := p.cur.Type == kwQUALIFY && (p.isSpanner() || (!p.isBigQuery() && p.atTableQualifyImplicitAlias()))
+	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || isBareQualifyAlias) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {
@@ -904,6 +909,22 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 		return alias, true, nil
 	}
 	return "", false, nil
+}
+
+// atTableQualifyImplicitAlias reports whether a bare QUALIFY following a table
+// source is an implicit table alias because the next token cannot begin a
+// QUALIFY <expr> clause.
+func (p *Parser) atTableQualifyImplicitAlias() bool {
+	switch p.peekNext().Type {
+	case tokEOF, int(';'), int(')'), int(','),
+		kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwWINDOW,
+		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT,
+		kwFOR, tokPipe,
+		kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL,
+		kwON, kwUSING, kwPIVOT, kwUNPIVOT, kwTABLESAMPLE, kwWITH, kwMATCH_RECOGNIZE:
+		return true
+	}
+	return false
 }
 
 // atTableAliasStop reports whether the current (identifier-start) token must NOT

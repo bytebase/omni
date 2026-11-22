@@ -4209,7 +4209,7 @@ reject	reject	engine	table_clause_no_keyword(as_alias)?/as_alias!insert	TABLE a(
 accept	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/%empty	TABLE a()
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	TABLE a() QUALIFY NULL
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	TABLE a() NULL
-reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	TABLE a() QUALIFY
+accept	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	TABLE a() QUALIFY
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	TABLE a() QUALIFY NULL zzz
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	TABLE a() RAISE NULL
 accept	accept	engine	table_clause_reserved/KW_TABLE_FOR_TABLE_CLAUSE_table_clause_no_keyword	TABLE a

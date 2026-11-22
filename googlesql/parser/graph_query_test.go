@@ -1468,19 +1468,66 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 		}
 	}
 	// A QUALIFY with no expression after it is the alias even when a clause
-	// keyword follows it.
+	// keyword follows it (in both select-list and table-alias positions).
 	for _, sql := range []string{
 		"SELECT 1 QUALIFY FROM t",
 		"SELECT 1 QUALIFY WHERE TRUE",
 		"SELECT 1 QUALIFY",
+		"TABLE a() QUALIFY",
+		"TABLE a() QUALIFY;",
+		"SELECT a FROM t QUALIFY",
+		"SELECT a FROM t QUALIFY WHERE TRUE",
+		"SELECT a FROM t QUALIFY, u",
+		"SELECT a FROM t QUALIFY JOIN u ON TRUE",
+		"SELECT a FROM t QUALIFY ORDER BY a",
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
 		}
 	}
-	// The clause reading survives.
-	if _, errs := parseForTest("SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1"); len(errs) != 0 {
-		t.Errorf("QUALIFY clause: unexpected errors: %v", errs)
+	// Verify AST shape: `TABLE a() QUALIFY` parses QUALIFY as the TVF alias,
+	// while `SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1` keeps the
+	// QUALIFY clause and leaves the table alias empty.
+	if f, err := Parse("TABLE a() QUALIFY"); err != nil {
+		t.Fatalf("Parse(TABLE a() QUALIFY) unexpected error: %v", err)
+	} else {
+		qs, ok := f.Stmts[0].(*ast.QueryStmt)
+		if !ok {
+			t.Fatalf("TABLE a() QUALIFY: got %T, want *ast.QueryStmt", f.Stmts[0])
+		}
+		tc, ok := qs.Body.(*ast.TableClause)
+		if !ok || tc.Table == nil || tc.Table.Alias != "QUALIFY" {
+			t.Fatalf("TABLE a() QUALIFY: got %#v, want TableClause with Alias=QUALIFY", qs.Body)
+		}
+	}
+	// The clause reading survives in both select-list and FROM contexts.
+	for _, sql := range []string{
+		"SELECT a QUALIFY b",
+		"SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1",
+		"SELECT a FROM t QUALIFY b",
+	} {
+		f, err := Parse(sql)
+		if err != nil {
+			t.Errorf("Parse(%q): unexpected error: %v", sql, err)
+			continue
+		}
+		qs, ok := f.Stmts[0].(*ast.QueryStmt)
+		if !ok {
+			t.Errorf("Parse(%q): got %T, want *ast.QueryStmt", sql, f.Stmts[0])
+			continue
+		}
+		sel := selectOf(t, qs)
+		if sel.Qualify == nil {
+			t.Errorf("Parse(%q): expected non-nil Qualify clause, got %#v", sql, qs.Body)
+		}
+	}
+	// DialectBigQuery still reserves QUALIFY and rejects bare QUALIFY aliases;
+	// DialectSpanner accepts bare QUALIFY table aliases.
+	if _, err := ParseWithDialect("TABLE a() QUALIFY", DialectBigQuery); err == nil {
+		t.Errorf("ParseWithDialect(TABLE a() QUALIFY, DialectBigQuery): expected error, got nil")
+	}
+	if _, err := ParseWithDialect("TABLE a() QUALIFY", DialectSpanner); err != nil {
+		t.Errorf("ParseWithDialect(TABLE a() QUALIFY, DialectSpanner): unexpected error: %v", err)
 	}
 }
 
