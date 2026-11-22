@@ -57,6 +57,26 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_CONSTRAINT"
 		p.advance() // consume ADD
+		if p.cur.Type == '(' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == kwCHECK {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS) && isOracleSQLReservedKeyword(p.peekNext()) {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS) && len(p.peekAhead(2)) == 2 && p.peekAhead(2)[1].Type == kwCHECK {
+			p.advance()
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if (p.cur.Type == kwPRIMARY || p.cur.Type == kwFOREIGN) && p.peekNext().Type != kwKEY {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		tc, err := p.parseTableConstraintBody(false)
 		if err != nil {
 			return nil, err

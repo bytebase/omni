@@ -32,9 +32,7 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 			// Each kind of key stands once (ORA-32586).
 			seen := map[int]bool{}
 			for {
-				if seen[p.cur.Type] {
-					return p.syntaxErrorAtCur()
-				}
+				dup := seen[p.cur.Type]
 				seen[p.cur.Type] = true
 				switch {
 				case p.cur.Type == kwALL, p.cur.Type == kwUNIQUE:
@@ -45,6 +43,9 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 						return err
 					}
 				default:
+					return p.syntaxErrorAtCur()
+				}
+				if dup {
 					return p.syntaxErrorAtCur()
 				}
 				if objectProperties || p.cur.Type != ',' {

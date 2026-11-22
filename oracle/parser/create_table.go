@@ -543,14 +543,14 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
-	periods, supplemental := 0, 0
+	periods, supplemental, domains := 0, 0, 0
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
 			return p.syntaxErrorAtCur()
 		}
 		progress = p.pos()
-		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental
+		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental + domains
 		if p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG") {
 			start, valueStart := p.pos(), p.peekNext().End
 			if err := p.parseCreateTableSupplementalLogging(); err != nil {
@@ -558,6 +558,12 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 			}
 			appendCreateTableOption(stmt, "SUPPLEMENTAL LOG", p.createTableOptionValue(valueStart), nodes.Loc{Start: start, End: p.prev.End})
 			supplemental++
+		} else if p.isCreateTableDomainClauseStart() {
+			start := p.pos()
+			if err := p.parseCreateTableDomainClause(stmt, start); err != nil {
+				return err
+			}
+			domains++
 			// Check if this is a table-level constraint
 		} else if p.isCreateTablePeriodStart() {
 			if err := p.parseCreateTablePeriod(stmt); err != nil {
@@ -588,7 +594,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
-		if stmt.Columns.Len()+stmt.Constraints.Len()+periods+supplemental == before {
+		if stmt.Columns.Len()+stmt.Constraints.Len()+periods+supplemental+domains == before {
 			return p.syntaxErrorAtCur()
 		}
 
@@ -614,6 +620,86 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		return p.syntaxErrorAtCur()
 	}
 	return p.checkOutOfLineRefConstraints(stmt, true)
+}
+
+// isCreateTableDomainClauseStart reports a table-level multi-column
+// domain_clause inside CREATE TABLE's relational_properties:
+//
+//	DOMAIN [ schema. ] domain_name ( column [, column ] ... )
+//
+// A column named DOMAIN with a built-in datatype (e.g. DOMAIN VARCHAR2(10))
+// or without a parenthesized column list (e.g. DOMAIN my_type) falls through
+// to parseColumnDef.
+func (p *Parser) isCreateTableDomainClauseStart() bool {
+	if !p.atWord("DOMAIN") {
+		return false
+	}
+	ahead := p.peekAhead(5)
+	if len(ahead) < 2 {
+		return false
+	}
+	if isOracleTypeToken(ahead[0].Type) {
+		return false
+	}
+	if !p.isCreateTableNameTok(ahead[0]) {
+		return false
+	}
+	lparen := 1
+	if ahead[1].Type == '.' {
+		if len(ahead) < 4 || !p.isCreateTableNameTok(ahead[2]) {
+			return false
+		}
+		lparen = 3
+	}
+	if ahead[lparen].Type != '(' {
+		return false
+	}
+	// A numeric argument like DOMAIN my_type(10) is a type modifier, not a
+	// multi-column domain column list.
+	if lparen+1 < len(ahead) && ahead[lparen+1].Type == tokICONST {
+		return false
+	}
+	return true
+}
+
+// isCreateTableNameTok reports whether tok can be an object/domain name token.
+func (p *Parser) isCreateTableNameTok(tok Token) bool {
+	if tok.Type == tokIDENT || tok.Type == tokQIDENT {
+		return true
+	}
+	return tok.Type >= 2000 && !isOracleSQLReservedKeyword(tok)
+}
+
+// parseCreateTableDomainClause reads CREATE TABLE's table-level domain_clause:
+//
+//	DOMAIN [ schema. ] domain_name ( column [, column ] ... )
+func (p *Parser) parseCreateTableDomainClause(stmt *nodes.CreateTableStmt, start int) error {
+	p.advance() // consume DOMAIN
+	valueStart := p.pos()
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	if name == nil || name.Name == "" {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
+	for {
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
+	}
+	appendCreateTableOption(stmt, "DOMAIN", p.createTableOptionValue(valueStart), nodes.Loc{Start: start, End: p.prev.End})
+	return nil
 }
 
 // isTableConstraintStart checks if the current position starts a table-level constraint.
@@ -689,8 +775,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else if (p.cur.Type == kwIDENTITY || p.cur.Type == kwKEY || p.cur.Type == kwNULLS ||
-		((p.cur.Type == kwSAMPLE || p.cur.Type == kwUSING) && p.alterMview)) &&
+		((p.cur.Type == kwSAMPLE || p.cur.Type == kwUSING) && p.alterMview) ||
+		(p.cur.Type == kwREAD && p.createTableColumns)) &&
 		(p.alterTableModifyColumn ||
+			(p.cur.Type == kwREAD && p.createTableColumns) ||
 			((p.cur.Type == kwKEY || p.cur.Type == kwNULLS) && p.createTableColumns &&
 				(p.peekNext().Type == ')' || p.peekNext().Type == ','))) {
 		// Oracle leaves the datatype of a MODIFY column to the resolve
@@ -705,14 +793,19 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	} else if p.isTypeName() && !p.isCreateTableColumnClauseStart() {
 		// COLLATE, ENCRYPT, ANNOTATIONS and SCOPE IS start clauses of a
 		// column without a datatype, not a datatype.
+		typeTok := p.cur
 		var parseErr499 error
 
 		col.TypeName, parseErr499 = p.parseTypeName()
-		if parseErr499 !=
-
-			// Column properties: SORT, VISIBLE, DEFAULT, NOT NULL, NULL, constraints, etc.
-			nil {
+		if parseErr499 != nil {
 			return nil, parseErr499
+		}
+		// A user-defined type name (not a built-in parameterized type) cannot
+		// take a parenthesized modifier; Oracle rejects at the type name
+		// (ORA-03060: MODIFY (a LOB(a) ...), MODIFY (a AS(1), a(1))).
+		if p.alterTableModifyColumn && p.cur.Type == '(' && !isOracleTypeToken(typeTok.Type) &&
+			col.TypeName != nil && !col.TypeName.IsPercType && !col.TypeName.IsPercRowtype {
+			return nil, p.syntaxErrorAtTok(typeTok)
 		}
 	} else if p.alterTableAddColumn && p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur) && !p.isCreateTableColumnClauseStart() {
 		// ALTER TABLE ... ADD's datatype is the resolve phase's: a word
@@ -2343,14 +2436,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 				case "CLUSTERING":
 					optStart := p.pos()
 					p.advance()
-					// attribute_clustering_clause names a table, a JOIN or
-					// BY after CLUSTERING (ORA-00903 at the end of
-					// CREATE TABLE a CLUSTERING).
-					if p.isStatementEnd() {
-						return p.syntaxErrorAtCur()
+					valueStart := p.pos()
+					if err := p.parseCreateTableClustering(); err != nil {
+						return err
 					}
-					value := p.collectCreateTableOptionValue()
-					appendCreateTableOption(stmt, "CLUSTERING", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					appendCreateTableOption(stmt, "CLUSTERING", p.createTableOptionValue(valueStart), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "SUPPLEMENTAL":
 					optStart := p.pos()
 					p.advance() // consume SUPPLEMENTAL

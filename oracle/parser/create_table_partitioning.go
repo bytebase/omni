@@ -157,6 +157,10 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		clause.Loc.End = p.prev.End
 		return clause, nil
 	}
+	if clause.Type == nodes.PARTITION_HASH && p.cur.Type == kwTABLESPACE {
+		p.advance() // consume TABLESPACE before refusing SET on non-sharded hash partitioning
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	bound := createTableHashBound
 	switch clause.Type {
@@ -455,7 +459,7 @@ func (p *Parser) isCreateTablePartitionName(bound createTablePartitionKind) bool
 		return true
 	}
 	next := p.peekNext()
-	if next.Type == ',' || next.Type == ')' {
+	if next.Type == ',' || next.Type == ')' || next.Type == tokEOF {
 		return true
 	}
 	return !p.isCreateTableHashPartitionAttributeStart()
@@ -601,7 +605,11 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 	for {
 		if p.createTablePartitionsOfLog && p.cur.Type != kwTABLESPACE && !p.isKeywordStr("OVERFLOW") {
 			// A log's hash partition or subpartition takes TABLESPACE and
-			// OVERFLOW only.
+			// OVERFLOW only; Oracle consumes INMEMORY before refusing what follows.
+			if p.isKeywordStr("INMEMORY") {
+				p.advance()
+				return p.syntaxErrorAtCur()
+			}
 			if p.cur.Type != ',' && p.cur.Type != ')' {
 				return p.syntaxErrorAtCur()
 			}

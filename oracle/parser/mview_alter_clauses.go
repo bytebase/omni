@@ -173,6 +173,9 @@ func (p *Parser) parseAlterMviewStmt(start int) (*nodes.AlterMaterializedViewStm
 			return nil, err
 		}
 		setAlterMviewAction(stmt, "CONSIDER_FRESH")
+	case p.cur.Type == kwFOR, p.cur.Type == kwUSING:
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
 	}
 	if stmt.Action == "" {
 		return nil, p.syntaxErrorAtCur()

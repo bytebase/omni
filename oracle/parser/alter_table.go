@@ -1459,7 +1459,19 @@ func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 		}
 	} else {
 		p.advance() // INMEMORY
-		if err := p.parseATInmemoryMemcompress(); err != nil {
+		if p.alterMview && p.atWord("MEMOPTIMIZE") {
+			p.advance()
+			if err := p.atExpect(kwFOR); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		} else if p.alterMview && p.cur.Type == kwFOR {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		} else if err := p.parseATInmemoryMemcompress(); err != nil {
 			return nil, err
 		}
 		if p.cur.Type == '(' {
@@ -1926,6 +1938,7 @@ func (p *Parser) parseAlterTableExternal() (*nodes.AlterTableCmd, error) {
 //
 // Oracle takes only DAYS in NO DROP UNTIL (ORA-00905 for DAY).
 func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
+	noTok := p.cur
 	start := p.pos()
 	if p.atNextWord("INMEMORY") {
 		return p.parseAlterTableInmemory()
@@ -2014,7 +2027,7 @@ func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
 		return withAlterTableOptions(cmd, cmd.Options), nil
 	}
-	return nil, p.syntaxErrorAtCur()
+	return nil, p.syntaxErrorAtTok(noTok)
 }
 
 // ---------------------------------------------------------------------------

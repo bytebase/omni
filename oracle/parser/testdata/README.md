@@ -10,14 +10,14 @@ server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
 are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
-#1486 and the stray-`)` deferral wave: 45,852 generated rows and 1,010 hand
-rows, 46,862 in all.
+#1486, #1530, and Wave 2 (unclosed-`(` deferral and follow-up grammar readings):
+45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,447 | 462 | 4 | 621 |
-| Near-misses | 31,318 | 27,686 | 3,451 | 108 | 73 |
-| Hand rows | 1,010 | 888 | 103 | 17 | 2 |
+| One per alternative | 14,534 | 13,533 | 376 | 4 | 621 |
+| Near-misses | 31,318 | 28,647 | 2,491 | 107 | 73 |
+| Hand rows | 1,010 | 889 | 102 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -61,7 +61,7 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 | --- | --- | --- | --- | --- | --- |
 | `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
 | `suite:reference` | 321 | 229 | 76 | 16 | 0 |
-| `suite:manifest` | 612 | 589 | 20 | 1 | 2 |
+| `suite:manifest` | 612 | 590 | 19 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -113,7 +113,7 @@ category word (byte 11), as `COMMENT.bnf` says.
 
 ## Rows only Oracle accepts, measured
 
-The 129 rows whose cells are `reject` where Oracle says `accept` were each
+The 128 rows whose cells are `reject` where Oracle says `accept` were each
 measured on the pinned server at judge revision 3: #1438, #1436 and #1445
 measured the families they name, #1450 the rest of its own, and a follow-up
 after #1450 measured what was left. None is a form omni can read: Oracle
@@ -133,7 +133,7 @@ generated from. A byte is `DBMS_SQL.LAST_ERROR_POSITION`.
 | `ALTER TABLE a ADD (a NUMBER, a` | 1 | `ORA-00957` at 28 (a column named twice) |
 | `CREATE MATERIALIZED VIEW LOG ON a ...` | 4 | `ORA-00942` at 0 (3); `ORA-14017` at the end of the truncated bound (1) |
 | `CREATE MATERIALIZED VIEW a ...` | 5 | `ORA-02538` for `TABLESPACE SET` (2); `ORA-14030` or `ORA-14017` (2); `ORA-00904`/`ORA-22912` at the nested column (1) |
-| `CREATE TABLE a (PARTITION ...)` | 5 | `ORA-00902` at 25: `PARTITION` is a column, the next word its datatype |
+| `CREATE TABLE a (PARTITION ...)` | 4 | `ORA-00902` at 25: `PARTITION` is a column, the next word its datatype |
 | `CREATE TABLE a PARTITION BY RANGE (a) (PARTITION VALUES LESS THAN (1,` | 1 | `ORA-14017` at 66 |
 | `CREATE TABLE ... LOB (a) STORE AS ...` on a hash partition | 2 | `ORA-22877` at 74, 76 |
 | `CREATE TABLE a COLUMN a IS OF (a)` | 1 | `ORA-03001` at 32 |
@@ -288,7 +288,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 4,016 rows, 560 of them where omni stops first and 3,054
+different byte: 2,969 rows, 475 of them where omni stops first and 2,092
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -409,7 +409,29 @@ verdict change and no `suite:` row moved:
 | `SET` statement and `ALTER DISKGROUP a REPAIR ...` | 9 | the token after `SET` (3, 4) or `REPAIR` (25) |
 | `SELECT`/`DELETE`/`UPDATE` `APPLY` alias, `FROM TABLE 1)`, and inline `ANALYTIC VIEW(USING a ADD(...))` | 5 | the token after `APPLY`, `TABLE`, or `ADD` |
 
-The remaining rows are spread thin: 1,974 name no family below. These are the
+Wave 2 moved 1,048 more rows to Oracle's exact cell (85 net fewer `omni_first`,
+962 fewer `oracle_first`, and 1 `CREATE TABLE a(PARTITION READ)` moved from
+only-Oracle-accepts to agreeing `accept`, bringing exact byte match from 89.67%
+to 91.91%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| delimiter scan unclosed-`(` deferral (`ParseRange` reports the statement parser's error whenever it stops at or before `scanErr`, after fixing the prerequisite readings: `MOVE KEYS ... WITH IDENTIFIER IN (...)`, `ALTER MATERIALIZED VIEW MODIFY LOB(a, ...)`, repeated `LOB_partition_storage` clauses, `LOCAL(PARTITION PARAMETERS('s')` EOF handling, `CREATE TABLE` table-level `domain_clause`, `SUPPLEMENTAL LOG GROUP ... NO LOG`, hash partition `PARTITION ILM` at EOF, and `CREATE TABLE (col READ)` datatype reading) | 636 | the earlier token the statement parsers stop at inside an unterminated parenthesis group (closing `USING TEMPLATE(DEFAULT DEFAULT ...)`, inline `EXTERNAL` column clauses, missing `)` before `SUBPARTITION BY`, `CREATE MATERIALIZED VIEW a(PARTITION ...)`, `SELECT * WINDOW a AS(ROWS ...)`, `ALTER LOCKDOWN PROFILE`, and `INSERT INTO t (a VALUES (1)` in `suite:manifest`) |
+| `CREATE TABLE` and `CREATE MATERIALIZED VIEW` `VARRAY ... STORE AS LOB seg (PARTITION ...)` | 135 | `(` (38, 50): `LOB_partition_storage` is refused at `(` on `VARRAY ... STORE AS LOB seg` here, while non-`PARTITION` parameters keep failing inside `(` |
+| `ALTER MATERIALIZED VIEW a ADD PARTITION ...` | 91 | the token after `ADD PARTITION` (40) when a bare partition name has an unexpected trailing word or an unprefixed `UPDATE [GLOBAL] INDEXES` fails to complete |
+| `INMEMORY DISTRIBUTE BY ...` in `CREATE`/`ALTER TABLE` and `CREATE`/`ALTER MATERIALIZED VIEW` | 32 | `BY` (34, 35, 46, 47) when not followed by `ROWID RANGE`, `PARTITION`, or `SUBPARTITION` |
+| `CREATE MATERIALIZED VIEW a PARTITION BY REFERENCE(a)` | 24 | the constraint name `a` (50) once `)` closes (`ORA-14655`) |
+| `CREATE TABLE` and `CREATE MATERIALIZED VIEW` `attribute_clustering_clause` | 17 | `BY` / `ON` / `ORDER` (25–53) via full BNF parsing of `CLUSTERING [ table [ alias ] ] [ JOIN ... ON (...) ] BY [ LINEAR \| INTERLEAVED ] ORDER (...)` |
+| `INMEMORY`, `NOMAPPING`, `IMMEDIATE`, and `INMEMORY MEMOPTIMIZE FOR` readings on `CLUSTER`, `INDEX`, `MATERIALIZED VIEW`, and `MATERIALIZED VIEW LOG` | 17 | the token after `INMEMORY`, `NOMAPPING`, `IMMEDIATE`, or `MEMOPTIMIZE FOR` |
+| `ADMINISTER KEY MANAGEMENT MOVE KEYS ... WITH IDENTIFIER IN(...)` | 14 | end of input when a parenthesized `WITH IDENTIFIER IN (...)` is not a subquery followed by `WITH BACKUP` (`ORA-00921`) |
+| `CREATE TABLE a(DOMAIN ...)` table-level `domain_clause` | 12 | `)` (26, 28, 29) when no column is defined, or the token inside/after `DOMAIN [ schema. ] name ( col [, ...] )` |
+| `ALTER DISKGROUP a` (`MOVE FILE`, `MOVE FILEGROUP`, `REPLACE DISK`, `MODIFY QUOTAGROUP`) | 9 | the token after the keyword read as an unquoted object/file name (`FILEGROUP`, `a`, `QUOTAGROUP`, `'s'`, `QUOTA`) |
+| `ALTER VIEW a ADD` (`CHECK`, `(`, reserved `CONSTRAINT` name, `PRIMARY`/`FOREIGN` missing `KEY`) | 9 | `CHECK` (17), inside `(` (17), reserved constraint name (28), or `(` missing `KEY` (24) |
+| `ALTER TABLE a MODIFY(a <type>(...))` (`LOB(a)`, `LOBS(a)`, `CHECKPOINT(...)`) | 9 | the user-defined type name (`ORA-03060`: parenthesized modifiers belong to built-in parameterized types) |
+| `ALTER MATERIALIZED VIEW` `TRUNCATE` / `MODIFY LOB(a, ...)` and `ALTER TABLE UPGRADE` repeated `LOB_partition_storage` | 14 | `TRUNCATE` (26), after `,` in `MODIFY LOB(a, ...)` (39, 40), or inside/at `)` of the second `VARRAY` storage clause |
+| `ALTER TABLE a NO ...`, `CONTAINER_MAP UPDATE`, `SUPPLEMENTAL LOG DATA` / `ANNOTATIONS` duplicates, `MODIFY PARTITION ADD VALUES LESS THAN`, hash `TABLESPACE SET`, `ENCRYPT NO zzz SALT`, `CREATE TABLE (PARTITION READ ...)`, and `SELECT ... VERSIONS FOR` | 29 | `NO` (14), `VALUES` / EOF in `CONTAINER_MAP UPDATE`, the token after duplicate `ALL`/`a`, `LESS` (44, 56), `SET` (47, 72), `zzz` (40), `ONLY` (30), or `a` (29) |
+
+The remaining rows are spread thin. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |

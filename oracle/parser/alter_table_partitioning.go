@@ -37,7 +37,7 @@ func (p *Parser) isAlterTablePartitioningStart() bool {
 	case p.cur.Type == kwADD:
 		return next.Type == kwPARTITION
 	case p.cur.Type == kwTRUNCATE:
-		return true
+		return !p.alterMview
 	case p.cur.Type == kwDROP, p.cur.Type == kwRENAME:
 		return next.Type == kwPARTITION || next.Type == kwSUBPARTITION
 	case p.atWord("MOVE"):
@@ -236,9 +236,13 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 		//   ADD subpartition_desc [, subpartition_desc ]...
 		//       [ dependent_tables_clause ] [ update_index_clauses ] [ parallel_clause ]
 		p.advance()
-		if p.cur.Type == kwVALUES && !p.atNextWord("LESS") {
-			// Oracle reads ADD VALUES on a partition (compat.tsv's row);
-			// ADD VALUES LESS THAN is still the range form it refuses.
+		if p.cur.Type == kwVALUES {
+			if p.atNextWord("LESS") {
+				// Oracle consumes VALUES before refusing LESS on ADD VALUES LESS THAN.
+				p.advance()
+				return p.syntaxErrorAtCur()
+			}
+			// Oracle reads ADD VALUES on a partition (compat.tsv's row).
 			if err := p.parseATValuesClause(); err != nil {
 				return err
 			}
@@ -477,7 +481,11 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		if p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS {
 			return p.syntaxErrorAtCur()
 		}
+		var nameTok Token
+		hasName := false
 		if p.isATPartitionNameHere(allowed) {
+			nameTok = p.cur
+			hasName = true
 			name, err := p.parseATPartitionName()
 			if err != nil {
 				return err
@@ -486,6 +494,8 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 				cmd.ColumnName = name
 			}
 		}
+		afterNamePos := p.pos()
+		firstTokAfterPart := p.cur
 		if p.cur.Type == kwVALUES {
 			start := p.pos()
 			if err := p.parseATValuesClause(); err != nil {
@@ -494,6 +504,9 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 			p.atOption(cmd.Options, start)
 		}
 		if err := p.parseATClauses(allowed, cmd.Options); err != nil {
+			if p.alterMview && !hasName && firstTokAfterPart.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(firstTokAfterPart)
+			}
 			return err
 		}
 		start := p.pos()
@@ -510,6 +523,14 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		p.atOption(cmd.Options, start)
 		if err := p.parseATClauses(atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
 			return err
+		}
+		if p.alterMview && p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if hasName && p.pos() == afterNamePos {
+				return p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && firstTokAfterPart.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(firstTokAfterPart)
+			}
 		}
 		if p.cur.Type != ',' || p.peekNext().Type != kwPARTITION {
 			return nil

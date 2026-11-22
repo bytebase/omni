@@ -212,17 +212,19 @@ func (p *Parser) parseCreateTableInmemoryAttributes(memcompressSeen bool) error 
 			case p.isKeywordStr("AUTO"):
 				p.advance()
 			case p.cur.Type == kwBY:
+				byTok := p.cur
 				p.advance() // consume BY
 				switch {
 				case p.cur.Type == kwROWID:
 					p.advance() // consume ROWID
-					if err := p.expectCreateTableWord("RANGE"); err != nil {
-						return err
+					if !p.isKeywordStr("RANGE") {
+						return p.syntaxErrorAtTok(byTok)
 					}
+					p.advance()
 				case p.cur.Type == kwPARTITION, p.isKeywordStr("SUBPARTITION"):
 					p.advance()
 				default:
-					return p.syntaxErrorAtCur()
+					return p.syntaxErrorAtTok(byTok)
 				}
 			}
 			if p.cur.Type == kwFOR {
@@ -250,6 +252,15 @@ func (p *Parser) parseCreateTableInmemoryAttributes(memcompressSeen bool) error 
 				return err
 			}
 			duplicate = true
+		case p.isKeywordStr("MEMOPTIMIZE"):
+			p.advance() // consume MEMOPTIMIZE
+			if err := p.expectCreateTableToken(kwFOR); err != nil {
+				return err
+			}
+			if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
 		default:
 			return nil
 		}
@@ -736,6 +747,9 @@ func (p *Parser) parseCreateTableVarrayLobTarget() error {
 		return err
 	}
 	if p.cur.Type == '(' {
+		if p.peekNext().Type == kwPARTITION {
+			return p.syntaxErrorAtCur()
+		}
 		return p.parseCreateTableLobStorageParameters()
 	}
 	return nil
@@ -1311,14 +1325,15 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 			op = "ADD"
 			p.advance()
 		}
-		if seen[p.cur.Str] && p.isCreateTableNameStart() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		seen[p.cur.Str] = true
+		dup := seen[p.cur.Str] && p.isCreateTableNameStart()
 		name := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, err
 		}
+		if dup {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[name] = true
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start}}
 		if p.cur.Type == tokSCONST {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}}}
@@ -1743,7 +1758,10 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 		if err := p.expectCreateTableToken('('); err != nil {
 			return err
 		}
+		seen := map[int]bool{}
 		for {
+			dup := seen[p.cur.Type]
+			seen[p.cur.Type] = true
 			switch {
 			case p.cur.Type == kwALL, p.cur.Type == kwUNIQUE:
 				p.advance()
@@ -1753,6 +1771,9 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 					return err
 				}
 			default:
+				return p.syntaxErrorAtCur()
+			}
+			if dup {
 				return p.syntaxErrorAtCur()
 			}
 			if p.cur.Type != ',' {
@@ -1778,9 +1799,11 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
-		if p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "LOG") {
+		if p.isKeywordStr("NO") {
 			p.advance()
-			p.advance()
+			if err := p.expectCreateTableWord("LOG"); err != nil {
+				return err
+			}
 		}
 		if p.cur.Type != ',' {
 			break
@@ -1792,6 +1815,157 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 	}
 	if p.cur.Type == kwALWAYS {
 		p.advance()
+	}
+	return nil
+}
+
+// parseCreateTableClustering reads attribute_clustering_clause after
+// CLUSTERING has been consumed.
+//
+// BNF (CREATE-TABLE.bnf lines 705-732):
+//
+//	CLUSTERING [ [ schema. ] table [ alias ] ]
+//	    [ JOIN [ schema. ] table [ alias ] ON ( condition ) ] ...
+//	    BY [ LINEAR | INTERLEAVED ] ORDER ( clustering_columns )
+//	    [ { YES | NO } ON LOAD ] [ { YES | NO } ON DATA MOVEMENT ]
+//	    [ WITH MATERIALIZED ZONEMAP [ ( column [, ...] ) ]
+//	    | WITHOUT MATERIALIZED ZONEMAP ]
+func (p *Parser) parseCreateTableClustering() error {
+	if p.cur.Type != kwBY {
+		// [ schema. ] table [ alias ]
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if p.cur.Type == '.' {
+			p.advance()
+			if err := p.parseCreateTableName(); err != nil {
+				return err
+			}
+		}
+		// Optional table alias (not JOIN or BY).
+		if p.cur.Type != kwJOIN && p.cur.Type != kwBY && p.isCreateTableNameStart() {
+			p.advance()
+		}
+		// Optional clustering_join chain.
+		for p.cur.Type == kwJOIN {
+			p.advance() // consume JOIN
+			if err := p.parseCreateTableName(); err != nil {
+				return err
+			}
+			if p.cur.Type == '.' {
+				p.advance()
+				if err := p.parseCreateTableName(); err != nil {
+					return err
+				}
+			}
+			if p.cur.Type != kwON && p.isCreateTableNameStart() {
+				p.advance()
+			}
+			if err := p.expectCreateTableToken(kwON); err != nil {
+				return err
+			}
+			if err := p.expectCreateTableToken('('); err != nil {
+				return err
+			}
+			cond, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if cond == nil {
+				return p.syntaxErrorAtCur()
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+		}
+	}
+	if err := p.expectCreateTableToken(kwBY); err != nil {
+		return err
+	}
+	if p.isKeywordStr("LINEAR") || p.isKeywordStr("INTERLEAVED") {
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(kwORDER); err != nil {
+		return err
+	}
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
+	for {
+		if p.cur.Type == '(' {
+			p.advance()
+			for {
+				if err := p.parseCreateTableColumnRef(); err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+		} else {
+			if err := p.parseCreateTableColumnRef(); err != nil {
+				return err
+			}
+		}
+		if p.cur.Type == kwASC || p.cur.Type == kwDESC {
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
+	}
+	// Optional clustering_when: { YES | NO } ON LOAD / { YES | NO } ON DATA MOVEMENT
+	for p.isKeywordStr("YES") || p.isKeywordStr("NO") {
+		p.advance()
+		if err := p.expectCreateTableToken(kwON); err != nil {
+			return err
+		}
+		if p.isKeywordStr("LOAD") {
+			p.advance()
+		} else if p.isKeywordStr("DATA") {
+			p.advance()
+			if err := p.expectCreateTableWord("MOVEMENT"); err != nil {
+				return err
+			}
+		} else {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	// Optional zonemap_clause
+	if p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT") {
+		with := p.cur.Type == kwWITH
+		p.advance()
+		if err := p.expectCreateTableToken(kwMATERIALIZED); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("ZONEMAP"); err != nil {
+			return err
+		}
+		if with && p.cur.Type == '(' {
+			if err := p.parseCreateTableColumnNames(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// parseCreateTableColumnRef reads [ table. ] column in a clustering_columns list.
+func (p *Parser) parseCreateTableColumnRef() error {
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if p.cur.Type == '.' {
+		p.advance()
+		return p.parseCreateTableName()
 	}
 	return nil
 }
