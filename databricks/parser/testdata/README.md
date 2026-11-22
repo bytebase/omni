@@ -12,9 +12,9 @@ recognizer again on every run with no server, credentials, or network.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,229 | 2,226 | 3 | 0 |
-| Near-misses | 4,209 | 4,187 | 22 | 0 |
-| **All** | **6,438** | **6,413** | **25** | **0** |
+| One per alternative | 2,229 | 2,223 | 6 | 0 |
+| Near-misses | 4,209 | 4,186 | 23 | 0 |
+| **All** | **6,438** | **6,409** | **29** | **0** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,16 +70,16 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,413 / 6,438 (99.61%), with 2,226 / 2,229 (99.87%) on
-  generated grammar alternatives (the only 3 excluded alternatives are Spark's
-  `errorCapturingIdentifierExtra` error-capturing rules for unquoted hyphens)
+- **Agreement: 6,409 / 6,438 (99.55%), with 2,223 / 2,229 (99.73%) on
+  generated grammar alternatives (the only 6 excluded alternatives are Spark's
+  error-capturing rules for unquoted hyphens and invalid pipe-operator forms)
   and 0 `omni-only` gaps.**
 
-## Remaining tail (25 `judge-only` rows)
+## Remaining tail (29 `judge-only` rows)
 
-All 25 remaining discrepancies are invalid SQL forms that `databricks/parser`
-intentionally rejects while the grammar recognizer accepts them due to three
-known properties of the offline recognizer and upstream error-capturing rules:
+All 29 remaining discrepancies are invalid SQL forms that `databricks/parser`
+intentionally rejects while the grammar recognizer accepts them due to known
+properties of the offline recognizer and upstream error-capturing rules:
 
 1. **9 malformed optimizer hint near-misses** (`SELECT /*+ */ a`,
    `SELECT /*+(a) */ a`, `SELECT /*+ a a) */ a`, `SELECT /*+ a() */ a`,
@@ -105,6 +105,12 @@ known properties of the offline recognizer and upstream error-capturing rules:
    `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
    rejects these directly with a positioned `ParseError` while accepting
    backtick-quoted identifiers.
+4. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
+   `operatorPipeSetAssignmentSeq`) rows** (3 alternatives and 1 near-miss for
+   combined `|> PIVOT ... UNPIVOT ...`, `|> UNPIVOT ... PIVOT ...`, and dotted
+   `|> SET a.a = a`): `SqlBaseParser.g4:1561-1584` explicitly comments that
+   these productions (along with `|> WHERE ... WINDOW ...`) are captured solely
+   for diagnostic error messages; strict `databricks/parser` rejects them.
 
 ## What the judge cannot decide
 

@@ -124,7 +124,9 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 	case kwSET:
 		p.advance()
 		for {
-			if _, err := p.parseMultipartIdentifier(); err != nil {
+			// SqlBaseParser.g4:1579 notes dotted names in `|> SET` are invalid syntax
+			// captured only for diagnostics; strict Parse accepts simple identifiers only.
+			if _, err := p.parseErrorCapturingIdentifier(); err != nil {
 				return err
 			}
 			if _, err := p.expect(tokEq); err != nil {
@@ -146,19 +148,23 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 		_, err := p.parseErrorCapturingIdentifier()
 		return err
 	case kwWHERE:
+		// SqlBaseParser.g4:1561 notes WINDOW is not allowed in `|> WHERE`
+		// (only captured in the grammar for diagnostics); strict Parse rejects it.
 		if err := p.parseWhereClause(); err != nil {
 			return err
 		}
 		if p.cur().Kind == kwWINDOW {
-			return p.parseWindowClause()
+			return p.errorf("WINDOW clause is not allowed in WHERE pipe operator")
 		}
 		return nil
 	case kwPIVOT:
+		// SqlBaseParser.g4:1565 notes combining PIVOT and UNPIVOT in one pipe operator
+		// is invalid syntax captured only for diagnostics; strict Parse rejects it.
 		if err := p.parsePivotClause(); err != nil {
 			return err
 		}
 		if p.cur().Kind == kwUNPIVOT {
-			return p.parseUnpivotClause()
+			return p.errorf("UNPIVOT cannot follow PIVOT in the same pipe operator")
 		}
 		return nil
 	case kwUNPIVOT:
@@ -166,7 +172,7 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 			return err
 		}
 		if p.cur().Kind == kwPIVOT {
-			return p.parsePivotClause()
+			return p.errorf("PIVOT cannot follow UNPIVOT in the same pipe operator")
 		}
 		return nil
 	case kwTABLESAMPLE:
@@ -447,8 +453,18 @@ func (p *Parser) matchSetQuantifierIfFollowedByExpr() {
 		return
 	}
 	next := p.peek(1).Kind
-	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen ||
-		next == kwFROM || next == kwWHERE || next == kwUSING || next == kwROW || next == kwRECORDWRITER {
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow, kwAS,
+		kwFROM, kwWHERE, kwUSING, kwROW, kwRECORDWRITER,
+		kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
 		return
 	}
 	p.advance()

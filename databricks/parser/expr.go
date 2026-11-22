@@ -560,19 +560,33 @@ func (p *Parser) parsePrimaryAtom() error {
 			return p.parseFunctionCallSuffixes()
 
 		case kwSTRUCT:
-			cp := p.save()
+			// Single-pass parsing for STRUCT(namedExpr | key => expr, ...) so nested
+			// STRUCT(..., k => 1) calls never backtrack exponentially.
 			p.advance()
 			p.advance()
-			if !p.match(tokRParen) {
-				if err := p.parseNamedExpressionSeq(); err == nil {
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			for {
+				if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
+					p.advance()
+					p.advance()
+					if err := p.parseExpression(); err != nil {
+						return err
+					}
+				} else {
+					if err := p.parseNamedExpression(); err != nil {
+						return err
 					}
 				}
-				p.restore(cp)
-			} else {
-				return nil
+				if !p.match(tokComma) {
+					break
+				}
 			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwFIRST, kwANY_VALUE, kwLAST:
 			p.advance()
@@ -583,27 +597,8 @@ func (p *Parser) parsePrimaryAtom() error {
 			// Handle optional DISTINCT/ALL followed by arguments, or Spark's
 			// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
 			// without reparsing the argument expression.
-			if p.cur().Kind == kwDISTINCT || p.cur().Kind == kwALL {
-				cpQuant := p.save()
+			if p.isFunctionSetQuantifier() {
 				p.advance()
-				if err := p.parseFunctionArgument(); err == nil {
-					if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
-						p.advance()
-						p.advance()
-						p.advance()
-						return p.parseFunctionCallSuffixes()
-					}
-					for p.match(tokComma) {
-						if err := p.parseFunctionArgument(); err != nil {
-							return err
-						}
-					}
-					if _, err := p.expect(tokRParen); err != nil {
-						return err
-					}
-					return p.parseFunctionCallSuffixes()
-				}
-				p.restore(cpQuant)
 			}
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
@@ -654,17 +649,35 @@ func (p *Parser) parsePrimaryAtom() error {
 			return p.parseFunctionCallSuffixes()
 
 		case kwEXTRACT:
-			cp := p.save()
+			// Single-pass parsing for SQL EXTRACT(field FROM src) and ordinary EXTRACT(a, b) calls.
 			p.advance()
 			p.advance()
-			if _, err := p.parseIdentifier(); err == nil && p.match(kwFROM) {
-				if err := p.parseValueExpression(); err == nil {
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
-					}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFROM {
+				p.advance()
+				p.advance()
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwSUBSTR, kwSUBSTRING:
 			// Single-pass parsing for both SQL SUBSTRING(s FROM pos [FOR len])

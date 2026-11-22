@@ -47,6 +47,11 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "select all and distinct as identifier prefixes",
+			sql:  `SELECT all.x, distinct.x, all[0], distinct::STRING FROM t AS all`,
+			kind: StmtQuery,
+		},
+		{
 			name: "trim with column names leading trailing both",
 			sql:  `SELECT trim(leading), trim(trailing), trim(both), trim(leading, 'x'), trim(leading || 'a') FROM t`,
 			kind: StmtQuery,
@@ -326,6 +331,9 @@ func TestParseErrors(t *testing.T) {
 		{"unquoted hyphenated select from", "SELECT * FROM my-table"},
 		{"unpivot incomplete single alias", "SELECT * FROM t UNPIVOT (v FOR k IN (a AS))"},
 		{"unpivot incomplete multi alias", "SELECT * FROM t UNPIVOT ((v1, v2) FOR k IN ((a, b) AS))"},
+		{"pipe where with window", "FROM t |> WHERE x > 0 WINDOW w AS (PARTITION BY x)"},
+		{"pipe pivot with unpivot", "FROM t |> PIVOT(SUM(a) FOR b IN (1)) UNPIVOT(v FOR k IN (c))"},
+		{"pipe set dotted target", "FROM t |> SET a.b = 1"},
 	}
 
 	for _, tc := range bad {
@@ -408,6 +416,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested datediff",
 			sql:  "SELECT " + strings.Repeat("DATEDIFF('2026-01-01', ", depth) + "d" + strings.Repeat(")", depth),
+		},
+		{
+			name: "nested struct with named arg",
+			sql:  "SELECT " + strings.Repeat("STRUCT(", depth) + "1" + strings.Repeat(", k => 1)", depth),
 		},
 		{
 			name: "nested parens",

@@ -5321,7 +5321,7 @@ reject	reject	grammar	operatorPipeRightSide(windowClause)?/windowClause!drop-4	S
 reject	reject	grammar	operatorPipeRightSide(windowClause)?/windowClause!insert	SELECT a |> SELECT a WINDOW a AS a zzz
 reject	reject	grammar	operatorPipeRightSide(windowClause)?/windowClause!swap	SELECT a |> SELECT a WITH a AS a
 accept	accept	grammar	operatorPipeRightSide(unpivotClause)?/%empty	SELECT a |> PIVOT(a FOR a IN(a))
-accept	accept	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN(a))
+reject	accept	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-1	SELECT a |> PIVOT(a FOR a IN(a))(a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-2	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-3	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(FOR a IN(a))
@@ -5331,10 +5331,10 @@ reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-6
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-7	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN a))
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-8	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN())
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!drop-9	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN(a)
-accept	accept	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!insert	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN(a)) zzz
+reject	accept	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!insert	SELECT a |> PIVOT(a FOR a IN(a)) UNPIVOT(a FOR a IN(a)) zzz
 reject	reject	grammar	operatorPipeRightSide(unpivotClause)?/unpivotClause!swap	SELECT a |> PIVOT(a FOR a IN(a)) UNSET(a FOR a IN(a))
 accept	accept	grammar	operatorPipeRightSide(pivotClause)?/%empty	SELECT a |> UNPIVOT(a FOR a IN(a))
-accept	accept	grammar	operatorPipeRightSide(pivotClause)?/pivotClause	SELECT a |> UNPIVOT(a FOR a IN(a)) PIVOT(a FOR a IN(a))
+reject	accept	grammar	operatorPipeRightSide(pivotClause)?/pivotClause	SELECT a |> UNPIVOT(a FOR a IN(a)) PIVOT(a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(pivotClause)?/pivotClause!drop-1	SELECT a |> UNPIVOT(a FOR a IN(a))(a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(pivotClause)?/pivotClause!drop-2	SELECT a |> UNPIVOT(a FOR a IN(a)) PIVOT a FOR a IN(a))
 reject	reject	grammar	operatorPipeRightSide(pivotClause)?/pivotClause!drop-3	SELECT a |> UNPIVOT(a FOR a IN(a)) PIVOT(FOR a IN(a))
@@ -5375,7 +5375,7 @@ reject	reject	grammar	operatorPipeRightSide(aggregationClause)?/aggregationClaus
 accept	accept	grammar	operatorPipeSetAssignmentSeq/errorCapturingIdentifier_(DOT_errorCapturingIdentifier)~a07fd0a1	SELECT a |> SET a = a
 accept	accept	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/%empty	SELECT a |> SET a = a
 reject	reject	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/%empty!insert	SELECT a |> SET a zzz = a
-accept	accept	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	SELECT a |> SET a.a = a
+reject	accept	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*	SELECT a |> SET a.a = a
 reject	reject	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!drop-1	SELECT a |> SET a a = a
 reject	reject	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!drop-2	SELECT a |> SET a.= a
 reject	reject	grammar	operatorPipeSetAssignmentSeq(DOT_errorCapturingIdentifier)*/DOT_errorCapturingIdentifier_(DOT_errorCapturingIdentifier)*!truncate	SELECT a |> SET a.
