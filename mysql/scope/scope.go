@@ -13,8 +13,11 @@ import (
 
 // Column represents a column visible from a scope entry.
 type Column struct {
-	Name     string
-	Position int // 1-based position in the table
+	Name      string
+	Position  int    // 1-based position in the table
+	DataType  string // optional lowercase MySQL base type (e.g. "int", "datetime", "decimal", "varchar")
+	Scale     int    // optional fractional seconds precision (TIME/DATETIME/TIMESTAMP) or DECIMAL scale
+	Invisible bool   // true for MySQL INVISIBLE columns (excluded from * / TABLE, allowed when explicitly named)
 }
 
 // Table represents a table or virtual table in scope with its visible columns.

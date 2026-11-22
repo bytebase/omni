@@ -327,6 +327,53 @@ func init() {
 			func(c *Catalog) string { return c.session.DefaultTmpStorageEngine },
 			func(c *Catalog, v string) { c.session.DefaultTmpStorageEngine = v },
 		),
+		"default_week_format": {
+			kind: sysvarSessionAndGlobal,
+			assign: func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+				if isDefaultSetKeywordOrIdent(expr) {
+					if scope == setScopeGlobal || scope == setScopePersist {
+						return func() { c.globalDefaultWeekFormat = 0 }, nil
+					}
+					return applyScopedUpdate(scope, nil, func() { c.session.DefaultWeekFormat = c.globalDefaultWeekFormat }), nil
+				}
+				if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+					return nil, errWrongTypeForVar(varName)
+				}
+				v, ok, err := c.evalSetExprChecked(expr)
+				if err != nil {
+					return nil, err
+				}
+				if !ok || v.kind == userVarUnknown {
+					return applyScopedUpdate(scope, func() { c.globalDefaultWeekFormat = -1 }, func() { c.session.DefaultWeekFormat = -1 }), nil
+				}
+				if v.kind != userVarNumeric {
+					return nil, errWrongTypeForVar(varName)
+				}
+				n, err := strconv.ParseInt(strings.TrimSpace(v.str), 10, 64)
+				if err != nil {
+					return nil, errWrongTypeForVar(varName)
+				}
+				if n < 0 {
+					n = 0
+				} else if n > 7 {
+					n = 7
+				}
+				mode := int(n)
+				return applyScopedUpdate(scope, func() { c.globalDefaultWeekFormat = mode }, func() { c.session.DefaultWeekFormat = mode }), nil
+			},
+			readGlobal: func(c *Catalog) userVarValue {
+				if c.globalDefaultWeekFormat < 0 {
+					return userVarValue{kind: userVarUnknown}
+				}
+				return userVarValue{kind: userVarNumeric, str: strconv.Itoa(c.globalDefaultWeekFormat)}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				if c.session.DefaultWeekFormat < 0 {
+					return userVarValue{kind: userVarUnknown}
+				}
+				return userVarValue{kind: userVarNumeric, str: strconv.Itoa(c.session.DefaultWeekFormat)}
+			},
+		},
 		"innodb_directories": {
 			kind: sysvarGlobalOnlyNonPersist,
 			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {

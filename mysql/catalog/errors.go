@@ -176,19 +176,24 @@ const (
 	ErrDependentByPartitionFunc = 3855
 
 	// View query / expression semantic error codes (mysql:8.0.46).
-	ErrInvalidGroupFuncUse         = 1111
-	ErrNotSupportedYet             = 1235
-	ErrOperandColumns              = 1241
-	ErrSPUndeclaredVar             = 1327
-	ErrViewSelectClause            = 1350
-	ErrViewSelectVariable          = 1351
-	ErrUnresolvedTableLock         = 3568
-	ErrWindowNoSuchWindow          = 3579
-	ErrWindowFrameStartIllegal     = 3584
-	ErrWindowFrameEndIllegal       = 3585
-	ErrWindowRangeFrameNumericType = 3596
-	ErrEmptyRowInTVC               = 3942
-	ErrDefaultAsValInTVC           = 3943
+	ErrInvalidGroupFuncUse                = 1111
+	ErrColumnAccessDenied                 = 1143
+	ErrNotSupportedYet                    = 1235
+	ErrOperandColumns                     = 1241
+	ErrSPUndeclaredVar                    = 1327
+	ErrViewSelectClause                   = 1350
+	ErrViewSelectVariable                 = 1351
+	ErrNoDefaultForField                  = 1364
+	ErrWrongValue                         = 1525
+	ErrInvalidTypeForJSON                 = 3146
+	ErrUnresolvedTableLock                = 3568
+	ErrWindowNoSuchWindow                 = 3579
+	ErrWindowFrameStartIllegal            = 3584
+	ErrWindowFrameEndIllegal              = 3585
+	ErrWindowRangeFrameNumericType        = 3596
+	ErrEmptyRowInTVC                      = 3942
+	ErrDefaultAsValInTVC                  = 3943
+	ErrInvalidCastToTimestampWithTimeZone = 3998
 )
 
 var sqlStateMap = map[int]string{
@@ -1129,4 +1134,29 @@ func errEmptyRowInTVC() error {
 func errDefaultAsValInTVC() error {
 	return &Error{Code: ErrDefaultAsValInTVC, SQLState: "HY000",
 		Message: "A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement."}
+}
+
+func errColumnAccessDenied(cmd, col, table string) error {
+	return &Error{Code: ErrColumnAccessDenied, SQLState: "42000",
+		Message: fmt.Sprintf("%s command denied to user 'root'@'%%' for column '%s' in table '%s'", cmd, col, table)}
+}
+
+func errNoDefaultForField(col string) error {
+	return &Error{Code: ErrNoDefaultForField, SQLState: "HY000",
+		Message: fmt.Sprintf("Field '%s' doesn't have a default value", col)}
+}
+
+func errWrongValue(typeName, val string) error {
+	return &Error{Code: ErrWrongValue, SQLState: "HY000",
+		Message: fmt.Sprintf("Incorrect %s value: '%s'", typeName, val)}
+}
+
+func errInvalidTypeForJSON(argPos int, fn string) error {
+	return &Error{Code: ErrInvalidTypeForJSON, SQLState: "22032",
+		Message: fmt.Sprintf("Invalid data type for JSON data in argument %d to function %s; a JSON string or JSON type is required.", argPos, fn)}
+}
+
+func errInvalidCastToTimestampWithTimeZone() error {
+	return &Error{Code: ErrInvalidCastToTimestampWithTimeZone, SQLState: "HY000",
+		Message: "Cannot cast value to TIMESTAMP WITH TIME ZONE."}
 }

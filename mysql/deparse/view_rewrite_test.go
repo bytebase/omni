@@ -8,8 +8,10 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			return &ResolverTable{
 				Name: "t",
 				Columns: []ResolverColumn{
-					{Name: "a", Position: 1},
-					{Name: "b", Position: 2},
+					{Name: "a", Position: 1, DataType: "int"},
+					{Name: "b", Position: 2, DataType: "int"},
+					{Name: "dt3", Position: 3, DataType: "datetime", Scale: 3},
+					{Name: "s", Position: 4, DataType: "varchar"},
 				},
 			}
 		}
@@ -76,9 +78,24 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as date) AS `DATE(a)`,dayofmonth(`t`.`a`) AS `DAY(a)`,(`t`.`a` % `t`.`b`) AS `MOD(a, b)`,geomcollection() AS `GEOMETRYCOLLECTION()`,NULL AS `VALUES(a)` from `t`",
 		},
 		{
-			"time_timestamp_week_preserved",
-			"SELECT TIME('12:34:56.123456'), TIMESTAMP('2021-01-01 12:34:56.123456'), WEEK('2021-01-01') FROM t",
-			"select time('12:34:56.123456') AS `TIME('12:34:56.123456')`,timestamp('2021-01-01 12:34:56.123456') AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,week('2021-01-01') AS `WEEK('2021-01-01')` from `t`",
+			"time_timestamp_week_canonical",
+			"SELECT TIME(a), TIME(dt3), TIME('12:34:56.123456'), TIMESTAMP(a), TIMESTAMP(dt3), TIMESTAMP('2021-01-01 12:34:56.123456'), TIMESTAMP(a, '01:00:00'), WEEK(a), WEEK(a, 1) FROM t",
+			"select cast(`t`.`a` as time) AS `TIME(a)`,cast(`t`.`dt3` as time(3)) AS `TIME(dt3)`,cast('12:34:56.123456' as time(6)) AS `TIME('12:34:56.123456')`,cast(`t`.`a` as datetime) AS `TIMESTAMP(a)`,cast(`t`.`dt3` as datetime(3)) AS `TIMESTAMP(dt3)`,cast('2021-01-01 12:34:56.123456' as datetime(6)) AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,timestamp(`t`.`a`,'01:00:00') AS `TIMESTAMP(a, '01:00:00')`,week(`t`.`a`,0) AS `WEEK(a)`,week(`t`.`a`,1) AS `WEEK(a, 1)` from `t`",
+		},
+		{
+			"time_timestamp_dotted_and_compact_literals",
+			"SELECT TIME(TIMESTAMP '2020.01.01 12:34:56.1') AS a, TIME(TIMESTAMP '2020.01.01 12:34:56') AS b, TIME(TIMESTAMP '2020.01.01 12.34.56') AS c, TIME(TIMESTAMP '2020.01.01 12.34.56.12') AS d, TIME(TIMESTAMP '2020.01.01 12:34:56.12+02:00') AS e, TIME(TIMESTAMP '20200101123456.123') AS f, TIME(TIME '12:34:56.12') AS g",
+			"select cast(TIMESTAMP'2020.01.01 12:34:56.1' as time(1)) AS `a`,cast(TIMESTAMP'2020.01.01 12:34:56' as time) AS `b`,cast(TIMESTAMP'2020.01.01 12.34.56' as time) AS `c`,cast(TIMESTAMP'2020.01.01 12.34.56.12' as time(2)) AS `d`,cast(TIMESTAMP'2020.01.01 12:34:56.12+02:00' as time(2)) AS `e`,cast(TIMESTAMP'20200101123456.123' as time(3)) AS `f`,cast(TIME'12:34:56.12' as time(2)) AS `g`",
+		},
+		{
+			"position_to_locate",
+			"SELECT POSITION(s IN s) FROM t",
+			"select locate(`t`.`s`,`t`.`s`) AS `POSITION(s IN s)` from `t`",
+		},
+		{
+			"cast_decimal_defaults",
+			"SELECT CAST(a AS DECIMAL), CAST(a AS DECIMAL(5)), CAST(a AS DECIMAL(5,2)) FROM t",
+			"select cast(`t`.`a` as decimal(10,0)) AS `CAST(a AS DECIMAL)`,cast(`t`.`a` as decimal(5,0)) AS `CAST(a AS DECIMAL(5))`,cast(`t`.`a` as decimal(5,2)) AS `CAST(a AS DECIMAL(5,2))` from `t`",
 		},
 		{
 			"schema_qualified_functions_not_rewritten",
@@ -94,6 +111,26 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"cast_as_year_stays_executable",
 			"SELECT CAST(a AS YEAR) FROM t",
 			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
+		},
+		{
+			"cast_as_year_stored_func_preserved_by_default",
+			"SELECT cast_as_year(a) AS x FROM t",
+			"select cast_as_year(`t`.`a`) AS `x` from `t`",
+		},
+		{
+			"explicit_table_expands",
+			"TABLE t",
+			"select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`dt3` AS `dt3`,`t`.`s` AS `s` from `t`",
+		},
+		{
+			"explicit_table_schema_qualified_without_schema_lookup_preserved",
+			"TABLE db2.t",
+			"table `db2`.`t`",
+		},
+		{
+			"introducer_byte_literals_auto_alias",
+			"SELECT _utf8mb4 0x41, _utf8mb4 b'1000001' FROM t",
+			"select _utf8mb4'A' AS `_utf8mb4 0x41`,_utf8mb4'A' AS `_utf8mb4 b'1000001'` from `t`",
 		},
 		{
 			"window_single_bound_expansion",
@@ -118,4 +155,142 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("explicit_table_schema_qualified_with_schema_lookup", func(t *testing.T) {
+		schemaLookup := func(schema, name string) *ResolverTable {
+			if schema == "db2" && name == "t" {
+				return &ResolverTable{
+					Name: "t",
+					Columns: []ResolverColumn{
+						{Name: "x", Position: 1, DataType: "int"},
+					},
+				}
+			}
+			return nil
+		}
+		sql := "TABLE db2.t"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, SchemaLookup: schemaLookup, DefaultCharset: "utf8mb4", Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		got := DeparseSelect(stmt)
+		want := "select `t`.`x` AS `x` from `db2`.`t`"
+		if got != want {
+			t.Errorf("got:\n  %s\nwant:\n  %s", got, want)
+		}
+	})
+
+	t.Run("week_respects_default_week_format", func(t *testing.T) {
+		sql := "SELECT WEEK('2021-01-01') AS w"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", DefaultWeekFormat: 3, Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		if got, want := DeparseSelect(stmt), "select week('2021-01-01',3) AS `w`"; got != want {
+			t.Errorf("mode 3: got %q, want %q", got, want)
+		}
+
+		stmtUnknown := parseSelect(t, sql)
+		rUnknown := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", DefaultWeekFormat: -1, Source: sql}
+		rUnknown.Resolve(stmtUnknown)
+		RewriteSelectStmt(stmtUnknown)
+		if got, want := DeparseSelect(stmtUnknown), "select week('2021-01-01') AS `w`"; got != want {
+			t.Errorf("unknown mode: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("cast_as_year_readback_converges_when_enabled", func(t *testing.T) {
+		sql := "SELECT `cast_as_year`(`t`.`a`) AS `CAST(a AS YEAR)` FROM `t`"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", NormalizeCastAsYear: true, Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		if got, want := DeparseSelect(stmt), "select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`"; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("invisible_columns_using_vs_natural_and_star", func(t *testing.T) {
+		invLookup := func(name string) *ResolverTable {
+			switch name {
+			case "t1":
+				return &ResolverTable{
+					Name: "t1",
+					Columns: []ResolverColumn{
+						{Name: "a", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int", Invisible: true},
+					},
+				}
+			case "t2":
+				return &ResolverTable{
+					Name: "t2",
+					Columns: []ResolverColumn{
+						{Name: "b", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int", Invisible: true},
+					},
+				}
+			case "t3":
+				return &ResolverTable{
+					Name: "t3",
+					Columns: []ResolverColumn{
+						{Name: "c", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int"},
+					},
+				}
+			}
+			return nil
+		}
+		invCases := []struct {
+			name string
+			sql  string
+			want string
+		}{
+			{
+				"right_join_using_invisible_select_k",
+				"SELECT k AS x FROM t1 RIGHT JOIN t2 USING (k)",
+				"select `t2`.`k` AS `x` from (`t2` left join `t1` on((`t2`.`k` = `t1`.`k`)))",
+			},
+			{
+				"right_join_using_invisible_star",
+				"SELECT * FROM t1 RIGHT JOIN t2 USING (k)",
+				"select `t2`.`k` AS `k`,`t2`.`b` AS `b`,`t1`.`a` AS `a` from (`t2` left join `t1` on((`t2`.`k` = `t1`.`k`)))",
+			},
+			{
+				"inner_join_using_both_invisible_star",
+				"SELECT * FROM t1 JOIN t2 USING (k)",
+				"select `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`b` AS `b` from (`t1` join `t2` on((`t1`.`k` = `t2`.`k`)))",
+			},
+			{
+				"inner_join_using_left_invisible_right_visible_star",
+				"SELECT * FROM t1 JOIN t3 USING (k)",
+				"select `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t3`.`c` AS `c` from (`t1` join `t3` on((`t1`.`k` = `t3`.`k`)))",
+			},
+			{
+				"natural_join_both_invisible_not_joined",
+				"SELECT * FROM t1 NATURAL JOIN t2",
+				"select `t1`.`a` AS `a`,`t2`.`b` AS `b` from (`t1` join `t2`)",
+			},
+			{
+				"natural_join_mixed_invisible_not_joined",
+				"SELECT * FROM t1 NATURAL JOIN t3",
+				"select `t1`.`a` AS `a`,`t3`.`c` AS `c`,`t3`.`k` AS `k` from (`t1` join `t3`)",
+			},
+			{
+				"nested_join_natural_skips_invisible_binds_visible",
+				"SELECT * FROM (t1 JOIN t3 ON t1.a = t3.c) NATURAL JOIN (SELECT 1 AS k) s",
+				"select `t3`.`k` AS `k`,`t1`.`a` AS `a`,`t3`.`c` AS `c` from ((`t1` join `t3` on((`t1`.`a` = `t3`.`c`))) join (select 1 AS `k`) `s` on((`t3`.`k` = `s`.`k`)))",
+			},
+		}
+		for _, tc := range invCases {
+			t.Run(tc.name, func(t *testing.T) {
+				stmt := parseSelect(t, tc.sql)
+				r := &Resolver{Lookup: invLookup, DefaultCharset: "utf8mb4", Source: tc.sql}
+				r.Resolve(stmt)
+				RewriteSelectStmt(stmt)
+				if got := DeparseSelect(stmt); got != tc.want {
+					t.Errorf("got:\n  %s\nwant:\n  %s", got, tc.want)
+				}
+			})
+		}
+	})
 }

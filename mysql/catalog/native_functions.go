@@ -74,3 +74,37 @@ wait_until_sql_thread_after_gtids weekday weekofyear yearweek
 	}
 	return m
 }()
+
+// grammarBuiltinFunctions are MySQL 8.0.46 built-in functions produced by
+// dedicated grammar productions in sql/sql_yacc.yy (keyword, nonkeyword,
+// conflict, geometry, aggregate, and window functions) plus the internal
+// SHOW CREATE VIEW function spellings (`cast_as_year`, `time_zone`, and
+// parser-synthesized `trim_*` directional forms).
+var grammarBuiltinFunctions = func() map[string]bool {
+	m := map[string]bool{}
+	for _, name := range strings.Fields(`
+adddate ascii avg binary bit_and bit_or bit_xor cast cast_as_year char charset
+coalesce collation convert count cume_dist curdate current_date current_time
+current_timestamp current_user curtime database date date_add date_sub day
+default dense_rank extract first_value format geomcollection geometrycollection
+get_format group_concat grouping hour if insert interval json_arrayagg
+json_objectagg json_table json_value lag last_value lead left linestring
+localtime localtimestamp match max microsecond mid min minute mod month
+multilinestring multipoint multipolygon now nth_value ntile old_password
+password percent_rank point polygon position quarter rank repeat replace right
+row_count row_number schema second session_user st_collect std stddev stddev_pop
+stddev_samp subdate substr substring sum sysdate system_user time time_zone
+timestamp timestampadd timestampdiff trim trim_both trim_from trim_leading
+trim_trailing truncate user utc_date utc_time utc_timestamp values var_pop
+var_samp variance week weight_string year
+`) {
+		m[name] = true
+	}
+	return m
+}()
+
+// isBuiltinMySQLFunction reports whether lowerName is a MySQL 8.0.46 built-in
+// function (native table or grammar-produced).
+func isBuiltinMySQLFunction(lowerName string) bool {
+	return nativeFunctions[lowerName] || grammarBuiltinFunctions[lowerName]
+}
