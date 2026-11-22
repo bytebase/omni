@@ -116,12 +116,21 @@ func TestSplitLine(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := splitLine(tc.line)
+			cmds, err := splitCommands(tc.line)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
+			if tc.want == nil {
+				require.Empty(t, cmds)
+				return
+			}
+			require.Len(t, cmds, 1)
+			got := make([]string, len(cmds[0].args))
+			for i, a := range cmds[0].args {
+				got[i] = a.(string)
+			}
 			require.Equal(t, tc.want, got)
 		})
 	}

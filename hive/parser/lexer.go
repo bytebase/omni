@@ -5,13 +5,63 @@ import (
 	"strings"
 )
 
-// lex tokenizes a HiveQL input string according to Hive 4.0.1's HiveLexer.g and
+// Lexer tokenizes HiveQL input according to Apache Hive 4.0.1's HiveLexer.g and
 // HiveLexerParent.g (with case-insensitive keyword/token matching like
 // ANTLRNoCaseStringStream).
+type Lexer struct {
+	input string
+	pos   int
+	err   *ParseError
+}
+
+// NewLexer returns a Lexer positioned at the start of input.
+func NewLexer(input string) *Lexer {
+	return &Lexer{input: input}
+}
+
+// Err returns the first lexical error encountered by the lexer, if any.
+func (l *Lexer) Err() error {
+	if l.err == nil {
+		return nil
+	}
+	return l.err
+}
+
+func (l *Lexer) fail(pos int, msg string, end int) Token {
+	if l.err == nil {
+		l.err = &ParseError{Message: msg, Position: pos}
+	}
+	l.pos = end
+	return Token{Type: TokInvalid, Str: l.input[pos:end], Loc: Loc{Start: pos, End: end}}
+}
+
+// Tokenize lexes input into a slice of tokens ending with TokEOF.
+func Tokenize(input string) ([]Token, error) {
+	return lex(input)
+}
+
 func lex(input string) ([]Token, error) {
+	l := NewLexer(input)
 	var toks []Token
+	for {
+		tok := l.NextToken()
+		if tok.Type == TokInvalid {
+			return nil, l.err
+		}
+		toks = append(toks, tok)
+		if tok.Type == TokEOF {
+			return toks, nil
+		}
+	}
+}
+
+// NextToken returns the next token from the input. On a lexical error, it
+// records the first error (accessible via Err), advances past the offending
+// span, and returns a TokInvalid token. At end of input, it returns TokEOF.
+func (l *Lexer) NextToken() Token {
+	input := l.input
 	n := len(input)
-	i := 0
+	i := l.pos
 	for i < n {
 		c := input[i]
 		// Whitespace: (' '|'\r'|'\t'|'\n') -> HIDDEN
@@ -32,15 +82,16 @@ func lex(input string) ([]Token, error) {
 			start := i
 			end, err := scanBlockComment(input, i)
 			if err != nil {
-				return nil, err
+				return l.fail(start, "unterminated block comment", n)
 			}
 			// If third byte is '+' (and comment is at least "/*+*/"), emit QUERY_HINT.
 			if end-start >= 5 && input[start+2] == '+' {
-				toks = append(toks, Token{
+				l.pos = end
+				return Token{
 					Type: TokQueryHint,
 					Str:  input[start+3 : end-2],
 					Loc:  Loc{Start: start, End: end},
-				})
+				}
 			}
 			i = end
 			continue
@@ -56,7 +107,7 @@ func lex(input string) ([]Token, error) {
 				for i < n {
 					if input[i] == '\\' {
 						if i+1 >= n {
-							return nil, &ParseError{Message: "unterminated string literal", Position: start}
+							return l.fail(start, "unterminated string literal", n)
 						}
 						i += 2
 						continue
@@ -69,15 +120,15 @@ func lex(input string) ([]Token, error) {
 					i++
 				}
 				if !closed {
-					return nil, &ParseError{Message: "unterminated string literal", Position: start}
+					return l.fail(start, "unterminated string literal", n)
 				}
 			}
-			toks = append(toks, Token{
+			l.pos = i
+			return Token{
 				Type: TokStringLiteral,
 				Str:  input[start:i],
 				Loc:  Loc{Start: start, End: i},
-			})
-			continue
+			}
 		}
 
 		// QuotedIdentifier: '`' ( '``' | ~'`' )+ '`'
@@ -100,16 +151,19 @@ func lex(input string) ([]Token, error) {
 				sb.WriteByte(input[i])
 				i++
 			}
-			if !closed || sb.Len() == 0 {
-				return nil, &ParseError{Message: "invalid backtick-quoted identifier", Position: start}
+			if !closed {
+				return l.fail(start, "invalid backtick-quoted identifier", n)
 			}
-			toks = append(toks, Token{
+			if sb.Len() == 0 {
+				return l.fail(start, "invalid backtick-quoted identifier", i)
+			}
+			l.pos = i
+			return Token{
 				Type:   TokIdentifier,
 				Str:    sb.String(),
 				Quoted: true,
 				Loc:    Loc{Start: start, End: i},
-			})
-			continue
+			}
 		}
 
 		// CharSetName: '_' (Letter | Digit | '_' | '-' | '.' | ':')+
@@ -120,35 +174,32 @@ func lex(input string) ([]Token, error) {
 				i++
 			}
 			if i == start+1 {
-				return nil, &ParseError{Message: fmt.Sprintf("unexpected character %q", c), Position: start}
+				return l.fail(start, fmt.Sprintf("unexpected character %q", c), start+1)
 			}
-			toks = append(toks, Token{
+			l.pos = i
+			return Token{
 				Type: TokCharSetName,
 				Str:  input[start:i],
 				Loc:  Loc{Start: start, End: i},
-			})
-			continue
+			}
 		}
 
 		// Special dollar-delimited keywords: $KEY$, $VALUE$, $ELEM$
 		if c == '$' {
 			if rest := matchDollarKeyword(input, i); rest > 0 {
 				tt, _ := lookupKeyword(input[i : i+rest])
-				toks = append(toks, Token{Type: tt, Str: input[i : i+rest], Loc: Loc{Start: i, End: i + rest}})
-				i += rest
-				continue
+				l.pos = i + rest
+				return Token{Type: tt, Str: input[i : i+rest], Loc: Loc{Start: i, End: i + rest}}
 			}
-			toks = append(toks, Token{Type: TokDollar, Str: "$", Loc: Loc{Start: i, End: i + 1}})
-			i++
-			continue
+			l.pos = i + 1
+			return Token{Type: TokDollar, Str: "$", Loc: Loc{Start: i, End: i + 1}}
 		}
 
 		// Digits: CharSetLiteral (0X...), IntegralLiteral, NumberLiteral, ByteLengthLiteral, Number, or Identifier starting with Digit.
 		if isDigit(c) {
 			tok, next := scanDigitStart(input, i)
-			toks = append(toks, tok)
-			i = next
-			continue
+			l.pos = next
+			return tok
 		}
 
 		// Letters: Keyword (including hyphenated FAST-FORWARD, CHERRY-PICK, ORPHAN-FILES) or Identifier.
@@ -167,19 +218,17 @@ func lex(input string) ([]Token, error) {
 						j++
 					}
 					if tt, ok := lookupKeyword(input[start:j]); ok {
-						toks = append(toks, Token{Type: tt, Str: input[start:j], Loc: Loc{Start: start, End: j}})
-						i = j
-						continue
+						l.pos = j
+						return Token{Type: tt, Str: input[start:j], Loc: Loc{Start: start, End: j}}
 					}
 				}
 			}
 			word := input[start:i]
+			l.pos = i
 			if tt, ok := lookupKeyword(word); ok {
-				toks = append(toks, Token{Type: tt, Str: word, Loc: Loc{Start: start, End: i}})
-			} else {
-				toks = append(toks, Token{Type: TokIdentifier, Str: word, Loc: Loc{Start: start, End: i}})
+				return Token{Type: tt, Str: word, Loc: Loc{Start: start, End: i}}
 			}
-			continue
+			return Token{Type: TokIdentifier, Str: word, Loc: Loc{Start: start, End: i}}
 		}
 
 		// Multi-character and single-character operators/punctuation.
@@ -187,114 +236,109 @@ func lex(input string) ([]Token, error) {
 		switch c {
 		case '<':
 			if i+2 < n && input[i+1] == '=' && input[i+2] == '>' {
-				toks = append(toks, Token{Type: TokEqualNS, Str: "<=>", Loc: Loc{Start: start, End: i + 3}})
-				i += 3
+				l.pos = i + 3
+				return Token{Type: TokEqualNS, Str: "<=>", Loc: Loc{Start: start, End: i + 3}}
 			} else if i+1 < n && input[i+1] == '=' {
-				toks = append(toks, Token{Type: TokLessThanOrEqualTo, Str: "<=", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
+				l.pos = i + 2
+				return Token{Type: TokLessThanOrEqualTo, Str: "<=", Loc: Loc{Start: start, End: i + 2}}
 			} else if i+1 < n && input[i+1] == '>' {
-				toks = append(toks, Token{Type: TokNotEqual, Str: "<>", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
-			} else {
-				toks = append(toks, Token{Type: TokLessThan, Str: "<", Loc: Loc{Start: start, End: i + 1}})
-				i++
+				l.pos = i + 2
+				return Token{Type: TokNotEqual, Str: "<>", Loc: Loc{Start: start, End: i + 2}}
 			}
+			l.pos = i + 1
+			return Token{Type: TokLessThan, Str: "<", Loc: Loc{Start: start, End: i + 1}}
 		case '>':
 			if i+1 < n && input[i+1] == '=' {
-				toks = append(toks, Token{Type: TokGreaterThanOrEqualTo, Str: ">=", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
-			} else {
-				toks = append(toks, Token{Type: TokGreaterThan, Str: ">", Loc: Loc{Start: start, End: i + 1}})
-				i++
+				l.pos = i + 2
+				return Token{Type: TokGreaterThanOrEqualTo, Str: ">=", Loc: Loc{Start: start, End: i + 2}}
 			}
+			l.pos = i + 1
+			return Token{Type: TokGreaterThan, Str: ">", Loc: Loc{Start: start, End: i + 1}}
 		case '=':
 			if i+1 < n && input[i+1] == '=' {
-				toks = append(toks, Token{Type: TokEqual, Str: "==", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
-			} else {
-				toks = append(toks, Token{Type: TokEqual, Str: "=", Loc: Loc{Start: start, End: i + 1}})
-				i++
+				l.pos = i + 2
+				return Token{Type: TokEqual, Str: "==", Loc: Loc{Start: start, End: i + 2}}
 			}
+			l.pos = i + 1
+			return Token{Type: TokEqual, Str: "=", Loc: Loc{Start: start, End: i + 1}}
 		case '!':
 			if i+1 < n && input[i+1] == '=' {
-				toks = append(toks, Token{Type: TokNotEqual, Str: "!=", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
-			} else {
-				// HiveLexerParent.g: KW_NOT : 'NOT' | '!';
-				toks = append(toks, Token{Type: KW_NOT, Str: "!", Loc: Loc{Start: start, End: i + 1}})
-				i++
+				l.pos = i + 2
+				return Token{Type: TokNotEqual, Str: "!=", Loc: Loc{Start: start, End: i + 2}}
 			}
+			// HiveLexerParent.g: KW_NOT : 'NOT' | '!';
+			l.pos = i + 1
+			return Token{Type: KW_NOT, Str: "!", Loc: Loc{Start: start, End: i + 1}}
 		case '|':
 			if i+1 < n && input[i+1] == '|' {
-				toks = append(toks, Token{Type: TokConcatenate, Str: "||", Loc: Loc{Start: start, End: i + 2}})
-				i += 2
-			} else {
-				toks = append(toks, Token{Type: TokBitwiseOr, Str: "|", Loc: Loc{Start: start, End: i + 1}})
-				i++
+				l.pos = i + 2
+				return Token{Type: TokConcatenate, Str: "||", Loc: Loc{Start: start, End: i + 2}}
 			}
+			l.pos = i + 1
+			return Token{Type: TokBitwiseOr, Str: "|", Loc: Loc{Start: start, End: i + 1}}
 		case '.':
-			toks = append(toks, Token{Type: TokDot, Str: ".", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokDot, Str: ".", Loc: Loc{Start: start, End: i + 1}}
 		case ':':
-			toks = append(toks, Token{Type: TokColon, Str: ":", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokColon, Str: ":", Loc: Loc{Start: start, End: i + 1}}
 		case ',':
-			toks = append(toks, Token{Type: TokComma, Str: ",", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokComma, Str: ",", Loc: Loc{Start: start, End: i + 1}}
 		case ';':
-			toks = append(toks, Token{Type: TokSemicolon, Str: ";", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokSemicolon, Str: ";", Loc: Loc{Start: start, End: i + 1}}
 		case '(':
-			toks = append(toks, Token{Type: TokLParen, Str: "(", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokLParen, Str: "(", Loc: Loc{Start: start, End: i + 1}}
 		case ')':
-			toks = append(toks, Token{Type: TokRParen, Str: ")", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokRParen, Str: ")", Loc: Loc{Start: start, End: i + 1}}
 		case '[':
-			toks = append(toks, Token{Type: TokLSquare, Str: "[", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokLSquare, Str: "[", Loc: Loc{Start: start, End: i + 1}}
 		case ']':
-			toks = append(toks, Token{Type: TokRSquare, Str: "]", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokRSquare, Str: "]", Loc: Loc{Start: start, End: i + 1}}
 		case '{':
-			toks = append(toks, Token{Type: TokLCurly, Str: "{", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokLCurly, Str: "{", Loc: Loc{Start: start, End: i + 1}}
 		case '}':
-			toks = append(toks, Token{Type: TokRCurly, Str: "}", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokRCurly, Str: "}", Loc: Loc{Start: start, End: i + 1}}
 		case '/':
-			toks = append(toks, Token{Type: TokDivide, Str: "/", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokDivide, Str: "/", Loc: Loc{Start: start, End: i + 1}}
 		case '+':
-			toks = append(toks, Token{Type: TokPlus, Str: "+", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokPlus, Str: "+", Loc: Loc{Start: start, End: i + 1}}
 		case '-':
-			toks = append(toks, Token{Type: TokMinus, Str: "-", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokMinus, Str: "-", Loc: Loc{Start: start, End: i + 1}}
 		case '*':
-			toks = append(toks, Token{Type: TokStar, Str: "*", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokStar, Str: "*", Loc: Loc{Start: start, End: i + 1}}
 		case '%':
-			toks = append(toks, Token{Type: TokMod, Str: "%", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokMod, Str: "%", Loc: Loc{Start: start, End: i + 1}}
 		case '&':
-			toks = append(toks, Token{Type: TokAmpersand, Str: "&", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokAmpersand, Str: "&", Loc: Loc{Start: start, End: i + 1}}
 		case '~':
-			toks = append(toks, Token{Type: TokTilde, Str: "~", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokTilde, Str: "~", Loc: Loc{Start: start, End: i + 1}}
 		case '^':
-			toks = append(toks, Token{Type: TokBitwiseXor, Str: "^", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokBitwiseXor, Str: "^", Loc: Loc{Start: start, End: i + 1}}
 		case '?':
-			toks = append(toks, Token{Type: TokQuestion, Str: "?", Loc: Loc{Start: start, End: i + 1}})
-			i++
+			l.pos = i + 1
+			return Token{Type: TokQuestion, Str: "?", Loc: Loc{Start: start, End: i + 1}}
 		default:
-			return nil, &ParseError{Message: fmt.Sprintf("unexpected character %q", c), Position: start}
+			return l.fail(start, fmt.Sprintf("unexpected character %q", c), start+1)
 		}
 	}
-	toks = append(toks, Token{Type: TokEOF, Loc: Loc{Start: n, End: n}})
-	return toks, nil
+	l.pos = n
+	return Token{Type: TokEOF, Loc: Loc{Start: n, End: n}}
 }
 
 // scanBlockComment scans nested /* ... */ comments matching HiveLexerParent.g's

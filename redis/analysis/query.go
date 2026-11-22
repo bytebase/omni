@@ -2,9 +2,10 @@
 package analysis
 
 import (
-	"errors"
 	"fmt"
 	"strings"
+
+	redisparser "github.com/bytebase/omni/redis/parser"
 )
 
 // readCommands holds the core Redis commands that the server flags "readonly"
@@ -202,21 +203,19 @@ var moduleReadCommands = map[string]bool{
 // ValidateQuery reports whether every non-empty command line in statement is a
 // read-only Redis command that returns data.
 //
-// Lines are tokenized with the same rules as redis/driver so the validator
-// classifies the exact commands the driver executes. Empty or whitespace-only
-// lines are ignored; malformed quoting or a trailing backslash returns an error.
+// Script splitting and argument tokenization delegate to redis/parser so
+// analysis and redis/driver classify the exact commands the driver executes.
+// Empty or whitespace-only lines are ignored; malformed quoting or a trailing
+// backslash returns an error wrapping *redis/parser.ParseError.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
-	for line := range strings.SplitSeq(statement, "\n") {
-		fields, err := splitLine(line)
-		if err != nil {
-			return false, false, fmt.Errorf("failed to split command %s: %w", line, err)
-		}
-		if len(fields) == 0 {
-			continue
-		}
+	stmts, err := redisparser.Split(statement)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to split command: %w", err)
+	}
+	for _, stmt := range stmts {
 		// SELECT is not a read command: it switches the connection's logical
 		// database, so a later command runs somewhere the caller did not name.
-		if !IsReadOnlyCommand(fields) {
+		if !IsReadOnlyCommand(stmt.Args) {
 			return false, false, nil
 		}
 	}
@@ -237,64 +236,4 @@ func IsReadOnlyCommand(fields []string) bool {
 		return subcommands[strings.ToLower(fields[1])]
 	}
 	return false
-}
-
-// splitLine reads one command line into its arguments using the same shell-like
-// rules as redis/driver: blanks separate arguments; single quotes keep text
-// verbatim; double quotes and unquoted text interpret backslash escapes; `#` is
-// argument text because Redis has no comment syntax.
-func splitLine(line string) ([]string, error) {
-	var fields []string
-	var field strings.Builder
-	started := false
-	appendField := func() {
-		fields = append(fields, field.String())
-		field.Reset()
-		started = false
-	}
-	for i := 0; i < len(line); i++ {
-		switch line[i] {
-		case ' ', '\t', '\r':
-			if started {
-				appendField()
-			}
-		case '\'':
-			started = true
-			closing := strings.IndexByte(line[i+1:], '\'')
-			if closing < 0 {
-				return nil, errors.New("EOF found when expecting closing quote")
-			}
-			field.WriteString(line[i+1 : i+1+closing])
-			i += closing + 1
-		case '"':
-			started = true
-			i++
-			for ; i < len(line) && line[i] != '"'; i++ {
-				if line[i] == '\\' {
-					if i+1 >= len(line) {
-						return nil, errors.New("EOF found after escape character")
-					}
-					i++
-				}
-				field.WriteByte(line[i])
-			}
-			if i >= len(line) {
-				return nil, errors.New("EOF found when expecting closing quote")
-			}
-		case '\\':
-			if i+1 >= len(line) {
-				return nil, errors.New("EOF found after escape character")
-			}
-			i++
-			started = true
-			field.WriteByte(line[i])
-		default:
-			started = true
-			field.WriteByte(line[i])
-		}
-	}
-	if started {
-		appendField()
-	}
-	return fields, nil
 }

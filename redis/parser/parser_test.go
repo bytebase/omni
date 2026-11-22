@@ -154,6 +154,44 @@ func TestParseScript(t *testing.T) {
 	require.ErrorAs(t, err, &pe)
 	require.Equal(t, 3, pe.Line)
 	require.Equal(t, len("GET a\n\n"), pe.Position)
+
+	// Parse reports first-line errors even when a later line has malformed quoting.
+	_, err = Parse("NOTACOMMAND\nGET \"unclosed")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &pe)
+	require.Equal(t, 1, pe.Line)
+	require.Contains(t, pe.Message, "unknown command")
+}
+
+func TestSplit(t *testing.T) {
+	script := "JSON.GET doc $.name\n\nFT.SEARCH idx \"hello\\nworld\"\r\n   \nUNKNOWNCMD #tag"
+	stmts, err := Split(script)
+	require.NoError(t, err)
+	require.Len(t, stmts, 3)
+
+	require.Equal(t, []string{"JSON.GET", "doc", "$.name"}, stmts[0].Args)
+	require.Equal(t, 1, stmts[0].Line)
+	require.Equal(t, stmts[0].Text, script[stmts[0].Start:stmts[0].End])
+
+	require.Equal(t, []string{"FT.SEARCH", "idx", "hello\nworld"}, stmts[1].Args)
+	require.Equal(t, 3, stmts[1].Line)
+	require.Equal(t, stmts[1].Text, script[stmts[1].Start:stmts[1].End])
+
+	require.Equal(t, []string{"UNKNOWNCMD", "#tag"}, stmts[2].Args)
+	require.Equal(t, 5, stmts[2].Line)
+	require.Equal(t, stmts[2].Text, script[stmts[2].Start:stmts[2].End])
+
+	empty, err := Split("  \t\r\n\n ")
+	require.NoError(t, err)
+	require.Empty(t, empty)
+
+	_, err = Split("GET a\nSET b \"unclosed")
+	require.Error(t, err)
+	var pe *ParseError
+	require.ErrorAs(t, err, &pe)
+	require.Equal(t, 2, pe.Line)
+	require.Equal(t, len("GET a\n"), pe.Position)
+	require.Contains(t, pe.Message, "EOF found when expecting closing quote")
 }
 
 func TestLookupReturnsCopy(t *testing.T) {

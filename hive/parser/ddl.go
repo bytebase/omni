@@ -1055,7 +1055,7 @@ func (p *parser) parseDefinedAsSpec() error {
 	if _, err := p.expect(KW_AS); err != nil {
 		return err
 	}
-	_, err := p.parseStatement()
+	_, _, err := p.parseStatement()
 	return err
 }
 

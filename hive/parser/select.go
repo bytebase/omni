@@ -102,6 +102,7 @@ func (p *parser) parseBody() error {
 		if err := p.parseInsertClause(); err != nil {
 			return err
 		}
+		p.hasInsert = true
 	}
 	if err := p.parseSelectClause(); err != nil {
 		return err
@@ -165,6 +166,7 @@ func (p *parser) parseRegularBody() error {
 		if err := p.parseInsertClause(); err != nil {
 			return err
 		}
+		p.hasInsert = true
 	}
 	return p.parseSelectStatement()
 }
@@ -290,6 +292,7 @@ func (p *parser) parseSetOperator() error {
 
 func (p *parser) parseSelectClause() error {
 	if p.peek().Type == KW_MAP || p.peek().Type == KW_REDUCE {
+		p.hasTransform = true
 		return p.parseTrfmClause()
 	}
 	if _, err := p.expect(KW_SELECT); err != nil {
@@ -297,6 +300,7 @@ func (p *parser) parseSelectClause() error {
 	}
 	p.match(TokQueryHint)
 	if p.match(KW_TRANSFORM) {
+		p.hasTransform = true
 		return p.parseSelectTrfmClause()
 	}
 	if p.peek().Type == KW_ALL || p.peek().Type == KW_DISTINCT {

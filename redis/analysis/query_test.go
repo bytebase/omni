@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	redisparser "github.com/bytebase/omni/redis/parser"
 )
 
 func TestValidateQuery(t *testing.T) {
@@ -221,6 +224,26 @@ func TestValidateQuery(t *testing.T) {
 			readOnly:    true,
 			returnsData: true,
 		},
+		{
+			statement:   `GET "line1\nline2\t\x41"`,
+			readOnly:    true,
+			returnsData: true,
+		},
+		{
+			statement:   `"GET" key`,
+			readOnly:    true,
+			returnsData: true,
+		},
+		{
+			statement:   `'OBJECT' "ENCODING" key`,
+			readOnly:    true,
+			returnsData: true,
+		},
+		{
+			statement:   "GET k1\r\nHGET h f\r\nJSON.GET doc\r\n",
+			readOnly:    true,
+			returnsData: true,
+		},
 		// Malformed quoting and escapes.
 		{
 			statement: `GET "unclosed`,
@@ -238,12 +261,18 @@ func TestValidateQuery(t *testing.T) {
 			statement: `GET "escaped\"`,
 			wantErr:   true,
 		},
+		{
+			statement: "SET a 1\nGET \"unclosed",
+			wantErr:   true,
+		},
 	}
 
 	for _, tc := range tests {
 		gotReadOnly, gotReturnsData, err := ValidateQuery(tc.statement)
 		if tc.wantErr {
 			require.Error(t, err, tc.statement)
+			var pe *redisparser.ParseError
+			require.True(t, errors.As(err, &pe), "expected *redis/parser.ParseError for %q, got %T: %v", tc.statement, err, err)
 			require.False(t, gotReadOnly, tc.statement)
 			require.False(t, gotReturnsData, tc.statement)
 		} else {
@@ -353,5 +382,23 @@ func TestModuleReadCommandsWellFormed(t *testing.T) {
 		require.Equal(t, strings.ToLower(command), command, "module command must be lowercase")
 		require.Contains(t, command, ".", "module command must be dot-namespaced")
 		require.False(t, readCommands[command], "module command duplicated in readCommands: %s", command)
+	}
+}
+
+// TestReadCommandsRegisteredInParser verifies every core read-only command and
+// subcommand in redis/analysis is present in redis/parser's command table.
+func TestReadCommandsRegisteredInParser(t *testing.T) {
+	for command := range readCommands {
+		spec, ok := redisparser.Lookup(command)
+		require.True(t, ok, "readCommands entry %q missing from redis/parser", command)
+		require.NotZero(t, spec.StandaloneArity, "readCommands entry %q has zero standalone arity in redis/parser", command)
+	}
+	for container, subcommands := range doubleNameReadCommands {
+		spec, ok := redisparser.Lookup(container)
+		require.True(t, ok, "doubleNameReadCommands container %q missing from redis/parser", container)
+		for sub := range subcommands {
+			_, subOK := spec.Subcommands[sub]
+			require.True(t, subOK, "doubleNameReadCommands entry %q %q missing from redis/parser", container, sub)
+		}
 	}
 }

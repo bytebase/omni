@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/bytebase/omni/hive/analysis"
 )
 
 func TestParseCoreStatements(t *testing.T) {
@@ -211,20 +209,88 @@ func TestParseDriverCorpora(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", dbPath, err)
 	}
-	stmts, err := analysis.Split(string(raw))
-	if err != nil {
-		t.Fatalf("split %s: %v", dbPath, err)
-	}
-	for _, s := range stmts {
-		if s.Empty {
+	for _, s := range Split(string(raw)) {
+		if s.Empty() {
 			continue
 		}
-		trimmed := analysis.TrimStatement(s.Text)
+		trimmed := strings.TrimSpace(strings.TrimRight(s.Text, ";"))
 		if trimmed == "" {
 			continue
 		}
 		if _, err := Parse(trimmed); err != nil {
 			t.Errorf("%s: Parse(%q) failed: %v", dbPath, trimmed, err)
 		}
+	}
+}
+
+func TestTokenizeAndSplit(t *testing.T) {
+	toks, err := Tokenize("/* outer /* inner */ outer */ SELECT /*+ MAPJOIN(t) */ `a``b` FROM t")
+	if err != nil {
+		t.Fatalf("Tokenize failed: %v", err)
+	}
+	wantTypes := []TokenType{KW_SELECT, TokQueryHint, TokIdentifier, KW_FROM, TokIdentifier, TokEOF}
+	if len(toks) != len(wantTypes) {
+		t.Fatalf("got %d tokens, want %d", len(toks), len(wantTypes))
+	}
+	for i, wt := range wantTypes {
+		if toks[i].Type != wt {
+			t.Errorf("token %d type = %v, want %v", i, toks[i].Type, wt)
+		}
+	}
+
+	if _, err := Tokenize("SELECT /* unclosed"); err == nil {
+		t.Fatalf("expected error on unclosed block comment")
+	}
+
+	segs := Split("SELECT 'a;b'; /* c; */ SELECT `x;y` FROM t;")
+	if len(segs) != 2 {
+		t.Fatalf("Split got %d segments, want 2: %+v", len(segs), segs)
+	}
+	if segs[0].Text != "SELECT 'a;b';" || segs[1].Text != " /* c; */ SELECT `x;y` FROM t;" {
+		t.Fatalf("unexpected segments: %+v", segs)
+	}
+}
+
+func TestParseStatementMetadata(t *testing.T) {
+	res, err := Parse("WITH c AS (SELECT 1 AS x) INSERT INTO t SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("Parse CTE INSERT failed: %v", err)
+	}
+	if res.Statement.Kind != StmtInsert {
+		t.Errorf("CTE INSERT kind = %q, want %q", res.Statement.Kind, StmtInsert)
+	}
+
+	res, err = Parse("FROM src INSERT OVERWRITE TABLE dst SELECT a")
+	if err != nil {
+		t.Fatalf("Parse FROM INSERT failed: %v", err)
+	}
+	if res.Statement.Kind != StmtInsert {
+		t.Errorf("FROM INSERT kind = %q, want %q", res.Statement.Kind, StmtInsert)
+	}
+
+	res, err = Parse("EXPLAIN FORMATTED ANALYZE SELECT 1")
+	if err != nil {
+		t.Fatalf("Parse EXPLAIN FORMATTED ANALYZE failed: %v", err)
+	}
+	if res.Statement.Kind != StmtExplain || res.Statement.Explain == nil ||
+		!res.Statement.Explain.Formatted || !res.Statement.Explain.Analyze ||
+		res.Statement.Explain.InnerKind != StmtQuery {
+		t.Errorf("unexpected EXPLAIN metadata: %+v (explain=%+v)", res.Statement, res.Statement.Explain)
+	}
+
+	res, err = Parse("EXPLAIN ANALYZE TABLE t COMPUTE STATISTICS")
+	if err != nil {
+		t.Fatalf("Parse EXPLAIN ANALYZE TABLE failed: %v", err)
+	}
+	if res.Statement.Explain == nil || res.Statement.Explain.Analyze || res.Statement.Explain.InnerKind != StmtDDL {
+		t.Errorf("EXPLAIN ANALYZE TABLE should not set Analyze option: %+v", res.Statement.Explain)
+	}
+
+	res, err = Parse("SELECT TRANSFORM(a) USING 'cat' FROM t")
+	if err != nil {
+		t.Fatalf("Parse SELECT TRANSFORM failed: %v", err)
+	}
+	if !res.Statement.HasTransform {
+		t.Errorf("SELECT TRANSFORM should set HasTransform")
 	}
 }
