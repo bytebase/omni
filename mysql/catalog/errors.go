@@ -64,6 +64,7 @@ const (
 	ErrNoSuchEvent                       = 1539
 	ErrTriggerInWrongSchema              = 1435
 	ErrDupEvent                          = 1537
+	ErrEventSameName                     = 1551
 	ErrFKCannotUseVirtualColumn          = 3104
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
@@ -241,6 +242,7 @@ var sqlStateMap = map[int]string{
 	ErrNoSuchEvent:                       "HY000",
 	ErrTriggerInWrongSchema:              "HY000",
 	ErrDupEvent:                          "HY000",
+	ErrEventSameName:                     "HY000",
 	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
@@ -658,6 +660,11 @@ func errNoSuchTrigger(db, name string) error {
 func errDupEvent(name string) error {
 	return &Error{Code: ErrDupEvent, SQLState: sqlState(ErrDupEvent),
 		Message: fmt.Sprintf("Event '%s' already exists", name)}
+}
+
+func errEventSameName() error {
+	return &Error{Code: ErrEventSameName, SQLState: sqlState(ErrEventSameName),
+		Message: "Same old and new event name"}
 }
 
 func errTriggerInWrongSchema() error {
