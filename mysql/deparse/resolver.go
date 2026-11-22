@@ -22,9 +22,17 @@ type ResolverTable = scopepkg.Table
 // Returns nil if the table is not found.
 type TableLookup func(tableName string) *ResolverTable
 
+// SchemaTableLookup looks up a table by schema and name in the catalog.
+// Returns nil if the schema or table is not found.
+type SchemaTableLookup func(schema, tableName string) *ResolverTable
+
 // Resolver resolves column references in a SelectStmt using catalog metadata.
 type Resolver struct {
 	Lookup TableLookup
+	// SchemaLookup optionally resolves schema-qualified table references
+	// (e.g., db2.t). When nil, schema-qualified TABLE query primaries are
+	// preserved unexpanded rather than guessing from the single-schema Lookup.
+	SchemaLookup SchemaTableLookup
 	// DefaultCharset is the database's default character set (e.g., "utf8mb4", "latin1").
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
@@ -92,11 +100,12 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		for _, cte := range stmt.CTEs {
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(mergedCTETables),
+				SchemaLookup:   r.SchemaLookup,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup); vt != nil {
+			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
@@ -135,11 +144,12 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			for _, cte := range leftCTEs {
 				cteResolver := &Resolver{
 					Lookup:         r.withCTELookup(mergedCTETables),
+					SchemaLookup:   r.SchemaLookup,
 					DefaultCharset: r.DefaultCharset,
 					Source:         r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-				vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
 				}
@@ -184,13 +194,14 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
+				SchemaLookup:   r.SchemaLookup,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
-			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup)
+			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup, r.SchemaLookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
@@ -198,6 +209,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
 			rightResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
+				SchemaLookup:   r.SchemaLookup,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
@@ -206,12 +218,13 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
+				SchemaLookup:   r.SchemaLookup,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
-			vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+			vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
@@ -226,14 +239,12 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 	// Expand an explicit TABLE query primary into SELECT * FROM t so the
 	// resolved view body matches MySQL 8.0's SHOW CREATE VIEW form
 	// (`select t.c1 AS c1, ... from t`). Direct DeparseSelect without Resolver
-	// keeps `table t`.
+	// keeps `table t`. For a schema-qualified TABLE db.t, only expand when a
+	// schema-aware SchemaLookup can resolve the requested schema so we never
+	// substitute columns from another schema's same-named table.
 	if stmt.TableSource != nil && stmt.TableSource.Table != nil {
 		tbl := stmt.TableSource.Table
-		lookup := r.Lookup
-		if tbl.Schema != "" {
-			lookup = origLookup
-		}
-		if lookup != nil && lookup(tbl.Name) != nil {
+		if r.lookupTableRef(tbl, origLookup, false) != nil {
 			stmt.From = []ast.TableExpr{tbl}
 			stmt.TargetList = []ast.ExprNode{&ast.StarExpr{Loc: stmt.TableSource.Loc}}
 			stmt.TableSource = nil
@@ -308,19 +319,34 @@ func (r *Resolver) buildScope(from []ast.TableExpr, baseLookup TableLookup) *fro
 	return sc
 }
 
+// lookupTableRef resolves a TableRef using SchemaLookup when schema-qualified
+// (or optionally falling back to baseLookup when no SchemaLookup is configured)
+// and r.Lookup when unqualified.
+func (r *Resolver) lookupTableRef(t *ast.TableRef, baseLookup TableLookup, allowSingleSchemaFallback bool) *ResolverTable {
+	if t == nil {
+		return nil
+	}
+	if t.Schema != "" {
+		if r.SchemaLookup != nil {
+			return r.SchemaLookup(t.Schema, t.Name)
+		}
+		if allowSingleSchemaFallback && baseLookup != nil {
+			return baseLookup(t.Name)
+		}
+		return nil
+	}
+	if r.Lookup != nil {
+		return r.Lookup(t.Name)
+	}
+	return nil
+}
+
 // addTableExprToScope recursively adds table references from a table expression to the scope.
 func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLookup TableLookup) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		lookup := r.Lookup
-		if t.Schema != "" && baseLookup != nil {
-			lookup = baseLookup
-		}
-		if lookup == nil {
-			return
-		}
-		table := lookup(t.Name)
+		table := r.lookupTableRef(t, baseLookup, true)
 		if table == nil {
 			return
 		}
@@ -337,7 +363,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 		// from its target list so outer queries can reference derived columns.
 		if t.Select != nil {
 			r.Resolve(t.Select)
-			vt := buildDerivedVirtualTable(t, r.Lookup)
+			vt := buildDerivedVirtualTable(t, r.Lookup, r.SchemaLookup)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
 			}
@@ -880,7 +906,7 @@ func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 // buildCTEVirtualTableFromSelect constructs a ResolverTable from a specific SELECT branch.
 // Used for recursive CTEs where we need to build the virtual table from the non-recursive
 // (left) branch before resolving the recursive (right) branch.
-func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt, lookup TableLookup) *ResolverTable {
+func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if sel == nil {
 		return nil
 	}
@@ -894,7 +920,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 		return &ResolverTable{Name: cteName, Columns: cols}
 	}
 
-	cols := queryOutputColumns(sel, lookup)
+	cols := queryOutputColumns(sel, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -903,7 +929,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 
 // buildCTEVirtualTable constructs a ResolverTable from a CTE's SELECT target list.
 // This allows the main query to resolve column references to CTE columns.
-func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *ResolverTable {
+func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if cte.Select == nil {
 		return nil
 	}
@@ -918,7 +944,7 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *Resolve
 	}
 
 	// Otherwise, derive columns from the CTE's query expression
-	cols := queryOutputColumns(cte.Select, lookup)
+	cols := queryOutputColumns(cte.Select, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -937,11 +963,17 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *Resolve
 // both v8.5.5 and mysql:8.0, where resolving t to the stored table answered
 // with the table's columns instead (container-verified).
 func PrimaryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
+	return PrimaryOutputColumnsWithSchema(sel, lookup, nil)
+}
+
+// PrimaryOutputColumnsWithSchema is PrimaryOutputColumns with an optional
+// schema-aware lookup for schema-qualified TABLE primaries (e.g., TABLE db2.t).
+func PrimaryOutputColumnsWithSchema(sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) []ResolverColumn {
 	leaf := ast.LeftmostQueryLeaf(sel)
 	if leaf == nil || (leaf.TableSource == nil && leaf.ValuesSource == nil) {
 		return nil
 	}
-	return queryOutputColumns(sel, lookup)
+	return queryOutputColumns(sel, lookup, schemaLookup)
 }
 
 // queryOutputColumns returns the columns a query expression outputs, for the
@@ -960,8 +992,8 @@ func PrimaryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverCol
 // expanded to nothing, which deparsed to an invalid "select  from `c`".
 // Container-verified: a view over `WITH c AS (TABLE t) SELECT * FROM c` or
 // `SELECT * FROM (TABLE t) d` has the columns of t.
-func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
-	return queryOutputColumnsIn(sel, nil, lookup, nil)
+func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) []ResolverColumn {
+	return queryOutputColumnsIn(sel, nil, lookup, schemaLookup, nil)
 }
 
 // queryOutputColumnsIn is queryOutputColumns with the WITH scopes that enclose
@@ -969,7 +1001,7 @@ func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColum
 // bodies are already being read. Both exist for one reason: a TABLE primary may name
 // a CTE rather than a table, that CTE's body may be a primary naming another
 // CTE, and a body may name itself.
-func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLookup, schemaLookup SchemaTableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
 	scopes := append(cteScopesOf(sel), outer...)
 	sel = ast.LeftmostQueryLeaf(sel)
 	if sel == nil {
@@ -987,14 +1019,18 @@ func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLoo
 		// (container-verified on both servers; the same rule the catalog's own
 		// CTE-name check states).
 		if sel.TableSource.Table.Schema == "" {
-			if cols := cteOutputColumns(scopes, sel.TableSource.Table.Name, lookup, seen); cols != nil {
+			if cols := cteOutputColumns(scopes, sel.TableSource.Table.Name, lookup, schemaLookup, seen); cols != nil {
 				return cols
 			}
 		}
-		if lookup == nil {
-			return nil
+		var table *ResolverTable
+		if sel.TableSource.Table.Schema != "" {
+			if schemaLookup != nil {
+				table = schemaLookup(sel.TableSource.Table.Schema, sel.TableSource.Table.Name)
+			}
+		} else if lookup != nil {
+			table = lookup(sel.TableSource.Table.Name)
 		}
-		table := lookup(sel.TableSource.Table.Name)
 		if table == nil {
 			return nil
 		}
@@ -1072,7 +1108,7 @@ func cteScopesOf(root *ast.SelectStmt) []cteScope {
 // (`WITH RECURSIVE x AS (TABLE x)`, `WITH x AS (TABLE y), y AS (TABLE x)`,
 // neither of which the servers will run), since those come back to the same
 // declaration.
-func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, schemaLookup SchemaTableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
 	cte, rest := findCTE(scopes, name)
 	if cte == nil {
 		return nil
@@ -1095,7 +1131,7 @@ func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, seen m
 		next[k] = true
 	}
 	next[cte] = true
-	return queryOutputColumnsIn(cte.Select, rest, lookup, next)
+	return queryOutputColumnsIn(cte.Select, rest, lookup, schemaLookup, next)
 }
 
 // bodyScopes returns the WITH scopes in scope inside the body of the CTE found
@@ -1153,12 +1189,12 @@ func cteColumnName(target ast.ExprNode, position int) string {
 
 // buildDerivedVirtualTable constructs a ResolverTable from a derived table's SELECT target list.
 // This allows the outer query to resolve column references to derived table columns.
-func buildDerivedVirtualTable(sub *ast.SubqueryExpr, lookup TableLookup) *ResolverTable {
+func buildDerivedVirtualTable(sub *ast.SubqueryExpr, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if sub.Select == nil || sub.Alias == "" {
 		return nil
 	}
 
-	cols := queryOutputColumns(sub.Select, lookup)
+	cols := queryOutputColumns(sub.Select, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}

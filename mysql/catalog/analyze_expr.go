@@ -800,10 +800,78 @@ func analyzedExprBaseType(expr AnalyzedExpr, scope *analyzerScope) (MySQLBaseTyp
 			return e.ResultType.BaseType, false
 		}
 		return BaseTypeUnknown, false
-	case *OpExprQ, *BoolExprQ, *NullTestExprQ, *InListExprQ, *BetweenExprQ, *LikeExprQ:
+	case *OpExprQ:
+		return analyzedOpExprBaseType(e, scope), false
+	case *BoolExprQ, *NullTestExprQ, *InListExprQ, *BetweenExprQ, *LikeExprQ:
 		return BaseTypeBigInt, false
 	default:
 		return BaseTypeUnknown, false
+	}
+}
+
+func analyzedOpExprBaseType(e *OpExprQ, scope *analyzerScope) MySQLBaseType {
+	switch e.Op {
+	case "->":
+		return BaseTypeJSON
+	case "->>":
+		return BaseTypeLongText
+	case "BINARY":
+		return BaseTypeVarBinary
+	case "=", "!=", "<", ">", "<=", ">=", "<=>", "XOR", "REGEXP", "LIKE", "SOUNDS LIKE",
+		"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+		return BaseTypeBigInt
+	case "+", "-", "*", "/", "%", "DIV":
+		if _, ok := e.Left.(*IntervalExprQ); ok {
+			return BaseTypeUnknown
+		}
+		if _, ok := e.Right.(*IntervalExprQ); ok {
+			return BaseTypeUnknown
+		}
+		if e.Op == "/" {
+			return BaseTypeDecimal
+		}
+		return BaseTypeBigInt
+	case "~":
+		bt, _ := analyzedExprBaseType(e.Right, scope)
+		if isBinaryStringBaseType(bt) {
+			return BaseTypeVarBinary
+		}
+		if bt == BaseTypeUnknown {
+			return BaseTypeUnknown
+		}
+		return BaseTypeBigInt
+	case "<<", ">>":
+		bt, _ := analyzedExprBaseType(e.Left, scope)
+		if isBinaryStringBaseType(bt) {
+			return BaseTypeVarBinary
+		}
+		if bt == BaseTypeUnknown {
+			return BaseTypeUnknown
+		}
+		return BaseTypeBigInt
+	case "&", "|", "^":
+		lbt, _ := analyzedExprBaseType(e.Left, scope)
+		rbt, _ := analyzedExprBaseType(e.Right, scope)
+		if isBinaryStringBaseType(lbt) && isBinaryStringBaseType(rbt) {
+			return BaseTypeVarBinary
+		}
+		if (lbt != BaseTypeUnknown && !isBinaryStringBaseType(lbt)) ||
+			(rbt != BaseTypeUnknown && !isBinaryStringBaseType(rbt)) {
+			return BaseTypeBigInt
+		}
+		return BaseTypeUnknown
+	default:
+		return BaseTypeUnknown
+	}
+}
+
+func isBinaryStringBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeBinary, BaseTypeVarBinary,
+		BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob:
+		return true
+	default:
+		return false
 	}
 }
 

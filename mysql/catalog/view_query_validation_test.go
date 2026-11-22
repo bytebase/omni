@@ -56,15 +56,19 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"cast_at_tz_interval_int", "CREATE VIEW v AS SELECT CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
 		{"cast_at_tz_datetime", "CREATE VIEW v AS SELECT CAST(dt AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
 		{"cast_at_tz_varchar", "CREATE VIEW v AS SELECT CAST(s AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
+		{"cast_at_tz_json_extract", "CREATE VIEW v AS SELECT CAST((j->'$.ts') AT TIME ZONE 'UTC' AS DATETIME) FROM t", ErrInvalidCastToTimestampWithTimeZone},
 
 		// JSON_VALUE argument 1 requires JSON, string, binary, or NULL (3146).
 		{"json_value_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, '$.x') FROM t", ErrInvalidTypeForJSON},
 		{"json_value_int_lit", "CREATE VIEW v AS SELECT JSON_VALUE(123, '$.x') FROM t", ErrInvalidTypeForJSON},
+		{"json_value_arith_op", "CREATE VIEW v AS SELECT JSON_VALUE((a + 1), '$.x') FROM t", ErrInvalidTypeForJSON},
+		{"json_value_bitand_int", "CREATE VIEW v AS SELECT JSON_VALUE((a & 1), '$.x') FROM t", ErrInvalidTypeForJSON},
 		{"json_value_returning_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, 's' RETURNING BINARY) FROM t", ErrInvalidTypeForJSON},
 		{"json_value_on_empty_int_col", "CREATE VIEW v AS SELECT JSON_VALUE(a, 's' ERROR ON EMPTY) FROM t", ErrInvalidTypeForJSON},
 
 		// Geometry collection constructors require geometric arguments (1367).
 		{"linestring_int", "CREATE VIEW v AS SELECT LINESTRING(a) FROM t", ErrIllegalValueForType},
+		{"linestring_json_extract", "CREATE VIEW v AS SELECT LINESTRING(j->'$.p') FROM t", ErrIllegalValueForType},
 		{"polygon_int", "CREATE VIEW v AS SELECT POLYGON(a, a) FROM t", ErrIllegalValueForType},
 		{"multipoint_varchar", "CREATE VIEW v AS SELECT MULTIPOINT(s) FROM t", ErrIllegalValueForType},
 		{"multilinestring_null", "CREATE VIEW v AS SELECT MULTILINESTRING(NULL) FROM t", ErrIllegalValueForType},
@@ -215,6 +219,12 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"cast_at_tz_timestamp", "CREATE VIEW v AS SELECT CAST(ts AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
 		{"cast_at_tz_null", "CREATE VIEW v AS SELECT CAST(NULL AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
 		{"json_value_json_col", "CREATE VIEW v AS SELECT JSON_VALUE(j, '$.a') FROM t"},
+		{"json_value_json_extract", "CREATE VIEW v AS SELECT JSON_VALUE(j->'$.obj', '$.a') AS a FROM t"},
+		{"json_value_json_unquote", "CREATE VIEW v AS SELECT JSON_VALUE(j->>'$.obj', '$.a') AS a FROM t"},
+		{"json_value_binary_unary", "CREATE VIEW v AS SELECT JSON_VALUE(BINARY s, '$.a') AS a FROM t"},
+		{"json_value_bitand_binary", "CREATE VIEW v AS SELECT JSON_VALUE((b & b), '$.a') AS a FROM t"},
+		{"json_value_bitnot_binary", "CREATE VIEW v AS SELECT JSON_VALUE(~b, '$.a') AS a FROM t"},
+		{"json_value_bitshift_binary", "CREATE VIEW v AS SELECT JSON_VALUE((b << 1), '$.a') AS a FROM t"},
 		{"json_value_varchar_col", "CREATE VIEW v AS SELECT JSON_VALUE(s, '$.a') FROM t"},
 		{"json_value_varbinary_col", "CREATE VIEW v AS SELECT JSON_VALUE(b, '$.a') FROM t"},
 		{"json_value_null", "CREATE VIEW v AS SELECT JSON_VALUE(NULL, '$.a') FROM t"},
@@ -230,4 +240,33 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 			mustExec(t, c, tc.sql)
 		})
 	}
+
+	t.Run("cross_schema_explicit_table_view", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE VIEW db1.v AS TABLE db2.t")
+		v := c.GetDatabase("db1").Views["v"]
+		if v == nil {
+			t.Fatal("view db1.v not found")
+		}
+		wantDef := "select `t`.`id` AS `id`,`t`.`b` AS `b` from `db2`.`t`"
+		if v.Definition != wantDef {
+			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
+		}
+		if len(v.Columns) != 2 || v.Columns[0] != "id" || v.Columns[1] != "b" {
+			t.Errorf("columns = %v, want [id b]", v.Columns)
+		}
+
+		mustExec(t, c, "CREATE VIEW db1.v_cte AS WITH t AS (SELECT 9 AS z) TABLE db2.t")
+		vCTE := c.GetDatabase("db1").Views["v_cte"]
+		if vCTE == nil {
+			t.Fatal("view db1.v_cte not found")
+		}
+		wantCTEDef := "with `t` as (select 9 AS `z`) select `t`.`id` AS `id`,`t`.`b` AS `b` from `db2`.`t`"
+		if vCTE.Definition != wantCTEDef {
+			t.Errorf("v_cte definition = %q, want %q", vCTE.Definition, wantCTEDef)
+		}
+		if len(vCTE.Columns) != 2 || vCTE.Columns[0] != "id" || vCTE.Columns[1] != "b" {
+			t.Errorf("v_cte columns = %v, want [id b]", vCTE.Columns)
+		}
+	})
 }

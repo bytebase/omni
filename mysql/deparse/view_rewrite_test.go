@@ -118,6 +118,11 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`dt3` AS `dt3`,`t`.`s` AS `s` from `t`",
 		},
 		{
+			"explicit_table_schema_qualified_without_schema_lookup_preserved",
+			"TABLE db2.t",
+			"table `db2`.`t`",
+		},
+		{
 			"introducer_byte_literals_auto_alias",
 			"SELECT _utf8mb4 0x41, _utf8mb4 b'1000001' FROM t",
 			"select _utf8mb4'A' AS `_utf8mb4 0x41`,_utf8mb4'A' AS `_utf8mb4 b'1000001'` from `t`",
@@ -145,4 +150,28 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("explicit_table_schema_qualified_with_schema_lookup", func(t *testing.T) {
+		schemaLookup := func(schema, name string) *ResolverTable {
+			if schema == "db2" && name == "t" {
+				return &ResolverTable{
+					Name: "t",
+					Columns: []ResolverColumn{
+						{Name: "x", Position: 1, DataType: "int"},
+					},
+				}
+			}
+			return nil
+		}
+		sql := "TABLE db2.t"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, SchemaLookup: schemaLookup, DefaultCharset: "utf8mb4", Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		got := DeparseSelect(stmt)
+		want := "select `t`.`x` AS `x` from `db2`.`t`"
+		if got != want {
+			t.Errorf("got:\n  %s\nwant:\n  %s", got, want)
+		}
+	})
 }

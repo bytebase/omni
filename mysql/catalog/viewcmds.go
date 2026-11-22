@@ -1615,8 +1615,11 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 		return rawText, nil
 	}
 
-	// Build a TableLookup that resolves table names from this database.
+	// Build lookups for table/view metadata: Lookup resolves unqualified names
+	// from the database, while SchemaLookup resolves schema-qualified names
+	// against their named schema in the catalog.
 	lookup := tableLookupForDB(db)
+	schemaLookup := c.schemaTableLookup(db)
 
 	// Determine the database charset for CAST resolution.
 	charset := db.Charset
@@ -1627,13 +1630,14 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
 		Lookup:         lookup,
+		SchemaLookup:   schemaLookup,
 		DefaultCharset: charset,
 		Source:         source,
 	}
 	resolver.Resolve(sel)
 
 	// Extract column names from the resolved target list.
-	derivedCols := extractViewColumns(sel, lookup)
+	derivedCols := extractViewColumns(sel, lookup, schemaLookup)
 
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
@@ -1643,10 +1647,10 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
-// This produces the column list that MySQL would derive for a view. lookup
-// resolves the table of a TABLE query primary, which has no target list to
-// read.
-func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup) []string {
+// This produces the column list that MySQL would derive for a view. lookup and
+// schemaLookup resolve the table of a TABLE query primary, which has no target
+// list to read.
+func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup, schemaLookup deparse.SchemaTableLookup) []string {
 	if sel == nil {
 		return nil
 	}
@@ -1661,7 +1665,7 @@ func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup) []str
 	// tables (container-verified: CREATE VIEW v AS TABLE t declares the
 	// columns of t, CREATE VIEW v AS VALUES ROW(1,2) declares column_0 and
 	// column_1, and WITH x AS (SELECT 1 AS a) TABLE x declares a).
-	if primary := deparse.PrimaryOutputColumns(sel, lookup); primary != nil {
+	if primary := deparse.PrimaryOutputColumnsWithSchema(sel, lookup, schemaLookup); primary != nil {
 		cols := make([]string, 0, len(primary))
 		for _, c := range primary {
 			cols = append(cols, c.Name)
@@ -1726,6 +1730,22 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 			}
 		}
 		return nil
+	}
+}
+
+// schemaTableLookup returns a deparse.SchemaTableLookup that resolves
+// schema-qualified table/view names in the catalog (or falls back to defaultDB
+// when schema is empty).
+func (c *Catalog) schemaTableLookup(defaultDB *Database) deparse.SchemaTableLookup {
+	return func(schema, tableName string) *deparse.ResolverTable {
+		targetDB := defaultDB
+		if schema != "" {
+			targetDB = c.GetDatabase(schema)
+		}
+		if targetDB == nil {
+			return nil
+		}
+		return tableLookupForDB(targetDB)(tableName)
 	}
 }
 
