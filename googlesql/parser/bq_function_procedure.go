@@ -43,6 +43,9 @@ import (
 // preceded FUNCTION, and isTableFunc whether this is the TABLE FUNCTION form
 // (cur is at FUNCTION in both cases). create is the CREATE token (for Loc).
 func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string, aggregate, isTableFunc bool) (ast.Node, error) {
+	if p.isSpanner() && (scope != "" || aggregate || isTableFunc) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if isTableFunc {
 		// TABLE FUNCTION: cur is at TABLE (the dispatch matched kwTABLE and peeked
 		// FUNCTION). Consume both.
@@ -90,10 +93,13 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 	stmt.Params = params
 
 	// opt_returns? — RETURNS type_or_tvf_schema. For a TVF this is RETURNS TABLE<…>.
+	// Spanner scalar SQL UDFs require RETURNS <type>.
 	if p.cur.Type == kwRETURNS {
 		if err := p.parseFunctionReturns(stmt); err != nil {
 			return nil, err
 		}
+	} else if p.isSpanner() {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_sql_security_clause? — SQL SECURITY {INVOKER|DEFINER}.
@@ -121,13 +127,15 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 		// scalar / aggregate FUNCTION tail:
 		//   opt_determinism_level? opt_language_or_remote_with_connection?
 		//     unordered_options_body?
-		stmt.Determinism = p.matchDeterminismLevel()
+		if !p.isSpanner() {
+			stmt.Determinism = p.matchDeterminismLevel()
 
-		// opt_language_or_remote_with_connection?:
-		//   LANGUAGE id remote_with_connection_clause?
-		//   | remote_with_connection_clause language?
-		if err := p.parseLanguageOrRemoteWithConnection(stmt); err != nil {
-			return nil, err
+			// opt_language_or_remote_with_connection?:
+			//   LANGUAGE id remote_with_connection_clause?
+			//   | remote_with_connection_clause language?
+			if err := p.parseLanguageOrRemoteWithConnection(stmt); err != nil {
+				return nil, err
+			}
 		}
 
 		// unordered_options_body?:
@@ -135,6 +143,9 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 		//   | as_sql_function_body_or_string opt_options_list?
 		if err := p.parseUnorderedOptionsBody(stmt); err != nil {
 			return nil, err
+		}
+		if p.isSpanner() && stmt.Body == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -152,6 +163,9 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 func (p *Parser) parseFunctionReturns(stmt *ast.CreateFunctionStmt) error {
 	p.advance() // RETURNS
 	if p.cur.Type == kwTABLE && p.peekNext().Type == int('<') {
+		if p.isSpanner() {
+			return p.syntaxErrorAtCur()
+		}
 		cols, err := p.parseTVFSchema()
 		if err != nil {
 			return err
@@ -299,6 +313,8 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 			return nil, err
 		}
 		param.Name = name
+	} else if p.isSpanner() {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// type_or_tvf_schema: a TVF `TABLE<…>` schema, ANY TYPE/<kind>, or a plain type.
@@ -310,6 +326,9 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 
 	// opt_as_alias_with_required_as? — AS identifier.
 	if p.cur.Type == kwAS {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // AS
 		aliasTok, err := p.expectIdentifier()
 		if err != nil {
@@ -336,6 +355,9 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 
 	// opt_not_aggregate? — NOT AGGREGATE.
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwAGGREGATE {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // NOT
 		p.advance() // AGGREGATE
 		param.NotAggregate = true
@@ -596,7 +618,7 @@ func (p *Parser) parseConnectionClause() (string, error) {
 func (p *Parser) parseUnorderedOptionsBody(stmt *ast.CreateFunctionStmt) error {
 	// Leading OPTIONS, then an optional AS body.
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return err
 		}
@@ -612,7 +634,7 @@ func (p *Parser) parseUnorderedOptionsBody(stmt *ast.CreateFunctionStmt) error {
 			return err
 		}
 		if p.cur.Type == kwOPTIONS {
-			opts, err := p.parseOptionsList()
+			opts, err := p.parseDDLOptionsList()
 			if err != nil {
 				return err
 			}
@@ -647,8 +669,8 @@ func (p *Parser) parseSQLFunctionBodyOrString(stmt *ast.CreateFunctionStmt) erro
 		stmt.Body = expr
 		return nil
 	}
-	// AS string_literal.
-	if p.cur.Type == tokString {
+	// AS string_literal (not supported in Spanner).
+	if !p.isSpanner() && p.cur.Type == tokString {
 		strTok := p.advance()
 		stmt.BodyString = strTok.Str
 		stmt.HasBodyString = true

@@ -48,6 +48,12 @@ const (
 	// untyped CREATE TABLE columns, and BigQuery reserved keywords, while
 	// rejecting Spanner-only and disabled-in-BigQuery forms.
 	DialectBigQuery
+	// DialectSpanner applies Cloud Spanner GoogleSQL dialect rules:
+	// rejects BigQuery-only procedural scripting statements, QUALIFY,
+	// IS [NOT] DISTINCT FROM, parenthesized outer query aliases, and
+	// BigQuery-only DDL statements/clauses while preserving all Spanner DDL
+	// and shared GoogleSQL syntax.
+	DialectSpanner
 )
 
 // Parser is a recursive-descent parser for GoogleSQL. It operates on a single
@@ -109,6 +115,10 @@ type Parser struct {
 
 func (p *Parser) isBigQuery() bool {
 	return p.dialect == DialectBigQuery
+}
+
+func (p *Parser) isSpanner() bool {
+	return p.dialect == DialectSpanner
 }
 
 // parserCheckpoint is the parser and lexer position a speculative parse
@@ -498,6 +508,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseStmtWithSubqueries(p.parseUndropStmt)
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: TRUNCATE is not supported in Spanner",
+			}
+		}
 		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
 	case kwDEFINE:
 		// DEFINE TABLE (DEFINE MACRO remains unsupported).
@@ -625,26 +641,59 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// omni accepts them on the authority of the legacy .g4 + the BigQuery truth1
 	// corpus so a script fragment parses rather than drawing a false syntax error.
 	case kwIF:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseIfStmt()
 	case kwCASE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCaseStmt()
 	case kwWHILE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseWhileStmt()
 	case kwLOOP:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseLoopStmt()
 	case kwREPEAT:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseRepeatStmt()
 	case kwFOR:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseForInStmt()
 	case kwDECLARE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseDeclareStmt()
 	case kwBREAK, kwLEAVE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseBreakStmt()
 	case kwCONTINUE, kwITERATE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseContinueStmt()
 	case kwRETURN:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseReturnStmt()
 	case kwRAISE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseRaiseStmt()
 
 	default:

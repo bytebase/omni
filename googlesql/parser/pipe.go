@@ -1377,7 +1377,7 @@ func (p *Parser) parsePipeCreateTable(start int) (ast.Node, error) {
 	if p.cur.Type != kwTABLE {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt, err := p.parseCreateTablePrefix(create, orReplace, scope)
+	stmt, err := p.parseCreateTablePrefix(create, orReplace, scope, true /*fromPipe*/)
 	if err != nil {
 		return nil, err
 	}

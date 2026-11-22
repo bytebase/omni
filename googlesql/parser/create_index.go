@@ -115,6 +115,12 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.peekNext().Type == kwALL {
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
+				Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
+			}
+		}
 		// index_all_columns: ( ALL COLUMNS [WITH COLUMN OPTIONS ( key_part, … )] ).
 		p.advance() // '('
 		p.advance() // ALL
@@ -150,17 +156,25 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 		stmt.Keys = keys
 	}
 
-	// index_storing_list?  — STORING ( expr, … ).
+	// index_storing_list?  — STORING ( expr, … ). In Spanner, STORING takes column identifiers.
 	if p.cur.Type == kwSTORING {
 		p.advance() // STORING
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
+		if p.isSpanner() {
+			exprs, err := p.parseStoringIdentList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Storing = exprs
+		} else {
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			exprs, _, err := p.parseExprListThroughParen()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Storing = exprs
 		}
-		exprs, _, err := p.parseExprListThroughParen()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Storing = exprs
 	}
 
 	// opt_create_index_statement_suffix?:
@@ -175,20 +189,66 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	return stmt, nil
 }
 
+// parseStoringIdentList parses a Spanner index STORING column identifier list
+// `( identifier (, identifier)* )` preserving source locations on each Identifier.
+func (p *Parser) parseStoringIdentList() ([]ast.Node, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var exprs []ast.Node
+	for {
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		exprs = append(exprs, &ast.Identifier{Name: name, Loc: tok.Loc})
+		if _, ok := p.match(int(',')); ok {
+			continue
+		}
+		break
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return exprs, nil
+}
+
 // parseIndexKeyElement parses one column_ordering_and_options_expr: `expression
 // collate_clause? asc_or_desc? null_order? opt_options_list?`. The common case
 // is a bare column reference; the expression is kept in Expr (and Name set when
 // it is a single identifier) so the query-span walker can descend.
 func (p *Parser) parseIndexKeyElement() (*ast.KeyPart, error) {
 	start := p.cur.Loc
-	expr, err := p.parseExpr()
-	if err != nil {
-		return nil, err
-	}
-	part := &ast.KeyPart{Expr: expr, Loc: ast.Loc{Start: start.Start}}
-	// If the expression is a bare single-identifier column, also surface its name.
-	if id, ok := expr.(*ast.Identifier); ok {
-		part.Name = id.Name
+	var part *ast.KeyPart
+	if p.isSpanner() {
+		// Spanner index keys are column names, not arbitrary expressions.
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		part = &ast.KeyPart{
+			Name: name,
+			Expr: &ast.Identifier{Name: name, Loc: tok.Loc},
+			Loc:  ast.Loc{Start: start.Start},
+		}
+	} else {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		part = &ast.KeyPart{Expr: expr, Loc: ast.Loc{Start: start.Start}}
+		// If the expression is a bare single-identifier column, also surface its name.
+		if id, ok := expr.(*ast.Identifier); ok {
+			part.Name = id.Name
+		}
 	}
 
 	// collate_clause?
@@ -204,7 +264,7 @@ func (p *Parser) parseIndexKeyElement() (*ast.KeyPart, error) {
 
 	// opt_options_list?
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -234,20 +294,23 @@ func (p *Parser) parseCreateIndexSuffix(stmt *ast.CreateIndexStmt) error {
 
 	switch p.cur.Type {
 	case kwPARTITION:
+		if p.isSpanner() {
+			return p.syntaxErrorAtCur()
+		}
 		exprs, err := p.parsePartitionByNoHint()
 		if err != nil {
 			return err
 		}
 		stmt.PartitionBy = exprs
 		if p.cur.Type == kwOPTIONS {
-			opts, err := p.parseOptionsList()
+			opts, err := p.parseDDLOptionsList()
 			if err != nil {
 				return err
 			}
 			stmt.Options = opts
 		}
 	case kwOPTIONS:
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return err
 		}

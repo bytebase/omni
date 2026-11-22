@@ -57,7 +57,7 @@ func (p *Parser) parseCreateSequence(create Token, orReplace bool, scope string)
 	stmt.Name = name
 
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func (p *Parser) parseAlterSequence(alter Token) (ast.Node, error) {
 	if p.cur.Type != kwOPTIONS {
 		return nil, p.syntaxErrorAtCur()
 	}
-	opts, err := p.parseOptionsList()
+	opts, err := p.parseDDLOptionsList()
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (p *Parser) parseCreateLocalityGroup(create Token, orReplace bool, scope st
 	stmt.Name = name
 
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +189,7 @@ func (p *Parser) parseAlterLocalityGroup(alter Token) (ast.Node, error) {
 		if p.cur.Type != kwOPTIONS {
 			return nil, p.syntaxErrorAtCur()
 		}
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}

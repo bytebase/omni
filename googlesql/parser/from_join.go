@@ -893,7 +893,9 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 		return alias, true, nil
 	}
 	// Implicit alias: a bare identifier that is not a clause/join continuation.
-	if isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur) && !p.atTableAliasStop() {
+	// In Spanner, QUALIFY is not a clause keyword and is accepted as a bare
+	// table alias (e.g. `TABLE a() QUALIFY`).
+	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || (p.isSpanner() && p.cur.Type == kwQUALIFY)) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {

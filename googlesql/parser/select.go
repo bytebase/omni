@@ -229,6 +229,12 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 		inner.Loc = ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}
 		// Optional `AS alias` (consumed, not retained — see doc comment).
 		if p.cur.Type == kwAS {
+			if p.isSpanner() {
+				return nil, &ParseError{
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "syntax error: alias not allowed on parenthesized outer query",
+				}
+			}
 			p.advance()
 			if _, err := p.expectIdentifier(); err != nil {
 				return nil, err
@@ -301,7 +307,13 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 	if p.cur.Type == kwQUALIFY {
 		// QUALIFY: valid BigQuery, parses in the union grammar; Spanner
-		// feature-rejects (divergence #9). We accept it here.
+		// rejects QUALIFY as unsupported.
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: QUALIFY is not supported",
+			}
+		}
 		p.advance()
 		qualify, err := p.parseExpr()
 		if err != nil {

@@ -68,7 +68,7 @@ func (p *Parser) parseCreateChangeStream(create Token, orReplace bool, scope str
 
 	// opt_options_list?
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +114,7 @@ func (p *Parser) parseAlterChangeStream(alter Token) (ast.Node, error) {
 			}
 		case kwOPTIONS:
 			stmt.Action = ast.ChangeStreamSetOptions
-			opts, err := p.parseOptionsList()
+			opts, err := p.parseDDLOptionsList()
 			if err != nil {
 				return nil, err
 			}
