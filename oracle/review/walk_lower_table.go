@@ -19,12 +19,19 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if !ok {
 		return false
 	}
+	if hasModifyVarrayShrink(b.w.sql, v.Actions) {
+		// Oracle 23 accepts ALTER TABLE ... MODIFY VARRAY ... (SHRINK SPACE [CASCADE])
+		// even when the table does not exist or names a non-table object (verified).
+		return false
+	}
 	var cmds []*ast.AlterTableCmd
+	unfollowed := false
 	if v.Actions != nil {
 		for _, item := range v.Actions.Items {
 			c, ok := item.(*ast.AlterTableCmd)
 			if !ok || !alterFollowed(c) {
-				return false
+				unfollowed = true
+				continue
 			}
 			cmds = append(cmds, c)
 		}
@@ -34,14 +41,57 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	k := r.key(spaceTable)
-	if b.heldByOther(k, r, kindTable) {
+	if !unfollowed && alterFollowsSynonym(cmds) {
+		// ALTER TABLE ... MOVE and ALTER TABLE ... MODIFY PARTITION BY ...
+		// follow private and public synonyms in Oracle 23 (verified).
+		if f, _ := b.look(k); f == walk.Absent {
+			if objFact, objKind := b.look(r.key(spaceObject)); objFact == walk.Present {
+				if objKind == kindSynonym {
+					b.Last = true
+					return true
+				}
+				if objKind != "" && objKind != kindTable && objKind != kindMView {
+					b.heldByOther(k, r, kindTable)
+					return true
+				}
+			}
+			if !generated(spaceTable, r.name) {
+				keys := []walk.Key{k, r.key(spaceSynonym)}
+				if v.Name.Schema == "" {
+					keys = append(keys, publicKey(r.name))
+				}
+				allAbsent := true
+				for _, sk := range keys {
+					if sf, _ := b.look(sk); sf != walk.Absent {
+						allAbsent = false
+						break
+					}
+				}
+				if allAbsent {
+					b.Fail(keys, walk.Absent, noteOf(r.rng, review.ObjectNotFound, missingTable(r.written)))
+					return true
+				}
+			}
+			b.Last = true
+			return true
+		}
+	} else {
+		if b.heldByOther(k, r, kindTable) {
+			return true
+		}
+		f, _ := b.look(k)
+		b.need(k, walk.Present, nil, r.rng, missingTable(r.written), "")
+		if f == walk.Absent {
+			return true
+		}
+	}
+	if unfollowed {
+		// Table existence has been verified, but an unfollowed clause may add
+		// hidden columns or constraints, so stop walking after this statement.
+		b.Last = true
 		return true
 	}
-	f, kind := b.look(k)
-	b.need(k, walk.Present, nil, r.rng, missingTable(r.written), "")
-	if f == walk.Absent {
-		return true
-	}
+	_, kind := b.look(k)
 	declared, fails := b.alterTextFails(cmds, r)
 	if fails {
 		return true
@@ -53,6 +103,46 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			return false
 		}
 		if !b.alterCmd(r, c, declared) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasModifyVarrayShrink reports whether any action is MODIFY VARRAY ... (SHRINK SPACE ...),
+// which Oracle 23 accepts as a no-op even when the table is missing or another kind.
+func hasModifyVarrayShrink(sql string, actions *ast.List) bool {
+	if actions == nil {
+		return false
+	}
+	for _, item := range actions.Items {
+		c, ok := item.(*ast.AlterTableCmd)
+		if !ok || c.Action != ast.AT_MODIFY_VARRAY {
+			continue
+		}
+		toks := tokens(sql, c.Loc)
+		inParen := false
+		for i, tok := range toks {
+			if tok.Type == tokenOpenParen {
+				inParen = true
+				continue
+			}
+			if inParen && tok.Type == tokenShrink && i+1 < len(toks) && toks[i+1].Type == tokenSpace {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// alterFollowsSynonym reports whether every clause of an ALTER TABLE is one
+// that follows synonyms in Oracle 23 (MOVE and MODIFY PARTITION BY).
+func alterFollowsSynonym(cmds []*ast.AlterTableCmd) bool {
+	if len(cmds) == 0 {
+		return false
+	}
+	for _, c := range cmds {
+		if c.Action != ast.AT_MOVE && c.Action != ast.AT_MODIFY_TO_PARTITIONED {
 			return false
 		}
 	}

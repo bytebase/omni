@@ -22,6 +22,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.truncate(v)
 	case *ast.CreateIndexStmt:
 		return b.createIndex(v)
+	case *ast.CreateVectorIndexStmt:
+		return b.createVectorIndex(v)
 	case *ast.AlterIndexStmt:
 		return b.alterIndex(v)
 	case *ast.CreateViewStmt:
@@ -36,22 +38,52 @@ func (b *builder) statement(n ast.Node) bool {
 		if v.Public {
 			return b.publicSynonymNamed(v.Name, walk.Present)
 		}
-		return b.createObject(v.Name, kindSynonym, false, v.OrReplace)
+		return b.createObject(v.Name, kindSynonym, v.IfNotExists, v.OrReplace)
+	case *ast.AlterSynonymStmt:
+		if v.Public {
+			return true
+		}
+		if !b.alterObject(v.Name, kindSynonym, v.IfExists, missingSynonym, "private synonym") {
+			return false
+		}
+		b.mayRestoreSynonyms()
+		return true
 	case *ast.CreateTypeStmt:
 		if v.IsBody {
 			// A body has a namespace of its own.
 			return true
 		}
 		return b.createObject(v.Name, kindType, v.IfNotExists, v.OrReplace)
+	case *ast.AlterTypeStmt:
+		if v.CompileTarget == "BODY" {
+			return true
+		}
+		if !b.alterObject(v.Name, kindType, v.IfExists, func(w string) string { return missingKind(kindType, w) }, kindWord(kindType)) {
+			return false
+		}
+		if v.Action != "" && v.Action != "COMPILE" && v.Action != "EDITIONABLE" && v.Action != "NONEDITIONABLE" {
+			// Structural type evolution may affect dependent table columns/constraints.
+			b.Last = true
+		}
+		return true
 	case *ast.CreatePackageStmt:
 		if v.IsBody {
 			return true
 		}
 		return b.createObject(v.Name, kindPackage, v.IfNotExists, v.OrReplace)
+	case *ast.AlterPackageStmt:
+		if v.CompileTarget == "BODY" {
+			return true
+		}
+		return b.alterObject(v.Name, kindPackage, v.IfExists, func(w string) string { return missingKind(kindPackage, w) }, kindWord(kindPackage))
 	case *ast.CreateProcedureStmt:
 		return b.createObject(v.Name, kindProcedure, v.IfNotExists, v.OrReplace)
+	case *ast.AlterProcedureStmt:
+		return b.alterObject(v.Name, kindProcedure, v.IfExists, func(w string) string { return missingKind(kindProcedure, w) }, kindWord(kindProcedure))
 	case *ast.CreateFunctionStmt:
 		return b.createObject(v.Name, kindFunction, v.IfNotExists, v.OrReplace)
+	case *ast.AlterFunctionStmt:
+		return b.alterObject(v.Name, kindFunction, v.IfExists, func(w string) string { return missingKind(kindFunction, w) }, kindWord(kindFunction))
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.AlterTriggerStmt:
@@ -333,19 +365,34 @@ func (b *builder) declEffects(d *tableDecl, r objRef) {
 // XMLType table, whose columns come from its type, and a table with a
 // period, whose start and end columns Oracle adds.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
-	if v.Private || v.OrReplace || v.Sharded || v.Duplicated || v.Parent != nil || v.Organization == "EXTERNAL" || v.OfType != nil {
+	if v.Private || v.OrReplace {
 		return false
 	}
+	stopAfterCheck := v.Sharded || v.Duplicated || v.Parent != nil || v.Organization == "EXTERNAL" || v.OfType != nil
 	if v.Options != nil {
 		for _, item := range v.Options.Items {
-			if o, ok := item.(*ast.DDLOption); ok && (o.Key == "NESTED" || o.Key == "ORGANIZATION EXTERNAL" || o.Key == "SUPPLEMENTAL LOG" || o.Key == "PERIOD FOR") {
-				return false
+			if o, ok := item.(*ast.DDLOption); ok {
+				if o.Key == "SUPPLEMENTAL LOG" {
+					return false
+				}
+				if o.Key == "NESTED" || o.Key == "ORGANIZATION EXTERNAL" || o.Key == "PERIOD FOR" {
+					stopAfterCheck = true
+				}
 			}
 		}
 	}
 	r, ok := b.ref(v.Name)
 	if !ok {
 		return false
+	}
+	if stopAfterCheck {
+		if b.refTooLong(v.Name, r) {
+			return true
+		}
+		b.Order = walk.Lookups
+		b.claimName(r, v.IfNotExists, false, kindTable)
+		b.Last = true
+		return true
 	}
 	columns := columnDefs(v.Columns)
 	var d tableDecl
@@ -457,6 +504,21 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		if v.Cascade {
 			b.cascadeConstraints()
 		}
+	case ast.OBJECT_MATERIALIZED_VIEW:
+		k := r.key(spaceTable)
+		if !v.IfExists {
+			if b.heldByOther(k, r, kindMView) {
+				return true
+			}
+			if f, kind := b.look(k); f == walk.Present && kind == kindTable {
+				b.need(k, walk.Present, []string{kindMView}, r.rng, "", wrongKind(r.written, kindTable, kindWord(kindMView)))
+				return true
+			}
+		}
+		if !b.exists(k, []string{kindMView}, v.IfExists, r.rng, missingKind(kindMView, r.written), wrongKind(r.written, kindTable, kindWord(kindMView))) {
+			return true
+		}
+		b.Last = true
 	case ast.OBJECT_SEQUENCE:
 		if !v.IfExists && b.heldByOther(r.key(spaceSequence), r, kindSequence) {
 			return true
@@ -682,6 +744,63 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	return true
 }
 
+// createVectorIndex follows CREATE VECTOR INDEX [IF NOT EXISTS]: the index
+// name must be free in the schema's index namespace (00955), and the table
+// cannot be a view, sequence, routine, or type.
+func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
+	r, ok := b.ref(v.Name)
+	if !ok {
+		return false
+	}
+	if b.refTooLong(v.Name, r) {
+		return true
+	}
+	b.Order = walk.Lookups
+	kind := ""
+	t, ok := b.ref(v.TableName)
+	if !ok {
+		return false
+	}
+	switch f, _ := b.look(t.key(spaceTable)); f {
+	case walk.Present:
+		kind = t.path()
+	case walk.Absent:
+		b.wrongTarget(t, false)
+	}
+	k := r.key(spaceIndex)
+	if v.IfNotExists {
+		switch f, _ := b.look(k); f {
+		case walk.Present:
+			return true
+		case walk.Unknown:
+			b.Next()
+			b.Optional()
+			b.settle(k, walk.Present)
+		}
+	} else {
+		b.need(k, walk.Absent, nil, r.rng, "", takenName(r.written))
+	}
+	// A vector index creates auxiliary internal tables and indexes.
+	b.Last = true
+	b.Set(k, walk.Present, kind)
+	return true
+}
+
+// alterObject follows ALTER of a procedure, function, package, type, or
+// private synonym: the object must exist of that kind in the object namespace.
+func (b *builder) alterObject(name *ast.ObjectName, kind string, ifExists bool, missing func(string) string, needed string) bool {
+	r, ok := b.ref(name)
+	if !ok {
+		return false
+	}
+	if b.refTooLong(name, r) {
+		return true
+	}
+	b.Order = walk.Lookups
+	b.exists(r.key(spaceObject), []string{kind}, ifExists, r.rng, missing(r.written), notKind(r.written, needed))
+	return true
+}
+
 // alterIndex follows ALTER INDEX: the index must exist (01418); RENAME TO
 // needs the new name free (00955, the same name too, verified).
 func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
@@ -719,7 +838,20 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 // declares (verified). A materialized view ends the walk.
 func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	if v.Materialized {
-		return false
+		if v.OnPrebuilt {
+			return false
+		}
+		r, ok := b.ref(v.Name)
+		if !ok {
+			return false
+		}
+		if b.refTooLong(v.Name, r) {
+			return true
+		}
+		b.Order = walk.Lookups
+		b.claimName(r, v.IfNotExists, false, kindMView)
+		b.Last = true
+		return true
 	}
 	r, ok := b.ref(v.Name)
 	if !ok {
