@@ -39,10 +39,13 @@ const (
 	ErrDupFunction                       = 1304
 	ErrDupProcedure                      = 1304
 	ErrNoSuchTrigger                     = 1360
-	ErrDupTrigger                        = 1359
+	ErrDupTrigger                        = 5734 // OceanBase's own: trigger '<name>' already exist (MySQL answers 1359)
 	ErrTriggerInWrongSchema              = 1435
+	ErrReferencedTriggerNotFound         = 3011
 	ErrNoSuchEvent                       = 1539
 	ErrDupEvent                          = 1537
+	ErrEventSameName                     = 1551
+	ErrWrongValue                        = 1525
 	ErrFKCannotUseVirtualColumn          = 3104
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
@@ -295,7 +298,7 @@ func errNoSuchProcedure(db, name string) error {
 
 func errDupTrigger(name string) error {
 	return &Error{Code: ErrDupTrigger, SQLState: sqlState(ErrDupTrigger),
-		Message: fmt.Sprintf("Trigger already exists")}
+		Message: fmt.Sprintf("trigger '%s' already exist", name)}
 }
 
 func errNoSuchTrigger(db, name string) error {
@@ -307,6 +310,11 @@ func errTriggerInWrongSchema() error {
 	return &Error{Code: ErrTriggerInWrongSchema, SQLState: sqlState(ErrTriggerInWrongSchema), Message: "Trigger in wrong schema"}
 }
 
+func errReferencedTriggerNotFound(name string) error {
+	return &Error{Code: ErrReferencedTriggerNotFound, SQLState: sqlState(ErrReferencedTriggerNotFound),
+		Message: fmt.Sprintf("Referenced trigger '%s' for the given action time and event type does not exist.", name)}
+}
+
 func errDupEvent(name string) error {
 	return &Error{Code: ErrDupEvent, SQLState: sqlState(ErrDupEvent),
 		Message: fmt.Sprintf("Event '%s' already exists", name)}
@@ -315,6 +323,16 @@ func errDupEvent(name string) error {
 func errNoSuchEvent(db, name string) error {
 	return &Error{Code: ErrNoSuchEvent, SQLState: sqlState(ErrNoSuchEvent),
 		Message: fmt.Sprintf("Unknown event '%s'", name)}
+}
+
+func errEventSameName() error {
+	return &Error{Code: ErrEventSameName, SQLState: sqlState(ErrEventSameName),
+		Message: "Same old and new event name"}
+}
+
+func errEventWrongValue(val string) error {
+	return &Error{Code: ErrWrongValue, SQLState: sqlState(ErrWrongValue),
+		Message: fmt.Sprintf("Incorrect AT value: '%s'", val)}
 }
 
 func errUnsupportedGeneratedStorageChange(col, table string) error {

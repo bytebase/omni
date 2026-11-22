@@ -231,6 +231,19 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			sql:  "SELECT * FROM 表名; SELECT 1;",
 			want: []string{"SELECT * FROM 表名", " SELECT 1"},
 		},
+		{
+			name: "CREATE DEFINER PROCEDURE with characteristics and bare IF body",
+			sql:  "CREATE DEFINER = `root`@`%` PROCEDURE `a`()\n    MODIFIES SQL DATA\n    COMMENT 'c'\nIF 1 THEN COMMIT; ELSEIF 0 THEN COMMIT; ELSE COMMIT; END IF; SELECT 1;",
+			want: []string{
+				"CREATE DEFINER = `root`@`%` PROCEDURE `a`()\n    MODIFIES SQL DATA\n    COMMENT 'c'\nIF 1 THEN COMMIT; ELSEIF 0 THEN COMMIT; ELSE COMMIT; END IF",
+				" SELECT 1",
+			},
+		},
+		{
+			name: "CREATE TABLE column named procedure does not open routine header",
+			sql:  "CREATE TABLE t (procedure VARCHAR(10)) COMMENT 'c'; SELECT IF(1,2,3); SELECT 2;",
+			want: []string{"CREATE TABLE t (procedure VARCHAR(10)) COMMENT 'c'", " SELECT IF(1,2,3)", " SELECT 2"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
