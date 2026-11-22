@@ -133,6 +133,7 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string('ab',0,4,64,1) AS `x`"},
 		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab',0,0,1,0) AS `x`"},
 		{"weight-string-level-0-clamps", "select WEIGHT_STRING('ab' LEVEL 0) AS `x`", "select weight_string('ab',0,0,1,0) AS `x`"},
+		{"weight-string-level-64-clamps", "select WEIGHT_STRING('ab' LEVEL 64) AS `x`", "select weight_string('ab',0,0,32,0) AS `x`"},
 		// CAST/CONVERT to BINARY(n) desugar to the engine-stored
 		// char-charset-binary form in every expression position
 		// (oracle 8.0.32 + 5.7.25).

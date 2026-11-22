@@ -2842,10 +2842,16 @@ func WeightStringParams(n *ast.WeightStringExpr) (nweights, flags, isBinary int)
 		flags |= 0x40 // MY_STRXFRM_PAD_WITH_SPACE
 	}
 	for _, lv := range n.Levels {
-		bit := uint(lv.Level - 1)
-		if lv.Level < 1 {
-			bit = 0
+		level := lv.Level
+		if level < 1 {
+			level = 1
+		} else if level > 6 {
+			// Weight levels are 1..6 (matching parser maxWeightLevels); clamping
+			// prevents large LEVEL values from shifting past flag bit widths and
+			// overflowing signed int into unparseable negative parameters.
+			level = 6
 		}
+		bit := uint(level - 1)
 		flags |= 1 << bit
 		if lv.Desc {
 			flags |= 0x100 << bit
