@@ -10,9 +10,8 @@ import (
 	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/bytebase/omni/cassandra/internal/testcontainer"
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/compat"
 	enginerules "github.com/bytebase/omni/enginetest/rules"
@@ -79,10 +78,6 @@ func omniVerdict(sql string) string {
 }
 
 const (
-	// cassandraStartupTimeout bounds Cassandra's JVM boot, system keyspace
-	// initialization, and gossip settlement.
-	cassandraStartupTimeout = 5 * time.Minute
-	cassandraConnectTimeout = 30 * time.Second
 	cassandraPrepareTimeout = 30 * time.Second
 
 	// cassandraProbeTail is appended to a statement whose PREPARE returned a
@@ -110,7 +105,7 @@ const (
 // state.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
-	session := startPinnedCassandra(t, pin)
+	session := testcontainer.Judge(t, pin)
 	prepare := func(text string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), cassandraPrepareTimeout)
 		defer cancel()
@@ -198,91 +193,6 @@ func cassandraVerdict(err error, probe func() error) (string, error) {
 	default:
 		return "", fmt.Errorf("unexpected Cassandra error 0x%04x (%s)", reqErr.Code(), reqErr.Message())
 	}
-}
-
-// startPinnedCassandra starts the container named by pin, verifies its image
-// digest and reported release_version against pin, and registers t.Cleanup to
-// close the session and remove the container.
-func startPinnedCassandra(t testing.TB, pin enginetest.Pin) *gocql.Session {
-	t.Helper()
-	ctx := context.Background()
-	container, err := runCassandraContainer(ctx, pin)
-	if err != nil {
-		t.Fatalf("start Cassandra (%s): %v", pin.ImageRef(), err)
-	}
-	t.Cleanup(func() {
-		_ = testcontainers.TerminateContainer(container)
-	})
-	if err := checkCassandraDigest(ctx, container, pin.Digest); err != nil {
-		t.Fatalf("verify Cassandra digest: %v", err)
-	}
-	port, err := container.MappedPort(ctx, "9042/tcp")
-	if err != nil {
-		t.Fatalf("read Cassandra port: %v", err)
-	}
-	host, err := container.Host(ctx)
-	if err != nil {
-		t.Fatalf("read Cassandra host: %v", err)
-	}
-	cluster := gocql.NewCluster(host + ":" + port.Port())
-	cluster.ConnectTimeout = cassandraConnectTimeout
-	session, err := cluster.CreateSession()
-	if err != nil {
-		t.Fatalf("connect to Cassandra: %v", err)
-	}
-	t.Cleanup(session.Close)
-
-	var version string
-	if err := session.Query("SELECT release_version FROM system.local").ScanContext(ctx, &version); err != nil {
-		t.Fatalf("read Cassandra release_version: %v", err)
-	}
-	if version != pin.Tag {
-		t.Fatalf("server reports Cassandra %q, but pins.tsv pins %q", version, pin.Tag)
-	}
-	return session
-}
-
-// runCassandraContainer starts the pinned Cassandra container, converting a
-// testcontainers Docker-socket panic into an error.
-func runCassandraContainer(ctx context.Context, pin enginetest.Pin) (container testcontainers.Container, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("docker provider panic: %v", r)
-		}
-	}()
-	return testcontainers.Run(ctx, pin.ImageRef(),
-		testcontainers.WithEnv(map[string]string{
-			"CASSANDRA_CLUSTER_NAME": "omni",
-			"MAX_HEAP_SIZE":          "1G",
-			"HEAP_NEWSIZE":           "200M",
-		}),
-		testcontainers.WithExposedPorts("9042/tcp"),
-		testcontainers.WithWaitStrategyAndDeadline(cassandraStartupTimeout,
-			wait.ForLog("Starting listening for CQL clients").WithStartupTimeout(cassandraStartupTimeout)),
-	)
-}
-
-// checkCassandraDigest proves the running container uses the pinned digest.
-func checkCassandraDigest(ctx context.Context, container testcontainers.Container, digest string) error {
-	info, err := container.Inspect(ctx)
-	if err != nil {
-		return fmt.Errorf("inspect container: %w", err)
-	}
-	cli, err := testcontainers.NewDockerClientWithOpts(ctx)
-	if err != nil {
-		return fmt.Errorf("docker client: %w", err)
-	}
-	defer cli.Close()
-	image, err := cli.ImageInspect(ctx, info.Image)
-	if err != nil {
-		return fmt.Errorf("inspect image: %w", err)
-	}
-	for _, d := range image.RepoDigests {
-		if strings.HasSuffix(d, "@"+digest) {
-			return nil
-		}
-	}
-	return fmt.Errorf("container image digests %v do not include %s", image.RepoDigests, digest)
 }
 
 type fakeRequestError struct {

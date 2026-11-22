@@ -20,9 +20,9 @@ fresh container (`OMNI_RECORD=verify`).
 | Near-misses | 2,037 | 2,036 | 1 | 0 |
 | All | 2,941 | 2,940 | 1 | 0 |
 | **After (`engine`, `cassandra:5.0.9`)** | | | | |
-| One per alternative | 904 | 899 | 0 | 5 |
-| Near-misses | 2,037 | 2,036 | 0 | 1 |
-| All | 2,941 | 2,935 | 0 | 6 |
+| One per alternative | 904 | 904 | 0 | 0 |
+| Near-misses | 2,037 | 2,037 | 0 | 0 |
+| All | 2,941 | 2,941 | 0 | 0 |
 
 - **The grammar** is Apache Cassandra's own, `src/antlr/Cql.g`, `Parser.g` and
   `Lexer.g` at `cassandra-5.0.9` (`grammar` role in `../../testdata/pins.tsv`),
@@ -107,9 +107,10 @@ without executing the statement, so no row mutates server state.
   `CLUSTERING ORDER BY`) throw `0x2200` inside `Parser.g` actions and are
   classified `reject` by the tail probe. `grammar-overrides.tsv` is no longer
   needed and was removed.
-- **6 real `cassandra/parser` disagreements surfaced (work list).** All 6 are
-  unqualified function names in `functionResource` (`LIST ALL ON FUNCTION
-  a(...)`, 5 alternatives and 1 near-miss):
+- **6 real `cassandra/parser` disagreements surfaced and closed
+  (2,941 / 2,941 = 100.00%).** All 6 were unqualified function names in
+  `functionResource` (`LIST ALL ON FUNCTION a(...)`, 5 alternatives and 1
+  near-miss):
   - `LIST ALL ON FUNCTION a()` (2 rows)
   - `LIST ALL ON FUNCTION a(zzz)` (1 near-miss row; `zzz` parses as a UDT name)
   - `LIST ALL ON FUNCTION a(ASCII)` (2 rows)
@@ -118,6 +119,6 @@ without executing the statement, so no row mutates server state.
   In `Parser.g:1191`, `FunctionResource.functionFromCql($fn.s.keyspace, ...)`
   unconditionally rejects an unqualified function name during parsing with
   `0x2200` (`"In this context function name must be explictly qualified by a
-  keyspace"`), regardless of session keyspace. `cassandra/parser` currently
-  accepts these and will be updated to require a keyspace qualifier on
-  `FUNCTION` resources in a follow-up PR.
+  keyspace"`), regardless of session keyspace. `cassandra/parser` (`auth.go`,
+  `parseResource`) now requires an explicit keyspace qualifier on `FUNCTION`
+  resources, matching Cassandra 5.0.9 on all 2,941 rows.
