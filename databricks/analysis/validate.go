@@ -6,28 +6,41 @@ import (
 	"strings"
 )
 
+// maxNestingDepth bounds parenthesized nesting in ValidateQuery, matching
+// omni's repository-wide nesting bound so deeply nested input fails closed
+// without quadratic scans or stack growth.
+const maxNestingDepth = 10000
+
+var errNestingDepthExceeded = errors.New("maximum nesting depth exceeded")
+
 // ValidateQuery reports whether statement may run in the SQL editor's read-only
 // mode, and whether every statement in it returns rows:
 // (readOnly, returnsData, error).
 //
 // Decision is lexical: every non-empty statement in a script must be a
-// read-only Databricks SQL query (SELECT, WITH ... SELECT/VALUES/TABLE, VALUES,
-// TABLE, SHOW, DESCRIBE/DESC, or non-executing EXPLAIN over a read-only
-// statement). EXPLAIN ANALYZE, EXPLAIN over writes, CTEs containing DML or
-// feeding non-query statements, DML (INSERT, UPDATE, DELETE, MERGE, COPY INTO),
-// DDL (CREATE, ALTER, DROP, TRUNCATE, OPTIMIZE, VACUUM, RESTORE, REFRESH,
-// MSCK), DCL (GRANT, REVOKE, DENY), SET, USE, CALL, and multi-statement batches
-// containing any non-read-only statement are rejected. Empty, whitespace-only,
-// comment-only, or semicolon-only input carries no statements to refuse and
-// returns (true, true, nil). Lexical errors (unterminated comments, string
-// literals, or quoted identifiers) are returned so callers fail closed.
+// read-only Databricks SQL query (SELECT, WITH ... SELECT/VALUES/TABLE/FROM
+// pipeline, FROM ... |> ... pipeline, VALUES, TABLE, SHOW, DESCRIBE/DESC, or
+// non-executing EXPLAIN over a read-only statement). EXPLAIN ANALYZE, EXPLAIN
+// over writes, CTEs containing DML or feeding non-query statements, FROM-first
+// inserts, DML (INSERT, UPDATE, DELETE, MERGE, COPY INTO), DDL (CREATE, ALTER,
+// DROP, TRUNCATE, OPTIMIZE, VACUUM, RESTORE, REFRESH, MSCK), DCL (GRANT,
+// REVOKE, DENY), SET, USE, CALL, and multi-statement batches containing any
+// non-read-only statement are rejected. Empty, whitespace-only, comment-only,
+// or semicolon-only input carries no statements to refuse and returns
+// (true, true, nil). Lexical errors (unterminated comments, string literals, or
+// quoted identifiers) and excessive nesting depth are returned so callers fail
+// closed.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
 	stmts, err := tokenizeStatements(statement)
 	if err != nil {
 		return false, false, err
 	}
 	for _, stmt := range stmts {
-		if !isReadOnlyStatement(stmt) {
+		pairs, balanced, err := matchParens(stmt)
+		if err != nil {
+			return false, false, err
+		}
+		if !balanced || !isReadOnlyStatement(stmt, pairs, 0, len(stmt)) {
 			return false, false, nil
 		}
 	}
@@ -53,8 +66,9 @@ type token struct {
 }
 
 // tokenizeStatements lexes Databricks SQL into per-statement token slices split
-// on top-level semicolons. It handles `--` line comments, nested `/* /* */ */`
-// block comments, single/double-quoted strings with backslash and doubled-quote
+// on top-level semicolons. It handles Spark's `--` line comments (terminating
+// on CR or LF and supporting `\` + LF continuation), nested `/* /* */ */` block
+// comments, single/double-quoted strings with backslash and doubled-quote
 // escapes, raw strings (`r'...'`, `R'...'`, `r"..."`, `R"..."`), hex binary
 // literals (`x'...'`, `X'...'`), and backtick-quoted identifiers.
 func tokenizeStatements(script string) ([][]token, error) {
@@ -67,8 +81,21 @@ func tokenizeStatements(script string) ([][]token, error) {
 		case isSpace(c):
 			i++
 		case c == '-' && i+1 < len(script) && script[i+1] == '-':
+			// Match Spark's SIMPLE_COMMENT rule: '--' ('\\\n' | ~[\r\n])* '\r'? '\n'?
 			i += 2
-			for i < len(script) && script[i] != '\n' {
+			for i < len(script) {
+				if script[i] == '\\' && i+1 < len(script) && script[i+1] == '\n' {
+					i += 2
+					continue
+				}
+				if script[i] == '\r' || script[i] == '\n' {
+					if script[i] == '\r' && i+1 < len(script) && script[i+1] == '\n' {
+						i += 2
+					} else {
+						i++
+					}
+					break
+				}
 				i++
 			}
 		case c == '/' && i+1 < len(script) && script[i+1] == '*':
@@ -214,34 +241,67 @@ func isWordPart(c byte) bool {
 	return isWordStart(c) || (c >= '0' && c <= '9') || c == '$'
 }
 
-func isReadOnlyStatement(tokens []token) bool {
-	if len(tokens) == 0 || !hasBalancedParens(tokens) {
+// matchParens precomputes matching closing parenthesis indices in a single O(n)
+// pass and enforces maxNestingDepth. Unbalanced parentheses return balanced=false
+// with a nil error; exceeding maxNestingDepth returns errNestingDepthExceeded.
+func matchParens(tokens []token) ([]int, bool, error) {
+	pairs := make([]int, len(tokens))
+	for i := range pairs {
+		pairs[i] = -1
+	}
+	var stack []int
+	for i, tok := range tokens {
+		switch tok.kind {
+		case tokLParen:
+			if len(stack) >= maxNestingDepth {
+				return nil, false, errNestingDepthExceeded
+			}
+			stack = append(stack, i)
+		case tokRParen:
+			if len(stack) == 0 {
+				return nil, false, nil
+			}
+			openIdx := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			pairs[openIdx] = i
+		}
+	}
+	if len(stack) != 0 {
+		return nil, false, nil
+	}
+	return pairs, true, nil
+}
+
+func isReadOnlyStatement(tokens []token, pairs []int, start, end int) bool {
+	if start >= end {
 		return false
 	}
-	switch tokens[0].kind {
+	switch tokens[start].kind {
 	case tokLParen:
-		return isReadOnlyQuery(tokens)
+		return isReadOnlyQuery(tokens, pairs, start, end)
 	case tokWord:
-		switch tokens[0].val {
+		switch tokens[start].val {
 		case "SELECT", "VALUES", "TABLE", "SHOW":
-			return len(tokens) >= 2
+			return end-start >= 2
 		case "DESCRIBE", "DESC":
-			if len(tokens) < 2 {
+			if end-start < 2 {
 				return false
 			}
-			if tokens[1].kind == tokWord {
-				if tokens[1].val == "QUERY" {
-					return isReadOnlyQuery(tokens[2:])
+			if tokens[start+1].kind == tokWord {
+				if tokens[start+1].val == "QUERY" {
+					return isReadOnlyQuery(tokens, pairs, start+2, end)
 				}
-				if isNonReadOnlyLeadKeyword(tokens[1].val) {
+				if isNonReadOnlyLeadKeyword(tokens[start+1].val) {
 					return false
 				}
 			}
 			return true
 		case "WITH":
-			return isReadOnlyWith(tokens)
+			return isReadOnlyWith(tokens, pairs, start, end)
+		case "FROM":
+			return isReadOnlyFromPipeline(tokens, pairs, start, end)
 		case "EXPLAIN":
-			return isReadOnlyExplain(tokens)
+			return isReadOnlyExplain(tokens, pairs, start, end)
 		default:
 			return false
 		}
@@ -250,11 +310,11 @@ func isReadOnlyStatement(tokens []token) bool {
 	}
 }
 
-func isReadOnlyExplain(tokens []token) bool {
-	if len(tokens) < 2 {
+func isReadOnlyExplain(tokens []token, pairs []int, start, end int) bool {
+	if end-start < 2 {
 		return false
 	}
-	idx := 1
+	idx := start + 1
 	if tokens[idx].kind == tokWord {
 		switch tokens[idx].val {
 		case "ANALYZE":
@@ -263,109 +323,205 @@ func isReadOnlyExplain(tokens []token) bool {
 			idx++
 		}
 	}
-	if idx >= len(tokens) {
+	if idx >= end {
 		return false
 	}
 	if tokens[idx].kind == tokWord && tokens[idx].val == "EXPLAIN" {
 		return false
 	}
-	return isReadOnlyStatement(tokens[idx:])
+	return isReadOnlyStatement(tokens, pairs, idx, end)
 }
 
-func isReadOnlyQuery(tokens []token) bool {
-	if len(tokens) == 0 {
-		return false
-	}
-	if tokens[0].kind == tokLParen {
-		closeIdx := matchingRParen(tokens, 0)
-		if closeIdx < 0 || !isReadOnlyQuery(tokens[1:closeIdx]) {
+func isReadOnlyQuery(tokens []token, pairs []int, start, end int) bool {
+	for {
+		// Unwrap full-span outer parentheses iteratively so deeply nested
+		// queries stay O(n) with constant stack space.
+		for start < end && tokens[start].kind == tokLParen && pairs[start] == end-1 {
+			start++
+			end--
+		}
+		if start >= end {
 			return false
 		}
-		rest := tokens[closeIdx+1:]
-		if len(rest) == 0 {
-			return true
-		}
-		if rest[0].kind == tokPipe {
-			return true
-		}
-		if rest[0].kind == tokWord {
-			switch rest[0].val {
-			case "UNION", "INTERSECT", "EXCEPT", "MINUS":
-				next := 1
-				if next < len(rest) && rest[next].kind == tokWord && (rest[next].val == "ALL" || rest[next].val == "DISTINCT") {
-					next++
-				}
-				if next+1 < len(rest) && rest[next].kind == tokWord && rest[next].val == "BY" &&
-					rest[next+1].kind == tokWord && rest[next+1].val == "NAME" {
-					next += 2
-				}
-				return isReadOnlyQuery(rest[next:])
-			case "ORDER", "SORT", "CLUSTER", "DISTRIBUTE", "LIMIT", "OFFSET", "FETCH", "WINDOW", "QUALIFY":
+		if tokens[start].kind == tokLParen {
+			closeIdx := pairs[start]
+			if closeIdx < 0 || closeIdx >= end || !isReadOnlyQuery(tokens, pairs, start+1, closeIdx) {
+				return false
+			}
+			restStart := closeIdx + 1
+			if restStart >= end {
 				return true
+			}
+			if tokens[restStart].kind == tokPipe {
+				return isReadOnlyPipeTail(tokens, pairs, restStart, end)
+			}
+			if tokens[restStart].kind == tokWord {
+				switch tokens[restStart].val {
+				case "UNION", "INTERSECT", "EXCEPT", "MINUS":
+					next := restStart + 1
+					if next < end && tokens[next].kind == tokWord && (tokens[next].val == "ALL" || tokens[next].val == "DISTINCT") {
+						next++
+					}
+					if next+1 < end && tokens[next].kind == tokWord && tokens[next].val == "BY" &&
+						tokens[next+1].kind == tokWord && tokens[next+1].val == "NAME" {
+						next += 2
+					}
+					start = next
+					continue
+				case "ORDER", "SORT", "CLUSTER", "DISTRIBUTE", "LIMIT", "OFFSET", "FETCH", "WINDOW", "QUALIFY":
+					return true
+				}
+			}
+			return false
+		}
+		if tokens[start].kind == tokWord {
+			switch tokens[start].val {
+			case "SELECT", "VALUES", "TABLE":
+				return end-start >= 2
+			case "WITH":
+				return isReadOnlyWith(tokens, pairs, start, end)
+			case "FROM":
+				return isReadOnlyFromPipeline(tokens, pairs, start, end)
 			}
 		}
 		return false
 	}
-	if tokens[0].kind == tokWord {
-		switch tokens[0].val {
-		case "SELECT", "VALUES", "TABLE":
-			return len(tokens) >= 2
-		case "WITH":
-			return isReadOnlyWith(tokens)
+}
+
+// isReadOnlyFromPipeline validates Databricks SQL FROM-first pipeline queries
+// (FROM relation |> pipe_operator ...) while rejecting FROM-first inserts
+// (FROM s INSERT INTO t SELECT ...) and bare FROM clauses without a pipeline.
+func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
+	for i := start + 1; i < end; i++ {
+		switch tokens[i].kind {
+		case tokLParen:
+			closeIdx := pairs[i]
+			if closeIdx < 0 || closeIdx >= end {
+				return false
+			}
+			if !isReadOnlyParenFragment(tokens, pairs, i+1, closeIdx) {
+				return false
+			}
+			i = closeIdx
+		case tokPipe:
+			if i == start+1 {
+				return false
+			}
+			return isReadOnlyPipeTail(tokens, pairs, i, end)
+		case tokWord:
+			if isPipelineWriteKeyword(tokens[i].val) {
+				return false
+			}
 		}
 	}
 	return false
 }
 
+// isReadOnlyPipeTail validates one or more `|> ...` pipe operators starting at
+// start, rejecting empty pipe stages and any top-level write keywords while
+// allowing Databricks read-only column pipe operators such as `|> DROP col` and
+// `|> SET col = expr`.
+func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
+	i := start
+	for i < end {
+		if tokens[i].kind != tokPipe {
+			return false
+		}
+		i++
+		if i >= end || tokens[i].kind == tokPipe {
+			return false
+		}
+		if tokens[i].kind == tokWord && (isPipelineWriteKeyword(tokens[i].val) || tokens[i].val == "EXPORT") {
+			return false
+		}
+		for i < end && tokens[i].kind != tokPipe {
+			switch tokens[i].kind {
+			case tokLParen:
+				closeIdx := pairs[i]
+				if closeIdx < 0 || closeIdx >= end {
+					return false
+				}
+				if !isReadOnlyParenFragment(tokens, pairs, i+1, closeIdx) {
+					return false
+				}
+				i = closeIdx
+			case tokWord:
+				if isPipelineWriteKeyword(tokens[i].val) {
+					return false
+				}
+			}
+			i++
+		}
+	}
+	return true
+}
+
+// isReadOnlyParenFragment checks a parenthesized fragment inside a FROM or pipe
+// stage: if it starts a WITH or FROM query it must pass isReadOnlyQuery, and if
+// it starts with a write keyword it is rejected.
+func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
+	for start < end && tokens[start].kind == tokLParen && pairs[start] == end-1 {
+		start++
+		end--
+	}
+	if start >= end || tokens[start].kind != tokWord {
+		return true
+	}
+	if tokens[start].val == "WITH" || tokens[start].val == "FROM" {
+		return isReadOnlyQuery(tokens, pairs, start, end)
+	}
+	return !isPipelineWriteKeyword(tokens[start].val)
+}
+
 // isReadOnlyWith validates a CTE query:
 // WITH [RECURSIVE] name [(cols)] AS ([NOT] MATERIALIZED) (query) [, ...] main_query
 // Both each CTE body and the trailing main query must be read-only queries.
-func isReadOnlyWith(tokens []token) bool {
-	i := 1
-	if i < len(tokens) && tokens[i].kind == tokWord && tokens[i].val == "RECURSIVE" {
+func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
+	i := start + 1
+	if i < end && tokens[i].kind == tokWord && tokens[i].val == "RECURSIVE" {
 		i++
 	}
 	for {
-		if i >= len(tokens) || (tokens[i].kind != tokWord && tokens[i].kind != tokIdent) {
+		if i >= end || (tokens[i].kind != tokWord && tokens[i].kind != tokIdent) {
 			return false
 		}
 		i++
 		// Optional CTE column list: (c1, c2, ...)
-		if i < len(tokens) && tokens[i].kind == tokLParen {
-			closeCols := matchingRParen(tokens, i)
-			if closeCols < 0 {
+		if i < end && tokens[i].kind == tokLParen {
+			closeCols := pairs[i]
+			if closeCols < 0 || closeCols >= end {
 				return false
 			}
 			i = closeCols + 1
 		}
-		if i >= len(tokens) || tokens[i].kind != tokWord || tokens[i].val != "AS" {
+		if i >= end || tokens[i].kind != tokWord || tokens[i].val != "AS" {
 			return false
 		}
 		i++
-		if i+1 < len(tokens) && tokens[i].kind == tokWord && tokens[i].val == "NOT" &&
+		if i+1 < end && tokens[i].kind == tokWord && tokens[i].val == "NOT" &&
 			tokens[i+1].kind == tokWord && tokens[i+1].val == "MATERIALIZED" {
 			i += 2
-		} else if i < len(tokens) && tokens[i].kind == tokWord && tokens[i].val == "MATERIALIZED" {
+		} else if i < end && tokens[i].kind == tokWord && tokens[i].val == "MATERIALIZED" {
 			i++
 		}
-		if i >= len(tokens) || tokens[i].kind != tokLParen {
+		if i >= end || tokens[i].kind != tokLParen {
 			return false
 		}
-		closeBody := matchingRParen(tokens, i)
-		if closeBody < 0 {
+		closeBody := pairs[i]
+		if closeBody < 0 || closeBody >= end {
 			return false
 		}
-		if !isReadOnlyQuery(tokens[i+1 : closeBody]) {
+		if !isReadOnlyQuery(tokens, pairs, i+1, closeBody) {
 			return false
 		}
 		i = closeBody + 1
-		if i < len(tokens) && tokens[i].kind == tokComma {
+		if i < end && tokens[i].kind == tokComma {
 			i++
 			continue
 		}
 		break
 	}
-	return isReadOnlyQuery(tokens[i:])
+	return isReadOnlyQuery(tokens, pairs, i, end)
 }
 
 func isNonReadOnlyLeadKeyword(word string) bool {
@@ -381,37 +537,15 @@ func isNonReadOnlyLeadKeyword(word string) bool {
 	}
 }
 
-func hasBalancedParens(tokens []token) bool {
-	depth := 0
-	for _, tok := range tokens {
-		switch tok.kind {
-		case tokLParen:
-			depth++
-		case tokRParen:
-			depth--
-			if depth < 0 {
-				return false
-			}
-		}
+func isPipelineWriteKeyword(word string) bool {
+	switch word {
+	case "INSERT", "UPDATE", "DELETE", "MERGE", "COPY",
+		"CREATE", "ALTER", "TRUNCATE", "REPLACE",
+		"OPTIMIZE", "VACUUM", "RESTORE", "REFRESH", "MSCK",
+		"GRANT", "REVOKE", "DENY",
+		"CALL", "EXECUTE":
+		return true
+	default:
+		return false
 	}
-	return depth == 0
-}
-
-func matchingRParen(tokens []token, openIdx int) int {
-	if openIdx >= len(tokens) || tokens[openIdx].kind != tokLParen {
-		return -1
-	}
-	depth := 0
-	for i := openIdx; i < len(tokens); i++ {
-		switch tokens[i].kind {
-		case tokLParen:
-			depth++
-		case tokRParen:
-			depth--
-			if depth == 0 {
-				return i
-			}
-		}
-	}
-	return -1
 }

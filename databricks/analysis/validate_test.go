@@ -1,6 +1,10 @@
 package analysis
 
-import "testing"
+import (
+	"errors"
+	"strings"
+	"testing"
+)
 
 func TestValidateQuery(t *testing.T) {
 	tests := []struct {
@@ -32,6 +36,15 @@ func TestValidateQuery(t *testing.T) {
 		{name: "parenthesized union by name", sql: "(SELECT 1 AS a) UNION ALL BY NAME (SELECT 2 AS a)", readOnly: true, returnsData: true},
 		{name: "parenthesized select with limit", sql: "(SELECT 1) ORDER BY 1 LIMIT 1", readOnly: true, returnsData: true},
 		{name: "parenthesized select with pipe", sql: "(SELECT 1 AS x) |> WHERE x > 0", readOnly: true, returnsData: true},
+		{name: "from-first pipeline select", sql: "FROM t |> SELECT *", readOnly: true, returnsData: true},
+		{name: "from-first pipeline aggregate", sql: "FROM main.app.t |> WHERE x > 1 |> AGGREGATE COUNT(*) GROUP BY y", readOnly: true, returnsData: true},
+		{name: "from-first pipeline extend drop set columns", sql: "FROM t |> EXTEND a + 1 AS b |> DROP a |> SET b = b * 2", readOnly: true, returnsData: true},
+		{name: "from-first pipeline over subquery", sql: "FROM (SELECT 1 AS a) |> SELECT a", readOnly: true, returnsData: true},
+		{name: "cte with from-first pipeline body", sql: "WITH c AS (FROM t |> WHERE x > 1) SELECT * FROM c", readOnly: true, returnsData: true},
+		{name: "cte feeding from-first pipeline", sql: "WITH c AS (FROM t |> WHERE x > 1) FROM c |> SELECT *", readOnly: true, returnsData: true},
+		{name: "parenthesized from-first pipeline union", sql: "(FROM t |> SELECT *) UNION ALL (FROM u |> SELECT *)", readOnly: true, returnsData: true},
+		{name: "explain from-first pipeline", sql: "EXPLAIN FORMATTED FROM t |> WHERE x > 1 |> SELECT *", readOnly: true, returnsData: true},
+		{name: "describe query from-first pipeline", sql: "DESCRIBE QUERY FROM t |> SELECT *", readOnly: true, returnsData: true},
 		{name: "show tables", sql: "SHOW TABLES", readOnly: true, returnsData: true},
 		{name: "show create table", sql: "SHOW CREATE TABLE main.app.t", readOnly: true, returnsData: true},
 		{name: "show schemas", sql: "SHOW SCHEMAS IN main", readOnly: true, returnsData: true},
@@ -62,6 +75,8 @@ func TestValidateQuery(t *testing.T) {
 		{name: "dml keywords in string identifier and comment inside cte", sql: "WITH t AS (SELECT * FROM t1 WHERE a = 'insert'), tx AS (SELECT * FROM `delete`) /* UPDATE */ SELECT `update` FROM t;", readOnly: true, returnsData: true},
 		{name: "backtick escaped identifier", sql: "SELECT `a``; DROP TABLE t` FROM t", readOnly: true, returnsData: true},
 		{name: "leading line comment", sql: "-- DROP TABLE t\nSELECT 1", readOnly: true, returnsData: true},
+		{name: "line comment terminated by CR before select", sql: "-- DROP TABLE t\rSELECT 1", readOnly: true, returnsData: true},
+		{name: "line comment with backslash-LF continuation before select", sql: "-- first\\\nstill comment\nSELECT 1", readOnly: true, returnsData: true},
 		{name: "leading inline block comment", sql: "/* comment */ SELECT 1;", readOnly: true, returnsData: true},
 		{name: "nested block comment before select", sql: "/* outer /* inner ; DROP TABLE t */ still comment */ SELECT 1", readOnly: true, returnsData: true},
 		{name: "line comment containing block open", sql: "-- /* unclosed\nSELECT 1", readOnly: true, returnsData: true},
@@ -108,6 +123,16 @@ func TestValidateQuery(t *testing.T) {
 		{name: "call procedure", sql: "CALL app.my_proc(1)"},
 		{name: "execute immediate", sql: "EXECUTE IMMEDIATE 'DROP TABLE t'"},
 		{name: "from-first insert", sql: "FROM s INSERT INTO t SELECT *"},
+		{name: "from-first insert overwrite", sql: "FROM s INSERT OVERWRITE t SELECT *"},
+		{name: "bare from without pipeline", sql: "FROM t"},
+		{name: "from pipeline missing relation", sql: "FROM |> SELECT *"},
+		{name: "from pipeline trailing pipe", sql: "FROM t |>"},
+		{name: "from pipeline with insert stage", sql: "FROM t |> INSERT INTO u"},
+		{name: "from pipeline with export stage", sql: "FROM t |> EXPORT DATA"},
+		{name: "from pipeline with trailing insert", sql: "FROM t |> WHERE x > 1 INSERT INTO u SELECT *"},
+		{name: "from pipeline with mutating cte subquery", sql: "FROM (WITH c AS (DELETE FROM t) SELECT * FROM c) |> SELECT *"},
+		{name: "parenthesized select with pipe insert", sql: "(SELECT 1) |> INSERT INTO t"},
+		{name: "explain analyze from-first pipeline", sql: "EXPLAIN ANALYZE FROM t |> SELECT *"},
 
 		// --- CTEs with writes or malformed CTEs ---
 		{name: "cte feeding insert", sql: "WITH c AS (SELECT 1) INSERT INTO t SELECT * FROM c"},
@@ -156,6 +181,10 @@ func TestValidateQuery(t *testing.T) {
 		{name: "adjacent quotes then drop", sql: `SELECT 'a'''; DROP TABLE t`},
 		{name: "nested comment hiding select before drop", sql: "/* outer /* inner */ SELECT 1 */ DROP TABLE t"},
 		{name: "nested comment hiding explain before delete", sql: "/* outer /* inner */ EXPLAIN */ DELETE FROM t"},
+		{name: "line comment terminated by CR before delete", sql: "-- comment\rDELETE FROM t"},
+		{name: "line comment terminated by CRLF before delete", sql: "-- comment\r\nDELETE FROM t"},
+		{name: "line comment backslash-LF hides select before delete", sql: "-- comment\\\nSELECT 1\nDELETE FROM t"},
+		{name: "line comment backslash-CR does not continue past CR", sql: "-- comment\\\rDELETE FROM t"},
 
 		// --- Unclassifiable / malformed statements (fail closed) ---
 		{name: "unknown keyword", sql: "FOOBAR 1"},
@@ -205,4 +234,45 @@ func TestValidateQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateQueryNestingAndScale(t *testing.T) {
+	t.Run("deep nesting within limit stays linear", func(t *testing.T) {
+		const depth = 5000
+		sql := strings.Repeat("(", depth) + "SELECT 1" + strings.Repeat(")", depth)
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Fatalf("ValidateQuery(depth=%d) err = %v", depth, err)
+		}
+		if !readOnly || !returnsData {
+			t.Errorf("ValidateQuery(depth=%d) = (%v, %v), want (true, true)", depth, readOnly, returnsData)
+		}
+	})
+
+	t.Run("nesting past maxNestingDepth fails closed with error", func(t *testing.T) {
+		const depth = maxNestingDepth + 1
+		sql := strings.Repeat("(", depth) + "SELECT 1" + strings.Repeat(")", depth)
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if !errors.Is(err, errNestingDepthExceeded) {
+			t.Fatalf("ValidateQuery(depth=%d) err = %v, want %v", depth, err, errNestingDepthExceeded)
+		}
+		if readOnly || returnsData {
+			t.Errorf("ValidateQuery(depth=%d) = (%v, %v), want (false, false)", depth, readOnly, returnsData)
+		}
+	})
+
+	t.Run("long parenthesized set-op chain stays iterative", func(t *testing.T) {
+		var b strings.Builder
+		b.WriteString("(SELECT 1)")
+		for i := 0; i < 15000; i++ {
+			b.WriteString(" UNION ALL (SELECT 1)")
+		}
+		readOnly, returnsData, err := ValidateQuery(b.String())
+		if err != nil {
+			t.Fatalf("ValidateQuery(long union) err = %v", err)
+		}
+		if !readOnly || !returnsData {
+			t.Errorf("ValidateQuery(long union) = (%v, %v), want (true, true)", readOnly, returnsData)
+		}
+	})
 }
