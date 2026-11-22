@@ -2725,9 +2725,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -2795,16 +2805,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -2825,24 +2825,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -3105,29 +3090,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -3135,22 +3100,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -3230,19 +3180,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -3533,6 +3473,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -3958,76 +3913,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -4855,6 +4740,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -5374,6 +5269,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5544,6 +5449,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5624,6 +5534,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5669,7 +5584,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -5704,9 +5629,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -5722,6 +5662,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -5792,6 +5737,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -5992,6 +5942,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -6454,6 +6409,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -6769,11 +6739,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -6914,9 +6879,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -6992,6 +6957,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -7932,6 +7902,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7955,6 +7930,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -7992,6 +7972,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8020,6 +8005,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -8597,6 +8587,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8680,6 +8675,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -9590,16 +9600,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -9766,11 +9766,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < ok 0 0
 > exec
@@ -9875,6 +9870,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -10395,6 +10395,11 @@
 | 28365 ORA-28365: Wallet is not open.
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -10831,11 +10836,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 904 ORA-00904: "A": invalid identifier
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -10884,16 +10884,6 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 2538 ORA-02538: invalid TABLESPACE SET clause
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 2538 ORA-02538: invalid TABLESPACE SET clause
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARALLEL AS SELECT 1 FROM dual
@@ -11093,6 +11083,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -11116,6 +11111,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -11153,6 +11153,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -11181,6 +11186,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -11658,11 +11668,6 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -11711,6 +11716,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -13275,11 +13295,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -13317,11 +13332,6 @@
 < ok 0 0
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -13467,11 +13477,6 @@
 < ok 0 0
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -13637,6 +13642,11 @@
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < ok 0 0
 > exec
@@ -13681,6 +13691,11 @@
 > exec
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
 < error
@@ -13835,19 +13850,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -14123,6 +14143,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -14293,11 +14318,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -14388,16 +14408,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -14463,16 +14473,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -14499,16 +14499,6 @@
 > exec
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
@@ -14592,6 +14582,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 54039 ORA-54039: table must have at least one column that is not invisible
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -15050,11 +15045,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -15780,6 +15770,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -15818,6 +15813,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -16395,11 +16395,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -16472,15 +16467,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -19585,9 +19571,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -19655,16 +19651,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -19685,24 +19671,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -19965,29 +19936,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -19995,22 +19946,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -20090,19 +20026,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -20393,6 +20319,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -20818,76 +20759,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -21713,6 +21584,16 @@
 | ALTER SEQUENCE a SCALE NOEXTEND
 < error
 | 2289 ORA-02289: sequence does not exist
+|
+> exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | ALTER SEQUENCE a RESTART
@@ -22620,6 +22501,16 @@
 | 2430 ORA-02430: cannot enable constraint (A) - no such constraint
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < ok 0 0
 > exec
@@ -23020,6 +22911,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -23220,6 +23116,11 @@
 | 55602 ORA-55602: The table "SIMSHOP"."A" is not enabled for Flashback Archive
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -23275,7 +23176,17 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -23310,9 +23221,24 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -23338,6 +23264,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -23429,6 +23360,11 @@
 > exec
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 < error
@@ -23628,6 +23564,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -24130,6 +24071,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -24485,11 +24441,6 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 1735 ORA-01735: invalid ALTER TABLE option
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -24790,9 +24741,9 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -24969,6 +24920,11 @@
 > exec
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
 < ok 0 0
@@ -26110,6 +26066,11 @@
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
@@ -26133,6 +26094,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -26170,6 +26136,11 @@
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
@@ -26198,6 +26169,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -27025,6 +27001,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -27108,6 +27089,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 14434 ORA-14434: non-existent partitioning column in ALTER TABLE statement
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -28100,16 +28096,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -28290,11 +28276,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -28393,6 +28374,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -28925,6 +28911,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -29235,11 +29226,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -29286,16 +29272,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -29465,6 +29441,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -29488,6 +29469,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -29525,6 +29511,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -29553,6 +29544,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -29970,11 +29966,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -30023,6 +30014,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -31595,11 +31601,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -31631,11 +31632,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -31721,11 +31717,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -31835,6 +31826,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -31858,6 +31854,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -31995,19 +31996,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -32275,6 +32281,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -32445,11 +32456,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -32540,16 +32546,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -32615,16 +32611,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -32669,16 +32655,6 @@
 > exec
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -32738,6 +32714,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -33210,11 +33191,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 904 ORA-00904: "A": invalid identifier
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -34044,6 +34020,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -34082,6 +34063,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -34719,11 +34705,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -34808,21 +34789,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE INDEX a_c_idx ON a (c)
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -38867,9 +38833,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -38937,16 +38913,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -38967,24 +38933,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -39247,29 +39198,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -39277,22 +39208,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -39372,19 +39288,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -39675,6 +39581,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -40100,76 +40021,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -40997,6 +40848,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -41778,6 +41639,16 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 2432 ORA-02432: cannot enable primary key - primary key not defined for table
@@ -42109,6 +41980,11 @@
 | 32592 ORA-32592: all columns in log group can not be no log columns
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 30567 ORA-30567: name already used by an existing log group
@@ -42273,6 +42149,11 @@
 | 55602 ORA-55602: The table "SIMSHOP"."A" is not enabled for Flashback Archive
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -42318,7 +42199,17 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -42360,9 +42251,24 @@
 | 22858 ORA-22858: invalid alteration of datatype
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -42400,6 +42306,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
 < ok 0 0
@@ -42519,6 +42430,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 < error
@@ -42732,6 +42648,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 2442 ORA-02442: Cannot drop nonexistent unique key
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -43194,6 +43115,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -43579,11 +43515,6 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 1735 ORA-01735: invalid ALTER TABLE option
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -43850,9 +43781,9 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -43999,6 +43930,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
 < error
@@ -45021,6 +44957,11 @@
 | 14032 ORA-14032: partition bound of partition number 1 is too high
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -45065,6 +45006,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 14306 ORA-14306: List value '1' specified twice in partitions '', ''
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -45144,6 +45090,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -45208,6 +45159,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
 < ok 0 0
@@ -45945,6 +45901,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -46063,6 +46024,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 959 ORA-00959: tablespace 'A' does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -47049,16 +47025,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -47237,11 +47203,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -47373,6 +47334,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
 < error
@@ -47964,6 +47930,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -48274,11 +48245,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -48325,16 +48291,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -48504,6 +48460,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -48527,6 +48488,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -48564,6 +48530,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -48592,6 +48563,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -49009,11 +48985,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -49062,6 +49033,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -50628,11 +50614,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -50661,11 +50642,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -50751,11 +50727,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -50865,6 +50836,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -50888,6 +50864,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -51022,19 +51003,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -51302,6 +51288,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -51472,11 +51463,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -51567,16 +51553,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -51642,16 +51618,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -51687,16 +51653,6 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -51756,6 +51712,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -52228,11 +52189,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 918 ORA-00918: A: column ambiguously specified - appears in  and 
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -53027,6 +52983,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -53067,6 +53028,11 @@
 > exec
 | ROLLBACK
 < ok 0 0
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
 < error
@@ -53696,11 +53662,6 @@
 | 918 ORA-00918: A: column ambiguously specified - appears in A and 
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 51900 ORA-51900: Cannot create a vector index on non-vector columns
@@ -53779,18 +53740,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -57339,9 +57288,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -57409,16 +57368,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -57439,24 +57388,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -57733,29 +57667,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -57763,22 +57677,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -57858,19 +57757,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -58224,6 +58113,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -58649,76 +58553,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -59602,6 +59436,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -60376,6 +60220,16 @@
 | 2430 ORA-02430: cannot enable constraint (A) - no such constraint
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 2432 ORA-02432: cannot enable primary key - primary key not defined for table
@@ -60714,6 +60568,11 @@
 | 32592 ORA-32592: all columns in log group can not be no log columns
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -60871,6 +60730,11 @@
 | 55602 ORA-55602: The table "SIMSHOP"."A" is not enabled for Flashback Archive
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -60916,7 +60780,17 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -60958,9 +60832,24 @@
 | 22858 ORA-22858: invalid alteration of datatype
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -60983,6 +60872,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 12984 ORA-12984: cannot drop partitioning column
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -61082,6 +60976,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 < error
@@ -61281,6 +61180,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 2442 ORA-02442: Cannot drop nonexistent unique key
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -61918,6 +61822,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 14080 ORA-14080: partition cannot be split along the specified high bound
@@ -62296,11 +62215,6 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 1735 ORA-01735: invalid ALTER TABLE option
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -62574,9 +62488,9 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -62723,6 +62637,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
 < error
@@ -63801,6 +63720,11 @@
 | 14032 ORA-14032: partition bound of partition number 1 is too high
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -63845,6 +63769,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 14306 ORA-14306: List value '1' specified twice in partitions '', ''
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -63924,6 +63853,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -63988,6 +63922,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
 < ok 0 0
@@ -64732,6 +64671,11 @@
 | 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -64850,6 +64794,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 959 ORA-00959: tablespace 'A' does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -65836,16 +65795,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -66024,11 +65973,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -66160,6 +66104,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
 < error
@@ -66775,6 +66724,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67085,11 +67039,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67136,16 +67085,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -67315,6 +67254,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67338,6 +67282,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -67375,6 +67324,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67403,6 +67357,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -67820,11 +67779,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67873,6 +67827,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -69439,11 +69408,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -69472,11 +69436,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -69562,11 +69521,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -69676,6 +69630,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -69699,6 +69658,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -69833,19 +69797,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -70113,6 +70082,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -70283,11 +70257,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -70378,16 +70347,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -70453,16 +70412,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -70498,16 +70447,6 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -70567,6 +70506,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -71043,11 +70987,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 918 ORA-00918: A: column ambiguously specified - appears in  and 
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -71840,6 +71779,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -71880,6 +71824,11 @@
 > exec
 | ROLLBACK
 < ok 0 0
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
 < error
@@ -72513,11 +72462,6 @@
 | 918 ORA-00918: A: column ambiguously specified - appears in A and 
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 51900 ORA-51900: Cannot create a vector index on non-vector columns
@@ -72596,18 +72540,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -76707,9 +76639,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -76777,16 +76719,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -76807,24 +76739,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -77087,29 +77004,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -77117,22 +77014,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -77212,19 +77094,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -77515,6 +77387,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -77940,76 +77827,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -78837,6 +78654,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -79362,6 +79189,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79532,6 +79369,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79612,6 +79454,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79657,7 +79504,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -79692,9 +79549,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -79710,6 +79582,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -79780,6 +79657,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -79980,6 +79862,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -80442,6 +80329,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -80757,11 +80659,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -80902,9 +80799,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -80980,6 +80877,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -81932,6 +81834,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -81955,6 +81862,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -81992,6 +81904,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -82020,6 +81937,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -82597,6 +82519,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -82680,6 +82607,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -83662,16 +83604,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -83862,11 +83794,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < ok 0 0
 > exec
@@ -83995,6 +83922,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -84525,6 +84457,11 @@
 | CREATE MATERIALIZED VIEW a(a ENCRYPT) AS SELECT 1 FROM dual
 < error
 | 28365 ORA-28365: Wallet is not open.
+|
+> exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
@@ -85149,11 +85086,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 904 ORA-00904: "A": invalid identifier
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -85202,16 +85134,6 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 2538 ORA-02538: invalid TABLESPACE SET clause
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 2538 ORA-02538: invalid TABLESPACE SET clause
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARALLEL AS SELECT 1 FROM dual
@@ -85459,6 +85381,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -85482,6 +85409,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -85519,6 +85451,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -85547,6 +85484,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -86114,11 +86056,6 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -86167,6 +86104,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -87749,11 +87701,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -87815,11 +87762,6 @@
 < ok 0 0
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -88055,11 +87997,6 @@
 < ok 0 0
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -88309,6 +88246,11 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < ok 0 0
 > exec
@@ -88383,6 +88325,11 @@
 > exec
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
 < error
@@ -88579,19 +88526,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -88879,6 +88831,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -89049,11 +89006,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -89144,16 +89096,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -89219,16 +89161,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -89252,16 +89184,6 @@
 | CREATE NONEDITIONABLE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < error
 | 4081 ORA-04081: trigger 'A' already exists
-|
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
 |
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
@@ -89382,6 +89304,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 54039 ORA-54039: table must have at least one column that is not invisible
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -89852,11 +89779,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -90684,6 +90606,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -90722,6 +90649,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -91299,11 +91231,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -91398,21 +91325,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
-< ok 0 0
-> exec
-| CREATE INDEX a ON t (c)
-< ok 0 0
-> exec
-| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -95540,9 +95452,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -95610,16 +95532,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -95640,24 +95552,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -95920,29 +95817,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -95950,22 +95827,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -96045,19 +95907,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -96348,6 +96200,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -96773,76 +96640,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 1702 ORA-01702: a view is not appropriate here
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -97670,6 +97467,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -98192,6 +97999,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98362,6 +98179,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98442,6 +98264,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98487,7 +98314,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -98522,9 +98359,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -98540,6 +98392,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -98610,6 +98467,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -98810,6 +98672,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -99272,6 +99139,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -99587,11 +99469,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -99732,9 +99609,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -99810,6 +99687,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -100756,6 +100638,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -100779,6 +100666,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -100816,6 +100708,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -100844,6 +100741,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -101421,6 +101323,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -101504,6 +101411,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -102420,16 +102342,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -102629,11 +102541,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -102729,6 +102636,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -103248,6 +103160,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -103558,11 +103475,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -103609,16 +103521,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -103788,6 +103690,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -103811,6 +103718,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -103848,6 +103760,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -103876,6 +103793,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -104293,11 +104215,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -104346,6 +104263,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -105912,11 +105844,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -105945,11 +105872,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -106035,11 +105957,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -106149,6 +106066,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -106172,6 +106094,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -106306,19 +106233,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -106586,6 +106518,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -106756,11 +106693,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -106851,16 +106783,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -106926,16 +106848,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -106971,16 +106883,6 @@
 > exec
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -107041,6 +106943,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 54039 ORA-54039: table must have at least one column that is not invisible
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -107513,11 +107420,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 918 ORA-00918: A: column ambiguously specified - appears in  and 
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -108300,6 +108202,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -108338,6 +108245,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -108924,11 +108836,6 @@
 | 918 ORA-00918: A: column ambiguously specified - appears in A and 
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -109014,18 +108921,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
-< ok 0 0
-> exec
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -112863,9 +112758,19 @@
 | 22858 ORA-22858: invalid alteration of datatype
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -112993,16 +112898,6 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 904 ORA-00904: "ATTRIBUTES": invalid identifier
@@ -113023,24 +112918,9 @@
 | 14759 ORA-14759: SET INTERVAL is not legal on this table.
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 14602 ORA-14602: SUBPARTITION TEMPLATE is legal only for a composite partitioned table
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -113463,11 +113343,6 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < ok 0 0
 > exec
@@ -113482,21 +113357,6 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
 < ok 0 0
@@ -113513,22 +113373,7 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -113608,19 +113453,9 @@
 | 14602 ORA-14602: SUBPARTITION TEMPLATE is legal only for a composite partitioned table
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 14602 ORA-14602: SUBPARTITION TEMPLATE is legal only for a composite partitioned table
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -113911,6 +113746,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -114456,76 +114306,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -115361,6 +115141,16 @@
 | ALTER SEQUENCE a SCALE NOEXTEND
 < error
 | 2289 ORA-02289: sequence does not exist
+|
+> exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | ALTER SEQUENCE a RESTART
@@ -116268,6 +116058,16 @@
 | 2430 ORA-02430: cannot enable constraint (A) - no such constraint
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < ok 0 0
 > exec
@@ -116698,6 +116498,11 @@
 | 32592 ORA-32592: all columns in log group can not be no log columns
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -116908,6 +116713,11 @@
 | 55602 ORA-55602: The table "SIMSHOP"."A" is not enabled for Flashback Archive
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -116953,7 +116763,17 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -116998,9 +116818,24 @@
 | 22858 ORA-22858: invalid alteration of datatype
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -117047,6 +116882,11 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
 < ok 0 0
@@ -117197,6 +117037,11 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 < error
@@ -117436,6 +117281,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 2442 ORA-02442: Cannot drop nonexistent unique key
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -117928,6 +117778,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -118283,11 +118148,6 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 1735 ORA-01735: invalid ALTER TABLE option
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -118608,9 +118468,9 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -118787,6 +118647,11 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
 < error
@@ -119808,6 +119673,11 @@
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
@@ -119831,6 +119701,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -119868,6 +119743,11 @@
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
@@ -119896,6 +119776,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -120693,6 +120578,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -120776,6 +120666,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 14427 ORA-14427: table does not support modification to a partitioned state DDL because of materialized view container table
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -121768,16 +121673,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -121958,11 +121853,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -122112,6 +122002,11 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
 < error
@@ -122736,6 +122631,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123046,11 +122946,6 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123097,16 +122992,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -123276,6 +123161,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123299,6 +123189,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -123336,6 +123231,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123364,6 +123264,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -123781,11 +123686,6 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123834,6 +123734,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -125406,11 +125321,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -125442,11 +125352,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -125532,11 +125437,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -125646,6 +125546,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -125669,6 +125574,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -125806,19 +125716,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -126086,6 +126001,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -126256,11 +126176,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -126351,16 +126266,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -126426,16 +126331,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -126480,16 +126375,6 @@
 > exec
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -126549,6 +126434,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -126999,11 +126889,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 918 ORA-00918: A: column ambiguously specified - appears in  and 
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -127801,6 +127686,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -127839,6 +127729,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 1732 ORA-01732: data manipulation operation not legal on this view
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -128476,11 +128371,6 @@
 | 918 ORA-00918: A: column ambiguously specified - appears in A and 
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 51919 ORA-51919: Vector indexes cannot be created on MATERIALIZED views.
@@ -128575,21 +128465,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
-< ok 0 0
-> exec
-| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
-| CREATE INDEX a_d_idx ON a (d)
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -132687,9 +132562,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -132757,16 +132642,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -132787,24 +132662,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -133067,29 +132927,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -133097,22 +132937,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -133192,19 +133017,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -133495,6 +133310,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -133920,76 +133750,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 2201 ORA-02201: sequence not allowed here
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -134908,6 +134668,16 @@
 | CREATE SEQUENCE a
 < ok 0 0
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < ok 0 0
 > exec
@@ -135437,6 +135207,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135607,6 +135387,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135687,6 +135472,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135732,7 +135522,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -135767,9 +135567,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -135785,6 +135600,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -135855,6 +135675,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -136055,6 +135880,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -136517,6 +136347,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -136832,11 +136677,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -136977,9 +136817,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -137055,6 +136895,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -138001,6 +137846,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138024,6 +137874,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -138061,6 +137916,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138089,6 +137949,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -138666,6 +138531,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138749,6 +138619,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -139665,16 +139550,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -139832,11 +139707,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -139932,6 +139802,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -140451,6 +140326,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -140761,11 +140641,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -140812,16 +140687,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -140991,6 +140856,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -141014,6 +140884,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -141051,6 +140926,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -141079,6 +140959,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -141496,11 +141381,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -141549,6 +141429,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -143115,11 +143010,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -143148,11 +143038,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -143238,11 +143123,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -143352,6 +143232,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -143375,6 +143260,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -143509,19 +143399,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -143789,6 +143684,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -143959,11 +143859,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -144054,16 +143949,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -144129,16 +144014,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -144174,16 +144049,6 @@
 > exec
 | CREATE SEQUENCE a
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -144243,6 +144108,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -144693,11 +144563,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 2201 ORA-02201: sequence not allowed here
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -145459,6 +145324,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -145497,6 +145367,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -146074,11 +145949,6 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -146157,18 +146027,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE SEQUENCE a
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -149710,9 +149568,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -149780,16 +149648,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -149810,24 +149668,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -150090,29 +149933,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -150120,22 +149943,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -150215,19 +150023,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -150518,6 +150316,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -150943,76 +150756,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -151840,6 +151583,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -152425,6 +152178,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152595,6 +152358,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152675,6 +152443,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152720,7 +152493,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -152755,9 +152538,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -152773,6 +152571,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -152843,6 +152646,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -153043,6 +152851,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -153505,6 +153318,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -153876,11 +153704,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -154021,9 +153844,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -154099,6 +153922,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -155066,6 +154894,11 @@
 | 14032 ORA-14032: partition bound of partition number 1 is too high
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -155110,6 +154943,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 14306 ORA-14306: List value '1' specified twice in partitions '', ''
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -155189,6 +155027,11 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < ok 0 0
 > exec
@@ -155253,6 +155096,11 @@
 > exec
 | CREATE SYNONYM a FOR t
 < ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
 < ok 0 0
@@ -155850,6 +155698,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -155968,6 +155821,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 959 ORA-00959: tablespace 'A' does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -156905,16 +156773,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -157093,11 +156951,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -157229,6 +157082,11 @@
 > exec
 | CREATE SYNONYM a FOR t
 < ok 0 0
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
 < error
@@ -157820,6 +157678,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158130,11 +157993,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158181,16 +158039,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -158360,6 +158208,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158383,6 +158236,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -158420,6 +158278,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158448,6 +158311,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -158865,11 +158733,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158918,6 +158781,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -160484,11 +160362,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -160517,11 +160390,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -160607,11 +160475,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -160721,6 +160584,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -160744,6 +160612,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -160878,19 +160751,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -161158,6 +161036,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -161328,11 +161211,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -161423,16 +161301,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -161498,16 +161366,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -161543,16 +161401,6 @@
 > exec
 | CREATE SYNONYM a FOR t
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -161612,6 +161460,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -162084,11 +161937,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 918 ORA-00918: A: column ambiguously specified - appears in  and 
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -162871,6 +162719,11 @@
 | 984 ORA-00984: column not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
@@ -162909,6 +162762,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 1400 ORA-01400: cannot insert NULL into ("SIMSHOP"."T"."B")
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -163496,11 +163354,6 @@
 | 918 ORA-00918: A: column ambiguously specified - appears in A and 
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 51900 ORA-51900: Cannot create a vector index on non-vector columns
@@ -163586,18 +163439,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
-< ok 0 0
-> exec
-| CREATE SYNONYM a FOR t
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -167202,9 +167043,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -167272,16 +167123,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -167302,24 +167143,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -167582,29 +167408,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -167612,22 +167418,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -167707,19 +167498,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -168010,6 +167791,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -168435,76 +168231,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -169332,6 +169058,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -169854,6 +169590,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170024,6 +169770,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170104,6 +169855,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170149,7 +169905,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -170184,9 +169950,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -170202,6 +169983,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -170272,6 +170058,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -170472,6 +170263,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -170934,6 +170730,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -171249,11 +171060,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -171394,9 +171200,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -171472,6 +171278,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -172418,6 +172229,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -172441,6 +172257,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -172478,6 +172299,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -172506,6 +172332,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -173083,6 +172914,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -173166,6 +173002,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -174082,16 +173933,6 @@
 | 4043 ORA-04043: Object A does not exist.
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 4043 ORA-04043: Object A does not exist.
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -174256,11 +174097,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -174356,6 +174192,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -174875,6 +174716,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175185,11 +175031,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175236,16 +175077,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -175415,6 +175246,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175438,6 +175274,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -175475,6 +175316,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175503,6 +175349,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -175920,11 +175771,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175973,6 +175819,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -177539,11 +177400,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -177572,11 +177428,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -177662,11 +177513,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -177776,6 +177622,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -177799,6 +177650,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -177933,19 +177789,24 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 902 ORA-00902: invalid datatype
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -178213,6 +178074,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -178383,11 +178249,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -178478,16 +178339,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -178553,16 +178404,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -178598,16 +178439,6 @@
 > exec
 | CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < error
@@ -178667,6 +178498,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -179117,11 +178953,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -179883,6 +179714,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -179921,6 +179757,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -180498,11 +180339,6 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -180581,18 +180417,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
@@ -184124,9 +183948,19 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY(a a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR OLTP
@@ -184194,16 +184028,6 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY FOR QUERY(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -184224,24 +184048,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -184504,29 +184313,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY M(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
 |
 > exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH(a)
@@ -184534,22 +184323,7 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HIGH zzz(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY HNSW(a)
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a)
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
-| ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a, a zzz)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -184629,19 +184403,9 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
@@ -184932,6 +184696,21 @@
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 < error
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
@@ -185357,76 +185136,6 @@
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
-|
-> exec
-| ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
-< error
-| 14156 ORA-14156: invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION TEMPLATE] clause
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
@@ -186254,6 +185963,16 @@
 | 2289 ORA-02289: sequence does not exist
 |
 > exec
+| ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a RESTART
 < error
 | 2289 ORA-02289: sequence does not exist
@@ -186776,6 +186495,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a
+< error
+| 3049 ORA-03049: SQL keyword 'A' is not syntactically valid following '...PRIMARY KEY USING INDEX '
+|
+> exec
 | ALTER TABLE a ENABLE PRIMARY KEY USING INDEX
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -186946,6 +186675,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187026,6 +186760,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a FLASHBACK ARCHIVE a
+< error
+| 55643 ORA-55643: cannot combine Flashback Data Archive operation with other operations
+|
+> exec
 | ALTER TABLE a OVERFLOW LOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187071,7 +186810,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a ADD(a NUMBER, a
+| ALTER TABLE a ADD(a NUMBER, a NUMBER)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER, a OBJECT)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -187106,9 +186855,24 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY(a a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY(a AS(1), a AS(1))
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a SET UNUSED COLUMN a
@@ -187124,6 +186888,11 @@
 | ALTER TABLE a DROP(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP COLUMN a INVALIDATE
@@ -187194,6 +186963,11 @@
 | ALTER TABLE a ADD CHECK(1 = 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
@@ -187394,6 +187168,11 @@
 | ALTER TABLE a DROP UNIQUE(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -187856,6 +187635,21 @@
 | 14046 ORA-14046: a partition may be split into exactly two new partitions
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE 1 = 1
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -188171,11 +187965,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS
-< error
-| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -188316,9 +188105,9 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a INMEMORY INMEMORY NO
+| ALTER TABLE a INMEMORY INMEMORY(a, a)
 < error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -188394,6 +188183,11 @@
 | ALTER TABLE a ANNOTATIONS(ADD a 's')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD(a NUMBER COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a ADD(a NUMBER SORT)
@@ -189340,6 +189134,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -189363,6 +189162,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a)(PARTITION)
@@ -189400,6 +189204,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -189428,6 +189237,11 @@
 | ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1
@@ -190005,6 +189819,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a LOGGING, PARTITION a)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MOVE UPDATE INDEXES(a(PARTITION a))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190088,6 +189907,21 @@
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1
@@ -191074,24 +190908,6 @@
 | PL/SQL: Compilation unit analysis terminated
 |
 > exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
-< error
-| 22324 ORA-22324: altered type has compilation errors
-| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
-| PLS-00716: Attribute/method 'A' can occur only once in an ALTER TYPE statement
-| ORA-06550: line 0, column 0:
-| PL/SQL: Compilation unit analysis terminated
-|
-> exec
-| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
-< error
-| 22324 ORA-22324: altered type has compilation errors
-| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
-| PLS-00716: Attribute/method 'A' can occur only once in an ALTER TYPE statement
-| ORA-06550: line 0, column 0:
-| PL/SQL: Compilation unit analysis terminated
-|
-> exec
 | ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
 < error
 | 6545 ORA-06545: PL/SQL: compilation error - compilation aborted
@@ -191272,11 +191088,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -191372,6 +191183,11 @@
 | CREATE INDEX a ON a(a DESC)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE INDEX a ON CLUSTER a TABLESPACE a
@@ -191891,6 +191707,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a OF a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -192201,11 +192022,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
 | CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -192252,16 +192068,6 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) TABLESPACE SET a AS SELECT 1 FROM dual
-< error
-| 955 ORA-00955: name is already used by an existing object
-|
-> exec
-| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) TABLESPACE SET a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -192431,6 +192237,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -192454,6 +192265,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(1), PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION) AS SELECT 1 FROM dual
@@ -192491,6 +192307,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY LIST(a, a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) AUTOMATIC SUBPARTITION BY RANGE(a)(PARTITION VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -192519,6 +192340,11 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION a VALUES(1)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a, a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -192936,11 +192762,6 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY LIST(a)(PARTITION VALUES(DEFAULT)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -192989,6 +192810,21 @@
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY LIST(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a, a) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY HASH(a) SUBPARTITIONS 1 PARTITIONS 1 AS SELECT 1 FROM dual
@@ -194555,11 +194391,6 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
-| CREATE PACKAGE BODY a.zzz a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
 | CREATE PACKAGE BODY a AS END;
 < ok 0 0
 > exec
@@ -194588,11 +194419,6 @@
 |
 > exec
 | CREATE PACKAGE a.a IS END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PACKAGE a.zzz a IS END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -194678,11 +194504,6 @@
 |
 > exec
 | CREATE PROCEDURE a.a IS BEGIN NULL; END;
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE PROCEDURE a.zzz a IS BEGIN NULL; END;
 < error
 | 1435 ORA-01435: user does not exist
 |
@@ -194792,6 +194613,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE SEQUENCE a NOSHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | CREATE SEQUENCE a SCALE EXTEND
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -194815,6 +194641,11 @@
 | CREATE SEQUENCE a GLOBAL
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
 | CREATE OR REPLACE SYNONYM a FOR a
@@ -194949,19 +194780,24 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE TABLE a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a a)
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE TABLE a(a, a zzz)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a ILM DELETE_ALL
 < error
 | 38346 ORA-38346: ILM operation not supported
-|
-> exec
-| CREATE TABLE a ORGANIZATION EXTERNAL(TYPE a
-< error
-| 29829 ORA-29829: implementation type does not exist
 |
 > exec
 | CREATE TABLE a ENABLE PRIMARY KEY
@@ -195229,6 +195065,11 @@
 | 2434 ORA-02434: cannot enable unique(...) - unique key not defined for table
 |
 > exec
+| CREATE TABLE a ENABLE UNIQUE(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE TABLE a(a zzz NULL)
 < error
 | 902 ORA-00902: invalid datatype
@@ -195399,11 +195240,6 @@
 | 54037 ORA-54037: table must have at least 1 column that is not virtual
 |
 > exec
-| CREATE TABLE a INMEMORY INMEMORY NO
-< error
-| 64350 ORA-64350: only one INMEMORY clause may be specified
-|
-> exec
 | CREATE TABLE a(PARTITION)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
@@ -195494,16 +195330,6 @@
 | 2263 ORA-02263: need to specify the data type for this column
 |
 > exec
-| CREATE TABLE a COLUMN a IS OF(a)
-< error
-| 3001 ORA-03001: unimplemented feature
-|
-> exec
-| CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1,
-< error
-| 14017 ORA-14017: partition bound list contains too many elements
-|
-> exec
 | CREATE TABLE a(PARTITION ONLY)
 < error
 | 902 ORA-00902: invalid datatype
@@ -195569,16 +195395,6 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
-| CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS a(TABLESPACE a
-< error
-| 22877 ORA-22877: invalid option specified for a HASH partition or subpartition of a LOB column
-|
-> exec
 | CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -195614,16 +195430,6 @@
 > exec
 | CREATE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
-> exec
-| CREATE TYPE BODY a.a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
-> exec
-| CREATE TYPE BODY a.zzz a IS MEMBER PROCEDURE a IS BEGIN NULL; END; END
-< error
-| 1435 ORA-01435: user does not exist
-|
 > exec
 | CREATE OR REPLACE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
@@ -195690,6 +195496,11 @@
 | CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
@@ -196140,11 +195951,6 @@
 | DELETE a FROM a UNPIVOT(a FOR a IN(a)) zzz
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| DELETE a FROM EXTERNAL((a NUMBER, a
-< error
-| 957 ORA-00957: duplicate column name
 |
 > exec
 | DELETE a FROM a JOIN a ON 1 = 1
@@ -196920,6 +196726,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| INSERT INTO a SET a = 1, a = 1
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | INSERT INTO a BY POSITION SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -196958,6 +196769,11 @@
 | INSERT ALL INTO a(a) SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| INSERT ALL INTO a(a, a) SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
 |
 > exec
 | INSERT ALL WHEN 1 = 1 THEN INTO a SELECT 1 FROM dual
@@ -197535,11 +197351,6 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
-| CREATE VECTOR INDEX a ON a(a) INCLUDE(a
-< error
-| 957 ORA-00957: duplicate column name
-|
-> exec
 | CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -197618,18 +197429,6 @@
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."OMNI_REF_R1" does not exist
 |
-> exec
-| CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
-< ok 0 0
-> exec
-| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
-< ok 1 0
-> exec
-| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
-< ok 0 0
-> exec
-| CREATE TYPE a AS OBJECT (a NUMBER)
-< ok 0 0
 > exec
 | CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
 < ok 0 0
