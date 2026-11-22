@@ -2266,26 +2266,26 @@ func (p *Parser) parseNumberWithNeg(negated bool) error {
 // grammar rules exist only so AstBuilder can throw tailored diagnostics for
 // mixed/repeated interval continuations; strict Parse rejects them directly.
 func (p *Parser) parseInterval() error {
-	_, err := p.parseIntervalWithSeconds()
+	_, _, err := p.parseIntervalWithDuration()
 	return err
 }
 
-func (p *Parser) parseIntervalWithSeconds() (int64, error) {
+func (p *Parser) parseIntervalWithDuration() (months int64, micros int64, err error) {
 	if _, err := p.expect(kwINTERVAL); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	// Try unitToUnitInterval first if we see: intervalValue unitInUnitToUnit TO unitInUnitToUnit
 	cp := p.save()
-	if secs, err := p.parseUnitToUnitInterval(); err == nil {
-		return secs, nil
+	if m, us, err := p.parseUnitToUnitInterval(); err == nil {
+		return m, us, nil
 	}
 	p.restore(cp)
 	return p.parseMultiUnitsInterval()
 }
 
-func (p *Parser) parseMultiUnitsInterval() (int64, error) {
+func (p *Parser) parseMultiUnitsInterval() (int64, int64, error) {
 	count := 0
-	var totalSecs int64
+	var totalMonths, totalMicros int64
 	hasYearMonth := false
 	hasDayTime := false
 	for {
@@ -2308,7 +2308,7 @@ func (p *Parser) parseMultiUnitsInterval() (int64, error) {
 		// Spark v4.0.5 rejects NANOSECOND/NANOSECONDS in multi-unit intervals
 		// (INVALID_INTERVAL_FORMAT.INVALID_UNIT).
 		if !isSupportedMultiUnit(unitTok.Kind) {
-			return 0, p.errorf("unsupported interval unit %q", unitTok.Text)
+			return 0, 0, p.errorf("unsupported interval unit %q", unitTok.Text)
 		}
 		switch unitTok.Kind {
 		case kwYEAR, kwYEARS, kwMONTH, kwMONTHS:
@@ -2317,25 +2317,27 @@ func (p *Parser) parseMultiUnitsInterval() (int64, error) {
 			hasDayTime = true
 		}
 		if hasYearMonth && hasDayTime {
-			return 0, p.errorf("cannot mix year-month and day-time interval units")
+			return 0, 0, p.errorf("cannot mix year-month and day-time interval units")
 		}
 		numStr := rawVal
 		if isStr {
 			numStr = strings.TrimSpace(unquoteStringLit(rawVal))
 		}
 		if !isValidMultiUnitNumber(numStr, unitTok.Kind) {
-			return 0, p.errorf("invalid interval value %q for unit %q", rawVal, unitTok.Text)
+			return 0, 0, p.errorf("invalid interval value %q for unit %q", rawVal, unitTok.Text)
 		}
-		totalSecs += intervalUnitSeconds(sign, numStr, unitTok.Kind)
+		m, us := intervalUnitDuration(sign, numStr, unitTok.Kind)
+		totalMonths += m
+		totalMicros += us
 		count++
 	}
 	if count == 0 {
-		return 0, p.errorf("expected interval value and unit")
+		return 0, 0, p.errorf("expected interval value and unit")
 	}
-	return totalSecs, nil
+	return totalMonths, totalMicros, nil
 }
 
-func intervalUnitSeconds(sign int64, numStr string, unit TokenKind) int64 {
+func intervalUnitDuration(sign int64, numStr string, unit TokenKind) (months int64, micros int64) {
 	s := numStr
 	if strings.HasPrefix(s, "+") {
 		s = s[1:]
@@ -2343,31 +2345,45 @@ func intervalUnitSeconds(sign int64, numStr string, unit TokenKind) int64 {
 		sign = -sign
 		s = s[1:]
 	}
-	intPart, _, _ := strings.Cut(s, ".")
-	v, err := strconv.ParseInt(intPart, 10, 64)
-	if err != nil {
-		return sign * 1_000_000_000 // overflow sentinel (outside +/-18h)
+	intPart, fracPart, hasDot := strings.Cut(s, ".")
+	var v int64
+	if intPart != "" {
+		parsed, err := strconv.ParseInt(intPart, 10, 64)
+		if err != nil {
+			const overflowUS int64 = 1_000_000_000 * 1_000_000
+			if unit == kwYEAR || unit == kwYEARS || unit == kwMONTH || unit == kwMONTHS {
+				return sign * 1_000_000, 0
+			}
+			return 0, sign * overflowUS
+		}
+		v = parsed
 	}
-	var mult int64
+	const secUS int64 = 1_000_000
 	switch unit {
-	case kwMICROSECOND, kwMICROSECONDS, kwMILLISECOND, kwMILLISECONDS:
-		return 0
+	case kwMICROSECOND, kwMICROSECONDS:
+		return 0, sign * v
+	case kwMILLISECOND, kwMILLISECONDS:
+		return 0, sign * v * 1_000
 	case kwSECOND, kwSECONDS:
-		mult = 1
+		us := v * secUS
+		if hasDot && fracPart != "" {
+			us += parseFracToMicros(fracPart)
+		}
+		return 0, sign * us
 	case kwMINUTE, kwMINUTES:
-		mult = 60
+		return 0, sign * v * 60 * secUS
 	case kwHOUR, kwHOURS:
-		mult = 3600
+		return 0, sign * v * 3600 * secUS
 	case kwDAY, kwDAYS:
-		mult = 86400
+		return 0, sign * v * 86400 * secUS
 	case kwWEEK, kwWEEKS:
-		mult = 7 * 86400
+		return 0, sign * v * 7 * 86400 * secUS
 	case kwMONTH, kwMONTHS:
-		mult = 30 * 86400
+		return sign * v, 0
 	case kwYEAR, kwYEARS:
-		mult = 365 * 86400
+		return sign * v * 12, 0
 	}
-	return sign * v * mult
+	return 0, 0
 }
 
 func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
@@ -2378,32 +2394,32 @@ func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
 	return false
 }
 
-func (p *Parser) parseUnitToUnitInterval() (int64, error) {
+func (p *Parser) parseUnitToUnitInterval() (int64, int64, error) {
 	sign, rawVal, isStr, err := p.parseIntervalValueToken()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	if !p.isUnitInUnitToUnit() {
-		return 0, p.errorf("expected interval unit")
+		return 0, 0, p.errorf("expected interval unit")
 	}
 	fromUnit := p.advance().Kind
 	if _, err := p.expect(kwTO); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	if !p.isUnitInUnitToUnit() {
-		return 0, p.errorf("expected interval unit after TO")
+		return 0, 0, p.errorf("expected interval unit after TO")
 	}
 	toUnit := p.advance().Kind
 	// Spark v4.0.5 requires a string literal for from-to intervals and validates
 	// both the unit pair and the literal format.
 	if !isStr {
-		return 0, p.errorf("from-to interval value must be a string literal")
+		return 0, 0, p.errorf("from-to interval value must be a string literal")
 	}
-	secs, ok := parseUnitToUnitIntervalValue(unquoteStringLit(rawVal), fromUnit, toUnit, sign)
+	months, micros, ok := parseUnitToUnitIntervalValue(unquoteStringLit(rawVal), fromUnit, toUnit, sign)
 	if !ok {
-		return 0, p.errorf("invalid from-to interval %s", rawVal)
+		return 0, 0, p.errorf("invalid from-to interval %s", rawVal)
 	}
-	return secs, nil
+	return months, micros, nil
 }
 
 func (p *Parser) parseIntervalValueToken() (sign int64, raw string, isStr bool, err error) {

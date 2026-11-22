@@ -125,7 +125,7 @@ func (p *Parser) parseCreateNamespace() (Statement, error) {
 			if !p.match(kwDBPROPERTIES, kwPROPERTIES) {
 				return nil, p.errorf("expected DBPROPERTIES or PROPERTIES after WITH")
 			}
-			if err := p.parsePropertyList(); err != nil {
+			if err := p.parseNamespacePropertyList(); err != nil {
 				return nil, err
 			}
 		default:
@@ -292,6 +292,9 @@ func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 			if hasPartitionedBy {
 				return false, p.errorf("CLUSTER BY cannot be combined with PARTITIONED BY")
 			}
+			if hasClusteredBy {
+				return false, p.errorf("CLUSTER BY cannot be combined with CLUSTERED BY")
+			}
 			hasClusterBy = true
 			if err := p.parseClusterBySpec(); err != nil {
 				return false, err
@@ -299,6 +302,9 @@ func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 		case kwCLUSTERED:
 			if hasClusteredBy {
 				return false, p.errorf("duplicate CLUSTERED BY clause in CREATE TABLE")
+			}
+			if hasClusterBy {
+				return false, p.errorf("CLUSTERED BY cannot be combined with CLUSTER BY")
 			}
 			hasClusteredBy = true
 			if err := p.parseBucketSpec(); err != nil {
@@ -360,7 +366,7 @@ func (p *Parser) parseCreateTableClauses(hasUsing bool) (bool, error) {
 			}
 			hasTblProps = true
 			p.advance()
-			if err := p.parsePropertyList(); err != nil {
+			if err := p.parseTablePropertyList(); err != nil {
 				return false, err
 			}
 		default:
@@ -438,7 +444,7 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 			}
 			hasTblProps = true
 			p.advance()
-			if err := p.parsePropertyList(); err != nil {
+			if err := p.parseTablePropertyList(); err != nil {
 				return nil, err
 			}
 		default:
@@ -632,19 +638,25 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	// SQL UDF: (colDefinitionList?) (RETURNS (dataType | TABLE (colTypeList)))? routineCharacteristics RETURN (query | expression)
 	if p.match(tokLParen) {
 		// Spark v4.0.5 AstBuilder defers SQL UDF parameter/return dataType
-		// validation to catalog analysis rather than parsePlan.
+		// validation to catalog analysis rather than parsePlan, while rejecting
+		// GENERATED column expressions in function parameter definitions.
 		prevRelax := p.relaxFunctionDataTypes
+		prevNoGen := p.disallowGeneratedCols
 		p.relaxFunctionDataTypes = true
+		p.disallowGeneratedCols = true
 		if !p.match(tokRParen) {
 			if err := p.parseColDefinitionList(); err != nil {
 				p.relaxFunctionDataTypes = prevRelax
+				p.disallowGeneratedCols = prevNoGen
 				return nil, err
 			}
 			if _, err := p.expect(tokRParen); err != nil {
 				p.relaxFunctionDataTypes = prevRelax
+				p.disallowGeneratedCols = prevNoGen
 				return nil, err
 			}
 		}
+		p.disallowGeneratedCols = prevNoGen
 		if p.cur().Kind == kwRETURNS && p.peek(1).Kind != kwNULL {
 			p.advance()
 			if p.cur().Kind == kwTABLE && p.peek(1).Kind == tokLParen {
@@ -808,7 +820,7 @@ func (p *Parser) parseAlterNamespace() (Statement, error) {
 		if !p.match(kwDBPROPERTIES, kwPROPERTIES) {
 			return nil, p.errorf("expected DBPROPERTIES, PROPERTIES, or LOCATION")
 		}
-		if err := p.parsePropertyList(); err != nil {
+		if err := p.parseNamespacePropertyList(); err != nil {
 			return nil, err
 		}
 		return &ParsedStmt{Kind: StmtAlterNamespace, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -817,7 +829,7 @@ func (p *Parser) parseAlterNamespace() (Statement, error) {
 		if !p.match(kwDBPROPERTIES, kwPROPERTIES) {
 			return nil, p.errorf("expected DBPROPERTIES or PROPERTIES")
 		}
-		if err := p.parsePropertyKeyList(); err != nil {
+		if err := p.parseNamespacePropertyKeyList(); err != nil {
 			return nil, err
 		}
 		return &ParsedStmt{Kind: StmtAlterNamespace, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -1078,7 +1090,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 				return nil, err
 			}
 		}
-		if err := p.parsePropertyKeyList(); err != nil {
+		if err := p.parseTablePropertyKeyList(); err != nil {
 			return nil, err
 		}
 
@@ -1142,7 +1154,7 @@ func (p *Parser) parseAlterTableSetWithOptionalPart(hasPartition bool) error {
 			return p.errorf("SET TBLPROPERTIES is not allowed after PARTITION in ALTER TABLE")
 		}
 		p.advance()
-		return p.parsePropertyList()
+		return p.parseTablePropertyList()
 	case kwSERDE:
 		p.advance()
 		if err := p.parseStringLit(); err != nil {

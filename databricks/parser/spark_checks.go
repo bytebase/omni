@@ -762,11 +762,11 @@ func isValidMultiUnitNumber(s string, unit TokenKind) bool {
 }
 
 // parseUnitToUnitIntervalValue validates Spark's from-to interval string literal
-// and returns its total duration in seconds (for timezone bounds checking).
-func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerSign int64) (int64, bool) {
+// and returns its duration in (months, microseconds) for timezone bounds checking.
+func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerSign int64) (months int64, micros int64, ok bool) {
 	s := strings.TrimSpace(val)
 	if s == "" {
-		return 0, false
+		return 0, 0, false
 	}
 	sign := outerSign
 	if s[0] == '+' {
@@ -775,112 +775,115 @@ func parseUnitToUnitIntervalValue(val string, fromUnit, toUnit TokenKind, outerS
 		sign = -sign
 		s = s[1:]
 	}
+	const secUS int64 = 1_000_000
 	switch {
 	case fromUnit == kwYEAR && toUnit == kwMONTH:
 		parts := strings.Split(s, "-")
 		if len(parts) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		y, err1 := strconv.ParseInt(parts[0], 10, 64)
 		m, err2 := strconv.ParseInt(parts[1], 10, 64)
 		if err1 != nil || err2 != nil || m < 0 || m > 11 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (y*365*86400 + m*30*86400), true
+		return sign * (y*12 + m), 0, true
 
 	case fromUnit == kwDAY && toUnit == kwHOUR:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		d, err1 := strconv.ParseInt(parts[0], 10, 64)
 		h, err2 := strconv.ParseInt(parts[1], 10, 64)
 		if err1 != nil || err2 != nil || h < 0 || h > 23 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (d*86400 + h*3600), true
+		return 0, sign * (d*86400 + h*3600) * secUS, true
 
 	case fromUnit == kwDAY && toUnit == kwMINUTE:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		d, err1 := strconv.ParseInt(parts[0], 10, 64)
 		hm := strings.Split(parts[1], ":")
 		if err1 != nil || len(hm) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		h, err2 := strconv.ParseInt(hm[0], 10, 64)
 		m, err3 := strconv.ParseInt(hm[1], 10, 64)
 		if err2 != nil || err3 != nil || h < 0 || h > 23 || m < 0 || m > 59 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (d*86400 + h*3600 + m*60), true
+		return 0, sign * (d*86400 + h*3600 + m*60) * secUS, true
 
 	case fromUnit == kwDAY && toUnit == kwSECOND:
 		parts := strings.Split(s, " ")
 		if len(parts) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		d, err1 := strconv.ParseInt(parts[0], 10, 64)
 		hms := strings.Split(parts[1], ":")
 		if err1 != nil || len(hms) != 3 {
-			return 0, false
+			return 0, 0, false
 		}
 		h, err2 := strconv.ParseInt(hms[0], 10, 64)
 		m, err3 := strconv.ParseInt(hms[1], 10, 64)
-		sec, ok := parseSecondsWithOptionalFrac(hms[2])
+		secMicros, ok := parseSecondsMicros(hms[2])
 		if err2 != nil || err3 != nil || !ok || h < 0 || h > 23 || m < 0 || m > 59 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (d*86400 + h*3600 + m*60 + sec), true
+		return 0, sign * ((d*86400+h*3600+m*60)*secUS + secMicros), true
 
 	case fromUnit == kwHOUR && toUnit == kwMINUTE:
 		hm := strings.Split(s, ":")
 		if len(hm) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		h, err1 := strconv.ParseInt(hm[0], 10, 64)
 		m, err2 := strconv.ParseInt(hm[1], 10, 64)
 		if err1 != nil || err2 != nil || m < 0 || m > 59 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (h*3600 + m*60), true
+		return 0, sign * (h*3600 + m*60) * secUS, true
 
 	case fromUnit == kwHOUR && toUnit == kwSECOND:
 		hms := strings.Split(s, ":")
 		if len(hms) != 3 {
-			return 0, false
+			return 0, 0, false
 		}
 		h, err1 := strconv.ParseInt(hms[0], 10, 64)
 		m, err2 := strconv.ParseInt(hms[1], 10, 64)
-		sec, ok := parseSecondsWithOptionalFrac(hms[2])
+		secMicros, ok := parseSecondsMicros(hms[2])
 		if err1 != nil || err2 != nil || !ok || m < 0 || m > 59 {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (h*3600 + m*60 + sec), true
+		return 0, sign * ((h*3600+m*60)*secUS + secMicros), true
 
 	case fromUnit == kwMINUTE && toUnit == kwSECOND:
 		ms := strings.Split(s, ":")
 		if len(ms) != 2 {
-			return 0, false
+			return 0, 0, false
 		}
 		m, err1 := strconv.ParseInt(ms[0], 10, 64)
-		sec, ok := parseSecondsWithOptionalFrac(ms[1])
+		secMicros, ok := parseSecondsMicros(ms[1])
 		if err1 != nil || !ok {
-			return 0, false
+			return 0, 0, false
 		}
-		return sign * (m*60 + sec), true
+		return 0, sign * (m*60*secUS + secMicros), true
 	}
-	return 0, false
+	return 0, 0, false
 }
 
-func parseSecondsWithOptionalFrac(s string) (int64, bool) {
+// parseSecondsMicros parses SS[.fffffffff] (0 <= SS <= 59) and returns total microseconds.
+func parseSecondsMicros(s string) (int64, bool) {
 	secPart, fracPart, hasDot := strings.Cut(s, ".")
 	sec, err := strconv.ParseInt(secPart, 10, 64)
 	if err != nil || sec < 0 || sec > 59 {
 		return 0, false
 	}
+	var fracMicros int64
 	if hasDot {
 		if len(fracPart) == 0 || len(fracPart) > 9 {
 			return 0, false
@@ -890,6 +893,28 @@ func parseSecondsWithOptionalFrac(s string) (int64, bool) {
 				return 0, false
 			}
 		}
+		fracMicros = parseFracToMicros(fracPart)
 	}
-	return sec, true
+	return sec*1_000_000 + fracMicros, true
+}
+
+// parseFracToMicros converts a decimal fraction string (digits after '.') to
+// microseconds (truncated/padded to 6 digits, flagging any nonzero sub-microsecond
+// digits as 1 microsecond so non-whole-second checks reject them).
+func parseFracToMicros(frac string) int64 {
+	var us int64
+	for i := 0; i < 6; i++ {
+		us *= 10
+		if i < len(frac) {
+			us += int64(frac[i] - '0')
+		}
+	}
+	if us == 0 {
+		for i := 6; i < len(frac); i++ {
+			if frac[i] != '0' {
+				return 1
+			}
+		}
+	}
+	return us
 }

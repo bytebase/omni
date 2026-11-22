@@ -61,18 +61,19 @@ func (p *Parser) parseSetCatalog() (Statement, error) {
 func (p *Parser) parseSetResetStatement() (Statement, error) {
 	start := p.cur().Start
 	if p.match(kwRESET) {
+		afterResetPos := p.prevEnd()
 		if p.isStatementEnd() {
 			return &ParsedStmt{Kind: StmtReset, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
-		if p.cur().Kind == tokBackquoted || p.cur().Kind == tokDoubleQuoted {
+		for !p.isStatementEnd() {
 			p.advance()
-			return &ParsedStmt{Kind: StmtReset, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
-		// Unquoted dotted configuration key (e.g. RESET spark.sql.shuffle.partitions)
-		if _, err := p.parseConfigKeyUnquoted(); err != nil {
-			return nil, err
+		endPos := p.prevEnd()
+		raw := strings.TrimSpace(p.src[afterResetPos:endPos])
+		if !isValidSparkSetKey(raw) {
+			return nil, p.errorf("invalid configuration key %q in RESET statement", raw)
 		}
-		return &ParsedStmt{Kind: StmtReset, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		return &ParsedStmt{Kind: StmtReset, Loc: Loc{Start: start, End: endPos}}, nil
 	}
 
 	if _, err := p.expect(kwSET); err != nil {
@@ -96,12 +97,13 @@ func (p *Parser) parseSetResetStatement() (Statement, error) {
 			return nil, p.errorf("expected timezone or interval after SET TIME ZONE")
 		}
 		if p.cur().Kind == kwINTERVAL {
-			secs, err := p.parseIntervalWithSeconds()
+			months, micros, err := p.parseIntervalWithDuration()
 			if err != nil {
 				return nil, err
 			}
-			if secs < -18*3600 || secs > 18*3600 {
-				return nil, p.errorf("timezone interval offset out of range [-18:00, +18:00]")
+			const maxOffsetUS int64 = 18 * 3600 * 1_000_000
+			if months != 0 || micros%1_000_000 != 0 || micros < -maxOffsetUS || micros > maxOffsetUS {
+				return nil, p.errorf("timezone interval offset must be a whole number of seconds in [-18:00, +18:00]")
 			}
 			return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}

@@ -643,6 +643,9 @@ func (p *Parser) parseColDefinition() error {
 				return err
 			}
 		case p.cur().Kind == kwGENERATED:
+			if p.disallowGeneratedCols {
+				return p.errorf("GENERATED column specification is not allowed in function parameters")
+			}
 			if seenGenerated {
 				return p.errorf("duplicate GENERATED descriptor in column definition")
 			}
@@ -876,29 +879,96 @@ func (p *Parser) parsePropertyListWithKeys() (map[string]struct{}, error) {
 	return seen, nil
 }
 
+// parseTablePropertyList parses a table property list and rejects Spark v4.0.5
+// reserved table property keys (provider, location, owner, external).
+func (p *Parser) parseTablePropertyList() error {
+	keys, err := p.parsePropertyListWithKeys()
+	if err != nil {
+		return err
+	}
+	return checkReservedTablePropertyKeys(p, keys)
+}
+
+// parseTablePropertyKeyList parses an UNSET TBLPROPERTIES key list and rejects
+// Spark v4.0.5 reserved table property keys.
+func (p *Parser) parseTablePropertyKeyList() error {
+	keys, err := p.parsePropertyKeyListWithKeys()
+	if err != nil {
+		return err
+	}
+	return checkReservedTablePropertyKeys(p, keys)
+}
+
+func checkReservedTablePropertyKeys(p *Parser, keys map[string]struct{}) error {
+	for k := range keys {
+		switch k {
+		case "provider", "location", "owner", "external":
+			return p.errorf("%q is a reserved table property", k)
+		}
+	}
+	return nil
+}
+
+// parseNamespacePropertyList parses a namespace property list and rejects
+// Spark v4.0.5 reserved namespace property keys (location, owner).
+func (p *Parser) parseNamespacePropertyList() error {
+	keys, err := p.parsePropertyListWithKeys()
+	if err != nil {
+		return err
+	}
+	return checkReservedNamespacePropertyKeys(p, keys)
+}
+
+// parseNamespacePropertyKeyList parses an UNSET NAMESPACE PROPERTIES key list
+// and rejects Spark v4.0.5 reserved namespace property keys.
+func (p *Parser) parseNamespacePropertyKeyList() error {
+	keys, err := p.parsePropertyKeyListWithKeys()
+	if err != nil {
+		return err
+	}
+	return checkReservedNamespacePropertyKeys(p, keys)
+}
+
+func checkReservedNamespacePropertyKeys(p *Parser, keys map[string]struct{}) error {
+	for k := range keys {
+		switch k {
+		case "location", "owner":
+			return p.errorf("%q is a reserved namespace property", k)
+		}
+	}
+	return nil
+}
+
 // parsePropertyKeyList parses unsetter key-only property lists
 // (`UNSET TBLPROPERTIES`, `UNSET DBPROPERTIES/PROPERTIES`), forbidding values
 // and duplicate keys just as Spark v4.0.5 visitPropertyKeys does.
 func (p *Parser) parsePropertyKeyList() error {
+	_, err := p.parsePropertyKeyListWithKeys()
+	return err
+}
+
+func (p *Parser) parsePropertyKeyListWithKeys() (map[string]struct{}, error) {
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return nil, err
 	}
 	seen := make(map[string]struct{})
 	for {
 		key, err := p.parsePropertyKey()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, dup := seen[key]; dup {
-			return p.errorf("duplicate property key %q", key)
+			return nil, p.errorf("duplicate property key %q", key)
 		}
 		seen[key] = struct{}{}
 		if !p.match(tokComma) {
 			break
 		}
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	if _, err := p.expect(tokRParen); err != nil {
+		return nil, err
+	}
+	return seen, nil
 }
 
 func (p *Parser) parseProperty() (string, error) {
@@ -1355,36 +1425,78 @@ func (p *Parser) parsePartitionField() (bool, error) {
 	// partitionField : transform | colType ;
 	// Try transform first if it's ident(args) or ident(.ident)* followed by ',' or ')'.
 	cp := p.save()
-	if err := p.parseTransform(); err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
+	builtinErr, err := p.parseTransform()
+	if builtinErr != nil {
+		return false, builtinErr
+	}
+	if err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
 		return false, nil
 	}
 	p.restore(cp)
 	return true, p.parseColType()
 }
 
-func (p *Parser) parseTransform() error {
+type transformArgKind int
+
+const (
+	transformArgCol transformArgKind = iota
+	transformArgInt
+	transformArgOtherLit
+)
+
+func (p *Parser) parseTransform() (builtinErr error, parseErr error) {
 	if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokLParen {
-		p.advance()
-		p.advance()
+		nameTok := p.advance()
+		p.advance() // '('
+		var argKinds []transformArgKind
 		for {
 			cp := p.save()
+			tok0 := p.cur().Kind
+			tok1 := p.peek(1).Kind
+			isIntLit := tok0 == tokInt || ((tok0 == tokMinus || tok0 == tokPlus) && tok1 == tokInt)
 			if err := p.parseConstant(); err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
-				// constant transform argument
+				if isIntLit {
+					argKinds = append(argKinds, transformArgInt)
+				} else {
+					argKinds = append(argKinds, transformArgOtherLit)
+				}
 			} else {
 				p.restore(cp)
 				if _, err := p.parseQualifiedName(); err != nil {
-					return err
+					return nil, err
 				}
+				argKinds = append(argKinds, transformArgCol)
 			}
 			if !p.match(tokComma) {
 				break
 			}
 		}
-		_, err := p.expect(tokRParen)
-		return err
+		if _, err := p.expect(tokRParen); err != nil {
+			return nil, err
+		}
+		// Enforce Spark v4.0.5 AstBuilder.visitPartitionTransform built-in rules.
+		switch strings.ToLower(exactIdentName(nameTok.Text)) {
+		case "years", "months", "days", "hours", "identity":
+			if len(argKinds) != 1 {
+				return p.errorf("partition transform %q requires exactly 1 argument", nameTok.Text), nil
+			}
+			if argKinds[0] != transformArgCol {
+				return p.errorf("partition transform %q requires a column reference argument", nameTok.Text), nil
+			}
+		case "bucket":
+			if len(argKinds) == 0 || argKinds[0] != transformArgInt {
+				return p.errorf("bucket partition transform requires an integer number of buckets as first argument"), nil
+			}
+			for _, ak := range argKinds[1:] {
+				if ak != transformArgCol {
+					return p.errorf("bucket partition transform requires column reference arguments after bucket count"), nil
+				}
+			}
+		}
+		return nil, nil
 	}
 	_, err := p.parseQualifiedName()
-	return err
+	return nil, err
 }
 
 func (p *Parser) parseRoutineCharacteristics() error {

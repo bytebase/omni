@@ -6634,3 +6634,24 @@ reject	reject	engine	suite:spark-astbuilder	SELECT * FROM t LATERAL VIEW explode
 reject	reject	engine	suite:spark-astbuilder	CREATE TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1
 reject	reject	engine	suite:spark-astbuilder	CREATE GLOBAL TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1
 reject	reject	engine	suite:spark-astbuilder	CREATE TEMP VIEW v WITH SCHEMA BINDING AS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (days(1))
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (years(a, b))
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (bucket(a, 4))
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (years(ts), bucket(4, a))
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet TBLPROPERTIES ('provider'='csv')
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet TBLPROPERTIES ('location'='/tmp/x')
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t SET TBLPROPERTIES ('owner'='u')
+reject	reject	engine	suite:spark-astbuilder	ALTER TABLE t UNSET TBLPROPERTIES ('provider')
+reject	reject	engine	suite:spark-astbuilder	CREATE NAMESPACE ns WITH PROPERTIES ('location'='/tmp/x')
+reject	reject	engine	suite:spark-astbuilder	ALTER NAMESPACE ns SET PROPERTIES ('owner'='u')
+reject	reject	engine	suite:spark-astbuilder	SET TIME ZONE INTERVAL 18 HOURS 1 MICROSECOND
+reject	reject	engine	suite:spark-astbuilder	SET TIME ZONE INTERVAL 1 MICROSECOND
+accept	accept	engine	suite:spark-astbuilder	SET TIME ZONE INTERVAL 1000 MILLISECONDS
+reject	reject	engine	suite:spark-astbuilder	SET TIME ZONE INTERVAL 1.5 SECONDS
+reject	reject	engine	suite:spark-astbuilder	SET TIME ZONE INTERVAL 1 YEAR
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet CLUSTER BY (a) CLUSTERED BY (a) INTO 4 BUCKETS
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet CLUSTERED BY (a) INTO 4 BUCKETS CLUSTER BY (a)
+reject	reject	engine	suite:spark-astbuilder	CREATE FUNCTION f(x INT GENERATED ALWAYS AS (1)) RETURNS INT RETURN x
+reject	reject	engine	suite:spark-astbuilder	CREATE TEMP FUNCTION f(x INT GENERATED ALWAYS AS IDENTITY) RETURNS INT RETURN x
+accept	accept	engine	suite:spark-astbuilder	RESET foo:bar
+accept	accept	engine	suite:spark-astbuilder	RESET select
