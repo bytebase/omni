@@ -319,10 +319,10 @@ func TestIntegration_9_3_ComplexSQLPatterns(t *testing.T) {
 		candidates := Complete(sql, cursor, cat)
 
 		// Should have columns from all 3 tables.
-		assertContains(t, candidates, "email", CandidateColumn)   // users
-		assertContains(t, candidates, "user_id", CandidateColumn) // orders
-		assertContains(t, candidates, "amount", CandidateColumn)  // orders
-		assertContains(t, candidates, "price", CandidateColumn)   // products
+		assertContains(t, candidates, "email", CandidateColumn)    // users
+		assertContains(t, candidates, "user_id", CandidateColumn)  // orders
+		assertContains(t, candidates, "amount", CandidateColumn)   // orders
+		assertContains(t, candidates, "price", CandidateColumn)    // products
 	})
 
 	t.Run("insert_select", func(t *testing.T) {

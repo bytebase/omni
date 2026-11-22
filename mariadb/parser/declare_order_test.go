@@ -8,9 +8,7 @@ import (
 // TestDeclareOrdering enforces MySQL's DECLARE ordering rule in BEGIN...END
 // blocks (ERR 1337 / ERR 1338). Per docs/plans/
 // 2026-04-20-mysql-routine-body-grammar.md category 3, the ordering is:
-//
-//	DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
-//
+//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
 // Each kind may advance the phase but not regress. Per-BEGIN scope.
 // Container-verified against MySQL 8.0 on 2026-04-20.
 func TestDeclareOrdering(t *testing.T) {
