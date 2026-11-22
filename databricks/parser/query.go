@@ -470,6 +470,24 @@ func (p *Parser) matchSetQuantifierIfFollowedByExpr() {
 	}
 	next := p.peek(1).Kind
 	switch next {
+	case tokAsterisk:
+		// Distinguish a standalone star (`SELECT ALL * FROM t`,
+		// `SELECT DISTINCT *, a FROM t`, `SELECT ALL * EXCEPT (a) FROM t`)
+		// from multiplication on a column named `all` or `distinct`
+		// (`SELECT all * 2 FROM t`, `SELECT distinct * 2 FROM t`).
+		afterStar := p.peek(2).Kind
+		switch afterStar {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+			kwFROM, kwWHERE, kwUSING, kwROW, kwRECORDWRITER,
+			kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+			kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			p.advance()
+		case tokIdent:
+			if isWord(p.peek(2), "QUALIFY") && p.peek(3).Kind != tokEOF && p.peek(3).Kind != tokSemicolon && p.peek(3).Kind != tokRParen {
+				p.advance()
+			}
+		}
+		return
 	case tokEOF, tokSemicolon, tokComma, tokRParen,
 		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
 		tokSlash, tokPercent, kwDIV,

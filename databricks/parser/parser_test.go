@@ -306,6 +306,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "select all and distinct multiplication vs star",
+			sql:  `SELECT all * 2 FROM t UNION ALL SELECT distinct * 2 FROM t UNION ALL SELECT ALL * FROM t UNION ALL SELECT DISTINCT * EXCEPT (a) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "case identifier arithmetic and unary simple case",
+			sql:  `SELECT case + 1, case - 2, case + (CASE x WHEN 1 THEN 2 END), CASE -1 WHEN -1 THEN 'neg' END, CASE case + case + 1 WHEN 1 THEN 'ok' END FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -472,6 +482,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested from select transform subquery",
 			sql:  "FROM t " + strings.Repeat("SELECT TRANSFORM((", 25) + "SELECT array(1)" + strings.Repeat("), x -> x)", 25),
+		},
+		{
+			name: "repeated case identifier arithmetic",
+			sql:  "SELECT " + strings.Repeat("case + ", 200) + "1",
+		},
+		{
+			name: "repeated case identifier arithmetic inside simple case",
+			sql:  "SELECT CASE " + strings.Repeat("case + ", 200) + "1 WHEN 1 THEN 'ok' END",
 		},
 		{
 			name: "nested parens",

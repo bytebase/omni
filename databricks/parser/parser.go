@@ -17,13 +17,16 @@ type checkpoint struct {
 
 // Parser is a hand-written recursive-descent parser for Databricks / Spark SQL.
 type Parser struct {
-	src       string
-	toks      []Token
-	pos       int
-	gtPending int
-	gtStart   int
-	gtEnd     int
-	depth     int
+	src             string
+	toks            []Token
+	pos             int
+	gtPending       int
+	gtStart         int
+	gtEnd           int
+	depth           int
+	inCaseOperand   bool
+	noCaseWhenStart int
+	noCaseWhenEnd   int
 }
 
 // Parse parses a Databricks / Spark SQL input string (single statement or

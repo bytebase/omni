@@ -546,12 +546,8 @@ func (p *Parser) parsePrimaryAtom() error {
 		if p.peek(1).Kind == tokLParen {
 			return p.parseCaseOrCaseFuncCall()
 		}
-		if !p.isCaseColumnReference() {
-			cp := p.save()
-			if err := p.parseCaseExpression(); err == nil {
-				return nil
-			}
-			p.restore(cp)
+		if !p.isCaseColumnReference() && p.hasCaseWhenAhead() {
+			return p.parseCaseExpression()
 		}
 	}
 
@@ -917,6 +913,10 @@ func (p *Parser) parsePrimaryAtom() error {
 }
 
 func (p *Parser) parseParenthesizedPrimary() error {
+	prevInCaseOperand := p.inCaseOperand
+	p.inCaseOperand = false
+	defer func() { p.inCaseOperand = prevInCaseOperand }()
+
 	cp := p.save()
 
 	// 1. Multi-parameter lambda: (ident, ident+) -> expression
@@ -982,6 +982,11 @@ func (p *Parser) parseParenthesizedPrimary() error {
 func (p *Parser) isCaseColumnReference() bool {
 	next := p.peek(1).Kind
 	switch next {
+	case tokPlus, tokMinus:
+		// Inside a simple CASE's operand expression (`CASE case + case + 1 WHEN ...`),
+		// a trailing `+`/`-` after `case` is binary arithmetic on column `case`, not
+		// a nested simple `CASE +...`.
+		return p.inCaseOperand
 	case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket,
 		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
 		tokAsterisk, tokSlash, tokPercent, kwDIV,
@@ -996,6 +1001,57 @@ func (p *Parser) isCaseColumnReference() bool {
 		return true
 	}
 	return false
+}
+
+// hasCaseWhenAhead scans forward from p.pos+1 at paren/bracket depth 0 to check
+// whether a WHEN keyword appears before any clause/expression terminator.
+// Flat (no-bracket) negative spans are cached in [noCaseWhenStart, noCaseWhenEnd)
+// so repeated `case + case + ...` expressions without WHEN run in linear time.
+func (p *Parser) hasCaseWhenAhead() bool {
+	if p.pos >= p.noCaseWhenStart && p.pos < p.noCaseWhenEnd {
+		return false
+	}
+	depth := 0
+	sawNested := false
+	for i := 1; ; i++ {
+		k := p.peek(i).Kind
+		switch k {
+		case tokEOF, tokSemicolon:
+			if !sawNested {
+				p.noCaseWhenStart = p.pos
+				p.noCaseWhenEnd = p.pos + i
+			}
+			return false
+		case tokLParen, tokLBracket:
+			depth++
+			sawNested = true
+		case tokRParen, tokRBracket:
+			if depth == 0 {
+				if !sawNested {
+					p.noCaseWhenStart = p.pos
+					p.noCaseWhenEnd = p.pos + i
+				}
+				return false
+			}
+			depth--
+		case kwWHEN:
+			if depth == 0 {
+				return true
+			}
+		case tokComma, tokOperatorPipe,
+			kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER,
+			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+			kwTHEN, kwELSE, kwEND:
+			if depth == 0 {
+				if !sawNested {
+					p.noCaseWhenStart = p.pos
+					p.noCaseWhenEnd = p.pos + i
+				}
+				return false
+			}
+		}
+	}
 }
 
 // parseCaseOrCaseFuncCall parses `CASE(...)` (either a function call or a simple
@@ -1070,7 +1126,11 @@ func (p *Parser) parseCaseExpression() error {
 		return err
 	}
 	if p.cur().Kind != kwWHEN {
-		if err := p.parseExpression(); err != nil {
+		prevInCaseOperand := p.inCaseOperand
+		p.inCaseOperand = true
+		err := p.parseExpression()
+		p.inCaseOperand = prevInCaseOperand
+		if err != nil {
 			return err
 		}
 	}
