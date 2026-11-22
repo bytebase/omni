@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -78,7 +79,9 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			return nil, err
 		}
 		if n.TypeName != nil && n.Charset == "" {
-			return &CastExprQ{Arg: arg, TargetType: dataTypeToResolvedType(n.TypeName)}, nil
+			if rt, ok := convertTargetResolvedType(n.TypeName); ok {
+				return &CastExprQ{Arg: arg, TargetType: rt}, nil
+			}
 		}
 		return nil, unsupportedAnalyzerExpr()
 	case *nodes.RowExpr:
@@ -190,10 +193,17 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		}
 		return nil, unsupportedAnalyzerExpr()
 	}
+	isQualifiedRoutine := fc.Schema != "" && !qualifiedBuiltin(fc, lower)
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
 		a, err := analyzeExpr(c, arg, scope)
 		if err != nil {
+			if isQualifiedRoutine {
+				var ce *Error
+				if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn {
+					return nil, unsupportedAnalyzerExpr()
+				}
+			}
 			return nil, err
 		}
 		args = append(args, a)
@@ -556,6 +566,30 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 	return &CastExprQ{Arg: arg, TargetType: targetType}, nil
 }
 
+// convertTargetResolvedType maps a CONVERT(expr, type) target DataType to a
+// ResolvedType when the IR can represent it without losing semantics (such as
+// charset/collation modifiers, fractional-second precision, or unmapped types).
+func convertTargetResolvedType(dt *nodes.DataType) (*ResolvedType, bool) {
+	if dt == nil || dt.Charset != "" || dt.Collate != "" || dt.Binary {
+		return nil, false
+	}
+	rt := dataTypeToResolvedType(dt)
+	if rt.BaseType == BaseTypeUnknown {
+		return nil, false
+	}
+	switch rt.BaseType {
+	case BaseTypeDateTime, BaseTypeTime:
+		if dt.Length > 0 {
+			return nil, false
+		}
+	case BaseTypeFloat:
+		if dt.Length > 0 || dt.Scale > 0 {
+			return nil, false
+		}
+	}
+	return rt, true
+}
+
 // dataTypeToResolvedType maps a parser DataType to a ResolvedType for CAST targets.
 func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 	name := strings.ToLower(dt.Name)
@@ -564,7 +598,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "unsigned", "unsigned integer":
 		return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
-	case "char":
+	case "char", "varchar":
 		rt := &ResolvedType{BaseType: BaseTypeChar}
 		if dt.Length > 0 {
 			rt.Length = dt.Length

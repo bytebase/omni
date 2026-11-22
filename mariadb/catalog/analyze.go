@@ -60,7 +60,8 @@ func (c *Catalog) analyzeSelectStmtIn(stmt *nodes.SelectStmt, parentScope *analy
 		if err != nil {
 			return nil, err
 		}
-		if len(q.CTEList) > 0 {
+		cteCollision := hasCTENameCollision(q.CTEList, inner.CTEList)
+		if !cteCollision && len(q.CTEList) > 0 {
 			inner.CTEList = append(q.CTEList, inner.CTEList...)
 			inner.IsRecursive = inner.IsRecursive || q.IsRecursive
 			reindexCTERTEs(inner)
@@ -72,7 +73,8 @@ func (c *Catalog) analyzeSelectStmtIn(stmt *nodes.SelectStmt, parentScope *analy
 			//     inner LIMIT (which would sort before limiting instead of
 			//     limiting before sorting), and
 			//   - outer LIMIT does not clobber an inner LIMIT.
-			cannotFlatten := (len(stmt.OrderBy) > 0 && (len(inner.SortClause) > 0 || inner.LimitCount != nil || inner.LimitOffset != nil)) ||
+			cannotFlatten := cteCollision ||
+				(len(stmt.OrderBy) > 0 && (len(inner.SortClause) > 0 || inner.LimitCount != nil || inner.LimitOffset != nil)) ||
 				(stmt.Limit != nil && (inner.LimitCount != nil || inner.LimitOffset != nil))
 
 			nonJunk := make([]*TargetEntryQ, 0, len(inner.TargetList))
@@ -167,6 +169,8 @@ func (c *Catalog) analyzeSelectStmtIn(stmt *nodes.SelectStmt, parentScope *analy
 				return nil, unsupportedAnalyzerExpr()
 			}
 			inner.SortClause = append(inner.SortClause, sortClauses...)
+		} else if cteCollision {
+			return nil, unsupportedAnalyzerExpr()
 		}
 		return inner, nil
 	}
@@ -260,6 +264,25 @@ func mergeCTEMaps(local, inherited map[string]*CommonTableExprQ) map[string]*Com
 		}
 	}
 	return local
+}
+
+// hasCTENameCollision reports whether outer and inner define any CTE with the
+// same name (case-insensitively), meaning their WITH clauses cannot be merged
+// into a single CTEList without producing duplicate query names.
+func hasCTENameCollision(outer, inner []*CommonTableExprQ) bool {
+	if len(outer) == 0 || len(inner) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(outer))
+	for _, cte := range outer {
+		seen[strings.ToLower(cte.Name)] = true
+	}
+	for _, cte := range inner {
+		if seen[strings.ToLower(cte.Name)] {
+			return true
+		}
+	}
+	return false
 }
 
 // reindexCTERTEs updates CTEIndex on each RTECTE in q to match its last

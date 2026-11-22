@@ -136,7 +136,7 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 				return nil, refusal
 			}
 		case ErrNoSuchColumn:
-			if !isAliasBearingColumnErr(refusal) && !hasSchemaQualifiedFuncCall(sel) {
+			if !isAliasBearingColumnErr(refusal) {
 				return nil, refusal
 			}
 		}
@@ -173,21 +173,6 @@ func isSystemDatabaseTableErr(ce *Error) bool {
 		}
 	}
 	return false
-}
-
-func hasSchemaQualifiedFuncCall(sel *nodes.SelectStmt) bool {
-	found := false
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if found {
-			return false
-		}
-		if fc, ok := n.(*nodes.FuncCallExpr); ok && fc.Schema != "" && !qualifiedBuiltin(fc, strings.ToLower(fc.Name)) {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
 }
 
 func checkDuplicateViewColumns(cols []string) error {

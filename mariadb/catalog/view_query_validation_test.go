@@ -352,3 +352,56 @@ func TestViewDerivedTableAndCTEExpressionColumnNames(t *testing.T) {
 		t.Fatalf("expected 1054 for nonexistent derived column, got %+v", results)
 	}
 }
+
+func TestRound5ReviewEdgeCases(t *testing.T) {
+	c, err := LoadSQL(`
+		CREATE DATABASE test;
+		USE test;
+		CREATE TABLE t (a VARCHAR(10));
+		CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x + 1;
+	`)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// 1. Colliding wrapper/inner CTE names must not be flattened into duplicate WITH entries.
+	if results, err := c.Exec("CREATE VIEW v_cte_shadow AS WITH c AS (SELECT 1 AS x) (WITH c AS (SELECT 2 AS x) SELECT x FROM c)", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("v_cte_shadow failed: parse=%v results=%+v", err, results)
+	}
+	if v := c.GetDatabase("test").Views["v_cte_shadow"]; v.AnalyzedQuery != nil {
+		t.Errorf("v_cte_shadow.AnalyzedQuery = %+v (deparsed %q), want nil when wrapper CTE name collides", v.AnalyzedQuery, DeparseQuery(v.AnalyzedQuery))
+	}
+
+	// 2. CONVERT(a, VARCHAR(3)) must preserve the length in CastExprQ; unrepresentable targets stay nil.
+	if results, err := c.Exec("CREATE VIEW v_conv_vc AS SELECT CONVERT(a, VARCHAR(3)) AS c FROM t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("v_conv_vc failed: parse=%v results=%+v", err, results)
+	}
+	vConv := c.GetDatabase("test").Views["v_conv_vc"]
+	if vConv.AnalyzedQuery == nil {
+		t.Fatalf("v_conv_vc.AnalyzedQuery is nil, want CastExprQ(CHAR(3))")
+	}
+	if dep := DeparseQuery(vConv.AnalyzedQuery); !strings.Contains(dep, "cast(`t`.`a` as char(3))") {
+		t.Errorf("DeparseQuery(v_conv_vc) = %q, want cast(`t`.`a` as char(3))", dep)
+	}
+	if results, err := c.Exec("CREATE VIEW v_conv_cs AS SELECT CONVERT(a, CHAR(3) CHARACTER SET latin1) AS c FROM t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("v_conv_cs failed: parse=%v results=%+v", err, results)
+	}
+	if v := c.GetDatabase("test").Views["v_conv_cs"]; v.AnalyzedQuery != nil {
+		t.Errorf("v_conv_cs.AnalyzedQuery = %+v, want nil when charset modifier cannot be represented", v.AnalyzedQuery)
+	}
+
+	// 3. Qualified stored-function call must not suppress 1054 on an unrelated column reference.
+	for _, sql := range []string{
+		"CREATE VIEW v_bad1 AS SELECT nonexistent, test.f(1)",
+		"CREATE VIEW v_bad2 AS SELECT test.f(1), nonexistent",
+	} {
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("Exec(%q) unexpected parse error: %v", sql, err)
+		}
+		var ce *Error
+		if len(results) == 0 || !errors.As(results[0].Error, &ce) || ce.Code != 1054 {
+			t.Errorf("Exec(%q): expected 1054, got %+v", sql, results)
+		}
+	}
+}
