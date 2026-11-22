@@ -1816,10 +1816,51 @@ func (p *Parser) parseAggregationClause() error {
 }
 
 func (p *Parser) isGroupingAnalyticsStart() bool {
-	if (p.cur().Kind == kwROLLUP || p.cur().Kind == kwCUBE) && p.peek(1).Kind == tokLParen {
+	if p.cur().Kind == kwGROUPING && p.peek(1).Kind == kwSETS && p.peek(2).Kind == tokLParen {
 		return true
 	}
-	return p.cur().Kind == kwGROUPING && p.peek(1).Kind == kwSETS && p.peek(2).Kind == tokLParen
+	if (p.cur().Kind != kwROLLUP && p.cur().Kind != kwCUBE) || p.peek(1).Kind != tokLParen {
+		return false
+	}
+	// Distinguish ROLLUP(...)/CUBE(...) grouping analytics from ordinary
+	// function calls (e.g. `ROLLUP()`, `ROLLUP(k => x)`, `ROLLUP(x) + 1`,
+	// `ROLLUP(x) AS r`, `ROLLUP(x) OVER ()`) before recursively parsing arguments.
+	inner := p.peek(2).Kind
+	if inner == tokRParen || inner == tokAsterisk {
+		return false
+	}
+	if (inner == kwDISTINCT || inner == kwALL) && p.peek(3).Kind != tokRParen && p.peek(3).Kind != tokComma {
+		return false
+	}
+	depth := 0
+	closeIdx := -1
+	for i := 1; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				closeIdx = i
+				break
+			}
+		} else if depth == 1 && k == tokFatArrow {
+			return false
+		}
+	}
+	after := p.peek(closeIdx + 1).Kind
+	switch after {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+		kwWITH, kwGROUPING, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		return true
+	case tokIdent:
+		return isWord(p.peek(closeIdx+1), "QUALIFY") && p.peek(closeIdx+2).Kind != tokEOF && p.peek(closeIdx+2).Kind != tokSemicolon && p.peek(closeIdx+2).Kind != tokRParen
+	}
+	return false
 }
 
 func (p *Parser) parseGroupingAnalytics() error {
@@ -1876,7 +1917,7 @@ func (p *Parser) parseGroupingElement() error {
 }
 
 func (p *Parser) parseGroupingSet() error {
-	if p.cur().Kind == tokLParen {
+	if p.cur().Kind == tokLParen && p.isParenthesizedGroupingSet() {
 		cp := p.save()
 		p.advance()
 		if p.match(tokRParen) {
@@ -1889,6 +1930,32 @@ func (p *Parser) parseGroupingSet() error {
 		p.restore(cp)
 	}
 	return p.parseExpression()
+}
+
+// isParenthesizedGroupingSet reports whether '(' at p.cur() closes directly
+// before ',' or ')' (as a parenthesized groupingSet `(e1, e2)` or `()`) rather
+// than beginning a parenthesized expression with an operator continuation such
+// as `ROLLUP(((<query>)) + 1)`.
+func (p *Parser) isParenthesizedGroupingSet() bool {
+	if p.cur().Kind != tokLParen {
+		return false
+	}
+	depth := 0
+	for i := 0; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				after := p.peek(i + 1).Kind
+				return after == tokRParen || after == tokComma
+			}
+		}
+	}
 }
 
 func (p *Parser) parseWindowClause() error {

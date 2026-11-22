@@ -602,6 +602,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 			sql:  strings.Repeat("SELECT ((", 30) + "SELECT 1" + strings.Repeat(") + 1)", 30),
 		},
 		{
+			name: "nested rollup grouping-set parenthesized expression",
+			sql:  strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP(((", 25) + "SELECT 1" + strings.Repeat(")) + 1)", 25),
+		},
+		{
+			name: "nested rollup function call with arithmetic in group by",
+			sql:  strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP((", 25) + "SELECT 1" + strings.Repeat(")) + 1", 25),
+		},
+		{
 			name: "nested parens",
 			sql:  "SELECT " + strings.Repeat("(", depth) + "1" + strings.Repeat(")", depth),
 		},
