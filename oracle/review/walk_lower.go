@@ -1119,10 +1119,29 @@ func mvKnownColumns(v *ast.CreateViewStmt) (map[string]bool, bool) {
 		if cr, isCR := rt.Expr.(*ast.ColumnRef); isCR && cr.Column == "*" {
 			return nil, false
 		}
-		if rt.Name != "" {
+		switch {
+		case rt.Name != "":
 			cols[rt.Name] = true
-		} else if cr, isCR := rt.Expr.(*ast.ColumnRef); isCR && cr.Column != "" {
-			cols[cr.Column] = true
+		case rt.Expr == nil:
+			return nil, false
+		default:
+			switch e := rt.Expr.(type) {
+			case *ast.ColumnRef:
+				if e.Column == "" {
+					return nil, false
+				}
+				cols[e.Column] = true
+			case *ast.NumberLiteral:
+				// Oracle names an unaliased integer literal column after its digits (e.g. "1").
+				if e.IsFloat || e.Val == "" {
+					return nil, false
+				}
+				cols[e.Val] = true
+			default:
+				// Arbitrary unaliased expressions get Oracle-derived names (e.g. "A+1");
+				// treat the column list as incomplete rather than assuming absence.
+				return nil, false
+			}
 		}
 	}
 	return cols, true
