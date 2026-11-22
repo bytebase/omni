@@ -1,7 +1,14 @@
-# The server this engine's committed answers come from. Apache Hive 4.0.1
-# through a HiveServer2 with the embedded Derby metastore; the tapes are
-# recorded through hive/internal/testcontainer and replayed with no server.
-# Hive has no omni tree to parse it, so there is no compat.tsv and no judge
-# row: default is the server itself, pinned by digest.
+# The server and the grammar this engine's committed answers come from.
+#
+# default pins Apache Hive 4.0.1 through a HiveServer2 with the embedded Derby
+# metastore: the driver's tapes (hive/driver) and compat.tsv (hive/parser) are
+# recorded against it through hive/internal/testcontainer and replayed with no
+# server.
+#
+# grammar pins Apache Hive's ANTLR 3 HiveQL grammar files in vendor/*.g at the
+# commit of the rel/release-4.0.1 release. The digest is the SHA-256 of those
+# 10 files read in order by hive/parser/cmd/antlr3to4, which converts them into
+# Hive.g4.
 # columns: role, image, digest, source tag
 default	apache/hive:4.0.1	sha256:5194161ef50b80875f937dff04936df047cbe894e9727ab8f0606349345b1bd3	rel/release-4.0.1
+grammar	github.com/apache/hive@3af4517eb8cfd9407ad34ed78a0b48b57dfaa264	sha256:40b6a047a8b1c9c24e8ad51633320e036342b344b2e756378907c000e29cde30	rel/release-4.0.1
