@@ -448,3 +448,148 @@ func TestCompleteSession_CodexRound4Fixes(t *testing.T) {
 	gotRecImplicit := CompleteSession(context.Background(), cfg, recImplicit, 1, len("WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c."))
 	require.True(t, containsCandidate(gotRecImplicit, "n", CandidateColumn), "got %v", gotRecImplicit)
 }
+
+func TestCompleteSession_UnparseableColumnInstanceDBsQualifiersAndCrossDB(t *testing.T) {
+	// Unparseable column type falls back to stand-in so all columns still surface.
+	standInCfg := SessionConfig{
+		DefaultDatabase: "db",
+		LoadDatabase: sessionMetaLoader(&metadatapb.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{{
+					Name: "t",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "good", Type: "int"},
+						{Name: "weird", Type: ")"},
+					},
+				}},
+			}},
+		}, true),
+	}
+	gotStandIn := CompleteSession(context.Background(), standInCfg, "SELECT  FROM t", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotStandIn, "good", CandidateColumn), "got %v", gotStandIn)
+	require.True(t, containsCandidate(gotStandIn, "weird", CandidateColumn), "got %v", gotStandIn)
+
+	// Instance-level completion without DefaultDatabase surfaces database names.
+	instCfg := SessionConfig{
+		DefaultDatabase: "",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			return db, &metadatapb.DatabaseSchemaMetadata{Name: db, Schemas: []*metadatapb.SchemaMetadata{{}}}, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "otherdb"}, nil
+		},
+	}
+	gotInst := CompleteSession(context.Background(), instCfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotInst, "appdb", CandidateDatabase), "got %v", gotInst)
+	require.True(t, containsCandidate(gotInst, "otherdb", CandidateDatabase), "got %v", gotInst)
+
+	// Statement isolation, views, core FROM/JOIN/column contexts, qualifier scoping,
+	// function parens, and backtick inside string literal.
+	cfg := SessionConfig{
+		DefaultDatabase: "db",
+		LoadDatabase: sessionMetaLoader(&metadatapb.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "t1", Columns: []*metadatapb.ColumnMetadata{{Name: "a1"}, {Name: "a2"}}},
+					{Name: "t2", Columns: []*metadatapb.ColumnMetadata{{Name: "b1"}, {Name: "b2"}}},
+					{Name: "order", Columns: []*metadatapb.ColumnMetadata{{Name: "id"}}},
+				},
+				Views: []*metadatapb.ViewMetadata{{Name: "v1", Definition: "SELECT a1 FROM t1"}},
+			}},
+		}, true),
+	}
+
+	gotIso := CompleteSession(context.Background(), cfg, "SELECT * FROM t1; SELECT  FROM t2", 1, len("SELECT * FROM t1; SELECT "))
+	require.True(t, containsCandidate(gotIso, "b1", CandidateColumn), "got %v", gotIso)
+	require.True(t, containsCandidate(gotIso, "b2", CandidateColumn), "got %v", gotIso)
+	require.False(t, containsCandidate(gotIso, "a1", CandidateColumn), "got %v", gotIso)
+	require.False(t, containsCandidate(gotIso, "a2", CandidateColumn), "got %v", gotIso)
+
+	// Table/view contexts: FROM, JOIN, comma-join.
+	for _, stmt := range []string{"SELECT * FROM ", "SELECT * FROM t1 JOIN ", "SELECT * FROM t1, "} {
+		got := CompleteSession(context.Background(), cfg, stmt, 1, len(stmt))
+		require.True(t, containsCandidate(got, "t1", CandidateTable), "%q: got %v", stmt, got)
+		require.True(t, containsCandidate(got, "t2", CandidateTable), "%q: got %v", stmt, got)
+		require.True(t, containsCandidate(got, "v1", CandidateView), "%q: got %v", stmt, got)
+	}
+
+	// Column contexts: projection, table-qualified, WHERE, JOIN ON.
+	for _, tc := range []struct {
+		stmt string
+		pos  int
+		want []string
+	}{
+		{"SELECT  FROM t1", len("SELECT "), []string{"a1", "a2"}},
+		{"SELECT t1. FROM t1", len("SELECT t1."), []string{"a1", "a2"}},
+		{"SELECT * FROM t1 WHERE ", len("SELECT * FROM t1 WHERE "), []string{"a1", "a2"}},
+		{"SELECT  FROM t1 JOIN t2 ON t1.a1 = t2.b1", len("SELECT "), []string{"a1", "a2", "b1", "b2"}},
+	} {
+		got := CompleteSession(context.Background(), cfg, tc.stmt, 1, tc.pos)
+		for _, col := range tc.want {
+			require.True(t, containsCandidate(got, col, CandidateColumn), "%q missing %s: got %v", tc.stmt, col, got)
+		}
+	}
+
+	// Qualified column scoping in JOIN.
+	for _, tc := range []struct{ stmt, at, want, notWant string }{
+		{"SELECT a. FROM t1 AS a JOIN t2 AS b", "SELECT a.", "a1", "b1"},
+		{"SELECT b. FROM t1 AS a JOIN t2 AS b", "SELECT b.", "b1", "a1"},
+		{"SELECT t1. FROM t1 JOIN t2", "SELECT t1.", "a1", "b1"},
+	} {
+		got := CompleteSession(context.Background(), cfg, tc.stmt, 1, len(tc.at))
+		require.True(t, containsCandidate(got, tc.want, CandidateColumn), "%q: got %v", tc.stmt, got)
+		require.False(t, containsCandidate(got, tc.notWant, CandidateColumn), "%q: got %v", tc.stmt, got)
+	}
+
+	// Unknown qualifier offers no columns.
+	for _, tc := range []struct{ stmt, at string }{
+		{"SELECT x. FROM t1 AS a JOIN t2 AS b", "SELECT x."},
+		{"SELECT t3. FROM t1 JOIN t2", "SELECT t3."},
+	} {
+		got := CompleteSession(context.Background(), cfg, tc.stmt, 1, len(tc.at))
+		require.False(t, containsCandidate(got, "a1", CandidateColumn), "%q: got %v", tc.stmt, got)
+		require.False(t, containsCandidate(got, "b1", CandidateColumn), "%q: got %v", tc.stmt, got)
+	}
+
+	// Function parens and backtick inside string literal.
+	gotFunc := CompleteSession(context.Background(), cfg, "SELECT  FROM t1", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotFunc, "COUNT()", CandidateFunction), "got %v", gotFunc)
+	require.False(t, containsCandidate(gotFunc, "COUNT", CandidateFunction), "got %v", gotFunc)
+
+	gotBacktickStr := CompleteSession(context.Background(), cfg, "SELECT '`' FROM ", 1, len("SELECT '`' FROM "))
+	require.True(t, containsCandidate(gotBacktickStr, "`order`", CandidateTable), "got %v", gotBacktickStr)
+
+	// Cross-DB qualified column resolution without enumerating databases.
+	appMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name:    "appdb",
+		Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "t1", Columns: []*metadatapb.ColumnMetadata{{Name: "c1"}}}}}},
+	}
+	otherMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name:    "otherdb",
+		Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "t2", Columns: []*metadatapb.ColumnMetadata{{Name: "c2"}, {Name: "c3"}}}}}},
+	}
+	listCalls := 0
+	crossCfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			if db == "otherdb" {
+				return db, otherMeta, true, true
+			}
+			return db, appMeta, true, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			listCalls++
+			return []string{"appdb", "otherdb"}, nil
+		},
+	}
+	gotCross := CompleteSession(context.Background(), crossCfg, "SELECT otherdb.t2. FROM otherdb.t2", 1, len("SELECT otherdb.t2."))
+	require.True(t, containsCandidate(gotCross, "c2", CandidateColumn), "got %v", gotCross)
+	require.True(t, containsCandidate(gotCross, "c3", CandidateColumn), "got %v", gotCross)
+	require.Zero(t, listCalls)
+
+	gotDBList := CompleteSession(context.Background(), crossCfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotDBList, "otherdb", CandidateDatabase), "got %v", gotDBList)
+	require.Equal(t, 1, listCalls)
+}
