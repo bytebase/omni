@@ -746,9 +746,11 @@ func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
 }
 
 // maskSQLCommentsAndQuotes returns a copy of s of the same byte length with
-// SQL line comments (-- ...), block comments (/* ... */), Oracle q-quoted
-// strings, single-quoted strings, and double-quoted identifiers replaced by
-// spaces.
+// SQL line comments (-- ...) and block comments (/* ... */) replaced by spaces,
+// and the interiors of Oracle q-quoted strings, single-quoted strings, and
+// double-quoted identifiers blanked to spaces while keeping their outer quote
+// delimiters so words inside quotes never match keyword patterns and trailing
+// quoted tokens are not erased into whitespace.
 func maskSQLCommentsAndQuotes(s string) string {
 	b := []byte(s)
 	for i := 0; i < len(b); {
@@ -786,11 +788,13 @@ func maskSQLCommentsAndQuotes(s string) string {
 			case '<':
 				closeDelim = '>'
 			}
-			b[i], b[i+1], b[i+2] = ' ', ' ', ' '
+			// Keep the opening '\'' at b[i+1] and closing '\'' at the end while
+			// blanking the prefix, delimiters, and interior to spaces.
+			b[i], b[i+2] = ' ', ' '
 			i += 3
 			for i < len(b) {
 				if b[i] == closeDelim && i+1 < len(b) && b[i+1] == '\'' {
-					b[i], b[i+1] = ' ', ' '
+					b[i] = ' '
 					i += 2
 					break
 				}
@@ -799,17 +803,18 @@ func maskSQLCommentsAndQuotes(s string) string {
 			}
 		case b[i] == '\'' || b[i] == '"':
 			q := b[i]
-			b[i] = ' '
+			// Keep the opening and closing quote delimiters and blank the interior
+			// (including doubled escape quotes) to spaces.
 			i++
 			for i < len(b) {
 				if b[i] == q {
-					b[i] = ' '
-					i++
-					if i < len(b) && b[i] == q {
+					if i+1 < len(b) && b[i+1] == q {
 						b[i] = ' '
-						i++
+						b[i+1] = ' '
+						i += 2
 						continue
 					}
+					i++
 					break
 				}
 				b[i] = ' '
