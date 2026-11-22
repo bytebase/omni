@@ -12,8 +12,8 @@ grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the docs accept | Only omni accepts | Undocumented |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 2,244 | 1 | 0 | 0 |
-| Near-misses | 5,830 | 145 | 0 | 0 | 5,685 |
+| One per alternative | 2,243 | 2,243 | 0 | 0 | 0 |
+| Near-misses | 5,827 | 145 | 0 | 0 | 5,682 |
 
 - **The grammar** is AWS's SQL command reference
   (https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html): the
@@ -26,7 +26,7 @@ grammar, and asks the judge again on every run.
   case, and a fragment is defined by a "where *name* is:" line. The
   converter's front end rewrites both into the shared notation (`<name>`,
   `name ::=`) before converting.
-- **Hand fixes** are in `../../testdata/docs-fixes.tsv`, 73 of them, each with
+- **Hand fixes** are in `../../testdata/docs-fixes.tsv`, 74 of them, each with
   its reason: brackets left open or closed twice, choices not braced, prose and
   examples inside a Syntax section. The converter fails on a fix whose text the
   page no longer holds.
@@ -54,10 +54,13 @@ Redshift has no server CI can start, so every row is judged by the docs.
   derive is `undocumented`, never `reject`: docs say what is valid, not what
   Redshift refuses. It passes whatever omni says, so omni is never pushed to
   reject a form users write.
-- **One row disagrees: a statement the docs accept and omni rejects.** It is
-  `REVOKE`'s `GRANT_OPTION` notation row: the docs write `GRANT_OPTION` as one
-  token, which is their notation and not SQL, so omni reads only
-  `GRANT OPTION` and keeps rejecting it. The 42 rows that disagreed before were
+- **No row disagrees.** Every judged row (2,243 one-per-alternative rows and
+  145 near-misses the grammar still derives) agrees between omni and the docs.
+  `REVOKE`'s `FOR COPY JOBS` form previously wrote `[GRANT_OPTION]` as one
+  token in the AWS page while the other scoped `REVOKE` forms write
+  `[ GRANT OPTION ]`; `docs-fixes.tsv` normalizes that notation typo to
+  `[ GRANT OPTION ]`, and omni keeps rejecting the one-token `GRANT_OPTION`.
+  The 42 rows that disagreed before were
   `CREATE MATERIALIZED VIEW` (15: `AUTO REFRESH YES INTERVAL`, the Iceberg form's
   `USING ICEBERG LOCATION|PARTITIONED BY`, table properties and partition
   transforms), `SELECT` and `SELECT INTO` (12: `EXCLUDE`, `START WITH` /
