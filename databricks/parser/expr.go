@@ -568,8 +568,9 @@ func (p *Parser) parseOptionalPredicate() error {
 			p.advance()
 			tok := p.advance()
 			decoded := unquoteStringLit(tok.Text)
-			if utf8.RuneCountInString(decoded) != 1 {
-				return p.errorf("LIKE/ILIKE ESCAPE string %s must be a single character", tok.Text)
+			r, size := utf8.DecodeRuneInString(decoded)
+			if size == 0 || size != len(decoded) || r > 0xFFFF {
+				return p.errorf("LIKE/ILIKE ESCAPE string %s must be a single UTF-16 character", tok.Text)
 			}
 			return nil
 		}

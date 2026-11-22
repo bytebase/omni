@@ -478,33 +478,64 @@ func isValidSparkDate(s string) bool {
 }
 
 func isValidSparkNumericDate(s string) bool {
+	_, _, _, ok := parseSparkNumericDate(s)
+	return ok
+}
+
+func parseSparkNumericDate(s string) (year int64, month, day int, ok bool) {
 	// Optional leading sign for +/-YYYY.
-	if strings.HasPrefix(s, "+") || strings.HasPrefix(s, "-") {
+	sign := int64(1)
+	if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	} else if strings.HasPrefix(s, "-") {
+		sign = -1
 		s = s[1:]
 	}
 	parts := strings.Split(s, "-")
 	if len(parts) < 1 || len(parts) > 3 {
-		return false
+		return 0, 0, 0, false
 	}
-	year, ok := parseDigits(parts[0], 4, 6)
+	y, ok := parseDigits(parts[0], 4, 6)
 	if !ok {
-		return false
+		return 0, 0, 0, false
 	}
+	year = sign * int64(y)
 	if len(parts) == 1 {
-		return true
+		return year, 1, 1, true
 	}
-	month, ok := parseDigits(parts[1], 1, 2)
+	month, ok = parseDigits(parts[1], 1, 2)
 	if !ok || month < 1 || month > 12 {
-		return false
+		return 0, 0, 0, false
 	}
 	if len(parts) == 2 {
-		return true
+		return year, month, 1, true
 	}
-	day, ok := parseDigits(parts[2], 1, 2)
-	if !ok || day < 1 || day > daysInMonth(year, month) {
-		return false
+	day, ok = parseDigits(parts[2], 1, 2)
+	if !ok || day < 1 || day > daysInMonth(int(year), month) {
+		return 0, 0, 0, false
 	}
-	return true
+	return year, month, day, true
+}
+
+// daysFromCivil returns days since 1970-01-01 in the proleptic Gregorian
+// calendar (ISO 8601 astronomical year numbering where year 0 = 1 BCE,
+// matching java.time.LocalDate and Spark's DateTimeUtils).
+func daysFromCivil(y, m, d int64) int64 {
+	if m <= 2 {
+		y--
+	}
+	era := y / 400
+	if y < 0 && y%400 != 0 {
+		era--
+	}
+	yoe := y - era*400
+	mp := m - 3
+	if mp < 0 {
+		mp += 12
+	}
+	doy := (153*mp+2)/5 + d - 1
+	doe := yoe*365 + yoe/4 - yoe/100 + doy
+	return era*146097 + doe - 719468
 }
 
 func isValidSparkTimestamp(s string) bool {
@@ -521,112 +552,163 @@ func isValidSparkTimestamp(s string) bool {
 		datePart = s[:idx]
 		timePart = strings.TrimSpace(s[idx+1:])
 	}
-	if !isValidSparkNumericDate(datePart) {
+	year, month, day, ok := parseSparkNumericDate(datePart)
+	if !ok {
 		return false
 	}
-	if timePart == "" {
-		return true
-	}
-	// Separate the clock prefix (digits, ':', '.') from any trailing timezone
-	// suffix (e.g. `Z`, `+08:00`, `UTC+08:00`, ` America/Los_Angeles`, ` PST`).
-	clockEnd := 0
-	for clockEnd < len(timePart) {
-		c := timePart[clockEnd]
-		if (c >= '0' && c <= '9') || c == ':' || c == '.' {
-			clockEnd++
-		} else {
-			break
+	var h, m, sec int
+	var fracMicros int64
+	var tzPart string
+	if timePart != "" {
+		// Separate the clock prefix (digits, ':', '.') from any trailing timezone
+		// suffix (e.g. `Z`, `+08:00`, `UTC+08:00`, ` America/Los_Angeles`, ` PST`).
+		clockEnd := 0
+		for clockEnd < len(timePart) {
+			c := timePart[clockEnd]
+			if (c >= '0' && c <= '9') || c == ':' || c == '.' {
+				clockEnd++
+			} else {
+				break
+			}
 		}
-	}
-	clockPart := timePart[:clockEnd]
-	tzPart := strings.TrimSpace(timePart[clockEnd:])
-	if clockPart == "" {
-		return false
-	}
-	if tzPart != "" && !isValidSparkTimezone(tzPart) {
-		return false
-	}
-	// Optional fractional seconds.
-	if idx := strings.IndexByte(clockPart, '.'); idx >= 0 {
-		frac := clockPart[idx+1:]
-		if len(frac) == 0 || len(frac) > 9 {
+		clockPart := timePart[:clockEnd]
+		tzPart = strings.TrimSpace(timePart[clockEnd:])
+		if clockPart == "" {
 			return false
 		}
-		for i := 0; i < len(frac); i++ {
-			if frac[i] < '0' || frac[i] > '9' {
+		// Optional fractional seconds.
+		if idx := strings.IndexByte(clockPart, '.'); idx >= 0 {
+			frac := clockPart[idx+1:]
+			if len(frac) == 0 || len(frac) > 9 {
+				return false
+			}
+			for i := 0; i < len(frac); i++ {
+				if frac[i] < '0' || frac[i] > '9' {
+					return false
+				}
+			}
+			fracMicros = parseFracToMicros(frac)
+			clockPart = clockPart[:idx]
+		}
+		tparts := strings.Split(clockPart, ":")
+		if len(tparts) < 1 || len(tparts) > 3 {
+			return false
+		}
+		h, ok = parseDigits(tparts[0], 1, 2)
+		if !ok || h < 0 || h > 23 {
+			return false
+		}
+		if len(tparts) >= 2 {
+			m, ok = parseDigits(tparts[1], 1, 2)
+			if !ok || m < 0 || m > 59 {
 				return false
 			}
 		}
-		clockPart = clockPart[:idx]
+		if len(tparts) == 3 {
+			sec, ok = parseDigits(tparts[2], 1, 2)
+			if !ok || sec < 0 || sec > 59 {
+				return false
+			}
+		}
 	}
-	tparts := strings.Split(clockPart, ":")
-	if len(tparts) < 1 || len(tparts) > 3 {
-		return false
-	}
-	h, ok := parseDigits(tparts[0], 1, 2)
-	if !ok || h < 0 || h > 23 {
-		return false
-	}
-	if len(tparts) >= 2 {
-		m, ok := parseDigits(tparts[1], 1, 2)
-		if !ok || m < 0 || m > 59 {
+	var offsetSec int64
+	if tzPart != "" {
+		var tzOK bool
+		offsetSec, tzOK = parseSparkTimezoneOffset(tzPart, year, month, day, h, m, sec)
+		if !tzOK {
 			return false
 		}
 	}
-	if len(tparts) == 3 {
-		sec, ok := parseDigits(tparts[2], 1, 2)
-		if !ok || sec < 0 || sec > 59 {
-			return false
-		}
-	}
-	return true
+	days := daysFromCivil(year, int64(month), int64(day))
+	totalSec := new(big.Int).Mul(big.NewInt(days), big.NewInt(86400))
+	totalSec.Add(totalSec, big.NewInt(int64(h*3600+m*60+sec)-offsetSec))
+	totalUS := new(big.Int).Mul(totalSec, big.NewInt(1_000_000))
+	totalUS.Add(totalUS, big.NewInt(fracMicros))
+	_, valid := checkedInt64(totalUS)
+	return valid
 }
 
 // sparkShortZoneIDs mirrors Java's java.time.ZoneId.SHORT_IDS accepted by
 // Apache Spark's SparkDateTimeUtils.getZoneId.
-var sparkShortZoneIDs = map[string]struct{}{
-	"ACT": {}, "AET": {}, "AGT": {}, "ART": {}, "AST": {}, "BET": {}, "BST": {},
-	"CAT": {}, "CNT": {}, "CST": {}, "CTT": {}, "EAT": {}, "ECT": {}, "EST": {},
-	"HST": {}, "IET": {}, "IST": {}, "JST": {}, "MIT": {}, "MST": {}, "NET": {},
-	"NST": {}, "PLT": {}, "PNT": {}, "PRT": {}, "PST": {}, "SST": {}, "VST": {},
+var sparkShortZoneIDs = map[string]string{
+	"ACT": "Australia/Darwin",
+	"AET": "Australia/Sydney",
+	"AGT": "America/Argentina/Buenos_Aires",
+	"ART": "Africa/Cairo",
+	"AST": "America/Anchorage",
+	"BET": "America/Sao_Paulo",
+	"BST": "Asia/Dhaka",
+	"CAT": "Africa/Harare",
+	"CNT": "America/St_Johns",
+	"CST": "America/Chicago",
+	"CTT": "Asia/Shanghai",
+	"EAT": "Africa/Addis_Ababa",
+	"ECT": "Europe/Paris",
+	"EST": "-05:00",
+	"HST": "-10:00",
+	"IET": "America/Indiana/Indianapolis",
+	"IST": "Asia/Kolkata",
+	"JST": "Asia/Tokyo",
+	"MIT": "Pacific/Apia",
+	"MST": "-07:00",
+	"NET": "Asia/Yerevan",
+	"NST": "Pacific/Auckland",
+	"PLT": "Asia/Karachi",
+	"PNT": "America/Phoenix",
+	"PRT": "America/Puerto_Rico",
+	"PST": "America/Los_Angeles",
+	"SST": "Pacific/Guadalcanal",
+	"VST": "Asia/Ho_Chi_Minh",
 }
 
-func isValidSparkTimezone(tz string) bool {
+func parseSparkTimezoneOffset(tz string, year int64, month, day, h, m, sec int) (int64, bool) {
 	if tz == "" {
-		return false
+		return 0, false
 	}
 	if tz == "Z" || tz == "z" {
-		return true
+		return 0, true
 	}
 	// Prefix UTC / GMT / UT with optional offset (e.g. `UTC`, `UTC+08:00`, `GMT-5`).
 	for _, prefix := range []string{"UTC", "GMT", "UT"} {
 		if strings.HasPrefix(tz, prefix) {
 			rest := tz[len(prefix):]
 			if rest == "" {
-				return true
+				return 0, true
 			}
-			return isValidSparkZoneOffset(rest)
+			return parseSparkZoneOffsetSeconds(rest)
 		}
 	}
 	if tz[0] == '+' || tz[0] == '-' {
-		return isValidSparkZoneOffset(tz)
+		return parseSparkZoneOffsetSeconds(tz)
 	}
-	if _, ok := sparkShortZoneIDs[tz]; ok {
-		return true
+	if mapped, ok := sparkShortZoneIDs[tz]; ok {
+		if mapped[0] == '+' || mapped[0] == '-' {
+			return parseSparkZoneOffsetSeconds(mapped)
+		}
+		tz = mapped
 	}
 	// Reject Go's special "Local" sentinel and check IANA zone names.
 	if strings.EqualFold(tz, "Local") {
-		return false
+		return 0, false
 	}
-	_, err := time.LoadLocation(tz)
-	return err == nil
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return 0, false
+	}
+	_, off := time.Date(int(year), time.Month(month), day, h, m, sec, 0, loc).Zone()
+	return int64(off), true
 }
 
-// isValidSparkZoneOffset validates Java ZoneOffset / Spark timezone offsets:
-// ±H, ±HH, ±H:MM, ±HH:MM, ±HHMM, ±HH:MM:SS, ±HHMMSS within [-18:00:00, +18:00:00].
-func isValidSparkZoneOffset(s string) bool {
+// parseSparkZoneOffsetSeconds validates Java ZoneOffset / Spark timezone
+// offsets (±H, ±HH, ±H:MM, ±HH:MM, ±HHMM, ±HH:MM:SS, ±HHMMSS within
+// [-18:00:00, +18:00:00]) and returns the signed offset in seconds.
+func parseSparkZoneOffsetSeconds(s string) (int64, bool) {
 	if len(s) < 2 || (s[0] != '+' && s[0] != '-') {
-		return false
+		return 0, false
+	}
+	sign := int64(1)
+	if s[0] == '-' {
+		sign = -1
 	}
 	body := s[1:]
 	var h, m, sec int
@@ -634,20 +716,20 @@ func isValidSparkZoneOffset(s string) bool {
 	if strings.ContainsRune(body, ':') {
 		parts := strings.Split(body, ":")
 		if len(parts) < 2 || len(parts) > 3 {
-			return false
+			return 0, false
 		}
 		h, ok = parseDigits(parts[0], 1, 2)
 		if !ok {
-			return false
+			return 0, false
 		}
 		m, ok = parseDigits(parts[1], 2, 2)
 		if !ok || m > 59 {
-			return false
+			return 0, false
 		}
 		if len(parts) == 3 {
 			sec, ok = parseDigits(parts[2], 2, 2)
 			if !ok || sec > 59 {
-				return false
+				return 0, false
 			}
 		}
 	} else {
@@ -655,36 +737,39 @@ func isValidSparkZoneOffset(s string) bool {
 		case 1, 2:
 			h, ok = parseDigits(body, 1, 2)
 			if !ok {
-				return false
+				return 0, false
 			}
 		case 4:
 			h, ok = parseDigits(body[:2], 2, 2)
 			if !ok {
-				return false
+				return 0, false
 			}
 			m, ok = parseDigits(body[2:], 2, 2)
 			if !ok || m > 59 {
-				return false
+				return 0, false
 			}
 		case 6:
 			h, ok = parseDigits(body[:2], 2, 2)
 			if !ok {
-				return false
+				return 0, false
 			}
 			m, ok = parseDigits(body[2:4], 2, 2)
 			if !ok || m > 59 {
-				return false
+				return 0, false
 			}
 			sec, ok = parseDigits(body[4:], 2, 2)
 			if !ok || sec > 59 {
-				return false
+				return 0, false
 			}
 		default:
-			return false
+			return 0, false
 		}
 	}
-	total := h*3600 + m*60 + sec
-	return total <= 18*3600
+	total := int64(h*3600 + m*60 + sec)
+	if total > 18*3600 {
+		return 0, false
+	}
+	return sign * total, true
 }
 
 func parseDigits(s string, minLen, maxLen int) (int, bool) {

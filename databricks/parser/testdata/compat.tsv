@@ -6726,3 +6726,19 @@ reject	reject	engine	suite:spark-astbuilder	FROM t |> AGGREGATE sum(x) OVER () G
 reject	reject	engine	suite:spark-astbuilder	FROM t |> AGGREGATE count(*) GROUP BY (sum(x) OVER ())
 accept	accept	engine	suite:spark-astbuilder	FROM t |> AGGREGATE sum(x) OVER ()
 accept	accept	engine	suite:spark-astbuilder	FROM t |> AGGREGATE (SELECT sum(x) OVER () FROM u) GROUP BY a
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '999999-01-01'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP '294247-01-10 04:00:54.775807Z'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '294247-01-10 04:00:54.775808Z'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP '294247-01-10 05:00:54.775807+01:00'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '294247-01-10 05:00:54.775808+01:00'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP '-290308-12-21 19:59:05.224192Z'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '-290308-12-21 19:59:05.224191Z'
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet CLUSTERED BY (a) INTO 100000 BUCKETS
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet CLUSTERED BY (a) INTO 100001 BUCKETS
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet CLUSTERED BY (a) INTO 2147483648 BUCKETS
+reject	reject	engine	suite:spark-astbuilder	SELECT 'abc' LIKE 'a%' ESCAPE '😀'
+reject	reject	engine	suite:spark-astbuilder	SELECT 'abc' LIKE 'a%' ESCAPE '\U0001F600'
+accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer's-data
+accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer"s-data
+accept	accept	engine	suite:spark-astbuilder	SET spark.test = /tmp/customer`s-data
+reject	reject	engine	suite:spark-astbuilder	SET `unterminated = 1

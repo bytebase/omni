@@ -85,76 +85,90 @@ outer:
 		}
 
 		// Raw string literal: R'...' or R"..." (case-insensitive R).
+		// If no closing quote exists, fall through so `R` lexes as an
+		// identifier and the quote lexes as tokInvalid (matching Spark's
+		// ANTLR UNRECOGNIZED fallback for raw SET/ADD/REFRESH tails).
 		if (c == 'R' || c == 'r') && i+1 < n && (src[i+1] == '\'' || src[i+1] == '"') {
-			start := i
 			q := src[i+1]
-			i += 2
-			for i < n && src[i] != q {
-				i++
+			j := i + 2
+			for j < n && src[j] != q {
+				j++
 			}
-			if i >= n {
-				return nil, &ParseError{Message: "unterminated raw string literal", Position: start}
+			if j < n {
+				j++
+				toks = append(toks, Token{Kind: tokString, Text: src[i:j], Start: i, End: j})
+				i = j
+				continue
 			}
-			i++
-			toks = append(toks, Token{Kind: tokString, Text: src[start:i], Start: start, End: i})
-			continue
 		}
 
 		// Single-quoted string literal: '...' with backslash escapes.
+		// Unmatched quotes fall back to a single-byte tokInvalid token
+		// (Spark's ANTLR UNRECOGNIZED) so raw SET/ADD/REFRESH tails accept
+		// values containing apostrophes while SQL expressions reject them.
 		if c == '\'' {
 			start := i
-			i++
-			for i < n {
-				if src[i] == '\\' && i+1 < n {
-					i += 2
+			j := i + 1
+			for j < n {
+				if src[j] == '\\' && j+1 < n {
+					j += 2
 					continue
 				}
-				if src[i] == '\'' {
-					i++
-					toks = append(toks, Token{Kind: tokString, Text: src[start:i], Start: start, End: i})
+				if src[j] == '\'' {
+					j++
+					toks = append(toks, Token{Kind: tokString, Text: src[start:j], Start: start, End: j})
+					i = j
 					continue outer
 				}
-				i++
+				j++
 			}
-			return nil, &ParseError{Message: "unterminated string literal", Position: start}
+			toks = append(toks, Token{Kind: tokInvalid, Text: src[start : start+1], Start: start, End: start + 1})
+			i = start + 1
+			continue
 		}
 
-		// Double-quoted string / identifier: "..." with backslash escapes.
+		// Double-quoted string literal: "..." with backslash escapes.
 		if c == '"' {
 			start := i
-			i++
-			for i < n {
-				if src[i] == '\\' && i+1 < n {
-					i += 2
+			j := i + 1
+			for j < n {
+				if src[j] == '\\' && j+1 < n {
+					j += 2
 					continue
 				}
-				if src[i] == '"' {
-					i++
-					toks = append(toks, Token{Kind: tokDoubleQuoted, Text: src[start:i], Start: start, End: i})
+				if src[j] == '"' {
+					j++
+					toks = append(toks, Token{Kind: tokDoubleQuoted, Text: src[start:j], Start: start, End: j})
+					i = j
 					continue outer
 				}
-				i++
+				j++
 			}
-			return nil, &ParseError{Message: "unterminated double-quoted literal", Position: start}
+			toks = append(toks, Token{Kind: tokInvalid, Text: src[start : start+1], Start: start, End: start + 1})
+			i = start + 1
+			continue
 		}
 
 		// Backtick-quoted identifier: `...` with `` escape.
 		if c == '`' {
 			start := i
-			i++
-			for i < n {
-				if src[i] == '`' {
-					if i+1 < n && src[i+1] == '`' {
-						i += 2
+			j := i + 1
+			for j < n {
+				if src[j] == '`' {
+					if j+1 < n && src[j+1] == '`' {
+						j += 2
 						continue
 					}
-					i++
-					toks = append(toks, Token{Kind: tokBackquoted, Text: src[start:i], Start: start, End: i})
+					j++
+					toks = append(toks, Token{Kind: tokBackquoted, Text: src[start:j], Start: start, End: j})
+					i = j
 					continue outer
 				}
-				i++
+				j++
 			}
-			return nil, &ParseError{Message: "unterminated backquoted identifier", Position: start}
+			toks = append(toks, Token{Kind: tokInvalid, Text: src[start : start+1], Start: start, End: start + 1})
+			i = start + 1
+			continue
 		}
 
 		// Numeric literal or identifier starting with digit (Spark IDENTIFIER allows leading digits).

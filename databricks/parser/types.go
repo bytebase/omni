@@ -1196,9 +1196,9 @@ func (p *Parser) parseBucketSpec() error {
 	if err != nil {
 		return err
 	}
-	n, convErr := strconv.Atoi(numTok.Text)
-	if convErr != nil || n <= 0 {
-		return p.errorf("number of buckets must be positive, got %q", numTok.Text)
+	n, convErr := strconv.ParseInt(numTok.Text, 10, 32)
+	if convErr != nil || n <= 0 || n > 100000 {
+		return p.errorf("number of buckets must be between 1 and 100000, got %q", numTok.Text)
 	}
 	_, err = p.expect(kwBUCKETS)
 	return err
