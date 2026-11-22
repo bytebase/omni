@@ -28,14 +28,6 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
-	case *nodes.HexLit:
-		return &ConstExprQ{Value: n.Value}, nil
-	case *nodes.BitLit:
-		return &ConstExprQ{Value: n.Value}, nil
-	case *nodes.TemporalLit:
-		return &ConstExprQ{Value: n.Value, IsString: true}, nil
-	case *nodes.VariableRef:
-		return &ConstExprQ{Value: n.Name}, nil
 	case *nodes.NextValueForExpr, *nodes.PreviousValueForExpr:
 		return nil, unsupportedAnalyzerExpr()
 	case *nodes.DefaultExpr:
@@ -183,6 +175,21 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 
 // analyzeFuncCall resolves a function call expression.
 func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	lower := strings.ToLower(fc.Name)
+	// Sequence functions (NEXTVAL, LASTVAL, SETVAL) take a sequence table
+	// identifier as their first argument, not a column reference. Analyze any
+	// remaining value arguments for column validity, then fall back to the
+	// unsupported-expression path so the sequence name is not misread as an
+	// unknown column (1054) or represented as a plain column argument in the IR.
+	if fc.Schema == "" && !fc.SpacedParen && len(fc.Args) >= 1 &&
+		(lower == "nextval" || lower == "lastval" || lower == "setval") {
+		for _, arg := range fc.Args[1:] {
+			if _, err := analyzeExpr(c, arg, scope); err != nil {
+				return nil, err
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
+	}
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
 		a, err := analyzeExpr(c, arg, scope)
@@ -191,7 +198,6 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		}
 		args = append(args, a)
 	}
-	lower := strings.ToLower(fc.Name)
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
 	}

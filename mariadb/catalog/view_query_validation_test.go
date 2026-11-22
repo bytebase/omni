@@ -209,4 +209,46 @@ func TestViewConvertPreservesCastIR(t *testing.T) {
 	if v2.AnalyzedQuery != nil {
 		t.Errorf("v2.AnalyzedQuery = %+v, want nil for unsupported CONVERT(... USING ...)", v2.AnalyzedQuery)
 	}
+
+	// Hex/bit literals have no distinct ConstExprQ kind yet, so AnalyzedQuery must stay nil
+	// rather than serialize them as quoted strings or decimal numbers.
+	for _, tc := range []struct{ name, sql string }{
+		{"v_hex", "CREATE VIEW v_hex AS SELECT 0x41 AS c"},
+		{"v_bit", "CREATE VIEW v_bit AS SELECT b'101' AS c"},
+	} {
+		if results, err := c.Exec(tc.sql, nil); err != nil || results[0].Error != nil {
+			t.Fatalf("Exec(%q) failed: parse=%v results=%+v", tc.sql, err, results)
+		}
+		if v := c.GetDatabase("test").Views[tc.name]; v.AnalyzedQuery != nil {
+			t.Errorf("%s.AnalyzedQuery = %+v, want nil for hex/bit literal", tc.name, v.AnalyzedQuery)
+		}
+	}
+}
+
+func TestViewSchemaQualifiedStarAcrossDatabasesAndSequenceFuncs(t *testing.T) {
+	c, err := LoadSQL(`
+		CREATE DATABASE db1;
+		CREATE DATABASE db2;
+		CREATE TABLE db1.t (x INT);
+		CREATE TABLE db2.t (y INT);
+		USE db1;
+		CREATE SEQUENCE s;
+	`)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	// db2.t.* must find db2.t even when db1.t precedes it in FROM.
+	if results, err := c.Exec("CREATE VIEW v_star AS SELECT db2.t.* FROM db1.t, db2.t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v_star failed: parse=%v results=%+v", err, results)
+	}
+	// Sequence functions referencing an existing sequence must not fail with 1054.
+	for _, sql := range []string{
+		"CREATE VIEW v_seq1 AS SELECT NEXTVAL(s) AS n FROM t",
+		"CREATE VIEW v_seq2 AS SELECT LASTVAL(s) AS n FROM t",
+		"CREATE VIEW v_seq3 AS SELECT SETVAL(s, 1) AS n FROM t",
+	} {
+		if results, err := c.Exec(sql, nil); err != nil || results[0].Error != nil {
+			t.Fatalf("Exec(%q) failed: parse=%v results=%+v", sql, err, results)
+		}
+	}
 }

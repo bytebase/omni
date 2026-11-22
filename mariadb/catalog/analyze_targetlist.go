@@ -126,7 +126,7 @@ func expandStar(schema, tableName string, q *Query, scope *analyzerScope, resNo 
 	} else {
 		// SELECT [db.]t.* — expand only the named table.
 		lower := toLower(tableName)
-		if i := scope.entryIndex(lower); i >= 0 && (schema == "" || scope.entryDBName(i) == "" || eqFoldStr(scope.entryDBName(i), schema)) {
+		if i := scope.entryIndexWithDB(schema, lower); i >= 0 {
 			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
 			if err != nil {
 				return nil, err

@@ -192,6 +192,25 @@ func (s *analyzerScope) visibleCTEs() map[string]*CommonTableExprQ {
 	return nil
 }
 
+// entryIndexWithDB finds the first entry matching both schema (when non-empty)
+// and lowered table/alias name. When schema is empty, it delegates to the
+// indexed entryIndex fast path.
+func (s *analyzerScope) entryIndexWithDB(schema, lowerName string) int {
+	if schema == "" {
+		return s.entryIndex(lowerName)
+	}
+	entries := s.base.AllEntries()
+	for i, e := range entries {
+		if toLower(e.Name) != lowerName {
+			continue
+		}
+		if s.dbNames[i] == "" || strings.EqualFold(s.dbNames[i], schema) {
+			return i
+		}
+	}
+	return -1
+}
+
 // entryDBName returns the database name recorded for scope entry i.
 func (s *analyzerScope) entryDBName(i int) string {
 	if i < 0 || i >= len(s.dbNames) {
