@@ -928,3 +928,55 @@ func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
 		})
 	}
 }
+
+// TestGetQuerySpan_ExprDotStarFailClosed verifies that arbitrary non-path
+// `expr.*` projections (such as `(SELECT AS STRUCT ...).*`, `fn().*`, or
+// `STRUCT(...).*`) fail closed instead of silently dropping output columns.
+func TestGetQuerySpan_ExprDotStarFailClosed(t *testing.T) {
+	cases := []string{
+		"SELECT (SELECT AS STRUCT secret FROM sensitive).*, 1 AS public",
+		"SELECT STRUCT(a AS x, b AS y).* FROM t",
+		"SELECT fn(a).* FROM t",
+	}
+	for _, sql := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if span, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded with results=%v, want fail-closed error", sql, dialect, span.Results)
+			}
+		}
+	}
+	// A parenthesized FROM relation `(t).*` still resolves to t's projection.
+	span, err := GetQuerySpan("SELECT (t).* FROM t", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(SELECT (t).* FROM t): %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "*" {
+		t.Errorf("SELECT (t).* FROM t results = %+v, want single star segment", span.Results)
+	}
+}
+
+// TestGetQuerySpan_GraphTableFailClosed verifies that GRAPH_TABLE(...) FROM
+// sources fail closed in GetQuerySpan (rather than returning an empty span)
+// while still walking embedded SQL subqueries for Classify.
+func TestGetQuerySpan_GraphTableFailClosed(t *testing.T) {
+	cases := []string{
+		"SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret AS secret))",
+		"SELECT * FROM GRAPH_TABLE(g MATCH (n) RETURN n.secret AS secret)",
+		"SELECT * FROM t JOIN GRAPH_TABLE(g MATCH (n) COLUMNS(n.id AS id)) gt ON t.id = gt.id",
+	}
+	for _, sql := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if span, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded with tables=%v results=%v, want fail-closed error", sql, dialect, span.AccessTables, span.Results)
+			}
+		}
+	}
+	// Classify is best-effort and still discovers tables inside embedded SQL
+	// subqueries in GRAPH_TABLE operators and COLUMNS expressions.
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) WHERE n.id IN (SELECT id FROM secret) COLUMNS(n.id))", DialectSpanner); got != Select {
+		t.Errorf("ClassifySQL(GRAPH_TABLE with subquery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS((SELECT id FROM INFORMATION_SCHEMA.TABLES) AS id))", DialectSpanner); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(GRAPH_TABLE with info_schema subquery) = %v, want SelectInfoSchema", got)
+	}
+}

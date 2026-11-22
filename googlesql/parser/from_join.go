@@ -63,8 +63,9 @@ func (p *Parser) parseJoinTree() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	var pendingJoins []*ast.JoinExpr
 	for {
-		joined, ok, err := p.tryParseJoinSuffix(left)
+		joined, ok, err := p.tryParseJoinSuffix(left, &pendingJoins)
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +81,7 @@ func (p *Parser) parseJoinTree() (ast.Node, error) {
 // (joinExpr, true, nil) on success, (nil, false, nil) when no JOIN follows, or
 // (nil, false, err) on a malformed join. A comma is NOT consumed here — the
 // top-level comma is handled by parseFromClause (comma cross join binds looser).
-func (p *Parser) tryParseJoinSuffix(left ast.Node) (ast.Node, bool, error) {
+func (p *Parser) tryParseJoinSuffix(left ast.Node, pendingJoins *[]*ast.JoinExpr) (ast.Node, bool, error) {
 	natural, joinType, joinHint, ok, err := p.tryParseJoinKeywords()
 	if err != nil {
 		return nil, false, err
@@ -106,17 +107,19 @@ func (p *Parser) tryParseJoinSuffix(left ast.Node) (ast.Node, bool, error) {
 	je.Loc = ast.Loc{Start: qLoc(left).Start, End: qLoc(right).End}
 
 	// ON / USING criteria. NATURAL and CROSS joins take no criteria; the others
-	// require exactly one (the grammar's on_or_using_clause_list is one-or-more,
-	// but a single criterion is the universal case — repeated ON/USING is a rare
-	// ZetaSQL extension we accept by consuming additional ones into the same
-	// node, keeping the last for the structured fields).
+	// push onto pendingJoins so consecutive ON/USING clauses (e.g.
+	// `a JOIN b JOIN c ON b.id = c.id ON a.id = b.id`) bind right-to-left to
+	// each pending join, while excess ON/USING clauses beyond the pending joins
+	// (e.g. `FROM a JOIN a ON NULL ON NULL`) are left unconsumed in BigQuery.
 	if !natural && joinType != ast.JoinCross {
-		if err := p.parseJoinCriteria(je); err != nil {
+		*pendingJoins = append(*pendingJoins, je)
+		consumed, err := p.parseJoinCriteria(je, pendingJoins)
+		if err != nil {
 			return nil, false, err
 		}
-	}
-	if je.On != nil || je.Using != nil {
-		je.Loc.End = p.prev.Loc.End
+		if consumed {
+			je.Loc.End = p.prev.Loc.End
+		}
 	}
 	return je, true, nil
 }
@@ -191,40 +194,43 @@ func (p *Parser) tryParseJoinKeywords() (natural bool, joinType ast.JoinType, jo
 }
 
 // parseJoinCriteria parses the ON / USING clause(s) of a join (on_or_using_
-// clause_list). The current token is just past the right source. It consumes one
-// or more ON/USING clauses; the structured fields hold the criteria (multiple
-// criteria — a ZetaSQL extension — are all consumed, with On/Using reflecting
-// the last, which suffices for parse parity and query-span).
-func (p *Parser) parseJoinCriteria(je *ast.JoinExpr) error {
-	for {
+// clause_list). The current token is just past the right source. Each clause
+// binds to the most recent unconditioned join on pendingJoins (supporting
+// BigQuery join sequences such as `a JOIN b JOIN c ON b.id = c.id ON a.id = b.id`).
+// In BigQuery dialect, once every pending join has been matched, any additional
+// ON/USING is left unconsumed so excess clauses on a single join are rejected.
+func (p *Parser) parseJoinCriteria(je *ast.JoinExpr, pendingJoins *[]*ast.JoinExpr) (bool, error) {
+	consumed := false
+	for p.cur.Type == kwON || p.cur.Type == kwUSING {
+		if p.isBigQuery() && len(*pendingJoins) == 0 {
+			return consumed, nil
+		}
+		target := je
+		if len(*pendingJoins) > 0 {
+			top := len(*pendingJoins) - 1
+			target = (*pendingJoins)[top]
+			*pendingJoins = (*pendingJoins)[:top]
+		}
 		switch p.cur.Type {
 		case kwON:
 			p.advance()
 			expr, err := p.parseExpr()
 			if err != nil {
-				return err
+				return consumed, err
 			}
-			je.On = expr
-			je.Using = nil
+			target.On = expr
+			target.Using = nil
 		case kwUSING:
 			cols, err := p.parseUsingClause()
 			if err != nil {
-				return err
+				return consumed, err
 			}
-			je.Using = cols
-			je.On = nil
-		default:
-			return nil
+			target.Using = cols
+			target.On = nil
 		}
-		// BigQuery accepts at most one ON/USING clause per JOIN.
-		if p.isBigQuery() {
-			return nil
-		}
-		// A second ON/USING immediately following is the repeated-criteria form.
-		if p.cur.Type != kwON && p.cur.Type != kwUSING {
-			return nil
-		}
+		consumed = true
 	}
+	return consumed, nil
 }
 
 // parseUsingClause parses `USING ( column (, column)* )` (using_clause). USING is

@@ -1477,6 +1477,19 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		w.walkPredicate(n.Func)
 		w.registerFromAlias(n.Alias)
 		rel = nil
+	case n.GraphTable != nil:
+		// A GRAPH_TABLE(graph MATCH ... [COLUMNS (...)]) source reads from a
+		// property graph whose backing tables and output columns are catalog-
+		// defined (not resolvable from SQL alone). Walk its operators and
+		// COLUMNS expressions through a graph boundary walker so any embedded
+		// SQL subqueries / CALL(TABLE ...) still record their AccessTables for
+		// Classify, and fail closed so GetQuerySpan never returns an empty
+		// span to masking or access-check consumers.
+		ew := &exprWalk{w: w, followSub: true}
+		ew.walkGraphNode(n.GraphTable)
+		w.registerFromAlias(n.Alias)
+		w.failClosed(fmt.Errorf("GRAPH_TABLE source cannot be resolved to table/column lineage without graph catalog metadata (fail closed)"))
+		rel = nil
 	case n.Path != nil:
 		// A multi-part path whose ROOT matches an earlier FROM alias/table in this
 		// SELECT is a correlated array/field unnest (`FROM T t, t.arr`), NOT a base
@@ -2412,6 +2425,20 @@ func (ew *exprWalk) walkGraphNodes(nodes []ast.Node) {
 // expressions), so each one that holds an expression is listed here.
 func (ew *exprWalk) walkGraphNode(node ast.Node) {
 	switch n := node.(type) {
+	case *ast.GraphTableQuery:
+		ew.walkGraphNodes(n.Ops)
+		for _, item := range n.Columns {
+			if item != nil {
+				ew.walk(item.Expr)
+				if item.Modifiers != nil {
+					for _, r := range item.Modifiers.Replace {
+						if r != nil {
+							ew.walk(r.Value)
+						}
+					}
+				}
+			}
+		}
 	case *ast.GraphSubqueryExpr:
 		ew.walkGraphNodes(n.Blocks)
 	case *ast.GraphExistsExpr:

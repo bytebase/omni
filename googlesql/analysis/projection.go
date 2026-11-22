@@ -407,6 +407,7 @@ func (w *spanWalker) resolveColumnStrict(relQualifier, column string) ([]ColumnR
 func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	parts := exprToParts(expr)
 	if len(parts) == 0 {
+		w.failClosed(fmt.Errorf("cannot resolve expression .* to a FROM relation's columns (fail closed)"))
 		return nil
 	}
 	// `rel.*`: a SINGLE-part qualifier naming a leaf relation reproduces that

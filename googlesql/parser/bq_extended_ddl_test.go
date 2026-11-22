@@ -157,6 +157,8 @@ func TestDialectBigQuery(t *testing.T) {
 		"FROM a FOR SYSTEM_TIME AS OF NULL zzz",
 		"FROM (a a)",
 		"FROM a JOIN a ON NULL ON NULL",
+		"SELECT * FROM a JOIN b JOIN c ON b.id = c.id ON a.id = b.id ON a.id = c.id",
+		"SELECT * FROM a CROSS JOIN b JOIN c ON b.id = c.id ON a.id = b.id",
 		"FROM UNNEST()",
 		"DROP CONNECTION a RESTRICT",
 		"DROP CONNECTION a CASCADE",
@@ -164,6 +166,26 @@ func TestDialectBigQuery(t *testing.T) {
 	for _, sql := range invalid {
 		if _, err := ParseWithDialect(sql, DialectBigQuery); err == nil {
 			t.Errorf("ParseWithDialect(%q, DialectBigQuery) expected error, got nil", sql)
+		}
+	}
+}
+
+func TestBigQueryConsecutiveJoinConditions(t *testing.T) {
+	valid := []string{
+		"SELECT * FROM a JOIN b JOIN c ON b.id = c.id ON a.id = b.id",
+		"SELECT * FROM a JOIN b JOIN c USING (id) ON a.id = b.id",
+		"SELECT * FROM a LEFT JOIN b INNER JOIN c ON b.id = c.id ON a.id = b.id",
+		"SELECT * FROM a JOIN b JOIN c JOIN d ON c.id = d.id ON b.id = c.id ON a.id = b.id",
+		"FROM a JOIN b JOIN c ON b.id = c.id ON a.id = b.id",
+	}
+	for _, sql := range valid {
+		file, err := ParseWithDialect(sql, DialectBigQuery)
+		if err != nil {
+			t.Errorf("ParseWithDialect(%q, DialectBigQuery) unexpected error: %v", sql, err)
+			continue
+		}
+		if len(file.Stmts) != 1 {
+			t.Errorf("ParseWithDialect(%q): got %d stmts, want 1", sql, len(file.Stmts))
 		}
 	}
 }

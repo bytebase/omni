@@ -468,6 +468,20 @@
 : string
 | {"verdict":"accept","kind":"ddl","reason":"ok","code":"OK"}
 > query
+| DROP MODEL TextEmbedder
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"verdict":"accept","kind":"ddl","reason":"semantic","code":"NotFound","message":"Model `TextEmbedder` not found."}
+> query
+| DROP MODEL IF EXISTS MyModel
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"verdict":"accept","kind":"ddl","reason":"ok","code":"OK"}
+> query
 | CREATE LOCALITY GROUP hot_data OPTIONS (storage = 'ssd')
 < result
 < column "verdict" "JSON"
