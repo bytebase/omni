@@ -298,57 +298,59 @@ It restores, from a synced snapshot:
   Oracle's dictionary does not carry the declared `START WITH`;
   `oracle/driver`'s sync reads every other option, so a dump of its snapshot
   restarts a sequence at its minimum value.
-- Tables, with columns, declared lengths, defaults (including `DEFAULT ON
-  NULL`), nullability, identity generation with seed and increment, virtual
-  columns, table and column comments, primary keys, unique and check
-  constraints, foreign keys with their `ON DELETE` action, and standalone
-  indexes (unique, bitmap, invisible, function-based). Tables that reference
-  each other are created first and their foreign keys added afterwards.
-- Views, with `WITH READ ONLY` and `WITH CHECK OPTION`, their comments and
-  triggers, ordered after the relations they read and the functions they call;
-  and materialized views, with the `BUILD`/`REFRESH` policy a snapshot carries,
-  their comments and their own indexes. Oracle's `SYS_C_SNAP$` container index is not written:
-  the view makes Oracle create it again, and its object id differs between
-  snapshots. `oracle/driver`'s sync reads `ALL_MVIEWS.QUERY` only, so a dump of
-  its snapshot restores the view without the policy.
-- Functions, procedures and triggers, whose bodies are written as stored text.
+- Tables, with columns, declared lengths, explicit non-default column
+  collations (omitting Oracle's default `USING_NLS_COMP`), defaults (including
+  `DEFAULT ON NULL`), nullability, identity generation with seed, increment, and
+  backing sequence options (`MINVALUE`, `MAXVALUE`, `CACHE`/`NOCACHE`, `CYCLE`,
+  `ORDER`, `KEEP`, `SCALE`/`EXTEND`, `SESSION`, `SHARD`), virtual columns,
+  table and column comments, primary keys, unique and check constraints, foreign
+  keys with their `ON DELETE` action, standalone indexes (unique, bitmap,
+  invisible, function-based), and table partitioning (`RANGE`, `LIST`, `HASH`,
+  `INTERVAL`, and composite subpartitions). Tables that reference each other are
+  created first and their foreign keys added afterwards.
+- Views, with explicit column alias lists (including `INVISIBLE` columns, kept
+  in Oracle's `INTERNAL_COLUMN_ID` projection order) whenever aliases or
+  visibility differ from the query's output columns, `WITH READ ONLY` and
+  `WITH CHECK OPTION`, their comments and triggers, ordered after the relations
+  they read and the functions they call; and materialized views, with their
+  `BUILD`/`REFRESH` policy (`BUILD DEFERRED`, `ON PREBUILT TABLE`, `REFRESH
+  COMPLETE`/`FAST`/`FORCE` `ON DEMAND`/`COMMIT`/`STATEMENT`, `NEVER REFRESH`,
+  and schedules), their comments and their own indexes. Oracle's `SYS_C_SNAP$`
+  container index is not written: the view makes Oracle create it again, and its
+  object id differs between snapshots.
+- Functions, procedures, packages (specification and body), triggers, private
+  synonyms, and schema-owned public synonyms (excluding Oracle's built-in system
+  public synonyms). Routine and package bodies are written as stored text.
 - Changes, as a migration: a key recreated under a new name becomes `RENAME
   CONSTRAINT`, so incoming foreign keys stay attached; a renamed table moves
   its triggers and incoming foreign keys; replaced keys detach and restore the
-  foreign keys they carry; and the statements are ordered around the
-  dependencies above.
+  foreign keys they carry; packages, synonyms, view column lists, identity
+  sequence options, and explicit collations diff and migrate; and the statements
+  are ordered around the dependencies above.
 
-The gaps, each pinned by a `TestDefinitionGaps` subtest that fails when it
-closes:
+The gaps, each pinned by a `TestDefinitionGaps` or `TestDumpGaps` subtest that
+fails when it closes:
 
 - **Routine and package bodies are stored text, not re-rendered.** A body that
   depends on editioning or a session setting is restored only as that text.
 - **Storage clauses, tablespace placement, compression, parallelism and other
-  physical attributes** are not in the metadata and are not emitted, including
-  a constraint's `USING INDEX` properties.
-- **Partitioning** is neither synced nor emitted, so a partitioned table
-  restores as a single heap table.
-- **External tables** are not carried either: `ORGANIZATION EXTERNAL` and its
-  location are dropped, so an external table restores as an empty heap table.
+  physical attributes** are not emitted, including a constraint's `USING INDEX`
+  storage properties.
+- **External tables** are not carried: `ORGANIZATION EXTERNAL`, its directory,
+  access parameters, and location are dropped, so an external table restores as
+  an empty heap table.
 - **Editioning views** are not a distinct metadata kind. `ALL_VIEWS.TEXT`
-  carries only the query, so an editioning view renders as an ordinary view,
-  and the parser does not accept the `EDITIONING` keyword besides.
+  carries only the query, so an editioning view renders as an ordinary view.
 - **Object tables and XMLType tables** are skipped: their DDL is their type,
   which is not a synced object. Sync marks them `SkipDump`, and DDL that names
   the type (`CREATE TABLE ... OF`) is refused rather than installed empty.
-- **View column aliases** are not emitted deliberately. `ALL_VIEWS.TEXT` does
-  not carry the alias list, and writing the synced column names can produce
-  fewer names than output columns for a view with an invisible column
-  (ORA-01730).
-- **Collation** is not emitted. Oracle's `USING_NLS_COMP` is the column default
-  and writing it back fails on sessions with a different string-size setting.
-- **Sequence options the metadata cannot represent.** A column carries an
-  identity's generation, seed and increment; its backing sequence's `CACHE`,
-  `CYCLE` and bounds have no field, so a definition drops them. A standalone
-  sequence's declared `START WITH` is not in the dictionary at all, so a dump
-  restarts it at `MINVALUE`.
-- **Packages, synonyms, public synonyms and database links** are kept in the
-  snapshot but not rendered, so a restored schema is missing them.
+- **Database links** are kept in the snapshot (`LinkedDatabases`) but not
+  rendered: Oracle's `ALL_DB_LINKS` withholds link passwords (and rejects
+  `CONNECT TO user` without `IDENTIFIED BY`), and `LinkedDatabaseMetadata`
+  carries neither the password nor whether the link is `PUBLIC` or private.
+- **Standalone sequence declared `START WITH`.** Oracle's dictionary
+  (`ALL_SEQUENCES`) does not retain a sequence's declared `START WITH` (only
+  `LAST_NUMBER`), so a dump restarts a standalone sequence at `MINVALUE`.
 - **A named `NOT NULL` constraint's name.** `ALTER TABLE ... MODIFY (...
   CONSTRAINT name NOT NULL)` does not carry the name through the parser, so a
   replay keeps the nullability and not the name. A named `NOT NULL` constraint

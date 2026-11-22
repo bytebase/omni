@@ -275,7 +275,7 @@ CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T;
 	if err != nil {
 		t.Fatal(err)
 	}
-	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
+	columnMap, _, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
 	if err != nil {
 		t.Fatal(err)
 	}

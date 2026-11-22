@@ -732,7 +732,7 @@
       "materializedViews":  [
         {
           "name":  "PARENT_MV",
-          "definition":  "SELECT ID, NAME FROM OMNI_APP.PARENT\n",
+          "definition":  "REFRESH COMPLETE ON DEMAND AS SELECT ID, NAME FROM OMNI_APP.PARENT\n",
           "comment":  "the parents, kept",
           "dependencyColumns":  [
             {

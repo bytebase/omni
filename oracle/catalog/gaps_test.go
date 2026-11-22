@@ -46,20 +46,6 @@ func TestDefinitionGaps(t *testing.T) {
 		}
 	})
 
-	t.Run("partitioning", func(t *testing.T) {
-		// Sync reads no partitioning and the catalog applies none, so a
-		// partitioned table restores as a single heap table.
-		c := load(t, `CREATE TABLE p (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10))`)
-		def := definition(t, c.Metadata())
-		if strings.Contains(def, "PARTITION") {
-			t.Fatalf("gap closed: render partitioning\n%s", def)
-		}
-		tables := c.Metadata().Schemas[0].Tables
-		if len(tables) == 1 && len(tables[0].Partitions) > 0 {
-			t.Fatal("gap closed: record a table's partitions")
-		}
-	})
-
 	t.Run("external table", func(t *testing.T) {
 		// ORGANIZATION EXTERNAL and its location are not in the metadata, so an
 		// external table restores as an empty heap table.
@@ -72,9 +58,8 @@ func TestDefinitionGaps(t *testing.T) {
 	})
 
 	t.Run("editioning view", func(t *testing.T) {
-		// EDITIONING is not a metadata kind. The parser does not accept the
-		// keyword either, and ALL_VIEWS.TEXT carries only the query, so a
-		// synced editioning view renders as an ordinary view.
+		// EDITIONING is not a metadata kind, and ALL_VIEWS.TEXT carries only
+		// the query, so a synced editioning view renders as an ordinary view.
 		def := definition(t, schemaWith(&metadatapb.SchemaMetadata{
 			Name: "APP",
 			Views: []*metadatapb.ViewMetadata{{
@@ -114,100 +99,19 @@ func TestDefinitionGaps(t *testing.T) {
 		}
 	})
 
-	t.Run("view column aliases", func(t *testing.T) {
-		// ALL_VIEWS.TEXT does not carry the alias list, and writing the synced
-		// column names can produce fewer names than output columns for a view
-		// with an invisible column (ORA-01730).
-		def := definition(t, schemaWith(&metadatapb.SchemaMetadata{
-			Name: "APP",
-			Views: []*metadatapb.ViewMetadata{{
-				Name:       "V",
-				Definition: "SELECT ID, NAME FROM T",
-				Columns: []*metadatapb.ColumnMetadata{
-					{Name: "RENAMED_ID"},
-					{Name: "RENAMED_NAME"},
-				},
-			}},
-		}))
-		if strings.Contains(def, `CREATE VIEW "V" (`) {
-			t.Fatalf("gap closed: render the view's column aliases\n%s", def)
-		}
-	})
-
-	t.Run("collation", func(t *testing.T) {
-		// USING_NLS_COMP is the column default, and writing it back fails on a
-		// session with a different string-size setting.
-		def := definition(t, schemaWith(&metadatapb.SchemaMetadata{
-			Name: "APP",
-			Tables: []*metadatapb.TableMetadata{{
-				Name: "T",
-				Columns: []*metadatapb.ColumnMetadata{
-					{Name: "V", Type: "VARCHAR2(20 BYTE)", Collation: "BINARY_CI", Nullable: true},
-				},
-			}},
-		}))
-		if strings.Contains(def, "COLLATE") {
-			t.Fatalf("gap closed: render the column's collation\n%s", def)
-		}
-	})
-
-	t.Run("package", func(t *testing.T) {
-		// A package is a synced object and the catalog keeps it, but a
-		// definition does not render it.
-		def := definition(t, schemaWith(&metadatapb.SchemaMetadata{
-			Name: "APP",
-			Packages: []*metadatapb.PackageMetadata{{
-				Name:       "PKG",
-				Definition: "CREATE OR REPLACE PACKAGE PKG AS PROCEDURE P; END PKG;",
-			}},
-		}))
-		if strings.Contains(def, "PACKAGE") {
-			t.Fatalf("gap closed: render a package\n%s", def)
-		}
-	})
-
-	t.Run("synonym and database link", func(t *testing.T) {
-		// A synonym is a synced object and a database link is a database one;
-		// neither renders, so a name a synonym supplies is missing after a
-		// restore and a link-dependent query fails.
-		meta := schemaWith(&metadatapb.SchemaMetadata{
-			Name: "APP",
-			Synonyms: []*metadatapb.SynonymMetadata{{
-				Name:         "S",
-				TargetSchema: "APP",
-				TargetName:   "T",
-			}},
-		})
-		meta.PublicSynonyms = []*metadatapb.SynonymMetadata{{
-			Name:         "PUB_S",
-			TargetSchema: "APP",
-			TargetName:   "T",
-		}}
+	t.Run("database link", func(t *testing.T) {
+		// Oracle's ALL_DB_LINKS withholds link passwords (and rejects CONNECT TO
+		// without IDENTIFIED BY), and LinkedDatabaseMetadata carries neither
+		// the password nor whether the link is PUBLIC or private.
+		meta := schemaWith(&metadatapb.SchemaMetadata{Name: "APP"})
 		meta.LinkedDatabases = []*metadatapb.LinkedDatabaseMetadata{{
 			Name:     "REMOTE",
 			Username: "U",
 			Host:     "example.com",
 		}}
 		def := definition(t, meta)
-		for _, object := range []string{"SYNONYM", "DATABASE LINK"} {
-			if strings.Contains(def, object) {
-				t.Fatalf("gap closed: render a %s\n%s", object, def)
-			}
-		}
-	})
-
-	t.Run("identity sequence options", func(t *testing.T) {
-		// The metadata carries an identity column's generation, seed and
-		// increment; its backing sequence's cache, cycle and bounds have no
-		// field, so a definition drops them.
-		def := definition(t, load(t, `CREATE TABLE i (id NUMBER GENERATED ALWAYS AS IDENTITY (START WITH 5 INCREMENT BY 2 CACHE 100 CYCLE MINVALUE 5))`).Metadata())
-		if !strings.Contains(def, "START WITH 5 INCREMENT BY 2") {
-			t.Fatalf("the identity seed and increment were lost:\n%s", def)
-		}
-		for _, option := range []string{"CACHE", "CYCLE", "MINVALUE"} {
-			if strings.Contains(def, option) {
-				t.Fatalf("gap closed: render the identity's %s\n%s", option, def)
-			}
+		if strings.Contains(def, "DATABASE LINK") {
+			t.Fatalf("gap closed: render a DATABASE LINK\n%s", def)
 		}
 	})
 

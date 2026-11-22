@@ -367,6 +367,18 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 		}
 	}
 
+	// Drop synonyms and packages before tables/views/routines they may reference.
+	for _, synDiff := range diff.SynonymChanges {
+		if synDiff.Action == DiffActionDrop {
+			writeDropSynonym(buf, synDiff.SchemaName, synDiff.SynonymName, synDiff.Public)
+		}
+	}
+	for _, pkgDiff := range diff.PackageChanges {
+		if pkgDiff.Action == DiffActionDrop {
+			writeDropPackage(buf, pkgDiff.SchemaName, pkgDiff.PackageName)
+		}
+	}
+
 	// Drop schemas (must be empty)
 	for _, schemaDiff := range diff.SchemaChanges {
 		if schemaDiff.Action == DiffActionDrop {
@@ -374,6 +386,16 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 			// This handles cases where the diff doesn't include objects within a schema being dropped
 			if schemaDiff.OldSchema != nil {
 				// Drop all objects in the schema in the correct order
+
+				// Drop synonyms
+				for _, syn := range schemaDiff.OldSchema.Synonyms {
+					writeDropSynonym(buf, schemaDiff.SchemaName, syn.Name, false)
+				}
+
+				// Drop packages
+				for _, pkg := range schemaDiff.OldSchema.Packages {
+					writeDropPackage(buf, schemaDiff.SchemaName, pkg.Name)
+				}
 
 				// Drop views first (they might depend on tables)
 				for _, view := range schemaDiff.OldSchema.Views {
@@ -940,6 +962,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	// Create/alter packages after tables, views, functions and procedures exist.
+	for _, pkgDiff := range diff.PackageChanges {
+		if pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter {
+			writePackageDiff(buf, pkgDiff)
+		}
+	}
+
 	for _, tableDiff := range diff.TableChanges {
 		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
 			continue
@@ -972,12 +1001,22 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	// category" -- so a metadata comment on one has no statement to render.
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
+
+	// Create/alter synonyms after target objects exist.
+	for _, synDiff := range diff.SynonymChanges {
+		if synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter {
+			writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+		}
+	}
 }
 
 func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMetadata, includeForeignKeys bool) (string, error) {
 	var buf strings.Builder
 
 	writeMigrationCreateTable(&buf, schemaName, tableName, table.Columns, table.CheckConstraints)
+	if err := writeTablePartitions(&buf, table.Partitions); err != nil {
+		return "", err
+	}
 
 	if _, err := buf.WriteString(";\n"); err != nil {
 		return "", err
@@ -1103,6 +1142,63 @@ func columnIdentityAlterClause(oldColumn, newColumn *metadatapb.ColumnMetadata) 
 	}
 	if oldColumn.GetIdentityIncrement() != newColumn.GetIdentityIncrement() && newColumn.GetIdentityIncrement() != 0 {
 		options = append(options, fmt.Sprintf("INCREMENT BY %d", newColumn.GetIdentityIncrement()))
+	}
+	oldOpt := parseColumnIdentityOptions(oldColumn.GetOptions())
+	newOpt := parseColumnIdentityOptions(newColumn.GetOptions())
+	if oldOpt.maxValue != newOpt.maxValue {
+		if newOpt.maxValue != "" {
+			options = append(options, "MAXVALUE "+newOpt.maxValue)
+		} else {
+			options = append(options, "NOMAXVALUE")
+		}
+	}
+	if oldOpt.minValue != newOpt.minValue {
+		if newOpt.minValue != "" {
+			options = append(options, "MINVALUE "+newOpt.minValue)
+		} else {
+			options = append(options, "NOMINVALUE")
+		}
+	}
+	if oldOpt.cache != newOpt.cache {
+		if newOpt.cache == "0" {
+			options = append(options, "NOCACHE")
+		} else if newOpt.cache != "" {
+			options = append(options, "CACHE "+newOpt.cache)
+		} else {
+			options = append(options, "CACHE "+oracleDefaultSeqCache)
+		}
+	}
+	if oldOpt.cycle != newOpt.cycle {
+		if newOpt.cycle {
+			options = append(options, "CYCLE")
+		} else {
+			options = append(options, "NOCYCLE")
+		}
+	}
+	if oldOpt.order != newOpt.order {
+		if newOpt.order {
+			options = append(options, "ORDER")
+		} else {
+			options = append(options, "NOORDER")
+		}
+	}
+	if oldOpt.keep != newOpt.keep {
+		if newOpt.keep {
+			options = append(options, "KEEP")
+		} else {
+			options = append(options, "NOKEEP")
+		}
+	}
+	if oldOpt.scale != newOpt.scale || oldOpt.extend != newOpt.extend {
+		if newOpt.scale {
+			if newOpt.extend {
+				options = append(options, "SCALE EXTEND")
+			} else {
+				options = append(options, "SCALE NOEXTEND")
+			}
+		} else {
+			options = append(options, "NOSCALE")
+		}
 	}
 	if len(options) > 0 {
 		mode += " (" + strings.Join(options, " ") + ")"
@@ -1548,7 +1644,8 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			colDiff.OldColumn.GetIdentityGeneration() != colDiff.NewColumn.GetIdentityGeneration() ||
 			colDiff.OldColumn.GetIdentitySeed() != colDiff.NewColumn.GetIdentitySeed() ||
 			colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() ||
-			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull()
+			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull() ||
+			!slices.Equal(colDiff.OldColumn.GetOptions(), colDiff.NewColumn.GetOptions())
 	}
 	if identityChanged && !identityDropped {
 		switch {
@@ -1581,6 +1678,14 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 	if virtualChanged {
 		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type+" AS ("+newGeneration.Expression+")")
 		writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
+	}
+
+	if explicitOracleCollation(colDiff.OldColumn.GetCollation()) != explicitOracleCollation(colDiff.NewColumn.GetCollation()) {
+		collation := explicitOracleCollation(colDiff.NewColumn.GetCollation())
+		if collation == "" {
+			collation = "USING_NLS_COMP"
+		}
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "COLLATE "+collation)
 	}
 
 	if colDiff.OldColumn.IsInvisible != colDiff.NewColumn.IsInvisible {
@@ -2031,8 +2136,12 @@ func writeAddColumn(out *strings.Builder, schema, table string, column *metadata
 }
 
 // writeColumnAttributes writes what follows a column's type in CREATE TABLE
-// and ADD: visibility, then the virtual expression or the default, then NOT NULL.
+// and ADD: collation, visibility, then the virtual expression or the default, then NOT NULL.
 func writeColumnAttributes(out *strings.Builder, column *metadatapb.ColumnMetadata) {
+	if collation := explicitOracleCollation(column.Collation); collation != "" {
+		_, _ = out.WriteString(` COLLATE `)
+		_, _ = out.WriteString(collation)
+	}
 	if column.IsInvisible {
 		_, _ = out.WriteString(` INVISIBLE`)
 	}
@@ -2247,6 +2356,16 @@ func hasCreateViewsOrFunctions(diff *MetadataDiff) bool {
 			return true
 		}
 	}
+	for _, pkgDiff := range diff.PackageChanges {
+		if pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, synDiff := range diff.SynonymChanges {
+		if synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
 	return false
 }
 
@@ -2421,6 +2540,88 @@ func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
 	}
 }
 
+func writeDropPackage(out *strings.Builder, schema, pkg string) {
+	_, _ = out.WriteString(`DROP PACKAGE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + pkg + `";` + "\n")
+}
+
+func writePackageDiff(out *strings.Builder, pkgDiff *PackageDiff) {
+	if pkgDiff.NewPackage == nil {
+		return
+	}
+	definition := strings.TrimSpace(pkgDiff.NewPackage.GetDefinition())
+	if definition == "" {
+		return
+	}
+	if pkgDiff.Action == DiffActionAlter {
+		if !strings.HasPrefix(strings.ToUpper(definition), "CREATE") {
+			definition = "CREATE OR REPLACE " + definition
+		} else {
+			var parts []string
+			for _, seg := range oracleparser.Split(definition) {
+				if seg.Empty() {
+					continue
+				}
+				unit := alterRoutineDefinition(strings.TrimSpace(seg.Text))
+				if !strings.HasSuffix(unit, ";") {
+					unit += ";"
+				}
+				parts = append(parts, unit)
+			}
+			if len(parts) > 0 {
+				definition = strings.Join(parts, "\n\n")
+			}
+		}
+	}
+	_ = writePackage(out, &metadatapb.PackageMetadata{
+		Name:       pkgDiff.NewPackage.GetName(),
+		Definition: definition,
+	})
+}
+
+func writeDropSynonym(out *strings.Builder, schema, synonym string, public bool) {
+	if public {
+		_, _ = out.WriteString(`DROP PUBLIC SYNONYM "` + synonym + `";` + "\n")
+		return
+	}
+	_, _ = out.WriteString(`DROP SYNONYM `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + synonym + `";` + "\n")
+}
+
+func writeSynonymDiff(out *strings.Builder, databaseName string, synDiff *SynonymDiff) {
+	if synDiff.NewSynonym == nil {
+		return
+	}
+	syn := synDiff.NewSynonym
+	if synDiff.Public {
+		_, _ = out.WriteString(`CREATE OR REPLACE PUBLIC SYNONYM "` + syn.GetName() + `" FOR `)
+	} else {
+		_, _ = out.WriteString(`CREATE OR REPLACE SYNONYM `)
+		if synDiff.SchemaName != "" {
+			_, _ = out.WriteString(`"` + synDiff.SchemaName + `".`)
+		}
+		_, _ = out.WriteString(`"` + syn.GetName() + `" FOR `)
+	}
+	defaultSchema := synDiff.SchemaName
+	if defaultSchema == "" {
+		defaultSchema = databaseName
+	}
+	if targetSchema := syn.GetTargetSchema(); targetSchema != "" && targetSchema != defaultSchema {
+		_, _ = out.WriteString(`"` + targetSchema + `".`)
+	}
+	_, _ = out.WriteString(`"` + syn.GetTargetName() + `"`)
+	if dbLink := syn.GetTargetDbLink(); dbLink != "" {
+		_, _ = out.WriteString(`@` + formatDBLinkName(dbLink))
+	}
+	_, _ = out.WriteString(";\n")
+}
+
 func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string]*ViewDiff, materializedViews map[string]*MaterializedViewDiff) {
 	graph := newGraph()
 	for key, diff := range views {
@@ -2501,6 +2702,9 @@ func writeMigrationView(out *strings.Builder, schema string, view *metadatapb.Vi
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(view.Name)
 	_, _ = out.WriteString(`"`)
+	if viewNeedsColumnList(view) {
+		_ = writeViewColumnList(out, view.Columns)
+	}
 	if materializedViewDefinitionHasClause(view.Definition) {
 		_, _ = out.WriteString(` `)
 	} else {

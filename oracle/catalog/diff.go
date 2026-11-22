@@ -112,6 +112,23 @@ type SequenceDiff struct {
 	NewSequence  *metadatapb.SequenceMetadata
 }
 
+type PackageDiff struct {
+	Action      DiffAction
+	SchemaName  string
+	PackageName string
+	OldPackage  *metadatapb.PackageMetadata
+	NewPackage  *metadatapb.PackageMetadata
+}
+
+type SynonymDiff struct {
+	Action      DiffAction
+	SchemaName  string
+	SynonymName string
+	Public      bool
+	OldSynonym  *metadatapb.SynonymMetadata
+	NewSynonym  *metadatapb.SynonymMetadata
+}
+
 // MetadataDiff is the full diff between two metadata snapshots.
 type MetadataDiff struct {
 	DatabaseName string
@@ -126,6 +143,8 @@ type MetadataDiff struct {
 	FunctionChanges         []*FunctionDiff
 	ProcedureChanges        []*ProcedureDiff
 	SequenceChanges         []*SequenceDiff
+	PackageChanges          []*PackageDiff
+	SynonymChanges          []*SynonymDiff
 
 	preAltered   map[*ColumnDiff]bool
 	preAdded     map[*ColumnDiff]bool
@@ -146,7 +165,9 @@ func (d *SchemaDiff) IsEmpty() bool {
 		len(d.MaterializedViewChanges) == 0 &&
 		len(d.FunctionChanges) == 0 &&
 		len(d.ProcedureChanges) == 0 &&
-		len(d.SequenceChanges) == 0
+		len(d.SequenceChanges) == 0 &&
+		len(d.PackageChanges) == 0 &&
+		len(d.SynonymChanges) == 0
 }
 
 // Diff compares two catalog states and returns every difference.
@@ -191,6 +212,8 @@ func Diff(from, to *Catalog) *SchemaDiff {
 		}
 		diff.SchemaChanges = append(diff.SchemaChanges, &SchemaDiffEntry{Action: DiffActionDrop, SchemaName: name, OldSchema: oldSchema})
 	}
+
+	comparePublicSynonyms(diff, oldMeta, newMeta)
 
 	sortDiff(diff)
 	return diff
@@ -244,6 +267,22 @@ func sequenceByName(schema *metadatapb.SchemaMetadata) map[string]*metadatapb.Se
 	return out
 }
 
+func packageByName(schema *metadatapb.SchemaMetadata) map[string]*metadatapb.PackageMetadata {
+	out := make(map[string]*metadatapb.PackageMetadata, len(schema.GetPackages()))
+	for _, pkg := range schema.GetPackages() {
+		out[pkg.GetName()] = pkg
+	}
+	return out
+}
+
+func synonymByName(synonyms []*metadatapb.SynonymMetadata) map[string]*metadatapb.SynonymMetadata {
+	out := make(map[string]*metadatapb.SynonymMetadata, len(synonyms))
+	for _, syn := range synonyms {
+		out[syn.GetName()] = syn
+	}
+	return out
+}
+
 func functionKey(fn *metadatapb.FunctionMetadata) string {
 	if fn.GetSignature() != "" {
 		return fn.GetSignature()
@@ -291,6 +330,12 @@ func addNewSchemaObjects(diff *MetadataDiff, schemaName string, schema *metadata
 		if !seq.GetSkipDump() {
 			diff.SequenceChanges = append(diff.SequenceChanges, &SequenceDiff{Action: DiffActionCreate, SchemaName: schemaName, SequenceName: seq.GetName(), NewSequence: seq})
 		}
+	}
+	for _, pkg := range schema.GetPackages() {
+		diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionCreate, SchemaName: schemaName, PackageName: pkg.GetName(), NewPackage: pkg})
+	}
+	for _, syn := range schema.GetSynonyms() {
+		diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionCreate, SchemaName: schemaName, SynonymName: syn.GetName(), NewSynonym: syn})
 	}
 }
 
@@ -404,6 +449,74 @@ func compareSchemaObjects(diff *MetadataDiff, schemaName string, oldSchema, newS
 			diff.SequenceChanges = append(diff.SequenceChanges, &SequenceDiff{Action: DiffActionAlter, SchemaName: schemaName, SequenceName: name, OldSequence: oldSeq, NewSequence: newSeq})
 		}
 	}
+
+	oldPkgs, newPkgs := packageByName(oldSchema), packageByName(newSchema)
+	for name, oldPkg := range oldPkgs {
+		if _, ok := newPkgs[name]; !ok {
+			diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionDrop, SchemaName: schemaName, PackageName: name, OldPackage: oldPkg})
+		}
+	}
+	for name, newPkg := range newPkgs {
+		oldPkg, ok := oldPkgs[name]
+		if !ok {
+			diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionCreate, SchemaName: schemaName, PackageName: name, NewPackage: newPkg})
+		} else if oldPkg.GetDefinition() != newPkg.GetDefinition() {
+			diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionAlter, SchemaName: schemaName, PackageName: name, OldPackage: oldPkg, NewPackage: newPkg})
+		}
+	}
+
+	oldSyns, newSyns := synonymByName(oldSchema.GetSynonyms()), synonymByName(newSchema.GetSynonyms())
+	for name, oldSyn := range oldSyns {
+		if _, ok := newSyns[name]; !ok {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionDrop, SchemaName: schemaName, SynonymName: name, OldSynonym: oldSyn})
+		}
+	}
+	for name, newSyn := range newSyns {
+		oldSyn, ok := oldSyns[name]
+		if !ok {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionCreate, SchemaName: schemaName, SynonymName: name, NewSynonym: newSyn})
+		} else if !synonymEqual(oldSyn, newSyn, schemaName) {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionAlter, SchemaName: schemaName, SynonymName: name, OldSynonym: oldSyn, NewSynonym: newSyn})
+		}
+	}
+}
+
+func comparePublicSynonyms(diff *MetadataDiff, oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata) {
+	oldDB := oldMeta.GetName()
+	if oldDB == "" && len(oldMeta.GetSchemas()) > 0 {
+		oldDB = oldMeta.GetSchemas()[0].GetName()
+	}
+	newDB := newMeta.GetName()
+	if newDB == "" && len(newMeta.GetSchemas()) > 0 {
+		newDB = newMeta.GetSchemas()[0].GetName()
+	}
+	oldSyns := synonymByName(dumpablePublicSynonyms(oldMeta.GetPublicSynonyms(), oldDB))
+	newSyns := synonymByName(dumpablePublicSynonyms(newMeta.GetPublicSynonyms(), newDB))
+	for name, oldSyn := range oldSyns {
+		if _, ok := newSyns[name]; !ok {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionDrop, SynonymName: name, Public: true, OldSynonym: oldSyn})
+		}
+	}
+	for name, newSyn := range newSyns {
+		oldSyn, ok := oldSyns[name]
+		if !ok {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionCreate, SynonymName: name, Public: true, NewSynonym: newSyn})
+		} else if !synonymEqual(oldSyn, newSyn, newDB) {
+			diff.SynonymChanges = append(diff.SynonymChanges, &SynonymDiff{Action: DiffActionAlter, SynonymName: name, Public: true, OldSynonym: oldSyn, NewSynonym: newSyn})
+		}
+	}
+}
+
+func synonymEqual(a, b *metadatapb.SynonymMetadata, defaultSchema string) bool {
+	schemaOf := func(s string) string {
+		if s == "" {
+			return defaultSchema
+		}
+		return s
+	}
+	return schemaOf(a.GetTargetSchema()) == schemaOf(b.GetTargetSchema()) &&
+		a.GetTargetName() == b.GetTargetName() &&
+		a.GetTargetDbLink() == b.GetTargetDbLink()
 }
 
 func compareTable(schemaName, tableName string, oldTable, newTable *metadatapb.TableMetadata) *TableDiff {
@@ -457,12 +570,13 @@ func columnEqual(a, b *metadatapb.ColumnMetadata) bool {
 		a.GetOnUpdate() == b.GetOnUpdate() &&
 		a.GetComment() == b.GetComment() &&
 		a.GetCharacterSet() == b.GetCharacterSet() &&
-		a.GetCollation() == b.GetCollation() &&
+		explicitOracleCollation(a.GetCollation()) == explicitOracleCollation(b.GetCollation()) &&
 		a.GetIsInvisible() == b.GetIsInvisible() &&
 		a.GetIsIdentity() == b.GetIsIdentity() &&
 		a.GetIdentityGeneration() == b.GetIdentityGeneration() &&
 		a.GetIdentitySeed() == b.GetIdentitySeed() &&
 		a.GetIdentityIncrement() == b.GetIdentityIncrement() &&
+		slices.Equal(a.GetOptions(), b.GetOptions()) &&
 		generationEqual(a.GetGeneration(), b.GetGeneration())
 }
 
@@ -722,7 +836,27 @@ func viewChanged(a, b *metadatapb.ViewMetadata) bool {
 }
 
 func viewNeedsRecreate(a, b *metadatapb.ViewMetadata) bool {
-	return a.GetDefinition() != b.GetDefinition() || normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers())
+	return a.GetDefinition() != b.GetDefinition() ||
+		!viewColumnsEqual(a, b) ||
+		normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers())
+}
+
+func viewColumnsEqual(a, b *metadatapb.ViewMetadata) bool {
+	aNeeds := viewNeedsColumnList(a)
+	bNeeds := viewNeedsColumnList(b)
+	if !aNeeds && !bNeeds {
+		return true
+	}
+	if aNeeds != bNeeds || len(a.GetColumns()) != len(b.GetColumns()) {
+		return false
+	}
+	for i, ca := range a.GetColumns() {
+		cb := b.GetColumns()[i]
+		if ca.GetName() != cb.GetName() || ca.GetIsInvisible() != cb.GetIsInvisible() {
+			return false
+		}
+	}
+	return true
 }
 
 func materializedViewChanged(a, b *metadatapb.MaterializedViewMetadata) bool {
@@ -865,6 +999,18 @@ func sortDiff(diff *MetadataDiff) {
 	})
 	slices.SortFunc(diff.SequenceChanges, func(a, b *SequenceDiff) int {
 		return compareNameAction(a.SchemaName, a.SequenceName, a.Action, b.SchemaName, b.SequenceName, b.Action)
+	})
+	slices.SortFunc(diff.PackageChanges, func(a, b *PackageDiff) int {
+		return compareNameAction(a.SchemaName, a.PackageName, a.Action, b.SchemaName, b.PackageName, b.Action)
+	})
+	slices.SortFunc(diff.SynonymChanges, func(a, b *SynonymDiff) int {
+		if a.Public != b.Public {
+			if a.Public {
+				return 1
+			}
+			return -1
+		}
+		return compareNameAction(a.SchemaName, a.SynonymName, a.Action, b.SchemaName, b.SynonymName, b.Action)
 	})
 }
 
