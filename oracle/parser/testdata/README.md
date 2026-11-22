@@ -8,9 +8,11 @@ the pinned Oracle's (`../../testdata/pins.tsv`). `TestCompatibility`
 (`../compat_test.go`) reads it through `enginetest/compat` and starts no
 server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
-same file. A rejection carries the byte Oracle reports it at. The counts here
-are the file as it stands at judge revision 4 (`PinRole: "parser"` in
-`../../testdata/pins.tsv`, `judge:4`), after #1473, #1475, #1480, #1483,
+same file. At judge revision 5 (`PinRole: "parser"` in `../../testdata/pins.tsv`,
+`judge:5`), `compat.tsv` records coarse `accept`/`reject` verdicts while exact
+`ParseError.Position` byte offsets are pinned separately in `TestErrorPositions`
+(`../parse_errors_test.go`). The counts here are the file as it stands at judge
+revision 5, after #1473, #1475, #1480, #1483,
 #1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings),
 Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings),
 Wave 4 (inline external table driver types and remaining grammar readings),
@@ -28,19 +30,21 @@ subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
 XMLTYPE` per `CREATE-VIEW.bnf`, `CREATE TABLE ENABLE CONSTRAINTS`, and
 `CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal),
 judge revision 4 (`MAX_STRING_SIZE=EXTENDED`, `TYPE`/`DIMENSION` fixtures, and
-offset-preserving stand-ins), and Wave 9 (`ALTER TABLE` `COLLATE`/`NO DELETE
+offset-preserving stand-ins), Wave 9 (`ALTER TABLE` `COLLATE`/`NO DELETE
 UNTIL ... DAYS`, `DEFAULT COLLATION`, `CREATE SYNONYM SHARING`, `CREATE PFILE`,
 traditional `AUDIT` options, `CREATE FUNCTION SHARING` placement, `ALTER TYPE`
 modifiers & `CASCADE`, `ALTER MATERIALIZED VIEW USING ROLLBACK`, `CREATE
 MATERIALIZED VIEW` column `INMEMORY`, `CREATE`/`ALTER PLUGGABLE DATABASE`
-`AS CLONE`/`RECOVER`, and `ASSOCIATE STATISTICS USING NULL`):
+`AS CLONE`/`RECOVER`, and `ASSOCIATE STATISTICS USING NULL`), and judge revision
+5 (coarse `accept`/`reject` verdicts, expanded `JudgeFixture`, `CREATE LIBRARY`/
+`CREATE MLE` grants, and rev-5 stand-ins and stack diagnostics):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 14,316 | 150 | 4 | 64 |
-| Near-misses | 31,318 | 30,466 | 748 | 100 | 4 |
-| Hand rows | 1,010 | 921 | 70 | 17 | 2 |
+| One per alternative | 14,534 | 8,612 | 5,837 | 47 | 38 |
+| Near-misses | 31,318 | 1,283 | 29,978 | 11 | 46 |
+| Hand rows | 1,010 | 616 | 393 | 1 | 0 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -82,9 +86,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 77 | 0 | 0 | 0 |
-| `suite:reference` | 321 | 249 | 56 | 16 | 0 |
-| `suite:manifest` | 612 | 595 | 14 | 1 | 2 |
+| `suite:lexer` | 77 | 55 | 22 | 0 | 0 |
+| `suite:reference` | 321 | 133 | 188 | 0 | 0 |
+| `suite:manifest` | 612 | 428 | 183 | 1 | 0 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -666,10 +670,50 @@ and moved **45 net rows** to Oracle's exact cell (`45,658 / 46,862` ->
 | `ALTER TABLE NO DELETE UNTIL n DAYS AFTER INSERT` | 2 `oo` (+3 `off` exact) | require plural `DAYS` (`ORA-02000`) |
 | `CREATE PFILE = 'file'`, `CREATE PLUGGABLE DATABASE AS CLONE USING`, `ASSOCIATE STATISTICS USING NULL` | 3 `oo` (+1 `off` exact) | require `=` in `CREATE PFILE`, place `AS CLONE` before `USING`, and restrict `USING NULL` to `COLUMNS`/`INDEXES` (`ORA-29936`) |
 
-Zero genuine `oracle/parser` grammar bugs remain among the 121 `only_oracle` and
-70 `only_omni` rows at judge revision 4: every remaining discrepancy is a judge
-blind spot, server setup/feature refusal, or byte-offset difference addressed in
-judge revision 5.
+Zero genuine `oracle/parser` grammar bugs remained among the 121 `only_oracle`
+and 70 `only_omni` rows at judge revision 4: every remaining discrepancy was a
+judge blind spot, server setup/feature refusal, or byte-offset difference
+addressed in judge revision 5 below.
+
+### Judge revision 5 (`PinRole: "parser"`, `judge:5`)
+
+Rejudging `compat.tsv` at `parser` pin revision 5 (`OMNI_RECORD=1` followed by
+full 46,862-row `OMNI_RECORD=verify` on a fresh container, zero Go edits)
+switches the engine's `expected` column to coarse `accept`/`reject` verdicts
+(while `omni` cells stay untouched at `reject@<byte>` in this pin-bump commit
+so `compatcheck` records zero regressions; `omniVerdictOnly` switches `omni` to
+coarse `reject` once Wave 10 closes the remaining 143 verdict gaps). Verdict
+agreement moved from `46,671 / 46,862` (99.59%) to **`46,719 / 46,862`
+(99.69%)** (`10,511` exact `accept`/`accept` + `36,208` both-reject `reject@N`/
+`reject`; exact `ParseError.Position` byte offsets remain pinned in
+`TestErrorPositions` in `../parse_errors_test.go`):
+
+- `suite:lexer`: **77 / 77 (100% verdict)** (`55` accept, `22` both-reject)
+- `suite:reference`: **321 / 321 (100% verdict)** (`133` accept, `188` both-reject)
+- `suite:manifest`: **611 / 612 verdict** (`MERGE INTO USING s ON ...` is the
+  sole remaining hand row)
+- `only_oracle`: 121 -> **59** (45 duplicate-column `(a, a)` rows from Wave 5
+  now parsed past `ORA-00957` via the rev-5 `a -> b` stand-in, 4 `ALTER TABLE`/
+  `ALTER MATERIALIZED VIEW` `SPLIT PARTITION ... NESTED TABLE ... INTO
+  (PARTITION, ...)` rows, 4 `ALTER MATERIALIZED VIEW LOG ... SPLIT
+  [SUB]PARTITION ... DEPENDENT TABLES` / `ALLOW CLUSTERING` rows, 4 `ALTER
+  TABLE UPGRADE INCLUDING DATA` `JSON`/`VARRAY` `STORE AS` rows, 1 `CREATE
+  INMEMORY JOIN GROUP` comma-optional row, and 1 `MERGE INTO` optional-`USING`
+  row)
+- `only_omni`: 70 -> **84** (exposing rev-3/4 loose parser workarounds now
+  properly rejected by live Oracle 23ai: 29 `CREATE LIBRARY` rows unlocked by
+  `CREATE LIBRARY` privilege, 24 `REVOKE REVOKE` / `GRANT ... a.FUNCTION` rows
+  previously masked by `ORA-28700`/`28701`, 12 `ALTER MATERIALIZED VIEW ... SET
+  SUBPARTITION TEMPLATE SUBPARTITIONS` rows previously masked by `ORA-14156`, 9
+  `ALTER MATERIALIZED VIEW ... INMEMORY INMEMORY` rows previously masked by
+  `ORA-64350`, 8 bare `CREATE AUDIT POLICY a` rows with no audit option, 1
+  truncated `ALTER PLUGGABLE DATABASE SNAPSHOT` row, and 1 `ALTER TABLE ...
+  INMEMORY INMEMORY NO` row)
+
+All 143 remaining verdict gaps (`59 only_oracle` + `84 only_omni`) are real
+`oracle/parser` updates deferred to Wave 10 in a separate PR (keeping this
+pin-bump recording free of Go edits), followed by switching `Omni` to
+`omniVerdictOnly` for `46,862 / 46,862 (100.00%)`.
 
 ## Tapes
 
