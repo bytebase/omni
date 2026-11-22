@@ -175,8 +175,8 @@ func (p *parser) parseCreateTableStmt(start int, action string, orReplace bool) 
 		}
 	}
 
-	// Optional engineClause
-	if p.cur().Type == KwEngine {
+	// Optional engineClause (ENGINE itself is optional when relying on default_table_engine)
+	if p.isEngineClauseStart() {
 		ec, err := p.parseEngineClause()
 		if err != nil {
 			return nil, err
@@ -556,15 +556,42 @@ func (p *parser) parseDictSourceOrLayout() (*DictionaryConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg, err := p.parseDictConfigBody(start, name)
+	if err != nil {
+		return nil, err
+	}
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	cfg.End = rp.End
+	return cfg, nil
+}
+
+func (p *parser) parseDictConfigBody(start int, name string) (*DictionaryConfig, error) {
+	if err := p.enter(); err != nil {
+		return nil, err
+	}
+	defer p.leave()
+
 	if _, err := p.expect(TokLParen); err != nil {
 		return nil, err
 	}
 	var params []*SettingExpr
+	var children []*DictionaryConfig
 	for p.cur().Type != TokRParen && p.cur().Type != TokEOF {
 		kStart := p.cur().Pos
 		key, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
+		}
+		if p.cur().Type == TokLParen {
+			child, err := p.parseDictConfigBody(kStart, key)
+			if err != nil {
+				return nil, err
+			}
+			children = append(children, child)
+			continue
 		}
 		var val Expr
 		if isLiteralStart(p.cur(), p.peek(1)) {
@@ -594,17 +621,15 @@ func (p *parser) parseDictSourceOrLayout() (*DictionaryConfig, error) {
 			Value: val,
 		})
 	}
-	if _, err := p.expect(TokRParen); err != nil {
-		return nil, err
-	}
 	rp, err := p.expect(TokRParen)
 	if err != nil {
 		return nil, err
 	}
 	return &DictionaryConfig{
-		span:   span{Pos: start, End: rp.End},
-		Name:   name,
-		Params: params,
+		span:     span{Pos: start, End: rp.End},
+		Name:     name,
+		Params:   params,
+		Children: children,
 	}, nil
 }
 
@@ -1121,20 +1146,23 @@ func (p *parser) parseTableIndexDfnt(start int) (*TableElement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.expect(KwGranularity); err != nil {
-		return nil, err
-	}
-	gran, err := p.expect(TokInt)
-	if err != nil {
-		return nil, err
+	end := dt.End
+	granVal := ""
+	if p.match(KwGranularity) {
+		gran, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
+		}
+		granVal = gran.Raw
+		end = gran.End
 	}
 	return &TableElement{
-		span:        span{Pos: start, End: gran.End},
+		span:        span{Pos: start, End: end},
 		Kind:        "INDEX",
 		Name:        name,
 		Type:        dt,
 		Expr:        expr,
-		Granularity: gran.Raw,
+		Granularity: granVal,
 	}, nil
 }
 
@@ -1269,15 +1297,40 @@ func (p *parser) parseEngineExpr() (*EngineExpr, error) {
 	return eng, nil
 }
 
-func (p *parser) parseEngineClause() (*EngineClause, error) {
-	eng, err := p.parseEngineExpr()
-	if err != nil {
-		return nil, err
+func (p *parser) isEngineClauseStart() bool {
+	switch p.cur().Type {
+	case KwEngine, KwTtl, KwSettings:
+		return true
+	case KwOrder, KwPartition, KwSample:
+		return p.peek(1).Type == KwBy
+	case KwPrimary:
+		return p.peek(1).Type == KwKey
+	default:
+		return false
 	}
-	ec := &EngineClause{span: eng.span, Engine: eng}
+}
+
+func (p *parser) parseEngineClause() (*EngineClause, error) {
+	start := p.cur().Pos
+	ec := &EngineClause{span: span{Pos: start}}
 	seen := map[string]bool{}
+	if p.cur().Type == KwEngine {
+		eng, err := p.parseEngineExpr()
+		if err != nil {
+			return nil, err
+		}
+		ec.Engine = eng
+		seen["engine"] = true
+	}
 	for {
 		switch {
+		case p.cur().Type == KwEngine && !seen["engine"]:
+			seen["engine"] = true
+			eng, err := p.parseEngineExpr()
+			if err != nil {
+				return nil, err
+			}
+			ec.Engine = eng
 		case p.cur().Type == KwOrder && p.peek(1).Type == KwBy:
 			if seen["order"] {
 				return nil, p.errAt(p.cur(), "duplicate ORDER BY clause")

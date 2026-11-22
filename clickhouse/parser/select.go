@@ -333,7 +333,7 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 }
 
 func (p *parser) parseSelectProjection(stmt *SelectStmt) error {
-	// DISTINCT [ON (...)]
+	// DISTINCT [ON (...)] | ALL
 	if p.match(KwDistinct) {
 		stmt.Distinct = true
 		if p.cur().Type == KwOn && p.peek(1).Type == TokLParen {
@@ -348,6 +348,9 @@ func (p *parser) parseSelectProjection(stmt *SelectStmt) error {
 			}
 			stmt.DistinctOn = exprs
 		}
+	} else if p.cur().Type == KwAll && p.isSelectAllModifier() {
+		p.advance()
+		stmt.All = true
 	}
 
 	// TOP n [WITH TIES]
@@ -374,6 +377,21 @@ func (p *parser) parseSelectProjection(stmt *SelectStmt) error {
 	}
 	stmt.Columns = cols
 	return nil
+}
+
+func (p *parser) isSelectAllModifier() bool {
+	switch p.peek(1).Type {
+	case TokEOF, TokSemicolon, TokComma, TokRParen, TokDot, TokLBracket, TokDoubleColon,
+		TokPlus, TokMinus, TokSlash, TokPercent, TokConcat,
+		TokEq, TokEqDouble, TokNotEq, TokLT, TokLE, TokGT, TokGE, TokQuestion,
+		KwAs, KwFrom, KwWhere, KwPrewhere, KwGroup, KwHaving, KwQualify, KwWindow,
+		KwOrder, KwLimit, KwOffset, KwSettings, KwFormat, KwInto,
+		KwUnion, KwIntersect, KwExcept, KwAnd, KwOr, KwIs, KwIn, KwLike, KwIlike,
+		KwBetween, KwGlobal:
+		return false
+	default:
+		return true
+	}
 }
 
 func (p *parser) parseWithExprList() ([]*WithExpr, error) {
@@ -697,7 +715,7 @@ func (p *parser) parseOrderExprList() ([]*OrderByItem, error) {
 }
 
 func (p *parser) parseOrderExpr() (*OrderByItem, error) {
-	expr, err := p.parseExpr()
+	expr, err := p.parseExprWithExplicitAlias()
 	if err != nil {
 		return nil, err
 	}

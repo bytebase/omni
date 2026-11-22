@@ -1008,3 +1008,81 @@ func TestParseAlterModifySettingFollowedByAction(t *testing.T) {
 		t.Errorf("clauses = %+v, want 2 settings + DROP COLUMN old", cls2)
 	}
 }
+
+func TestParseOrderByAliasEngineLessTableNestedDictOptionalGranularityAndSelectAll(t *testing.T) {
+	// 1. Explicit alias in ORDER BY.
+	o1, err := Parse("SELECT 1 ORDER BY 1 AS x DESC")
+	if err != nil {
+		t.Fatalf("Parse ORDER BY alias failed: %v", err)
+	}
+	ob := o1[0].(*SelectUnionStmt).Items[0].OrderBy[0]
+	if al, ok := ob.Expr.(*AliasExpr); !ok || al.Alias != "x" || !ob.Desc {
+		t.Errorf("ORDER BY item = %+v, expr=%T", ob, ob.Expr)
+	}
+
+	// 2. CREATE TABLE with ORDER BY / SETTINGS and no explicit ENGINE.
+	c1, err := Parse("CREATE TABLE t (x UInt64) ORDER BY x SETTINGS index_granularity = 4096")
+	if err != nil {
+		t.Fatalf("Parse engine-less CREATE TABLE failed: %v", err)
+	}
+	ct1 := c1[0].(*CreateTableStmt)
+	if ct1.Engine == nil || ct1.Engine.Engine != nil || len(ct1.Engine.OrderBy) != 1 || len(ct1.Engine.Settings) != 1 {
+		t.Errorf("engine-less CREATE TABLE Engine = %+v", ct1.Engine)
+	}
+
+	// 3. Nested dictionary SOURCE configuration blocks (REPLICA(...)).
+	d1, err := Parse("CREATE DICTIONARY d (id UInt64, v String) PRIMARY KEY id SOURCE(MYSQL(PORT 3306 USER 'root' REPLICA(HOST 's1' PRIORITY 1) REPLICA(HOST 's2' PRIORITY 2) DB 'db' TABLE 't')) LAYOUT(FLAT()) LIFETIME(60)")
+	if err != nil {
+		t.Fatalf("Parse nested dict source failed: %v", err)
+	}
+	src := d1[0].(*CreateDictionaryStmt).Source
+	if src == nil || src.Name != "MYSQL" || len(src.Children) != 2 || src.Children[0].Name != "REPLICA" || len(src.Children[0].Params) != 2 || len(src.Params) != 4 {
+		t.Errorf("nested dict Source = %+v", src)
+	}
+
+	// 4. Optional GRANULARITY on data-skipping INDEX (both ALTER and CREATE TABLE).
+	i1, err := Parse("ALTER TABLE t ADD INDEX i x TYPE minmax")
+	if err != nil {
+		t.Fatalf("Parse ADD INDEX without GRANULARITY failed: %v", err)
+	}
+	ie1 := i1[0].(*AlterTableStmt).Clauses[0].Element
+	if ie1 == nil || ie1.Kind != "INDEX" || ie1.Type.Name != "minmax" || ie1.Granularity != "" {
+		t.Errorf("INDEX element = %+v", ie1)
+	}
+	if _, err := Parse("CREATE TABLE t (x UInt64, INDEX i x TYPE minmax) ENGINE = MergeTree ORDER BY x"); err != nil {
+		t.Fatalf("Parse CREATE TABLE INDEX without GRANULARITY failed: %v", err)
+	}
+
+	// 5. SELECT ALL modifier (with column, *, and literal).
+	sa1, err := Parse("SELECT ALL x FROM t")
+	if err != nil {
+		t.Fatalf("Parse SELECT ALL x failed: %v", err)
+	}
+	sel1 := sa1[0].(*SelectUnionStmt).Items[0]
+	if !sel1.All || sel1.From == nil || sel1.From.Table.Table != "t" {
+		t.Errorf("SELECT ALL x = %+v", sel1)
+	}
+	if id, ok := sel1.Columns[0].(*IdentExpr); !ok || len(id.Parts) != 1 || id.Parts[0] != "x" {
+		t.Errorf("SELECT ALL x col[0] = %T %+v, want IdentExpr(x)", sel1.Columns[0], sel1.Columns[0])
+	}
+
+	sa2, err := Parse("SELECT ALL * FROM t")
+	if err != nil {
+		t.Fatalf("Parse SELECT ALL * failed: %v", err)
+	}
+	sel2 := sa2[0].(*SelectUnionStmt).Items[0]
+	if !sel2.All || sel2.From == nil {
+		t.Errorf("SELECT ALL * = %+v", sel2)
+	}
+	if _, ok := sel2.Columns[0].(*StarExpr); !ok {
+		t.Errorf("SELECT ALL * col[0] = %T, want *StarExpr", sel2.Columns[0])
+	}
+
+	sa3, err := Parse("SELECT ALL 1")
+	if err != nil {
+		t.Fatalf("Parse SELECT ALL 1 failed: %v", err)
+	}
+	if !sa3[0].(*SelectUnionStmt).Items[0].All {
+		t.Errorf("SELECT ALL 1 All = false, want true")
+	}
+}

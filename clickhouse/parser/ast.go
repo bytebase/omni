@@ -62,6 +62,7 @@ func (*SelectUnionStmt) stmtNode() {}
 type SelectStmt struct {
 	span
 	With        []*WithExpr
+	All         bool
 	Distinct    bool
 	DistinctOn  []Expr
 	Top         *TopClause
@@ -335,8 +336,9 @@ type DictionaryAttr struct {
 
 type DictionaryConfig struct {
 	span
-	Name   string
-	Params []*SettingExpr
+	Name     string
+	Params   []*SettingExpr
+	Children []*DictionaryConfig // nested configuration blocks such as REPLICA(...)
 }
 
 type DictionaryLifetime struct {
