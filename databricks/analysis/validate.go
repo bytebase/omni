@@ -304,7 +304,7 @@ func isReadOnlyStatement(tokens []token, pairs []int, start, end int) bool {
 				if tokens[start+1].val == "QUERY" {
 					return isReadOnlyQuery(tokens, pairs, start+2, end)
 				}
-				if isNonReadOnlyLeadKeyword(tokens[start+1].val) {
+				if isWriteStatementStart(tokens, start+1, end) {
 					return false
 				}
 			}
@@ -462,7 +462,7 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 					if isReadOnlyPipeOperator(tokens[i+1].val) {
 						break
 					}
-					if isPipeWriteStage(tokens, i+1, end) {
+					if isWriteStatementStart(tokens, i+1, end) {
 						return false
 					}
 				}
@@ -492,8 +492,9 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 
 // isReadOnlyParenFragment checks a parenthesized fragment inside a FROM or pipe
 // stage: if it starts a WITH or FROM query it must pass isReadOnlyQuery, and if
-// it starts a write statement (not a scalar function call like replace(...)) it
-// is rejected.
+// it starts a multi-token write statement it is rejected without blocking
+// non-reserved column names such as `(update = 1)` or scalar calls like
+// `(replace(a, 'x', 'y'))`.
 func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
 	for start < end && tokens[start].kind == tokLParen && pairs[start] == end-1 {
 		start++
@@ -508,13 +509,13 @@ func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
 	if tokens[start].val == "WITH" || tokens[start].val == "FROM" {
 		return isReadOnlyQuery(tokens, pairs, start, end)
 	}
-	return !isNonReadOnlyLeadKeyword(tokens[start].val)
+	return !isWriteStatementStart(tokens, start, end)
 }
 
-// isPipeWriteStage reports whether tokens[idx:end] starts a multi-token
-// write-stage construct after `|`, rather than a bitwise OR operand whose
-// unquoted column name happens to be a non-reserved keyword such as `update`.
-func isPipeWriteStage(tokens []token, idx, end int) bool {
+// isWriteStatementStart reports whether tokens[idx:end] begins a multi-token
+// write statement rather than a non-reserved identifier used in an expression
+// (such as `flags | update`, `(update = 1)`, or `DESCRIBE update`).
+func isWriteStatementStart(tokens []token, idx, end int) bool {
 	if idx+1 >= end || tokens[idx].kind != tokWord {
 		return false
 	}
@@ -537,9 +538,19 @@ func isPipeWriteStage(tokens []token, idx, end int) bool {
 	case "EXPORT":
 		return w1 == "DATA"
 	case "CREATE":
-		return w1 == "TABLE" || w1 == "VIEW" || w1 == "OR" || w1 == "TEMP" || w1 == "TEMPORARY"
+		return w1 == "TABLE" || w1 == "VIEW" || w1 == "OR" || w1 == "TEMP" || w1 == "TEMPORARY" ||
+			w1 == "SCHEMA" || w1 == "DATABASE" || w1 == "CATALOG" || w1 == "FUNCTION" || w1 == "VOLUME"
+	case "REPLACE", "TRUNCATE", "RESTORE", "REFRESH":
+		return w1 == "TABLE" || w1 == "VIEW"
+	case "DROP", "ALTER":
+		return w1 == "TABLE" || w1 == "VIEW" || w1 == "SCHEMA" || w1 == "DATABASE" ||
+			w1 == "CATALOG" || w1 == "FUNCTION" || w1 == "VOLUME"
 	case "UPDATE":
 		return idx+2 < end && tokens[idx+2].kind == tokWord && tokens[idx+2].val == "SET"
+	case "EXECUTE":
+		return w1 == "IMMEDIATE"
+	case "MSCK":
+		return w1 == "REPAIR"
 	default:
 		return false
 	}
@@ -592,8 +603,10 @@ func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
 				return false
 			}
 			afterParen := closeIdx + 1
-			if afterParen < end && tokens[afterParen].kind == tokWord &&
-				(tokens[afterParen].val == "AS" || isMaxRecursionLevel(tokens, afterParen, end)) {
+			isColList := afterParen < end && ((tokens[afterParen].kind == tokWord &&
+				(tokens[afterParen].val == "AS" || isMaxRecursionLevel(tokens, afterParen, end))) ||
+				(tokens[afterParen].kind == tokLParen && isCTEColumnList(tokens, i+1, closeIdx)))
+			if isColList {
 				i = afterParen
 			} else {
 				if !isReadOnlyQuery(tokens, pairs, i+1, closeIdx) {
@@ -640,23 +653,26 @@ func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
 	return isReadOnlyQuery(tokens, pairs, i, end)
 }
 
+func isCTEColumnList(tokens []token, start, end int) bool {
+	if start >= end {
+		return false
+	}
+	for i := start; i < end; i++ {
+		if (i-start)%2 == 0 {
+			if tokens[i].kind != tokWord && tokens[i].kind != tokIdent {
+				return false
+			}
+		} else if tokens[i].kind != tokComma {
+			return false
+		}
+	}
+	return (end-start)%2 == 1
+}
+
 func isMaxRecursionLevel(tokens []token, idx, end int) bool {
 	return idx+3 < end &&
 		tokens[idx].kind == tokWord && tokens[idx].val == "MAX" &&
 		tokens[idx+1].kind == tokWord && tokens[idx+1].val == "RECURSION" &&
 		tokens[idx+2].kind == tokWord && tokens[idx+2].val == "LEVEL" &&
 		tokens[idx+3].kind == tokNumber
-}
-
-func isNonReadOnlyLeadKeyword(word string) bool {
-	switch word {
-	case "INSERT", "UPDATE", "DELETE", "MERGE", "COPY",
-		"CREATE", "ALTER", "DROP", "TRUNCATE", "REPLACE",
-		"OPTIMIZE", "VACUUM", "RESTORE", "REFRESH", "MSCK",
-		"GRANT", "REVOKE", "DENY",
-		"SET", "USE", "CALL", "EXECUTE":
-		return true
-	default:
-		return false
-	}
 }
