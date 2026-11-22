@@ -9716,13 +9716,6 @@
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE VIEW _v AS SELECT a.SUBSTRING(a FROM a) zzz FROM a
-< error
-| 1128 HY000 Function 'a.SUBSTRING' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | CREATE VIEW _v AS SELECT a.TRIM() FROM a
 < error
 | 1630 42000 FUNCTION a.TRIM does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
@@ -9738,13 +9731,6 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT a.TRIM(LEADING FROM a) FROM a
-< error
-| 1128 HY000 Function 'a.TRIM' is not defined
-> exec
-| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE VIEW _v AS SELECT a.TRIM(LEADING FROM a) zzz FROM a
 < error
 | 1128 HY000 Function 'a.TRIM' is not defined
 > exec

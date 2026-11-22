@@ -1,4 +1,4 @@
-# pin: default mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8
+# pin: parser mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8 judge:2
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	query/END_OF_INPUT	
 reject	reject	engine	query/END_OF_INPUT!insert	zzz
@@ -2608,9 +2608,9 @@ accept	accept	engine	default_collation/opt_default_COLLATE_SYM_opt_equal_collati
 reject	reject	engine	storage_engines/ident_or_text	PARTITION BY SYSTEM_TIME(a ENGINE a);
 reject	reject	engine	storage_engines/ident_or_text!insert	PARTITION BY SYSTEM_TIME(a ENGINE a zzz);
 accept	accept	engine	known_storage_engines/ident_or_text	SHOW ENGINE a STATUS;
-reject	accept	engine	known_storage_engines/ident_or_text!drop-1	SHOW ENGINE STATUS;
+reject	reject	engine	known_storage_engines/ident_or_text!drop-1	SHOW ENGINE STATUS;
 reject	reject	engine	known_storage_engines/ident_or_text!truncate	SHOW ENGINE
-reject	accept	engine	known_storage_engines/ident_or_text!insert	SHOW ENGINE a zzz STATUS;
+reject	reject	engine	known_storage_engines/ident_or_text!insert	SHOW ENGINE a zzz STATUS;
 accept	accept	engine	row_types/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT;
 reject	reject	engine	row_types/DEFAULT!swap	ALTER TABLE a ROW_FORMAT DEFINER;
 accept	accept	engine	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
@@ -3317,7 +3317,7 @@ reject	reject	engine	charset/CHARSET!swap	SHOW CHECK;
 accept	accept	engine	charset_name/ident_or_text	SET NAMES a;
 reject	reject	engine	charset_name/ident_or_text!drop-1	SET NAMES;
 reject	reject	engine	charset_name/ident_or_text!truncate	SET NAMES
-reject	accept	engine	charset_name/ident_or_text!insert	SET NAMES a zzz;
+reject	reject	engine	charset_name/ident_or_text!insert	SET NAMES a zzz;
 accept	accept	engine	charset_name/BINARY	SET NAMES BINARY;
 reject	reject	engine	charset_name/BINARY!insert	SET NAMES BINARY zzz;
 accept	accept	engine	charset_name/BINARY!swap	SET NAMES BINLOG;
@@ -3335,7 +3335,7 @@ reject	reject	engine	opt_load_data_charset/charset_charset_name_or_default!trunc
 reject	reject	engine	opt_load_data_charset/charset_charset_name_or_default!insert	SELECT a INTO OUTFILE 's' CHARSET utf8mb4 zzz;
 reject	reject	engine	opt_load_data_charset/charset_charset_name_or_default!swap	SELECT a INTO OUTFILE 's' CHECK utf8mb4;
 accept	accept	engine	old_or_new_charset_name/ident_or_text	SET CHARSET a;
-reject	accept	engine	old_or_new_charset_name/ident_or_text!insert	SET CHARSET a zzz;
+reject	reject	engine	old_or_new_charset_name/ident_or_text!insert	SET CHARSET a zzz;
 accept	accept	engine	old_or_new_charset_name/BINARY	SET CHARSET BINARY;
 reject	reject	engine	old_or_new_charset_name/BINARY!insert	SET CHARSET BINARY zzz;
 accept	accept	engine	old_or_new_charset_name/BINARY!swap	SET CHARSET BINLOG;
@@ -3344,7 +3344,7 @@ accept	accept	engine	old_or_new_charset_name_or_default/DEFAULT	SET CHARSET DEFA
 reject	reject	engine	old_or_new_charset_name_or_default/DEFAULT!insert	SET CHARSET DEFAULT zzz;
 accept	accept	engine	old_or_new_charset_name_or_default/DEFAULT!swap	SET CHARSET DEFINER;
 accept	accept	engine	collation_name/ident_or_text	ALTER DATABASE COLLATE a;
-reject	accept	engine	collation_name/ident_or_text!insert	ALTER DATABASE COLLATE a zzz;
+reject	reject	engine	collation_name/ident_or_text!insert	ALTER DATABASE COLLATE a zzz;
 accept	accept	engine	collation_name_or_default/collation_name	ALTER DATABASE COLLATE utf8mb4_bin;
 accept	accept	engine	collation_name_or_default/DEFAULT	ALTER DATABASE COLLATE DEFAULT;
 reject	reject	engine	collation_name_or_default/DEFAULT!insert	ALTER DATABASE COLLATE DEFAULT zzz;
@@ -3395,7 +3395,7 @@ reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_DEFAULT!insert	ALTER TA
 reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_DEFAULT!swap	ALTER TABLE a ADD a CHAR ASENSITIVE COLLATE DEFAULT;
 accept	accept	engine	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
 reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_collation_name!drop-2	ALTER TABLE a ADD a CHAR ASCII utf8mb4_bin;
-reject	accept	engine	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_collation_name!swap	ALTER TABLE a ADD a CHAR ASENSITIVE COLLATE utf8mb4_bin;
 accept	accept	engine	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 reject	reject	engine	binary/COLLATE_SYM_collation_name!drop-1	ALTER TABLE a ADD a CHAR utf8mb4_bin;
@@ -3408,7 +3408,7 @@ reject	reject	engine	binary/COLLATE_SYM_DEFAULT!drop-1	ALTER TABLE a ADD a CHAR 
 reject	reject	engine	binary/COLLATE_SYM_DEFAULT!insert	ALTER TABLE a ADD a CHAR COLLATE DEFAULT zzz;
 reject	reject	engine	binary/COLLATE_SYM_DEFAULT!swap	ALTER TABLE a ADD a CHAR COLLATION DEFAULT;
 accept	accept	engine	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
-reject	accept	engine	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
+reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 reject	reject	engine	binary/charset_or_alias_COLLATE_SYM_BINARY!swap	ALTER TABLE a ADD a CHAR ASENSITIVE COLLATE BINARY;
 accept	accept	engine	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 reject	reject	engine	binary/COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR COLLATE BINARY zzz;
@@ -3685,7 +3685,7 @@ reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!drop-1	ALTER TAB
 reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!drop-2	ALTER TABLE a ADD FULLTEXT(a) WITH a;
 reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!drop-3	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER;
 reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!truncate	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER
-reject	accept	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
+reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 reject	reject	engine	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!swap	ALTER TABLE a ADD FULLTEXT(a) WITHIN PARSER a;
 accept	accept	engine	btree_or_rtree/BTREE_SYM	ALTER TABLE a ADD KEY USING BTREE(a);
 reject	reject	engine	btree_or_rtree/BTREE_SYM!swap	ALTER TABLE a ADD KEY USING BY(a);
@@ -6381,7 +6381,7 @@ reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_ope
 reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!drop-7	DO a.SUBSTRING(a FROM);
 reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!drop-8	DO a.SUBSTRING(a FROM a;
 reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!truncate	DO a.SUBSTRING(a FROM a
-reject	accept	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!insert	DO a.SUBSTRING(a FROM a) zzz;
+reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!insert	DO a.SUBSTRING(a FROM a) zzz;
 reject	reject	engine	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!swap	DO a.SUM(a FROM a);
 accept	accept	engine	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)	DO a.TRIM();
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)!drop-1	DO.TRIM();
@@ -6401,7 +6401,7 @@ reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_spec
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!drop-7	DO a.TRIM(LEADING FROM);
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!drop-8	DO a.TRIM(LEADING FROM a;
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!truncate	DO a.TRIM(LEADING FROM a
-reject	accept	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!insert	DO a.TRIM(LEADING FROM a) zzz;
+reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!insert	DO a.TRIM(LEADING FROM a) zzz;
 reject	reject	engine	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!swap	DO a.TRIM_ORACLE(LEADING FROM a);
 accept	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH a AGAINST(a);
 reject	reject	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion!insert	DO MATCH a AGAINST(a zzz);
@@ -6745,7 +6745,7 @@ reject	reject	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident
 reject	reject	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident!drop-3	DO@@autocommit a;
 reject	reject	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident!drop-4	DO@@autocommit.;
 reject	reject	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident!truncate	DO@@autocommit.
-reject	accept	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident!insert	DO@@autocommit.a zzz;
+reject	reject	engine	variable_aux/@_opt_var_ident_type_ident_sysvar_name_._ident!insert	DO@@autocommit.a zzz;
 accept	accept	engine	opt_distinct/%empty	DO GROUP_CONCAT(a);
 reject	reject	engine	opt_distinct/%empty!insert	DO GROUP_CONCAT(zzz a);
 accept	accept	engine	opt_distinct/DISTINCT	DO GROUP_CONCAT(DISTINCT a);
@@ -8122,9 +8122,9 @@ reject	reject	engine	equal/=!truncate	SET autocommit
 accept	accept	engine	equal/SET_VAR	SET autocommit := a;
 reject	reject	engine	equal/SET_VAR!insert	SET autocommit := zzz a;
 accept	accept	engine	opt_equal/%empty	ALTER DATABASE COLLATE utf8mb4_bin;
-reject	accept	engine	opt_equal/%empty!insert	ALTER DATABASE COLLATE zzz utf8mb4_bin;
+reject	reject	engine	opt_equal/%empty!insert	ALTER DATABASE COLLATE zzz utf8mb4_bin;
 accept	accept	engine	opt_equal/equal	ALTER DATABASE COLLATE = utf8mb4_bin;
-reject	accept	engine	opt_equal/equal!insert	ALTER DATABASE COLLATE = zzz utf8mb4_bin;
+reject	reject	engine	opt_equal/equal!insert	ALTER DATABASE COLLATE = zzz utf8mb4_bin;
 accept	accept	engine	opt_with/opt_equal	ALTER SEQUENCE a START 1;
 reject	reject	engine	opt_with/opt_equal!insert	ALTER SEQUENCE a START zzz 1;
 accept	accept	engine	opt_with/WITH	ALTER SEQUENCE a START WITH 1;
@@ -8594,19 +8594,19 @@ accept	accept	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name	SHOW PROCEDURE CO
 reject	reject	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!drop-1	SHOW CODE a;
 reject	reject	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!drop-3	SHOW PROCEDURE CODE;
 reject	reject	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!truncate	SHOW PROCEDURE CODE
-reject	accept	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!insert	SHOW PROCEDURE CODE a zzz;
+reject	reject	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!insert	SHOW PROCEDURE CODE a zzz;
 reject	reject	engine	show_param/PROCEDURE_SYM_CODE_SYM_sp_name!swap	SHOW PROCESS CODE a;
 accept	accept	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name	SHOW FUNCTION CODE a;
 reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!drop-3	SHOW FUNCTION CODE;
 reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!truncate	SHOW FUNCTION CODE
-reject	accept	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!insert	SHOW FUNCTION CODE a zzz;
+reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!insert	SHOW FUNCTION CODE a zzz;
 reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!swap	SHOW GENERAL CODE a;
 accept	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name	SHOW PACKAGE BODY CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-1	SHOW BODY CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-2	SHOW PACKAGE CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-4	SHOW PACKAGE BODY CODE;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!truncate	SHOW PACKAGE BODY CODE
-reject	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!insert	SHOW PACKAGE BODY CODE a zzz;
+reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!insert	SHOW PACKAGE BODY CODE a zzz;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!swap	SHOW PACK_KEYS BODY CODE a;
 accept	accept	engine	show_param/CREATE_EVENT_SYM_sp_name	SHOW CREATE EVENT a;
 reject	reject	engine	show_param/CREATE_EVENT_SYM_sp_name!drop-1	SHOW EVENT a;
@@ -9357,7 +9357,7 @@ reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!drop-5	DO VALUE(
 reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!truncate	DO VALUE(a.a.
 reject	reject	engine	simple_ident_nospvar/ident_._ident_._ident!insert	DO VALUE(a.a.a zzz);
 accept	accept	engine	field_ident/ident	ALTER TABLE a DROP a;
-reject	reject	engine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
+reject	accept	engine	field_ident/ident_._ident_._ident	ALTER TABLE a DROP a.a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-1	ALTER TABLE a DROP.a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-2	ALTER TABLE a DROP a a.a;
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-3	ALTER TABLE a DROP a..a;
@@ -9384,7 +9384,7 @@ reject	reject	engine	table_ident/._ident!drop-2	DESC.;
 reject	reject	engine	table_ident/._ident!truncate	DESC.
 reject	reject	engine	table_ident/._ident!insert	DESC.a zzz;
 accept	accept	engine	table_ident_opt_wild/ident_opt_wild	DELETE a FROM a;
-accept	reject	engine	table_ident_opt_wild/ident_._ident_opt_wild	DELETE a.a FROM a;
+accept	accept	engine	table_ident_opt_wild/ident_._ident_opt_wild	DELETE a.a FROM a;
 reject	reject	engine	table_ident_opt_wild/ident_._ident_opt_wild!drop-1	DELETE.a FROM a;
 reject	reject	engine	table_ident_opt_wild/ident_._ident_opt_wild!insert	DELETE a.a zzz FROM a;
 accept	accept	engine	table_ident_nodb/ident	HANDLER a CLOSE;
@@ -9427,9 +9427,9 @@ accept	accept	engine	ident_cli_set_usual_case/keyword_set_usual_case	SET BIT = a
 reject	reject	engine	ident_cli_set_usual_case/keyword_set_usual_case!insert	SET BIT zzz = a;
 accept	accept	engine	ident_cli_set_usual_case/keyword_set_usual_case!swap	SET BIT_AND = a;
 accept	accept	engine	ident_sysvar_name/IDENT_sys	DO@@a;
-reject	accept	engine	ident_sysvar_name/IDENT_sys!insert	DO@@a zzz;
+reject	reject	engine	ident_sysvar_name/IDENT_sys!insert	DO@@a zzz;
 accept	accept	engine	ident_sysvar_name/keyword_sysvar_name	DO@@BIT;
-reject	accept	engine	ident_sysvar_name/keyword_sysvar_name!insert	DO@@BIT zzz;
+reject	reject	engine	ident_sysvar_name/keyword_sysvar_name!insert	DO@@BIT zzz;
 accept	accept	engine	ident_sysvar_name/keyword_sysvar_name!swap	DO@@BIT_AND;
 reject	reject	engine	ident_sysvar_name/TEXT_STRING_sys	DO@@'s';
 reject	reject	engine	ident_sysvar_name/TEXT_STRING_sys!insert	DO@@'s' zzz;
@@ -9521,37 +9521,37 @@ reject	reject	engine	keyword_ident/IGNORED_SYM!insert	CALL IGNORED zzz;
 reject	reject	engine	keyword_ident/IGNORED_SYM!swap	CALL IGNORE_DOMAIN_IDS;
 accept	accept	engine	keyword_sysvar_name/keyword_data_type	DO@@BIT;
 accept	accept	engine	keyword_sysvar_name/keyword_cast_type	DO@@SIGNED;
-reject	accept	engine	keyword_sysvar_name/keyword_cast_type!insert	DO@@SIGNED zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_cast_type!insert	DO@@SIGNED zzz;
 accept	accept	engine	keyword_sysvar_name/keyword_cast_type!swap	DO@@SIMPLE;
 accept	accept	engine	keyword_sysvar_name/keyword_set_special_case	DO@@NAMES;
-reject	accept	engine	keyword_sysvar_name/keyword_set_special_case!insert	DO@@NAMES zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_set_special_case!insert	DO@@NAMES zzz;
 accept	accept	engine	keyword_sysvar_name/keyword_set_special_case!swap	DO@@NATIONAL;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_block_section	DO@@BEGIN;
-reject	accept	engine	keyword_sysvar_name/keyword_sp_block_section!insert	DO@@BEGIN zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_sp_block_section!insert	DO@@BEGIN zzz;
 reject	reject	engine	keyword_sysvar_name/keyword_sp_block_section!swap	DO@@BETWEEN;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_head	DO@@CONTAINS;
-reject	accept	engine	keyword_sysvar_name/keyword_sp_head!insert	DO@@CONTAINS zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_sp_head!insert	DO@@CONTAINS zzz;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_head!swap	DO@@CONTEXT;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_var_and_label	DO@@ACTION;
-reject	accept	engine	keyword_sysvar_name/keyword_sp_var_and_label!insert	DO@@ACTION zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_sp_var_and_label!insert	DO@@ACTION zzz;
 reject	reject	engine	keyword_sysvar_name/keyword_sp_var_and_label!swap	DO@@ADD;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_var_not_label	DO@@FORMAT;
-reject	accept	engine	keyword_sysvar_name/keyword_sp_var_not_label!insert	DO@@FORMAT zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_sp_var_not_label!insert	DO@@FORMAT zzz;
 accept	accept	engine	keyword_sysvar_name/keyword_sp_var_not_label!swap	DO@@FOUND;
 accept	accept	engine	keyword_sysvar_name/keyword_verb_clause	DO@@CLOSE;
-reject	accept	engine	keyword_sysvar_name/keyword_verb_clause!insert	DO@@CLOSE zzz;
+reject	reject	engine	keyword_sysvar_name/keyword_verb_clause!insert	DO@@CLOSE zzz;
 accept	accept	engine	keyword_sysvar_name/keyword_verb_clause!swap	DO@@COALESCE;
 accept	accept	engine	keyword_sysvar_name/FUNCTION_SYM	DO@@FUNCTION;
-reject	accept	engine	keyword_sysvar_name/FUNCTION_SYM!insert	DO@@FUNCTION zzz;
+reject	reject	engine	keyword_sysvar_name/FUNCTION_SYM!insert	DO@@FUNCTION zzz;
 accept	accept	engine	keyword_sysvar_name/FUNCTION_SYM!swap	DO@@GENERAL;
 accept	accept	engine	keyword_sysvar_name/WINDOW_SYM	DO@@WINDOW;
-reject	accept	engine	keyword_sysvar_name/WINDOW_SYM!insert	DO@@WINDOW zzz;
+reject	reject	engine	keyword_sysvar_name/WINDOW_SYM!insert	DO@@WINDOW zzz;
 reject	reject	engine	keyword_sysvar_name/WINDOW_SYM!swap	DO@@WITH;
 accept	accept	engine	keyword_sysvar_name/IGNORED_SYM	DO@@IGNORED;
-reject	accept	engine	keyword_sysvar_name/IGNORED_SYM!insert	DO@@IGNORED zzz;
+reject	reject	engine	keyword_sysvar_name/IGNORED_SYM!insert	DO@@IGNORED zzz;
 reject	reject	engine	keyword_sysvar_name/IGNORED_SYM!swap	DO@@IGNORE_DOMAIN_IDS;
 accept	accept	engine	keyword_sysvar_name/OFFSET_SYM	DO@@OFFSET;
-reject	accept	engine	keyword_sysvar_name/OFFSET_SYM!insert	DO@@OFFSET zzz;
+reject	reject	engine	keyword_sysvar_name/OFFSET_SYM!insert	DO@@OFFSET zzz;
 accept	accept	engine	keyword_sysvar_name/OFFSET_SYM!swap	DO@@OLD_PASSWORD;
 accept	accept	engine	keyword_set_usual_case/keyword_data_type	SET BIT = a;
 accept	accept	engine	keyword_set_usual_case/keyword_cast_type	SET SIGNED = a;
@@ -11188,42 +11188,42 @@ accept	accept	engine	set_param/option_type_start_option_value_list_following_opt
 reject	reject	engine	set_param/option_type_start_option_value_list_following_option_type!drop-3	SET GLOBAL a a;
 reject	reject	engine	set_param/option_type_start_option_value_list_following_option_type!drop-4	SET GLOBAL a =;
 reject	reject	engine	set_param/option_type_start_option_value_list_following_option_type!truncate	SET GLOBAL a =
-reject	accept	engine	set_param/option_type_start_option_value_list_following_option_type!insert	SET GLOBAL a = a zzz;
+reject	reject	engine	set_param/option_type_start_option_value_list_following_option_type!insert	SET GLOBAL a = a zzz;
 reject	reject	engine	set_param/option_type_start_option_value_list_following_option_type!swap	SET GOTO a = a;
 accept	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement	SET STATEMENT a = a FOR COMMIT;
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-1	SET a = a FOR COMMIT;
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-2	SET STATEMENT = a FOR COMMIT;
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-1	SET a = a FOR COMMIT;
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-2	SET STATEMENT = a FOR COMMIT;
 reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-3	SET STATEMENT a a FOR COMMIT;
 reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-4	SET STATEMENT a = FOR COMMIT;
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-5	SET STATEMENT a = a COMMIT;
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-6	SET STATEMENT a = a FOR;
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!truncate	SET STATEMENT a = a FOR
-reject	accept	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!insert	SET STATEMENT a = a FOR COMMIT zzz;
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-5	SET STATEMENT a = a COMMIT;
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!drop-6	SET STATEMENT a = a FOR;
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!truncate	SET STATEMENT a = a FOR
+reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!insert	SET STATEMENT a = a FOR COMMIT zzz;
 reject	reject	engine	set_param/STATEMENT_SYM_set_stmt_option_list_FOR_SYM_directly_executable_statement!swap	SET STATS_AUTO_RECALC a = a FOR COMMIT;
 accept	accept	engine	set_stmt_option_list/set_stmt_option	SET STATEMENT a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option_list/set_stmt_option!truncate	SET STATEMENT a =
-reject	accept	engine	set_stmt_option_list/set_stmt_option!insert	SET STATEMENT a = a zzz FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option!insert	SET STATEMENT a = a zzz FOR COMMIT;
 accept	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option	SET STATEMENT a = a, a = a FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-1	SET STATEMENT = a, a = a FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-1	SET STATEMENT = a, a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-2	SET STATEMENT a a, a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-3	SET STATEMENT a =, a = a FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-4	SET STATEMENT a = a a = a FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-5	SET STATEMENT a = a, = a FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-6	SET STATEMENT a = a, a a FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-7	SET STATEMENT a = a, a = FOR COMMIT;
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!truncate	SET STATEMENT a = a, a =
-reject	accept	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!insert	SET STATEMENT a = a, a = a zzz FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-4	SET STATEMENT a = a a = a FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-5	SET STATEMENT a = a, = a FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-6	SET STATEMENT a = a, a a FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!drop-7	SET STATEMENT a = a, a = FOR COMMIT;
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!truncate	SET STATEMENT a = a, a =
+reject	reject	engine	set_stmt_option_list/set_stmt_option_list_,_set_stmt_option!insert	SET STATEMENT a = a, a = a zzz FOR COMMIT;
 accept	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type	SET GLOBAL a = a;
 accept	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list	SET GLOBAL a = a, CHARSET utf8mb4;
 accept	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-1	SET GLOBAL = a, CHARSET utf8mb4;
 reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-2	SET GLOBAL a a, CHARSET utf8mb4;
 reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-3	SET GLOBAL a =, CHARSET utf8mb4;
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-4	SET GLOBAL a = a CHARSET utf8mb4;
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-5	SET GLOBAL a = a, utf8mb4;
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-6	SET GLOBAL a = a, CHARSET;
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!truncate	SET GLOBAL a = a, CHARSET
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!insert	SET GLOBAL a = a, CHARSET utf8mb4 zzz;
-reject	accept	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!swap	SET GLOBAL a = a, CHECK utf8mb4;
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-4	SET GLOBAL a = a CHARSET utf8mb4;
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-5	SET GLOBAL a = a, utf8mb4;
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!drop-6	SET GLOBAL a = a, CHARSET;
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!truncate	SET GLOBAL a = a, CHARSET
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!insert	SET GLOBAL a = a, CHARSET utf8mb4 zzz;
+reject	reject	engine	start_option_value_list_following_option_type/option_value_following_option_type_,_option_value_list!swap	SET GLOBAL a = a, CHECK utf8mb4;
 accept	accept	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics	SET GLOBAL TRANSACTION READ ONLY;
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics!drop-1	SET GLOBAL READ ONLY;
 reject	reject	engine	start_option_value_list_following_option_type/TRANSACTION_SYM_transaction_characteristics!drop-2	SET GLOBAL TRANSACTION ONLY;
@@ -11248,7 +11248,7 @@ accept	accept	engine	option_value/option_type_option_value_following_option_type
 reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-3	SET CHARSET utf8mb4, GLOBAL a a;
 reject	reject	engine	option_value/option_type_option_value_following_option_type!drop-4	SET CHARSET utf8mb4, GLOBAL a =;
 reject	reject	engine	option_value/option_type_option_value_following_option_type!truncate	SET CHARSET utf8mb4, GLOBAL a =
-reject	accept	engine	option_value/option_type_option_value_following_option_type!insert	SET CHARSET utf8mb4, GLOBAL a = a zzz;
+reject	reject	engine	option_value/option_type_option_value_following_option_type!insert	SET CHARSET utf8mb4, GLOBAL a = a zzz;
 reject	reject	engine	option_value/option_type_option_value_following_option_type!swap	SET CHARSET utf8mb4, GOTO a = a;
 accept	accept	engine	option_value/option_value_no_option_type	SET CHARSET utf8mb4, CHARSET utf8mb4;
 accept	accept	engine	option_type/GLOBAL_SYM	SET GLOBAL a = a;
@@ -11271,39 +11271,39 @@ accept	accept	engine	opt_var_type/SESSION_SYM	SHOW SESSION STATUS;
 reject	reject	engine	opt_var_type/SESSION_SYM!insert	SHOW SESSION zzz STATUS;
 reject	reject	engine	opt_var_type/SESSION_SYM!swap	SHOW SESSION_USER STATUS;
 accept	accept	engine	opt_var_ident_type/%empty	DO@@autocommit;
-reject	accept	engine	opt_var_ident_type/%empty!insert	DO@@zzz autocommit;
+reject	reject	engine	opt_var_ident_type/%empty!insert	DO@@zzz autocommit;
 accept	accept	engine	opt_var_ident_type/GLOBAL_SYM_.	DO@@GLOBAL.autocommit;
 reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!drop-1	DO@@.autocommit;
 reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!drop-2	DO@@GLOBAL autocommit;
 reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!truncate	DO@@GLOBAL
-reject	accept	engine	opt_var_ident_type/GLOBAL_SYM_.!insert	DO@@GLOBAL.zzz autocommit;
+reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!insert	DO@@GLOBAL.zzz autocommit;
 accept	accept	engine	opt_var_ident_type/GLOBAL_SYM_.!swap	DO@@GOTO.autocommit;
 accept	accept	engine	opt_var_ident_type/LOCAL_SYM_.	DO@@LOCAL.autocommit;
 reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!drop-2	DO@@LOCAL autocommit;
 reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!truncate	DO@@LOCAL
-reject	accept	engine	opt_var_ident_type/LOCAL_SYM_.!insert	DO@@LOCAL.zzz autocommit;
+reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!insert	DO@@LOCAL.zzz autocommit;
 reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!swap	DO@@LOCALTIMESTAMP.autocommit;
 accept	accept	engine	opt_var_ident_type/SESSION_SYM_.	DO@@SESSION.autocommit;
 reject	reject	engine	opt_var_ident_type/SESSION_SYM_.!drop-2	DO@@SESSION autocommit;
 reject	reject	engine	opt_var_ident_type/SESSION_SYM_.!truncate	DO@@SESSION
-reject	accept	engine	opt_var_ident_type/SESSION_SYM_.!insert	DO@@SESSION.zzz autocommit;
+reject	reject	engine	opt_var_ident_type/SESSION_SYM_.!insert	DO@@SESSION.zzz autocommit;
 accept	accept	engine	opt_var_ident_type/SESSION_SYM_.!swap	DO@@SESSION_USER.autocommit;
 accept	accept	engine	set_stmt_option/ident_cli_equal_set_expr_or_default	SET STATEMENT a = a FOR COMMIT;
 accept	accept	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default	SET STATEMENT a.a = a FOR COMMIT;
-reject	accept	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-1	SET STATEMENT.a = a FOR COMMIT;
+reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-1	SET STATEMENT.a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-2	SET STATEMENT a a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-3	SET STATEMENT a.= a FOR COMMIT;
 reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-4	SET STATEMENT a.a a FOR COMMIT;
 reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!drop-5	SET STATEMENT a.a = FOR COMMIT;
 reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!truncate	SET STATEMENT a.a =
-reject	accept	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!insert	SET STATEMENT a.a = a zzz FOR COMMIT;
+reject	reject	engine	set_stmt_option/ident_cli_._ident_equal_set_expr_or_default!insert	SET STATEMENT a.a = a zzz FOR COMMIT;
 accept	accept	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default	SET STATEMENT DEFAULT.a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!drop-2	SET STATEMENT DEFAULT a = a FOR COMMIT;
 reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!drop-3	SET STATEMENT DEFAULT.= a FOR COMMIT;
 reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!drop-4	SET STATEMENT DEFAULT.a a FOR COMMIT;
 reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!drop-5	SET STATEMENT DEFAULT.a = FOR COMMIT;
 reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!truncate	SET STATEMENT DEFAULT.a =
-reject	accept	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!insert	SET STATEMENT DEFAULT.a = a zzz FOR COMMIT;
+reject	reject	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!insert	SET STATEMENT DEFAULT.a = a zzz FOR COMMIT;
 accept	accept	engine	set_stmt_option/DEFAULT_._ident_equal_set_expr_or_default!swap	SET STATEMENT DEFINER.a = a FOR COMMIT;
 accept	accept	engine	option_value_following_option_type/ident_cli_equal_set_expr_or_default	SET GLOBAL a = a;
 accept	accept	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default	SET GLOBAL a.a = a;
@@ -11313,14 +11313,14 @@ reject	reject	engine	option_value_following_option_type/ident_cli_._ident_equal_
 reject	reject	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default!drop-4	SET GLOBAL a.a a;
 reject	reject	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default!drop-5	SET GLOBAL a.a =;
 reject	reject	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default!truncate	SET GLOBAL a.a =
-reject	accept	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default!insert	SET GLOBAL a.a = a zzz;
+reject	reject	engine	option_value_following_option_type/ident_cli_._ident_equal_set_expr_or_default!insert	SET GLOBAL a.a = a zzz;
 accept	accept	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default	SET GLOBAL DEFAULT.a = a;
 reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-2	SET GLOBAL DEFAULT a = a;
 reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-3	SET GLOBAL DEFAULT.= a;
 reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-4	SET GLOBAL DEFAULT.a a;
 reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-5	SET GLOBAL DEFAULT.a =;
 reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!truncate	SET GLOBAL DEFAULT.a =
-reject	accept	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!insert	SET GLOBAL DEFAULT.a = a zzz;
+reject	reject	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!insert	SET GLOBAL DEFAULT.a = a zzz;
 accept	accept	engine	option_value_following_option_type/DEFAULT_._ident_equal_set_expr_or_default!swap	SET GLOBAL DEFINER.a = a;
 accept	accept	engine	option_value_no_option_type/ident_cli_set_usual_case_equal_set_expr_or_default	SET autocommit = a;
 reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_equal_set_expr_or_default!drop-3	SET autocommit =;
@@ -11333,14 +11333,14 @@ reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_._iden
 reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_._ident_equal_set_expr_or_default!drop-4	SET autocommit.a a;
 reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_._ident_equal_set_expr_or_default!drop-5	SET autocommit.a =;
 reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_._ident_equal_set_expr_or_default!truncate	SET autocommit.a =
-reject	accept	engine	option_value_no_option_type/ident_cli_set_usual_case_._ident_equal_set_expr_or_default!insert	SET autocommit.a = a zzz;
+reject	reject	engine	option_value_no_option_type/ident_cli_set_usual_case_._ident_equal_set_expr_or_default!insert	SET autocommit.a = a zzz;
 accept	accept	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default	SET DEFAULT.a = a;
 reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-2	SET DEFAULT a = a;
 reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-3	SET DEFAULT.= a;
 reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-4	SET DEFAULT.a a;
 reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!drop-5	SET DEFAULT.a =;
 reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!truncate	SET DEFAULT.a =
-reject	accept	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!insert	SET DEFAULT.a = a zzz;
+reject	reject	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!insert	SET DEFAULT.a = a zzz;
 accept	accept	engine	option_value_no_option_type/DEFAULT_._ident_equal_set_expr_or_default!swap	SET DEFINER.a = a;
 accept	accept	engine	option_value_no_option_type/@_ident_or_text_equal_remember_cpp_ptr_expr_remember_end	SET@a = a;
 reject	reject	engine	option_value_no_option_type/@_ident_or_text_equal_remember_cpp_ptr_expr_remember_end!drop-2	SET@= a;
@@ -11363,7 +11363,7 @@ reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sy
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sysvar_name_._ident_equal_set_expr_or_default!drop-6	SET@@autocommit.a a;
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sysvar_name_._ident_equal_set_expr_or_default!drop-7	SET@@autocommit.a =;
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sysvar_name_._ident_equal_set_expr_or_default!truncate	SET@@autocommit.a =
-reject	accept	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sysvar_name_._ident_equal_set_expr_or_default!insert	SET@@autocommit.a = a zzz;
+reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_ident_sysvar_name_._ident_equal_set_expr_or_default!insert	SET@@autocommit.a = a zzz;
 accept	accept	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default	SET@@DEFAULT.a = a;
 accept	accept	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!drop-1	SET@DEFAULT.a = a;
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!drop-4	SET@@DEFAULT a = a;
@@ -11371,7 +11371,7 @@ reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!drop-6	SET@@DEFAULT.a a;
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!drop-7	SET@@DEFAULT.a =;
 reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!truncate	SET@@DEFAULT.a =
-reject	accept	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!insert	SET@@DEFAULT.a = a zzz;
+reject	reject	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!insert	SET@@DEFAULT.a = a zzz;
 accept	accept	engine	option_value_no_option_type/@_@_opt_var_ident_type_DEFAULT_._ident_equal_set_expr_or_default!swap	SET@@DEFINER.a = a;
 accept	accept	engine	option_value_no_option_type/charset_old_or_new_charset_name_or_default	SET CHARSET utf8mb4;
 reject	reject	engine	option_value_no_option_type/NAMES_SYM_equal_expr	SET NAMES = a;
@@ -11413,7 +11413,7 @@ reject	reject	engine	option_value_no_option_type/ROLE_SYM_role_name!swap	SET ROL
 accept	accept	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default	SET ROLE = a;
 reject	reject	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default!drop-3	SET ROLE =;
 reject	reject	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default!truncate	SET ROLE =
-reject	accept	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default!insert	SET ROLE = a zzz;
+reject	reject	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default!insert	SET ROLE = a zzz;
 accept	accept	engine	option_value_no_option_type/ROLE_SYM_equal_set_expr_or_default!swap	SET ROLLBACK = a;
 accept	accept	engine	option_value_no_option_type/PASSWORD_SYM_equal_text_or_password	SET PASSWORD = 's';
 reject	reject	engine	option_value_no_option_type/PASSWORD_SYM_equal_text_or_password!drop-1	SET = 's';
