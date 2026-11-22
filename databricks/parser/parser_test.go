@@ -506,6 +506,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtAlterTable,
 		},
 		{
+			name: "ordering and frame keywords as implicit column aliases",
+			sql:  `SELECT x rows FROM t UNION ALL SELECT x nulls FROM t UNION ALL SELECT x asc FROM t UNION ALL SELECT x desc, y range, z first, w last, u preceding, v following FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "struct with field aliases and struct with named arguments separately",
+			sql:  `SELECT STRUCT(x AS a, y b), STRUCT(1, k => 2), STRUCT(k => 1, m => 2) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "tablesample bucket on identifier, backtick dotted identifier, and qualified function",
+			sql:  "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a) JOIN t2 TABLESAMPLE (BUCKET 1 OUT OF 2 ON `a.b`) JOIN t3 TABLESAMPLE (BUCKET 1 OUT OF 2 ON a.b())",
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
@@ -624,6 +639,11 @@ func TestParseErrors(t *testing.T) {
 		{"position predicate arg with IN", "SELECT POSITION(a IS NULL IN s)"},
 		{"overlay boolean arg with PLACING", "SELECT OVERLAY(a AND b PLACING 'x' FROM 1)"},
 		{"overlay not arg with PLACING", "SELECT OVERLAY(NOT a PLACING 'x' FROM 1)"},
+		{"struct mixing field alias then named arg", "SELECT STRUCT(x AS a, k => 1)"},
+		{"struct mixing implicit alias then named arg", "SELECT STRUCT(x a, k => 1)"},
+		{"struct mixing named arg then field alias", "SELECT STRUCT(k => 1, x AS a)"},
+		{"struct mixing named arg then implicit alias", "SELECT STRUCT(k => 1, x a)"},
+		{"tablesample bucket qualified name without parens", "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a.b)"},
 	}
 
 	for _, tc := range bad {

@@ -1594,10 +1594,24 @@ func (p *Parser) parseSampleMethod() error {
 			return err
 		}
 		if p.match(kwON) {
-			if _, err := p.parseQualifiedName(); err != nil {
+			if _, err := p.parseIdentifier(); err != nil {
 				return err
 			}
-			if p.match(tokLParen) {
+			qualified := false
+			for p.match(tokDot) {
+				qualified = true
+				if _, err := p.parseIdentifier(); err != nil {
+					return err
+				}
+			}
+			if qualified {
+				if _, err := p.expect(tokLParen); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+			} else if p.match(tokLParen) {
 				if _, err := p.expect(tokRParen); err != nil {
 					return err
 				}

@@ -64,28 +64,30 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 		return true
 	}
 	// If the next token ends the current expression list / statement / paren,
-	// a keyword can safely be an implicit alias (e.g. SELECT a FROM, SELECT a ALL).
+	// a keyword can safely be an implicit alias (e.g. SELECT a FROM, SELECT a ALL,
+	// SELECT x asc, SELECT x rows).
 	next := p.peek(1).Kind
 	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen {
 		switch k {
-		case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO,
-			kwASC, kwDESC, kwFIRST, kwLAST, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING:
+		case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO:
 			return false
 		}
 		return true
 	}
 	// Allow a keyword as implicit column alias right before FROM/WHERE/GROUP/HAVING/WINDOW/ORDER/LIMIT
 	// when the keyword itself doesn't start a clause (e.g. `SELECT a IS FROM a`,
-	// `SELECT x filter FROM t`, `SELECT x over FROM t`, `SELECT count(*) filter FROM t`).
+	// `SELECT x filter FROM t`, `SELECT x over FROM t`, `SELECT x rows FROM t`,
+	// `SELECT x nulls FROM t`, `SELECT x asc FROM t`).
 	if k == kwIS && next == kwFROM {
 		return true
 	}
 	switch k {
-	case kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT:
+	case kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT,
+		kwASC, kwDESC, kwNULLS, kwFIRST, kwLAST, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING:
 		switch next {
 		case tokOperatorPipe, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
 			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
-			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL:
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL, kwFOR:
 			return true
 		case tokIdent:
 			if isWord(p.peek(1), "QUALIFY") && p.peek(2).Kind != tokEOF && p.peek(2).Kind != tokSemicolon && p.peek(2).Kind != tokRParen {
@@ -745,8 +747,13 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			p.advance()
 		}
 		hasAlias := false
+		hasNamedArg := false
 		for {
 			if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
+				if hasAlias {
+					return p.errorf("cannot mix field aliases and named arguments in STRUCT")
+				}
+				hasNamedArg = true
 				p.advance()
 				p.advance()
 				if err := p.parseExpression(); err != nil {
@@ -756,7 +763,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 				if err := p.parseExpression(); err != nil {
 					return err
 				}
-				if !hasQuantifier && p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
+				if !hasQuantifier && !hasNamedArg && p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
 					before := p.pos
 					if err := p.parseOptionalNamedExprAlias(); err != nil {
 						return err
