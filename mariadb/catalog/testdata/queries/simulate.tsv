@@ -257,11 +257,9 @@ ok	1630	engine	one_table@column	function_call_generic/ident_cli_._REPLACE_(_opt_
 ok	1630	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.SUBSTRING() FROM a
 ok	1630	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT a.SUM() FROM a
 1128	1128	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)	CREATE VIEW _v AS SELECT a.SUBSTRING(a FROM a) FROM a
-1128	1128	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)!insert	CREATE VIEW _v AS SELECT a.SUBSTRING(a FROM a) zzz FROM a
 ok	1630	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.TRIM() FROM a
 ok	1630	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT a.TRIM_ORACLE() FROM a
 1128	1128	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)	CREATE VIEW _v AS SELECT a.TRIM(LEADING FROM a) FROM a
-1128	1128	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)!insert	CREATE VIEW _v AS SELECT a.TRIM(LEADING FROM a) zzz FROM a
 1210	1210	engine	one_table@column	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	CREATE VIEW _v AS SELECT MATCH a AGAINST(a IN BOOLEAN MODE) FROM a
 1210	1210	engine	one_table@column	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	CREATE VIEW _v AS SELECT MATCH a AGAINST(a IN NATURAL LANGUAGE MODE) FROM a
 1210	1210	engine	one_table@column	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM	CREATE VIEW _v AS SELECT MATCH a AGAINST(a WITH QUERY EXPANSION) FROM a
