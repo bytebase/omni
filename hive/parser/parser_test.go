@@ -249,6 +249,21 @@ func TestTokenizeAndSplit(t *testing.T) {
 	if segs[0].Text != "SELECT 'a;b';" || segs[1].Text != " /* c; */ SELECT `x;y` FROM t;" {
 		t.Fatalf("unexpected segments: %+v", segs)
 	}
+
+	emptySegs := Split(";SELECT 1;;-- trailing\n")
+	if len(emptySegs) != 4 {
+		t.Fatalf("Split with empty segments got %d, want 4: %+v", len(emptySegs), emptySegs)
+	}
+	wantTexts := []string{";", "SELECT 1;", ";", "-- trailing\n"}
+	wantEmpty := []bool{true, false, true, true}
+	for i, seg := range emptySegs {
+		if seg.Text != wantTexts[i] || seg.Empty() != wantEmpty[i] {
+			t.Errorf("segment %d = (%q, empty=%v), want (%q, empty=%v)", i, seg.Text, seg.Empty(), wantTexts[i], wantEmpty[i])
+		}
+	}
+	if commentSegs := Split("-- only comment\n"); len(commentSegs) != 1 || !commentSegs[0].Empty() {
+		t.Errorf("comment-only Split = %+v, want 1 empty segment", commentSegs)
+	}
 }
 
 func TestParseStatementMetadata(t *testing.T) {

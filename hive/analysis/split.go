@@ -14,10 +14,12 @@ import (
 // Statement is one segment of a split SQL script.
 type Statement = analysis.Statement
 
-// Split splits script into non-empty HiveQL statements using the Hive 4.0.1
-// lexer. Each segment's Text includes leading whitespace and comments since the
-// previous segment and the terminating semicolon when present, so byte offsets
-// stay contiguous with script[Start:End].
+// Split splits script into HiveQL segments at top-level semicolons using the
+// Hive 4.0.1 lexer. Each segment's Text includes leading whitespace and
+// comments since the previous segment and the terminating semicolon when
+// present, so byte offsets stay contiguous with script[Start:End]. Empty
+// segments (lone semicolons, whitespace, or comment-only chunks) are retained
+// with Empty set to true.
 func Split(script string) ([]Statement, error) {
 	segments := parser.Split(script)
 	if len(segments) == 0 {
@@ -27,7 +29,7 @@ func Split(script string) ([]Statement, error) {
 	for _, seg := range segments {
 		statements = append(statements, Statement{
 			Text:  seg.Text,
-			Empty: false,
+			Empty: seg.Empty(),
 			Start: seg.ByteStart,
 			End:   seg.ByteEnd,
 		})

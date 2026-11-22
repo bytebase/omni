@@ -26,6 +26,9 @@ func ValidateQuery(script string) (readOnly bool, returnsData bool, err error) {
 		return false, false, err
 	}
 	for _, seg := range parser.Split(script) {
+		if seg.Empty() {
+			continue
+		}
 		trimmed := strings.TrimRightFunc(seg.Text, isSpaceOrSemicolon)
 		res, err := parser.Parse(trimmed)
 		if err != nil {
@@ -45,17 +48,22 @@ func Classify(statement string) (QueryType, error) {
 	if err := firstLexError(statement); err != nil {
 		return analysis.QueryTypeUnknown, err
 	}
-	segments := parser.Split(statement)
-	if len(segments) == 0 {
+	var nonEmpty []parser.Segment
+	for _, seg := range parser.Split(statement) {
+		if !seg.Empty() {
+			nonEmpty = append(nonEmpty, seg)
+		}
+	}
+	if len(nonEmpty) == 0 {
 		return analysis.QueryTypeUnknown, nil
 	}
-	if len(segments) > 1 {
+	if len(nonEmpty) > 1 {
 		return analysis.QueryTypeUnknown, errors.New("expected a single HiveQL statement")
 	}
-	trimmed := strings.TrimRightFunc(segments[0].Text, isSpaceOrSemicolon)
+	trimmed := strings.TrimRightFunc(nonEmpty[0].Text, isSpaceOrSemicolon)
 	res, err := parser.Parse(trimmed)
 	if err != nil {
-		return analysis.QueryTypeUnknown, offsetParseError(err, segments[0].ByteStart)
+		return analysis.QueryTypeUnknown, offsetParseError(err, nonEmpty[0].ByteStart)
 	}
 	return classifyParsedStatement(res.Statement), nil
 }

@@ -13,117 +13,145 @@ func TestSplit(t *testing.T) {
 		name    string
 		script  string
 		want    []string
+		empty   []bool
 		offsets [][2]int
 	}{
 		{
 			name:    "one statement",
 			script:  "SELECT 1;",
 			want:    []string{"SELECT 1;"},
+			empty:   []bool{false},
 			offsets: [][2]int{{0, 9}},
 		},
 		{
 			name:    "two statements",
 			script:  "SELECT 1;\nSELECT 2;",
 			want:    []string{"SELECT 1;", "\nSELECT 2;"},
+			empty:   []bool{false, false},
 			offsets: [][2]int{{0, 9}, {9, 19}},
 		},
 		{
 			name:    "two statements on one line",
 			script:  "SELECT 1; SELECT 2;",
 			want:    []string{"SELECT 1;", " SELECT 2;"},
+			empty:   []bool{false, false},
 			offsets: [][2]int{{0, 9}, {9, 19}},
 		},
 		{
 			name:   "no terminator",
 			script: "SELECT 1",
 			want:   []string{"SELECT 1"},
+			empty:  []bool{false},
 		},
 		{
 			name:   "a comment line belongs to the statement after it",
 			script: "-- a comment\nSELECT 1;",
 			want:   []string{"-- a comment\nSELECT 1;"},
+			empty:  []bool{false},
 		},
 		{
-			name:   "a comment after the last statement belongs to none",
-			script: "SELECT 1;\n-- trailing\n",
-			want:   []string{"SELECT 1;"},
+			name:    "a trailing comment after the last statement is marked empty",
+			script:  "SELECT 1;\n-- trailing\n",
+			want:    []string{"SELECT 1;", "\n-- trailing\n"},
+			empty:   []bool{false, true},
+			offsets: [][2]int{{0, 9}, {9, 22}},
 		},
 		{
-			name:   "an empty script",
+			name:   "empty string",
+			script: "",
+			want:   []string{},
+		},
+		{
+			name:   "whitespace only script is marked empty",
 			script: "\n\n",
-			want:   []string{},
+			want:   []string{"\n\n"},
+			empty:  []bool{true},
 		},
 		{
-			name:   "comments only",
+			name:   "comments only script is marked empty",
 			script: "-- line\n/* block /* nested */ */\n",
-			want:   []string{},
+			want:   []string{"-- line\n/* block /* nested */ */\n"},
+			empty:  []bool{true},
 		},
 		{
 			name:   "a block comment that ends its line",
 			script: "/* a comment */\nSELECT 1;",
 			want:   []string{"/* a comment */\nSELECT 1;"},
+			empty:  []bool{false},
 		},
 		{
 			name:   "an inline block comment before a statement",
 			script: "/* a comment */ SELECT 1;",
 			want:   []string{"/* a comment */ SELECT 1;"},
+			empty:  []bool{false},
 		},
 		{
 			name:   "nested block comments with semicolon inside",
 			script: "/* outer /* inner ; */ outer */ SELECT 1;",
 			want:   []string{"/* outer /* inner ; */ outer */ SELECT 1;"},
+			empty:  []bool{false},
 		},
 		{
 			name:   "semicolon inside single and double quoted strings and escapes",
 			script: `SELECT 'a;b', 'it\'s;ok', "c;d"; SELECT 'e;\nf';`,
 			want:   []string{`SELECT 'a;b', 'it\'s;ok', "c;d";`, ` SELECT 'e;\nf';`},
+			empty:  []bool{false, false},
 		},
 		{
 			name:   "semicolon inside multiline string literal",
 			script: "SELECT 'line1;\nline2';\nSELECT 2;",
 			want:   []string{"SELECT 'line1;\nline2';", "\nSELECT 2;"},
+			empty:  []bool{false, false},
 		},
 		{
 			name:   "semicolon inside backtick identifier with escaped backtick",
 			script: "SELECT `a;b`, `c``;d` FROM t; SELECT 2;",
 			want:   []string{"SELECT `a;b`, `c``;d` FROM t;", " SELECT 2;"},
+			empty:  []bool{false, false},
 		},
 		{
 			name:   "query hint inside statement",
 			script: "SELECT /*+ MAPJOIN(a) */ * FROM a; SELECT 2;",
 			want:   []string{"SELECT /*+ MAPJOIN(a) */ * FROM a;", " SELECT 2;"},
+			empty:  []bool{false, false},
 		},
 		{
 			name:   "inline comment after semicolon",
 			script: "SELECT 1; -- comment\nSELECT 2;",
 			want:   []string{"SELECT 1;", " -- comment\nSELECT 2;"},
+			empty:  []bool{false, false},
 		},
 		{
-			name:    "empty semicolons are skipped cleanly",
+			name:    "empty semicolons are preserved and marked empty",
 			script:  ";SELECT 1;;SELECT 2;;",
-			want:    []string{"SELECT 1;", "SELECT 2;"},
-			offsets: [][2]int{{1, 10}, {11, 20}},
+			want:    []string{";", "SELECT 1;", ";", "SELECT 2;", ";"},
+			empty:   []bool{true, false, true, false, true},
+			offsets: [][2]int{{0, 1}, {1, 10}, {10, 11}, {11, 20}, {20, 21}},
 		},
 		{
-			name:   "unclosed block comment stays in its segment",
+			name:   "unclosed block comment stays non-empty in its segment",
 			script: "SELECT 1; /* unclosed",
 			want:   []string{"SELECT 1;", " /* unclosed"},
+			empty:  []bool{false, false},
 		},
 		{
 			name:   "unclosed string literal consumes to EOF",
 			script: "SELECT 'unclosed; SELECT 2;",
 			want:   []string{"SELECT 'unclosed; SELECT 2;"},
+			empty:  []bool{false},
 		},
 		{
 			name:    "CRLF multiple statements",
 			script:  "SELECT 1;\r\nSELECT 2;",
 			want:    []string{"SELECT 1;", "\r\nSELECT 2;"},
+			empty:   []bool{false, false},
 			offsets: [][2]int{{0, 9}, {9, 20}},
 		},
 		{
 			name:    "multi-byte UTF-8",
 			script:  "SELECT '中';\nSELECT '文';",
 			want:    []string{"SELECT '中';", "\nSELECT '文';"},
+			empty:   []bool{false, false},
 			offsets: [][2]int{{0, 13}, {13, 27}},
 		},
 	}
@@ -146,6 +174,9 @@ func TestSplit(t *testing.T) {
 			for i := range texts {
 				if texts[i] != tc.want[i] {
 					t.Errorf("statement %d = %q, want %q", i, texts[i], tc.want[i])
+				}
+				if i < len(tc.empty) && statements[i].Empty != tc.empty[i] {
+					t.Errorf("statement %d Empty = %v, want %v", i, statements[i].Empty, tc.empty[i])
 				}
 			}
 			for i, offsets := range tc.offsets {
