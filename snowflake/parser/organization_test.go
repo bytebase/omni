@@ -8,8 +8,10 @@ import (
 
 func TestParseOrganizationObjects(t *testing.T) {
 	for in, want := range map[string][]string{
-		"CREATE ORGANIZATION USER IF NOT EXISTS u":                                                                                                 nil,
-		"CREATE ORGANIZATION USER u EMAIL = 'e' LOGIN_NAME = 'l' TYPE = PERSON COMMENT = 'c'":                                                      {""},
+		"CREATE ORGANIZATION USER IF NOT EXISTS u":                                            nil,
+		"CREATE ORGANIZATION USER u EMAIL = 'e' LOGIN_NAME = 'l' TYPE = PERSON COMMENT = 'c'": {""},
+		// Duplicate documented properties are deferred to the semantic/catalog layer,
+		// matching CREATE/ALTER WAREHOUSE and CREATE/ALTER USER.
 		"CREATE ORGANIZATION USER u EMAIL = 'a' EMAIL = 'b'":                                                                                       {""},
 		"ALTER ORGANIZATION USER IF EXISTS u SET DISPLAY_NAME = 'd' TYPE = SERVICE":                                                                {"SET"},
 		"ALTER ORGANIZATION USER u SET EMAIL = 'a' EMAIL = 'b'":                                                                                    {"SET"},

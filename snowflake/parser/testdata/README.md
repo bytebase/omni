@@ -155,11 +155,16 @@ closed 11 more (leaving 38), and the docs-notation pass closed 30 more (leaving
 
 The final 8 rows were closed by aligning `task_graph.go`,
 `CREATE`/`ALTER ORGANIZATION USER` in `organization.go`, and
-`parseCreateInteractiveWarehouseStmt` in `warehouse.go` with regular
-`CREATE WAREHOUSE` (`../warehouse.go`), which defers duplicate-property
-validation to the semantic/catalog layer while keeping strict validation of
-property names, value shapes, clause ordering, and singleton structural clauses
-(`WITH CONTACT`, `TASK_DEFAULTS`, `TAG`):
+`parseCreateInteractiveWarehouseStmt` in `warehouse.go` with Snowflake's core
+sibling handlers (`CREATE`/`ALTER WAREHOUSE` in `../warehouse.go`,
+`CREATE`/`ALTER USER` in `../role_user_policy.go`, `CREATE`/`ALTER TASK` in
+`../pipe_stream_task.go`, and `parseObjectUnsetKeys` in `../object.go`), which
+all defer duplicate-property validation to the semantic/catalog layer while
+keeping strict syntactic validation of property names, value shapes, clause
+ordering, and singleton structural clauses (`WITH CONTACT`, `TASK_DEFAULTS`,
+`TAG`). Because this suite uses `compat.SourceDocs` with no live
+`SNOWFLAKE_COMPAT_DSN` account available, engine-level duplicate-property
+semantics remain to be pinned if a live Snowflake oracle is later wired up:
 
 | Page | Rows closed | Repeated-property rows aligned |
 | --- | --- | --- |

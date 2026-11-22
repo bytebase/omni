@@ -39,6 +39,8 @@ func TestParseCreateTaskGraph(t *testing.T) {
 		"CREATE TASK GRAPH g TAG (t = 'v') OVERLAP_POLICY = ALLOW_ALL_OVERLAP",
 		"CREATE TASK GRAPH g WITH CONTACT (STEWARD = governance.contacts.owner)",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (EXECUTE AS USER svc, WAREHOUSE = wh)",
+		// Duplicate documented properties are deferred to the semantic/catalog layer,
+		// matching CREATE/ALTER WAREHOUSE and CREATE/ALTER TASK.
 		"CREATE TASK GRAPH g COMMENT = 'x' COMMENT = 'y'",
 		"CREATE TASK GRAPH g COMMENT = 'x' WITH CONTACT (s = c) COMMENT = 'y'",
 		"CREATE TASK GRAPH g TASK_DEFAULTS (WAREHOUSE = a, WAREHOUSE = a)",
