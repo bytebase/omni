@@ -4,6 +4,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/parser"
 )
 
 func TestViewQueryAndExpressionValidation(t *testing.T) {
@@ -162,6 +165,73 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		c := setup(t)
 		if got := execCode(t, c, "CREATE TABLE t_var AS SELECT @v"); got != 0 {
 			t.Fatalf("CREATE TABLE t_var AS SELECT @v: unexpected error %d", got)
+		}
+	})
+
+	// Cross-database unaliased tables with the same table name do not collide,
+	// whereas same-database unaliased tables and matching explicit aliases do (1066).
+	t.Run("cross_database_from_uniqueness", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE TABLE db2.t (id INT PRIMARY KEY);")
+		if got := execCode(t, c, "CREATE VIEW v_xtab AS SELECT db1.t.id FROM db1.t JOIN db2.t ON db1.t.id = db2.t.id"); got != 0 {
+			t.Fatalf("cross-db unaliased join: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_same_db AS SELECT db1.t.id FROM db1.t JOIN t ON db1.t.id = t.id"); got != 1066 {
+			t.Fatalf("same-db unaliased join: got %d, want 1066", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_same_alias AS SELECT x.id FROM db1.t x JOIN db2.t x ON x.id = x.id"); got != 1066 {
+			t.Fatalf("cross-db duplicate alias: got %d, want 1066", got)
+		}
+	})
+
+	// Hex and bit literals preserve their encoding through AnalyzeSelectStmt + DeparseQuery.
+	t.Run("analyzed_hex_and_bit_literals", func(t *testing.T) {
+		c := setup(t)
+		list, err := parser.Parse("SELECT X'41', 0x42, B'101', 0b110")
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		q, err := c.AnalyzeSelectStmt(list.Items[0].(*nodes.SelectStmt))
+		if err != nil {
+			t.Fatalf("analyze: %v", err)
+		}
+		got := DeparseQuery(q)
+		for _, want := range []string{"X'41'", "0x42", "b'101'", "0b110"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("DeparseQuery = %q, want substring %q", got, want)
+			}
+		}
+	})
+
+	// EXTRACT over nullable and non-null columns propagates nullability through view-on-view metadata export.
+	t.Run("extract_view_on_view_nullability", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE TABLE dt_tbl (id INT PRIMARY KEY, dt DATETIME NULL, dt_nn DATETIME NOT NULL);")
+		mustExec(t, c, "CREATE VIEW v_ext AS SELECT EXTRACT(DAY FROM dt) AS d_null, EXTRACT(DAY FROM dt_nn) AS d_nn FROM dt_tbl;")
+		mustExec(t, c, "CREATE VIEW w_ext AS SELECT d_null, d_nn FROM v_ext;")
+		md := c.DatabaseMetadata("db1")
+		if md == nil {
+			t.Fatal("DatabaseMetadata(db1) returned nil")
+		}
+		var found bool
+		for _, sc := range md.Schemas {
+			for _, v := range sc.Views {
+				if v.Name == "w_ext" {
+					found = true
+					if len(v.Columns) != 2 {
+						t.Fatalf("w_ext columns = %d, want 2", len(v.Columns))
+					}
+					if !v.Columns[0].Nullable {
+						t.Errorf("w_ext.d_null Nullable = false, want true")
+					}
+					if v.Columns[1].Nullable {
+						t.Errorf("w_ext.d_nn Nullable = true, want false")
+					}
+				}
+			}
+		}
+		if !found {
+			t.Fatal("view w_ext not found in DatabaseMetadata")
 		}
 	})
 }

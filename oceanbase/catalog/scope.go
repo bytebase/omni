@@ -66,24 +66,48 @@ type analyzerScope struct {
 	// expressions) used a FROM source that DeparseQuery cannot write back.
 	unfaithful bool
 
-	// fromNames tracks lowered table/alias names already registered in this
-	// query block's FROM clause so duplicates report ER_NONUNIQ_TABLE (1066).
-	fromNames map[string]bool
+	// fromUnaliased tracks unaliased table references in this query block's
+	// FROM clause by lowered table name -> lowered resolved database name, so
+	// unaliased tables from different databases (e.g. db1.t JOIN db2.t) do not
+	// collide while same-database duplicates still report ER_NONUNIQ_TABLE (1066).
+	fromUnaliased map[string]map[string]bool
+	// fromAliases tracks explicit aliases (aliased tables, derived tables,
+	// CTEs, table functions) in this query block's FROM clause so collisions
+	// with another alias or unaliased table report ER_NONUNIQ_TABLE (1066).
+	fromAliases map[string]bool
 }
 
-func (s *analyzerScope) checkDupFromName(name string) error {
+func (s *analyzerScope) checkDupFromTable(dbName, name string, hasAlias bool) error {
 	if name == "" {
 		return nil
 	}
 	lower := strings.ToLower(name)
-	if s.fromNames == nil {
-		s.fromNames = make(map[string]bool)
+	if hasAlias {
+		if s.fromAliases[lower] || len(s.fromUnaliased[lower]) > 0 {
+			return errNotUniqueTable(name)
+		}
+		if s.fromAliases == nil {
+			s.fromAliases = make(map[string]bool)
+		}
+		s.fromAliases[lower] = true
+		return nil
 	}
-	if s.fromNames[lower] {
+	lowerDB := strings.ToLower(dbName)
+	if s.fromAliases[lower] || s.fromUnaliased[lower][lowerDB] {
 		return errNotUniqueTable(name)
 	}
-	s.fromNames[lower] = true
+	if s.fromUnaliased == nil {
+		s.fromUnaliased = make(map[string]map[string]bool)
+	}
+	if s.fromUnaliased[lower] == nil {
+		s.fromUnaliased[lower] = make(map[string]bool)
+	}
+	s.fromUnaliased[lower][lowerDB] = true
 	return nil
+}
+
+func (s *analyzerScope) checkDupFromAlias(alias string) error {
+	return s.checkDupFromTable("", alias, true)
 }
 
 func (s *analyzerScope) markUnfaithful() {

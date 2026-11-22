@@ -412,6 +412,13 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 	switch e := expr.(type) {
 	case *ConstExprQ:
 		return e.IsNull
+	case *RawExprQ:
+		for _, arg := range e.Args {
+			if isAnalyzedExprNullable(c, db, q, arg) {
+				return true
+			}
+		}
+		return false
 	case *VarExprQ:
 		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
 			rte := q.RangeTable[e.RangeIdx]
@@ -920,7 +927,23 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, te *TargetE
 		if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
 			if sv.AnalyzedQuery != nil {
 				if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, ve.AttNum-1); ok {
-					return meta.colType, meta.nullable, meta.charset, meta.collation, true
+					colType, nullable, charset, collation := meta.colType, meta.nullable, meta.charset, meta.collation
+					if ve.AttNum-1 < len(sv.ColumnMetadata) {
+						cm := sv.ColumnMetadata[ve.AttNum-1]
+						if colType == "" {
+							colType = resolvedTypeToColumnType(cm.Type)
+							if colType == "" {
+								colType = cm.ColumnType
+							}
+						}
+						if charset == "" {
+							charset = cm.Charset
+						}
+						if collation == "" {
+							collation = cm.Collation
+						}
+					}
+					return colType, nullable, charset, collation, true
 				}
 			}
 			if ve.AttNum-1 < len(sv.ColumnMetadata) {

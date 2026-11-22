@@ -210,7 +210,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 			return nil, err
 		}
 		if !remote {
-			if err := scope.checkDupFromName(rte.ERef); err != nil {
+			if err := scope.checkDupFromTable(rte.DBName, rte.ERef, ref.Alias != ""); err != nil {
 				return nil, err
 			}
 		}
@@ -230,7 +230,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return analyzeFromSubquery(c, ref, q, scope, cteMap)
 
 	case *nodes.TableCollectionExpr:
-		if err := scope.checkDupFromName(ref.Alias); err != nil {
+		if err := scope.checkDupFromAlias(ref.Alias); err != nil {
 			return nil, err
 		}
 		if _, err := analyzeExpr(c, ref.Expr, scope); err != nil {
@@ -239,7 +239,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
 
 	case *nodes.RbIterateExpr:
-		if err := scope.checkDupFromName(ref.Alias); err != nil {
+		if err := scope.checkDupFromAlias(ref.Alias); err != nil {
 			return nil, err
 		}
 		if _, err := analyzeExpr(c, ref.Arg, scope); err != nil {
@@ -260,7 +260,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		if len(ref.Columns) > 0 && len(ref.Columns) != len(ref.Args) {
 			return nil, errWrongParamCount("unnest")
 		}
-		if err := scope.checkDupFromName(ref.Alias); err != nil {
+		if err := scope.checkDupFromAlias(ref.Alias); err != nil {
 			return nil, err
 		}
 		for _, arg := range ref.Args {
@@ -290,7 +290,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return registerKnownFunctionRTE(ref.Alias, colNames, q, scope), nil
 
 	case *nodes.JsonTableExpr:
-		if err := scope.checkDupFromName(ref.Alias); err != nil {
+		if err := scope.checkDupFromAlias(ref.Alias); err != nil {
 			return nil, err
 		}
 		if ref.Expr != nil {
@@ -706,7 +706,7 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 
 	alias := subq.Alias
 	if alias != "" {
-		if err := scope.checkDupFromName(alias); err != nil {
+		if err := scope.checkDupFromAlias(alias); err != nil {
 			return nil, err
 		}
 	}
@@ -1372,7 +1372,7 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 	if ref.Alias != "" {
 		eref = ref.Alias
 	}
-	if err := scope.checkDupFromName(eref); err != nil {
+	if err := scope.checkDupFromAlias(eref); err != nil {
 		return nil, err
 	}
 
