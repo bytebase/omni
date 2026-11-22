@@ -1,4 +1,4 @@
-# pin: default pingcap/tidb:v8.5.5 sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26 v8.5.5
+# pin: parser pingcap/tidb:v8.5.5 sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26 v8.5.5 judge:2
 # columns: omni, expected, source, rule, statement
 # Checked by TestCompatibility in compat_test.go. Generated rows come from ../../testdata/parser.y
 # and ../../testdata/tokens.tsv; hand-added rows have a label such as issue:<key> in the rule column.
@@ -11059,7 +11059,7 @@ reject	reject	engine	QueryWatchTextOption/SQL_TEXT_ResourceGroupRunawayWatchOpti
 accept	accept	engine	DropQueryWatchStmt/QUERY_WATCH_REMOVE_NUM	QUERY WATCH REMOVE 1
 reject	reject	engine	suite:cited	USE TIDB_CURRENT_TSO
 accept	accept	engine	suite:cited	USE SEND_CREDENTIALS_TO_TIKV
-reject	accept	engine	suite:cited	ALTER DATABASE COLLATE 's' zzz
+reject	reject	engine	suite:cited	ALTER DATABASE COLLATE 's' zzz
 reject	reject	engine	suite:reject-fuzz	select * = t
 reject	reject	engine	suite:reject-fuzz	select * = 1 from t
 reject	reject	engine	suite:reject-fuzz	select @@@tidb_index_lookup_pushdown_policy

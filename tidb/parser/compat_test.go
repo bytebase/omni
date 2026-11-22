@@ -24,6 +24,7 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join("..", "testdata", "pins.tsv"),
+		PinRole: "parser",
 		Grammar: filepath.Join("..", "testdata", "parser.y"),
 		Tokens:  filepath.Join("..", "testdata", "tokens.tsv"),
 		Omni:    omniVerdict,
