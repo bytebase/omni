@@ -113,6 +113,30 @@ var organizationAccountProps = objectProps{
 	"COMMENT":              propString,
 }
 
+// parseOrganizationUserProperties reads an organization user's objectProperties
+// run (one or more when need is true). Like CREATE/ALTER USER and WAREHOUSE,
+// repeated KEY = value entries are accepted at parse time; checkClauses still
+// validates every property name and value shape.
+func (p *Parser) parseOrganizationUserProperties(s *ast.ObjectStmt, keywords string, start int, need bool) error {
+	c := &ast.ObjectClause{Keywords: keywords, Loc: ast.Loc{Start: start}}
+	for p.startsObjectProperty() {
+		opt, err := p.parseObjectProperty()
+		if err != nil {
+			return err
+		}
+		c.Options = append(c.Options, opt)
+	}
+	if len(c.Options) == 0 {
+		if need {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	c.Loc.End = p.prev.Loc.End
+	s.Clauses = append(s.Clauses, c)
+	return nil
+}
+
 // parseCreateOrganizationUser reads what follows the name of
 //
 //	CREATE ORGANIZATION USER [ IF NOT EXISTS ] <name>
@@ -122,10 +146,7 @@ var organizationAccountProps = objectProps{
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-organization-user
 func parseCreateOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
-	if _, err := p.parseObjectProperties(s, "", false); err != nil {
-		return err
-	}
-	return rejectObjectTags(s)
+	return p.parseOrganizationUserProperties(s, "", p.cur.Loc.Start, false)
 }
 
 // parseAlterOrganizationUser reads what follows the name of
@@ -139,14 +160,19 @@ func parseAlterOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
 		// The page writes IF EXISTS on SET alone.
 		return p.syntaxErrorAtCur()
 	}
-	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset)
+	if p.cur.Type == kwSET {
+		start := p.cur.Loc.Start
+		p.advance() // consume SET
+		return p.parseOrganizationUserProperties(s, "SET", start, true)
+	}
+	ok, err := p.parseObjectAlterCommon(s, actUnset)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return p.syntaxErrorAtCur()
 	}
-	return rejectObjectTags(s)
+	return nil
 }
 
 // parseCreateOrganizationUserGroup reads what follows the name of

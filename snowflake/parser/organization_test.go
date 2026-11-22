@@ -10,7 +10,9 @@ func TestParseOrganizationObjects(t *testing.T) {
 	for in, want := range map[string][]string{
 		"CREATE ORGANIZATION USER IF NOT EXISTS u":                                                                                                 nil,
 		"CREATE ORGANIZATION USER u EMAIL = 'e' LOGIN_NAME = 'l' TYPE = PERSON COMMENT = 'c'":                                                      {""},
+		"CREATE ORGANIZATION USER u EMAIL = 'a@x.com' EMAIL = 'b@x.com'":                                                                           {""},
 		"ALTER ORGANIZATION USER IF EXISTS u SET DISPLAY_NAME = 'd' TYPE = SERVICE":                                                                {"SET"},
+		"ALTER ORGANIZATION USER u SET EMAIL = 'a@x.com' EMAIL = 'b@x.com'":                                                                        {"SET"},
 		"ALTER ORGANIZATION USER u UNSET EMAIL, TYPE":                                                                                              {"UNSET"},
 		"CREATE ORGANIZATION USER GROUP g IS_GRANTABLE = TRUE":                                                                                     {""},
 		"ALTER ORGANIZATION USER GROUP IF EXISTS g ADD ORGANIZATION USERS a, b":                                                                    {"ADD ORGANIZATION USERS"},
@@ -124,6 +126,7 @@ func TestParseOrganizationRejects(t *testing.T) {
 		"CREATE ORGANIZATION USER u EMAIL = 1",
 		"CREATE ORGANIZATION USER u WITH TAG (t = 'v')",
 		"ALTER ORGANIZATION USER u",
+		"ALTER ORGANIZATION USER u SET",
 		"ALTER ORGANIZATION USER u SET LOGIN_NAME = 'l'", // CREATE's alone
 		"ALTER ORGANIZATION USER u UNSET LOGIN_NAME",
 		"ALTER ORGANIZATION USER IF EXISTS u UNSET EMAIL",

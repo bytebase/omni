@@ -117,32 +117,35 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 38 rows
+## What is left: 22 rows
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
-and parser changes above closed 69; #1459 left 49. This pass closes 11 more:
-`execute-dbt-project`'s second form brackets `FROM WORKSPACE` and still lists
-`IMPORTS`, so `EXECUTE DBT PROJECT IMPORTS = (...)` with no project at all is
-the page's shape
-([page](https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project)).
-`dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`, and
-`validImportCall` holds each of the page's five system functions to the
-arguments its own page gives it: one string for the two locators, and one to
-three for the three `SYSTEM$DBT_GET_LAST_*_RUN_TARGET` lookups.
+and parser changes above closed 69; #1459 left 49; #1471 closed 11 more
+(`execute-dbt-project`'s targetless `IMPORTS` forms, leaving 38).
 
-The remaining rows are all `reject` in omni and `accept` in the docs, grouped
-by the page whose notation or reading leaves them:
+This pass closes 16 more rows (`20,483` → `20,499` / `20,521` = `99.89%`):
+
+- `alter-task-graph` (9) and `create-task-graph` (3): `ALTER TASK GRAPH ...
+  SET <property> = <value>`, `UNSET <property>`, and `TASK_DEFAULTS ( ... )`
+  now accept open-ended property names (still validating documented property
+  value shapes when known, and matching `ALTER TASK`'s open property handling
+  including `SET CONTACT = <value>` vs `SET CONTACT <purpose> = <contact>`).
+- `create-interactive-warehouse` (2) and `create-organization-user` /
+  `alter-organization-user` (2): repeated `NAME = value` properties in their
+  property/parameter runs are now accepted at parse time (matching
+  `CREATE/ALTER WAREHOUSE` and `CREATE/ALTER USER`), while still validating
+  every property name, value shape, and clause ordering.
+
+The remaining 22 rows are all `reject` in omni and `accept` in the docs, and
+are intentionally kept rejected because they are genuinely invalid Snowflake
+SQL derived only by docs-notation quirks:
 
 | Page | Rows | What remains, in the page's words |
 | --- | --- | --- |
 | alter-stage | 19 | `ALTER STAGE [ IF EXISTS ] <name> SET { [ externalStageParams ] [ FILE_FORMAT = ( ... ) ] [ COMMENT = '<string_literal>' ] }`, and the external stage's Amazon S3, Google Cloud Storage and Microsoft Azure `externalStageParams` are all optional too, as the page writes them (the Amazon S3 one after docs-fixes lets an ALTER change the credentials or encryption and keep the URL). Nothing says "at least one", so `ALTER STAGE a SET` is the page's own shape; a page-local fix would invent a required parameter ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-stage)). The `statement` rule holds the same form as `statement/alterStage`. |
-| alter-task-graph | 9 | `SET <property> = <value> [ , <property> = <value> ... ]`, `UNSET <property> [ , ... ]`, `SET TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )` and its UNSET. The page says the properties are "the ones listed in CREATE TASK GRAPH" and lists the defaults only in prose, so its notation derives any name, `SET a = a` and a repeated property alike; omni checks the names, which no grammar there can ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)). |
-| create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )`: the page's list of supported default properties is prose in its TASK_DEFAULTS parameter, so `a = a` and a repeated one are the notation's, not a stated form ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
-| create-interactive-warehouse | 2 | `objectProperties` and `objectParams` are one `NAME = value` per line, which the converter reads as any number of them, so the run may name the same property twice. The page's examples never repeat one, but its parameters do not say one may not be set twice either. Rewriting the list to forbid a repeat in `docs-fixes.tsv` means fixing the page's order, which stops the docs deriving the unordered combinations omni accepts (`COMMENT` before `MAX_CONCURRENCY_LEVEL`, as `TestParseCreateInteractiveWarehouse` holds), so the row stays until an engine oracle settles it; no parser change was made to fit the sample. |
-| alter-organization-user, create-organization-user | 2 | The same `objectProperties` run, one row for each page: `EMAIL = 's' EMAIL = 's'` is the converter's sample of a repeat ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)). |
 | show-semantic-dimensions, -facts, -metrics | 3 | `IN SCHEMA.a`: the pages' `IN` choice does take a `<semantic_view_name>`, a QNAME, but Snowflake's [reserved and limited keywords](https://docs.snowflake.com/en/sql-reference/reserved-keywords) say `SCHEMA` and `DATABASE` "cannot be used as an identifier in a SHOW command (e.g. 'SHOW … IN <identifier>')". So the row is the docs grammar reading a limited keyword as a name, not a form the engine takes; the documented schema scope is `SCHEMA <db_name>.<schema_name>`, and the name would have to be quoted. |
 
-The agree count moved from 20,472 to 20,483; the total, `undocumented` count
+The agree count moved from 20,483 to 20,499; the total, `undocumented` count
 and docs pin stay at 73,743, 53,222 and the same digest, because these were
 parser gaps in statements the file already held. No `expected` cell was edited
 by hand, and no alternative row that agreed with the docs stopped agreeing.

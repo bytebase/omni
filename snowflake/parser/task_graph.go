@@ -27,8 +27,9 @@ var taskGraphForm = &objectForm{
 	orReplace: true,
 	orAlter:   true,
 	// https://docs.snowflake.com/en/sql-reference/sql/drop-task-graph
-	drop:  true,
-	props: taskGraphProps,
+	drop: true,
+	// No props: CREATE checks its documented properties below, while
+	// ALTER TASK GRAPH SET / UNSET take open-ended <property> forms.
 }
 
 // taskGraphProps are the graph-wide properties CREATE TASK GRAPH documents,
@@ -167,6 +168,10 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 					return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
 				}
 				seen[o.Name] = true
+				v, ok := taskGraphProps[o.Name]
+				if !ok || !v.matches(o) {
+					return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
+				}
 				if err := checkTaskGraphProperty(o); err != nil {
 					return err
 				}
@@ -209,15 +214,6 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("REMOVE", "WHEN"):
 		p.addObjectKeywordsClause(s, "REMOVE WHEN", start)
 		return nil
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "TASK_DEFAULTS"):
-		p.advance() // consume SET
-		p.advance() // consume TASK_DEFAULTS
-		group, err := p.parseTaskGraphDefaults(false)
-		if err != nil {
-			return err
-		}
-		p.addObjectKeywordsClause(s, "SET TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
-		return nil
 	case p.cur.Type == kwUNSET && isWordToken(p.peekNext(), "TASK_DEFAULTS"):
 		p.advance() // consume UNSET
 		p.advance() // consume TASK_DEFAULTS
@@ -226,26 +222,6 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			return err
 		}
 		p.addObjectKeywordsClause(s, "UNSET TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
-		return nil
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "CONTACT"):
-		p.advance() // consume SET
-		p.advance() // consume CONTACT
-		var contacts []*ast.CopyOption
-		for {
-			e, err := p.parseTaskGraphEntry(false, false)
-			if err != nil {
-				return err
-			}
-			contacts = append(contacts, e)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance() // consume ','
-		}
-		if err := checkTaskGraphContacts(&ast.CopyOption{Group: contacts}); err != nil {
-			return err
-		}
-		p.addObjectKeywordsClause(s, "SET CONTACT", start).Options = contacts
 		return nil
 	case p.cur.Type == kwUNSET && isWordToken(p.peekNext(), "CONTACT"):
 		p.advance() // consume UNSET
@@ -257,11 +233,41 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		p.addObjectKeywordsClause(s, "UNSET CONTACT", start).Keys = keys
 		return nil
 	case p.cur.Type == kwSET && p.peekNext().Type != kwTAG:
-		// SET <property> = <value> [ , ... ]: the page separates them with
-		// commas.
 		p.advance() // consume SET
+		if isWordToken(p.cur, "TASK_DEFAULTS") {
+			p.advance() // consume TASK_DEFAULTS
+			group, err := p.parseTaskGraphDefaults(false)
+			if err != nil {
+				return err
+			}
+			p.addObjectKeywordsClause(s, "SET TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
+			return nil
+		}
+		if isWordToken(p.cur, "CONTACT") && p.peekNext().Type != '=' {
+			p.advance() // consume CONTACT
+			var contacts []*ast.CopyOption
+			for {
+				e, err := p.parseTaskGraphEntry(false, false)
+				if err != nil {
+					return err
+				}
+				contacts = append(contacts, e)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+			if err := checkTaskGraphContacts(&ast.CopyOption{Group: contacts}); err != nil {
+				return err
+			}
+			p.addObjectKeywordsClause(s, "SET CONTACT", start).Options = contacts
+			return nil
+		}
+		// SET <property> = <value> [ , ... ]: the page separates them with
+		// commas. Known graph properties are held to their documented value
+		// shapes; unknown names are accepted open-ended, as ALTER TASK ... SET
+		// does, because the reference writes generic <property> = <value>.
 		c := &ast.ObjectClause{Keywords: "SET", Loc: ast.Loc{Start: start}}
-		seen := map[string]bool{}
 		for {
 			if !p.startsObjectProperty() {
 				return p.syntaxErrorAtCur()
@@ -270,10 +276,9 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 			if err != nil {
 				return err
 			}
-			if seen[o.Name] {
-				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
+			if v, ok := taskGraphProps[o.Name]; ok && !v.matches(o) {
+				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
 			}
-			seen[o.Name] = true
 			if err := checkTaskGraphProperty(o); err != nil {
 				return err
 			}
@@ -317,23 +322,19 @@ func checkTaskGraphContacts(group *ast.CopyOption) error {
 }
 
 // parseTaskGraphDefaults reads TASK_DEFAULTS' ( <default_property> = <value>
-// [ , ... ] ), or with names ( <default_property> [ , ... ] ), holding each
-// property to the ones the page lists, once. cur is '('.
+// [ , ... ] ), or with names ( <default_property> [ , ... ] ). Known defaults
+// are held to their documented value shapes; unknown property names are
+// accepted open-ended because Snowflake's reference writes generic
+// <default_property> = <value> and lists supported defaults in prose. cur is '('.
 func (p *Parser) parseTaskGraphDefaults(names bool) (*ast.CopyOption, error) {
 	group, err := p.parseTaskGraphGroup(names, true)
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
 	for _, e := range group.Group {
-		v, ok := taskGraphDefaults[e.Name]
-		if !ok || (!names && !v.matches(e)) {
+		if v, ok := taskGraphDefaults[e.Name]; ok && !names && !v.matches(e) {
 			return nil, &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error at or near " + e.Name}
 		}
-		if seen[e.Name] {
-			return nil, &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error: " + e.Name + " is set twice"}
-		}
-		seen[e.Name] = true
 	}
 	return group, nil
 }

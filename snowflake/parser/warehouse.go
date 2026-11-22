@@ -197,7 +197,6 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 		phaseParams
 	)
 	phase := phaseProps
-	seen := map[string]bool{}
 	for {
 		switch {
 		case p.startsWarehouseTags():
@@ -231,13 +230,12 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 			} else if phase != phaseProps {
 				props = nil
 			}
-			if seen[opt.Name] || props == nil || !interactiveWarehouseValueOK(props, opt) {
+			if props == nil || !interactiveWarehouseValueOK(props, opt) {
 				return nil, &ParseError{
 					Position: opt.Loc.Start, End: opt.Loc.End,
 					Message: "syntax error at or near " + opt.Name,
 				}
 			}
-			seen[opt.Name] = true
 			stmt.Options = append(stmt.Options, opt)
 		default:
 			stmt.Loc.End = p.prev.Loc.End
