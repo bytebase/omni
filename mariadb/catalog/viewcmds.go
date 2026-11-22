@@ -1150,23 +1150,82 @@ func (c *Catalog) ShowCreateView(database, name string) string {
 	return showCreateView(v)
 }
 
-// formatDefiner ensures the definer string is backtick-quoted per MySQL 8.0 format.
-// Input can be: `root`@`%`, root@%, 'root'@'%', etc.
-// Output: `root`@`%`
+// formatDefiner ensures the definer string is backtick-quoted per MySQL/MariaDB
+// SHOW CREATE format, preserving quoted account boundaries (e.g. 'a@b'@'localhost'
+// becomes `a@b`@`localhost`). Special keywords CURRENT_USER[()] and
+// CURRENT_ROLE[()] are kept as written.
 func formatDefiner(definer string) string {
-	// If already formatted with backticks, return as-is.
-	if strings.HasPrefix(definer, "`") && strings.Contains(definer, "@") {
+	switch strings.ToUpper(definer) {
+	case "CURRENT_USER", "CURRENT_USER()", "CURRENT_ROLE", "CURRENT_ROLE()":
 		return definer
 	}
-	// Split on @
-	parts := strings.SplitN(definer, "@", 2)
-	if len(parts) == 1 {
-		// No @ — just backtick-quote the whole thing.
-		return "`" + strings.Trim(parts[0], "`'") + "`"
+	userRaw, hostRaw, hasAt := splitDefinerAccount(definer)
+	user := unquoteDefinerPart(userRaw)
+	if !hasAt {
+		return backtickIDQ(user)
 	}
-	user := strings.Trim(parts[0], "`'")
-	host := strings.Trim(parts[1], "`'")
-	return fmt.Sprintf("`%s`@`%s`", user, host)
+	host := unquoteDefinerPart(hostRaw)
+	return backtickIDQ(user) + "@" + backtickIDQ(host)
+}
+
+// splitDefinerAccount splits a definer string into its user and host parts
+// while respecting quoted user names that may contain '@'.
+func splitDefinerAccount(s string) (user, host string, hasAt bool) {
+	if s == "" {
+		return "", "", false
+	}
+	if s[0] == '`' || s[0] == '\'' || s[0] == '"' {
+		if end, ok := scanAccountPart(s, 0); ok {
+			if end == len(s) {
+				return s, "", false
+			}
+			if s[end] == '@' {
+				return s[:end], s[end+1:], true
+			}
+		}
+		// Fallback for parser-produced single-quoted strings that contain an
+		// unescaped inner quote (parseDefinerValue wraps token Str in '...').
+		q := s[0]
+		for i := len(s) - 1; i > 0; i-- {
+			if s[i] == '@' && s[i-1] == q {
+				return s[:i], s[i+1:], true
+			}
+		}
+	}
+	// Hostnames cannot contain '@', so splitting on the last '@' handles both
+	// plain user@host and backtick-unquoted usernames containing '@' (e.g. a@b@localhost).
+	if at := strings.LastIndexByte(s, '@'); at >= 0 {
+		return s[:at], s[at+1:], true
+	}
+	return s, "", false
+}
+
+// unquoteDefinerPart removes matching outer quotes (`, ', ") from a definer
+// user or host component and unescapes doubled quotes (and backslash escapes
+// inside single/double quotes).
+func unquoteDefinerPart(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+	q := s[0]
+	if (q != '`' && q != '\'' && q != '"') || s[len(s)-1] != q {
+		return s
+	}
+	inner := s[1 : len(s)-1]
+	var b strings.Builder
+	b.Grow(len(inner))
+	for i := 0; i < len(inner); i++ {
+		if q != '`' && inner[i] == '\\' && i+1 < len(inner) {
+			i++
+			b.WriteByte(inner[i])
+			continue
+		}
+		if inner[i] == q && i+1 < len(inner) && inner[i+1] == q {
+			i++
+		}
+		b.WriteByte(inner[i])
+	}
+	return b.String()
 }
 
 // showCreateView produces the SHOW CREATE VIEW output for a view.

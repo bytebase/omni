@@ -29,6 +29,43 @@ CREATE DEFINER=` + "`root`@`%`" + ` EVENT ev ON SCHEDULE EVERY 1 DAY STARTS '202
 				t.Errorf("%s ShowCreate did not backtick-quote DEFINER: %s", kind, got)
 			}
 		}
+
+		// Quoted usernames containing '@' or backticks must preserve account boundaries.
+		c2, err := LoadSQL(`
+CREATE DATABASE d;
+USE d;
+CREATE TABLE t (b INT PRIMARY KEY, c INT);
+CREATE DEFINER='a@b'@'localhost' PROCEDURE p1() COMMIT;
+CREATE DEFINER=` + "`a@b`@`localhost`" + ` FUNCTION f1() RETURNS INT RETURN 1;
+CREATE DEFINER='a@b'@'localhost' TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1;
+CREATE DEFINER='a@b'@'localhost' EVENT ev1 ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END;
+`)
+		if err != nil {
+			t.Fatalf("LoadSQL quoted definer: %v", err)
+		}
+		for kind, got := range map[string]string{
+			"procedure": c2.ShowCreateProcedure("d", "p1"),
+			"function":  c2.ShowCreateFunction("d", "f1"),
+			"trigger":   c2.ShowCreateTrigger("d", "tr1"),
+			"event":     c2.ShowCreateEvent("d", "ev1"),
+		} {
+			if !strings.Contains(got, "DEFINER=`a@b`@`localhost`") {
+				t.Errorf("%s ShowCreate corrupted quoted DEFINER: %s", kind, got)
+			}
+		}
+		for in, want := range map[string]string{
+			"'a@b'@'localhost'":   "`a@b`@`localhost`",
+			"`a@b`@`localhost`":   "`a@b`@`localhost`",
+			"'a''b'@'localhost'":  "`a'b`@`localhost`",
+			"`a``b`@`localhost`":  "`a``b`@`localhost`",
+			"root@%":              "`root`@`%`",
+			"CURRENT_USER":        "CURRENT_USER",
+			"CURRENT_USER()":      "CURRENT_USER()",
+		} {
+			if got := formatDefiner(in); got != want {
+				t.Errorf("formatDefiner(%q) = %q, want %q", in, got, want)
+			}
+		}
 	})
 
 	t.Run("routine default characteristics omitted", func(t *testing.T) {
@@ -108,6 +145,31 @@ CREATE SEQUENCE s;
 			}
 			if got := errorCode(res[0].Error); got != tc.want {
 				t.Errorf("%s: got code %d (%v), want %d", tc.stmt, got, res[0].Error, tc.want)
+			}
+		}
+
+		// Increment stays signed BIGINT regardless of sequence value type, so
+		// restating/narrowing AS <type> must not reject a negative or wide increment.
+		cDesc, err := LoadSQL(`
+CREATE DATABASE d;
+USE d;
+CREATE SEQUENCE s_desc AS INT UNSIGNED MINVALUE 1 MAXVALUE 100 START WITH 100 INCREMENT -1;
+CREATE SEQUENCE s_wide AS BIGINT MINVALUE 1 MAXVALUE 100 START WITH 1 INCREMENT 500;
+`)
+		if err != nil {
+			t.Fatalf("LoadSQL descending/wide increment sequences: %v", err)
+		}
+		for _, stmt := range []string{
+			"ALTER SEQUENCE s_desc AS INT UNSIGNED",
+			"ALTER SEQUENCE s_desc AS TINYINT UNSIGNED",
+			"ALTER SEQUENCE s_wide AS TINYINT",
+		} {
+			res, err := cDesc.Exec(stmt, nil)
+			if err != nil {
+				t.Fatalf("%s: parse err %v", stmt, err)
+			}
+			if got := errorCode(res[0].Error); got != 0 {
+				t.Errorf("%s: got code %d (%v), want 0", stmt, got, res[0].Error)
 			}
 		}
 	})

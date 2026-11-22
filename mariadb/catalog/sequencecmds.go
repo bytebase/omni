@@ -125,15 +125,16 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 			return errSequenceOutOfRange(db.Name, seq.Name)
 		}
 		// MariaDB executes ALTER SEQUENCE ... AS <type> by altering the
-		// underlying sequence table's columns to the new integer type first,
-		// so any existing value (minimum, maximum, start, increment) outside
-		// the new type's range fails with 1264 (measured on mariadb:11.8.8).
+		// underlying sequence table's value columns (minimum_value,
+		// maximum_value, start_value) to the new integer type first, so any
+		// existing bound outside the new type's range fails with 1264
+		// (measured on mariadb:11.8.8). The increment column always stays
+		// signed BIGINT regardless of the sequence value type.
 		typeMin, typeMax := sequenceTypeRange(next.DataType)
 		for _, pair := range []struct{ col, val string }{
 			{"minimum_value", seq.MinValue},
 			{"maximum_value", seq.MaxValue},
 			{"start_value", seq.Start},
-			{"increment", seq.Increment},
 		} {
 			if v, ok := new(big.Int).SetString(pair.val, 10); ok && (v.Cmp(typeMin) < 0 || v.Cmp(typeMax) > 0) {
 				return errOutOfRangeColumn(pair.col)
