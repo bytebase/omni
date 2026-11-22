@@ -21,13 +21,15 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldKey       string
 		tbl          *Table
 		view         *View
+		seq          *Sequence
 		newName      string
 	}
-	// tables and views are the namespaces the pairs see, one shallow copy per
-	// database they touch, so a refused statement leaves the catalog's own maps
-	// alone.
+	// tables, views and sequences are the namespaces the pairs see, one
+	// shallow copy per database they touch, so a refused statement leaves the
+	// catalog's own maps alone.
 	tables := map[*Database]map[string]*Table{}
 	views := map[*Database]map[string]*View{}
+	sequences := map[*Database]map[string]*Sequence{}
 	tableNS := func(db *Database) map[string]*Table {
 		if m, ok := tables[db]; ok {
 			return m
@@ -50,6 +52,17 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		views[db] = m
 		return m
 	}
+	seqNS := func(db *Database) map[string]*Sequence {
+		if m, ok := sequences[db]; ok {
+			return m
+		}
+		m := make(map[string]*Sequence, len(db.Sequences))
+		for k, v := range db.Sequences {
+			m[k] = v
+		}
+		sequences[db] = m
+		return m
+	}
 	var renames []rename
 	for _, pair := range stmt.Pairs {
 		oldDB, err := c.resolveDatabase(pair.Old.Schema)
@@ -59,10 +72,14 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldKey := toLower(pair.Old.Name)
 		tbl := tableNS(oldDB)[oldKey]
 		var view *View
+		var seq *Sequence
 		if tbl == nil {
 			view = viewNS(oldDB)[oldKey]
 		}
 		if tbl == nil && view == nil {
+			seq = seqNS(oldDB)[oldKey]
+		}
+		if tbl == nil && view == nil && seq == nil {
 			return errNoSuchTable(oldDB.Name, pair.Old.Name)
 		}
 		if tbl != nil && tbl.Cached {
@@ -77,17 +94,21 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			return errRenameViewAcrossDB(oldDB.Name, newDB.Name)
 		}
 		newKey := toLower(pair.New.Name)
-		if tableNS(newDB)[newKey] != nil || viewNS(newDB)[newKey] != nil || newDB.Sequences[newKey] != nil {
+		if tableNS(newDB)[newKey] != nil || viewNS(newDB)[newKey] != nil || seqNS(newDB)[newKey] != nil {
 			return errDupTableQualified(newDB.Name, pair.New.Name)
 		}
-		if tbl != nil {
+		switch {
+		case tbl != nil:
 			delete(tableNS(oldDB), oldKey)
 			tableNS(newDB)[newKey] = tbl
-		} else {
+		case view != nil:
 			delete(viewNS(oldDB), oldKey)
 			viewNS(newDB)[newKey] = view
+		default:
+			delete(seqNS(oldDB), oldKey)
+			seqNS(newDB)[newKey] = seq
 		}
-		renames = append(renames, rename{oldDB: oldDB, newDB: newDB, oldKey: oldKey, tbl: tbl, view: view, newName: pair.New.Name})
+		renames = append(renames, rename{oldDB: oldDB, newDB: newDB, oldKey: oldKey, tbl: tbl, view: view, seq: seq, newName: pair.New.Name})
 	}
 	for db, m := range tables {
 		db.Tables = m
@@ -95,13 +116,20 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 	for db, m := range views {
 		db.Views = m
 	}
+	for db, m := range sequences {
+		db.Sequences = m
+	}
 	for _, r := range renames {
-		if r.tbl != nil {
+		switch {
+		case r.tbl != nil:
 			r.tbl.Name = r.newName
 			r.tbl.Database = r.newDB
-		} else if r.view != nil {
+		case r.view != nil:
 			r.view.Name = r.newName
 			r.view.Database = r.newDB
+		case r.seq != nil:
+			r.seq.Name = r.newName
+			r.seq.Database = r.newDB
 		}
 	}
 	return nil

@@ -43,9 +43,14 @@ func errUnknownSequence(db, name string) error {
 		Message: fmt.Sprintf("Unknown SEQUENCE: '%s.%s'", db, name)}
 }
 
-// nameTaken reports whether a table, view or sequence of db has the name.
+// nameTaken reports whether a non-temporary table, view or sequence of db has
+// the name. A session-local temporary table lives in its own namespace and does
+// not collide with sequences (read on v8.5.5).
 func (db *Database) nameTaken(key string) bool {
-	return db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil
+	if tbl := db.Tables[key]; tbl != nil && !tbl.Temporary {
+		return true
+	}
+	return db.Views[key] != nil || db.Sequences[key] != nil
 }
 
 // createSequence installs a sequence as TiDB's handleSequenceOptions does: the
@@ -116,15 +121,20 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 }
 
 // alterSequence applies the options to the sequence and keeps the result only
-// if it is valid. TiDB fills in no defaults here, and IF EXISTS does not spare
-// a missing sequence its 1146 (read on v8.5.5).
+// if it is valid. TiDB fills in no defaults here, answers 1347 when a table or
+// view holds the name, and IF EXISTS does not spare a missing sequence its
+// 1146 (read on v8.5.5).
 func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
 	}
-	seq := db.Sequences[toLower(stmt.Name.Name)]
+	key := toLower(stmt.Name.Name)
+	seq := db.Sequences[key]
 	if seq == nil {
+		if tbl := db.Tables[key]; (tbl != nil && !tbl.Temporary) || db.Views[key] != nil {
+			return errWrongObjectKind(db.Name, stmt.Name.Name, "SEQUENCE")
+		}
 		return errNoSuchTable(db.Name, stmt.Name.Name)
 	}
 	next := *seq
@@ -141,8 +151,10 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	return nil
 }
 
-// dropSequence drops each named sequence it finds and answers 4139 for the
-// first it does not, unless IF EXISTS.
+// dropSequence drops each named sequence it finds and answers 1347 when a
+// non-temporary table or view holds the name, or 4139 when nothing does, for
+// the first name it fails on, unless IF EXISTS (which suppresses both on
+// v8.5.5).
 func (c *Catalog) dropSequence(stmt *nodes.DropSequenceStmt) error {
 	var first error
 	for _, ref := range stmt.Sequences {
@@ -156,7 +168,11 @@ func (c *Catalog) dropSequence(stmt *nodes.DropSequenceStmt) error {
 		key := toLower(ref.Name)
 		if db.Sequences[key] == nil {
 			if !stmt.IfExists && first == nil {
-				first = errUnknownSequence(db.Name, ref.Name)
+				if tbl := db.Tables[key]; (tbl != nil && !tbl.Temporary) || db.Views[key] != nil {
+					first = errWrongObjectKind(db.Name, ref.Name, "SEQUENCE")
+				} else {
+					first = errUnknownSequence(db.Name, ref.Name)
+				}
 			}
 			continue
 		}
