@@ -25,6 +25,12 @@ type TableLookup func(tableName string) *ResolverTable
 // Resolver resolves column references in a SelectStmt using catalog metadata.
 type Resolver struct {
 	Lookup TableLookup
+	// SchemaLookup optionally resolves schema-qualified table references
+	// against the referenced database rather than the default database.
+	SchemaLookup func(schema, tableName string) *ResolverTable
+	// DefaultDB is the name of the default database used for unqualified table
+	// references when checking schema-qualified column references.
+	DefaultDB string
 	// DefaultCharset is the database's default character set (e.g., "utf8mb4", "latin1").
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
@@ -47,6 +53,12 @@ type Resolver struct {
 	// aliasColumnsOnly limits that to a target that is a column reference,
 	// which is ORDER BY's rule where GROUP BY takes any target.
 	aliasColumnsOnly bool
+	// havingTargets holds the query whose HAVING clause is being resolved so
+	// local SELECT output aliases shadow enclosing correlated scopes.
+	havingTargets *ast.SelectStmt
+	// activeCTEs holds CTEs visible in the current query scope so correlated
+	// subqueries can resolve them.
+	activeCTEs map[string]*ResolverTable
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
@@ -55,9 +67,26 @@ func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
 	// A query of its own resolves against its own target list, so the one an
 	// outer ordering item was being resolved for does not reach into it.
 	saved := r.aliasTargets
+	savedHaving := r.havingTargets
 	r.aliasTargets = nil
-	defer func() { r.aliasTargets = saved }()
-	return r.resolveWithCTEs(stmt, nil)
+	r.havingTargets = nil
+	defer func() {
+		r.aliasTargets = saved
+		r.havingTargets = savedHaving
+	}()
+	return r.resolveWithScope(stmt, nil, nil)
+}
+
+func (r *Resolver) resolveSubquery(stmt *ast.SelectStmt, parentScope *fromScope) {
+	saved := r.aliasTargets
+	savedHaving := r.havingTargets
+	r.aliasTargets = nil
+	r.havingTargets = nil
+	defer func() {
+		r.aliasTargets = saved
+		r.havingTargets = savedHaving
+	}()
+	r.resolveWithScope(stmt, r.activeCTEs, parentScope)
 }
 
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
@@ -158,7 +187,7 @@ func isWholeNumberConstant(expr ast.ExprNode) bool {
 // resolveParenSource resolves a parenthesized query expression: the inner query
 // (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
 // the inner's leftmost SELECT target list.
-func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) {
+func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parentScope *fromScope) {
 	mergedCTETables := cteTables
 	if len(stmt.CTEs) > 0 {
 		mergedCTETables = make(map[string]*ResolverTable)
@@ -171,14 +200,14 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+			cteResolver.resolveWithScope(cte.Select, mergedCTETables, nil)
 			if vt := buildCTEVirtualTable(cte); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
 	}
 
-	r.resolveWithCTEs(stmt.ParenSource, mergedCTETables)
+	r.resolveWithScope(stmt.ParenSource, mergedCTETables, parentScope)
 
 	if len(stmt.OrderBy) == 0 {
 		return
@@ -187,6 +216,10 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
+	return r.resolveWithScope(stmt, cteTables, nil)
+}
+
+func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parentScope *fromScope) *ast.SelectStmt {
 	if stmt == nil {
 		return nil
 	}
@@ -209,7 +242,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 					DefaultCharset: r.DefaultCharset,
 					Source:         r.Source,
 				}
-				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+				cteResolver.resolveWithScope(cte.Select, mergedCTETables, nil)
 				vt := buildCTEVirtualTable(cte)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
@@ -217,10 +250,10 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			}
 		}
 		if stmt.Left != nil {
-			r.resolveWithCTEs(stmt.Left, mergedCTETables)
+			r.resolveWithScope(stmt.Left, mergedCTETables, parentScope)
 		}
 		if stmt.Right != nil {
-			r.resolveWithCTEs(stmt.Right, mergedCTETables)
+			r.resolveWithScope(stmt.Right, mergedCTETables, parentScope)
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
@@ -230,7 +263,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// Parenthesized query expression: resolve the inner query (with the
 	// wrapper's CTEs visible) and the outer ORDER BY ordinals.
 	if stmt.ParenSource != nil {
-		r.resolveParenSource(stmt, cteTables)
+		r.resolveParenSource(stmt, cteTables, parentScope)
 		return stmt
 	}
 
@@ -255,7 +288,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
+			leftResolver.resolveWithScope(sel.Left, localCTETables, nil)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
 			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left)
@@ -269,15 +302,17 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
+			rightResolver.resolveWithScope(sel.Right, localCTETables, nil)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
+				SchemaLookup:   r.SchemaLookup,
+				DefaultDB:      r.DefaultDB,
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
+			cteResolver.resolveWithScope(cte.Select, localCTETables, nil)
 
 			vt := buildCTEVirtualTable(cte)
 			if vt != nil {
@@ -288,11 +323,15 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Build scope from FROM clause, using a lookup that includes CTE virtual tables
 	origLookup := r.Lookup
+	savedCTEs := r.activeCTEs
+	r.activeCTEs = localCTETables
 	if len(localCTETables) > 0 {
 		r.Lookup = r.withCTELookup(localCTETables)
 	}
 	sc := r.buildScope(stmt.From)
+	sc.parent = parentScope
 	r.Lookup = origLookup
+	defer func() { r.activeCTEs = savedCTEs }()
 
 	// Resolve JOIN ON conditions (walk FROM clause) BEFORE target list resolution
 	// so that NATURAL JOIN expansion can mark coalesced columns for star expansion.
@@ -325,7 +364,10 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Resolve HAVING
 	if stmt.Having != nil {
+		savedHaving := r.havingTargets
+		r.havingTargets = stmt
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
+		r.havingTargets = savedHaving
 	}
 
 	// Resolve WINDOW clause, each entry as the specification it is
@@ -360,7 +402,30 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		table := r.Lookup(t.Name)
+		var table *ResolverTable
+		schema := t.Schema
+		if t.Schema != "" {
+			if r.SchemaLookup != nil {
+				table = r.SchemaLookup(t.Schema, t.Name)
+			} else if r.Lookup != nil {
+				// Without a schema-aware lookup, strip column types so cross-db
+				// references never borrow precision metadata from another DB.
+				if found := r.Lookup(t.Name); found != nil {
+					cols := make([]ResolverColumn, len(found.Columns))
+					for i, c := range found.Columns {
+						cols[i] = ResolverColumn{Name: c.Name, Position: c.Position}
+					}
+					table = &ResolverTable{Name: found.Name, Columns: cols}
+				}
+			}
+		} else {
+			if r.Lookup != nil {
+				table = r.Lookup(t.Name)
+			}
+			if _, isCTE := r.activeCTEs[strings.ToLower(t.Name)]; !isCTE {
+				schema = r.DefaultDB
+			}
+		}
 		if table == nil {
 			return
 		}
@@ -368,7 +433,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
-		sc.add(t, effectiveName, table)
+		sc.addWithSchema(t, schema, effectiveName, table)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -538,7 +603,7 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 			n.List[i] = r.resolveExpr(item, sc)
 		}
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc)
 		}
 		return n
 	case *ast.BetweenExpr:
@@ -590,6 +655,22 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		if n.Over != nil {
 			r.resolveWindowDef(n.Over, sc)
 		}
+		// MariaDB stores TIME(x) as cast(x as time[(fsp)]) and single-arg
+		// TIMESTAMP(x) as cast(x as datetime[(fsp)]), choosing fsp from the
+		// argument's fractional precision. Rewrite only when fsp can be inferred
+		// accurately so fractional seconds are never silently truncated.
+		if n.Schema == "" && !n.SpacedParen && n.Over == nil && len(n.Args) == 1 {
+			switch strings.ToUpper(n.Name) {
+			case "TIME":
+				if fsp, ok := inferTemporalCastPrecision(n.Args[0], sc); ok {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "time", Length: fsp}}
+				}
+			case "TIMESTAMP":
+				if fsp, ok := inferTemporalCastPrecision(n.Args[0], sc); ok {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "datetime", Length: fsp}}
+				}
+			}
+		}
 		return n
 	case *ast.CastExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
@@ -619,12 +700,22 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.ExistsExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc)
 		}
 		return n
 	case *ast.SubqueryExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc)
+		}
+		return n
+	case *ast.DefaultExpr:
+		if n.Column != "" {
+			cr := &ast.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}
+			if res, ok := r.resolveColumnRef(cr, sc).(*ast.ColumnRef); ok {
+				n.Schema = res.Schema
+				n.Table = res.Table
+				n.Column = res.Column
+			}
 		}
 		return n
 	case *ast.ResTarget:
@@ -641,11 +732,12 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
-		// Check if this table name is in scope (might be an alias)
-		if sc.GetTable(col.Table) != nil {
-			// Find the effective name from scope (preserves case)
-			if entry, ok := sc.FirstEqualFold(col.Table); ok {
-				col.Table = entry.Name
+		for cur := sc; cur != nil; cur = cur.parent {
+			if cur.GetTable(col.Table) != nil {
+				if entry, ok := cur.FirstEqualFold(col.Table); ok {
+					col.Table = entry.Name
+				}
+				return col
 			}
 		}
 		return col
@@ -677,6 +769,27 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 				if isColumn || !r.aliasColumnsOnly {
 					return expr
 				}
+				// A local non-column alias in ORDER BY shadows any outer column
+				// of the same name and is kept as the alias.
+				return col
+			}
+		}
+		// In HAVING, a local SELECT output alias shadows any outer-scope column
+		// and stays unqualified as the output alias.
+		if r.havingTargets != nil {
+			if _, ok := orderByTargetAlias(r.havingTargets, col); ok {
+				return col
+			}
+		}
+		// Walk enclosing query scopes for correlated subquery references.
+		for p := sc.parent; p != nil; p = p.parent {
+			if c, ok := p.coalesced[strings.ToLower(col.Column)]; ok {
+				col.Table = c.qualifier
+				return col
+			}
+			if e, ok := p.FirstWithColumn(col.Column); ok {
+				col.Table = e.Name
+				return col
 			}
 		}
 		// Otherwise as-is: a literal alias HAVING keeps, or an error.
@@ -888,7 +1001,7 @@ func (r *Resolver) resolveCastCharset(dt *ast.DataType) {
 		return
 	}
 	name := strings.ToLower(dt.Name)
-	if name == "char" && dt.Charset == "" {
+	if (name == "char" || name == "varchar") && dt.Charset == "" {
 		charset := r.DefaultCharset
 		if charset == "" {
 			charset = "utf8mb4"

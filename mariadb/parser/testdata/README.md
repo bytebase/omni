@@ -7,7 +7,10 @@
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped, followed by 7 `suite:json-operators` rows pinning the `->` and `->>`
 operators MariaDB has no grammar for (12,960 generated rows and 7 `suite:`
-rows, 12,967 in all: 12,897 agreeing, 67 only MariaDB accepts and 3 only omni).
+rows, 12,967 in all: 12,901 agreeing, 65 only MariaDB accepts and 1 only omni
+(`DELETE a.a FROM a;`, where MariaDB's current-database lookup rejects target
+`a.a` with 1109 when the session database is not `a`, while omni leaves the
+unqualified table's database to the server).
 Each row has omni's verdict and MariaDB's. `TestCompatibility`
 (`compat_test.go`) reads it through `enginetest/compat`, which describes the
 columns and what passes. It starts no server, and it regenerates the generated

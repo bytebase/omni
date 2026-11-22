@@ -106,6 +106,9 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if selectHasInto(sel) {
+		return nil, &ParseError{Message: "INTO clause is not allowed in view SELECT", Position: sel.Loc.Start}
+	}
 	stmt.Select = sel
 	stmt.SelectText = strings.TrimSpace(p.inputText(selectStart, p.pos()))
 

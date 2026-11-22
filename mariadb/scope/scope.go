@@ -13,8 +13,9 @@ import (
 
 // Column represents a column visible from a scope entry.
 type Column struct {
-	Name     string
-	Position int // 1-based position in the table
+	Name       string
+	Position   int    // 1-based position in the table
+	ColumnType string // optional SQL column type (e.g. "int(11)", "time(3)", "varchar(30)")
 }
 
 // Table represents a table or virtual table in scope with its visible columns.

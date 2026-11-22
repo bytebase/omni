@@ -539,7 +539,7 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 				atScope = true
 			}
 		}
-		vref, err := p.parseVariableRef()
+		vref, err := p.parseVariableRefOpts(true)
 		if err != nil {
 			return nil, err
 		}

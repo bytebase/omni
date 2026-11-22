@@ -12231,6 +12231,37 @@ func TestServerOptionNames(t *testing.T) {
 		{"ALTER SERVER s OPTIONS (USER 'u', USER 'v')", false},
 		{"ALTER SERVER s OPTIONS (PORT '3306')", true},
 		{"ALTER SERVER s OPTIONS (PORT 'x')", false},
+		{"ALTER SERVER s OPTIONS (PACKAGE 's')", false},
+		{"ALTER SERVER s OPTIONS (SOFT 's')", false},
+		{"ALTER SERVER s OPTIONS (`PACKAGE` 's')", true},
+		{"ALTER SERVER s OPTIONS (`SOFT` 's')", true},
+	} {
+		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
+			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)
+		}
+	}
+}
+
+func TestSysVarOffsetAndDefaultStruct(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		accept bool
+	}{
+		{"DO @@OFFSET", true},
+		{"DO @@GLOBAL.OFFSET", true},
+		{"DO @@SESSION.OFFSET", true},
+		{"DO @@OFFSET.a", true},
+		{"SET @@OFFSET = 1", true},
+		{"SET @@GLOBAL.OFFSET = 1", true},
+		{"SET @@DEFAULT.a = a", true},
+		{"SET @@GLOBAL.DEFAULT.a = a", true},
+		{"SET @@SESSION.DEFAULT.a = a", true},
+		{"SET @@LOCAL.DEFAULT.a = a", true},
+		{"SET @@GLOBAL . DEFAULT . a = a", true},
+		{"SET @@DEFAULT = a", false},
+		{"SET @@DEFAULT.a.b = a", false},
+		{"DO @@DEFAULT.a", false},
+		{"SELECT @@DEFAULT.a", false},
 	} {
 		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
 			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)

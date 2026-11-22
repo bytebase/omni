@@ -77,6 +77,22 @@ func Open(t testing.TB) *sql.DB {
 	return tape.Open(t, s, Default)
 }
 
+// Judge returns a live connection to the pinned ClickHouse server, outside any
+// tape, for syntax compatibility judging (OMNI_RECORD=1 or OMNI_RECORD=verify).
+// Callers must invoke Terminate from TestMain so the container is removed.
+func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording or verification: a replay reaches no server")
+	}
+	if err := start(context.Background(), pin); err != nil {
+		t.Fatalf("ClickHouse: %v", err)
+	}
+	db := sql.OpenDB(connector("default"))
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
 // OpenMissingDatabase returns t's connection to a database the pinned server
 // does not have. The client's handshake is refused, which is all ClickHouse
 // answers for a database that is not there, so a tape records the refused

@@ -19,8 +19,11 @@ const (
 	ErrUnknownTable                      = 1051
 	ErrNonUniqTable                      = 1066
 	ErrUpdateTableUsed                   = 1093
+	ErrNoTablesUsed                      = 1096
 	ErrCantReopenTable                   = 1137
+	ErrOperandColumns                    = 1241
 	ErrWrongObject                       = 1347
+	ErrViewSelectClause                  = 1350
 	ErrRowIsReferenced                   = 1451
 	ErrIsAView                           = 1965
 	ErrTableMustHaveColumns              = 1113
@@ -65,6 +68,7 @@ const (
 	ErrWindowRefWithPartition     = 4011
 	ErrWindowRefHasOrder          = 4012
 	ErrWindowRefHasFrame          = 4013
+	ErrWindowFrameNotAllowed      = 4017
 	ErrFKDupName                  = 1826
 	ErrCheckConstraintNotAllowed  = 3815
 	ErrCheckConstraintDupName     = 3822
@@ -99,8 +103,11 @@ var sqlStateMap = map[int]string{
 	ErrUnknownTable:                      "42S02",
 	ErrNonUniqTable:                      "42000",
 	ErrUpdateTableUsed:                   "HY000",
+	ErrNoTablesUsed:                      "HY000",
 	ErrCantReopenTable:                   "HY000",
+	ErrOperandColumns:                    "21000",
 	ErrWrongObject:                       "HY000",
+	ErrViewSelectClause:                  "HY000",
 	ErrRowIsReferenced:                   "23000",
 	ErrIsAView:                           "42S02",
 	ErrTableMustHaveColumns:              "42000",
@@ -357,6 +364,26 @@ func errWindowRefHasOrder(name string) error {
 func errWindowRefHasFrame(name string) error {
 	return &Error{Code: ErrWindowRefHasFrame, SQLState: sqlState(ErrWindowRefHasFrame),
 		Message: fmt.Sprintf("Referenced window specification '%s' cannot contain window frame", name)}
+}
+
+func errWindowFrameNotAllowed(name string) error {
+	return &Error{Code: ErrWindowFrameNotAllowed, SQLState: sqlState(ErrWindowFrameNotAllowed),
+		Message: fmt.Sprintf("Window frame is not allowed with '%s'", name)}
+}
+
+func errNoTablesUsed() error {
+	return &Error{Code: ErrNoTablesUsed, SQLState: sqlState(ErrNoTablesUsed),
+		Message: "No tables used"}
+}
+
+func errOperandColumns(n int) error {
+	return &Error{Code: ErrOperandColumns, SQLState: sqlState(ErrOperandColumns),
+		Message: fmt.Sprintf("Operand should contain %d column(s)", n)}
+}
+
+func errViewSelectClause(clause string) error {
+	return &Error{Code: ErrViewSelectClause, SQLState: sqlState(ErrViewSelectClause),
+		Message: fmt.Sprintf("View's SELECT contains a '%s' clause", clause)}
 }
 
 func errNoSuchColumn(name, context string) error {

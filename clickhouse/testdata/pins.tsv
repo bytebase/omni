@@ -1,9 +1,15 @@
-# The server this engine's committed answers come from.
+# The server and the grammar this engine's committed answers come from.
 #
-# ClickHouse has no parser in omni, so there is no grammar row: the only
-# committed answers are the driver's, recorded through
-# clickhouse/internal/testcontainer on the server below. The release is the
-# 26.8 LTS line, the newest one at the time of the move, and the digest is the
-# image's multi-architecture manifest, which a registry cannot move.
+# default judges compat.tsv (clickhouse/parser) and records the driver's
+# tapes (clickhouse/driver through clickhouse/internal/testcontainer): both
+# run on the pinned server below. The release is the 26.8 LTS line, and the
+# digest is the image's multi-architecture manifest, which a registry cannot
+# move.
+#
+# grammar pins ClickHouse's official ANTLR 4 grammar (Apache-2.0),
+# utils/antlr/ClickHouseParser.g4 and utils/antlr/ClickHouseLexer.g4, at the
+# commit of the v26.8.38.9-lts release. The digest is the SHA-256 of those two
+# files, beside this one byte for byte, read in that order.
 # columns: role, image, digest, tag
 default	clickhouse/clickhouse-server:26.8.38.9	sha256:5d30ac138948b43fd928842be7da1dcd2de712d32ba6c42368ff5009ba2072ff	26.8.38.9
+grammar	github.com/ClickHouse/ClickHouse@71391c9b2bbc4d2c104996451586a396138a4785	sha256:b0be7abd61eb8e3eb0a1d7d9dfda431b28f56320d65c10318e5db3bc14029fff	v26.8.38.9-lts
