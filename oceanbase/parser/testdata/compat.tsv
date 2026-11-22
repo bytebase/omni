@@ -1,4 +1,4 @@
-# pin: parser oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6 judge:2
+# pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	sql_stmt/stmt_list	
 reject	reject	engine	sql_stmt/stmt_list!insert	zzz
@@ -602,7 +602,7 @@ reject	reject	engine	stmt/get_diagnostics_stmt!insert	GET DIAGNOSTICS @v = NUMBE
 reject	reject	engine	stmt/get_diagnostics_stmt!swap	GET_FORMAT DIAGNOSTICS @v = NUMBER
 accept	reject	engine	stmt/pl_expr_stmt	DO a
 reject	reject	engine	stmt/pl_expr_stmt!drop-2	DO
-reject	reject	engine	stmt/pl_expr_stmt!insert	DO a zzz
+reject	accept	engine	stmt/pl_expr_stmt!insert	DO a zzz
 reject	reject	engine	stmt/pl_expr_stmt!swap	DOP a
 accept	accept	engine	stmt/method_opt	FOR COLUMNS
 reject	reject	engine	stmt/method_opt!drop-1	COLUMNS

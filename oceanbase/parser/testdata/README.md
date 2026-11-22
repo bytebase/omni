@@ -46,14 +46,6 @@ without running it (`compatJudge`):
 - **1064 with only "Parse error"** is such an error. It comes from the layers
   after the parser, and from `PREPARE` itself, which does not carry `PREPARE`,
   `EXECUTE` or `DEALLOCATE` though the server takes each when sent directly.
-- **1149 ("You have an error in your SQL syntax", with no `near` clause)** can
-  come either from a post-parse resolver check (`SELECT RANK() OVER(ROWS 1
-  FOLLOWING)`, whose probe fails with 1064 `at line 2` near `@@@ (((`) or from
-  a parse-time syntax error (`DO a zzz`, whose probe fails with 1064 `at line
-  1` near `a zzz\n @@@ (((`). At judge revision 2 (`PinRole: "parser"` in
-  `../../testdata/pins.tsv`), when the first error is 1149, a probe 1064 must
-  land on the probe tail's own line (`at line 2` for a single-line statement)
-  to count as parsed; an earlier-line 1064 rejects the row.
 
 What this cannot tell:
 
@@ -64,22 +56,32 @@ What this cannot tell:
   tail before it runs that reduction's action. The grammar's actions raise
   almost nothing but 1064, which needs no probe.
 
-### Remaining `compat.tsv` disagreements (2 rows: `DO a`)
+### Remaining `compat.tsv` disagreements (3 rows: `DO`)
 
-At judge revision 2 (`20,405 / 20,407` agree, `99.99%`; `15,336 / 15,336`
-near-misses agree), `stmt/pl_expr_stmt!insert` (`DO a zzz`) now agrees as
-`reject`. Only two rows remain:
+Three rows in `compat.tsv` disagree because `pl_expr_stmt: DO expr` in
+`sql_parser_mysql_mode.y` (line 779) aborts outside PL (`!is_pl_parse_`), while
+OceanBase's SQL layer rewrites SQL `DO expr_list` before or around the grammar
+and raises two different syntax errors on invalid `DO` forms that contradict
+under the `PREPARE` tail probe on `5.7.25-OceanBase_CE-v4.3.5.6`:
 
 - **Lines 603 (`stmt/pl_expr_stmt`) and 719 (`pl_expr_stmt/DO_expr`): `DO a`**
-  (`omni=accept`, `expected=reject`). In OceanBase CE `v4.3.5_CE_BP6`,
-  `ob_parser.cpp` routes `DO` statements to the PL parser
-  (`src/pl/parser/pl_parser_mysql_mode.y`, `do_sp_stmt`), whose semantic action
-  explicitly rejects any top-level `T_COLUMN_REF` item in `DO expr_list` with
-  `1064` (`Syntax Error, DO statement cannot reference to a table`), while
-  non-column expressions (`DO 1`, `DO 1, 2`, `DO SLEEP(0)`, `DO @x := 1`,
-  `DO @@version`) prepare and execute cleanly. `parseDoStmt` will reject bare
-  column references in a separate parser fix PR (kept separate from this judge
-  revision bump per `compatcheck`).
+  (`omni=accept`, `expected=reject`). Valid SQL `DO` expressions prepare and
+  execute (`DO 1`, `DO 1, 2`, `DO SLEEP(0)`, `DO @x := 1`, `DO @@version` all
+  answer `OK`), while `DO a` answers `1064 (42000): You have an error in your
+  SQL syntax; ... near 'a' at line 1` on both `PREPARE` and `EXEC`.
+- **Line 605 (`stmt/pl_expr_stmt!insert`): `DO a zzz`** (`omni=reject`,
+  `expected=accept`). Alone, `PREPARE` and `EXEC` of `DO a zzz` answer
+  `1149 (42000): You have an error in your SQL syntax; check the manual that
+  corresponds to your OceanBase version for the right syntax to use` (not 1064,
+  and with no `near` clause). When `compatJudge` appends `\n @@@ (((`,
+  `PREPARE` answers `1064 (42000): You have an error in your SQL syntax; ...
+  near 'a zzz\n @@@ (((' at line 1`, whose substring `(((` makes
+  `compat.PrepareVerdict` record `accept` even though the syntax error starts
+  at `a`, not at the probe tail.
+
+Because `DO` is valid SQL in OceanBase MySQL mode (`DO 1`) and `DO a`
+(`reject`) contradicts `DO a zzz` (`accept`), `parseDoStmt` keeps accepting SQL
+`DO expr_list` and rejecting `DO a zzz`, leaving these three rows documented.
 
 ### Statements that crash the server
 
