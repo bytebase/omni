@@ -1,0 +1,1116 @@
+package parser
+
+func (p *Parser) parseExpression() error {
+	return p.parseBooleanExpression()
+}
+
+func (p *Parser) parseExpressionSeq() error {
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	for p.match(tokComma) {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseNamedExpression parses:
+//
+//	namedExpression : expression (AS? (errorCapturingIdentifier | identifierList))? ;
+func (p *Parser) parseNamedExpression() error {
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	if p.match(kwAS) {
+		if p.cur().Kind == tokLParen {
+			return p.parseIdentifierList()
+		}
+		_, err := p.parseErrorCapturingIdentifier()
+		return err
+	}
+	if p.cur().Kind == tokLParen {
+		cp := p.save()
+		if err := p.parseIdentifierList(); err == nil {
+			return nil
+		}
+		p.restore(cp)
+		return nil
+	}
+	if p.canBeImplicitExprAlias() {
+		_, err := p.parseErrorCapturingIdentifier()
+		return err
+	}
+	return nil
+}
+
+// canBeImplicitExprAlias checks whether the current token can serve as an
+// implicit (no AS) column alias after an expression, without stealing a
+// keyword that introduces a following SQL clause.
+func (p *Parser) canBeImplicitExprAlias() bool {
+	k := p.cur().Kind
+	if !k.isIdentifier() {
+		return false
+	}
+	if k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted {
+		return true
+	}
+	// If the next token ends the current expression list / statement / paren,
+	// a keyword can safely be an implicit alias (e.g. SELECT a FROM, SELECT a ALL).
+	next := p.peek(1).Kind
+	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen {
+		switch k {
+		case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO,
+			kwASC, kwDESC, kwFIRST, kwLAST, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING:
+			return false
+		}
+		return true
+	}
+	// Allow a keyword as implicit column alias right before FROM/WHERE/GROUP/HAVING/WINDOW/ORDER/LIMIT
+	// when the keyword itself doesn't start a clause (e.g. `SELECT a IS FROM a`).
+	if k == kwIS && next == kwFROM {
+		return true
+	}
+	// Otherwise disallow clause-introducing keywords as implicit aliases.
+	switch k {
+	case kwFROM, kwWHERE, kwGROUP, kwGROUPING, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwLATERAL, kwPIVOT, kwUNPIVOT, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
+		kwCROSS, kwNATURAL, kwSEMI, kwANTI, kwON, kwUSING, kwINTO, kwSET, kwVALUES,
+		kwSELECT, kwINSERT, kwWHEN, kwTHEN, kwELSE, kwELSEIF, kwEND, kwWITH, kwFOR, kwAS,
+		kwDO, kwUNTIL, kwBY, kwIN, kwIS, kwAND, kwOR, kwNOT, kwBETWEEN, kwLIKE,
+		kwILIKE, kwRLIKE, kwESCAPE, kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT,
+		kwASC, kwDESC, kwNULLS, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING,
+		kwRECORDWRITER, kwRECORDREADER, kwROW, kwPLACING, kwRETURNS, kwRETURN:
+		return false
+	}
+	return true
+}
+
+func (p *Parser) parseNamedExpressionSeq() error {
+	if err := p.parseNamedExpression(); err != nil {
+		return err
+	}
+	for p.match(tokComma) {
+		if err := p.parseNamedExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseFunctionArgument() error {
+	if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
+		p.advance()
+		p.advance()
+		return p.parseExpression()
+	}
+	return p.parseExpression()
+}
+
+// booleanExpression precedence: OR < AND < NOT/! < EXISTS / predicated.
+func (p *Parser) parseBooleanExpression() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+	return p.parseOrExpression()
+}
+
+func (p *Parser) parseOrExpression() error {
+	if err := p.parseAndExpression(); err != nil {
+		return err
+	}
+	for p.cur().Kind == kwOR {
+		cp := p.save()
+		p.advance()
+		if err := p.parseAndExpression(); err != nil {
+			p.restore(cp)
+			break
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseAndExpression() error {
+	if err := p.parseNotExpression(); err != nil {
+		return err
+	}
+	for p.cur().Kind == kwAND {
+		cp := p.save()
+		p.advance()
+		if err := p.parseNotExpression(); err != nil {
+			p.restore(cp)
+			break
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseNotExpression() error {
+	if p.cur().Kind == kwNOT {
+		cp := p.save()
+		p.advance()
+		if err := p.parseNotExpression(); err == nil {
+			return nil
+		}
+		// NOT is in Spark's nonReserved list, so bare `SELECT NOT` is a column reference.
+		p.restore(cp)
+	} else if p.match(tokBang) {
+		return p.parseNotExpression()
+	}
+	if p.cur().Kind == kwEXISTS && p.peek(1).Kind == tokLParen {
+		cp := p.save()
+		p.advance()
+		p.advance()
+		if err := p.parseQuery(); err == nil {
+			if _, err := p.expect(tokRParen); err == nil {
+				return nil
+			}
+		}
+		p.restore(cp)
+	}
+	if err := p.parseValueExpression(); err != nil {
+		return err
+	}
+	return p.parseOptionalPredicate()
+}
+
+func (p *Parser) parseOptionalPredicate() error {
+	// IS [NOT|!] (NULL | TRUE | FALSE | UNKNOWN | DISTINCT FROM valueExpression)
+	if p.cur().Kind == kwIS {
+		cp := p.save()
+		p.advance()
+		p.matchNot()
+		if p.match(kwNULL, kwTRUE, kwFALSE, kwUNKNOWN) {
+			return nil
+		}
+		if p.match(kwDISTINCT) {
+			if _, err := p.expect(kwFROM); err != nil {
+				return err
+			}
+			return p.parseValueExpression()
+		}
+		p.restore(cp)
+		return nil
+	}
+
+	// [NOT|!] (BETWEEN | IN | RLIKE | LIKE | ILIKE)
+	cp := p.save()
+	hasNot := p.matchNot()
+	switch p.cur().Kind {
+	case kwBETWEEN:
+		p.advance()
+		if err := p.parseValueExpression(); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwAND); err != nil {
+			return err
+		}
+		return p.parseValueExpression()
+
+	case kwIN:
+		if p.peek(1).Kind != tokLParen {
+			if hasNot {
+				p.restore(cp)
+				return nil
+			}
+			return nil
+		}
+		p.advance()
+		p.advance()
+		// Could be IN (query) or IN (expression (, expression)*)
+		cpIn := p.save()
+		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+			p.advance()
+			return nil
+		}
+		p.restore(cpIn)
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseExpression(); err != nil {
+				return err
+			}
+		}
+		_, err := p.expect(tokRParen)
+		return err
+
+	case kwRLIKE:
+		p.advance()
+		if err := p.parseValueExpression(); err != nil {
+			if !hasNot {
+				p.restore(cp)
+				return nil
+			}
+			return err
+		}
+		return nil
+
+	case kwLIKE, kwILIKE:
+		p.advance()
+		if p.cur().Kind == kwANY || p.cur().Kind == kwSOME || p.cur().Kind == kwALL {
+			if p.peek(1).Kind == tokLParen {
+				p.advance()
+				p.advance()
+				if !p.match(tokRParen) {
+					if err := p.parseExpression(); err != nil {
+						return err
+					}
+					for p.match(tokComma) {
+						if err := p.parseExpression(); err != nil {
+							return err
+						}
+					}
+					if _, err := p.expect(tokRParen); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+		}
+		if err := p.parseValueExpression(); err != nil {
+			if !hasNot {
+				p.restore(cp)
+				return nil
+			}
+			return err
+		}
+		if p.cur().Kind == kwESCAPE && p.isStringLitAt(1) {
+			p.advance()
+			return p.parseStringLit()
+		}
+		return nil
+	}
+
+	if hasNot {
+		p.restore(cp)
+	}
+	return nil
+}
+
+// valueExpression precedence (lowest to highest, matching SqlBaseParser.g4):
+// comparison < | < ^ < & < shift (<< >> >>>) < + - || < * / % DIV < unary (+ - ~) < primary
+func (p *Parser) parseValueExpression() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+	return p.parseComparisonExpression()
+}
+
+func (p *Parser) parseComparisonExpression() error {
+	if err := p.parseBitOrExpression(); err != nil {
+		return err
+	}
+	for p.isComparisonOp() {
+		p.advance()
+		if err := p.parseBitOrExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) isComparisonOp() bool {
+	switch p.cur().Kind {
+	case tokEq, tokNeq, tokNeqBang, tokLT, tokLTE, tokGT, tokGTE, tokNullSafeEq:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseBitOrExpression() error {
+	if err := p.parseBitXorExpression(); err != nil {
+		return err
+	}
+	for p.match(tokPipe) {
+		if err := p.parseBitXorExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseBitXorExpression() error {
+	if err := p.parseBitAndExpression(); err != nil {
+		return err
+	}
+	for p.match(tokHat) {
+		if err := p.parseBitAndExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseBitAndExpression() error {
+	if err := p.parseShiftExpression(); err != nil {
+		return err
+	}
+	for p.match(tokAmpersand) {
+		if err := p.parseShiftExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseShiftExpression() error {
+	if err := p.parseAddExpression(); err != nil {
+		return err
+	}
+	for p.match(tokShiftLeft, tokShiftRight, tokShiftRightU) {
+		if err := p.parseAddExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseAddExpression() error {
+	if err := p.parseMulExpression(); err != nil {
+		return err
+	}
+	for p.match(tokPlus, tokMinus, tokConcatPipe) {
+		if err := p.parseMulExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseMulExpression() error {
+	if err := p.parseUnaryExpression(); err != nil {
+		return err
+	}
+	for p.match(tokAsterisk, tokSlash, tokPercent, kwDIV) {
+		if err := p.parseUnaryExpression(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseUnaryExpression() error {
+	if p.match(tokMinus, tokPlus, tokTilde) {
+		return p.parseUnaryExpression()
+	}
+	return p.parsePrimaryExpression()
+}
+
+// parsePrimaryExpression parses Spark's primaryExpression + postfix operators
+// (COLLATE, :: dataType, [index], .field).
+func (p *Parser) parsePrimaryExpression() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
+	if err := p.parsePrimaryAtom(); err != nil {
+		return err
+	}
+
+	// Postfix loop: COLLATE, :: dataType, [index], .field (or .* [EXCEPT (...)]).
+	for {
+		switch p.cur().Kind {
+		case kwCOLLATE:
+			cp := p.save()
+			if err := p.parseCollateClause(); err != nil {
+				p.restore(cp)
+				return nil
+			}
+		case tokDoubleColon:
+			p.advance()
+			if err := p.parseDataType(); err != nil {
+				return err
+			}
+		case tokLBracket:
+			p.advance()
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRBracket); err != nil {
+				return err
+			}
+		case tokDot:
+			p.advance()
+			if p.match(tokAsterisk) {
+				if p.cur().Kind == kwEXCEPT && p.peek(1).Kind == tokLParen {
+					if err := p.parseExceptClause(); err != nil {
+						return err
+					}
+				}
+			} else {
+				if _, err := p.parseIdentifier(); err != nil {
+					return err
+				}
+			}
+		default:
+			return nil
+		}
+	}
+}
+
+func (p *Parser) parseExceptClause() error {
+	if _, err := p.expect(kwEXCEPT); err != nil {
+		return err
+	}
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if err := p.parseMultipartIdentifierList(); err != nil {
+		return err
+	}
+	_, err := p.expect(tokRParen)
+	return err
+}
+
+func (p *Parser) parsePrimaryAtom() error {
+	k := p.cur().Kind
+
+	// Lambda: identifier -> expression
+	if k.isIdentifier() && p.peek(1).Kind == tokArrow {
+		p.advance()
+		p.advance()
+		return p.parseExpression()
+	}
+
+	// Parenthesized forms:
+	// - (ident, ident+) -> expression   (multi-param lambda)
+	// - (query)                         (subquery expression)
+	// - (namedExpr, namedExpr+)         (row constructor)
+	// - (expression)                    (parenthesized expression)
+	if k == tokLParen {
+		return p.parseParenthesizedPrimary()
+	}
+
+	// Star: * [EXCEPT (...)]
+	if k == tokAsterisk {
+		p.advance()
+		if p.cur().Kind == kwEXCEPT && p.peek(1).Kind == tokLParen {
+			return p.parseExceptClause()
+		}
+		return nil
+	}
+
+	// CASE ... END
+	if k == kwCASE {
+		cp := p.save()
+		if err := p.parseCaseExpression(); err == nil {
+			return nil
+		}
+		p.restore(cp)
+	}
+
+	// Special keyword expressions that take parentheses.
+	if p.peek(1).Kind == tokLParen {
+		switch k {
+		case kwCAST, kwTRY_CAST:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if err := p.parseExpression(); err == nil && p.match(kwAS) {
+				if err := p.parseDataType(); err == nil {
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwSTRUCT:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if !p.match(tokRParen) {
+				if err := p.parseNamedExpressionSeq(); err == nil {
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+				p.restore(cp)
+			} else {
+				return nil
+			}
+
+		case kwFIRST, kwANY_VALUE, kwLAST:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if err := p.parseExpression(); err == nil {
+				if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS {
+					p.advance()
+					p.advance()
+				}
+				if _, err := p.expect(tokRParen); err == nil {
+					return nil
+				}
+			}
+			p.restore(cp)
+
+		case kwPOSITION:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if err := p.parseValueExpression(); err == nil && p.match(kwIN) {
+				if err := p.parseValueExpression(); err == nil {
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwEXTRACT:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if _, err := p.parseIdentifier(); err == nil && p.match(kwFROM) {
+				if err := p.parseValueExpression(); err == nil {
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwSUBSTR, kwSUBSTRING:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if err := p.parseValueExpression(); err == nil && p.match(kwFROM, tokComma) {
+				if err := p.parseValueExpression(); err == nil {
+					if p.match(kwFOR, tokComma) {
+						if err := p.parseValueExpression(); err != nil {
+							p.restore(cp)
+							goto afterSpecial
+						}
+					}
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwTRIM:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			p.match(kwBOTH, kwLEADING, kwTRAILING)
+			if p.cur().Kind != kwFROM {
+				if err := p.parseValueExpression(); err != nil {
+					p.restore(cp)
+					goto afterSpecial
+				}
+			}
+			if p.match(kwFROM) {
+				if err := p.parseValueExpression(); err == nil {
+					if _, err := p.expect(tokRParen); err == nil {
+						return nil
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwOVERLAY:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if err := p.parseValueExpression(); err == nil && p.match(kwPLACING) {
+				if err := p.parseValueExpression(); err == nil && p.match(kwFROM) {
+					if err := p.parseValueExpression(); err == nil {
+						if p.match(kwFOR) {
+							if err := p.parseValueExpression(); err != nil {
+								p.restore(cp)
+								goto afterSpecial
+							}
+						}
+						if _, err := p.expect(tokRParen); err == nil {
+							return nil
+						}
+					}
+				}
+			}
+			p.restore(cp)
+
+		case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
+			cp := p.save()
+			p.advance()
+			p.advance()
+			if p.isDatetimeUnit() || p.isStringLit() {
+				p.advance()
+				if p.match(tokComma) {
+					if err := p.parseValueExpression(); err == nil && p.match(tokComma) {
+						if err := p.parseValueExpression(); err == nil {
+							if _, err := p.expect(tokRParen); err == nil {
+								return nil
+							}
+						}
+					}
+				}
+			}
+			p.restore(cp)
+		}
+	}
+afterSpecial:
+
+	// Function call: functionName (...) [WITHIN GROUP (...)] [FILTER (WHERE ...)] [(IGNORE|RESPECT) NULLS] [OVER windowSpec]
+	if p.canStartFunctionCall() {
+		cp := p.save()
+		if err := p.parseFunctionCall(); err == nil {
+			return nil
+		}
+		p.restore(cp)
+	}
+
+	// Constants (NULL, ?, :ident, INTERVAL ..., literalType '...', number, TRUE/FALSE, stringLit+).
+	if p.canStartConstant() {
+		cp := p.save()
+		if err := p.parseConstant(); err == nil {
+			return nil
+		}
+		p.restore(cp)
+	}
+
+	// currentLike keywords: CURRENT_DATE | CURRENT_TIMESTAMP | CURRENT_USER | USER | SESSION_USER
+	if k == kwCURRENT_DATE || k == kwCURRENT_TIMESTAMP || k == kwCURRENT_USER || k == kwUSER || k == kwSESSION_USER {
+		p.advance()
+		return nil
+	}
+
+	// Column reference (identifier).
+	if k.isIdentifier() {
+		p.advance()
+		return nil
+	}
+
+	return p.errorf("unexpected token %q in expression", p.cur().Text)
+}
+
+func (p *Parser) parseParenthesizedPrimary() error {
+	cp := p.save()
+
+	// 1. Multi-parameter lambda: (ident, ident+) -> expression
+	p.advance() // '('
+	if p.cur().Kind.isIdentifier() {
+		p.advance()
+		if p.match(tokComma) {
+			ok := true
+			for {
+				if !p.cur().Kind.isIdentifier() {
+					ok = false
+					break
+				}
+				p.advance()
+				if !p.match(tokComma) {
+					break
+				}
+			}
+			if ok && p.match(tokRParen) && p.match(tokArrow) {
+				return p.parseExpression()
+			}
+		}
+	}
+	p.restore(cp)
+
+	// 2. Subquery: (query)
+	p.advance() // '('
+	if p.looksLikeQueryStart() {
+		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+			p.advance()
+			return nil
+		}
+		p.restore(cp)
+		p.advance() // '('
+	}
+
+	// 3. Row constructor (namedExpr, namedExpr+) or parenthesized expression (expr).
+	// Try parenthesized single expression first if followed by ')'.
+	cpInner := p.save()
+	if err := p.parseExpression(); err == nil && p.cur().Kind == tokRParen {
+		p.advance()
+		return nil
+	}
+	p.restore(cpInner)
+
+	// Row constructor: namedExpression (COMMA namedExpression)+
+	if err := p.parseNamedExpression(); err != nil {
+		return err
+	}
+	if !p.match(tokComma) {
+		return p.errorf("expected ')' or ',' in parenthesized expression, got %q", p.cur().Text)
+	}
+	for {
+		if err := p.parseNamedExpression(); err != nil {
+			return err
+		}
+		if !p.match(tokComma) {
+			break
+		}
+	}
+	_, err := p.expect(tokRParen)
+	return err
+}
+
+func (p *Parser) parseCaseExpression() error {
+	if _, err := p.expect(kwCASE); err != nil {
+		return err
+	}
+	if p.cur().Kind != kwWHEN {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+	}
+	whenCount := 0
+	for p.match(kwWHEN) {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwTHEN); err != nil {
+			return err
+		}
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+		whenCount++
+	}
+	if whenCount == 0 {
+		return p.errorf("expected WHEN in CASE expression")
+	}
+	if p.match(kwELSE) {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+	}
+	_, err := p.expect(kwEND)
+	return err
+}
+
+func (p *Parser) canStartFunctionCall() bool {
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		return true
+	}
+	if !p.cur().Kind.isIdentifier() {
+		return false
+	}
+	// Look ahead past optional .ident segments to see if '(' follows.
+	i := 1
+	for p.peek(i).Kind == tokDot && p.peek(i+1).Kind.isIdentifier() {
+		i += 2
+	}
+	return p.peek(i).Kind == tokLParen
+}
+
+func (p *Parser) parseFunctionName() error {
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		// Could be IDENTIFIER(expr)(args) or IDENTIFIER(args).
+		cp := p.save()
+		p.advance()
+		p.advance()
+		if err := p.parseExpression(); err == nil && p.match(tokRParen) && p.cur().Kind == tokLParen {
+			return nil
+		}
+		p.restore(cp)
+		p.advance()
+		return nil
+	}
+	_, err := p.parseQualifiedName()
+	return err
+}
+
+func (p *Parser) parseFunctionCall() error {
+	if err := p.parseFunctionName(); err != nil {
+		return err
+	}
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if !p.match(tokRParen) {
+		// Optional setQuantifier (DISTINCT | ALL) if followed by an argument.
+		if p.cur().Kind == kwDISTINCT || p.cur().Kind == kwALL {
+			cp := p.save()
+			p.advance()
+			if err := p.parseFunctionArgument(); err == nil {
+				for p.match(tokComma) {
+					if err := p.parseFunctionArgument(); err != nil {
+						return err
+					}
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				goto afterArgs
+			}
+			p.restore(cp)
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+	}
+afterArgs:
+	// Optional WITHIN GROUP (ORDER BY sortItem (COMMA sortItem)*)
+	if p.cur().Kind == kwWITHIN && p.peek(1).Kind == kwGROUP {
+		p.advance()
+		p.advance()
+		if _, err := p.expect(tokLParen); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwORDER); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		if err := p.parseSortItemList(); err != nil {
+			return err
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+	}
+	// Optional FILTER (WHERE booleanExpression)
+	if p.cur().Kind == kwFILTER && p.peek(1).Kind == tokLParen {
+		p.advance()
+		p.advance()
+		if _, err := p.expect(kwWHERE); err != nil {
+			return err
+		}
+		if err := p.parseBooleanExpression(); err != nil {
+			return err
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+	}
+	// Optional (IGNORE | RESPECT) NULLS
+	if (p.cur().Kind == kwIGNORE || p.cur().Kind == kwRESPECT) && p.peek(1).Kind == kwNULLS {
+		p.advance()
+		p.advance()
+	}
+	// Optional OVER windowSpec
+	if p.cur().Kind == kwOVER {
+		cpOver := p.save()
+		p.advance()
+		if err := p.parseWindowSpec(); err != nil {
+			// If nothing followed OVER (e.g. `SELECT IDENTIFIER() OVER`), treat OVER as alias.
+			if p.isStatementEnd() || p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
+				p.restore(cpOver)
+				return nil
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) isStringLitAt(offset int) bool {
+	k := p.peek(offset).Kind
+	return k == tokString || k == tokDoubleQuoted
+}
+
+func (p *Parser) canStartConstant() bool {
+	switch p.cur().Kind {
+	case kwNULL, tokQuestion, tokColon, kwINTERVAL,
+		tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
+		tokFloat, tokDouble, tokBigDecimal, tokMinus,
+		kwTRUE, kwFALSE, tokString, tokDoubleQuoted:
+		return true
+	}
+	// literalType stringLit: DATE '...', TIMESTAMP '...', X '...', ident '...'
+	if p.cur().Kind.isIdentifier() && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseConstant() error {
+	switch p.cur().Kind {
+	case kwNULL, tokQuestion, kwTRUE, kwFALSE:
+		p.advance()
+		return nil
+	case tokColon:
+		p.advance()
+		_, err := p.parseIdentifier()
+		return err
+	case kwINTERVAL:
+		// Could be `INTERVAL 's'` (typeConstructor) or `INTERVAL 1 DAY` (interval literal).
+		cp := p.save()
+		if err := p.parseInterval(); err == nil {
+			return nil
+		}
+		p.restore(cp)
+		if p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted {
+			p.advance()
+			p.advance()
+			return nil
+		}
+		return p.errorf("invalid INTERVAL literal")
+	case tokString, tokDoubleQuoted:
+		p.advance()
+		for p.cur().Kind == tokString || p.cur().Kind == tokDoubleQuoted {
+			p.advance()
+		}
+		return nil
+	case tokMinus, tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
+		tokFloat, tokDouble, tokBigDecimal:
+		return p.parseNumber()
+	}
+
+	// literalType stringLit (DATE '...', TIMESTAMP '...', TIMESTAMP_LTZ '...', TIMESTAMP_NTZ '...', X '...', ident '...')
+	if p.cur().Kind.isIdentifier() && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
+		p.advance()
+		p.advance()
+		return nil
+	}
+	return p.errorf("expected constant, got %q", p.cur().Text)
+}
+
+func (p *Parser) parseNumber() error {
+	cp := p.save()
+	p.match(tokMinus)
+	switch p.cur().Kind {
+	case tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
+		tokFloat, tokDouble, tokBigDecimal:
+		p.advance()
+		return nil
+	}
+	p.restore(cp)
+	return p.errorf("expected numeric literal, got %q", p.cur().Text)
+}
+
+// parseInterval parses:
+//
+//	interval : INTERVAL (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval) ;
+func (p *Parser) parseInterval() error {
+	if _, err := p.expect(kwINTERVAL); err != nil {
+		return err
+	}
+	// Try unitToUnitInterval first if we see: intervalValue unitInUnitToUnit TO unitInUnitToUnit
+	cp := p.save()
+	if err := p.parseUnitToUnitInterval(); err == nil {
+		// errorCapturingUnitToUnitInterval allows trailing error1=multiUnitsInterval | error2=unitToUnitInterval
+		cpExtra := p.save()
+		if err := p.parseUnitToUnitInterval(); err != nil {
+			p.restore(cpExtra)
+			if err := p.parseMultiUnitsInterval(); err != nil {
+				p.restore(cpExtra)
+			}
+		}
+		return nil
+	}
+	p.restore(cp)
+
+	if err := p.parseMultiUnitsInterval(); err != nil {
+		return err
+	}
+	// errorCapturingMultiUnitsInterval allows optional trailing unitToUnitInterval
+	cpTrail := p.save()
+	if err := p.parseUnitToUnitInterval(); err != nil {
+		p.restore(cpTrail)
+	}
+	return nil
+}
+
+func (p *Parser) parseMultiUnitsInterval() error {
+	count := 0
+	for {
+		cp := p.save()
+		if err := p.parseIntervalValue(); err != nil {
+			p.restore(cp)
+			break
+		}
+		if !p.isUnitInMultiUnits() {
+			p.restore(cp)
+			break
+		}
+		p.advance()
+		// Don't steal the start of a unitToUnitInterval (value unit TO unit) if we already have >=1 unit.
+		if count > 0 && p.cur().Kind == kwTO && p.isUnitInUnitToUnitAt(1) {
+			p.restore(cp)
+			break
+		}
+		count++
+	}
+	if count == 0 {
+		return p.errorf("expected interval value and unit")
+	}
+	return nil
+}
+
+func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
+	switch p.peek(offset).Kind {
+	case kwSECOND, kwMINUTE, kwHOUR, kwDAY, kwMONTH, kwYEAR:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseUnitToUnitInterval() error {
+	if err := p.parseIntervalValue(); err != nil {
+		return err
+	}
+	if !p.isUnitInUnitToUnit() {
+		return p.errorf("expected interval unit")
+	}
+	p.advance()
+	if _, err := p.expect(kwTO); err != nil {
+		return err
+	}
+	if !p.isUnitInUnitToUnit() {
+		return p.errorf("expected interval unit after TO")
+	}
+	p.advance()
+	return nil
+}
+
+func (p *Parser) parseIntervalValue() error {
+	p.match(tokPlus, tokMinus)
+	switch p.cur().Kind {
+	case tokInt, tokDecimal, tokString, tokDoubleQuoted:
+		p.advance()
+		return nil
+	default:
+		return p.errorf("expected interval value")
+	}
+}
+
+func (p *Parser) isUnitInMultiUnits() bool {
+	switch p.cur().Kind {
+	case kwNANOSECOND, kwNANOSECONDS, kwMICROSECOND, kwMICROSECONDS,
+		kwMILLISECOND, kwMILLISECONDS, kwSECOND, kwSECONDS,
+		kwMINUTE, kwMINUTES, kwHOUR, kwHOURS,
+		kwDAY, kwDAYS, kwWEEK, kwWEEKS,
+		kwMONTH, kwMONTHS, kwYEAR, kwYEARS:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) isUnitInUnitToUnit() bool {
+	switch p.cur().Kind {
+	case kwSECOND, kwMINUTE, kwHOUR, kwDAY, kwMONTH, kwYEAR:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) isDatetimeUnit() bool {
+	switch p.cur().Kind {
+	case kwYEAR, kwQUARTER, kwMONTH, kwWEEK, kwDAY, kwDAYOFYEAR,
+		kwHOUR, kwMINUTE, kwSECOND, kwMILLISECOND, kwMICROSECOND:
+		return true
+	}
+	return false
+}

@@ -1,0 +1,22 @@
+# Databricks / Spark SQL token forms for generated compat rows: the text
+# written for each token of SqlBaseLexer.g4 that is a class of texts.
+# Keywords and operators spell themselves and need no row. Each note cites the
+# lexer rule in SqlBaseLexer.g4, whose keywords match in any case (Spark's
+# parser reads an UpperCaseCharStream).
+# columns: token, form, note
+IDENTIFIER	a	SqlBaseLexer.g4:593 unicode letters, digits and _ (or URI path)
+BACKQUOTED_IDENTIFIER	`a`	SqlBaseLexer.g4:598 a backquoted name; `` is a backquote in it
+STRING_LITERAL	's'	SqlBaseLexer.g4:536 a single-quoted string (with backslash escapes) or raw R'...' / R"..."
+DOUBLEQUOTED_STRING	"s"	SqlBaseLexer.g4:542 a double-quoted string (or quoted identifier when double_quoted_identifiers is enabled)
+INTEGER_VALUE	1	SqlBaseLexer.g4:561 decimal digits
+DECIMAL_VALUE	1.5	SqlBaseLexer.g4:570 digits with a decimal point
+EXPONENT_VALUE	1E1	SqlBaseLexer.g4:565 digits with an exponent
+BIGINT_LITERAL	1L	SqlBaseLexer.g4:549 digits and L
+SMALLINT_LITERAL	1S	SqlBaseLexer.g4:553 digits and S
+TINYINT_LITERAL	1Y	SqlBaseLexer.g4:557 digits and Y
+FLOAT_LITERAL	1F	SqlBaseLexer.g4:574 digits or decimal with F
+DOUBLE_LITERAL	1D	SqlBaseLexer.g4:579 digits or decimal with D
+BIGDECIMAL_LITERAL	1BD	SqlBaseLexer.g4:584 digits or decimal with BD
+UNRECOGNIZED	(unreachable)	SqlBaseLexer.g4:638 catch-all fallback token for statement splitting, never accepted by parser rules
+.	a	SqlBaseParser.g4:325,335,345,349-361 wildcard in REFRESH, ADD/LIST, SET/RESET, and unsupportedHiveNativeCommands (.*?)
+primaryExpression	a	SqlBaseParser.g4:1156 the plainest expression is a name: the rule lists CURRENT_DATE first, so without this every expression row would carry CURRENT_DATE
