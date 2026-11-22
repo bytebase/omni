@@ -525,6 +525,14 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"AUDIT SELECT ON t BY ACCESS WHENEVER NOT SUCCESSFUL": {46401, 6, "", nil},
 			"NOAUDIT SELECT ON t WHENEVER NOT SUCCESSFUL":         parsed,
 		}, Accept},
+		{"AUDIT -> NOAUDIT stand-in strips mode before CONTAINER clause", "AUDIT ALL PRIVILEGES BY ACCESS CONTAINER = CURRENT", map[string]*answer{
+			"AUDIT ALL PRIVILEGES BY ACCESS CONTAINER = CURRENT": {46401, 6, "", nil},
+			"NOAUDIT ALL PRIVILEGES CONTAINER = CURRENT":         parsed,
+		}, Accept},
+		{"AUDIT -> NOAUDIT stand-in strips mode before trailing comment", "AUDIT SELECT ON t BY ACCESS /* trailing */", map[string]*answer{
+			"AUDIT SELECT ON t BY ACCESS /* trailing */": {46401, 6, "", nil},
+			"NOAUDIT SELECT ON t /* trailing */":         parsed,
+		}, Accept},
 		{"AUDIT -> NOAUDIT stand-in rejects invalid option", "AUDIT PORT a", map[string]*answer{
 			"AUDIT PORT a":                     {46401, 6, "", nil},
 			"NOAUDIT PORT a":                   {956, 8, "", nil},

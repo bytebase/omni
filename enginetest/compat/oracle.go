@@ -270,8 +270,8 @@ var (
 	reStandInCreateSpfileFromPfile    = regexp.MustCompile(`(?i)^\s*CREATE\s+(SPFILE)\s*=\s*'s'\s+FROM\s+(PFILE)(?:\s|$)`)
 	reStandInCreateSpfileAsCopy       = regexp.MustCompile(`(?i)^\s*CREATE\s+SPFILE\s+FROM\s+(PFILE)(?:\s|$)`)
 	reStandInCreateTablespaceSetTmpl  = regexp.MustCompile(`(?i)^\s*CREATE\s+TABLESPACE\s+SET\s+(\S+)\s+USING\s+TEMPLATE\s*\((.*)\)\s*$`)
-	reStandInTradAudit                = regexp.MustCompile(`(?i)^\s*AUDIT\s+(.+)$`)
-	reStandInTradAuditBy              = regexp.MustCompile(`(?i)\s+BY\s+(?:SESSION|ACCESS)(\s+WHENEVER\b|\s*$)`)
+	reStandInTradAudit                = regexp.MustCompile(`(?is)^\s*AUDIT\s+(.+)$`)
+	reStandInTradAuditBy              = regexp.MustCompile(`(?i)\s+BY\s+(?:SESSION|ACCESS)(\s+(?:WHENEVER|CONTAINER)\b|\s*$)`)
 	reStandInRecoverStandbyPrefix     = regexp.MustCompile(`(?i)^\s*ALTER\s+DATABASE\s+RECOVER\s+MANAGED\s+STANDBY\s+DATABASE\s+`)
 	reStandInRecoverFinishForce       = regexp.MustCompile(`(?i)\bFINISH\s+FORCE\b`)
 	reStandInRecoverFinish            = regexp.MustCompile(`(?i)\bFINISH\b`)
@@ -597,9 +597,11 @@ func oracleStandInRev5(statement, schema string, e oracleError) (string, func(in
 		if m := reStandInTradAudit.FindStringSubmatch(statement); m != nil {
 			body := m[1]
 			// Remove at most one properly positioned BY SESSION/ACCESS clause
-			// (right before WHENEVER or at end of statement) so duplicate or
-			// misplaced BY clauses remain for Oracle to reject.
-			if loc := reStandInTradAuditBy.FindStringSubmatchIndex(body); loc != nil {
+			// (before WHENEVER, CONTAINER, or end of statement — ignoring SQL
+			// comments) so duplicate or misplaced BY clauses remain for Oracle
+			// to reject.
+			maskedBody := maskSQLCommentsAndQuotes(body)
+			if loc := reStandInTradAuditBy.FindStringSubmatchIndex(maskedBody); loc != nil {
 				body = body[:loc[0]] + body[loc[2]:loc[3]] + body[loc[1]:]
 			}
 			return "NOAUDIT " + body, func(pos int) int { return pos }, true
