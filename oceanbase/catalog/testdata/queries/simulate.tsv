@@ -2,7 +2,6 @@
 # columns: omni, expected, source, fixture, rule, statement
 1054	1054	engine	one_table@column	stmt/select_stmt	CREATE VIEW _v AS SELECT a
 1054	1054	engine	one_table@column	stmt/select_stmt!insert	CREATE VIEW _v AS SELECT a zzz
-ok:2f0eb69e9bff	ok:2f0eb69e9bff	engine	one_table@column	stmt/pl_expr_stmt!insert	CREATE VIEW _v AS SELECT a zzz FROM a
 1054	1054	engine	one_table@column	expr_list/expr	CREATE VIEW _v AS SELECT [ a ]
 1054	1054	engine	one_table@column	expr_list/expr_list_,_expr	CREATE VIEW _v AS SELECT [ a, a ]
 1054	1054	engine	one_table@column	expr_as_list/expr_with_opt_alias	CREATE VIEW _v AS SELECT STATISTICS(a)
