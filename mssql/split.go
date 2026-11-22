@@ -2,6 +2,7 @@ package mssql
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review"
@@ -105,7 +106,7 @@ func Split(sql string) []Segment {
 
 		text := sql[prevByte:endByte]
 		_, isGo := os.AST.(*ast.GoStmt)
-		empty := isGo || os.Empty() || strings.TrimSpace(text) == ""
+		empty := isGo || os.Empty() || isOnlyTSQLSpace(text)
 		emit(endByte, empty)
 	}
 
@@ -160,13 +161,17 @@ func splitBySemicolonFrom(sql string, idx *review.Text, start int, prevEnd Posit
 	i := start
 	for i < len(sql) {
 		ch := sql[i]
-		switch ch {
-		case '\n', '\r':
+		if ch == '\n' || ch == '\r' {
 			i++
 			atLineStart = true
-		case ' ', '\t', '\f', '\v':
+			continue
+		}
+		if size, ok := matchTSQLInlineSpace(sql, i); ok {
 			// Horizontal whitespace preserves GO eligibility at line start.
-			i++
+			i += size
+			continue
+		}
+		switch ch {
 		case '-':
 			if isTSQLLineComment(sql, i, len(sql)) {
 				var endedLine bool
@@ -345,8 +350,8 @@ func matchGoAt(sql string, pos int) (int, bool) {
 // closing line are not validated against the GO line.
 func skipGoInlineTrivia(sql string, j int) (pos int, sawNewline bool, ok bool) {
 	for j < len(sql) {
-		if sql[j] == ' ' || sql[j] == '\t' || sql[j] == '\f' || sql[j] == '\v' {
-			j++
+		if size, isSpace := matchTSQLInlineSpace(sql, j); isSpace {
+			j += size
 			continue
 		}
 		if sql[j] == '/' && j+1 < len(sql) && sql[j+1] == '*' {
@@ -369,9 +374,13 @@ func isGoBoundary(sql string, pos int) bool {
 	if pos >= len(sql) {
 		return true
 	}
-	switch sql[pos] {
-	case ' ', '\t', '\r', '\n', '\f', '\v':
+	if sql[pos] == '\r' || sql[pos] == '\n' {
 		return true
+	}
+	if _, ok := matchTSQLInlineSpace(sql, pos); ok {
+		return true
+	}
+	switch sql[pos] {
 	case '-':
 		return isTSQLLineComment(sql, pos, len(sql))
 	case '/':
@@ -420,13 +429,49 @@ func skipTSQLDelimited(sql string, i int, close byte) int {
 	return i
 }
 
+// matchTSQLInlineSpace checks whether sql[i:] starts with a SQL Server
+// non-newline whitespace character (WS_CHAR_WO_NEWLINE in TSql160.g) and
+// returns its UTF-8 byte length.
+func matchTSQLInlineSpace(sql string, i int) (int, bool) {
+	ch := sql[i]
+	if ch < 0x80 {
+		if ch <= 0x20 && ch != '\n' && ch != '\r' {
+			return 1, true
+		}
+		return 0, false
+	}
+	r, size := utf8.DecodeRuneInString(sql[i:])
+	if isTSQLInlineSpaceRune(r) {
+		return size, true
+	}
+	return 0, false
+}
+
+func isTSQLInlineSpaceRune(r rune) bool {
+	if r <= 0x20 {
+		return r != '\n' && r != '\r'
+	}
+	switch {
+	case r == 0x0085, r == 0x00a0, r == 0x1680,
+		r >= 0x2000 && r <= 0x200b,
+		r == 0x2028, r == 0x2029, r == 0x202f, r == 0x205f, r == 0x3000:
+		return true
+	default:
+		return false
+	}
+}
+
 func isOnlyTSQLSpace(s string) bool {
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case ' ', '\t', '\n', '\r', '\f', '\v':
-		default:
+	for i := 0; i < len(s); {
+		if s[i] == '\n' || s[i] == '\r' {
+			i++
+			continue
+		}
+		size, ok := matchTSQLInlineSpace(s, i)
+		if !ok {
 			return false
 		}
+		i += size
 	}
 	return true
 }

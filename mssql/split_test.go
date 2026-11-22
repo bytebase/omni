@@ -259,6 +259,16 @@ func TestSplitFallbackUnparseableScripts(t *testing.T) {
 			},
 		},
 		{
+			name:  "GO surrounded by Unicode SQL Server whitespace (NBSP and ideographic space)",
+			input: "SELECT 1\n\u00a0GO\u00a0\nGO\u00a02\u3000\nSELECT FROM",
+			want: []Segment{
+				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+				{Text: "\n\u00a0GO", ByteStart: 8, ByteEnd: 13, Start: Position{1, 9}, End: Position{2, 4}, Empty: true},
+				{Text: "\u00a0\nGO\u00a02", ByteStart: 13, ByteEnd: 21, Start: Position{2, 4}, End: Position{3, 5}, Empty: true},
+				{Text: "\u3000\nSELECT FROM", ByteStart: 21, ByteEnd: 36, Start: Position{3, 5}, End: Position{4, 12}, Empty: false},
+			},
+		},
+		{
 			name:  "GO followed by multiline trailing block comment before SQL on closing line",
 			input: "SELECT 1\nGO /*\n*/ SELECT FROM",
 			want: []Segment{
