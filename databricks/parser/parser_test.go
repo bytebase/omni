@@ -521,6 +521,11 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "table function named lateral vs lateral modifier before subquery or relation",
+			sql:  `SELECT * FROM lateral(1) JOIN lateral(1, 2) JOIN lateral() JOIN lateral(k => 1) JOIN lateral(TABLE t PARTITION BY a) JOIN LATERAL (SELECT 1) AS s JOIN LATERAL (t1 JOIN t2 ON t1.a = t2.a) AS j JOIN LATERAL (t3 AS u) JOIN LATERAL (t4 u2) JOIN LATERAL (t5) TABLESAMPLE (10 PERCENT) JOIN LATERAL lateral(1) AS l`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
@@ -750,6 +755,18 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "repeated case identifier arithmetic inside simple case",
 			sql:  "SELECT CASE " + strings.Repeat("case + ", 200) + "1 WHEN 1 THEN 'ok' END",
+		},
+		{
+			name: "repeated case identifier arithmetic with parenthesized calls",
+			sql:  "SELECT " + strings.Repeat("case + abs(1) + ", 5000) + "1",
+		},
+		{
+			name: "repeated case identifier arithmetic with nested case in calls",
+			sql:  "SELECT " + strings.Repeat("case + abs(case + 1) + ", 2000) + "1",
+		},
+		{
+			name: "repeated case identifier arithmetic with calls inside nested simple cases",
+			sql:  "SELECT CASE CASE " + strings.Repeat("case + abs(case + 1) + ", 1000) + "1 WHEN 1 THEN 2 END WHEN 2 THEN 3 END",
 		},
 		{
 			name: "nested parenthesized map calls",

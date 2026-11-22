@@ -1200,52 +1200,59 @@ func (p *Parser) openCasesAtCurrentParenDepth() int {
 // simple CASE expressions cleanly.
 func (p *Parser) hasCaseWhenAndEndAhead() bool {
 	open := p.openCasesAtCurrentParenDepth()
-	if p.pos >= p.caseScanStart && p.pos < p.caseScanEnd && p.parenDepth == p.caseScanParenDepth {
-		if !p.caseScanHasWhen {
-			return false
+	if p.parenDepth >= 0 && p.parenDepth < len(p.caseScanCache) {
+		entry := p.caseScanCache[p.parenDepth]
+		if p.pos >= entry.start && p.pos < entry.end {
+			if p.pos >= entry.lastWhenPos {
+				return false
+			}
+			return open == 0 || entry.ends > open
 		}
-		if open == 0 {
-			return true
-		}
-		return p.caseScanEnds > open
 	}
 	depth := 0
-	sawNested := false
 	sawWhen := false
+	lastWhenPos := -1
 	ends := 0
 	firstEndPos := -1
 	siblingCases := 0
-	recordFlat := func(stopPos int) {
-		if !sawNested && ends <= 1 {
-			endPos := stopPos
-			if firstEndPos >= 0 && firstEndPos < endPos {
-				endPos = firstEndPos
-			}
-			p.caseScanStart = p.pos
-			p.caseScanEnd = endPos
-			p.caseScanParenDepth = p.parenDepth
-			p.caseScanHasWhen = sawWhen
-			p.caseScanEnds = ends
+	record := func(stopPos int) {
+		if p.parenDepth < 0 {
+			return
+		}
+		endPos := stopPos
+		if firstEndPos >= 0 && firstEndPos < endPos {
+			endPos = firstEndPos
+		}
+		if p.parenDepth >= len(p.caseScanCache) {
+			grown := make([]caseScanEntry, p.parenDepth+1)
+			copy(grown, p.caseScanCache)
+			p.caseScanCache = grown
+		}
+		p.caseScanCache[p.parenDepth] = caseScanEntry{
+			start:       p.pos,
+			end:         endPos,
+			lastWhenPos: lastWhenPos,
+			ends:        ends,
 		}
 	}
 	for i := 1; ; i++ {
 		k := p.peek(i).Kind
 		switch k {
 		case tokEOF, tokSemicolon:
-			recordFlat(p.pos + i)
+			record(p.pos + i)
 			return sawWhen && (open == 0 || ends > open)
 		case tokLParen, tokLBracket:
 			depth++
-			sawNested = true
 		case tokRParen, tokRBracket:
 			if depth == 0 {
-				recordFlat(p.pos + i)
+				record(p.pos + i)
 				return sawWhen && (open == 0 || ends > open)
 			}
 			depth--
 		case kwWHEN:
 			if depth == 0 {
 				sawWhen = true
+				lastWhenPos = p.pos + i
 			}
 		case kwCASE:
 			// After an END has closed the first CASE, a subsequent CASE at depth 0
@@ -1276,7 +1283,7 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
 			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
 			if depth == 0 {
-				recordFlat(p.pos + i)
+				record(p.pos + i)
 				return sawWhen && (open == 0 || ends > open)
 			}
 		}

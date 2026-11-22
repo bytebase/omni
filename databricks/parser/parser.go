@@ -17,6 +17,13 @@ type checkpoint struct {
 }
 
 // Parser is a hand-written recursive-descent parser for Databricks / Spark SQL.
+type caseScanEntry struct {
+	start       int
+	end         int
+	lastWhenPos int
+	ends        int
+}
+
 type Parser struct {
 	src                 string
 	toks                []Token
@@ -27,11 +34,7 @@ type Parser struct {
 	depth               int
 	parenDepth          int
 	openCaseParenDepths []int
-	caseScanStart       int
-	caseScanEnd         int
-	caseScanParenDepth  int
-	caseScanHasWhen     bool
-	caseScanEnds        int
+	caseScanCache       []caseScanEntry
 }
 
 // Parse parses a Databricks / Spark SQL input string (single statement or

@@ -820,12 +820,134 @@ func (p *Parser) isLateralRelationModifier() bool {
 		return p.peek(2).Kind != tokLParen
 	case kwLATERAL:
 		return p.peek(2).Kind != kwVIEW
+	case tokLParen:
+		return p.isLateralParenRelation()
 	case tokIdent:
 		if isWord(p.peek(1), "QUALIFY") && p.peek(2).Kind != tokEOF && p.peek(2).Kind != tokSemicolon && p.peek(2).Kind != tokRParen {
 			return false
 		}
 	}
 	return true
+}
+
+// isLateralParenRelation reports whether `LATERAL (...)` (with p.cur() at
+// kwLATERAL and p.peek(1) at tokLParen) is the LATERAL modifier before a
+// parenthesized query or relation rather than a table-valued function call
+// named `lateral(...)`.
+func (p *Parser) isLateralParenRelation() bool {
+	if p.peek(2).Kind == tokRParen {
+		return false
+	}
+	if p.peek(2).Kind == kwLATERAL {
+		return true
+	}
+	cp := p.save()
+	p.advance() // LATERAL
+	p.advance() // '('
+	isQuery := p.startsWithCompleteParenQuery()
+	p.restore(cp)
+	if isQuery {
+		return true
+	}
+
+	// Find the matching ')' for the opening '(' at offset 1 while computing
+	// how many outermost paren pairs wrap the entire content in a single pass.
+	leadingParens := 0
+	for p.peek(1+leadingParens).Kind == tokLParen {
+		leadingParens++
+	}
+	depth := leadingParens
+	minDepth := leadingParens
+	closeIdx := -1
+	for j := 1 + leadingParens; ; j++ {
+		k := p.peek(j).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				if k != tokRParen {
+					return false
+				}
+				closeIdx = j
+				break
+			}
+			if depth < minDepth && (k != tokRParen || p.peek(j+1).Kind != tokRParen) {
+				minDepth = depth
+			}
+		}
+	}
+	if p.peek(closeIdx+1).Kind == kwTABLESAMPLE {
+		return true
+	}
+
+	lo := 1 + minDepth
+	hi := closeIdx - (minDepth - 1)
+	if lo >= hi {
+		return false
+	}
+	if p.peek(lo).Kind == kwLATERAL {
+		return true
+	}
+
+	// Scan top-level tokens inside [lo, hi) for relation-only or function-arg-only markers.
+	d := 0
+	hasRelationMarker := false
+	for j := lo; j < hi; j++ {
+		k := p.peek(j).Kind
+		if k == tokLParen || k == tokLBracket {
+			d++
+			continue
+		}
+		if k == tokRParen || k == tokRBracket {
+			d--
+			continue
+		}
+		if d != 0 {
+			continue
+		}
+		switch k {
+		case tokComma, tokFatArrow:
+			return false
+		case kwTABLE:
+			if j == lo {
+				return false
+			}
+		case kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
+			kwPIVOT, kwUNPIVOT, kwTABLESAMPLE, kwAS:
+			hasRelationMarker = true
+		case kwFOR:
+			n := p.peek(j + 1).Kind
+			if n == kwSYSTEM_VERSION || n == kwVERSION || n == kwSYSTEM_TIME || n == kwTIMESTAMP {
+				hasRelationMarker = true
+			}
+		case kwWITH:
+			if p.peek(j+1).Kind == tokLParen {
+				hasRelationMarker = true
+			}
+		}
+	}
+	if hasRelationMarker {
+		return true
+	}
+	// Bare `LATERAL (t alias)` with two plain identifiers and no operator between them.
+	isPlainIdent := func(k TokenKind) bool {
+		return k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted
+	}
+	pos := lo
+	if isPlainIdent(p.peek(pos).Kind) {
+		pos++
+		for p.peek(pos).Kind == tokDot && p.peek(pos+1).Kind.isIdentifier() {
+			pos += 2
+		}
+		if isPlainIdent(p.peek(pos).Kind) && pos+1 == hi {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Parser) isJoinStart() bool {
