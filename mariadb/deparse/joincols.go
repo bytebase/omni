@@ -26,7 +26,8 @@ import (
 // s ON 1=1) USING (k), q's columns come before p's (MySQL puts p's first).
 type fromScope struct {
 	*scopepkg.Scope
-	from []ast.TableExpr
+	parent *fromScope
+	from   []ast.TableExpr
 
 	// tables holds the scope entries of the FROM clause's tables and derived
 	// tables in the order they were registered; entries maps each such FROM

@@ -30,6 +30,9 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		if err != nil {
 			return nil, err
 		}
+		if row, ok := unwrapParenExpr(n.Val).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			return nil, errOperandColumns(1)
+		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
@@ -41,12 +44,12 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	case *nodes.StarExpr:
 		// SELECT *
-		return expandStar("", q, scope, resNo)
+		return expandStar("", "", q, scope, resNo)
 
 	case *nodes.ColumnRef:
 		if n.Star {
-			// SELECT t.*
-			return expandStar(n.Table, q, scope, resNo)
+			// SELECT [db.]t.*
+			return expandStar(n.Schema, n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
 		analyzed, err := analyzeExpr(c, item, scope)
@@ -68,6 +71,9 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		if err != nil {
 			return nil, err
 		}
+		if row, ok := unwrapParenExpr(item).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			return nil, errOperandColumns(1)
+		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
@@ -79,14 +85,28 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	}
 }
 
-// expandStar expands a star expression (SELECT * or SELECT t.*) into
+func unwrapParenExpr(e nodes.ExprNode) nodes.ExprNode {
+	for {
+		p, ok := e.(*nodes.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.Expr
+	}
+}
+
+// expandStar expands a star expression (SELECT * or SELECT [db.]t.*) into
 // individual TargetEntryQ values.
-func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+func expandStar(schema, tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 
 	if tableName == "" {
+		entries := scope.allEntries()
+		if len(entries) == 0 {
+			return nil, errNoTablesUsed()
+		}
 		// SELECT * — expand all tables in scope order.
-		for _, e := range scope.allEntries() {
+		for _, e := range entries {
 			entries, err := expandScopeEntry(e, q, scope, resNo)
 			if err != nil {
 				return nil, err
@@ -94,15 +114,18 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 			result = append(result, entries...)
 		}
 	} else {
-		// SELECT t.* — expand only the named table.
+		// SELECT [db.]t.* — expand only the named table.
 		lower := toLower(tableName)
-		if i := scope.entryIndex(lower); i >= 0 {
+		if i := scope.entryIndex(lower); i >= 0 && (schema == "" || scope.entryDBName(i) == "" || eqFoldStr(scope.entryDBName(i), schema)) {
 			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		} else {
+			if schema != "" {
+				return nil, errUnknownTable(schema, tableName)
+			}
 			return nil, &Error{
 				Code:     ErrUnknownTable,
 				SQLState: sqlState(ErrUnknownTable),

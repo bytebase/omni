@@ -28,6 +28,70 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.HexLit:
+		return &ConstExprQ{Value: n.Value}, nil
+	case *nodes.BitLit:
+		return &ConstExprQ{Value: n.Value}, nil
+	case *nodes.TemporalLit:
+		return &ConstExprQ{Value: n.Value, IsString: true}, nil
+	case *nodes.VariableRef:
+		return &ConstExprQ{Value: n.Name}, nil
+	case *nodes.NextValueForExpr, *nodes.PreviousValueForExpr:
+		return &ConstExprQ{}, nil
+	case *nodes.DefaultExpr:
+		if n.Column != "" {
+			return analyzeColumnRef(&nodes.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}, scope)
+		}
+		return &ConstExprQ{Value: "DEFAULT"}, nil
+	case *nodes.LikeExpr:
+		left, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		pat, err := analyzeExpr(c, n.Pattern, scope)
+		if err != nil {
+			return nil, err
+		}
+		if n.Escape != nil {
+			if _, err := analyzeExpr(c, n.Escape, scope); err != nil {
+				return nil, err
+			}
+		}
+		op := "LIKE"
+		if n.Not {
+			op = "NOT LIKE"
+		}
+		return &OpExprQ{Op: op, Left: left, Right: pat}, nil
+	case *nodes.ExtractExpr:
+		return analyzeExpr(c, n.Expr, scope)
+	case *nodes.IntervalExpr:
+		return analyzeExpr(c, n.Value, scope)
+	case *nodes.CollateExpr:
+		return analyzeExpr(c, n.Expr, scope)
+	case *nodes.ConvertExpr:
+		return analyzeExpr(c, n.Expr, scope)
+	case *nodes.RowExpr:
+		var last AnalyzedExpr = &ConstExprQ{}
+		for _, item := range n.Items {
+			a, err := analyzeExpr(c, item, scope)
+			if err != nil {
+				return nil, err
+			}
+			last = a
+		}
+		return last, nil
+	case *nodes.MatchExpr:
+		for _, col := range n.Columns {
+			if _, err := analyzeColumnRef(col, scope); err != nil {
+				return nil, err
+			}
+		}
+		if n.Against != nil {
+			if _, err := analyzeExpr(c, n.Against, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &ConstExprQ{}, nil
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.
@@ -76,6 +140,13 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 // Uses the Full resolution methods to support correlated subquery references
 // (setting LevelsUp > 0 when the column comes from a parent scope).
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
+	if ref.Schema != "" {
+		rteIdx, attNum, levelsUp, err := scope.resolveSchemaQualifiedColumnFull(ref.Schema, ref.Table, ref.Column)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+	}
 	if ref.Table != "" {
 		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
 		if err != nil {
@@ -165,6 +236,31 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		result.ArgTypes = make([]string, len(fc.Args))
 		for i := range fc.Args {
 			result.ArgTypes[i] = deparse.DynColArgType(fc, i)
+		}
+	}
+	// Analyze ORDER BY (e.g., GROUP_CONCAT) and window OVER expressions so
+	// column references inside them are checked against scope.
+	if !fc.WithinGroup {
+		for _, item := range fc.OrderBy {
+			if item != nil && item.Expr != nil {
+				if _, err := analyzeExpr(c, item.Expr, scope); err != nil {
+					return nil, err
+				}
+			}
+		}
+		if fc.Over != nil {
+			for _, e := range fc.Over.PartitionBy {
+				if _, err := analyzeExpr(c, e, scope); err != nil {
+					return nil, err
+				}
+			}
+			for _, item := range fc.Over.OrderBy {
+				if item != nil && item.Expr != nil {
+					if _, err := analyzeExpr(c, item.Expr, scope); err != nil {
+						return nil, err
+					}
+				}
+			}
 		}
 	}
 	// Phase 3: populate return type from function type table.

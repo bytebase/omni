@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -1002,8 +1003,20 @@ func firstIntArg(fn *nodes.FuncCallExpr) (int, bool) {
 	if fn == nil || len(fn.Args) == 0 {
 		return 0, false
 	}
-	if lit, ok := fn.Args[0].(*nodes.IntLit); ok {
+	switch lit := fn.Args[0].(type) {
+	case *nodes.IntLit:
 		return int(lit.Value), true
+	case *nodes.HexLit:
+		hexStr := lit.Value
+		if strings.HasPrefix(hexStr, "0x") || strings.HasPrefix(hexStr, "0X") {
+			hexStr = hexStr[2:]
+		}
+		if v, err := strconv.ParseUint(hexStr, 16, 64); err == nil {
+			if v > uint64(^uint(0)>>1) {
+				return int(^uint(0) >> 1), true
+			}
+			return int(v), true
+		}
 	}
 	return 0, false
 }
@@ -1085,8 +1098,15 @@ func validateWindowReferences(stmt *nodes.SelectStmt) error {
 		if !ok || call.Over == nil {
 			return true
 		}
-		err = checkWindowRef(call.Over, declared)
-		return err == nil
+		if e := checkWindowRef(call.Over, declared); e != nil {
+			err = e
+			return false
+		}
+		if call.Schema == "" && !call.SpacedParen && windowFrameDisallowedFunc(call.Name) && windowDefHasFrame(call.Over, declared) {
+			err = errWindowFrameNotAllowed(strings.ToLower(call.Name))
+			return false
+		}
+		return true
 	}
 	for _, target := range stmt.TargetList {
 		nodes.Inspect(target, check)
@@ -1133,4 +1153,37 @@ func checkWindowRef(wd *nodes.WindowDef, declared map[string]*nodes.WindowDef) e
 		return errWindowRefHasFrame(wd.RefName)
 	}
 	return nil
+}
+
+// windowFrameDisallowedFunc reports window functions that MariaDB 11.8 rejects
+// with 4017 ("Window frame is not allowed with '<name>'") when paired with any
+// window frame clause.
+func windowFrameDisallowedFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "row_number", "rank", "dense_rank", "percent_rank", "cume_dist",
+		"ntile", "lag", "lead", "median", "percentile_cont", "percentile_disc":
+		return true
+	}
+	return false
+}
+
+// windowDefHasFrame reports whether wd or any named window it references
+// specifies a window frame clause.
+func windowDefHasFrame(wd *nodes.WindowDef, declared map[string]*nodes.WindowDef) bool {
+	seen := map[string]bool{}
+	for cur := wd; cur != nil; {
+		if cur.Frame != nil {
+			return true
+		}
+		if cur.RefName == "" {
+			return false
+		}
+		key := toLower(cur.RefName)
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+		cur = declared[key]
+	}
+	return false
 }

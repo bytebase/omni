@@ -44,6 +44,19 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 	case *ast.BinaryExpr:
 		n.Left = rewriteExpr(n.Left)
 		n.Right = rewriteExpr(n.Right)
+		// `- INTERVAL x unit + y` is stored by MariaDB as `y - interval x unit`.
+		if n.Op == ast.BinOpAdd {
+			if u, ok := unwrapParen(n.Left).(*ast.UnaryExpr); ok && u.Op == ast.UnaryMinus {
+				if iv, ok := unwrapParen(u.Operand).(*ast.IntervalExpr); ok {
+					return &ast.BinaryExpr{
+						Loc:   n.Loc,
+						Op:    ast.BinOpSub,
+						Left:  n.Right,
+						Right: iv,
+					}
+				}
+			}
+		}
 		// SOUNDS LIKE is stored as soundex(left) = soundex(right).
 		if n.Op == ast.BinOpSoundsLike {
 			return &ast.ParenExpr{
@@ -88,6 +101,19 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 			n.List[i] = rewriteExpr(item)
 		}
 		RewriteSelectStmt(n.Select)
+		// MariaDB collapses a 1-element IN list to `=` and NOT IN to `<>`.
+		if n.Select == nil && len(n.List) == 1 {
+			op := ast.BinOpEq
+			if n.Not {
+				op = ast.BinOpNe
+			}
+			return &ast.BinaryExpr{
+				Loc:   n.Loc,
+				Op:    op,
+				Left:  n.Expr,
+				Right: n.List[0],
+			}
+		}
 		return n
 
 	case *ast.SubqueryExpr:
@@ -146,6 +172,69 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		// a string literal, which no rewrite touches.
 		rewriteOrderBy(n.OrderBy)
 		rewriteWindowDef(n.Over)
+		if n.Schema == "" && !n.SpacedParen && n.Over == nil {
+			switch strings.ToUpper(n.Name) {
+			case "DATE":
+				if len(n.Args) == 1 {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "date"}}
+				}
+			case "TIME":
+				if len(n.Args) == 1 {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "time"}}
+				}
+			case "TIMESTAMP":
+				if len(n.Args) == 1 {
+					return &ast.CastExpr{Loc: n.Loc, Expr: n.Args[0], TypeName: &ast.DataType{Name: "datetime"}}
+				}
+			case "MOD":
+				if len(n.Args) == 2 {
+					return &ast.BinaryExpr{Loc: n.Loc, Op: ast.BinOpMod, Left: n.Args[0], Right: n.Args[1]}
+				}
+			case "DATE_ADD", "ADDDATE":
+				if len(n.Args) == 2 {
+					if iv, ok := unwrapParen(n.Args[1]).(*ast.IntervalExpr); ok {
+						return &ast.BinaryExpr{Loc: n.Loc, Op: ast.BinOpAdd, Left: n.Args[0], Right: iv}
+					}
+					if strings.EqualFold(n.Name, "ADDDATE") {
+						return &ast.BinaryExpr{
+							Loc:   n.Loc,
+							Op:    ast.BinOpAdd,
+							Left:  n.Args[0],
+							Right: &ast.IntervalExpr{Value: n.Args[1], Unit: "DAY"},
+						}
+					}
+				}
+			case "DATE_SUB", "SUBDATE":
+				if len(n.Args) == 2 {
+					if iv, ok := unwrapParen(n.Args[1]).(*ast.IntervalExpr); ok {
+						return &ast.BinaryExpr{Loc: n.Loc, Op: ast.BinOpSub, Left: n.Args[0], Right: iv}
+					}
+					if strings.EqualFold(n.Name, "SUBDATE") {
+						return &ast.BinaryExpr{
+							Loc:   n.Loc,
+							Op:    ast.BinOpSub,
+							Left:  n.Args[0],
+							Right: &ast.IntervalExpr{Value: n.Args[1], Unit: "DAY"},
+						}
+					}
+				}
+			case "TIMESTAMPADD":
+				if len(n.Args) == 3 {
+					if kw, ok := n.Args[0].(*ast.KeywordArg); ok {
+						unit := strings.TrimPrefix(strings.ToUpper(kw.Keyword), "SQL_TSI_")
+						if unit == "FRAC_SECOND" {
+							unit = "MICROSECOND"
+						}
+						return &ast.BinaryExpr{
+							Loc:   n.Loc,
+							Op:    ast.BinOpAdd,
+							Left:  n.Args[2],
+							Right: &ast.IntervalExpr{Value: n.Args[1], Unit: unit},
+						}
+					}
+				}
+			}
+		}
 		return n
 
 	case *ast.RowExpr:

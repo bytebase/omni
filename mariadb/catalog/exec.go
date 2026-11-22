@@ -86,8 +86,8 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 func validateDDL(stmt nodes.Node) error {
 	if containsParamMarker(stmt) {
 		return &Error{
-			Code:     0,
-			SQLState: "HY000",
+			Code:     1064,
+			SQLState: "42000",
 			Message:  "parameter marker (?) is not allowed in a DDL statement",
 		}
 	}

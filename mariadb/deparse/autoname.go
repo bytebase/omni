@@ -59,6 +59,19 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		}
 		return n.Column, true
 	case *ast.StringLit:
+		// Introduced hex/bit literals (e.g. `_utf8mb4 0x41`) are parsed into a
+		// StringLit with Charset set, but MariaDB names them after their source
+		// text (`_utf8mb4 0x41`), not their decoded byte value (`A`). Plain
+		// quoted strings (including `_utf8mb4'hello'`) name themselves after
+		// their string value.
+		if n.Charset != "" {
+			if raw, ok := nodeText(source, n); ok {
+				rest := strings.TrimSpace(strings.TrimPrefix(raw, n.Charset))
+				if len(rest) > 0 && rest[0] != '\'' && rest[0] != '"' {
+					return "", false
+				}
+			}
+		}
 		return n.Value, true
 	case *ast.NullLit:
 		return "NULL", true
