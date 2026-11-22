@@ -83,6 +83,13 @@ func TestParseCoreStatements(t *testing.T) {
 		"SELECT * FROM t cluster WHERE 1 = 1",
 		"SELECT * FROM t distribute WHERE 1 = 1",
 		"SELECT * FROM t sort WHERE 1 = 1",
+		// Nonreserved named window references inside parenthesized window specifications
+		"SELECT sum(a) OVER (sort) FROM t WINDOW sort AS ()",
+		"SELECT sum(a) OVER (cluster) FROM t WINDOW cluster AS ()",
+		"SELECT sum(a) OVER (distribute) FROM t WINDOW distribute AS ()",
+		"SELECT sum(a) OVER (sort SORT BY b) FROM t WINDOW sort AS ()",
+		// VALUES row aliases vs DEFAULT
+		"SELECT * FROM (VALUES (1 AS x, 2 y), (3, DEFAULT)) v",
 	}
 	for _, sql := range valid {
 		res, err := Parse(sql)
@@ -109,6 +116,8 @@ func TestParseCoreStatements(t *testing.T) {
 		"MERGE INTO a USING b ON 1",
 		"SELECT a(*, *)",
 		"SELECT `` FROM t",
+		"VALUES (DEFAULT, 1 AS x)",
+		"VALUES (1 AS x, DEFAULT)",
 	}
 	for _, sql := range invalid {
 		if _, err := Parse(sql); err == nil {
@@ -145,7 +154,8 @@ func TestParseDeepNestingDoesNotStackOverflow(t *testing.T) {
 }
 
 func TestParseNestedTrimAndParensLinearTime(t *testing.T) {
-	// Nested ordinary TRIM(TRIM(...)) and nested parentheses must not exhibit
+	// Nested ordinary TRIM(TRIM(...)), parentheses, aliased VALUES subqueries,
+	// and malformed or valid nested IN ((SELECT ...)) must not exhibit
 	// exponential backtracking.
 	nestedTrim := "SELECT " + strings.Repeat("TRIM(", 40) + "a" + strings.Repeat(")", 40)
 	if _, err := Parse(nestedTrim); err != nil {
@@ -158,6 +168,18 @@ func TestParseNestedTrimAndParensLinearTime(t *testing.T) {
 	nestedParens := "SELECT " + strings.Repeat("(", 40) + "1" + strings.Repeat(")", 40)
 	if _, err := Parse(nestedParens); err != nil {
 		t.Fatalf("Parse nested parens failed: %v", err)
+	}
+	nestedValuesAlias := "SELECT " + strings.Repeat("(VALUES (", 30) + "1" + strings.Repeat(" AS x))", 30)
+	if _, err := Parse(nestedValuesAlias); err != nil {
+		t.Fatalf("Parse nested aliased VALUES failed: %v", err)
+	}
+	nestedMalformedIn := "SELECT " + strings.Repeat("1 IN ((SELECT ", 30) + "!" + strings.Repeat("))", 30)
+	if _, err := Parse(nestedMalformedIn); err == nil {
+		t.Fatalf("expected error on malformed nested IN subquery")
+	}
+	nestedValidIn := "SELECT " + strings.Repeat("1 IN ((SELECT ", 30) + "1" + strings.Repeat(") + 1)", 30)
+	if _, err := Parse(nestedValidIn); err != nil {
+		t.Fatalf("Parse nested valid IN scalar subquery failed: %v", err)
 	}
 }
 

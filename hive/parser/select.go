@@ -4,17 +4,14 @@ import "fmt"
 
 // queryStatementExpression : withClause? queryStatementExpressionBody ;
 func (p *parser) parseQueryStatementExpression() error {
-	if err := p.enter(); err != nil {
-		return err
-	}
-	defer p.leave()
-
-	if p.peek().Type == KW_WITH {
-		if err := p.parseWithClause(); err != nil {
-			return err
+	return p.memoize(memoQueryStatement, func() error {
+		if p.peek().Type == KW_WITH {
+			if err := p.parseWithClause(); err != nil {
+				return err
+			}
 		}
-	}
-	return p.parseQueryStatementExpressionBody()
+		return p.parseQueryStatementExpressionBody()
+	})
 }
 
 func (p *parser) parseWithClause() error {
@@ -182,48 +179,45 @@ func (p *parser) parseSelectStatementWithCTE() error {
 }
 
 func (p *parser) parseSelectStatement() error {
-	if err := p.enter(); err != nil {
-		return err
-	}
-	defer p.leave()
-
-	if err := p.parseAtomSelectStatement(); err != nil {
-		return err
-	}
-	for p.isSetOperatorStart() {
-		if err := p.parseSetOperator(); err != nil {
-			return err
-		}
+	return p.memoize(memoSelectStatement, func() error {
 		if err := p.parseAtomSelectStatement(); err != nil {
 			return err
 		}
-	}
-	if p.peek().Type == KW_ORDER {
-		if err := p.parseOrderByClause(); err != nil {
-			return err
+		for p.isSetOperatorStart() {
+			if err := p.parseSetOperator(); err != nil {
+				return err
+			}
+			if err := p.parseAtomSelectStatement(); err != nil {
+				return err
+			}
 		}
-	}
-	if p.peek().Type == KW_CLUSTER {
-		if err := p.parseClusterByClause(); err != nil {
-			return err
+		if p.peek().Type == KW_ORDER {
+			if err := p.parseOrderByClause(); err != nil {
+				return err
+			}
 		}
-	}
-	if p.peek().Type == KW_DISTRIBUTE {
-		if err := p.parseDistributeByClause(); err != nil {
-			return err
+		if p.peek().Type == KW_CLUSTER {
+			if err := p.parseClusterByClause(); err != nil {
+				return err
+			}
 		}
-	}
-	if p.peek().Type == KW_SORT {
-		if err := p.parseSortByClause(); err != nil {
-			return err
+		if p.peek().Type == KW_DISTRIBUTE {
+			if err := p.parseDistributeByClause(); err != nil {
+				return err
+			}
 		}
-	}
-	if p.peek().Type == KW_LIMIT {
-		if err := p.parseLimitClause(); err != nil {
-			return err
+		if p.peek().Type == KW_SORT {
+			if err := p.parseSortByClause(); err != nil {
+				return err
+			}
 		}
-	}
-	return nil
+		if p.peek().Type == KW_LIMIT {
+			if err := p.parseLimitClause(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (p *parser) parseAtomSelectStatement() error {
@@ -954,21 +948,12 @@ func (p *parser) parseValuesClause() error {
 	return p.parseValuesTableConstructor()
 }
 
+// parseValuesTableConstructor left-factors Hive's two valuesTableConstructor
+// alternatives (`valueRowConstructor` allowing DEFAULT vs
+// `firstValueRowConstructor` allowing column aliases) into a single pass so
+// expressions in the first row are never parsed twice.
 func (p *parser) parseValuesTableConstructor() error {
-	if p.try(func() error {
-		if err := p.parseValueRowConstructor(); err != nil {
-			return err
-		}
-		for p.match(TokComma) {
-			if err := p.parseValueRowConstructor(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}) {
-		return nil
-	}
-	if err := p.parseFirstValueRowConstructor(); err != nil {
+	if err := p.parseFirstOrDefaultValueRowConstructor(); err != nil {
 		return err
 	}
 	for p.match(TokComma) {
@@ -979,38 +964,48 @@ func (p *parser) parseValuesTableConstructor() error {
 	return nil
 }
 
-func (p *parser) parseValueRowConstructor() error {
-	return p.parseExpressionsInParenthesis()
-}
-
-func (p *parser) parseFirstValueRowConstructor() error {
+func (p *parser) parseFirstOrDefaultValueRowConstructor() error {
 	if _, err := p.expect(TokLParen); err != nil {
 		return err
 	}
-	if err := p.parseExpressionWithAlias(); err != nil {
-		return err
-	}
-	for p.match(TokComma) {
-		if err := p.parseExpressionWithAlias(); err != nil {
-			return err
+	sawDefault := false
+	sawAlias := false
+	for {
+		if p.match(KW_DEFAULT) {
+			if sawAlias {
+				return p.errAt(p.peek(), "DEFAULT cannot be combined with aliases in VALUES row")
+			}
+			sawDefault = true
+		} else {
+			if err := p.parseExpression(); err != nil {
+				return err
+			}
+			if p.match(KW_AS) {
+				if sawDefault {
+					return p.errAt(p.peek(), "alias cannot be combined with DEFAULT in VALUES row")
+				}
+				sawAlias = true
+				if isIdentifier(p.peek().Type) {
+					p.next()
+				}
+			} else if isIdentifier(p.peek().Type) {
+				if sawDefault {
+					return p.errAt(p.peek(), "alias cannot be combined with DEFAULT in VALUES row")
+				}
+				sawAlias = true
+				p.next()
+			}
+		}
+		if !p.match(TokComma) {
+			break
 		}
 	}
 	_, err := p.expect(TokRParen)
 	return err
 }
 
-func (p *parser) parseExpressionWithAlias() error {
-	if err := p.parseExpression(); err != nil {
-		return err
-	}
-	if p.match(KW_AS) {
-		if isIdentifier(p.peek().Type) {
-			p.next()
-		}
-	} else if isIdentifier(p.peek().Type) {
-		p.next()
-	}
-	return nil
+func (p *parser) parseValueRowConstructor() error {
+	return p.parseExpressionsInParenthesis()
 }
 
 // --- WHERE / GROUP BY / HAVING / WINDOW / QUALIFY / ORDER BY / CLUSTER / DISTRIBUTE / SORT / LIMIT ---
@@ -1152,7 +1147,9 @@ func (p *parser) parseWindowSpecification() error {
 
 func (p *parser) isWindowSpecClauseStart() bool {
 	switch p.peek().Type {
-	case KW_PARTITION, KW_ORDER, KW_DISTRIBUTE, KW_SORT, KW_CLUSTER, KW_ROWS, KW_RANGE:
+	case KW_PARTITION, KW_ORDER, KW_DISTRIBUTE, KW_SORT, KW_CLUSTER:
+		return p.peekAt(1).Type == KW_BY
+	case KW_ROWS, KW_RANGE:
 		return true
 	}
 	return false

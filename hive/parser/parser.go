@@ -10,8 +10,9 @@ import (
 // ParseError describes a lexical or syntactic error encountered while parsing
 // HiveQL.
 type ParseError struct {
-	Message  string
-	Position int
+	Message    string
+	Position   int
+	depthLimit bool
 }
 
 func (e *ParseError) Error() string {
@@ -85,23 +86,101 @@ func Parse(sql string) (*ParseResult, error) {
 
 const maxDepth = 256
 
+type memoRule uint8
+
+const (
+	memoExpression memoRule = iota + 1
+	memoSelectStatement
+	memoQueryStatement
+)
+
+type memoKey struct {
+	rule memoRule
+	pos  int
+}
+
+type memoEntry struct {
+	endPos   int
+	relDepth int
+	err      error
+}
+
 type parser struct {
-	sql   string
-	toks  []Token
-	pos   int
-	depth int
+	sql       string
+	toks      []Token
+	pos       int
+	depth     int
+	peakDepth int
+	inTry     int
+	memo      map[memoKey]memoEntry
 }
 
 func (p *parser) enter() error {
 	p.depth++
+	if p.depth > p.peakDepth {
+		p.peakDepth = p.depth
+	}
 	if p.depth > maxDepth {
-		return p.errAt(p.peek(), "maximum nesting depth exceeded")
+		return &ParseError{
+			Message:    "maximum nesting depth exceeded",
+			Position:   p.peek().Loc.Start,
+			depthLimit: true,
+		}
 	}
 	return nil
 }
 
 func (p *parser) leave() {
 	p.depth--
+}
+
+// memoize wraps a recursive entry point with depth checking and packrat
+// memoization during speculative parses (p.try), preventing exponential
+// backtracking on nested expressions and subqueries while adding zero
+// allocations when no backtracking occurs.
+func (p *parser) memoize(rule memoRule, fn func() error) error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
+	startPos := p.pos
+	if p.memo != nil {
+		if entry, ok := p.memo[memoKey{rule: rule, pos: startPos}]; ok {
+			if entry.err != nil {
+				return entry.err
+			}
+			if p.depth+entry.relDepth <= maxDepth {
+				if p.depth+entry.relDepth > p.peakDepth {
+					p.peakDepth = p.depth + entry.relDepth
+				}
+				p.pos = entry.endPos
+				return nil
+			}
+		}
+	}
+
+	prevPeak := p.peakDepth
+	p.peakDepth = p.depth
+	err := fn()
+	relDepth := p.peakDepth - p.depth
+	if prevPeak > p.peakDepth {
+		p.peakDepth = prevPeak
+	}
+
+	if p.inTry > 0 {
+		if pe, ok := err.(*ParseError); !ok || !pe.depthLimit {
+			if p.memo == nil {
+				p.memo = make(map[memoKey]memoEntry)
+			}
+			p.memo[memoKey{rule: rule, pos: startPos}] = memoEntry{
+				endPos:   p.pos,
+				relDepth: relDepth,
+				err:      err,
+			}
+		}
+	}
+	return err
 }
 
 func (p *parser) save() int {
@@ -158,7 +237,10 @@ func (p *parser) errAt(t Token, msg string) error {
 
 func (p *parser) try(fn func() error) bool {
 	saved := p.save()
-	if err := fn(); err == nil {
+	p.inTry++
+	err := fn()
+	p.inTry--
+	if err == nil {
 		return true
 	}
 	p.restore(saved)

@@ -4,11 +4,7 @@ import "fmt"
 
 // parseExpression parses IdentifiersParser.g's expression rule.
 func (p *parser) parseExpression() error {
-	if err := p.enter(); err != nil {
-		return err
-	}
-	defer p.leave()
-	return p.parsePrecedenceOrExpression()
+	return p.memoize(memoExpression, p.parsePrecedenceOrExpression)
 }
 
 func (p *parser) parsePrecedenceOrExpression() error {
@@ -192,7 +188,7 @@ func (p *parser) parsePrecedenceSimilarExpressionAtom() error {
 }
 
 func (p *parser) parsePrecedenceSimilarExpressionIn() error {
-	if p.try(p.parseSubQueryExpression) {
+	if p.looksLikeSelectAfterLParen() && p.try(p.parseSubQueryExpression) {
 		return nil
 	}
 	return p.parseExpressionsInParenthesis()
