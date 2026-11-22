@@ -1,11 +1,11 @@
 # pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54
 # columns: omni, expected, source, rule, statement
-accept	reject	engine	parse_toplevel/stmtmulti	
+reject	reject	engine	parse_toplevel/stmtmulti	
 reject	reject	engine	parse_toplevel/stmtmulti!insert	zzz
-accept	reject	engine	stmtmulti/stmtmulti_;_toplevel_stmt	;
+reject	reject	engine	stmtmulti/stmtmulti_;_toplevel_stmt	;
 reject	reject	engine	stmtmulti/stmtmulti_;_toplevel_stmt!insert	; zzz
-accept	reject	engine	stmtmulti/toplevel_stmt	
-accept	reject	engine	toplevel_stmt/stmt	
+reject	reject	engine	stmtmulti/toplevel_stmt	
+reject	reject	engine	toplevel_stmt/stmt	
 accept	accept	engine	toplevel_stmt/TransactionStmtLegacy	BEGIN
 reject	reject	engine	toplevel_stmt/TransactionStmtLegacy!insert	BEGIN zzz
 reject	reject	engine	toplevel_stmt/TransactionStmtLegacy!swap	BETWEEN
@@ -159,7 +159,7 @@ reject	reject	engine	stmt/AlterOperatorStmt!drop-9	ALTER OPERATOR ~(a) SET()
 reject	reject	engine	stmt/AlterOperatorStmt!drop-10	ALTER OPERATOR ~(a) SET(a
 reject	reject	engine	stmt/AlterOperatorStmt!insert	ALTER OPERATOR ~(a) SET(a) zzz
 reject	reject	engine	stmt/AlterOperatorStmt!swap	ALWAYS OPERATOR ~(a) SET(a)
-accept	reject	engine	stmt/AlterTypeStmt	ALTER TYPE a SET(a)
+reject	reject	engine	stmt/AlterTypeStmt	ALTER TYPE a SET(a)
 reject	reject	engine	stmt/AlterTypeStmt!drop-1	TYPE a SET(a)
 reject	reject	engine	stmt/AlterTypeStmt!drop-2	ALTER a SET(a)
 reject	reject	engine	stmt/AlterTypeStmt!drop-3	ALTER TYPE SET(a)
@@ -952,7 +952,7 @@ reject	reject	engine	stmt/ViewStmt!drop-4	CREATE VIEW a SELECT
 reject	reject	engine	stmt/ViewStmt!drop-5	CREATE VIEW a AS
 accept	accept	engine	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
 reject	reject	engine	stmt/ViewStmt!swap	CROSS VIEW a AS SELECT
-accept	reject	engine	stmt/%empty	
+reject	reject	engine	stmt/%empty	
 accept	accept	engine	opt_single_name/ColId	REINDEX SYSTEM a
 reject	reject	engine	opt_single_name/ColId!insert	REINDEX SYSTEM a zzz
 accept	accept	engine	opt_single_name/%empty	REINDEX SYSTEM
@@ -1532,14 +1532,14 @@ reject	reject	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_B
 reject	reject	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject	reject	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject	reject	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-1	INDEX a DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-3	ALTER INDEX DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-4	ALTER INDEX a a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-5	ALTER INDEX a DROP
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!insert	ALTER INDEX a DROP a zzz
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!swap	ALWAYS INDEX a DROP a
-accept	reject	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+reject	reject	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-1	INDEX IF EXISTS a DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-3	ALTER INDEX EXISTS a DROP a
 reject	reject	engine	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds!drop-4	ALTER INDEX IF a DROP a
@@ -1754,7 +1754,7 @@ reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a SET NOT
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!insert	ALTER TABLE a ALTER a SET NOT NULL zzz
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!swap	ALTER TABLE a ALWAYS a SET NOT NULL
-accept	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-1	ALTER TABLE a a SET EXPRESSION AS(a)
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-2	ALTER TABLE a ALTER SET EXPRESSION AS(a)
 reject	reject	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-3	ALTER TABLE a ALTER a EXPRESSION AS(a)
@@ -2178,11 +2178,11 @@ reject	reject	engine	alter_identity_column_option/SET_GENERATED_generated_when!d
 reject	reject	engine	alter_identity_column_option/SET_GENERATED_generated_when!insert	ALTER TABLE a ALTER a SET GENERATED ALWAYS zzz
 reject	reject	engine	alter_identity_column_option/SET_GENERATED_generated_when!swap	ALTER TABLE a ALTER a SETOF GENERATED ALWAYS
 accept	accept	engine	set_statistics_value/SignedIconst	ALTER STATISTICS a SET STATISTICS 1
-accept	reject	engine	set_statistics_value/DEFAULT	ALTER STATISTICS a SET STATISTICS DEFAULT
+reject	reject	engine	set_statistics_value/DEFAULT	ALTER STATISTICS a SET STATISTICS DEFAULT
 reject	reject	engine	set_statistics_value/DEFAULT!insert	ALTER STATISTICS a SET STATISTICS DEFAULT zzz
 reject	reject	engine	set_statistics_value/DEFAULT!swap	ALTER STATISTICS a SET STATISTICS DEFAULTS
 accept	accept	engine	set_access_method_name/ColId	ALTER TABLE a SET ACCESS METHOD a
-accept	reject	engine	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+reject	reject	engine	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
 reject	reject	engine	set_access_method_name/DEFAULT!insert	ALTER TABLE a SET ACCESS METHOD DEFAULT zzz
 accept	accept	engine	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
 reject	reject	engine	PartitionBoundSpec/FOR_VALUES_WITH_(_hash_partbound_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES WITH(a 1)
@@ -2351,7 +2351,7 @@ reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_columnList!drop-3	COPY a FRO
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_columnList!drop-4	COPY a FROM 's' FORCE NOT NULL
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_columnList!insert	COPY a FROM 's' FORCE NOT NULL a zzz
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_columnList!swap	COPY a FROM 's' FOREIGN NOT NULL a
-accept	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_*	COPY a FROM 's' FORCE NOT NULL *
+reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_*	COPY a FROM 's' FORCE NOT NULL *
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_*!drop-1	COPY a FROM 's' NOT NULL *
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_*!drop-3	COPY a FROM 's' FORCE NOT *
 reject	reject	engine	copy_opt_item/FORCE_NOT_NULL_P_*!insert	COPY a FROM 's' FORCE NOT NULL * zzz
@@ -2361,7 +2361,7 @@ reject	reject	engine	copy_opt_item/FORCE_NULL_P_columnList!drop-1	COPY a FROM 's
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_columnList!drop-3	COPY a FROM 's' FORCE NULL
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_columnList!insert	COPY a FROM 's' FORCE NULL a zzz
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_columnList!swap	COPY a FROM 's' FOREIGN NULL a
-accept	reject	engine	copy_opt_item/FORCE_NULL_P_*	COPY a FROM 's' FORCE NULL *
+reject	reject	engine	copy_opt_item/FORCE_NULL_P_*	COPY a FROM 's' FORCE NULL *
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_*!drop-1	COPY a FROM 's' NULL *
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_*!insert	COPY a FROM 's' FORCE NULL * zzz
 reject	reject	engine	copy_opt_item/FORCE_NULL_P_*!swap	COPY a FROM 's' FOREIGN NULL *
@@ -2402,7 +2402,7 @@ accept	accept	engine	copy_generic_opt_arg/NumericOnly	COPY a FROM 's'(a 1.5)
 reject	reject	engine	copy_generic_opt_arg/NumericOnly!insert	COPY a FROM 's'(a 1.5 zzz)
 accept	accept	engine	copy_generic_opt_arg/*	COPY a FROM 's'(a *)
 reject	reject	engine	copy_generic_opt_arg/*!insert	COPY a FROM 's'(a * zzz)
-accept	reject	engine	copy_generic_opt_arg/DEFAULT	COPY a FROM 's'(a DEFAULT)
+reject	reject	engine	copy_generic_opt_arg/DEFAULT	COPY a FROM 's'(a DEFAULT)
 reject	reject	engine	copy_generic_opt_arg/DEFAULT!insert	COPY a FROM 's'(a DEFAULT zzz)
 accept	accept	engine	copy_generic_opt_arg/DEFAULT!swap	COPY a FROM 's'(a DEFAULTS)
 accept	accept	engine	copy_generic_opt_arg/(_copy_generic_opt_arg_list_)	COPY a FROM 's'(a(TRUE))
@@ -2782,14 +2782,14 @@ reject	reject	engine	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualif
 reject	reject	engine	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!drop-7	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES
 reject	reject	engine	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a zzz
 accept	accept	engine	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
-accept	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem	ALTER DOMAIN a ADD CONSTRAINT a NOT NULL
+reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem	ALTER DOMAIN a ADD CONSTRAINT a NOT NULL
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!drop-1	ALTER DOMAIN a ADD a NOT NULL
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!drop-2	ALTER DOMAIN a ADD CONSTRAINT NOT NULL
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!drop-3	ALTER DOMAIN a ADD CONSTRAINT a NULL
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!drop-4	ALTER DOMAIN a ADD CONSTRAINT a NOT
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!insert	ALTER DOMAIN a ADD CONSTRAINT a NOT NULL zzz
 reject	reject	engine	DomainConstraint/CONSTRAINT_name_DomainConstraintElem!swap	ALTER DOMAIN a ADD CONSTRAINTS a NOT NULL
-accept	reject	engine	DomainConstraint/DomainConstraintElem	ALTER DOMAIN a ADD NOT NULL
+reject	reject	engine	DomainConstraint/DomainConstraintElem	ALTER DOMAIN a ADD NOT NULL
 reject	reject	engine	DomainConstraint/DomainConstraintElem!drop-1	ALTER DOMAIN a ADD NULL
 reject	reject	engine	DomainConstraint/DomainConstraintElem!drop-2	ALTER DOMAIN a ADD NOT
 reject	reject	engine	DomainConstraint/DomainConstraintElem!insert	ALTER DOMAIN a ADD NOT NULL zzz
@@ -2801,7 +2801,7 @@ reject	reject	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSp
 reject	reject	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!drop-4	ALTER DOMAIN a ADD CHECK(a
 reject	reject	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!insert	ALTER DOMAIN a ADD CHECK(a) zzz
 reject	reject	engine	DomainConstraintElem/CHECK_(_a_expr_)_ConstraintAttributeSpec!swap	ALTER DOMAIN a ADD CHECKPOINT(a)
-accept	reject	engine	DomainConstraintElem/NOT_NULL_P_ConstraintAttributeSpec	ALTER DOMAIN a ADD NOT NULL
+reject	reject	engine	DomainConstraintElem/NOT_NULL_P_ConstraintAttributeSpec	ALTER DOMAIN a ADD NOT NULL
 accept	accept	engine	opt_no_inherit/NO_INHERIT	CREATE DOMAIN a a CHECK(a) NO INHERIT
 reject	reject	engine	opt_no_inherit/NO_INHERIT!drop-1	CREATE DOMAIN a a CHECK(a) INHERIT
 reject	reject	engine	opt_no_inherit/NO_INHERIT!drop-2	CREATE DOMAIN a a CHECK(a) NO
@@ -3930,16 +3930,16 @@ reject	reject	engine	OptConstrFromTable/FROM_qualified_name!insert	CREATE CONSTR
 reject	reject	engine	OptConstrFromTable/FROM_qualified_name!swap	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a FULL a FOR EACH ROW EXECUTE FUNCTION a()
 accept	accept	engine	OptConstrFromTable/%empty	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
 reject	reject	engine	OptConstrFromTable/%empty!insert	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a zzz FOR EACH ROW EXECUTE FUNCTION a()
-accept	reject	engine	ConstraintAttributeSpec/%empty	ALTER DOMAIN a ADD NOT NULL
+reject	reject	engine	ConstraintAttributeSpec/%empty	ALTER DOMAIN a ADD NOT NULL
 reject	reject	engine	ConstraintAttributeSpec/ConstraintAttributeSpec_ConstraintAttributeElem	ALTER DOMAIN a ADD NOT NULL DEFERRABLE
 reject	reject	engine	ConstraintAttributeSpec/ConstraintAttributeSpec_ConstraintAttributeElem!insert	ALTER DOMAIN a ADD NOT NULL DEFERRABLE zzz
 reject	reject	engine	ConstraintAttributeSpec/ConstraintAttributeSpec_ConstraintAttributeElem!swap	ALTER DOMAIN a ADD NOT NULL DEFERRED
-accept	reject	engine	ConstraintAttributeElem/NOT_DEFERRABLE	ALTER DOMAIN a ADD NOT NULL NOT DEFERRABLE
+reject	reject	engine	ConstraintAttributeElem/NOT_DEFERRABLE	ALTER DOMAIN a ADD NOT NULL NOT DEFERRABLE
 reject	reject	engine	ConstraintAttributeElem/NOT_DEFERRABLE!drop-2	ALTER DOMAIN a ADD NOT NULL NOT
 reject	reject	engine	ConstraintAttributeElem/NOT_DEFERRABLE!insert	ALTER DOMAIN a ADD NOT NULL NOT DEFERRABLE zzz
 reject	reject	engine	ConstraintAttributeElem/NOT_DEFERRABLE!swap	ALTER DOMAIN a ADD NOT NULL NOTHING DEFERRABLE
 reject	reject	engine	ConstraintAttributeElem/DEFERRABLE	ALTER DOMAIN a ADD NOT NULL DEFERRABLE
-accept	reject	engine	ConstraintAttributeElem/INITIALLY_IMMEDIATE	ALTER DOMAIN a ADD NOT NULL INITIALLY IMMEDIATE
+reject	reject	engine	ConstraintAttributeElem/INITIALLY_IMMEDIATE	ALTER DOMAIN a ADD NOT NULL INITIALLY IMMEDIATE
 reject	reject	engine	ConstraintAttributeElem/INITIALLY_IMMEDIATE!drop-1	ALTER DOMAIN a ADD NOT NULL IMMEDIATE
 reject	reject	engine	ConstraintAttributeElem/INITIALLY_IMMEDIATE!drop-2	ALTER DOMAIN a ADD NOT NULL INITIALLY
 reject	reject	engine	ConstraintAttributeElem/INITIALLY_IMMEDIATE!insert	ALTER DOMAIN a ADD NOT NULL INITIALLY IMMEDIATE zzz
@@ -3951,7 +3951,7 @@ reject	reject	engine	ConstraintAttributeElem/NOT_VALID	ALTER DOMAIN a ADD NOT NU
 reject	reject	engine	ConstraintAttributeElem/NOT_VALID!drop-1	ALTER DOMAIN a ADD NOT NULL VALID
 reject	reject	engine	ConstraintAttributeElem/NOT_VALID!insert	ALTER DOMAIN a ADD NOT NULL NOT VALID zzz
 reject	reject	engine	ConstraintAttributeElem/NOT_VALID!swap	ALTER DOMAIN a ADD NOT NULL NOTHING VALID
-accept	reject	engine	ConstraintAttributeElem/NO_INHERIT	ALTER DOMAIN a ADD NOT NULL NO INHERIT
+reject	reject	engine	ConstraintAttributeElem/NO_INHERIT	ALTER DOMAIN a ADD NOT NULL NO INHERIT
 reject	reject	engine	ConstraintAttributeElem/NO_INHERIT!drop-1	ALTER DOMAIN a ADD NOT NULL INHERIT
 reject	reject	engine	ConstraintAttributeElem/NO_INHERIT!drop-2	ALTER DOMAIN a ADD NOT NULL NO
 reject	reject	engine	ConstraintAttributeElem/NO_INHERIT!insert	ALTER DOMAIN a ADD NOT NULL NO INHERIT zzz
@@ -6858,10 +6858,10 @@ reject	reject	engine	AlterObjectSchemaStmt/ALTER_TYPE_P_any_name_SET_SCHEMA_name
 reject	reject	engine	AlterObjectSchemaStmt/ALTER_TYPE_P_any_name_SET_SCHEMA_name!insert	ALTER TYPE a SET SCHEMA a zzz
 reject	reject	engine	AlterObjectSchemaStmt/ALTER_TYPE_P_any_name_SET_SCHEMA_name!swap	ALWAYS TYPE a SET SCHEMA a
 reject	reject	engine	AlterOperatorStmt/ALTER_OPERATOR_operator_with_argtypes_SET_(_operator_def_list_)	ALTER OPERATOR ~(a) SET(a)
-accept	reject	engine	operator_def_list/operator_def_elem	ALTER TYPE a SET(a)
+reject	reject	engine	operator_def_list/operator_def_elem	ALTER TYPE a SET(a)
 reject	reject	engine	operator_def_list/operator_def_elem!truncate	ALTER TYPE a SET(
 reject	reject	engine	operator_def_list/operator_def_elem!insert	ALTER TYPE a SET(a zzz)
-accept	reject	engine	operator_def_list/operator_def_list_,_operator_def_elem	ALTER TYPE a SET(a, a)
+reject	reject	engine	operator_def_list/operator_def_list_,_operator_def_elem	ALTER TYPE a SET(a, a)
 reject	reject	engine	operator_def_list/operator_def_list_,_operator_def_elem!drop-1	ALTER TYPE a SET(, a)
 reject	reject	engine	operator_def_list/operator_def_list_,_operator_def_elem!drop-2	ALTER TYPE a SET(a a)
 reject	reject	engine	operator_def_list/operator_def_list_,_operator_def_elem!drop-3	ALTER TYPE a SET(a,)
@@ -6877,7 +6877,7 @@ reject	reject	engine	operator_def_elem/ColLabel_=_NONE!swap	ALTER TYPE a SET(a =
 accept	accept	engine	operator_def_elem/ColLabel_=_operator_def_arg	ALTER TYPE a SET(a = a)
 reject	reject	engine	operator_def_elem/ColLabel_=_operator_def_arg!drop-1	ALTER TYPE a SET(= a)
 reject	reject	engine	operator_def_elem/ColLabel_=_operator_def_arg!insert	ALTER TYPE a SET(a = a zzz)
-accept	reject	engine	operator_def_elem/ColLabel	ALTER TYPE a SET(a)
+reject	reject	engine	operator_def_elem/ColLabel	ALTER TYPE a SET(a)
 accept	accept	engine	operator_def_arg/func_type	ALTER TYPE a SET(a = a)
 accept	accept	engine	operator_def_arg/reserved_keyword	ALTER TYPE a SET(a = ALL)
 reject	reject	engine	operator_def_arg/reserved_keyword!insert	ALTER TYPE a SET(a = ALL zzz)
@@ -6888,7 +6888,7 @@ accept	accept	engine	operator_def_arg/NumericOnly	ALTER TYPE a SET(a = 1.5)
 reject	reject	engine	operator_def_arg/NumericOnly!insert	ALTER TYPE a SET(a = 1.5 zzz)
 accept	accept	engine	operator_def_arg/Sconst	ALTER TYPE a SET(a = 's')
 reject	reject	engine	operator_def_arg/Sconst!insert	ALTER TYPE a SET(a = 's' zzz)
-accept	reject	engine	AlterTypeStmt/ALTER_TYPE_P_any_name_SET_(_operator_def_list_)	ALTER TYPE a SET(a)
+reject	reject	engine	AlterTypeStmt/ALTER_TYPE_P_any_name_SET_(_operator_def_list_)	ALTER TYPE a SET(a)
 accept	accept	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec	ALTER AGGREGATE a(*) OWNER TO a
 reject	reject	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-1	AGGREGATE a(*) OWNER TO a
 reject	reject	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-2	ALTER a(*) OWNER TO a
@@ -7280,7 +7280,7 @@ accept	accept	engine	event/SELECT	CREATE RULE a AS ON SELECT TO a DO NOTHING
 reject	reject	engine	event/SELECT!truncate	CREATE RULE a AS ON
 reject	reject	engine	event/SELECT!insert	CREATE RULE a AS ON SELECT zzz TO a DO NOTHING
 reject	reject	engine	event/SELECT!swap	CREATE RULE a AS ON SEQUENCE TO a DO NOTHING
-accept	reject	engine	event/UPDATE	CREATE RULE a AS ON UPDATE TO a DO NOTHING
+reject	reject	engine	event/UPDATE	CREATE RULE a AS ON UPDATE TO a DO NOTHING
 reject	reject	engine	event/UPDATE!insert	CREATE RULE a AS ON UPDATE zzz TO a DO NOTHING
 reject	reject	engine	event/UPDATE!swap	CREATE RULE a AS ON USER TO a DO NOTHING
 accept	accept	engine	event/DELETE_P	CREATE RULE a AS ON DELETE TO a DO NOTHING
@@ -7615,7 +7615,7 @@ reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_SET_NOT_NULL_P!drop
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_SET_NOT_NULL_P!drop-6	ALTER DOMAIN a SET NOT
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_SET_NOT_NULL_P!insert	ALTER DOMAIN a SET NOT NULL zzz
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_SET_NOT_NULL_P!swap	ALWAYS DOMAIN a SET NOT NULL
-accept	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_ADD_P_DomainConstraint	ALTER DOMAIN a ADD NOT NULL
+reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_ADD_P_DomainConstraint	ALTER DOMAIN a ADD NOT NULL
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_ADD_P_DomainConstraint!drop-1	DOMAIN a ADD NOT NULL
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_ADD_P_DomainConstraint!drop-2	ALTER a ADD NOT NULL
 reject	reject	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_ADD_P_DomainConstraint!drop-3	ALTER DOMAIN ADD NOT NULL
@@ -7738,7 +7738,7 @@ reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)_qualified_name_
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)_qualified_name_cluster_index_specification!drop-4	CLUSTER(a a
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)_qualified_name_cluster_index_specification!insert	CLUSTER(a) a zzz
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)_qualified_name_cluster_index_specification!swap	COALESCE(a) a
-accept	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)	CLUSTER(a)
+reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)	CLUSTER(a)
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)!drop-1	(a)
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)!drop-2	CLUSTER a)
 reject	reject	engine	ClusterStmt/CLUSTER_(_utility_option_list_)!drop-3	CLUSTER()
@@ -8261,7 +8261,7 @@ reject	reject	engine	merge_when_clause/merge_when_tgt_not_matched_opt_merge_when
 accept	accept	engine	merge_when_tgt_matched/WHEN_MATCHED	MERGE INTO a USING a ON a WHEN MATCHED THEN DELETE
 reject	reject	engine	merge_when_tgt_matched/WHEN_MATCHED!truncate	MERGE INTO a USING a ON a WHEN
 reject	reject	engine	merge_when_tgt_matched/WHEN_MATCHED!insert	MERGE INTO a USING a ON a WHEN MATCHED zzz THEN DELETE
-accept	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE THEN DELETE
+reject	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE THEN DELETE
 reject	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE!drop-1	MERGE INTO a USING a ON a NOT MATCHED BY SOURCE THEN DELETE
 reject	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE!drop-2	MERGE INTO a USING a ON a WHEN MATCHED BY SOURCE THEN DELETE
 reject	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE!drop-3	MERGE INTO a USING a ON a WHEN NOT BY SOURCE THEN DELETE
@@ -8273,7 +8273,7 @@ reject	reject	engine	merge_when_tgt_matched/WHEN_NOT_MATCHED_BY_SOURCE!swap	MERG
 accept	accept	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED	MERGE INTO a USING a ON a WHEN NOT MATCHED THEN DO NOTHING
 reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED!truncate	MERGE INTO a USING a ON a WHEN NOT
 reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED!insert	MERGE INTO a USING a ON a WHEN NOT MATCHED zzz THEN DO NOTHING
-accept	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED_BY_TARGET	MERGE INTO a USING a ON a WHEN NOT MATCHED BY TARGET THEN DO NOTHING
+reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED_BY_TARGET	MERGE INTO a USING a ON a WHEN NOT MATCHED BY TARGET THEN DO NOTHING
 reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED_BY_TARGET!drop-1	MERGE INTO a USING a ON a NOT MATCHED BY TARGET THEN DO NOTHING
 reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED_BY_TARGET!drop-2	MERGE INTO a USING a ON a WHEN MATCHED BY TARGET THEN DO NOTHING
 reject	reject	engine	merge_when_tgt_not_matched/WHEN_NOT_MATCHED_BY_TARGET!drop-3	MERGE INTO a USING a ON a WHEN NOT BY TARGET THEN DO NOTHING
@@ -9653,9 +9653,9 @@ reject	reject	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!drop-4	SELECT a AT TIME a
 reject	reject	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!drop-5	SELECT a AT TIME ZONE
 accept	accept	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!insert	SELECT a AT TIME ZONE a zzz
 reject	reject	engine	a_expr/a_expr_AT_TIME_ZONE_a_expr!swap	SELECT a ATOMIC TIME ZONE a
-accept	reject	engine	a_expr/a_expr_AT_LOCAL	SELECT a AT LOCAL
+reject	reject	engine	a_expr/a_expr_AT_LOCAL	SELECT a AT LOCAL
 accept	accept	engine	a_expr/a_expr_AT_LOCAL!drop-1	SELECT AT LOCAL
-accept	reject	engine	a_expr/a_expr_AT_LOCAL!insert	SELECT a AT LOCAL zzz
+reject	reject	engine	a_expr/a_expr_AT_LOCAL!insert	SELECT a AT LOCAL zzz
 reject	reject	engine	a_expr/a_expr_AT_LOCAL!swap	SELECT a ATOMIC LOCAL
 accept	accept	engine	a_expr/+_a_expr	SELECT + a
 reject	reject	engine	a_expr/+_a_expr!drop-2	SELECT +
@@ -9948,14 +9948,14 @@ reject	reject	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!
 reject	reject	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-4	SELECT UNIQUE(SELECT
 reject	reject	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!insert	SELECT UNIQUE(SELECT) zzz
 reject	reject	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!swap	SELECT UNKNOWN(SELECT)
-accept	reject	engine	a_expr/a_expr_IS_DOCUMENT_P	SELECT a IS DOCUMENT
+reject	reject	engine	a_expr/a_expr_IS_DOCUMENT_P	SELECT a IS DOCUMENT
 reject	reject	engine	a_expr/a_expr_IS_DOCUMENT_P!drop-1	SELECT IS DOCUMENT
-accept	reject	engine	a_expr/a_expr_IS_DOCUMENT_P!insert	SELECT a IS DOCUMENT zzz
+reject	reject	engine	a_expr/a_expr_IS_DOCUMENT_P!insert	SELECT a IS DOCUMENT zzz
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!swap	SELECT a ISNULL DOCUMENT
-accept	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P	SELECT a IS NOT DOCUMENT
+reject	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P	SELECT a IS NOT DOCUMENT
 reject	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-1	SELECT IS NOT DOCUMENT
 reject	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-2	SELECT a NOT DOCUMENT
-accept	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!insert	SELECT a IS NOT DOCUMENT zzz
+reject	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!insert	SELECT a IS NOT DOCUMENT zzz
 reject	reject	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!swap	SELECT a ISNULL NOT DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED	SELECT a IS NORMALIZED
 reject	reject	engine	a_expr/a_expr_IS_NORMALIZED!drop-1	SELECT IS NORMALIZED
@@ -10070,13 +10070,13 @@ reject	reject	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-5	CREATE DOM
 reject	reject	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-6	CREATE DOMAIN a a DEFAULT a IS NOT DISTINCT FROM
 reject	reject	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!insert	CREATE DOMAIN a a DEFAULT a IS NOT DISTINCT FROM a zzz
 reject	reject	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!swap	CREATE DOMAIN a a DEFAULT a ISNULL NOT DISTINCT FROM a
-accept	reject	engine	b_expr/b_expr_IS_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS DOCUMENT
+reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-2	CREATE DOMAIN a a DEFAULT a DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-3	CREATE DOMAIN a a DEFAULT a IS
 reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P!insert	CREATE DOMAIN a a DEFAULT a IS DOCUMENT zzz
 reject	reject	engine	b_expr/b_expr_IS_DOCUMENT_P!swap	CREATE DOMAIN a a DEFAULT a ISNULL DOCUMENT
-accept	reject	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS NOT DOCUMENT
+reject	reject	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS NOT DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS NOT DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-2	CREATE DOMAIN a a DEFAULT a NOT DOCUMENT
 reject	reject	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-4	CREATE DOMAIN a a DEFAULT a IS NOT
@@ -10201,7 +10201,7 @@ reject	reject	engine	func_expr/json_aggregate_func_filter_clause_over_clause!dro
 reject	reject	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-3	SELECT JSON_ARRAYAGG()
 reject	reject	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-4	SELECT JSON_ARRAYAGG(a
 accept	accept	engine	func_expr/json_aggregate_func_filter_clause_over_clause!insert	SELECT JSON_ARRAYAGG(a) zzz
-reject	accept	engine	func_expr/json_aggregate_func_filter_clause_over_clause!swap	SELECT JSON_EXISTS(a)
+accept	accept	engine	func_expr/json_aggregate_func_filter_clause_over_clause!swap	SELECT JSON_EXISTS(a)
 accept	accept	engine	func_expr/func_expr_common_subexpr	SELECT CURRENT_DATE
 accept	accept	engine	func_expr_windowless/func_application	SELECT FROM a()
 reject	reject	engine	func_expr_windowless/func_application!drop-2	SELECT FROM a)
@@ -10214,7 +10214,7 @@ reject	reject	engine	func_expr_windowless/json_aggregate_func!drop-2	SELECT FROM
 reject	reject	engine	func_expr_windowless/json_aggregate_func!drop-3	SELECT FROM JSON_ARRAYAGG()
 reject	reject	engine	func_expr_windowless/json_aggregate_func!drop-4	SELECT FROM JSON_ARRAYAGG(a
 accept	accept	engine	func_expr_windowless/json_aggregate_func!insert	SELECT FROM JSON_ARRAYAGG(a) zzz
-reject	accept	engine	func_expr_windowless/json_aggregate_func!swap	SELECT FROM JSON_EXISTS(a)
+accept	accept	engine	func_expr_windowless/json_aggregate_func!swap	SELECT FROM JSON_EXISTS(a)
 accept	accept	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)	SELECT COLLATION FOR(a)
 reject	reject	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-1	SELECT FOR(a)
 accept	accept	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-2	SELECT COLLATION(a)
@@ -10406,32 +10406,32 @@ reject	reject	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-3	SELECT 
 reject	reject	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-4	SELECT LEAST(a
 accept	accept	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!insert	SELECT LEAST(a) zzz
 accept	accept	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!swap	SELECT LEFT(a)
-accept	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)	SELECT XMLCONCAT(a)
+reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)	SELECT XMLCONCAT(a)
 reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-2	SELECT XMLCONCAT a)
 reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-3	SELECT XMLCONCAT()
 reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-4	SELECT XMLCONCAT(a
-accept	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!insert	SELECT XMLCONCAT(a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!insert	SELECT XMLCONCAT(a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!swap	SELECT XMLELEMENT(a)
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)	SELECT XMLELEMENT(NAME a)
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)	SELECT XMLELEMENT(NAME a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-1	SELECT(NAME a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-2	SELECT XMLELEMENT NAME a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-4	SELECT XMLELEMENT(NAME)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-5	SELECT XMLELEMENT(NAME a
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!insert	SELECT XMLELEMENT(NAME a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!insert	SELECT XMLELEMENT(NAME a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!swap	SELECT XMLEXISTS(NAME a)
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-1	SELECT(NAME a, XMLATTRIBUTES(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-3	SELECT XMLELEMENT(a, XMLATTRIBUTES(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-4	SELECT XMLELEMENT(NAME, XMLATTRIBUTES(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-5	SELECT XMLELEMENT(NAME a XMLATTRIBUTES(a))
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-6	SELECT XMLELEMENT(NAME a,(a))
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-6	SELECT XMLELEMENT(NAME a,(a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-7	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES a))
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-8	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES())
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-9	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a)
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!insert	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a)) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!insert	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a)) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!swap	SELECT XMLEXISTS(NAME a, XMLATTRIBUTES(a))
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)	SELECT XMLELEMENT(NAME a, a)
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)	SELECT XMLELEMENT(NAME a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-1	SELECT(NAME a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-3	SELECT XMLELEMENT(a, a)
@@ -10439,22 +10439,22 @@ reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_exp
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-5	SELECT XMLELEMENT(NAME a a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-6	SELECT XMLELEMENT(NAME a,)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-7	SELECT XMLELEMENT(NAME a, a
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!insert	SELECT XMLELEMENT(NAME a, a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!insert	SELECT XMLELEMENT(NAME a, a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!swap	SELECT XMLEXISTS(NAME a, a)
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a)
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-1	SELECT(NAME a, XMLATTRIBUTES(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-3	SELECT XMLELEMENT(a, XMLATTRIBUTES(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-4	SELECT XMLELEMENT(NAME, XMLATTRIBUTES(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-5	SELECT XMLELEMENT(NAME a XMLATTRIBUTES(a), a)
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-6	SELECT XMLELEMENT(NAME a,(a), a)
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-6	SELECT XMLELEMENT(NAME a,(a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-7	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES a), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-8	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(), a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-9	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-10	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a) a)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-11	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a),)
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-12	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a
-accept	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!insert	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!insert	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!swap	SELECT XMLEXISTS(NAME a, XMLATTRIBUTES(a), a)
 accept	accept	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)	SELECT XMLEXISTS(a PASSING a)
 reject	reject	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-1	SELECT(a PASSING a)
@@ -10465,37 +10465,37 @@ reject	reject	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argum
 reject	reject	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-6	SELECT XMLEXISTS(a PASSING a
 accept	accept	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!insert	SELECT XMLEXISTS(a PASSING a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!swap	SELECT XMLFOREST(a PASSING a)
-accept	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)	SELECT XMLFOREST(a)
+reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)	SELECT XMLFOREST(a)
 reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-2	SELECT XMLFOREST a)
 reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-3	SELECT XMLFOREST()
 reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-4	SELECT XMLFOREST(a
-accept	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!insert	SELECT XMLFOREST(a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!insert	SELECT XMLFOREST(a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!swap	SELECT XMLNAMESPACES(a)
-accept	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)	SELECT XMLPARSE(DOCUMENT a)
+reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)	SELECT XMLPARSE(DOCUMENT a)
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-1	SELECT(DOCUMENT a)
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-2	SELECT XMLPARSE DOCUMENT a)
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-3	SELECT XMLPARSE(a)
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-4	SELECT XMLPARSE(DOCUMENT)
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-5	SELECT XMLPARSE(DOCUMENT a
-accept	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!insert	SELECT XMLPARSE(DOCUMENT a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!insert	SELECT XMLPARSE(DOCUMENT a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!swap	SELECT XMLPI(DOCUMENT a)
-accept	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)	SELECT XMLPI(NAME a)
+reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)	SELECT XMLPI(NAME a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-2	SELECT XMLPI NAME a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-3	SELECT XMLPI(a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-4	SELECT XMLPI(NAME)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-5	SELECT XMLPI(NAME a
-accept	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!insert	SELECT XMLPI(NAME a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!insert	SELECT XMLPI(NAME a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!swap	SELECT XMLROOT(NAME a)
-accept	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)	SELECT XMLPI(NAME a, a)
+reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)	SELECT XMLPI(NAME a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-2	SELECT XMLPI NAME a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-3	SELECT XMLPI(a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-4	SELECT XMLPI(NAME, a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-5	SELECT XMLPI(NAME a a)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-6	SELECT XMLPI(NAME a,)
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-7	SELECT XMLPI(NAME a, a
-accept	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!insert	SELECT XMLPI(NAME a, a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!insert	SELECT XMLPI(NAME a, a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!swap	SELECT XMLROOT(NAME a, a)
-accept	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)	SELECT XMLROOT(a, VERSION a)
+reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)	SELECT XMLROOT(a, VERSION a)
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-1	SELECT(a, VERSION a)
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-2	SELECT XMLROOT a, VERSION a)
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-3	SELECT XMLROOT(, VERSION a)
@@ -10503,7 +10503,7 @@ reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_versio
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-5	SELECT XMLROOT(a, a)
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-6	SELECT XMLROOT(a, VERSION)
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-7	SELECT XMLROOT(a, VERSION a
-accept	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!insert	SELECT XMLROOT(a, VERSION a) zzz
+reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!insert	SELECT XMLROOT(a, VERSION a) zzz
 reject	reject	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!swap	SELECT XMLSERIALIZE(a, VERSION a)
 accept	accept	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)	SELECT XMLSERIALIZE(DOCUMENT a AS a)
 reject	reject	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-1	SELECT(DOCUMENT a AS a)
@@ -10548,20 +10548,20 @@ reject	reject	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)!insert	SELECT JSON_ARRAY() zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)	SELECT JSON(a)
 reject	reject	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-2	SELECT JSON a)
-reject	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-3	SELECT JSON()
+accept	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-3	SELECT JSON()
 reject	reject	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-4	SELECT JSON(a
 accept	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!insert	SELECT JSON(a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)	SELECT JSON_SCALAR(a)
 reject	reject	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-2	SELECT JSON_SCALAR a)
-reject	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-3	SELECT JSON_SCALAR()
+accept	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-3	SELECT JSON_SCALAR()
 reject	reject	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-4	SELECT JSON_SCALAR(a
 accept	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!insert	SELECT JSON_SCALAR(a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)	SELECT JSON_SERIALIZE(a)
 reject	reject	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-2	SELECT JSON_SERIALIZE a)
-reject	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-3	SELECT JSON_SERIALIZE()
+accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-3	SELECT JSON_SERIALIZE()
 reject	reject	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-4	SELECT JSON_SERIALIZE(a
 accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!insert	SELECT JSON_SERIALIZE(a) zzz
-reject	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!swap	SELECT JSON_TABLE(a)
+accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!swap	SELECT JSON_TABLE(a)
 accept	accept	engine	func_expr_common_subexpr/MERGE_ACTION_(_)	SELECT MERGE_ACTION()
 reject	reject	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!drop-2	SELECT MERGE_ACTION)
 reject	reject	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!drop-3	SELECT MERGE_ACTION(
@@ -10574,7 +10574,7 @@ reject	reject	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_e
 reject	reject	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-5	SELECT JSON_QUERY(a,)
 reject	reject	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-6	SELECT JSON_QUERY(a, a
 accept	accept	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!insert	SELECT JSON_QUERY(a, a) zzz
-reject	accept	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!swap	SELECT JSON_SCALAR(a, a)
+accept	accept	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!swap	SELECT JSON_SCALAR(a, a)
 accept	accept	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)	SELECT JSON_EXISTS(a, a)
 reject	reject	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-2	SELECT JSON_EXISTS a, a)
 reject	reject	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-3	SELECT JSON_EXISTS(, a)
@@ -10591,57 +10591,57 @@ reject	reject	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_e
 reject	reject	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-6	SELECT JSON_VALUE(a, a
 accept	accept	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!insert	SELECT JSON_VALUE(a, a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!swap	SELECT KEEP(a, a)
-accept	reject	engine	xml_root_version/VERSION_P_a_expr	SELECT XMLROOT(a, VERSION a)
+reject	reject	engine	xml_root_version/VERSION_P_a_expr	SELECT XMLROOT(a, VERSION a)
 reject	reject	engine	xml_root_version/VERSION_P_a_expr!truncate	SELECT XMLROOT(a, VERSION
 reject	reject	engine	xml_root_version/VERSION_P_a_expr!insert	SELECT XMLROOT(a, VERSION a zzz)
 reject	reject	engine	xml_root_version/VERSION_P_a_expr!swap	SELECT XMLROOT(a, VIEW a)
-accept	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P	SELECT XMLROOT(a, VERSION NO VALUE)
+reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P	SELECT XMLROOT(a, VERSION NO VALUE)
 reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-1	SELECT XMLROOT(a, NO VALUE)
-accept	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-2	SELECT XMLROOT(a, VERSION VALUE)
-accept	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	SELECT XMLROOT(a, VERSION NO)
+reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-2	SELECT XMLROOT(a, VERSION VALUE)
+reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	SELECT XMLROOT(a, VERSION NO)
 reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!truncate	SELECT XMLROOT(a, VERSION NO
 reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!insert	SELECT XMLROOT(a, VERSION NO VALUE zzz)
 reject	reject	engine	xml_root_version/VERSION_P_NO_VALUE_P!swap	SELECT XMLROOT(a, VIEW NO VALUE)
-accept	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P	SELECT XMLROOT(a, VERSION a, STANDALONE YES)
+reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P	SELECT XMLROOT(a, VERSION a, STANDALONE YES)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!drop-1	SELECT XMLROOT(a, VERSION a STANDALONE YES)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!drop-2	SELECT XMLROOT(a, VERSION a, YES)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!drop-3	SELECT XMLROOT(a, VERSION a, STANDALONE)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!truncate	SELECT XMLROOT(a, VERSION a, STANDALONE
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!insert	SELECT XMLROOT(a, VERSION a, STANDALONE YES zzz)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_YES_P!swap	SELECT XMLROOT(a, VERSION a, START YES)
-accept	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO	SELECT XMLROOT(a, VERSION a, STANDALONE NO)
+reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO	SELECT XMLROOT(a, VERSION a, STANDALONE NO)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO!drop-1	SELECT XMLROOT(a, VERSION a STANDALONE NO)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO!drop-2	SELECT XMLROOT(a, VERSION a, NO)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO!insert	SELECT XMLROOT(a, VERSION a, STANDALONE NO zzz)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO!swap	SELECT XMLROOT(a, VERSION a, START NO)
-accept	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P	SELECT XMLROOT(a, VERSION a, STANDALONE NO VALUE)
+reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P	SELECT XMLROOT(a, VERSION a, STANDALONE NO VALUE)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!drop-1	SELECT XMLROOT(a, VERSION a STANDALONE NO VALUE)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!drop-2	SELECT XMLROOT(a, VERSION a, NO VALUE)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!drop-3	SELECT XMLROOT(a, VERSION a, STANDALONE VALUE)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!truncate	SELECT XMLROOT(a, VERSION a, STANDALONE NO
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!insert	SELECT XMLROOT(a, VERSION a, STANDALONE NO VALUE zzz)
 reject	reject	engine	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P!swap	SELECT XMLROOT(a, VERSION a, START NO VALUE)
-accept	reject	engine	opt_xml_root_standalone/%empty	SELECT XMLROOT(a, VERSION a)
-accept	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
+reject	reject	engine	opt_xml_root_standalone/%empty	SELECT XMLROOT(a, VERSION a)
+reject	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
 reject	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)!truncate	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a
 reject	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)!insert	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a) zzz)
-accept	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)!swap	SELECT XMLELEMENT(NAME a, XMLCONCAT(a))
-accept	reject	engine	xml_attribute_list/xml_attribute_el	SELECT XMLFOREST(a)
+reject	reject	engine	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)!swap	SELECT XMLELEMENT(NAME a, XMLCONCAT(a))
+reject	reject	engine	xml_attribute_list/xml_attribute_el	SELECT XMLFOREST(a)
 reject	reject	engine	xml_attribute_list/xml_attribute_el!truncate	SELECT XMLFOREST(
 reject	reject	engine	xml_attribute_list/xml_attribute_el!insert	SELECT XMLFOREST(a zzz)
-accept	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el	SELECT XMLFOREST(a, a)
+reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el	SELECT XMLFOREST(a, a)
 reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el!drop-1	SELECT XMLFOREST(, a)
 reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el!drop-2	SELECT XMLFOREST(a a)
 reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el!drop-3	SELECT XMLFOREST(a,)
 reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el!truncate	SELECT XMLFOREST(a,
 reject	reject	engine	xml_attribute_list/xml_attribute_list_,_xml_attribute_el!insert	SELECT XMLFOREST(a, a zzz)
-accept	reject	engine	xml_attribute_el/a_expr_AS_ColLabel	SELECT XMLFOREST(a AS a)
+reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel	SELECT XMLFOREST(a AS a)
 reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel!drop-1	SELECT XMLFOREST(AS a)
 reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel!drop-3	SELECT XMLFOREST(a AS)
 reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel!truncate	SELECT XMLFOREST(a AS
 reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel!insert	SELECT XMLFOREST(a AS a zzz)
 reject	reject	engine	xml_attribute_el/a_expr_AS_ColLabel!swap	SELECT XMLFOREST(a ASC a)
-accept	reject	engine	xml_attribute_el/a_expr	SELECT XMLFOREST(a)
+reject	reject	engine	xml_attribute_el/a_expr	SELECT XMLFOREST(a)
 accept	accept	engine	document_or_content/DOCUMENT_P	SET XML OPTION DOCUMENT
 reject	reject	engine	document_or_content/DOCUMENT_P!swap	SET XML OPTION DOMAIN
 accept	accept	engine	document_or_content/CONTENT_P	SET XML OPTION CONTENT
@@ -10657,18 +10657,18 @@ reject	reject	engine	xml_indent_option/NO_INDENT!insert	SELECT XMLSERIALIZE(DOCU
 reject	reject	engine	xml_indent_option/NO_INDENT!swap	SELECT XMLSERIALIZE(DOCUMENT a AS a NONE INDENT)
 accept	accept	engine	xml_indent_option/%empty	SELECT XMLSERIALIZE(DOCUMENT a AS a)
 reject	reject	engine	xml_indent_option/%empty!insert	SELECT XMLSERIALIZE(DOCUMENT a AS a zzz)
-accept	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P	SELECT XMLPARSE(DOCUMENT a PRESERVE WHITESPACE)
+reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P	SELECT XMLPARSE(DOCUMENT a PRESERVE WHITESPACE)
 reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P!drop-1	SELECT XMLPARSE(DOCUMENT a WHITESPACE)
 reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P!drop-2	SELECT XMLPARSE(DOCUMENT a PRESERVE)
 reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P!truncate	SELECT XMLPARSE(DOCUMENT a PRESERVE
 reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P!insert	SELECT XMLPARSE(DOCUMENT a PRESERVE WHITESPACE zzz)
 reject	reject	engine	xml_whitespace_option/PRESERVE_WHITESPACE_P!swap	SELECT XMLPARSE(DOCUMENT a PRIMARY WHITESPACE)
-accept	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P	SELECT XMLPARSE(DOCUMENT a STRIP WHITESPACE)
+reject	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P	SELECT XMLPARSE(DOCUMENT a STRIP WHITESPACE)
 reject	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P!drop-2	SELECT XMLPARSE(DOCUMENT a STRIP)
 reject	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P!truncate	SELECT XMLPARSE(DOCUMENT a STRIP
 reject	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P!insert	SELECT XMLPARSE(DOCUMENT a STRIP WHITESPACE zzz)
 reject	reject	engine	xml_whitespace_option/STRIP_P_WHITESPACE_P!swap	SELECT XMLPARSE(DOCUMENT a SUBSCRIPTION WHITESPACE)
-accept	reject	engine	xml_whitespace_option/%empty	SELECT XMLPARSE(DOCUMENT a)
+reject	reject	engine	xml_whitespace_option/%empty	SELECT XMLPARSE(DOCUMENT a)
 reject	reject	engine	xml_whitespace_option/%empty!insert	SELECT XMLPARSE(DOCUMENT a zzz)
 accept	accept	engine	xmlexists_argument/PASSING_c_expr	SELECT XMLEXISTS(a PASSING a)
 reject	reject	engine	xmlexists_argument/PASSING_c_expr!truncate	SELECT XMLEXISTS(a PASSING
@@ -11191,7 +11191,7 @@ reject	reject	engine	opt_asymmetric/ASYMMETRIC!insert	SELECT a BETWEEN ASYMMETRI
 reject	reject	engine	opt_asymmetric/ASYMMETRIC!swap	SELECT a BETWEEN AT a AND a
 accept	accept	engine	opt_asymmetric/%empty	SELECT a BETWEEN a AND a
 reject	reject	engine	opt_asymmetric/%empty!insert	SELECT a BETWEEN zzz a AND a
-accept	reject	engine	json_passing_clause_opt/PASSING_json_arguments	SELECT JSON_QUERY(a, a PASSING a AS a)
+reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments	SELECT JSON_QUERY(a, a PASSING a AS a)
 reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments!drop-1	SELECT JSON_QUERY(a, a a AS a)
 reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments!drop-2	SELECT JSON_QUERY(a, a PASSING AS a)
 reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments!drop-3	SELECT JSON_QUERY(a, a PASSING a a)
@@ -11201,9 +11201,9 @@ reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments!insert	SELEC
 reject	reject	engine	json_passing_clause_opt/PASSING_json_arguments!swap	SELECT JSON_QUERY(a, a PASSWORD a AS a)
 accept	accept	engine	json_passing_clause_opt/%empty	SELECT JSON_QUERY(a, a)
 reject	reject	engine	json_passing_clause_opt/%empty!insert	SELECT JSON_QUERY(a, a zzz)
-accept	reject	engine	json_arguments/json_argument	SELECT JSON_QUERY(a, a PASSING a AS a)
+reject	reject	engine	json_arguments/json_argument	SELECT JSON_QUERY(a, a PASSING a AS a)
 reject	reject	engine	json_arguments/json_argument!swap	SELECT JSON_QUERY(a, a PASSING a ASC a)
-accept	reject	engine	json_arguments/json_arguments_,_json_argument	SELECT JSON_QUERY(a, a PASSING a AS a, a AS a)
+reject	reject	engine	json_arguments/json_arguments_,_json_argument	SELECT JSON_QUERY(a, a PASSING a AS a, a AS a)
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!drop-1	SELECT JSON_QUERY(a, a PASSING AS a, a AS a)
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!drop-2	SELECT JSON_QUERY(a, a PASSING a a, a AS a)
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!drop-3	SELECT JSON_QUERY(a, a PASSING a AS, a AS a)
@@ -11214,100 +11214,100 @@ reject	reject	engine	json_arguments/json_arguments_,_json_argument!drop-7	SELECT
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!truncate	SELECT JSON_QUERY(a, a PASSING a AS a, a AS
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!insert	SELECT JSON_QUERY(a, a PASSING a AS a, a AS a zzz)
 reject	reject	engine	json_arguments/json_arguments_,_json_argument!swap	SELECT JSON_QUERY(a, a PASSING a ASC a, a AS a)
-accept	reject	engine	json_argument/json_value_expr_AS_ColLabel	SELECT JSON_QUERY(a, a PASSING a AS a)
-accept	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER	SELECT JSON_QUERY(a, a WITHOUT WRAPPER)
+reject	reject	engine	json_argument/json_value_expr_AS_ColLabel	SELECT JSON_QUERY(a, a PASSING a AS a)
+reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER	SELECT JSON_QUERY(a, a WITHOUT WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER!drop-1	SELECT JSON_QUERY(a, a WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER!drop-2	SELECT JSON_QUERY(a, a WITHOUT)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITHOUT
 reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER!insert	SELECT JSON_QUERY(a, a WITHOUT WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_WRAPPER!swap	SELECT JSON_QUERY(a, a WORK WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITHOUT ARRAY WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITHOUT ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER!drop-1	SELECT JSON_QUERY(a, a ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER!drop-3	SELECT JSON_QUERY(a, a WITHOUT ARRAY)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITHOUT ARRAY
 reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER!insert	SELECT JSON_QUERY(a, a WITHOUT ARRAY WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER!swap	SELECT JSON_QUERY(a, a WORK ARRAY WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_WRAPPER	SELECT JSON_QUERY(a, a WITH WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_WRAPPER	SELECT JSON_QUERY(a, a WITH WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_WRAPPER!drop-2	SELECT JSON_QUERY(a, a WITH)
 reject	reject	engine	json_wrapper_behavior/WITH_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH
 reject	reject	engine	json_wrapper_behavior/WITH_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH ARRAY WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER!drop-3	SELECT JSON_QUERY(a, a WITH ARRAY)
 reject	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH ARRAY
 reject	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH ARRAY WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_ARRAY_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN ARRAY WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER!drop-1	SELECT JSON_QUERY(a, a CONDITIONAL ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER!drop-4	SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN CONDITIONAL ARRAY WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER!drop-1	SELECT JSON_QUERY(a, a UNCONDITIONAL ARRAY WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER!drop-4	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN UNCONDITIONAL ARRAY WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER	SELECT JSON_QUERY(a, a WITH CONDITIONAL WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER	SELECT JSON_QUERY(a, a WITH CONDITIONAL WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER!drop-1	SELECT JSON_QUERY(a, a CONDITIONAL WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER!drop-3	SELECT JSON_QUERY(a, a WITH CONDITIONAL)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH CONDITIONAL
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH CONDITIONAL WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN CONDITIONAL WRAPPER)
-accept	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL WRAPPER)
+reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER!drop-1	SELECT JSON_QUERY(a, a UNCONDITIONAL WRAPPER)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER!drop-3	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER!truncate	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER!insert	SELECT JSON_QUERY(a, a WITH UNCONDITIONAL WRAPPER zzz)
 reject	reject	engine	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER!swap	SELECT JSON_QUERY(a, a WITHIN UNCONDITIONAL WRAPPER)
 accept	accept	engine	json_wrapper_behavior/%empty	SELECT JSON_QUERY(a, a)
-accept	reject	engine	json_behavior/DEFAULT_a_expr	SELECT JSON_QUERY(a, a DEFAULT a ON EMPTY)
+reject	reject	engine	json_behavior/DEFAULT_a_expr	SELECT JSON_QUERY(a, a DEFAULT a ON EMPTY)
 reject	reject	engine	json_behavior/DEFAULT_a_expr!drop-1	SELECT JSON_QUERY(a, a a ON EMPTY)
 reject	reject	engine	json_behavior/DEFAULT_a_expr!drop-2	SELECT JSON_QUERY(a, a DEFAULT ON EMPTY)
 reject	reject	engine	json_behavior/DEFAULT_a_expr!truncate	SELECT JSON_QUERY(a, a DEFAULT
 reject	reject	engine	json_behavior/DEFAULT_a_expr!insert	SELECT JSON_QUERY(a, a DEFAULT a zzz ON EMPTY)
 reject	reject	engine	json_behavior/DEFAULT_a_expr!swap	SELECT JSON_QUERY(a, a DEFAULTS a ON EMPTY)
-accept	reject	engine	json_behavior/json_behavior_type	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
+reject	reject	engine	json_behavior/json_behavior_type	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
 reject	reject	engine	json_behavior/json_behavior_type!drop-1	SELECT JSON_QUERY(a, a ON EMPTY)
 reject	reject	engine	json_behavior/json_behavior_type!insert	SELECT JSON_QUERY(a, a ERROR zzz ON EMPTY)
 reject	reject	engine	json_behavior/json_behavior_type!swap	SELECT JSON_QUERY(a, a ESCAPE ON EMPTY)
-accept	reject	engine	json_behavior_type/ERROR_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
-accept	reject	engine	json_behavior_type/NULL_P	SELECT JSON_QUERY(a, a NULL ON EMPTY)
+reject	reject	engine	json_behavior_type/ERROR_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
+reject	reject	engine	json_behavior_type/NULL_P	SELECT JSON_QUERY(a, a NULL ON EMPTY)
 reject	reject	engine	json_behavior_type/NULL_P!insert	SELECT JSON_QUERY(a, a NULL zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/NULL_P!swap	SELECT JSON_QUERY(a, a NULLIF ON EMPTY)
-accept	reject	engine	json_behavior_type/TRUE_P	SELECT JSON_QUERY(a, a TRUE ON EMPTY)
+reject	reject	engine	json_behavior_type/TRUE_P	SELECT JSON_QUERY(a, a TRUE ON EMPTY)
 reject	reject	engine	json_behavior_type/TRUE_P!insert	SELECT JSON_QUERY(a, a TRUE zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/TRUE_P!swap	SELECT JSON_QUERY(a, a TRUNCATE ON EMPTY)
-accept	reject	engine	json_behavior_type/FALSE_P	SELECT JSON_QUERY(a, a FALSE ON EMPTY)
+reject	reject	engine	json_behavior_type/FALSE_P	SELECT JSON_QUERY(a, a FALSE ON EMPTY)
 reject	reject	engine	json_behavior_type/FALSE_P!insert	SELECT JSON_QUERY(a, a FALSE zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/FALSE_P!swap	SELECT JSON_QUERY(a, a FAMILY ON EMPTY)
-accept	reject	engine	json_behavior_type/UNKNOWN	SELECT JSON_QUERY(a, a UNKNOWN ON EMPTY)
+reject	reject	engine	json_behavior_type/UNKNOWN	SELECT JSON_QUERY(a, a UNKNOWN ON EMPTY)
 reject	reject	engine	json_behavior_type/UNKNOWN!insert	SELECT JSON_QUERY(a, a UNKNOWN zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/UNKNOWN!swap	SELECT JSON_QUERY(a, a UNLISTEN ON EMPTY)
-accept	reject	engine	json_behavior_type/EMPTY_P_ARRAY	SELECT JSON_QUERY(a, a EMPTY ARRAY ON EMPTY)
+reject	reject	engine	json_behavior_type/EMPTY_P_ARRAY	SELECT JSON_QUERY(a, a EMPTY ARRAY ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_ARRAY!drop-1	SELECT JSON_QUERY(a, a ARRAY ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_ARRAY!truncate	SELECT JSON_QUERY(a, a EMPTY
 reject	reject	engine	json_behavior_type/EMPTY_P_ARRAY!insert	SELECT JSON_QUERY(a, a EMPTY ARRAY zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_ARRAY!swap	SELECT JSON_QUERY(a, a ENABLE ARRAY ON EMPTY)
-accept	reject	engine	json_behavior_type/EMPTY_P_OBJECT_P	SELECT JSON_QUERY(a, a EMPTY OBJECT ON EMPTY)
+reject	reject	engine	json_behavior_type/EMPTY_P_OBJECT_P	SELECT JSON_QUERY(a, a EMPTY OBJECT ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_OBJECT_P!drop-1	SELECT JSON_QUERY(a, a OBJECT ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_OBJECT_P!insert	SELECT JSON_QUERY(a, a EMPTY OBJECT zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P_OBJECT_P!swap	SELECT JSON_QUERY(a, a ENABLE OBJECT ON EMPTY)
-accept	reject	engine	json_behavior_type/EMPTY_P	SELECT JSON_QUERY(a, a EMPTY ON EMPTY)
+reject	reject	engine	json_behavior_type/EMPTY_P	SELECT JSON_QUERY(a, a EMPTY ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P!insert	SELECT JSON_QUERY(a, a EMPTY zzz ON EMPTY)
 reject	reject	engine	json_behavior_type/EMPTY_P!swap	SELECT JSON_QUERY(a, a ENABLE ON EMPTY)
-accept	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
+reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P!drop-2	SELECT JSON_QUERY(a, a ERROR EMPTY)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P!drop-3	SELECT JSON_QUERY(a, a ERROR ON)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P!truncate	SELECT JSON_QUERY(a, a ERROR ON
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P!insert	SELECT JSON_QUERY(a, a ERROR ON EMPTY zzz)
-accept	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P	SELECT JSON_QUERY(a, a ERROR ON ERROR)
+reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P	SELECT JSON_QUERY(a, a ERROR ON ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P!drop-1	SELECT JSON_QUERY(a, a ON ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P!drop-2	SELECT JSON_QUERY(a, a ERROR ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P!insert	SELECT JSON_QUERY(a, a ERROR ON ERROR zzz)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_ERROR_P!swap	SELECT JSON_QUERY(a, a ESCAPE ON ERROR)
-accept	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR)
+reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P	SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P!drop-1	SELECT JSON_QUERY(a, a ON EMPTY ERROR ON ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P!drop-2	SELECT JSON_QUERY(a, a ERROR EMPTY ERROR ON ERROR)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P!drop-3	SELECT JSON_QUERY(a, a ERROR ON ERROR ON ERROR)
@@ -11318,7 +11318,7 @@ reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_beha
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P!insert	SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR zzz)
 reject	reject	engine	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P!swap	SELECT JSON_QUERY(a, a ESCAPE ON EMPTY ERROR ON ERROR)
 accept	accept	engine	json_behavior_clause_opt/%empty	SELECT JSON_QUERY(a, a)
-accept	reject	engine	json_on_error_clause_opt/json_behavior_ON_ERROR_P	SELECT JSON_EXISTS(a, a ERROR ON ERROR)
+reject	reject	engine	json_on_error_clause_opt/json_behavior_ON_ERROR_P	SELECT JSON_EXISTS(a, a ERROR ON ERROR)
 reject	reject	engine	json_on_error_clause_opt/json_behavior_ON_ERROR_P!drop-1	SELECT JSON_EXISTS(a, a ON ERROR)
 reject	reject	engine	json_on_error_clause_opt/json_behavior_ON_ERROR_P!drop-2	SELECT JSON_EXISTS(a, a ERROR ERROR)
 reject	reject	engine	json_on_error_clause_opt/json_behavior_ON_ERROR_P!drop-3	SELECT JSON_EXISTS(a, a ERROR ON)
@@ -11346,7 +11346,7 @@ reject	reject	engine	json_format_clause/FORMAT_LA_JSON!insert	SELECT JSON_ARRAYA
 reject	reject	engine	json_format_clause/FORMAT_LA_JSON!swap	SELECT JSON_ARRAYAGG(a FORWARD JSON)
 accept	accept	engine	json_format_clause_opt/json_format_clause	SELECT JSON_ARRAYAGG(a FORMAT JSON)
 accept	accept	engine	json_format_clause_opt/%empty	SELECT JSON_ARRAYAGG(a)
-accept	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P	SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR STRING)
+reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P	SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!drop-1	SELECT JSON_QUERY(a, a QUOTES ON SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!drop-2	SELECT JSON_QUERY(a, a KEEP ON SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!drop-3	SELECT JSON_QUERY(a, a KEEP QUOTES SCALAR STRING)
@@ -11355,13 +11355,13 @@ reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!drop-
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!truncate	SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!insert	SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR STRING zzz)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P!swap	SELECT JSON_QUERY(a, a KEY QUOTES ON SCALAR STRING)
-accept	reject	engine	json_quotes_clause_opt/KEEP_QUOTES	SELECT JSON_QUERY(a, a KEEP QUOTES)
+reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES	SELECT JSON_QUERY(a, a KEEP QUOTES)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES!drop-1	SELECT JSON_QUERY(a, a QUOTES)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES!drop-2	SELECT JSON_QUERY(a, a KEEP)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES!truncate	SELECT JSON_QUERY(a, a KEEP
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES!insert	SELECT JSON_QUERY(a, a KEEP QUOTES zzz)
 reject	reject	engine	json_quotes_clause_opt/KEEP_QUOTES!swap	SELECT JSON_QUERY(a, a KEY QUOTES)
-accept	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P	SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR STRING)
+reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P	SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!drop-2	SELECT JSON_QUERY(a, a OMIT ON SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!drop-3	SELECT JSON_QUERY(a, a OMIT QUOTES SCALAR STRING)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!drop-4	SELECT JSON_QUERY(a, a OMIT QUOTES ON STRING)
@@ -11369,7 +11369,7 @@ reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!drop-
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!truncate	SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!insert	SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR STRING zzz)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P!swap	SELECT JSON_QUERY(a, a ON QUOTES ON SCALAR STRING)
-accept	reject	engine	json_quotes_clause_opt/OMIT_QUOTES	SELECT JSON_QUERY(a, a OMIT QUOTES)
+reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES	SELECT JSON_QUERY(a, a OMIT QUOTES)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES!drop-2	SELECT JSON_QUERY(a, a OMIT)
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES!truncate	SELECT JSON_QUERY(a, a OMIT
 reject	reject	engine	json_quotes_clause_opt/OMIT_QUOTES!insert	SELECT JSON_QUERY(a, a OMIT QUOTES zzz)
@@ -13700,3 +13700,146 @@ accept	accept	engine	bare_label_keyword/YES_P	SELECT a YES
 reject	reject	engine	bare_label_keyword/YES_P!insert	SELECT a YES zzz
 accept	accept	engine	bare_label_keyword/ZONE	SELECT a ZONE
 reject	reject	engine	bare_label_keyword/ZONE!insert	SELECT a ZONE zzz
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, PRIMARY KEY (id, cid)) INTERLEAVE IN PARENT parent
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, PRIMARY KEY (id, cid)) INTERLEAVE IN PARENT parent ON DELETE CASCADE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, PRIMARY KEY (id, cid)) INTERLEAVE IN PARENT parent ON DELETE NO ACTION
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, PRIMARY KEY (id, cid)) INTERLEAVE IN parent
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE s.child (id bigint, cid bigint, PRIMARY KEY (id, cid)) INTERLEAVE IN PARENT s.parent ON DELETE CASCADE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, ts timestamptz, PRIMARY KEY (id, cid)) WITH (locality_group = 'lg') INTERLEAVE IN PARENT parent ON DELETE CASCADE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, ts timestamptz, PRIMARY KEY (id, cid)) INTERLEAVE IN PARENT parent ON DELETE CASCADE TTL INTERVAL '30 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint, cid bigint, ts timestamptz, PRIMARY KEY (id, cid)) WITH (locality_group = 'lg') INTERLEAVE IN PARENT parent ON DELETE NO ACTION TTL INTERVAL '30 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE IN PARENT parent
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE IN PARENT parent ON DELETE CASCADE
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE IN PARENT parent ON DELETE NO ACTION
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE IN parent
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET ON DELETE CASCADE
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child SET ON DELETE NO ACTION
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE child DROP INTERLEAVE
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE parent
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN PARENT parent ON DELETE
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON ts INTERLEAVE IN PARENT parent
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN PARENT parent WITH (locality_group = 'lg')
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE child SET ON DELETE SET NULL
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE child SET ON DELETE RESTRICT
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE parent
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE child SET INTERLEAVE IN
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '5' DAY ON ts
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '1 year 2 months' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) WITH (locality_group = 'lg') TTL INTERVAL '7 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE t ADD TTL INTERVAL '30 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE t ALTER TTL INTERVAL '60 days' ON ts
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE t DROP TTL
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days'
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL '30 days' ON ts
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON ts WITH (locality_group = 'lg')
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t ADD TTL INTERVAL '30 days'
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t ALTER TTL ON ts INTERVAL '60 days'
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t SET TTL INTERVAL '60 days' ON ts
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t REPLACE TTL INTERVAL '60 days' ON ts
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t DROP TTL ON ts
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t ADD ROW DELETION POLICY (OLDER_THAN(ts, INTERVAL '30 days'))
+reject	reject	engine	suite:spanner-pg-ddl	ALTER TABLE t DROP ROW DELETION POLICY
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text NOT NULL HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text HIDDEN NOT NULL)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text DEFAULT 'x' HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text GENERATED ALWAYS AS (upper(c)) STORED HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text, tok spanner.tokenlist GENERATED ALWAYS AS (spanner.tokenize_fulltext(c)) VIRTUAL HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text GENERATED ALWAYS AS (id + 1) VIRTUAL)
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE t ADD COLUMN c text HIDDEN
+accept	accept	engine	suite:spanner-pg-ddl	ALTER TABLE t ADD COLUMN tok spanner.tokenlist GENERATED ALWAYS AS (spanner.tokenize_fulltext(c)) VIRTUAL HIDDEN
+reject	reject	engine	suite:spanner-pg-ddl	CREATE TABLE t (id bigint PRIMARY KEY, c text GENERATED ALWAYS AS (id + 1) HIDDEN)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM IF NOT EXISTS cs
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR ALL
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM IF NOT EXISTS cs FOR ALL
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR t1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR t1()
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR t1, t2(c1, c2)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR t1(), t2(c1) WITH (retention_period = '7d')
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR ALL WITH (retention_period = '7d', value_capture_type = 'OLD_AND_NEW_VALUES')
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs WITH (retention_period = '24h')
+accept	accept	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM s.cs FOR s.t1(c1)
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET FOR ALL
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET FOR t1, t2(c1)
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET FOR t1()
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET (retention_period = '7d', value_capture_type = 'NEW_VALUES')
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs RESET (retention_period)
+accept	accept	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs DROP FOR ALL
+accept	accept	engine	suite:spanner-pg-ddl	DROP CHANGE STREAM cs
+accept	accept	engine	suite:spanner-pg-ddl	DROP CHANGE STREAM IF EXISTS cs
+reject	reject	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM
+reject	reject	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR
+reject	reject	engine	suite:spanner-pg-ddl	CREATE CHANGE STREAM cs FOR ALL, t1
+reject	reject	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs
+reject	reject	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET FOR
+reject	reject	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET FOR ALL, t1
+reject	reject	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs SET OPTIONS (retention_period = '7d')
+reject	reject	engine	suite:spanner-pg-ddl	ALTER CHANGE STREAM cs DROP
+reject	reject	engine	suite:spanner-pg-ddl	DROP CHANGE STREAM
+accept	accept	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL SECURITY INVOKER AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE OR REPLACE VIEW v SQL SECURITY INVOKER AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL SECURITY DEFINER AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE VIEW v (c1) SQL SECURITY INVOKER AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE VIEW s.v SQL SECURITY INVOKER AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE VIEW v WITH (security_barrier = true) SQL SECURITY INVOKER AS SELECT 1
+reject	reject	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL SECURITY AS SELECT 1
+reject	reject	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL SECURITY UNKNOWN AS SELECT 1
+reject	reject	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL AS SELECT 1
+reject	reject	engine	suite:spanner-pg-ddl	CREATE VIEW v SQL SECURITY INVOKER WITH (security_barrier = true) AS SELECT 1
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s BIT_REVERSED_POSITIVE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE IF NOT EXISTS s BIT_REVERSED_POSITIVE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s BIT_REVERSED_POSITIVE SKIP RANGE 1000 5000 START COUNTER WITH 100
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s START COUNTER WITH 100 SKIP RANGE 1 5000 BIT_REVERSED_POSITIVE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s BIT_REVERSED_POSITIVE SKIP RANGE -10 10
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s START COUNTER 100
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s NO SKIP RANGE
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s SKIP RANGE 1000 5000
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE IF EXISTS s SKIP RANGE 1 100
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s NO SKIP RANGE
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s START COUNTER WITH 500
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s RESTART COUNTER WITH 10
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s RESTART COUNTER 10
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s SKIP RANGE 1000, 5000
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s SKIP RANGE 1000
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEQUENCE s START COUNTER WITH
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s RESTART COUNTER
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEQUENCE s SET BIT_REVERSED_POSITIVE
+accept	accept	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) INCLUDE (c2, c3)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE UNIQUE INDEX idx ON t (c1) INCLUDE (c2) INTERLEAVE IN parent
+accept	accept	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) INTERLEAVE IN parent
+accept	accept	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) INTERLEAVE IN parent WHERE c1 IS NOT NULL
+accept	accept	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) INCLUDE (c2) WITH (fillfactor = 50) INTERLEAVE IN parent
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok_col)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok_col) INCLUDE (c2)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok_col) PARTITION BY p_col ORDER BY o_col DESC
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok1, tok2) INCLUDE (c1, c2) PARTITION BY p1, p2 ORDER BY o1 ASC NULLS FIRST, o2 DESC NULLS LAST INTERLEAVE IN parent WHERE c1 IS NOT NULL WITH (sort_order_sharding = true, disable_automatic_uid_column = true)
+accept	accept	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok_col) WHERE c1 IS NOT NULL WITH (sort_order_sharding = true)
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx ADD COLUMN c2
+accept	accept	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx DROP COLUMN c2
+accept	accept	engine	suite:spanner-pg-ddl	DROP SEARCH INDEX idx
+accept	accept	engine	suite:spanner-pg-ddl	DROP SEARCH INDEX IF EXISTS idx
+reject	reject	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) WHERE c1 IS NOT NULL INTERLEAVE IN parent
+reject	reject	engine	suite:spanner-pg-ddl	CREATE INDEX idx ON t (c1) INCLUDE (c2) INTERLEAVE IN parent WITH (fillfactor = 50)
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX IF NOT EXISTS idx ON t (tok_col)
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok1) ORDER BY o1 PARTITION BY p1
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok1) PARTITION BY p1 INCLUDE (c1)
+reject	reject	engine	suite:spanner-pg-ddl	CREATE SEARCH INDEX idx ON t (tok_col) WITH (sort_order_sharding = true) WHERE c1 IS NOT NULL
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx ADD COLUMN IF NOT EXISTS c2
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx DROP COLUMN IF EXISTS c2
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx ADD c2
+reject	reject	engine	suite:spanner-pg-ddl	ALTER SEARCH INDEX idx ADD STORED COLUMN c2
+accept	accept	engine	suite:spanner-pg-ddl	CREATE LOCALITY GROUP lg
+accept	accept	engine	suite:spanner-pg-ddl	CREATE LOCALITY GROUP IF NOT EXISTS lg
+accept	accept	engine	suite:spanner-pg-ddl	DROP LOCALITY GROUP lg
+accept	accept	engine	suite:spanner-pg-ddl	DROP LOCALITY GROUP IF EXISTS lg
+accept	accept	engine	suite:spanner-pg-ddl	ALTER DATABASE db SET spanner.default_sequence_kind = 'bit_reversed_positive'
+accept	accept	engine	suite:spanner-pg-ddl	ALTER DATABASE db SET spanner.version_retention_period = '7d'
+accept	accept	engine	suite:spanner-pg-ddl	ALTER DATABASE db SET spanner.default_time_zone = 'UTC'
+accept	accept	engine	suite:spanner-pg-ddl	ALTER DATABASE db RESET spanner.default_sequence_kind
+reject	reject	engine	suite:spanner-pg-ddl	CREATE LOCALITY GROUP lg WITH (storage = 'ssd')
+reject	reject	engine	suite:spanner-pg-ddl	CREATE LOCALITY GROUP lg OPTIONS (storage = 'ssd')
+reject	reject	engine	suite:spanner-pg-ddl	DROP LOCALITY GROUP

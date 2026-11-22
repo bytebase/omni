@@ -615,6 +615,9 @@ func (p *Parser) parseIsPostfix(left nodes.Node) (nodes.Node, error) {
 		}
 		return makeSimpleAExpr(kind, "=", left, right), nil
 	case DOCUMENT_P:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		p.advance()
 		xmlExpr := &nodes.XmlExpr{
 			Op:   nodes.IS_DOCUMENT,
@@ -1259,7 +1262,7 @@ func (p *Parser) parseSubqueryOp(left nodes.Node, opName *nodes.List) (nodes.Nod
 func (p *Parser) parseAtTimeZone(left nodes.Node) (nodes.Node, error) {
 	p.advance() // consume AT
 
-	if p.cur.Type == LOCAL {
+	if p.cur.Type == LOCAL && !p.isSpannerPG() {
 		// AT LOCAL => AT TIME ZONE 'DEFAULT' (handled as function call)
 		p.advance()
 		return &nodes.FuncCall{
@@ -1497,6 +1500,9 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 			return makeSimpleAExpr(kind, "=", left, right), nil
 		}
 		if p.cur.Type == DOCUMENT_P {
+			if p.isSpannerPG() {
+				return nil, p.spannerXMLUnsupportedError()
+			}
 			p.advance()
 			xmlExpr := &nodes.XmlExpr{
 				Op:   nodes.IS_DOCUMENT,
@@ -1627,15 +1633,17 @@ func (p *Parser) isFuncExprCommonSubexprStart() bool {
 	case CAST, COALESCE, GREATEST, LEAST, NULLIF,
 		EXTRACT, NORMALIZE, OVERLAY, POSITION, SUBSTRING, TRIM,
 		GROUPING, COLLATION, TREAT,
-		// JSON functions
-		JSON, JSON_OBJECT, JSON_ARRAY, JSON_SCALAR, JSON_SERIALIZE,
-		JSON_QUERY, JSON_EXISTS, JSON_VALUE, JSON_OBJECTAGG, JSON_ARRAYAGG,
+		// PG 16 JSON functions
+		JSON_OBJECT, JSON_ARRAY, JSON_OBJECTAGG, JSON_ARRAYAGG,
 		// XML functions
 		XMLCONCAT, XMLELEMENT, XMLEXISTS, XMLFOREST, XMLPARSE, XMLPI, XMLROOT, XMLSERIALIZE,
 		// SQL value functions
 		CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, LOCALTIME, LOCALTIMESTAMP,
 		CURRENT_ROLE, CURRENT_USER, SESSION_USER, USER, CURRENT_CATALOG, CURRENT_SCHEMA, SYSTEM_USER:
 		return true
+	case JSON, JSON_SCALAR, JSON_SERIALIZE,
+		JSON_QUERY, JSON_EXISTS, JSON_VALUE:
+		return !p.isSpannerPG()
 	default:
 		return false
 	}
@@ -1804,20 +1812,38 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 		if p.peekNext().Type == SCONST {
 			return p.parseTypeCastedConst()
 		}
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonParseExpr()
 	case JSON_OBJECT:
 		return p.parseJsonObjectExpr()
 	case JSON_ARRAY:
 		return p.parseJsonArrayExpr()
 	case JSON_SCALAR:
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonScalarExpr()
 	case JSON_SERIALIZE:
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonSerializeExpr()
 	case JSON_QUERY:
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonQueryExpr()
 	case JSON_EXISTS:
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonExistsExpr()
 	case JSON_VALUE:
+		if p.isSpannerPG() {
+			return p.parseColumnRefOrFuncCall()
+		}
 		return p.parseJsonValueFuncExpr()
 	case JSON_OBJECTAGG:
 		return p.parseJsonObjectAgg()
@@ -1826,18 +1852,36 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 
 	// --- XML functions ---
 	case XMLCONCAT:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlConcat()
 	case XMLELEMENT:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlElement()
 	case XMLEXISTS:
 		return p.parseXmlExists()
 	case XMLFOREST:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlForest()
 	case XMLPARSE:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlParse()
 	case XMLPI:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlPI()
 	case XMLROOT:
+		if p.isSpannerPG() {
+			return nil, p.spannerXMLUnsupportedError()
+		}
 		return p.parseXmlRoot()
 	case XMLSERIALIZE:
 		return p.parseXmlSerialize()
@@ -2920,7 +2964,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	// Check for AexprConst: func_name Sconst (type-casted literal)
 	// This is handled by isAExprConstTypeCast / parseTypeCastedConst above.
 
-	if p.peekNext().Type == '(' && p.isColNameKeyword() {
+	if p.peekNext().Type == '(' && p.isColNameKeyword() && !(p.isSpannerPG() && isPG17SQLJsonKeyword(p.cur.Type)) {
 		return p.parseColNameKeywordCall()
 	}
 

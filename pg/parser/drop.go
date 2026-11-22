@@ -118,6 +118,21 @@ func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
 		return p.parseDropOperatorClassOrFamily()
 	case TABLESPACE:
 		return p.parseDropTableSpaceStmt()
+	case SEARCH:
+		if p.isSpannerPG() {
+			return p.parseDropSearchIndexStmt()
+		}
+		return nil, p.syntaxErrorAtCur()
+	case IDENT:
+		if p.isSpannerPG() {
+			if p.isSpannerIdent("change") {
+				return p.parseDropChangeStreamStmt()
+			}
+			if p.isSpannerIdent("locality") {
+				return p.parseDropLocalityGroupStmt()
+			}
+		}
+		return nil, p.syntaxErrorAtCur()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

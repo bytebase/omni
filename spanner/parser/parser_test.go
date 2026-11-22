@@ -307,7 +307,15 @@ func TestParsePostgres(t *testing.T) {
 		"SELECT 1",
 		"SELECT 'a'::text, ARRAY[1, 2, 3]",
 		"CREATE TABLE singers (id bigint PRIMARY KEY, name varchar(1024) NOT NULL)",
-		"CREATE VIEW singer_names AS SELECT id, name FROM singers",
+		"CREATE TABLE albums (id bigint, album_id bigint, PRIMARY KEY (id, album_id)) INTERLEAVE IN PARENT singers ON DELETE CASCADE",
+		"CREATE TABLE events (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON ts",
+		"CREATE CHANGE STREAM cs FOR ALL WITH (retention_period = '7d')",
+		"CREATE VIEW singer_names SQL SECURITY INVOKER AS SELECT id, name FROM singers",
+		"CREATE SEQUENCE seq BIT_REVERSED_POSITIVE SKIP RANGE 1000 5000 START COUNTER WITH 100",
+		"CREATE INDEX idx ON albums (album_id) INCLUDE (id) INTERLEAVE IN singers",
+		"CREATE SEARCH INDEX sidx ON singers (name_tokens) PARTITION BY id ORDER BY id DESC",
+		"CREATE LOCALITY GROUP IF NOT EXISTS lg",
+		"ALTER DATABASE db SET spanner.default_sequence_kind = 'bit_reversed_positive'",
 		"INSERT INTO singers (id, name) VALUES (1, 'Ada') RETURNING id",
 		"ALTER TABLE singers ADD COLUMN bio text",
 		"DROP TABLE IF EXISTS singers",
@@ -323,10 +331,17 @@ func TestParsePostgres(t *testing.T) {
 	}
 
 	rejected := []string{
+		"",
+		";",
 		"SELECT FROM",
 		"CREATE TABLE",
 		"INSERT INTO",
 		"SELECT (1 + )",
+		"SELECT XMLELEMENT(NAME a)",
+		"SELECT JSON_QUERY(a, a PASSING a AS a)",
+		"SELECT a AT LOCAL",
+		"CREATE VIEW v SQL SECURITY UNKNOWN AS SELECT 1",
+		"CREATE SEQUENCE s SKIP RANGE 1000",
 	}
 	for _, sql := range rejected {
 		if _, err := ParsePostgres(sql); err == nil {

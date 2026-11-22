@@ -1633,5 +1633,37 @@
     "priority": "low",
     "proof_notes": "Unconditional check for closing paren or comma. Exercised by pgregress `create_table.sql`, `matview.sql` \u2014 CREATE TABLE AS column list closing paren / comma terminator.",
     "suspicion_notes": null
+  },
+  {
+    "site": "spanner_pg.go:261",
+    "function": "parseAlterChangeStreamStmt",
+    "nonterminals": [
+      "reloptions"
+    ],
+    "ambiguity_present": false,
+    "current_technique": "T1",
+    "pg_reference": "spanner_pg:AlterChangeStreamStmt",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C5.n",
+    "priority": "low",
+    "proof_notes": "Spanner-PG-only DDL (DialectSpannerPG): after ALTER CHANGE STREAM name SET, disjoint lead tokens FOR vs '(' distinguish SET FOR <targets> from SET (<reloptions>). Verified live against Cloud Spanner emulator 1.5.54 in spanner/parser/testdata/pg/compat.tsv (suite:spanner-pg-ddl).",
+    "suspicion_notes": null
+  },
+  {
+    "site": "spanner_pg.go:342",
+    "function": "parseChangeStreamForTargets",
+    "nonterminals": [
+      "opt_column_list"
+    ],
+    "ambiguity_present": false,
+    "current_technique": "T1",
+    "pg_reference": "spanner_pg:ChangeStreamForItem",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C5.n",
+    "priority": "low",
+    "proof_notes": "Spanner-PG-only DDL (DialectSpannerPG): after a watched table name in CHANGE STREAM FOR, '(' unambiguously starts the optional column list (which may be empty `t()` to watch key columns only). Verified live against Cloud Spanner emulator 1.5.54 in spanner/parser/testdata/pg/compat.tsv (suite:spanner-pg-ddl).",
+    "suspicion_notes": null
   }
 ]

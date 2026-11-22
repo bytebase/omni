@@ -230,6 +230,9 @@ const (
 	OBJECT_TYPE
 	OBJECT_USER_MAPPING
 	OBJECT_VIEW
+	OBJECT_CHANGE_STREAM
+	OBJECT_SEARCH_INDEX
+	OBJECT_LOCALITY_GROUP
 )
 
 // SubLinkType represents types of SubLink.
@@ -328,6 +331,12 @@ const (
 	AT_SetIdentity
 	AT_DropIdentity
 	AT_ReAddStatistics
+	AT_SpannerAddTTL
+	AT_SpannerAlterTTL
+	AT_SpannerDropTTL
+	AT_SpannerSetInterleave
+	AT_SpannerDropInterleave
+	AT_SpannerSetOnDelete
 )
 
 // LockClauseStrength represents FOR UPDATE/SHARE strength.
