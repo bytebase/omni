@@ -547,6 +547,12 @@ func TestOracleVerdictOnly(t *testing.T) {
 		{"PL/SQL structural error PLS-00710 rejected", "BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;", map[string]*answer{
 			"BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;": {6550, 13, "PLS-00710", nil},
 		}, Reject},
+		{"PL/SQL PLS-00306 with inquiry directive named arg rejected", "DECLARE PROCEDURE p(a NUMBER) IS BEGIN NULL; END; BEGIN p($$PLSQL_LINE => 1); END;", map[string]*answer{
+			"DECLARE PROCEDURE p(a NUMBER) IS BEGIN NULL; END; BEGIN p($$PLSQL_LINE => 1); END;": {6550, 56, "PLS-00306", nil},
+		}, Reject},
+		{"PL/SQL ordinary PLS-00306 signature mismatch stays accepted", "DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; END;", map[string]*answer{
+			"DECLARE PROCEDURE p(x NUMBER) IS BEGIN NULL; END; BEGIN p; END;": {6550, 56, "PLS-00306", nil},
+		}, Accept},
 		{"PL/SQL REF omni_missing_t stand-in rejects PLS-00550", "DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;", map[string]*answer{
 			"DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;": {6550, 14, "PLS-00201", nil},
 			"DECLARE x REF y CHARACTER SET NCHAR_CS; BEGIN NULL; END;":              {6550, 10, "PLS-00550", nil},
@@ -607,5 +613,48 @@ func TestHasUnclosedParen(t *testing.T) {
 		if got := hasUnclosedParen(tc.sql); got != tc.want {
 			t.Errorf("hasUnclosedParen(%q) = %v, want %v", tc.sql, got, tc.want)
 		}
+	}
+}
+
+func TestOracleVerdictOnlySchemaCustomScratchUser(t *testing.T) {
+	type answer struct {
+		code, position int
+		compile        string
+	}
+	for _, c := range []struct {
+		name      string
+		statement string
+		answers   map[string]*answer
+		want      string
+	}{
+		{"PL/SQL schema stand-in uses connected scratch user", "CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;", map[string]*answer{
+			"CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;":            {1031, 0, ""},
+			"CREATE FUNCTION SCRATCH_USER.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;": {24344, 0, "PLS-00103"},
+		}, Reject},
+		{"CREATE SCHEMA stand-in uses connected scratch user", "CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON a TO a zzz", map[string]*answer{
+			"CREATE SCHEMA AUTHORIZATION a GRANT SELECT ON a TO a zzz":                                         {2421, 0, ""},
+			"CREATE SCHEMA AUTHORIZATION SCRATCH_USER GRANT SELECT ON t TO SCRATCH_USER zzz":                   {2426, 41, ""},
+			"CREATE SCHEMA AUTHORIZATION SCRATCH_USER GRANT SELECT ON t TO SCRATCH_USER zzz" + OracleProbeTail: {911, 79, ""},
+		}, Reject},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			parse := func(text string) error {
+				a, ok := c.answers[text]
+				if !ok {
+					t.Fatalf("%s: unexpected parse(%q)", c.name, text)
+				}
+				if a == nil {
+					return nil
+				}
+				return oracleRaised(a.code, a.position, a.compile)
+			}
+			got, err := OracleVerdictOnlySchema(c.statement, "SCRATCH_USER", parse)
+			if err != nil {
+				t.Fatalf("%s: err=%v", c.name, err)
+			}
+			if got != c.want {
+				t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+			}
+		})
 	}
 }

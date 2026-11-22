@@ -269,6 +269,7 @@ var (
 	reCreateMLEModule                 = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:EDITIONABLE\s+|NONEDITIONABLE\s+)?MLE\s+MODULE\b`)
 	reRawSourceHead                   = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:AND\s+(?:RESOLVE|COMPILE)|NOFORCE|EDITIONABLE|NONEDITIONABLE)\s+)*(?:JAVA|MLE\s+MODULE)\b`)
 	reRawSourceAs                     = regexp.MustCompile(`(?i)\bAS\b`)
+	reInquiryNamedArg                 = regexp.MustCompile(`(?i)\$\$[A-Za-z_][A-Za-z0-9_$#]*\s*=>`)
 )
 
 // oracleStandIn returns statement rewritten with a fixture object, valid
@@ -375,8 +376,12 @@ func isWordByte(b byte) bool {
 }
 
 // oracleStandInRev5 returns statement rewritten for judge revision 5 stand-ins,
-// falling back to rev-4 oracleStandIn where rev 5 does not override it.
-func oracleStandInRev5(statement string, e oracleError) (string, func(int) int, bool) {
+// using schema as the connected scratch account name, and falling back to
+// rev-4 oracleStandIn where rev 5 does not override it.
+func oracleStandInRev5(statement, schema string, e oracleError) (string, func(int) int, bool) {
+	if schema == "" {
+		schema = "OMNI_JUDGE"
+	}
 	replaceSubmatch := func(re *regexp.Regexp, rep string, allowPos func(start int) bool) (string, func(int) int, bool) {
 		m := re.FindStringSubmatchIndex(statement)
 		if m == nil || len(m) < 4 || m[2] < 0 {
@@ -428,16 +433,16 @@ func oracleStandInRev5(statement string, e oracleError) (string, func(int) int, 
 		}
 	case 1031:
 		if e.position == 0 {
-			if rewritten, mapPos, ok := replaceSubmatch(reStandInCreatePLSQLSchema, "OMNI_JUDGE", nil); ok {
+			if rewritten, mapPos, ok := replaceSubmatch(reStandInCreatePLSQLSchema, schema, nil); ok {
 				return rewritten, mapPos, true
 			}
 		}
 	case 2421:
 		if e.position == 0 {
 			if m := reStandInCreateSchemaAuth.FindStringSubmatchIndex(statement); m != nil {
-				rewritten := statement[:m[2]] + "OMNI_JUDGE" + statement[m[3]:]
+				rewritten := statement[:m[2]] + schema + statement[m[3]:]
 				rewritten = reStandInCreateSchemaDupTable.ReplaceAllString(rewritten, "${1}b${3}")
-				rewritten = reStandInCreateSchemaGrant.ReplaceAllString(rewritten, "GRANT SELECT ON t TO OMNI_JUDGE")
+				rewritten = reStandInCreateSchemaGrant.ReplaceAllString(rewritten, "GRANT SELECT ON t TO "+schema)
 				if rewritten != statement {
 					return rewritten, func(pos int) int { return pos }, true
 				}
@@ -773,9 +778,11 @@ var oracleCheckedAtEndRemovedRev5 = map[int]bool{
 
 // oracleCompileStructuralRev5 are PL/SQL compiler structural errors (beyond
 // PLS-001xx) rejected by omni and pinned in suite:reference, with 0 hits on
-// any accepted PL/SQL row in compat.tsv.
+// any accepted PL/SQL row in compat.tsv. PLS-00306 is handled separately in
+// oracleCompileSyntax only when an inquiry directive ($$name =>) appears as a
+// named argument so ordinary signature-mismatch calls stay accepted.
 var oracleCompileStructuralRev5 = map[int]bool{
-	306: true, 312: true, 431: true, 505: true, 550: true,
+	312: true, 431: true, 505: true, 550: true,
 	572: true, 589: true, 710: true, 712: true, 856: true, 999: true,
 }
 
@@ -953,16 +960,25 @@ func oracleFailed(err error) bool {
 // rather than records agreement: an error OracleParse did not raise and
 // that is no failure of Oracle's (a timeout), and a probe the server took.
 func OracleVerdict(statement string, parse func(text string) error) (string, error) {
-	return oracleVerdict(statement, parse, 0, false)
+	return oracleVerdict(statement, "", parse, 0, false)
 }
 
 // OracleVerdictOnly reads Oracle's answer as a coarse accept/reject verdict
-// for judge revision 5. It applies judge revision 5's stand-ins, error-code
-// classifications, ORA-00600 MV-log stand-in, and unclosed-'(' check while
-// keeping OracleVerdict's strict error propagation for non-server errors and
-// probes taken by the server, and strips any @<byte> offset from rejections.
+// for judge revision 5 using the default scratch schema OMNI_JUDGE.
 func OracleVerdictOnly(statement string, parse func(text string) error) (string, error) {
-	v, err := oracleVerdict(statement, parse, 0, true)
+	return OracleVerdictOnlySchema(statement, "OMNI_JUDGE", parse)
+}
+
+// OracleVerdictOnlySchema reads Oracle's answer as a coarse accept/reject
+// verdict for judge revision 5, using schema as the connected scratch account
+// name for schema-qualified stand-in rewrites (such as ORACLE_PARSER_REF_DSN
+// sessions connected as a non-OMNI_JUDGE scratch user). It applies judge
+// revision 5's stand-ins, error-code classifications, ORA-00600 MV-log
+// stand-in, and unclosed-'(' check while keeping OracleVerdict's strict error
+// propagation for non-server errors and probes taken by the server, and strips
+// any @<byte> offset from rejections.
+func OracleVerdictOnlySchema(statement, schema string, parse func(text string) error) (string, error) {
+	v, err := oracleVerdict(statement, schema, parse, 0, true)
 	if err != nil {
 		return "", err
 	}
@@ -975,14 +991,14 @@ func OracleVerdictOnly(statement string, parse func(text string) error) (string,
 	return v, nil
 }
 
-func oracleVerdict(statement string, parse func(text string) error, depth int, rev5 bool) (string, error) {
+func oracleVerdict(statement, schema string, parse func(text string) error, depth int, rev5 bool) (string, error) {
 	err := parse(statement)
 	if err != nil && oracleFailed(err) {
 		// Again, on the new session database/sql opens for a dropped one.
 		if err = parse(statement); err != nil && oracleFailed(err) {
 			if rev5 && depth < maxOracleStandIns {
 				if standIn, ok := oracleFailureStandInRev5(statement, err); ok {
-					return oracleVerdict(standIn, parse, depth+1, rev5)
+					return oracleVerdict(standIn, schema, parse, depth+1, rev5)
 				}
 			}
 			return Reject, nil
@@ -1010,12 +1026,12 @@ func oracleVerdict(statement string, parse func(text string) error, depth int, r
 			if hasMissingIdent {
 				if m := reStandInRefMissingType.FindStringSubmatchIndex(statement); m != nil {
 					rewritten, _ := applyStandInEdits(statement, []standInEdit{{m[2], m[3], "y"}})
-					return oracleVerdict(rewritten, parse, depth+1, rev5)
+					return oracleVerdict(rewritten, schema, parse, depth+1, rev5)
 				}
 			}
 		}
 		for _, c := range e.compile {
-			if oracleCompileSyntax(c, rev5) {
+			if oracleCompileSyntax(c, statement, rev5) {
 				if e.code == 6550 && e.position >= 0 && e.position <= len(statement) {
 					return RejectAt(e.position), nil
 				}
@@ -1031,12 +1047,12 @@ func oracleVerdict(statement string, parse func(text string) error, depth int, r
 			ok      bool
 		)
 		if rev5 {
-			standIn, mapPos, ok = oracleStandInRev5(statement, e)
+			standIn, mapPos, ok = oracleStandInRev5(statement, schema, e)
 		} else {
 			standIn, mapPos, ok = oracleStandIn(statement, e)
 		}
 		if ok {
-			v, err := oracleVerdict(standIn, parse, depth+1, rev5)
+			v, err := oracleVerdict(standIn, schema, parse, depth+1, rev5)
 			if err != nil {
 				return "", err
 			}
@@ -1106,7 +1122,7 @@ func oracleVerdict(statement string, parse func(text string) error, depth int, r
 // parser's on a statement inside the PL/SQL (an ORA-nnnnn of
 // oracleParserCode). Judge revision 5 also classifies the structural PL/SQL
 // compiler errors in oracleCompileStructuralRev5 and ORA-32551.
-func oracleCompileSyntax(e string, rev5 bool) bool {
+func oracleCompileSyntax(e, statement string, rev5 bool) bool {
 	kind, num, ok := strings.Cut(e, "-")
 	n, err := strconv.Atoi(num)
 	if !ok || err != nil {
@@ -1116,6 +1132,9 @@ func oracleCompileSyntax(e string, rev5 bool) bool {
 	case "PLS":
 		if n >= 100 && n <= 199 {
 			return true
+		}
+		if rev5 && n == 306 {
+			return reInquiryNamedArg.MatchString(statement)
 		}
 		return rev5 && oracleCompileStructuralRev5[n]
 	case "ORA":

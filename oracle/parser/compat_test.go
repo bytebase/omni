@@ -102,6 +102,12 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	t.Helper()
 	open, canEnd := judgeSessions(t, pin)
 	db, end := open()
+	var schema string
+	if pin.Judge == "5" {
+		if err := db.QueryRowContext(context.Background(), "SELECT USER FROM dual").Scan(&schema); err != nil {
+			t.Fatalf("Oracle: read connected scratch schema: %v", err)
+		}
+	}
 	return func(stmt string) (string, error) {
 		runParse := func(text string) error {
 			done := make(chan error, 1)
@@ -127,7 +133,7 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 			}
 		}
 		if pin.Judge == "5" {
-			return compat.OracleVerdictOnly(stmt, runParse)
+			return compat.OracleVerdictOnlySchema(stmt, schema, runParse)
 		}
 		return compat.OracleVerdict(stmt, runParse)
 	}
