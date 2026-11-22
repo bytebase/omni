@@ -4,8 +4,6 @@ import (
 	"strings"
 	"unicode"
 
-	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
-
 	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 )
 
@@ -23,18 +21,19 @@ type sqlStatement struct {
 // written on each statement.
 func splitStatements(script string) ([]sqlStatement, error) {
 	trimmed := strings.TrimRightFunc(script, isSpaceOrSemicolon) + ";"
-	parsed, err := crrawanalysis.Parse(trimmed)
+	parsed, err := crrawanalysis.ParseScript(trimmed)
 	if err != nil {
 		return nil, err
 	}
 	statements := make([]sqlStatement, 0, len(parsed))
 	offset := 0
 	for _, stmt := range parsed {
-		text := stmt.SQL
+		stmtSQL := stmt.Text()
+		text := stmtSQL
 		if !strings.HasSuffix(text, ";") {
 			text += ";"
 		}
-		start, end := locateStatement(script, stmt.SQL, offset)
+		start, end := locateStatement(script, stmtSQL, offset)
 		if end > len(script) {
 			end = len(script)
 		}
@@ -66,10 +65,5 @@ func isSpaceOrSemicolon(r rune) bool {
 // isPlSQLBlock reports whether stmt is a PL/pgSQL anonymous code block (DO
 // statement). Bytebase runs one as a single statement outside a transaction.
 func isPlSQLBlock(stmt string) bool {
-	stmts, err := crrawanalysis.Parse(stmt)
-	if err != nil || len(stmts) != 1 {
-		return false
-	}
-	_, ok := stmts[0].AST.(*crrawparsertree.DoBlock)
-	return ok
+	return crrawanalysis.IsDoBlock(stmt)
 }
