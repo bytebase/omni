@@ -142,6 +142,14 @@ func TestSplitValidScripts(t *testing.T) {
 				{Text: " /* unterminated", ByteStart: 9, ByteEnd: 25, Start: Position{1, 10}, End: Position{1, 26}, Empty: false},
 			},
 		},
+		{
+			name:  "unterminated trailing string after valid statement stays non-empty",
+			input: "SELECT 1; 'unterminated",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: " 'unterminated", ByteStart: 9, ByteEnd: 23, Start: Position{1, 10}, End: Position{1, 24}, Empty: false},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -226,6 +234,32 @@ func TestSplitFallbackUnparseableScripts(t *testing.T) {
 				{Text: "\nGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{2, 3}, Empty: true},
 				{Text: "-- comment\nGO 2", ByteStart: 11, ByteEnd: 26, Start: Position{2, 3}, End: Position{3, 5}, Empty: true},
 				{Text: "-- count comment\nSELECT FROM", ByteStart: 26, ByteEnd: 54, Start: Position{3, 5}, End: Position{4, 12}, Empty: false},
+			},
+		},
+		{
+			name:  "GO followed by closed block comment with or without whitespace",
+			input: "SELECT 1\nGO /* comment */\nGO/* tight */\nGO 2/* count */\nSELECT FROM",
+			want: []Segment{
+				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+				{Text: "\nGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{2, 3}, Empty: true},
+				{Text: " /* comment */\nGO", ByteStart: 11, ByteEnd: 28, Start: Position{2, 3}, End: Position{3, 3}, Empty: true},
+				{Text: "/* tight */\nGO 2", ByteStart: 28, ByteEnd: 44, Start: Position{3, 3}, End: Position{4, 5}, Empty: true},
+				{Text: "/* count */\nSELECT FROM", ByteStart: 44, ByteEnd: 67, Start: Position{4, 5}, End: Position{5, 12}, Empty: false},
+			},
+		},
+		{
+			name:  "rejected ODBC comment opener --(* stays non-empty",
+			input: "SELECT 1; --(* invalid",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: " --(* invalid", ByteStart: 9, ByteEnd: 22, Start: Position{1, 10}, End: Position{1, 23}, Empty: false},
+			},
+		},
+		{
+			name:  "GO followed by rejected --(* or unclosed block comment is not a batch separator",
+			input: "GO--(* invalid\nGO /* unclosed",
+			want: []Segment{
+				{Text: "GO--(* invalid\nGO /* unclosed", ByteStart: 0, ByteEnd: 29, Start: Position{1, 1}, End: Position{2, 15}, Empty: false},
 			},
 		},
 		{

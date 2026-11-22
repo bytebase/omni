@@ -60,16 +60,15 @@ func Split(sql string) []Segment {
 		prevEnd = endPos
 	}
 
-	// scanGap emits an Empty segment for each top-level semicolon in
-	// sql[prevByte:limit] (skipping comments) and reports whether an
-	// unterminated block comment was encountered.
-	scanGap := func(limit int) bool {
-		unterminatedComment := false
+	// emitPreGapSemicolons emits an Empty segment for each top-level semicolon
+	// in sql[prevByte:limit] (skipping comments) so parsed and fallback paths
+	// agree on separator counts.
+	emitPreGapSemicolons := func(limit int) {
 		i := prevByte
 		for i < limit {
 			switch sql[i] {
 			case '-':
-				if i+1 < limit && sql[i+1] == '-' {
+				if isTSQLLineComment(sql, i, limit) {
 					i += 2
 					for i < limit && sql[i] != '\n' {
 						i++
@@ -82,11 +81,8 @@ func Split(sql string) []Segment {
 				}
 			case '/':
 				if i+1 < limit && sql[i+1] == '*' {
-					end, closed := skipTSQLBlockComment(sql[:limit], i)
+					end, _ := skipTSQLBlockComment(sql[:limit], i)
 					i = end
-					if !closed {
-						unterminatedComment = true
-					}
 				} else {
 					i++
 				}
@@ -97,7 +93,6 @@ func Split(sql string) []Segment {
 				i++
 			}
 		}
-		return unterminatedComment
 	}
 
 	for _, os := range stmts {
@@ -109,11 +104,9 @@ func Split(sql string) []Segment {
 			endByte = len(sql)
 		}
 
-		// Preserve any lone semicolons before the AST node's start token as
-		// Empty segments so parsed and fallback paths agree on separator counts.
 		contentStart := nodeLoc(os.AST).Start
 		if contentStart > prevByte && contentStart <= endByte {
-			scanGap(contentStart)
+			emitPreGapSemicolons(contentStart)
 		}
 
 		text := sql[prevByte:endByte]
@@ -122,11 +115,12 @@ func Split(sql string) []Segment {
 		emit(endByte, empty)
 	}
 
+	// Process any unparsed tail through the lexical splitter so lone semicolons
+	// and comments become Empty segments while malformed trailing tokens (such
+	// as unterminated strings or block comments) stay non-empty.
 	if prevByte < len(sql) {
-		unterminatedComment := scanGap(len(sql))
-		if prevByte < len(sql) && !isOnlyTSQLSpace(sql[prevByte:]) {
-			emit(len(sql), !unterminatedComment)
-		}
+		atLineStart := prevByte == 0 || sql[prevByte-1] == '\n'
+		result = append(result, splitBySemicolonFrom(sql, idx, prevByte, prevEnd, atLineStart)...)
 	}
 	if len(result) == 0 {
 		return nil
@@ -137,22 +131,21 @@ func Split(sql string) []Segment {
 // SplitBySemicolon splits a T-SQL script lexically at top-level semicolons and
 // standalone GO batch separator lines without parsing. It skips single-quoted
 // strings (with ” escapes), double-quoted identifiers ("" escapes), bracketed
-// identifiers (]] escapes), line comments (--), and nested block comments
-// (/* ... */). It never fails; unterminated strings, identifiers, or block
-// comments stay non-empty so callers that parse each segment surface the exact
-// lexical error.
+// identifiers (]] escapes), line comments (--, honoring SQL Server's --(*
+// exception), and nested block comments (/* ... */). It never fails;
+// unterminated strings, identifiers, or block comments stay non-empty so
+// callers that parse each segment surface the exact lexical error.
 func SplitBySemicolon(sql string) []Segment {
 	if len(sql) == 0 {
 		return nil
 	}
+	return splitBySemicolonFrom(sql, review.Index(sql), 0, Position{Line: 1, Column: 1}, true)
+}
 
-	idx := review.Index(sql)
+func splitBySemicolonFrom(sql string, idx *review.Text, start int, prevEnd Position, atLineStart bool) []Segment {
 	var result []Segment
-	start := 0
-	prevEnd := Position{Line: 1, Column: 1}
 	hasContent := false
-	lastContentEnd := 0
-	atLineStart := true
+	lastContentEnd := start
 
 	emit := func(end int, empty bool) {
 		endPos := positionAt(idx, end)
@@ -170,7 +163,7 @@ func SplitBySemicolon(sql string) []Segment {
 		lastContentEnd = end
 	}
 
-	i := 0
+	i := start
 	for i < len(sql) {
 		if atLineStart {
 			atLineStart = false
@@ -192,7 +185,7 @@ func SplitBySemicolon(sql string) []Segment {
 		case ' ', '\t', '\r', '\f', '\v':
 			i++
 		case '-':
-			if i+1 < len(sql) && sql[i+1] == '-' {
+			if isTSQLLineComment(sql, i, len(sql)) {
 				i += 2
 				for i < len(sql) && sql[i] != '\n' {
 					i++
@@ -201,6 +194,12 @@ func SplitBySemicolon(sql string) []Segment {
 					i++
 					atLineStart = true
 				}
+			} else if strings.HasPrefix(sql[i:], "--(*") {
+				// SQL Server rejects --(* as an illegal ODBC initiator rather
+				// than a line comment; advance past all four bytes as content.
+				i += 4
+				hasContent = true
+				lastContentEnd = i
 			} else {
 				i++
 				hasContent = true
@@ -248,11 +247,18 @@ func SplitBySemicolon(sql string) []Segment {
 	return result
 }
 
+// isTSQLLineComment reports whether sql[i:limit] opens a valid T-SQL line
+// comment. SQL Server rejects "--(*" (OdbcInitiator) instead of treating it as
+// a comment.
+func isTSQLLineComment(sql string, i, limit int) bool {
+	return i+1 < limit && sql[i] == '-' && sql[i+1] == '-' && !strings.HasPrefix(sql[i:limit], "--(*")
+}
+
 // matchStandaloneGoLine checks whether sql[lineStart:] is a standalone T-SQL GO
 // batch separator line: optional horizontal whitespace, case-insensitive "GO",
-// optional positive integer repeat count, and only horizontal whitespace or a
-// line comment until the end of the line or input. It returns the byte offset
-// immediately after GO (or its repeat count).
+// optional positive integer repeat count, and only horizontal whitespace,
+// closed block comments, or a line comment until the end of the line or input.
+// It returns the byte offset immediately after GO (or its repeat count).
 func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 	j := lineStart
 	for j < len(sql) && (sql[j] == ' ' || sql[j] == '\t') {
@@ -267,12 +273,11 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 	}
 	goEnd := j
 
-	// Optional repeat count after whitespace.
-	wsStart := j
-	for j < len(sql) && (sql[j] == ' ' || sql[j] == '\t') {
-		j++
+	j, ok := skipGoInlineTrivia(sql, j)
+	if !ok {
+		return 0, false
 	}
-	if j > wsStart && j < len(sql) && sql[j] >= '0' && sql[j] <= '9' {
+	if j > goEnd && j < len(sql) && sql[j] >= '0' && sql[j] <= '9' {
 		numStart := j
 		nonZero := false
 		for j < len(sql) && sql[j] >= '0' && sql[j] <= '9' {
@@ -287,15 +292,35 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 		if j > numStart {
 			goEnd = j
 		}
-		for j < len(sql) && (sql[j] == ' ' || sql[j] == '\t') {
-			j++
+		j, ok = skipGoInlineTrivia(sql, j)
+		if !ok {
+			return 0, false
 		}
 	}
 
-	if j == len(sql) || sql[j] == '\r' || sql[j] == '\n' || (sql[j] == '-' && j+1 < len(sql) && sql[j+1] == '-') {
+	if j == len(sql) || sql[j] == '\r' || sql[j] == '\n' || isTSQLLineComment(sql, j, len(sql)) {
 		return goEnd, true
 	}
 	return 0, false
+}
+
+func skipGoInlineTrivia(sql string, j int) (int, bool) {
+	for j < len(sql) {
+		if sql[j] == ' ' || sql[j] == '\t' {
+			j++
+			continue
+		}
+		if sql[j] == '/' && j+1 < len(sql) && sql[j+1] == '*' {
+			end, closed := skipTSQLBlockComment(sql, j)
+			if !closed {
+				return 0, false
+			}
+			j = end
+			continue
+		}
+		break
+	}
+	return j, true
 }
 
 func isGoBoundary(sql string, pos int) bool {
@@ -306,7 +331,9 @@ func isGoBoundary(sql string, pos int) bool {
 	case ' ', '\t', '\r', '\n':
 		return true
 	case '-':
-		return pos+1 < len(sql) && sql[pos+1] == '-'
+		return isTSQLLineComment(sql, pos, len(sql))
+	case '/':
+		return pos+1 < len(sql) && sql[pos+1] == '*'
 	default:
 		return false
 	}
