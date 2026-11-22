@@ -335,3 +335,277 @@ func TestOracleVerdictReadsOraclesOwnFailures(t *testing.T) {
 		}
 	}
 }
+
+// TestOracleVerdictOnly pins judge revision 5's coarse accept/reject verdicts,
+// new stand-ins, error-code classifications, ORA-00600 MV-log stand-in,
+// structural PL/SQL compiler errors, and unclosed-'(' detection.
+func TestOracleVerdictOnly(t *testing.T) {
+	type answer struct {
+		code, position int
+		compile        string
+		rawErr         error
+	}
+	parsed := (*answer)(nil)
+	internal := errors.New("ORA-00600: internal error code, arguments: [12333], [PTI], [prspo_set_up]\nORA-06512: at \"SYS.DBMS_SQL\", line 1251")
+
+	for _, c := range []struct {
+		name      string
+		statement string
+		answers   map[string]*answer
+		want      string
+	}{
+		{"coarse strips byte offset", "SELECT FROM dual", map[string]*answer{
+			"SELECT FROM dual":                   {936, 7, "", nil},
+			"SELECT FROM dual" + OracleProbeTail: {936, 7, "", nil},
+		}, Reject},
+		{"DROP TABLESPACE SET stand-in accepts valid", "DROP TABLESPACE SET a INCLUDING CONTENTS", map[string]*answer{
+			"DROP TABLESPACE SET a INCLUDING CONTENTS": {2557, 20, "", nil},
+			"DROP TABLESPACE a INCLUDING CONTENTS":     {1031, 0, "", nil},
+		}, Accept},
+		{"DROP TABLESPACE SET stand-in rejects trailing zzz", "DROP TABLESPACE SET a INCLUDING CONTENTS zzz", map[string]*answer{
+			"DROP TABLESPACE SET a INCLUDING CONTENTS zzz":               {2557, 20, "", nil},
+			"DROP TABLESPACE a INCLUDING CONTENTS zzz":                   {2173, 37, "", nil},
+			"DROP TABLESPACE a INCLUDING CONTENTS zzz" + OracleProbeTail: {2173, 37, "", nil},
+		}, Reject},
+		{"SEQUENCE SHARD stand-in accepts valid", "CREATE SEQUENCE a SHARD", map[string]*answer{
+			"CREATE SEQUENCE a SHARD": {2511, 18, "", nil},
+			"CREATE SEQUENCE a SCALE": parsed,
+		}, Accept},
+		{"SEQUENCE NOSHARD stand-in rejects trailing zzz", "CREATE SEQUENCE a NOSHARD zzz", map[string]*answer{
+			"CREATE SEQUENCE a NOSHARD zzz":                   {2511, 18, "", nil},
+			"CREATE SEQUENCE a NOSCALE zzz":                   {3049, 26, "", nil},
+			"CREATE SEQUENCE a NOSCALE zzz" + OracleProbeTail: {3049, 26, "", nil},
+		}, Reject},
+		{"IDENTIFIED GLOBALLY stand-in accepts ROLE AS string", "CREATE ROLE a IDENTIFIED GLOBALLY AS 's'", map[string]*answer{
+			"CREATE ROLE a IDENTIFIED GLOBALLY AS 's'":   {439, 0, "", nil},
+			"CREATE USER a IDENTIFIED EXTERNALLY AS 's'": {1031, 0, "", nil},
+		}, Accept},
+		{"IDENTIFIED GLOBALLY stand-in rejects missing string", "CREATE ROLE a IDENTIFIED GLOBALLY AS", map[string]*answer{
+			"CREATE ROLE a IDENTIFIED GLOBALLY AS":                     {439, 0, "", nil},
+			"CREATE USER a IDENTIFIED EXTERNALLY AS":                   {28025, 38, "", nil},
+			"CREATE USER a IDENTIFIED EXTERNALLY AS" + OracleProbeTail: {911, 40, "", nil},
+		}, Reject},
+		{"PDB SNAPSHOT stand-in accepts valid", "ALTER PLUGGABLE DATABASE SNAPSHOT EVERY 1 HOURS", map[string]*answer{
+			"ALTER PLUGGABLE DATABASE SNAPSHOT EVERY 1 HOURS":     {12754, 0, "", nil},
+			"ALTER PLUGGABLE DATABASE REFRESH MODE EVERY 1 HOURS": {1031, 0, "", nil},
+		}, Accept},
+		{"NUMBER COLLATE stand-in accepts valid", "ALTER TABLE a ADD(a NUMBER COLLATE a)", map[string]*answer{
+			"ALTER TABLE a ADD(a NUMBER COLLATE a)":                         {43911, 27, "", nil},
+			"ALTER TABLE a ADD(a VARCHAR2(10) COLLATE a)":                   {942, 0, "", nil},
+			"ALTER TABLE t ADD(a VARCHAR2(10) COLLATE a)":                   {1430, 18, "", nil},
+			"ALTER TABLE t ADD(a VARCHAR2(10) COLLATE a)" + OracleProbeTail: {911, 45, "", nil},
+		}, Accept},
+		{"duplicate column ORA-00957 stand-in accepts valid", "ALTER TABLE a ADD(a NUMBER, a NUMBER)", map[string]*answer{
+			"ALTER TABLE a ADD(a NUMBER, a NUMBER)":                   {957, 28, "", nil},
+			"ALTER TABLE a ADD(a NUMBER, b NUMBER)":                   {942, 0, "", nil},
+			"ALTER TABLE t ADD(a NUMBER, b NUMBER)":                   {1430, 18, "", nil},
+			"ALTER TABLE t ADD(a NUMBER, b NUMBER)" + OracleProbeTail: {911, 39, "", nil},
+		}, Accept},
+		{"duplicate column ORA-00957 stand-in rejects unclosed paren", "ALTER TABLE a ADD(a NUMBER, a", map[string]*answer{
+			"ALTER TABLE a ADD(a NUMBER, a":                   {957, 28, "", nil},
+			"ALTER TABLE a ADD(a NUMBER, b":                   {907, 29, "", nil},
+			"ALTER TABLE a ADD(a NUMBER, b" + OracleProbeTail: {911, 31, "", nil},
+		}, Reject},
+		{"INMEMORY JOIN GROUP duplicate column ORA-00957 stand-in rejects missing comma", "CREATE INMEMORY JOIN GROUP a(a(a) a(a))", map[string]*answer{
+			"CREATE INMEMORY JOIN GROUP a(a(a) a(a))":                   {903, 29, "", nil},
+			"CREATE INMEMORY JOIN GROUP a(t(a) a(a))":                   {903, 34, "", nil},
+			"CREATE INMEMORY JOIN GROUP a(t(a) t(a))":                   {957, 34, "", nil},
+			"CREATE INMEMORY JOIN GROUP a(t(a) t(b))":                   {907, 34, "", nil},
+			"CREATE INMEMORY JOIN GROUP a(t(a) t(b))" + OracleProbeTail: {911, 41, "", nil},
+		}, Reject},
+		{"SPLIT PARTITION NESTED TABLE stand-in accepts valid", "ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)", map[string]*answer{
+			"ALTER TABLE a SPLIT PARTITION a AT(1) NESTED TABLE a INTO(PARTITION a, PARTITION a)":     {22912, 51, "", nil},
+			"ALTER TABLE p SPLIT PARTITION p1 AT(1) INTO(PARTITION a, PARTITION a)":                   {14011, 67, "", nil},
+			"ALTER TABLE p SPLIT PARTITION p1 AT(1) INTO(PARTITION a, PARTITION a)" + OracleProbeTail: {911, 71, "", nil},
+		}, Accept},
+		{"MV LOG SPLIT crash ORA-00600 stand-in accepts PARALLEL", "ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) PARALLEL", map[string]*answer{
+			"ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) PARALLEL": {rawErr: internal},
+			"ALTER TABLE p SPLIT PARTITION p1 AT(1) PARALLEL":                   parsed,
+		}, Accept},
+		{"MV LOG SPLIT crash ORA-00600 stand-in rejects trailing zzz", "ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) PARALLEL zzz", map[string]*answer{
+			"ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) PARALLEL zzz": {rawErr: internal},
+			"ALTER TABLE p SPLIT PARTITION p1 AT(1) PARALLEL zzz":                   {14126, 48, "", nil},
+			"ALTER TABLE p SPLIT PARTITION p1 AT(1) PARALLEL zzz" + OracleProbeTail: {14126, 48, "", nil},
+		}, Reject},
+		{"DIMENSION self-loop stand-in accepts valid", "ALTER DIMENSION a ADD HIERARCHY a(a CHILD OF a JOIN KEY a REFERENCES a)", map[string]*answer{
+			"ALTER DIMENSION a ADD HIERARCHY a(a CHILD OF a JOIN KEY a REFERENCES a)":                   {30336, 70, "", nil},
+			"ALTER DIMENSION d ADD HIERARCHY a(a CHILD OF b JOIN KEY a REFERENCES b)":                   {30342, 35, "", nil},
+			"ALTER DIMENSION d ADD HIERARCHY a(a CHILD OF b JOIN KEY a REFERENCES b)" + OracleProbeTail: {911, 74, "", nil},
+		}, Accept},
+		{"USING INDEX a stand-in accepts valid", "ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a", map[string]*answer{
+			"ALTER TABLE a ENABLE PRIMARY KEY USING INDEX a":                      {3049, 45, "", nil},
+			"ALTER TABLE a ENABLE PRIMARY KEY USING INDEX idx1":                   {942, 0, "", nil},
+			"ALTER TABLE t ENABLE PRIMARY KEY USING INDEX idx1":                   {2432, 0, "", nil},
+			"ALTER TABLE t ENABLE PRIMARY KEY USING INDEX idx1" + OracleProbeTail: {911, 51, "", nil},
+		}, Accept},
+		{"FLASHBACK ARCHIVE a stand-in accepts valid", "ALTER TABLE a FLASHBACK ARCHIVE a", map[string]*answer{
+			"ALTER TABLE a FLASHBACK ARCHIVE a":                     {55643, 32, "", nil},
+			"ALTER TABLE a FLASHBACK ARCHIVE fa1":                   {942, 0, "", nil},
+			"ALTER TABLE t FLASHBACK ARCHIVE fa1":                   {55605, 0, "", nil},
+			"ALTER TABLE t FLASHBACK ARCHIVE fa1" + OracleProbeTail: {911, 37, "", nil},
+		}, Accept},
+		{"CREATE MANDATORY PROFILE stand-in accepts valid", "CREATE MANDATORY PROFILE a LIMIT SESSIONS_PER_USER 1", map[string]*answer{
+			"CREATE MANDATORY PROFILE a LIMIT SESSIONS_PER_USER 1": {2387, 51, "", nil},
+			"CREATE PROFILE a LIMIT SESSIONS_PER_USER 1":           {1031, 0, "", nil},
+		}, Accept},
+		{"CREATE SPFILE = 's' FROM PFILE stand-in accepts valid", "CREATE SPFILE = 's' FROM PFILE", map[string]*answer{
+			"CREATE SPFILE = 's' FROM PFILE": {65136, 16, "", nil},
+			"CREATE PFILE = 's' FROM SPFILE": {1031, 0, "", nil},
+		}, Accept},
+		{"CREATE SPFILE FROM PFILE AS COPY stand-in accepts valid", "CREATE SPFILE FROM PFILE AS COPY", map[string]*answer{
+			"CREATE SPFILE FROM PFILE AS COPY":       {65168, 25, "", nil},
+			"CREATE SPFILE FROM PFILE = 's' AS COPY": {1031, 0, "", nil},
+		}, Accept},
+		{"CREATE TABLESPACE SET TEMPLATE stand-in accepts valid", "CREATE TABLESPACE SET a USING TEMPLATE(DATAFILE 's')", map[string]*answer{
+			"CREATE TABLESPACE SET a USING TEMPLATE(DATAFILE 's')": {2537, 51, "", nil},
+			"CREATE TABLESPACE a DATAFILE 's'":                     {1031, 0, "", nil},
+		}, Accept},
+		{"AUDIT -> NOAUDIT stand-in accepts valid traditional audit", "AUDIT SELECT ON t BY ACCESS WHENEVER NOT SUCCESSFUL", map[string]*answer{
+			"AUDIT SELECT ON t BY ACCESS WHENEVER NOT SUCCESSFUL": {46401, 6, "", nil},
+			"NOAUDIT SELECT ON t WHENEVER NOT SUCCESSFUL":         parsed,
+		}, Accept},
+		{"AUDIT -> NOAUDIT stand-in rejects invalid option", "AUDIT PORT a", map[string]*answer{
+			"AUDIT PORT a":                     {46401, 6, "", nil},
+			"NOAUDIT PORT a":                   {956, 8, "", nil},
+			"NOAUDIT PORT a" + OracleProbeTail: {956, 8, "", nil},
+		}, Reject},
+		{"RECOVER MANAGED STANDBY FINISH FORCE stand-in accepts valid", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE", map[string]*answer{
+			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE":     {274, 0, "", nil},
+			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL IMMEDIATE": {1031, 0, "", nil},
+		}, Accept},
+		{"RECOVER MANAGED STANDBY FINISH FORCE zzz rejects", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE zzz", map[string]*answer{
+			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE zzz":                       {274, 0, "", nil},
+			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL IMMEDIATE zzz":                   {16036, 65, "", nil},
+			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL IMMEDIATE zzz" + OracleProbeTail: {16036, 65, "", nil},
+		}, Reject},
+		{"CREATE DATABASE accepted on ORA-01501", "CREATE DATABASE a", map[string]*answer{
+			"CREATE DATABASE a": {1501, 0, "", nil},
+		}, Accept},
+		{"CREATE JAVA SOURCE AS accepted on ORA-29538", "CREATE JAVA SOURCE AS 's' zzz", map[string]*answer{
+			"CREATE JAVA SOURCE AS 's' zzz": {29538, 0, "", nil},
+		}, Accept},
+		{"CREATE MLE MODULE accepted on ORA-00439", "CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a", map[string]*answer{
+			"CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS a": {439, 0, "", nil},
+		}, Accept},
+		{"CREATE MLE MODULE empty body rejected on ORA-04125", "CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS", map[string]*answer{
+			"CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS":                   {4125, 0, "", nil},
+			"CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS" + OracleProbeTail: {911, 44, "", nil},
+		}, Reject},
+		{"GRANT program unit syntax error ORA-28700 rejected", "GRANT TO FUNCTION a", map[string]*answer{
+			"GRANT TO FUNCTION a":                   {28700, 0, "", nil},
+			"GRANT TO FUNCTION a" + OracleProbeTail: {911, 21, "", nil},
+		}, Reject},
+		{"GRANT program unit syntax error ORA-28701 rejected", "GRANT a TO FUNCTION a, a", map[string]*answer{
+			"GRANT a TO FUNCTION a, a":                   {28701, 0, "", nil},
+			"GRANT a TO FUNCTION a, a" + OracleProbeTail: {911, 26, "", nil},
+		}, Reject},
+		{"GRANT duplicate grantee ORA-01700 stand-in rejects trailing zzz", "GRANT a TO a, a zzz", map[string]*answer{
+			"GRANT a TO a, a zzz":                   {1700, 14, "", nil},
+			"GRANT a TO a, b zzz":                   {3049, 16, "", nil},
+			"GRANT a TO a, b zzz" + OracleProbeTail: {911, 21, "", nil},
+		}, Reject},
+		{"GRANT IDENTIFIED BY ORA-00989 stand-in rejects trailing comma", "GRANT a TO a IDENTIFIED BY a,", map[string]*answer{
+			"GRANT a TO a IDENTIFIED BY a,":                      {989, 28, "", nil},
+			"GRANT a TO a, b IDENTIFIED BY a,":                   {988, 32, "", nil},
+			"GRANT a TO a, b IDENTIFIED BY a," + OracleProbeTail: {911, 34, "", nil},
+		}, Reject},
+		{"ALTER MATERIALIZED VIEW SUBPARTITIONS ORA-14156 rejected", "ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)", map[string]*answer{
+			"ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)":                   {14156, 52, "", nil},
+			"ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)" + OracleProbeTail: {911, 75, "", nil},
+		}, Reject},
+		{"LOCK TABLE a PARTITION(1) stand-in to p rejects ORA-14108", "LOCK TABLE a PARTITION(1) IN SHARE MODE", map[string]*answer{
+			"LOCK TABLE a PARTITION(1) IN SHARE MODE":                   {942, 11, "", nil},
+			"LOCK TABLE p PARTITION(1) IN SHARE MODE":                   {14108, 23, "", nil},
+			"LOCK TABLE p PARTITION(1) IN SHARE MODE" + OracleProbeTail: {911, 41, "", nil},
+		}, Reject},
+		{"CREATE SCHEMA AUTHORIZATION a stand-in rejects trailing zzz", "CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz", map[string]*answer{
+			"CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz":                            {2421, 0, "", nil},
+			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE a (a NUMBER) zzz":                   {2425, 39, "", nil},
+			"CREATE SCHEMA AUTHORIZATION OMNI_JUDGE CREATE TABLE a (a NUMBER) zzz" + OracleProbeTail: {911, 70, "", nil},
+		}, Reject},
+		{"CREATE FUNCTION a.zzz stand-in to OMNI_JUDGE rejects PLS-00103", "CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;", map[string]*answer{
+			"CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;":          {1031, 0, "", nil},
+			"CREATE FUNCTION OMNI_JUDGE.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;": {24344, 0, "PLS-00103", nil},
+		}, Reject},
+		{"CREATE AUDIT POLICY a ONLY rejected on ORA-46373 without rewrite", "CREATE AUDIT POLICY a ONLY", map[string]*answer{
+			"CREATE AUDIT POLICY a ONLY":                   {46373, 0, "", nil},
+			"CREATE AUDIT POLICY a ONLY" + OracleProbeTail: {911, 28, "", nil},
+		}, Reject},
+		{"DROP CONTEXT rejected at EOF (1804 removed from checkedAtEnd)", "DROP CONTEXT", map[string]*answer{
+			"DROP CONTEXT": {1804, 12, "", nil},
+		}, Reject},
+		{"SELECT * FOR UPDATE WAIT rejected at EOF (30020 removed from checkedAtEnd)", "SELECT * FOR UPDATE WAIT", map[string]*answer{
+			"SELECT * FOR UPDATE WAIT": {30020, 24, "", nil},
+		}, Reject},
+		{"FOR UPDATE over OFFSET rejected on ORA-02014", "(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE", map[string]*answer{
+			"(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE":                   {2014, 0, "", nil},
+			"(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE" + OracleProbeTail: {911, 51, "", nil},
+		}, Reject},
+		{"ALTER DISKGROUP trailing comma rejected on ORA-15260", "ALTER DISKGROUP a REBALANCE WITH RESTORE,", map[string]*answer{
+			"ALTER DISKGROUP a REBALANCE WITH RESTORE,": {15260, 0, "", nil},
+		}, Reject},
+		{"PL/SQL structural error PLS-00710 rejected", "BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;", map[string]*answer{
+			"BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;": {6550, 13, "PLS-00710", nil},
+		}, Reject},
+		{"PL/SQL REF omni_missing_t stand-in rejects PLS-00550", "DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;", map[string]*answer{
+			"DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;": {6550, 14, "PLS-00201", nil},
+			"DECLARE x REF y CHARACTER SET NCHAR_CS; BEGIN NULL; END;":              {6550, 10, "PLS-00550", nil},
+		}, Reject},
+		{"PL/SQL ORA-32551 rejected", "DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;", map[string]*answer{
+			"DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;": {6550, 39, "ORA-32551", nil},
+		}, Reject},
+		{"unclosed paren caught when Oracle aborts early on ORA-01031", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET a TO 's' IDENTIFIED BY a WITH IDENTIFIER IN(a", map[string]*answer{
+			"ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET a TO 's' IDENTIFIED BY a WITH IDENTIFIER IN(a": {1031, 0, "", nil},
+		}, Reject},
+		{"stray rparen still accepted when Oracle accepts", "CREATE JAVA SOURCE USING BFILE a, 's')", map[string]*answer{
+			"CREATE JAVA SOURCE USING BFILE a, 's')": parsed,
+		}, Accept},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			parse := func(text string) error {
+				a, ok := c.answers[text]
+				if !ok {
+					t.Fatalf("%s: unexpected parse(%q)", c.name, text)
+				}
+				if a == nil {
+					return nil
+				}
+				if a.rawErr != nil {
+					return a.rawErr
+				}
+				return oracleRaised(a.code, a.position, a.compile)
+			}
+			got, err := OracleVerdictOnly(c.statement, parse)
+			if err != nil {
+				t.Fatalf("%s: err=%v", c.name, err)
+			}
+			if got != c.want {
+				t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+			}
+		})
+	}
+}
+
+func TestHasUnclosedParen(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want bool
+	}{
+		{"SELECT (1) FROM dual", false},
+		{"SELECT (1 FROM dual", true},
+		{"SELECT '(' FROM dual", false},
+		{"SELECT q'[(]' FROM dual", false},
+		{"SELECT Q'{(}' FROM dual", false},
+		{"SELECT q'((a)' FROM dual", false},
+		{`SELECT "(" FROM dual`, false},
+		{"SELECT 1 -- (\nFROM dual", false},
+		{"SELECT /* ( */ 1 FROM dual", false},
+		{"CREATE JAVA SOURCE AS class X { void f( {", false},
+		{"CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS function f( {", false},
+		{"CREATE JAVA SOURCE USING BFILE a, 's')", false}, // stray ')' is not unclosed '('
+	} {
+		if got := hasUnclosedParen(tc.sql); got != tc.want {
+			t.Errorf("hasUnclosedParen(%q) = %v, want %v", tc.sql, got, tc.want)
+		}
+	}
+}
