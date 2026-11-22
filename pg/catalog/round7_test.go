@@ -291,7 +291,7 @@ func TestTriggerOldTableOnInsertOnlyError(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventInsert, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false},
+		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeInvalidObjectDefinition)
@@ -307,7 +307,7 @@ func TestTriggerNewTableOnDeleteOnlyError(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventDelete, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeInvalidObjectDefinition)
@@ -323,7 +323,7 @@ func TestTriggerOldTableOnUpdateOK(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventUpdate, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false},
+		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {
@@ -338,7 +338,7 @@ func TestTriggerNewTableOnInsertOK(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig2", TriggerAfter, TriggerEventInsert, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {
@@ -357,8 +357,8 @@ func TestTriggerDuplicateTransitionNames(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventUpdate, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "tbl", IsNew: false},
-		&nodes.TriggerTransition{Name: "tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "tbl", IsNew: false, IsTable: true},
+		&nodes.TriggerTransition{Name: "tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeInvalidObjectDefinition)
@@ -374,8 +374,8 @@ func TestTriggerDifferentTransitionNamesOK(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventUpdate, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false},
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "old_tbl", IsNew: false, IsTable: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {
@@ -592,8 +592,8 @@ func TestDropFunctionOnProcedureError(t *testing.T) {
 		Behavior:   int(nodes.DROP_RESTRICT),
 	}
 	err := c.RemoveObjects(drop)
-	assertCode(t, err, CodeWrongObjectType)
-	if !strings.Contains(err.Error(), "not a function") {
+	assertCode(t, err, CodeUndefinedFunction)
+	if !strings.Contains(err.Error(), "could not find a function") {
 		t.Errorf("unexpected message: %s", err)
 	}
 }

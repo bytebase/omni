@@ -97,7 +97,7 @@ func TestCreateEnumDuplicate(t *testing.T) {
 func TestCreateEnumDuplicateLabel(t *testing.T) {
 	c := New()
 	err := c.DefineEnum(makeCreateEnumStmt("", "mood", []string{"a", "b", "a"}))
-	assertCode(t, err, CodeInvalidParameterValue)
+	assertCode(t, err, CodeUniqueViolation)
 }
 
 func TestEnumAsColumnType(t *testing.T) {

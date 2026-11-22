@@ -223,6 +223,10 @@ type CreateTableStmt struct {
 	// AppPeriodDuplicate is set when more than one application-time period was
 	// specified (rejected by the catalog as 4154).
 	AppPeriodDuplicate bool
+	// FieldDBs records the database qualifiers written on 3-part field_ident
+	// references (db.tbl.col) when Table carried no explicit schema. MariaDB
+	// holds those qualifiers to the session's current database (1102).
+	FieldDBs []string
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -238,6 +242,10 @@ type AlterTableStmt struct {
 	Ignore bool
 	// IfExists is ALTER TABLE IF EXISTS: a missing table is a note, not an error.
 	IfExists bool
+	// FieldDBs records the database qualifiers written on 3-part field_ident
+	// references (db.tbl.col) when Table carried no explicit schema. MariaDB
+	// holds those qualifiers to the session's current database (1102).
+	FieldDBs []string
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -862,9 +870,13 @@ type FuncCallExpr struct {
 	// WithinGroup marks PERCENTILE_CONT and PERCENTILE_DISC's
 	// WITHIN GROUP (ORDER BY ...) clause, whose one item OrderBy holds.
 	WithinGroup bool
-	Over        *WindowDef // OVER clause for window functions
-	Separator   ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
-	Using       string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// SpecialSyntax marks a qualified TRIM/SUBSTRING call parsed with keyword
+	// syntax (e.g. `a.SUBSTRING(x FROM y)`, `a.TRIM(LEADING FROM x)`), which
+	// MariaDB accepts only under mariadb_schema and oracle_schema (1128 otherwise).
+	SpecialSyntax bool
+	Over          *WindowDef // OVER clause for window functions
+	Separator     ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Using         string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 	// WEIGHT_STRING(expr AS CHAR(n)) / AS BINARY(n): the AS clause of
 	// weight_string's own grammar. WeightAs is "" when no AS clause is
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).
@@ -2330,6 +2342,8 @@ func (e *ConvertExpr) exprNode() {}
 // DefaultExpr represents the DEFAULT keyword or DEFAULT(col_name) function used as an expression.
 type DefaultExpr struct {
 	Loc    Loc
+	Schema string // optional database qualifier for DEFAULT(db.tbl.col)
+	Table  string // optional table qualifier for DEFAULT(tbl.col)
 	Column string // column name for DEFAULT(col_name) form; empty for bare DEFAULT
 }
 

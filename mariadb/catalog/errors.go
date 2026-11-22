@@ -19,8 +19,11 @@ const (
 	ErrUnknownTable                      = 1051
 	ErrNonUniqTable                      = 1066
 	ErrUpdateTableUsed                   = 1093
+	ErrNoTablesUsed                      = 1096
 	ErrCantReopenTable                   = 1137
+	ErrOperandColumns                    = 1241
 	ErrWrongObject                       = 1347
+	ErrViewSelectClause                  = 1350
 	ErrRowIsReferenced                   = 1451
 	ErrIsAView                           = 1965
 	ErrTableMustHaveColumns              = 1113
@@ -65,6 +68,7 @@ const (
 	ErrWindowRefWithPartition     = 4011
 	ErrWindowRefHasOrder          = 4012
 	ErrWindowRefHasFrame          = 4013
+	ErrWindowFrameNotAllowed      = 4017
 	ErrFKDupName                  = 1826
 	ErrCheckConstraintNotAllowed  = 3815
 	ErrCheckConstraintDupName     = 3822
@@ -90,6 +94,7 @@ const (
 	ErrPeriodFieldsDifferentTypes = 4153
 	ErrKeyDoesNotExist            = 1176
 	ErrPKIndexCantBeIgnored       = 4174
+	ErrWrongDBName                = 1102
 )
 
 var sqlStateMap = map[int]string{
@@ -99,8 +104,11 @@ var sqlStateMap = map[int]string{
 	ErrUnknownTable:                      "42S02",
 	ErrNonUniqTable:                      "42000",
 	ErrUpdateTableUsed:                   "HY000",
+	ErrNoTablesUsed:                      "HY000",
 	ErrCantReopenTable:                   "HY000",
+	ErrOperandColumns:                    "21000",
 	ErrWrongObject:                       "HY000",
+	ErrViewSelectClause:                  "HY000",
 	ErrRowIsReferenced:                   "23000",
 	ErrIsAView:                           "42S02",
 	ErrTableMustHaveColumns:              "42000",
@@ -160,6 +168,7 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintDupName:            "HY000",
 	ErrKeyDoesNotExist:                   "42000",
 	ErrPKIndexCantBeIgnored:              "HY000",
+	ErrWrongDBName:                       "42000",
 }
 
 func sqlState(code int) string {
@@ -182,6 +191,14 @@ func errUnknownDatabase(name string) error {
 func errNoDatabaseSelected() error {
 	return &Error{Code: ErrNoDatabaseSelected, SQLState: sqlState(ErrNoDatabaseSelected),
 		Message: "No database selected"}
+}
+
+// errWrongDBName is 1102, what MariaDB answers when a 3-part field_ident's
+// database qualifier does not match the target table's database (including the
+// session's current database for an unqualified table).
+func errWrongDBName(name string) error {
+	return &Error{Code: ErrWrongDBName, SQLState: sqlState(ErrWrongDBName),
+		Message: fmt.Sprintf("Incorrect database name '%s'", name)}
 }
 
 func errDupTable(name string) error {
@@ -357,6 +374,26 @@ func errWindowRefHasOrder(name string) error {
 func errWindowRefHasFrame(name string) error {
 	return &Error{Code: ErrWindowRefHasFrame, SQLState: sqlState(ErrWindowRefHasFrame),
 		Message: fmt.Sprintf("Referenced window specification '%s' cannot contain window frame", name)}
+}
+
+func errWindowFrameNotAllowed(name string) error {
+	return &Error{Code: ErrWindowFrameNotAllowed, SQLState: sqlState(ErrWindowFrameNotAllowed),
+		Message: fmt.Sprintf("Window frame is not allowed with '%s'", name)}
+}
+
+func errNoTablesUsed() error {
+	return &Error{Code: ErrNoTablesUsed, SQLState: sqlState(ErrNoTablesUsed),
+		Message: "No tables used"}
+}
+
+func errOperandColumns(n int) error {
+	return &Error{Code: ErrOperandColumns, SQLState: sqlState(ErrOperandColumns),
+		Message: fmt.Sprintf("Operand should contain %d column(s)", n)}
+}
+
+func errViewSelectClause(clause string) error {
+	return &Error{Code: ErrViewSelectClause, SQLState: sqlState(ErrViewSelectClause),
+		Message: fmt.Sprintf("View's SELECT contains a '%s' clause", clause)}
 }
 
 func errNoSuchColumn(name, context string) error {
@@ -785,4 +822,18 @@ func errNotSequence(code int, db, name string) error {
 func errUnknownSequence(name string) error {
 	return &Error{Code: 4091, SQLState: "42S02",
 		Message: fmt.Sprintf("Unknown SEQUENCE: '%s'", name)}
+}
+
+// errEventSameName is 1551: ALTER EVENT ... RENAME TO naming the same event.
+// Measured on mariadb:11.8.8.
+func errEventSameName() error {
+	return &Error{Code: 1551, SQLState: "HY000", Message: "Same old and new event name"}
+}
+
+// errOutOfRangeColumn is 1264: a numeric value out of range for a column
+// (e.g. ALTER SEQUENCE narrowing AS <type> with an out-of-range existing limit).
+// Measured on mariadb:11.8.8.
+func errOutOfRangeColumn(col string) error {
+	return &Error{Code: 1264, SQLState: "22003",
+		Message: fmt.Sprintf("Out of range value for column '%s' at row 1", col)}
 }

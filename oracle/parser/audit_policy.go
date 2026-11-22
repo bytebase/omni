@@ -509,6 +509,7 @@ func (p *Parser) parseAuditComponentActions() (*nodes.AuditComponentAction, erro
 	}
 	comp.Component = p.advance().Str
 	for {
+		actionTok := p.cur
 		action, err := p.parseAuditName(set)
 		if err != nil {
 			return nil, err
@@ -525,6 +526,12 @@ func (p *Parser) parseAuditComponentActions() (*nodes.AuditComponentAction, erro
 			comp.Object = p.advance().Str
 		}
 		if p.cur.Type != ',' {
+			if comp.Component == "DV" && action == "ALL" && !p.atStatementEnd() &&
+				p.cur.Type != kwWHEN && !p.isKeywordStr("ONLY") && !p.isKeywordStr("CONTAINER") &&
+				!p.isKeywordStr("ACTIONS") && !p.isKeywordStr("ROLES") && p.cur.Type != kwPRIVILEGES &&
+				!p.isKeywordStr("COMPONENT") {
+				return nil, p.syntaxErrorAtTok(actionTok)
+			}
 			break
 		}
 		p.advance()
@@ -558,6 +565,9 @@ func (p *Parser) parseAuditPolicyUsers() (users, roles []string, err error) {
 		p.advance()
 		roles, err = p.parseAuditWordList()
 		return nil, roles, err
+	}
+	if p.cur.Type == kwWITH {
+		return nil, nil, p.syntaxErrorAtCur()
 	}
 	users, err = p.parseAuditWordList()
 	return users, nil, err

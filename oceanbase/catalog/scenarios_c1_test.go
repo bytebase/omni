@@ -368,11 +368,9 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 			t.Errorf("omni: table t missing (functional index support gap)")
 			return
 		}
-		// omni will almost certainly not synthesize hidden generated columns
-		// with MySQL's !hidden! naming scheme. Check and report.
 		hasHidden := false
 		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
+			if col.Hidden == ColumnHiddenSystem && strings.HasPrefix(col.Name, "SYS_NC") {
 				hasHidden = true
 				break
 			}

@@ -1313,6 +1313,22 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if rel.RelKind == 'p' {
 			return nil
 		}
+		// pg: src/backend/commands/tablecmds.c — ATPrepSetUnLogged
+		// An unlogged table may reference a logged table, but cannot be
+		// referenced by a logged table.
+		for _, con := range c.constraints {
+			if con.Type != ConstraintFK {
+				continue
+			}
+			if con.FRelOID == rel.OID && con.RelOID != rel.OID {
+				if refRel := c.relationByOID[con.RelOID]; refRel != nil && refRel.Persistence != 'u' {
+					return &Error{
+						Code:    CodeInvalidTableDefinition,
+						Message: fmt.Sprintf("could not change table %q to unlogged because it is referenced by logged table %q", rel.Name, refRel.Name),
+					}
+				}
+			}
+		}
 		rel.Persistence = 'u'
 		for _, seq := range c.sequenceByOID {
 			if seq != nil && seq.OwnerRelOID == rel.OID {
@@ -1437,7 +1453,7 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 	case nodes.OBJECT_FOREIGN_SERVER:
 		return c.renameForeignServer(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
-		return nil // Domain constraints: no-op for pgddl
+		return c.renameDomainConstraint(stmt)
 	case nodes.OBJECT_ATTRIBUTE:
 		return c.renameAttribute(stmt)
 	}
@@ -1676,9 +1692,13 @@ func (c *Catalog) renameType(stmt *nodes.RenameStmt) error {
 		return errWrongObjectType(typeName, "a type")
 	}
 
-	// For composite types, rename the backing relation too.
+	// For composite types, rename the backing relation too; table/view row types
+	// cannot be renamed via ALTER TYPE.
 	if bt.Type == 'c' && bt.RelID != 0 {
-		if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
+		if rel := c.relationByOID[bt.RelID]; rel != nil {
+			if rel.RelKind != 'c' {
+				return errWrongObjectType(typeName, "a composite type")
+			}
 			return c.renameRelation(rel.Schema, rel, newName)
 		}
 	}
@@ -1733,7 +1753,7 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 		// the source is another kind: ALTER INDEX a RENAME TO a on table a
 		// is 42P07, not 42809.
 		if !missingObject(err) && newName != "" {
-			if s, _, relErr := c.findRelation(schemaName, idxName); relErr == nil && s != nil {
+			if s, rel, relErr := c.findRelation(schemaName, idxName); relErr == nil && s != nil && rel != nil && rel.RelKind != 'c' {
 				if _, held := relationNamespaceKind(s, newName); held {
 					return errDuplicateTable(newName)
 				}
@@ -1848,6 +1868,9 @@ func (c *Catalog) renameTrigger(stmt *nodes.RenameStmt) error {
 		}
 		return err
 	}
+	if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'v' && rel.RelKind != 'f' {
+		return errWrongObjectType(relName, "a table or view")
+	}
 
 	oldName := stmt.Subname
 	newName := stmt.Newname
@@ -1864,6 +1887,9 @@ func (c *Catalog) renameTrigger(stmt *nodes.RenameStmt) error {
 	}
 	if found.ParentTriggerOID != 0 {
 		return errInvalidObjectDefinition(fmt.Sprintf("cannot rename trigger %q on table %q because it is inherited", oldName, rel.Name))
+	}
+	if newName == oldName {
+		return nil
 	}
 
 	for _, trig := range c.triggersByRel[rel.OID] {
@@ -2024,6 +2050,66 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 	return nil
 }
 
+// renameDomainConstraint renames a constraint on a domain.
+//
+// pg: src/backend/commands/tablecmds.c — RenameConstraint (domain path)
+func (c *Catalog) renameDomainConstraint(stmt *nodes.RenameStmt) error {
+	var schemaName, domainName string
+	if stmt.Object != nil {
+		if list, ok := stmt.Object.(*nodes.List); ok {
+			schemaName, domainName = qualifiedName(list)
+		} else if tn, ok := stmt.Object.(*nodes.TypeName); ok {
+			schemaName, domainName = qualifiedName(tn.Names)
+		} else {
+			domainName = stringVal(stmt.Object)
+		}
+	}
+	var bt *BuiltinType
+	if schemaName != "" {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+		bt = c.typeByName[typeKey{ns: schema.OID, name: domainName}]
+	} else {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := c.typeByName[typeKey{ns: nsOID, name: domainName}]; found != nil {
+				bt = found
+				break
+			}
+		}
+	}
+	if bt == nil {
+		return errUndefinedType(domainName)
+	}
+	if bt.Type != 'd' {
+		return errWrongObjectType(domainName, "a domain")
+	}
+	dt := c.domainTypes[bt.OID]
+	if dt == nil {
+		return errUndefinedType(domainName)
+	}
+	oldName := stmt.Subname
+	newName := stmt.Newname
+	var target *DomainConstraint
+	for _, dc := range dt.Constraints {
+		if dc.Name == oldName {
+			target = dc
+			break
+		}
+	}
+	if target == nil {
+		return errUndefinedObject("constraint", oldName)
+	}
+	for _, dc := range dt.Constraints {
+		if dc.Name == newName {
+			return errDuplicateObject("constraint", newName)
+		}
+	}
+	target.Name = newName
+	return nil
+}
+
 // renamePolicy renames a policy on a relation.
 //
 // pg: src/backend/commands/policy.c — rename_policy
@@ -2036,14 +2122,26 @@ func (c *Catalog) renamePolicy(stmt *nodes.RenameStmt) error {
 
 	_, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
-		if stmt.MissingOk && missingObject(err) {
-			return nil
-		}
 		return err
+	}
+	if rel.RelKind != 'r' && rel.RelKind != 'p' {
+		return errWrongObjectType(relName, "a table")
 	}
 
 	oldName := stmt.Subname
 	newName := stmt.Newname
+
+	var target *Policy
+	for _, p := range c.policiesByRel[rel.OID] {
+		if p.Name == oldName {
+			target = p
+			break
+		}
+	}
+	if target == nil {
+		// pg: src/backend/commands/policy.c — rename_policy ignores missing_ok.
+		return errUndefinedObject("policy", oldName)
+	}
 
 	// Check for duplicate.
 	for _, p := range c.policiesByRel[rel.OID] {
@@ -2052,16 +2150,11 @@ func (c *Catalog) renamePolicy(stmt *nodes.RenameStmt) error {
 		}
 	}
 
-	for _, p := range c.policiesByRel[rel.OID] {
-		if p.Name == oldName {
-			p.Name = newName
-			return nil
-		}
-	}
-	return errUndefinedObject("policy", oldName)
+	target.Name = newName
+	return nil
 }
 
-// renameAttribute renames a composite type attribute.
+// renameAttribute renames a composite type (or relation) attribute.
 //
 // pg: src/backend/commands/tablecmds.c — renameatt
 func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
@@ -2076,12 +2169,31 @@ func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
 		if stmt.MissingOk && missingObject(err) {
 			return nil
 		}
+		var refusal *Error
+		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+			if _, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
+				return c.atRenameIndexColumn(idx, stmt.Subname, stmt.Newname)
+			}
+		}
 		return err
 	}
 
-	// For OBJECT_ATTRIBUTE, the relation should be a composite type.
-	if rel.RelKind != 'c' {
-		return errWrongObjectType(relName, "a composite type")
+	// ALTER TYPE ... RENAME ATTRIBUTE does not recurse to children (inh=false):
+	// renaming an inherited column on a child/partition or a column on a table
+	// with ordinary inheritance children or partitions fails with 42P16.
+	if idx, exists := rel.colByName[stmt.Subname]; exists {
+		if rel.Columns[idx].InhCount > 0 {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot rename inherited column %q", stmt.Subname),
+			}
+		}
+		if rel.RelKind == 'p' || len(c.findChildRelations(rel.OID)) > 0 {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("inherited column %q must be renamed in child tables too", stmt.Subname),
+			}
+		}
 	}
 
 	return c.atRenameColumn(rel, stmt.Subname, stmt.Newname)
@@ -2792,6 +2904,13 @@ func (c *Catalog) atAddIdentity(schema *Schema, rel *Relation, relName, colName 
 		return errUndefinedColumn(colName)
 	}
 	col := rel.Columns[idx]
+
+	// pg: src/backend/commands/tablecmds.c — ATExecAddIdentity
+	// Column type is checked before NOT NULL / existing identity / default.
+	if col.TypeOID != INT2OID && col.TypeOID != INT4OID && col.TypeOID != INT8OID {
+		return &Error{Code: CodeInvalidParameterValue,
+			Message: "identity column type must be smallint, integer, or bigint"}
+	}
 
 	if !col.NotNull {
 		return &Error{Code: CodeObjectNotInPrerequisiteState,

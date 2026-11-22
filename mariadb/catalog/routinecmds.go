@@ -75,15 +75,25 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 }
 
 func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
-	db, err := c.resolveDatabase(stmt.Name.Schema)
+	schema := stmt.Name.Schema
+	name := stmt.Name.Name
+	db, err := c.resolveDatabase(schema)
 	if err != nil {
 		if stmt.IfExists {
 			return nil
 		}
+		// MariaDB looks up (db, name) in mysql.proc without checking whether
+		// the schema exists first, so DROP PROCEDURE/FUNCTION nosuchdb.r
+		// answers 1305 rather than 1049 (measured on mariadb:11.8.8).
+		if schema != "" {
+			if stmt.IsProcedure {
+				return errNoSuchProcedure(schema, name)
+			}
+			return errNoSuchFunction(schema + "." + name)
+		}
 		return err
 	}
 
-	name := stmt.Name.Name
 	key := toLower(name)
 
 	routineMap := db.Functions
@@ -106,12 +116,22 @@ func (c *Catalog) dropRoutine(stmt *nodes.DropRoutineStmt) error {
 }
 
 func (c *Catalog) alterRoutine(stmt *nodes.AlterRoutineStmt) error {
-	db, err := c.resolveDatabase(stmt.Name.Schema)
+	schema := stmt.Name.Schema
+	name := stmt.Name.Name
+	db, err := c.resolveDatabase(schema)
 	if err != nil {
+		// MariaDB looks up (db, name) in mysql.proc without checking whether
+		// the schema exists first, so ALTER PROCEDURE/FUNCTION nosuchdb.r
+		// answers 1305 rather than 1049 (measured on mariadb:11.8.8).
+		if schema != "" {
+			if stmt.IsProcedure {
+				return errNoSuchProcedure(schema, name)
+			}
+			return errNoSuchFunction(schema + "." + name)
+		}
 		return err
 	}
 
-	name := stmt.Name.Name
 	key := toLower(name)
 
 	routineMap := db.Functions
@@ -344,9 +364,9 @@ func showCreateRoutine(r *Routine) string {
 
 	b.WriteString("CREATE")
 
-	// DEFINER -- MySQL 8.0 always shows DEFINER.
+	// DEFINER -- MariaDB/MySQL always shows DEFINER with backtick-quoted user@host.
 	if r.Definer != "" {
-		b.WriteString(fmt.Sprintf(" DEFINER=%s", r.Definer))
+		b.WriteString(fmt.Sprintf(" DEFINER=%s", formatDefiner(r.Definer)))
 	}
 
 	if r.IsProcedure {
@@ -383,15 +403,15 @@ func showCreateRoutine(r *Routine) string {
 		}
 	}
 
-	if v, ok := r.Characteristics["DATA ACCESS"]; ok {
+	if v, ok := r.Characteristics["DATA ACCESS"]; ok && !strings.EqualFold(v, "CONTAINS SQL") {
 		b.WriteString(fmt.Sprintf("\n    %s", v))
 	}
 
-	if v, ok := r.Characteristics["SQL SECURITY"]; ok {
+	if v, ok := r.Characteristics["SQL SECURITY"]; ok && !strings.EqualFold(v, "DEFINER") {
 		b.WriteString(fmt.Sprintf("\n    SQL SECURITY %s", strings.ToUpper(v)))
 	}
 
-	if v, ok := r.Characteristics["COMMENT"]; ok {
+	if v, ok := r.Characteristics["COMMENT"]; ok && v != "" {
 		b.WriteString(fmt.Sprintf("\n    COMMENT '%s'", escapeComment(v)))
 	}
 

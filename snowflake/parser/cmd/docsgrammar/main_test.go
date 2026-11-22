@@ -474,3 +474,23 @@ func TestConstraintPropertiesAreASet(t *testing.T) {
 		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
 	}
 }
+
+// TestShowSemanticViewNameIsSampled pins that SHOW SEMANTIC
+// DIMENSIONS/FACTS/METRICS write <semantic_view_name> by the sample 'a', so a
+// limited keyword like SCHEMA in IN SCHEMA.a does not read as a view name.
+func TestShowSemanticViewNameIsSampled(t *testing.T) {
+	for _, tc := range []struct {
+		slug, kind string
+	}{
+		{"show-semantic-dimensions", "DIMENSIONS"},
+		{"show-semantic-facts", "FACTS"},
+		{"show-semantic-metrics", "METRICS"},
+	} {
+		in := "SHOW SEMANTIC " + tc.kind + " [ IN { <semantic_view_name> | SCHEMA <db_name>.<schema_name> } ]"
+		pg := docs.ConvertPage(dialect, tc.slug, []string{in}, nil)
+		want := "'SHOW' 'SEMANTIC' '" + tc.kind + "' ('IN' ('a' | 'SCHEMA' ID '.' ID))?"
+		if len(pg.Forms) != 1 || pg.Forms[0] != want || len(pg.Failed) > 0 {
+			t.Errorf("%s: forms %q, failed %+v\nwant %s", tc.slug, pg.Forms, pg.Failed, want)
+		}
+	}
+}

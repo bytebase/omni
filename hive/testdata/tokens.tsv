@@ -1,0 +1,38 @@
+# Hive token forms for generated compat rows: the text written for each token
+# of Hive.g4 that is a class of texts. Keywords (KW_*) and punctuation spell
+# themselves and need no row unless a token has multiple spellings. Each note
+# cites the rule in HiveLexer.g or HiveLexerParent.g.
+# columns: token, form, note
+Identifier	a	HiveLexerParent.g:528 unquoted or backtick-quoted identifier
+StringLiteral	'a'	HiveLexer.g:30 single- or double-quoted string literal
+CharSetLiteral	0X01	HiveLexerParent.g:481 string literal or 0X hex literal
+CharSetName	_utf8	HiveLexerParent.g:541 _ followed by charset name characters
+IntegralLiteral	1L	HiveLexerParent.g:487 digits with L, S, or Y suffix
+NumberLiteral	1D	HiveLexerParent.g:492 number with D or BD suffix
+ByteLengthLiteral	1K	HiveLexerParent.g:497 digits with b/k/m/g suffix
+Number	1	HiveLexerParent.g:502 integer or decimal/scientific number
+QUERY_HINT	/*+ MAPJOIN(a) */	HiveLexerParent.g:553 block comment hint starting with /*+
+KW_NOT	NOT	HiveLexerParent.g:29 NOT | !: rows write NOT
+KW_INT	INT	HiveLexerParent.g:106 INT | INTEGER: rows write INT
+KW_DECIMAL	DECIMAL	HiveLexerParent.g:119 DECIMAL | DEC | NUMERIC: rows write DECIMAL
+KW_ENABLE	ENABLE	HiveLexerParent.g:153 ENABLE | ENABLED: rows write ENABLE
+KW_DISABLE	DISABLE	HiveLexerParent.g:154 DISABLE | DISABLED: rows write DISABLE
+KW_YEAR	YEAR	HiveLexerParent.g:303 YEAR | YEARS: rows write YEAR
+KW_MONTH	MONTH	HiveLexerParent.g:306 MONTH | MONTHS: rows write MONTH
+KW_WEEK	WEEK	HiveLexerParent.g:307 WEEK | WEEKS: rows write WEEK
+KW_DAY	DAY	HiveLexerParent.g:308 DAY | DAYS: rows write DAY
+KW_HOUR	HOUR	HiveLexerParent.g:310 HOUR | HOURS: rows write HOUR
+KW_MINUTE	MINUTE	HiveLexerParent.g:311 MINUTE | MINUTES: rows write MINUTE
+KW_SECOND	SECOND	HiveLexerParent.g:312 SECOND | SECONDS: rows write SECOND
+EQUAL	=	HiveLexerParent.g:422 = | ==: rows write =
+NOTEQUAL	<>	HiveLexerParent.g:424 <> | !=: rows write <>
+KW_ANTI	(unreachable)	FromClauseParser.g:158 referenced in joinToken, no lexer rule in HiveLexerParent.g
+QuotedIdentifier	(unreachable)	HiveLexer.g:36 fragment rule only, never emitted as a token (Identifier emits it)
+KW_HOLD_DDLTIME	(unreachable)	IdentifiersParser.g:939 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_NO_DROP	(unreachable)	IdentifiersParser.g:942 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_OFFLINE	(unreachable)	IdentifiersParser.g:942 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_PROTECTION	(unreachable)	IdentifiersParser.g:944 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_READONLY	(unreachable)	IdentifiersParser.g:944 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_BATCH	(unreachable)	IdentifiersParser.g:964 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+KW_DAYOFWEEK	(unreachable)	IdentifiersParser.g:965 stale nonReserved entry (lexer uses KW_DOW), no lexer rule in HiveLexerParent.g
+KW_TIMESTAMPTZ	(unreachable)	IdentifiersParser.g:974 stale nonReserved entry, no lexer rule in HiveLexerParent.g

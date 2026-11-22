@@ -1,0 +1,66 @@
+# Oracle review test data
+
+This directory holds recorded Oracle 23 verdicts and SQL tapes for `oracle/review`,
+recorded against the pinned server in `../../testdata/pins.tsv`
+(`gvenzl/oracle-free:23.26.3-slim-faststart`). All tests replay 100% offline with
+zero Docker in CI.
+
+## `walk_simulation_verdicts.tsv` and `TestWalkSimulation`
+
+`walk_simulation_verdicts.tsv` holds every unique Oracle 23-accepted DDL and DML
+statement in `../../parser/testdata/compat.tsv` (3,054 statements across tables,
+views, materialized views, indexes, sequences, synonyms, procedures, functions,
+packages, types, triggers, comments, renames, and DML — excluding materialized
+view logs, which trigger Oracle server parse hangs) executed against 11 starting
+fixtures in `fixtures/`:
+
+- `one_table@missing` — base table `t` only (`a` absent from every namespace)
+- `one_table@table` — table `a(b PRIMARY KEY, c)` with index `a_c_idx`
+- `one_table@column` — table `a(b, a)` with check constraint `a` and no primary key
+- `objects@partitioned` — range-partitioned table `a` with partition `a`
+- `objects@index_trigger` — index `a` and trigger `a` on table `t`
+- `objects@view` — view `a` on table `t`
+- `objects@matview` — materialized view `a` on table `t`
+- `objects@sequence` — sequence `a`
+- `objects@synonym` — private synonym `a` for table `t`
+- `objects@function` — function `a`
+- `objects@type` — object type `a` (unsynced in Bytebase's Oracle metadata sync)
+
+Total: **33,594 rows** (3,763 accepted `ok`, 29,831 refused).
+`TestWalkSimulation` (`../walk_simulation_test.go`) enforces **zero false positives**
+on all 3,763 Oracle-accepted rows and verifies every finding on refused rows against
+either Oracle's error code or the fixture's real Oracle inventory synced via
+`tapes/TestWalkSimulation.tape`. Currently catches 21,072 / 29,831 refusals (70.6%).
+
+## Commands
+
+Run from `<repo root>`.
+
+Offline replay (default, zero Docker):
+
+```bash
+go test -v ./oracle/review/ -run '^TestWalkSimulation$'
+```
+
+Re-record `TestWalkSimulation` (`walk_simulation_verdicts.tsv` and `tapes/TestWalkSimulation.tape`) against pinned Oracle 23:
+
+```bash
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestWalkSimulation$'
+```
+
+Read-only verification against pinned Oracle 23 (writes nothing to disk):
+
+```bash
+OMNI_RECORD=verify go test -v -timeout 20m ./oracle/review/ -run '^TestWalkSimulation$'
+```
+
+Record or verify the other Oracle-backed review tapes:
+
+```bash
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestWalkThroughAgainstOracle$'
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestWalkThroughSweepOracle$'
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestPriorBackupAgainstOracle$'
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestScanRulesAgainstOracle$'
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestRenameAgainstOracle$'
+OMNI_RECORD=1 go test -v -timeout 20m ./oracle/review/ -run '^TestRequireIsNullAgainstOracle$'
+```

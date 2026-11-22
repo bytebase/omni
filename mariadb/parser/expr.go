@@ -1790,6 +1790,7 @@ func (p *Parser) parseQualifiedTrimSubstring(fc *nodes.FuncCallExpr) (nodes.Expr
 	if trim {
 		switch p.cur.Type {
 		case kwLEADING, kwTRAILING, kwBOTH:
+			fc.SpecialSyntax = true
 			return p.parseTrimFunc(fc)
 		}
 	}
@@ -1801,6 +1802,7 @@ func (p *Parser) parseQualifiedTrimSubstring(fc *nodes.FuncCallExpr) (nodes.Expr
 		fc.Args = append(fc.Args, arg)
 		if p.cur.Type == kwFROM {
 			// TRIM(remstr FROM str) or SUBSTRING(str FROM pos [FOR len]).
+			fc.SpecialSyntax = true
 			p.advance()
 			next, err := p.parseOrdinaryCallArg()
 			if err != nil {
@@ -2933,14 +2935,35 @@ func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
 
 	de := &nodes.DefaultExpr{Loc: nodes.Loc{Start: start}}
 
-	// Check for DEFAULT(col_name) form
+	// Check for DEFAULT(simple_ident) form: col, tbl.col, or db.tbl.col
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		col, _, err := p.parseIdentifier()
+		part1, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		de.Column = col
+		if p.cur.Type == '.' {
+			p.advance()
+			part2, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if p.cur.Type == '.' {
+				p.advance()
+				part3, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				de.Schema = part1
+				de.Table = part2
+				de.Column = part3
+			} else {
+				de.Table = part1
+				de.Column = part2
+			}
+		} else {
+			de.Column = part1
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

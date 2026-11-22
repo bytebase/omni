@@ -360,13 +360,16 @@ func (p *Parser) parseDiskgroupOtherClause() (*nodes.DDLOption, error) {
 		p.advance()
 		p.advance()
 		key = "RESIZE_VOLUME"
-		if err = p.dgName(); err == nil {
-			if p.cur.Type != kwSIZE {
-				return nil, p.syntaxErrorAtCur()
-			}
+		if p.cur.Type == tokICONST {
 			p.advance()
-			err = p.dgSize()
+		} else if err = p.dgName(); err != nil {
+			return nil, err
 		}
+		if p.cur.Type != kwSIZE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		err = p.dgSize()
 	case "REPLACE":
 		key, err = p.parseDiskgroupReplace()
 	case "REPAIR":
@@ -472,7 +475,9 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 		})
 	case "VOLUME":
 		p.advance()
-		if err := p.dgName(); err != nil {
+		if p.cur.Type == tokICONST {
+			p.advance()
+		} else if err := p.dgName(); err != nil {
 			return "", err
 		}
 		if p.cur.Type != kwSIZE {
@@ -557,6 +562,10 @@ func (p *Parser) parseDiskgroupAdd() (string, error) {
 // parseDiskgroupSetQuota reads SET QUOTA = { size_clause | UNLIMITED }.
 func (p *Parser) parseDiskgroupSetQuota() error {
 	p.advance()
+	if p.cur.Type == '=' {
+		p.advance()
+		return p.syntaxErrorAtCur()
+	}
 	if err := p.adbExpect("QUOTA"); err != nil {
 		return err
 	}
@@ -699,6 +708,11 @@ func (p *Parser) parseDiskgroupReplace() (string, error) {
 	switch {
 	case p.adbWord("DISK"):
 		p.advance()
+		if p.cur.Type == kwWITH {
+			// Oracle reads WITH as the disk name and then expects WITH at the next token.
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -911,6 +925,10 @@ func (p *Parser) parseDiskgroupModify(verb string) (string, error) {
 		return "MODIFY_USERGROUP", p.dgList(p.dgString)
 	case p.adbWord("QUOTAGROUP"):
 		p.advance()
+		if p.cur.Type == kwSET {
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -1056,6 +1074,10 @@ func (p *Parser) parseDiskgroupMove() (string, error) {
 	switch {
 	case p.adbWord("FILEGROUP"):
 		p.advance()
+		if p.cur.Type == kwTO {
+			p.advance()
+			return "", p.syntaxErrorAtCur()
+		}
 		if err := p.dgName(); err != nil {
 			return "", err
 		}
@@ -1066,8 +1088,10 @@ func (p *Parser) parseDiskgroupMove() (string, error) {
 		return "MOVE_FILEGROUP", p.dgName()
 	case p.cur.Type == kwFILE:
 		p.advance()
-		if err := p.dgString(); err != nil {
-			return "", err
+		if p.cur.Type == tokSCONST || p.isIdentLike() {
+			p.advance()
+		} else {
+			return "", p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != kwTO {
 			return "", p.syntaxErrorAtCur()

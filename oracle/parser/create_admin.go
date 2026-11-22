@@ -95,6 +95,9 @@ func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, erro
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume AUTHORIZATION
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.isIdentLike() {
 		stmt.SchemaName = p.cur.Str
 		p.advance()
@@ -312,7 +315,7 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 			}
 		}
 		var parseErr198 error
-		stmt.Name, parseErr198 = p.parseObjectName()
+		stmt.Name, parseErr198 = p.parseReservedCheckedObjectName()
 		if parseErr198 != nil {
 			return nil, parseErr198
 		}
@@ -680,7 +683,7 @@ func (p *Parser) parseDropClusterStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr281 := p.parseObjectName()
+	name, parseErr281 := p.parseReservedCheckedObjectName()
 	if parseErr281 != nil {
 		return nil, parseErr281
 	}
@@ -896,15 +899,20 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
-	if !ifNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.advance()
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	// IF NOT EXISTS: IF NOT without EXISTS, or IF EXISTS, is ORA-11543 at IF.
+	if !ifNotExists && p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.advance()
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance()
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error
@@ -936,17 +944,24 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 	p.advance()
 
 	// INCLUDE ( column_name [, column_name ]... )
+	// Oracle rejects repeating the indexed column or any INCLUDE column (ORA-00957).
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
 		if p.cur.Type != '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		seenCols := map[string]bool{stmt.Column: true}
 		for {
+			colTok := p.cur
 			col, err := p.ixName()
 			if err != nil {
 				return nil, err
 			}
+			if seenCols[col] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
+			seenCols[col] = true
 			stmt.IncludeColumns = append(stmt.IncludeColumns, col)
 			if p.cur.Type != ',' {
 				break
@@ -1402,7 +1417,7 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.Stmt
 	}
 	var parseErr387 error
 
-	stmt.Name, parseErr387 = p.parseObjectName()
+	stmt.Name, parseErr387 = p.parseReservedCheckedObjectName()
 	if parseErr387 != nil {
 		return nil, parseErr387
 	}
@@ -1453,17 +1468,20 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	// [ = 'pfile_name' ] or [ 'pfile_name' ]
 	if p.cur.Type == '=' {
 		p.advance()
-	}
-	if p.cur.Type == tokSCONST {
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
+		p.advance()
+	} else if p.cur.Type == tokSCONST {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
 		p.advance()
 	}
 
-	seenFrom := false
-	if p.cur.Type == kwFROM {
-		seenFrom = true
-		p.advance()
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// { SPFILE [ = 'spfile_name' ] | MEMORY }
 	if p.isIdentLike() && p.cur.Str == "SPFILE" {
@@ -1471,8 +1489,12 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 		val := ""
 		if p.cur.Type == '=' {
 			p.advance()
-		}
-		if p.cur.Type == tokSCONST {
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			val = p.cur.Str
+			p.advance()
+		} else if p.cur.Type == tokSCONST {
 			val = p.cur.Str
 			p.advance()
 		}
@@ -1483,7 +1505,7 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
 		p.advance()
-	} else if seenFrom {
+	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1542,11 +1564,12 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 		}
 		// [ AS COPY ]
 		if p.cur.Type == kwAS {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "COPY" {
-				p.advance()
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS COPY"})
+			asTok := p.advance()
+			if !p.isIdentLike() || p.cur.Str != "COPY" {
+				return nil, p.syntaxErrorAtTok(asTok)
 			}
+			p.advance()
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS COPY"})
 		}
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
@@ -1634,7 +1657,7 @@ func (p *Parser) parseDropEditionStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr401 := p.parseObjectName()
+	name, parseErr401 := p.parseReservedCheckedObjectName()
 	if parseErr401 != nil {
 		return nil, parseErr401
 	}
@@ -1681,7 +1704,7 @@ func (p *Parser) parseDropJavaStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr409 := p.parseObjectName()
+	name, parseErr409 := p.parseReservedCheckedObjectName()
 	if parseErr409 != nil {
 		return nil, parseErr409
 	}

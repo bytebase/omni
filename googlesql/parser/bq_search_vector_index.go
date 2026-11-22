@@ -92,6 +92,12 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.peekNext().Type == kwALL {
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
+				Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
+			}
+		}
 		// index_all_columns: `( ALL COLUMNS opt_with_column_options? )`. The grammar
 		// REQUIRES COLUMNS after ALL, so validate the `( ALL COLUMNS` prefix rather
 		// than blindly skipping balanced parens (a bare `( ALL )` must reject). The
@@ -112,21 +118,34 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 	// index_storing_list? — STORING ( expr, … ).
 	if p.cur.Type == kwSTORING {
 		p.advance() // STORING
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
+		if p.isSpanner() {
+			exprs, err := p.parseStoringIdentList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Storing = exprs
+		} else {
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			exprs, _, err := p.parseExprListThroughParen()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Storing = exprs
 		}
-		exprs, _, err := p.parseExprListThroughParen()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Storing = exprs
 	}
 
 	// opt_create_index_statement_suffix?:
 	//   partition_by_clause_prefix_no_hint opt_options_list?
 	//   | opt_options_list? spanner_index_interleave_clause   (not valid for search/vector — left unhandled)
 	//   | opt_options_list
+	// Spanner CREATE SEARCH INDEX supports `PARTITION BY column_name [, ...]`,
+	// whereas CREATE VECTOR INDEX does not.
 	if p.cur.Type == kwPARTITION {
+		if p.isSpanner() && isVector {
+			return nil, p.syntaxErrorAtCur()
+		}
 		exprs, err := p.parsePartitionByNoHint()
 		if err != nil {
 			return nil, err
@@ -134,7 +153,7 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 		stmt.PartitionBy = exprs
 	}
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -279,8 +298,11 @@ func (p *Parser) parseBQDropSearchVectorIndex(drop Token) (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// on_path_expression? — ON path.
+	// on_path_expression? — ON path (BigQuery only; Spanner DROP SEARCH/VECTOR INDEX omits ON table).
 	if p.cur.Type == kwON {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // ON
 		onTable, err := p.parseTablePath()
 		if err != nil {

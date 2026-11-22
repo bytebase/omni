@@ -14,7 +14,7 @@ import (
 //	[ SHARING = { METADATA | DATA | EXTENDED DATA | NONE } ]
 //	[ ( { alias [ VISIBLE | INVISIBLE ] [ inline_constraint ]... } [, ...]
 //	    [, out_of_line_constraint ]... ) ]
-//	[ object_view_clause ]
+//	[ object_view_clause | XMLType_view_clause ]
 //	[ annotations_clause ]
 //	[ DEFAULT COLLATION collation_name ]
 //	[ BEQUEATH { CURRENT_USER | DEFINER } ]
@@ -26,13 +26,17 @@ import (
 //	    OF [ schema. ] type_name
 //	    { WITH OBJECT IDENTIFIER { DEFAULT | ( attribute [, attribute ]... ) }
 //	    | UNDER [ schema. ] superview }
+//	XMLType_view_clause:
+//	    OF XMLTYPE
+//	    [ XMLSchema_spec ]
+//	    [ WITH OBJECT IDENTIFIER { DEFAULT | ( expression [, expression ]... ) } ]
 //	subquery_restriction_clause:
 //	    { WITH READ ONLY | WITH CHECK OPTION } [ CONSTRAINT constraint_name ]
 //
 // A view's constraints are declarative: Oracle 23ai takes UNIQUE, PRIMARY
 // KEY and REFERENCES, each with [ RELY | NORELY ] DISABLE [ NOVALIDATE ],
 // and refuses NOT NULL, NULL, CHECK and ON DELETE on one (ORA-00922 at
-// them). An XMLType view (OF XMLTYPE) is not read.
+// them).
 func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
 	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
 		ifTok := p.cur
@@ -91,7 +95,19 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 		if err != nil {
 			return nil, err
 		}
-		_ = annotations
+		if annotations != nil {
+			seenAnns := map[string]bool{}
+			for _, item := range annotations.Items {
+				opt, ok := item.(*nodes.DDLOption)
+				if !ok {
+					continue
+				}
+				if seenAnns[opt.Key] {
+					return nil, p.syntaxErrorAtCur()
+				}
+				seenAnns[opt.Key] = true
+			}
+		}
 	}
 
 	if p.cur.Type == kwDEFAULT {
@@ -183,8 +199,20 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // (
 	stmt.Columns = &nodes.List{}
+	seenCols := map[string]bool{}
 	for {
-		if p.isViewConstraintStart() {
+		if p.isViewConstraintStart() || p.cur.Type == kwUNIQUE {
+			if (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS) &&
+				p.peekNext().Type != kwUNIQUE && p.peekNext().Type != kwPRIMARY && p.peekNext().Type != kwFOREIGN {
+				ahead := p.peekAhead(3)
+				if len(ahead) == 3 && ahead[2].Type == kwUNIQUE {
+					p.advance() // CONSTRAINT
+					p.advance() // name
+					p.advance() // unexpected word
+					p.advance() // UNIQUE
+					return p.syntaxErrorAtCur()
+				}
+			}
 			viewConstraint, err := p.parseTableConstraintBody(false)
 			if err != nil {
 				return err
@@ -202,10 +230,15 @@ func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 			stmt.Constraints.Items = append(stmt.Constraints.Items, viewConstraint)
 		} else {
 			// Oracle 23ai takes an alias after an out-of-line constraint too.
-			name := p.cur.Str
+			aliasTok := p.cur
+			name := aliasTok.Str
 			if !p.isCreateTableNameStart() {
 				return p.syntaxErrorAtCur()
 			}
+			if seenCols[name] {
+				return p.syntaxErrorAtTok(aliasTok)
+			}
+			seenCols[name] = true
 			p.advance()
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("VISIBLE") || p.isKeywordStr("INVISIBLE") {
@@ -244,8 +277,11 @@ func (p *Parser) isPlainViewInlineConstraintStart() bool {
 //	{ UNIQUE | PRIMARY KEY | REFERENCES [ schema. ] table [ ( column ) ] }
 //	[ RELY | NORELY ] DISABLE [ NOVALIDATE ]
 func (p *Parser) parsePlainViewInlineConstraint() error {
+	var constTok Token
+	hasConst := false
 	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
-		p.advance()
+		constTok = p.advance()
+		hasConst = true
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
@@ -278,21 +314,27 @@ func (p *Parser) parsePlainViewInlineConstraint() error {
 			}
 		}
 	default:
+		if hasConst {
+			return p.syntaxErrorAtTok(constTok)
+		}
 		return p.syntaxErrorAtCur()
 	}
 	return p.parseViewConstraintState()
 }
 
-// parseObjectViewClause reads an object_view_clause.
+// parseObjectViewClause reads an object_view_clause or XMLType_view_clause.
 //
 //	OF [ schema. ] type_name
 //	{ WITH OBJECT IDENTIFIER { DEFAULT | ( attribute [, attribute ]... ) }
 //	| UNDER [ schema. ] superview }
+//
+//	OF XMLTYPE
+//	[ XMLSchema_spec ]
+//	[ WITH OBJECT IDENTIFIER { DEFAULT | ( expression [, expression ]... ) } ]
 func (p *Parser) parseObjectViewClause() error {
-	ofTok := p.cur
 	p.advance() // OF
 	if p.isKeywordStr("XMLTYPE") {
-		return p.syntaxErrorAtTok(ofTok)
+		return p.parseXMLTypeViewClause()
 	}
 	if !p.isCreateTableNameStart() {
 		return p.syntaxErrorAtCur()
@@ -332,6 +374,97 @@ func (p *Parser) parseObjectViewClause() error {
 		_ = superview
 	default:
 		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseXMLTypeViewClause reads an XMLType_view_clause after OF.
+//
+//	OF XMLTYPE
+//	[ XMLSchema_spec ]
+//	[ WITH OBJECT IDENTIFIER { DEFAULT | ( expression [, expression ]... ) } ]
+//
+//	XMLSchema_spec:
+//	    [ XMLSCHEMA XMLSchema_URL ]
+//	    ELEMENT { element_name | XMLSchema_URL # element_name }
+func (p *Parser) parseXMLTypeViewClause() error {
+	p.advance() // XMLTYPE
+	switch {
+	case p.isKeywordStr("XMLSCHEMA"):
+		p.advance() // XMLSCHEMA
+		// Oracle expects an identifier or quoted URL here, refusing single-quoted
+		// string literals (matching mview_clauses.go and alter_table_properties.go).
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("ELEMENT"); err != nil {
+			return err
+		}
+		if err := p.parsePlainViewXMLTypeElement(); err != nil {
+			return err
+		}
+	case p.isKeywordStr("ELEMENT"):
+		p.advance() // ELEMENT
+		if err := p.parsePlainViewXMLTypeElement(); err != nil {
+			return err
+		}
+	case p.cur.Type == kwWITH:
+		// WITH OBJECT IDENTIFIER without XMLSchema_spec
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type == kwWITH {
+		p.advance() // WITH
+		if err := p.expectCreateTableWord("OBJECT"); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("IDENTIFIER"); err != nil {
+			return err
+		}
+		if p.cur.Type == kwDEFAULT {
+			p.advance()
+			return nil
+		}
+		if err := p.expectCreateTableToken('('); err != nil {
+			return err
+		}
+		for {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr == nil {
+				return p.syntaxErrorAtCur()
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if err := p.expectCreateTableToken(')'); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parsePlainViewXMLTypeElement reads { element_name | XMLSchema_URL # element_name }
+// after ELEMENT in an XMLType_view_clause.
+func (p *Parser) parsePlainViewXMLTypeElement() error {
+	if p.cur.Type == tokSCONST {
+		p.advance()
+		if err := p.expectCreateTableToken('#'); err != nil {
+			return err
+		}
+		return p.parseCreateTableName()
+	}
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if p.cur.Type == '#' {
+		p.advance()
+		return p.parseCreateTableName()
 	}
 	return nil
 }

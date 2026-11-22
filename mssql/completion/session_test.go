@@ -357,8 +357,10 @@ func TestCompleteSession_StatementIsolationAndUnsyncedDB(t *testing.T) {
 			return nil, nil
 		},
 	}
-	stmtU, lineU, colU := catchCaretUTF16(t, "SELECT * FROM |")
-	for _, c := range CompleteSession(context.Background(), unsyncedCfg, stmtU, lineU, colU) {
-		require.NotContains(t, []CandidateType{CandidateSchema, CandidateTable, CandidateColumn}, c.Type)
+	for _, input := range []string{"SELECT * FROM |", "SELECT |"} {
+		stmtU, lineU, colU := catchCaretUTF16(t, input)
+		for _, c := range CompleteSession(context.Background(), unsyncedCfg, stmtU, lineU, colU) {
+			require.NotContains(t, []CandidateType{CandidateSchema, CandidateTable, CandidateColumn}, c.Type, input)
+		}
 	}
 }

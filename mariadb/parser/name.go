@@ -986,6 +986,10 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 //	    | '@@' [GLOBAL | SESSION | LOCAL] '.' identifier ['.' identifier ...]
 //	    | '@@' identifier ['.' identifier ...]
 func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
+	return p.parseVariableRefOpts(false)
+}
+
+func (p *Parser) parseVariableRefOpts(allowDefaultStruct bool) (*nodes.VariableRef, error) {
 	if err := p.refusePartitionVariable(p.pos()); err != nil {
 		return nil, err
 	}
@@ -1040,6 +1044,19 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 				}
 				p.advance() // consume scope keyword
 				p.advance() // consume '.'
+				// option_value_no_option_type: '@' '@' opt_var_ident_type DEFAULT '.' ident
+				if allowDefaultStruct && (ref.Scope == "GLOBAL" || ref.Scope == "SESSION" || ref.Scope == "LOCAL") &&
+					p.cur.Type == kwDEFAULT && p.peekNext().Type == '.' {
+					defTok := p.advance() // consume DEFAULT
+					p.advance()           // consume '.'
+					part, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
+					ref.Name = defTok.Str + "." + part
+					ref.Loc.End = p.prev.End
+					return ref, nil
+				}
 				// Parse the variable name (may be dot-separated: comp.var)
 				name, _, err := p.parseSysVarName()
 				if err != nil {
@@ -1049,6 +1066,19 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 				ref.Loc.End = p.prev.End
 				return ref, nil
 			}
+		}
+
+		// option_value_no_option_type: '@' '@' opt_var_ident_type DEFAULT '.' ident
+		if allowDefaultStruct && p.cur.Type == kwDEFAULT && p.peekNext().Type == '.' {
+			defTok := p.advance() // consume DEFAULT
+			p.advance()           // consume '.'
+			part, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			ref.Name = defTok.Str + "." + part
+			ref.Loc.End = p.prev.End
+			return ref, nil
 		}
 
 		// No scope — plain @@variable_name (may be dot-separated)
@@ -1089,10 +1119,22 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 
 // parseSysVarName parses a system variable name, which may contain dots
 // (e.g., "validate_password.length" or "comp.var1").
+//
+// Ref: ident_sysvar_name and keyword_sysvar_name in MariaDB 11.8 sql/sql_yacc.yy.
+// OFFSET is reserved in MariaDB, but keyword_sysvar_name explicitly permits
+// OFFSET_SYM as the first component of a @@ system variable name.
 func (p *Parser) parseSysVarName() (string, int, error) {
-	name, loc, err := p.parseIdent()
-	if err != nil {
-		return "", 0, err
+	var name string
+	var loc int
+	var err error
+	if p.cur.Type == kwOFFSET {
+		tok := p.advance()
+		name, loc = tok.Str, tok.Loc
+	} else {
+		name, loc, err = p.parseIdent()
+		if err != nil {
+			return "", 0, err
+		}
 	}
 	// Consume additional .ident parts for component-style variable names
 	for p.cur.Type == '.' {

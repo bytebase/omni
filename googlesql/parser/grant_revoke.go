@@ -224,6 +224,9 @@ func (p *Parser) parseGrantRevokeHead() (bool, []*ast.Privilege, []string, []ast
 // privilege name), optionally followed by PRIVILEGES.
 func (p *Parser) parsePrivileges() (bool, []*ast.Privilege, error) {
 	if p.cur.Type == kwALL {
+		if p.isSpanner() {
+			return false, nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // consume ALL
 		// PRIVILEGES is optional (`GRANT ALL ON ...` is valid).
 		p.match(kwPRIVILEGES)
@@ -349,6 +352,12 @@ func (p *Parser) parseObjectTypeAndPathList() ([]string, []ast.NamePath, error) 
 	objType, first, err := p.parseObjectTypeAndFirstPath()
 	if err != nil {
 		return nil, nil, err
+	}
+	if p.isSpanner() && len(objType) == 0 {
+		return nil, nil, &ParseError{
+			Position: first.Loc.Start, End: first.Loc.End,
+			Message: "syntax error: Spanner GRANT/REVOKE requires a target object type (e.g. TABLE, VIEW, CHANGE STREAM)",
+		}
 	}
 	paths := []ast.NamePath{first}
 
@@ -491,6 +500,12 @@ func (p *Parser) parseGranteeList() ([]*ast.Grantee, error) {
 		}
 		return roleNamesToGrantees(roles), nil
 	}
+	if p.isSpanner() {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: Spanner GRANT/REVOKE requires ROLE grantees",
+		}
+	}
 
 	var grantees []*ast.Grantee
 	for {
@@ -518,6 +533,14 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 
 	switch p.cur.Type {
 	case tokString:
+		if p.isBigQuery() {
+			lit, err := p.parseStringLiteral()
+			if err != nil {
+				return nil, err
+			}
+			l := lit.(*ast.Literal)
+			return &ast.Grantee{Kind: ast.GranteeString, Value: l.Value, Loc: l.Loc}, nil
+		}
 		tok := p.advance()
 		return &ast.Grantee{Kind: ast.GranteeString, Value: tok.Str, Loc: tok.Loc}, nil
 

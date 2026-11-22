@@ -21,6 +21,7 @@ r_GRANT	{ { SELECT | INSERT | UPDATE | DELETE | DROP | ALTER | TRUNCATE | REFERE
 r_GRANT	GRANT { CREATE | USAGE | ALTER | DROP } [,...] | ALL [ PRIVILEGES ] }\nFOR SCHEMAS IN	GRANT { { CREATE | USAGE | ALTER | DROP } [,...] | ALL [ PRIVILEGES ] }\nFOR SCHEMAS IN	FOR SCHEMAS IN form: its privileges close a { they never open; opened
 r_REVOKE	{ { SELECT | INSERT | UPDATE | DELETE | DROP | ALTER | TRUNCATE | REFERENCES } [, ...] } | ALL [PRIVILEGES] } }	{ { SELECT | INSERT | UPDATE | DELETE | DROP | ALTER | TRUNCATE | REFERENCES } [, ...] | ALL [PRIVILEGES] }	FOR TABLES IN form: two } too many in its privileges; dropped
 r_REVOKE	\n{ CREATE | USAGE | ALTER | DROP } [,...] | ALL [ PRIVILEGES ] }\nFOR SCHEMAS IN	\n{ { CREATE | USAGE | ALTER | DROP } [,...] | ALL [ PRIVILEGES ] }\nFOR SCHEMAS IN	FOR SCHEMAS IN form: its privileges close a { they never open; opened
+r_REVOKE	REVOKE [GRANT_OPTION]	REVOKE [ GRANT OPTION ]	FOR COPY JOBS form: GRANT_OPTION is written as one token, not GRANT OPTION like the other scoped REVOKE forms
 r_GRANT	ACCESS CATALOG | ACCESS SYSTEM TABLE\n    CREATE TABLE	ACCESS CATALOG | ACCESS SYSTEM TABLE |\n    CREATE TABLE	system privileges: no | after ACCESS SYSTEM TABLE; added
 r_GRANT	    TRUNCATE TABLE\n    VACUUM	    TRUNCATE TABLE |\n    VACUUM	system privileges: no | after TRUNCATE TABLE; added
 r_GRANT	}[, ...]\n  }\n  | { ALL [ PRIVILEGES ] }\nTO ROLE	}[, ...]\n  | { ALL [ PRIVILEGES ] }\n  }\nTO ROLE	system privileges: ALL PRIVILEGES is chosen outside the braces that hold the choice; moved inside

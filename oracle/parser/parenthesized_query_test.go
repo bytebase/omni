@@ -304,8 +304,8 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	ParseAndCheck(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY 1 FETCH FIRST 1 ROWS ONLY")
 
 	// A subquery that stands for a value or a condition takes no plain
-	// ORDER BY either, parenthesized or not (ORA-00907, here at its first
-	// item); a row-limited one, an inline view, MERGE USING, CURSOR, and the
+	// ORDER BY either, parenthesized or not (ORA-00907 at ORDER); a
+	// row-limited one, an inline view, MERGE USING, CURSOR, and the
 	// query of a cursor FOR loop do.
 	for _, sql := range []string{
 		"SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1)",
@@ -323,8 +323,8 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	} {
 		_, err := Parse(sql)
 		var pe *ParseError
-		if !errors.As(err, &pe) || !strings.HasSuffix(sql[:pe.Position], "BY ") {
-			t.Errorf("Parse(%q) = %v, want an error at the ORDER BY", sql, err)
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "ORDER BY") {
+			t.Errorf("Parse(%q) = %v, want an error at ORDER BY", sql, err)
 		}
 	}
 	// ORDER SIBLINGS BY orders a hierarchical query's rows: Oracle 23ai

@@ -234,6 +234,8 @@ func TestRewriteResultLimit(t *testing.T) {
 	}{
 		{name: "googleSQL adds a limit", statement: "SELECT * FROM t", dialect: googleSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
 		{name: "googleSQL lowers a literal", statement: "SELECT * FROM t LIMIT 5000", dialect: googleSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
+		{name: "googleSQL adds a limit to WITH query", statement: "WITH n AS (SELECT x FROM UNNEST([3, 1, 2]) AS x) SELECT x FROM n ORDER BY x", dialect: googleSQL, limit: 2, want: "WITH n AS (SELECT x FROM UNNEST([3, 1, 2]) AS x) SELECT x FROM n ORDER BY x LIMIT 2"},
+		{name: "googleSQL keeps non-literal LIMIT on WITH query", statement: "WITH n AS (SELECT x FROM UNNEST([3, 1, 2]) AS x) SELECT x FROM n ORDER BY x LIMIT CAST(3 AS INT64)", dialect: googleSQL, limit: 2, want: "WITH n AS (SELECT x FROM UNNEST([3, 1, 2]) AS x) SELECT x FROM n ORDER BY x LIMIT CAST(3 AS INT64)"},
 		{name: "googleSQL reads # as a comment", statement: "SELECT a #> '{b}' FROM t", dialect: googleSQL, limit: 100, want: "SELECT a LIMIT 100 #> '{b}' FROM t"},
 		{name: "postgresQL keeps the # operator", statement: "SELECT a #> '{b}' FROM t", dialect: postgresSQL, limit: 100, want: "SELECT a #> '{b}' FROM t LIMIT 100"},
 		{name: "postgresQL adds a limit", statement: "SELECT * FROM t", dialect: postgresSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},

@@ -10,14 +10,29 @@ server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
 are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
-#1486 and the stray-`)` deferral wave: 45,852 generated rows and 1,010 hand
-rows, 46,862 in all.
+#1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings),
+Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings),
+Wave 4 (inline external table driver types and remaining grammar readings),
+Wave 5 (intra-statement duplicate checks, lexer/ORDER BY offsets, and remaining
+grammar readings), Wave 6 (hash-cluster partitioning, IOT primary key, TDE
+algorithms, extent/cluster size units, OMF tablespace-set datafiles, index/cluster
+INITRANS, XMLTYPE OBJECT RELATIONAL, zonemap SCALE, MV system partitioning,
+multi-table INSERT duplicates, 3-part ASSOCIATE STATISTICS columns, and
+`suite:lexer`/`suite:reference` exact byte offsets), Wave 7 (`CREATE TABLE`
+`ENABLE`/`DISABLE` primary-key & constraint checks, self-referencing `PARENT`,
+bare `CREATE SHARDED TABLE`, `COLLATE` missing name, MV `XMLTYPE BINARY XML`,
+subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
+`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets), and Wave 8
+(`DELETE ... FROM ... MATCH_RECOGNIZE` syntax-error parsing, `CREATE VIEW ... OF
+XMLTYPE` per `CREATE-VIEW.bnf`, `CREATE TABLE ENABLE CONSTRAINTS`, and
+`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal):
+45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,447 | 462 | 4 | 621 |
-| Near-misses | 31,318 | 27,686 | 3,451 | 108 | 73 |
-| Hand rows | 1,010 | 888 | 103 | 17 | 2 |
+| One per alternative | 14,534 | 14,098 | 148 | 3 | 285 |
+| Near-misses | 31,318 | 30,265 | 934 | 100 | 19 |
+| Hand rows | 1,010 | 921 | 70 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -59,9 +74,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
-| `suite:reference` | 321 | 229 | 76 | 16 | 0 |
-| `suite:manifest` | 612 | 589 | 20 | 1 | 2 |
+| `suite:lexer` | 77 | 77 | 0 | 0 | 0 |
+| `suite:reference` | 321 | 249 | 56 | 16 | 0 |
+| `suite:manifest` | 612 | 595 | 14 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -113,7 +128,7 @@ category word (byte 11), as `COMMENT.bnf` says.
 
 ## Rows only Oracle accepts, measured
 
-The 129 rows whose cells are `reject` where Oracle says `accept` were each
+The 128 rows whose cells are `reject` where Oracle says `accept` were each
 measured on the pinned server at judge revision 3: #1438, #1436 and #1445
 measured the families they name, #1450 the rest of its own, and a follow-up
 after #1450 measured what was left. None is a form omni can read: Oracle
@@ -133,7 +148,7 @@ generated from. A byte is `DBMS_SQL.LAST_ERROR_POSITION`.
 | `ALTER TABLE a ADD (a NUMBER, a` | 1 | `ORA-00957` at 28 (a column named twice) |
 | `CREATE MATERIALIZED VIEW LOG ON a ...` | 4 | `ORA-00942` at 0 (3); `ORA-14017` at the end of the truncated bound (1) |
 | `CREATE MATERIALIZED VIEW a ...` | 5 | `ORA-02538` for `TABLESPACE SET` (2); `ORA-14030` or `ORA-14017` (2); `ORA-00904`/`ORA-22912` at the nested column (1) |
-| `CREATE TABLE a (PARTITION ...)` | 5 | `ORA-00902` at 25: `PARTITION` is a column, the next word its datatype |
+| `CREATE TABLE a (PARTITION ...)` | 4 | `ORA-00902` at 25: `PARTITION` is a column, the next word its datatype |
 | `CREATE TABLE a PARTITION BY RANGE (a) (PARTITION VALUES LESS THAN (1,` | 1 | `ORA-14017` at 66 |
 | `CREATE TABLE ... LOB (a) STORE AS ...` on a hash partition | 2 | `ORA-22877` at 74, 76 |
 | `CREATE TABLE a COLUMN a IS OF (a)` | 1 | `ORA-03001` at 32 |
@@ -288,7 +303,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 4,016 rows, 560 of them where omni stops first and 3,054
+different byte: 2,969 rows, 475 of them where omni stops first and 2,092
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -409,23 +424,156 @@ verdict change and no `suite:` row moved:
 | `SET` statement and `ALTER DISKGROUP a REPAIR ...` | 9 | the token after `SET` (3, 4) or `REPAIR` (25) |
 | `SELECT`/`DELETE`/`UPDATE` `APPLY` alias, `FROM TABLE 1)`, and inline `ANALYTIC VIEW(USING a ADD(...))` | 5 | the token after `APPLY`, `TABLE`, or `ADD` |
 
-The remaining rows are spread thin: 1,974 name no family below. These are the
-largest, and a row may be one of several, so the counts are not disjoint.
+Wave 2 moved 1,048 more rows to Oracle's exact cell (85 net fewer `omni_first`,
+962 fewer `oracle_first`, and 1 `CREATE TABLE a(PARTITION READ)` moved from
+only-Oracle-accepts to agreeing `accept`, bringing exact byte match from 89.67%
+to 91.91%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| delimiter scan unclosed-`(` deferral (`ParseRange` reports the statement parser's error whenever it stops at or before `scanErr`, after fixing the prerequisite readings: `MOVE KEYS ... WITH IDENTIFIER IN (...)`, `ALTER MATERIALIZED VIEW MODIFY LOB(a, ...)`, repeated `LOB_partition_storage` clauses, `LOCAL(PARTITION PARAMETERS('s')` EOF handling, `CREATE TABLE` table-level `domain_clause`, `SUPPLEMENTAL LOG GROUP ... NO LOG`, hash partition `PARTITION ILM` at EOF, and `CREATE TABLE (col READ)` datatype reading) | 636 | the earlier token the statement parsers stop at inside an unterminated parenthesis group (closing `USING TEMPLATE(DEFAULT DEFAULT ...)`, inline `EXTERNAL` column clauses, missing `)` before `SUBPARTITION BY`, `CREATE MATERIALIZED VIEW a(PARTITION ...)`, `SELECT * WINDOW a AS(ROWS ...)`, `ALTER LOCKDOWN PROFILE`, and `INSERT INTO t (a VALUES (1)` in `suite:manifest`) |
+| `CREATE TABLE` and `CREATE MATERIALIZED VIEW` `VARRAY ... STORE AS LOB seg (PARTITION ...)` | 135 | `(` (38, 50): `LOB_partition_storage` is refused at `(` on `VARRAY ... STORE AS LOB seg` here, while non-`PARTITION` parameters keep failing inside `(` |
+| `ALTER MATERIALIZED VIEW a ADD PARTITION ...` | 91 | the token after `ADD PARTITION` (40) when a bare partition name has an unexpected trailing word or an unprefixed `UPDATE [GLOBAL] INDEXES` fails to complete |
+| `INMEMORY DISTRIBUTE BY ...` in `CREATE`/`ALTER TABLE` and `CREATE`/`ALTER MATERIALIZED VIEW` | 32 | `BY` (34, 35, 46, 47) when not followed by `ROWID RANGE`, `PARTITION`, or `SUBPARTITION` |
+| `CREATE MATERIALIZED VIEW a PARTITION BY REFERENCE(a)` | 24 | the constraint name `a` (50) once `)` closes (`ORA-14655`) |
+| `CREATE TABLE` and `CREATE MATERIALIZED VIEW` `attribute_clustering_clause` | 17 | `BY` / `ON` / `ORDER` (25–53) via full BNF parsing of `CLUSTERING [ table [ alias ] ] [ JOIN ... ON (...) ] BY [ LINEAR \| INTERLEAVED ] ORDER (...)` |
+| `INMEMORY`, `NOMAPPING`, `IMMEDIATE`, and `INMEMORY MEMOPTIMIZE FOR` readings on `CLUSTER`, `INDEX`, `MATERIALIZED VIEW`, and `MATERIALIZED VIEW LOG` | 17 | the token after `INMEMORY`, `NOMAPPING`, `IMMEDIATE`, or `MEMOPTIMIZE FOR` |
+| `ADMINISTER KEY MANAGEMENT MOVE KEYS ... WITH IDENTIFIER IN(...)` | 14 | end of input when a parenthesized `WITH IDENTIFIER IN (...)` is not a subquery followed by `WITH BACKUP` (`ORA-00921`) |
+| `CREATE TABLE a(DOMAIN ...)` table-level `domain_clause` | 12 | `)` (26, 28, 29) when no column is defined, or the token inside/after `DOMAIN [ schema. ] name ( col [, ...] )` |
+| `ALTER DISKGROUP a` (`MOVE FILE`, `MOVE FILEGROUP`, `REPLACE DISK`, `MODIFY QUOTAGROUP`) | 9 | the token after the keyword read as an unquoted object/file name (`FILEGROUP`, `a`, `QUOTAGROUP`, `'s'`, `QUOTA`) |
+| `ALTER VIEW a ADD` (`CHECK`, `(`, reserved `CONSTRAINT` name, `PRIMARY`/`FOREIGN` missing `KEY`) | 9 | `CHECK` (17), inside `(` (17), reserved constraint name (28), or `(` missing `KEY` (24) |
+| `ALTER TABLE a MODIFY(a <type>(...))` (`LOB(a)`, `LOBS(a)`, `CHECKPOINT(...)`) | 9 | the user-defined type name (`ORA-03060`: parenthesized modifiers belong to built-in parameterized types) |
+| `ALTER MATERIALIZED VIEW` `TRUNCATE` / `MODIFY LOB(a, ...)` and `ALTER TABLE UPGRADE` repeated `LOB_partition_storage` | 14 | `TRUNCATE` (26), after `,` in `MODIFY LOB(a, ...)` (39, 40), or inside/at `)` of the second `VARRAY` storage clause |
+| `ALTER TABLE a NO ...`, `CONTAINER_MAP UPDATE`, `SUPPLEMENTAL LOG DATA` / `ANNOTATIONS` duplicates, `MODIFY PARTITION ADD VALUES LESS THAN`, hash `TABLESPACE SET`, `ENCRYPT NO zzz SALT`, `CREATE TABLE (PARTITION READ ...)`, and `SELECT ... VERSIONS FOR` | 29 | `NO` (14), `VALUES` / EOF in `CONTAINER_MAP UPDATE`, the token after duplicate `ALL`/`a`, `LESS` (44, 56), `SET` (47, 72), `zzz` (40), `ONLY` (30), or `a` (29) |
+
+Wave 3 moved 514 more rows to Oracle's exact cell (57 fewer `omni_first`, 435 net
+fewer `oracle_first`, 5 fewer only-Oracle-accepts, and 17 fewer only-omni-accepts,
+bringing exact byte match from 91.91% to 93.00% and verdict agreement from 98.24%
+to 98.29%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` `NESTED TABLE ... STORE AS storage ( ...` | 101 | the nested item name when the storage table's parenthesized group is unclosed (`skipParenthesizedBalanced`) |
+| `CREATE`/`ALTER TABLE` & `CREATE VIEW` column datatypes, constraints, and properties (non-reserved keyword UDT datatypes, user-defined type `(`, `GENERATED AS(`, `DEFAULT ON NULL INSERT`, duplicate identity options, `SUPPLEMENTAL LOG GROUP(`, `RENAME LOB`, `DROP(PERIOD`, `ENABLE LOGICAL REPLICATION`, `MODIFY CLUSTERING`, `INMEMORY NO ...`, `ILM ENABLE/DISABLE`, `CONSTRAINT` missing body, `GLOBAL`/`PRIVATE` table modifiers) | 96 | the column datatype/clause keyword or missing `old_lob_name` / `KEYS` / `POLICY` / constraint keyword |
+| Query & DML clauses (`SELECT`, `WITH`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`: required `INTO`, reserved target/CTE/SET names, `RETURNING INTO`, `AS SCN`/`TIMESTAMP`/`PERIOD`, `START WITH` without `CONNECT BY`, `SAMPLE BLOCK`, unclosed `PARTITION(`/`SUBPARTITION(`/`TABLE()(`/`(SELECT`) | 70 | the missing keyword, reserved word, or opening `(` / clause word |
+| Partition & subpartition clauses (`ALTER TABLE`/`MVIEW`/`MVLOG`/`INDEX` `ADD`/`MODIFY`/`MERGE` partition/subpartition bare name & `COMPRESS` trailing-token blame, `VALUES` identifier rejection, `OVERFLOW TABLESPACE`, `MVIEW` `SUBPARTITION TEMPLATE ... INDEXING`) | 69 | the partition/subpartition name, `COMPRESS`, `OVERFLOW`, `INDEXING`, `UPDATE`, or `)` after an invalid bound identifier |
+| Reserved object, schema, user, and dblink name checks (`DROP`/`ALTER ... EXISTS`, `CREATE DIRECTORY`/`PACKAGE`/`TYPE BODY`/`SCHEMA`/`JSON DUALITY VIEW`/`USER`/`DATABASE LINK`) | 50 | the reserved keyword in the object/schema/user name position |
+| Utility statements (`LOCK TABLE`, `CALL`, `FLASHBACK TABLE`, `RENAME`, `ANALYZE`, `EXPLAIN`, `COMMENT ON COLUMN`) | 31 | the reserved name, routine start, `PARTITION`/`SUBPARTITION`, `BEFORE`, or missing `(` / `:` |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` / `CREATE MATERIALIZED VIEW LOG` `PARTITION BY HASH` attributes | 21 | the bare hash partition name or `[NO]COMPRESS` when followed by an unexpected non-EOF token, and `LOB` storage start |
+| `GRANT ALL` and non-privilege column-list checks | 15 | `ALL` at EOF / `PROCEDURE`, or the non-privilege name before `(` |
+| `OPAQUE`, `XMLTYPE`, `XMLSCHEMA`, and `MVIEW REFRESH START WITH`/`NEXT` clauses | 10 | the missing `TYPE`/`ALL`, reserved `AS` in `XMLTYPE`/`REFRESH`, or `STORE` |
+| `CREATE ... IF EXISTS` and `IF NOT <non-EXISTS>` | 10 | `IF` across table, procedure, function, package, trigger, type, index, view, materialized view, zonemap, and admin DDL |
+| `ALTER TABLE`/`MVIEW`/`MVLOG` `SPLIT [SUB]PARTITION INTO` and `SPLIT PARTITION ... NESTED TABLE` | 8 | `PARTITION` when `(` is missing after `INTO`, `,` on `SPLIT SUBPARTITION ... INTO`, or the nested table column when `INTO` is missing |
+| Other DDL (`PDB` `AS SEED`/`CONTAINER_MAP`/`CREATE SNAPSHOT`/`SET NOLOGGING`, `CREATE MLE MODULE`, `INMEMORY JOIN GROUP`, `KEY MANAGEMENT`, `DOMAIN`, `INDEX LOCAL(PARTITION PARAMETERS('s'`, `OPERATOR BINDING`, `RESTORE POINT AS OF`, `AUDIT POLICY BY WITH`, `PROPERTY GRAPH`) | 33 | the clause keyword, object/partition name, or `'s'` literal at EOF |
+
+Wave 4 moved 150 more rows to Oracle's exact cell (32 fewer `omni_first`, 66 net
+fewer `oracle_first`, 2 fewer only-Oracle-accepts, and 50 fewer only-omni-accepts
+including 2 rows narrowed from `accept` to both-reject, bringing exact byte match
+from 93.00% to 93.32% and verdict agreement from 98.29% to 98.40%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `SELECT`/`DELETE ... FROM EXTERNAL((...) TYPE <driver> ...)` | 95 | the invalid driver name (`ORA-00922`: inline external tables accept `ORACLE_LOADER`, `ORACLE_DATAPUMP`, `ORACLE_HDFS`, `ORACLE_HIVE`, `ORACLE_BIGDATA`); 2 more duplicate-column rows moved from `accept` to both-reject |
+| `ALTER TABLE MODIFY PARTITION BY` & `CREATE INDEX GLOBAL PARTITION BY` expression column lists | 9 | `VALUES` inside an unclosed `(a(PARTITION VALUES ...)` (matching `CREATE TABLE`) |
+| `CREATE MATERIALIZED VIEW ... XMLTYPE` (`XMLSCHEMA` name vs string literal, `ALLOW`/`DISALLOW NONSCHEMA`/`ANYSCHEMA`) | 9 | `'s'`, `a`, `ALLOW`, or `DISALLOW` (matching `ALTER TABLE`) |
+| `ALTER TABLE UPGRADE INCLUDING DATA VARRAY ... STORE AS LOB seg (...)` partition storage | 6 | the unexpected token inside `(` (`LOGGING`, `PARTITIONING`, `a`) or inside `PARTITION a ...` |
+| `ALTER TABLE MODIFY (a AS(1), a ...)` duplicate column name check | 5 | the repeated column name `a` (`ORA-00957`) before reading its trailing properties |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` `NESTED TABLE ... LOCAL STORE AS` | 4 | `LOCAL` (matching `ALTER TABLE`, which allows `GLOBAL` only) |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` / `CREATE MATERIALIZED VIEW LOG` empty `SUBPARTITION TEMPLATE ()` | 3 | accepts empty `SUBPARTITION TEMPLATE ()` on `MVIEW`/`MVLOG` (2 `only_oracle` closed) and reaches missing-columns blame on `CREATE TABLE` |
+| `CREATE`/`ALTER INDEXTYPE` `WITH ARRAY DML (a, a), ...` and `WITHOUT SYSTEM MANAGED STORAGE TABLES` | 3 | the missing `(` after `,` or `SYSTEM` after `WITHOUT` |
+| Query & DML table-alias and expression readings (`PERIOD`, `WINDOW` in `DELETE`, `LEFT` before `PARTITION BY`, `LATERAL` without `(`, reserved `ADD` in SQL expressions) | 8 | `FOR`, `a`, `1`, `SELECT`, or `ADD` |
+| Other DDL (`ALTER TABLE` top-level `NESTED TABLE`/`VARRAY` column properties, `ADD LOG DATA(ALL)`, `CREATE TABLE` duplicate `ANNOTATIONS` closing `)`, `CREATE SNAPSHOT`, `ALTER MVIEW MERGE SUBPARTITIONS INVALIDATE`, `ALTER MVLOG SPLIT PARTITION INTO`, `MOVE KEYS WITH IDENTIFIER IN a)`) | 8 | `RETURN`, `(`, `DATA`, closing `)`, `a`, `SUBPARTITION`, `PARTITION`, or `a` |
+
+Wave 5 moved 349 more rows to Oracle's exact cell (97 fewer `omni_first`, 165
+fewer `oracle_first`, and 87 fewer only-omni-accepts, bringing exact byte match
+from 93.32% to 94.07% and verdict agreement from 98.40% to 98.59%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE PROPERTY GRAPH` duplicate element tables/aliases, `KEY`, `EXCEPT`, and `PROPERTIES` | 91 | the repeated table/alias (`ORA-42404`), key column (`ORA-42416`), excluded column (`ORA-42426`), or property (`ORA-42407`) |
+| `ALTER TABLE` duplicate column lists (`UNIQUE`, `PRIMARY KEY`, `REFERENCES`, `INMEMORY`, `LOB`, `PARTITION BY`, `SUPPLEMENTAL LOG GROUP`), virtual column non-built-in datatypes, `FORCE(1)` partition key, `INCLUDING ROWS`, `IMMEDIATE`, `ADD DEFERRABLE`, `UPGRADE INCLUDING DATA(`, and reserved table name | 68 | the repeated name, virtual column name (`ORA-54003`), `(` after `FORCE`, missing `WHERE`, `ADD`, or trailing token |
+| `CREATE TABLE` duplicate column/key lists, bare column duplicates, virtual column datatypes & `ALWAYS AS IDENTITY`, range bound arity, `CONSTRAINT` body, `SUPPLEMENTAL GROUP`, `ENCRYPT IDENTIFIED BY)`, `IMMEDIATE`/`EXTERNAL`, and `VARRAY`/`NESTED TABLE ... STORE AS` | 37 | the repeated column, virtual column name, extra bound expression, missing keyword, or `)` |
+| `CREATE` / `ALTER MATERIALIZED VIEW` & `LOG` duplicate column lists, `ALLOCATE EXTENT(SIZE)`, `SCOPE FOR`, `MERGE SUBPARTITIONS FORCE(1)` / trailing token, and `ENCRYPT IDENTIFIED BY)` | 31 | the first repeated alias (for `CREATE MATERIALIZED VIEW`) or second column name, `)`, `FORCE`, or trailing token |
+| Utility statements (`LOCK TABLE`, `FLASHBACK TABLE`, `TRUNCATE`) | 25 | the token after an unrecognized lock mode, `PARTITION` on multi-partition `LOCK TABLE`, missing `TO`, or missing `TABLE`/`CLUSTER`/`MATERIALIZED` |
+| Query & DML (`EXTERNAL` duplicate columns, `INSERT ... SET` duplicate target columns, `FETCH FIRST 1 zzz ROW`, `UPDATE ... FOR(1)`) | 19 | the repeated column (`ORA-00957`), `ROW`, or `(` after `FOR` |
+| Other DDL (`ALTER DISKGROUP` volume/quotagroup, `ALTER DATABASE`, `ALTER PLUGGABLE DATABASE`, `CREATE USER`, `ADMINISTER KEY MANAGEMENT`, `CREATE AUDIT POLICY`, `CREATE INMEMORY JOIN GROUP`, `CREATE [OR REPLACE] JAVA SOURCE IF [NOT] EXISTS`) | 18 | the clause keyword, literal, `IF`, or trailing token |
+| `CREATE` / `ALTER VIEW` duplicate aliases/annotations/constraints, `CREATE MATERIALIZED ZONEMAP`, `CREATE VECTOR INDEX INCLUDE`, `CREATE CLUSTER`, `ALTER INDEX`, `CREATE DIMENSION` duplicate `LEVEL`, `CREATE`/`ALTER PROFILE` & `ALTER RESOURCE COST` duplicate limits | 39 | the repeated alias/column/level/limit name, `UNUSABLE`, or constraint keyword |
+| `CREATE`/`ALTER OPERATOR` and `CREATE`/`ALTER INDEXTYPE` `OBJECT` datatype refusal & `CREATE PFILE`/`SPFILE` syntax | 10 | `OBJECT` (`ORA-00902`), `FROM`, or EOF after `AS` |
+| `suite:lexer` error offsets (unterminated string/comment/q-quote, `""`, reserved `DATE` in expressions) & parenthesized trailing `ORDER BY` (`suite:reference`) | 11 | the opening lexeme byte, `DATE`, or `ORDER` (`ORA-00907`) |
+
+Wave 6 moved 585 more rows to Oracle's exact cell (35 fewer `omni_first`, 374
+fewer `oracle_first`, 1 fewer only-Oracle-accepts, and 175 fewer only-omni-accepts,
+bringing exact byte match from 94.07% (`44,082 / 46,862`) to 95.32%
+(`44,667 / 46,862`), verdict agreement from 98.59% to 98.96%, and `suite:lexer`
+to 77 / 77 (100%)):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE CLUSTER ... PARTITION BY RANGE(...)` without `HASHKEYS` | 469 | `(` (45): `ORA-14179`, only hash clusters can be partitioned (`HASHKEYS` clusters remain accepted) |
+| `CREATE TABLE ... ORGANIZATION INDEX` without a `PRIMARY KEY` | 52 | `INDEX` (28): `ORA-25175`, index-organized tables require a `PRIMARY KEY` constraint |
+| TDE encryption and integrity algorithm validation (`ENCRYPT [USING] 'alg'`, `ENCRYPTION [ONLINE] USING 'alg'`) | 20 | the algorithm string literal (`ORA-28339`: valid TDE ciphers `3DES168`, `AES128`/`192`/`256`, `ARIA128`/`192`/`256`, `GOST256`, `SEED128`, `SM4`, and integrity algorithms `SHA-1`/`NOMAC`) |
+| `DEALLOCATE UNUSED KEEP` / `ALLOCATE EXTENT (SIZE ...)` `P`/`E` units | 10 | the size integer (`ORA-03277`, matching `PRIVATE_SGA`'s existing `ORA-02377` unit check) |
+| `CREATE CLUSTER ... SIZE` `M`/`G`/`T`/`P`/`E` units | 8 | the size integer (`ORA-02229`) |
+| `ALTER TABLESPACE SET` OMF-only `ADD DATAFILE` / `DROP DATAFILE` | 7 | the filename/file-number operand (`ORA-02580`, per `ALTER-TABLESPACE-SET.bnf`) |
+| `suite:lexer` (`SELECT 1..2`) & `suite:reference` (`SYSTIMESTAMP(+)`, `NCHAR(2 CHAR)`, `DEC(0)`, `REFERENCES t@dblink`, `(WITH ...) UNION`, `MINUS ALL WITH ...`) exact byte offsets | 7 | `.`, `+`, `CHAR`, `)`, `@`, `)`, or `SELECT` |
+| `CREATE`/`ALTER INDEX` and `CREATE`/`ALTER CLUSTER` `INITRANS < 2` | 4 | the token after the integer (`ORA-02207`) |
+| `XMLTYPE ... STORE AS OBJECT RELATIONAL` without `XMLSCHEMA`/`ELEMENT` | 3 | the token after `RELATIONAL` (`ORA-19002`) |
+| `CREATE MATERIALIZED ZONEMAP ... SCALE` outside `3..20` | 2 | the scale integer (`ORA-31951`) |
+| `ASSOCIATE STATISTICS WITH COLUMNS schema.table.column` | 1 | accepted (3-part `[schema.]table.column` per `ASSOCIATE-STATISTICS.bnf`) |
+| `CREATE MATERIALIZED VIEW ... PARTITION BY SYSTEM` | 1 | `AS` (47): `ORA-32362`, system partitioning is not supported on materialized views |
+| `INSERT ALL INTO a(a, a)` duplicate column list | 1 | the first repeated column name (`ORA-00957`) |
+
+Wave 7 moved 416 more rows to Oracle's exact cell (2 fewer `omni_first`, 359
+fewer `oracle_first`, 59 fewer only-omni-accepts including 4 rows closed onto
+Oracle's `reject@0`, bringing exact byte match from 95.32% (`44,667 / 46,862`)
+to 96.20% (`45,083 / 46,862`) and verdict agreement from 98.96% (`46,375 / 46,862`)
+to 99.09% (`46,434 / 46,862`)):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE ... ENABLE/DISABLE PRIMARY KEY ...` (trailing clause without a `PRIMARY KEY` on the table, `ORA-02432`) and `ENABLE/DISABLE CONSTRAINT <name>` (constraint not defined on the table, `ORA-02250`) | 402 | the token immediately after `PRIMARY KEY` or `<name>` (34) |
+| `GRANT` exact byte offsets (`GRANT ALL zzz ON SCHEMA`, `GRANT a, a ON SCHEMA`, `GRANT a, a zzz ON a`) | 3 | `ALL` (6), second `a` (9), or first `a` (6) |
+| `suite:reference` (`BEGIN NULL;`, `DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); ...`) & `suite:manifest` (`DECLARE x NUMBER;`) exact byte offsets | 3 | `;` (10, 16) at EOF or `(` (35) |
+| `CREATE TABLE ... PARENT` self-reference (`CREATE TABLE a PARENT a [zzz]`) | 2 | parent table name `a` (22, `ORA-02523`) |
+| `CREATE SHARDED TABLE a` without columns | 2 | table name `a` (21) |
+| `CREATE MATERIALIZED VIEW ... XMLTYPE ... STORE AS BINARY XML` without `XMLSCHEMA`/`ELEMENT` | 1 | `AS` (57, `ORA-19001`) |
+| `ALTER TABLE ... MODIFY SUBPARTITION ... LOB (...) (RETENTION)` | 1 | `RETENTION` (43, `ORA-14160`) |
+| `ALTER MATERIALIZED VIEW ... ADD PARTITION UPDATE INDEXES (idx (PARTITION NOCOMPRESS))` | 1 | `UPDATE` (40, `ORA-14006`) |
+| `CALL a() INTO a` bare identifier target | 1 | EOF (15) |
+| `CREATE`/`ALTER TABLESPACE [SET] ... DEFAULT ILM ADD POLICY COMPRESS ROW ...` (`ORA-38336`) and `ALTER TABLE ... ADD (... COLLATE)` missing collation name | 4 verdict rows | `ROW` / `)` (closed from `only_omni` to reject; Oracle reports `reject@0`) |
+
+Wave 8 moved 201 more rows to Oracle's exact cell (184 fewer `omni_first`, 15
+fewer `oracle_first`, and 2 fewer only-omni-accepts closed onto Oracle's
+`reject@0`, bringing exact byte match from 96.20% (`45,083 / 46,862`) to 96.63%
+(`45,284 / 46,862`) and verdict agreement from `46,434 / 46,862` to
+`46,436 / 46,862` (99.09%)):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `DELETE ... FROM ... MATCH_RECOGNIZE(...)` near-misses | 166 | exact offending token inside `MATCH_RECOGNIZE(...)` (or `PATTERN` at byte 32 when `(` is missing), matching `SELECT ... MATCH_RECOGNIZE(...)`; syntactically valid `MATCH_RECOGNIZE(...)` in DML `FROM` still refuses at `MATCH_RECOGNIZE` (byte 16) for Oracle's engine crash |
+| `CREATE VIEW ... OF XMLTYPE ...` (`XMLType_view_clause` per `CREATE-VIEW.bnf`) | 34 | `'s'` (35) after `XMLSCHEMA` (Oracle expects an identifier / double-quoted URL, matching `mview_clauses.go` and `alter_table_properties.go`), missing `XMLSCHEMA` (`'s'` / `XMLTYPE` at 25), or missing `ELEMENT` (`a` at 43), while valid `OF XMLTYPE XMLSCHEMA "url" ELEMENT "elem" [WITH OBJECT IDENTIFIER ...]` now parses |
+| `CREATE TABLE ... ENABLE CONSTRAINTS <name>` | 1 | EOF (35): accepts plural `CONSTRAINTS` synonym alongside `CONSTRAINT` (matching `ALTER TABLE` and `CREATE VIEW`) |
+| `CREATE`/`ALTER ROLE ... IDENTIFIED GLOBALLY AS` without string literal | 2 verdict rows | EOF (36 / 35): requires directory/domain string literal after `AS` (matching `user_clauses.go` and `CREATE-ROLE.bnf` / `ALTER-ROLE.bnf`; closed from `only_omni` to reject, Oracle reports `reject@0`) |
+
+The remaining 1,578 disagreeing rows are non-grammar causes (89 `suite:*` corpus
+rows, 332 non-suite bare `reject` without position, 446 non-suite `reject@0`
+lookups/sub-parsers, 103 non-suite measured `only_oracle` lookups/checks, 304
+non-suite measured `only_omni` engine/setup/lookup/duplicate checks including
+`CREATE TABLE`/`ALTER TABLE ADD`/`DROP` and `CREATE INDEX` duplicates
+intentionally left to semantic review, and 304 `another_byte` rows from the
+documented engine checks below). These are the largest, and a row may be one of
+several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |
-| `DELETE ... MATCH_RECOGNIZE (...)` | 235 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
-| rows whose cell is `reject@0` | 440 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| `DELETE ... MATCH_RECOGNIZE (...)` (valid clauses) | 69 | bare `reject` with no position: Oracle 23ai parses `MATCH_RECOGNIZE(...)` in a DML `FROM` clause (its 166 near-misses now agree at Oracle's exact byte), then fails in its own code on a syntactically valid clause (`Parser.engineCrash`) |
+| rows whose cell is `reject@0` | 446 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 111 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
-| `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
-| `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 62 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
-| `CREATE TABLE a ORGANIZATION INDEX ...` | 52 | `INDEX` (28): `ORA-25175`, "no PRIMARY KEY constraint found", checked on the table's element list as soon as `ORGANIZATION INDEX` is read and before the rest of `index_org_table_clause` (`CREATE TABLE a (id NUMBER PRIMARY KEY) ORGANIZATION INDEX` parses, and `CREATE TABLE a (a NUMBER) ORGANIZATION INDEX` answers `ORA-25175` at `INDEX` too) |
-| `CREATE VIEW a OF XMLTYPE ...` | 34 | `'s'` (35) on the 31 `XMLSCHEMA 's'` rows (`ORA-19002`, the schema URL looked up before `WITH OBJECT IDENTIFIER` or `AS subquery` is read, so even the page's valid forms carry `reject@35`), and 25 or 43 on the 3 near-misses without `'s'` (`CREATE VIEW a OF XMLTYPE WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual`, with no `XMLSCHEMA`, parses to `ORA-22980`) |
+| `suite:reference` | 72 | these statements are the corpus's, so their cells move only with the corpus |
+| `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 59 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
 | `ALTER DIMENSION ...` | 70 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 70 `ALTER DIMENSION` rows here, 30 carry `reject@0` (a clause word Oracle has no form for) |
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 6 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see above) |
-| `... PARTITION BY RANGE(a)` on a `CREATE CLUSTER` | 323 | the clause's `(` (45): `ORA-14179`, because a cluster is partitioned only when it is a hash cluster. This is the check "Rows only omni accepts" measures (146 rows there), not a reading, and the near-misses that carry it stay |
-| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | the token after the `enable_disable_clause` (34), which is `USING` here: `ORA-02432`, "cannot enable primary key - primary key not defined for table". Not a token the grammar cannot take: the check is of the table's element list, and where that token is the end of the statement the recording reads the check as an accept (`CREATE TABLE a ENABLE PRIMARY KEY` answers `ORA-02432` at 33 and agrees today). With a primary key defined the clause is read — `... (b NUMBER, PRIMARY KEY(b)) ENABLE PRIMARY KEY USING INDEX` parses — and a bare index name after `USING INDEX` is `ORA-03049` at the name. omni leaves the check to the engine, as `parser.go`'s `createTableEngineCheck` says and names ORA-02432 for, so the rows stay |
 | `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 59 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
 
 What is left of those is near-misses whose own token is Oracle's answer

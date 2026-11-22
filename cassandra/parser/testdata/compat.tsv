@@ -1745,20 +1745,20 @@ reject	reject	engine	functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspace
 reject	reject	engine	functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-5	LIST ALL ON ALL FUNCTIONS IN KEYSPACE
 reject	reject	engine	functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!insert	LIST ALL ON ALL FUNCTIONS IN KEYSPACE a zzz
 reject	reject	engine	functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!swap	LIST ALL ON ALLOW FUNCTIONS IN KEYSPACE a
-accept	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e	LIST ALL ON FUNCTION a()
+reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e	LIST ALL ON FUNCTION a()
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-1	LIST ALL ON a()
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-2	LIST ALL ON FUNCTION()
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-3	LIST ALL ON FUNCTION a)
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-4	LIST ALL ON FUNCTION a(
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!insert	LIST ALL ON FUNCTION a() zzz
 reject	reject	engine	functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!swap	LIST ALL ON FUNCTIONS a()
-accept	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/%empty	LIST ALL ON FUNCTION a()
-accept	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/%empty!insert	LIST ALL ON FUNCTION a(zzz)
-accept	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*	LIST ALL ON FUNCTION a(ASCII)
+reject	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/%empty	LIST ALL ON FUNCTION a()
+reject	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/%empty!insert	LIST ALL ON FUNCTION a(zzz)
+reject	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*	LIST ALL ON FUNCTION a(ASCII)
 reject	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*!insert	LIST ALL ON FUNCTION a(ASCII zzz)
 reject	reject	engine	functionResource(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*!swap	LIST ALL ON FUNCTION a(AUTHORIZE)
-accept	reject	engine	functionResource(,_comparatorType)*/%empty	LIST ALL ON FUNCTION a(ASCII)
-accept	reject	engine	functionResource(,_comparatorType)*/,_comparatorType_(,_comparatorType)*	LIST ALL ON FUNCTION a(ASCII, ASCII)
+reject	reject	engine	functionResource(,_comparatorType)*/%empty	LIST ALL ON FUNCTION a(ASCII)
+reject	reject	engine	functionResource(,_comparatorType)*/,_comparatorType_(,_comparatorType)*	LIST ALL ON FUNCTION a(ASCII, ASCII)
 reject	reject	engine	functionResource(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!drop-1	LIST ALL ON FUNCTION a(ASCII ASCII)
 reject	reject	engine	functionResource(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!drop-2	LIST ALL ON FUNCTION a(ASCII,)
 reject	reject	engine	functionResource(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!truncate	LIST ALL ON FUNCTION a(ASCII,

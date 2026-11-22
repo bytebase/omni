@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -159,6 +160,87 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
 		return analyzeExistsSubquery(c, n, scope)
+	case *nodes.MemberOfExpr:
+		val, err := analyzeExpr(c, n.Value, scope)
+		if err != nil {
+			return nil, err
+		}
+		arr, err := analyzeExpr(c, n.Array, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: []AnalyzedExpr{val, arr}}, nil
+	case *nodes.MatchExpr:
+		var args []AnalyzedExpr
+		for _, col := range n.Columns {
+			a, err := analyzeColumnRef(col, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		if n.Against != nil {
+			a, err := analyzeExpr(c, n.Against, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
+	case *nodes.ConvertExpr:
+		var args []AnalyzedExpr
+		if n.Expr != nil {
+			a, err := analyzeExpr(c, n.Expr, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
+	case *nodes.ExtractExpr:
+		var args []AnalyzedExpr
+		if n.Expr != nil {
+			a, err := analyzeExpr(c, n.Expr, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
+	case *nodes.DefaultExpr:
+		var args []AnalyzedExpr
+		if n.Column != "" {
+			a, err := analyzeColumnRef(&nodes.ColumnRef{Column: n.Column}, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
+	case *nodes.WeightStringExpr:
+		var args []AnalyzedExpr
+		if n.Expr != nil {
+			a, err := analyzeExpr(c, n.Expr, scope)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, a)
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
+	case *nodes.VariableRef:
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.HexLit:
+		text := n.Value
+		if !strings.HasPrefix(text, "0x") && !strings.HasPrefix(text, "0X") {
+			text = "X'" + text + "'"
+		}
+		return &RawExprQ{Text: text, ResultType: &ResolvedType{BaseType: BaseTypeBinary}}, nil
+	case *nodes.BitLit:
+		text := n.Value
+		if !strings.HasPrefix(text, "0b") && !strings.HasPrefix(text, "0B") {
+			text = "b'" + text + "'"
+		}
+		return &RawExprQ{Text: text, ResultType: &ResolvedType{BaseType: BaseTypeBinary}}, nil
 	default:
 		return nil, &Error{
 			Code:     0,
@@ -279,6 +361,34 @@ func rebaseAnalyzedLevels(expr AnalyzedExpr, levels int) AnalyzedExpr {
 
 // analyzeFuncCall resolves a function call expression.
 func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	lower := strings.ToLower(fc.Name)
+	if fc.Schema == "" {
+		// OceanBase 4.3.5.6 rejects aliased arguments in native function calls
+		// (e.g. STATISTICS(a zzz)) with 1583 before resolving columns.
+		for _, arg := range fc.Args {
+			if rt, ok := arg.(*nodes.ResTarget); ok && rt.Name != "" {
+				return nil, &Error{
+					Code:     1583,
+					SQLState: "42000",
+					Message:  fmt.Sprintf("Incorrect parameters in the call to native function '%s'", lower),
+				}
+			}
+		}
+		// OceanBase 4.3.5.6 validates that NTH_VALUE's second argument is a
+		// constant (not a column reference) before resolving window names (5929).
+		if lower == "nth_value" && len(fc.Args) == 2 && exprContainsColumnRef(fc.Args[1]) {
+			return nil, &Error{
+				Code:     1210,
+				SQLState: "HY000",
+				Message:  "Incorrect arguments to nth_value",
+			}
+		}
+		// Zero-argument calls to built-in functions that always require at least
+		// one argument fail with ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT (1582).
+		if len(fc.Args) == 0 && builtinRequiresArgs(lower) {
+			return nil, errWrongParamCount(lower)
+		}
+	}
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
 		a, err := analyzeExpr(c, arg, scope)
@@ -287,7 +397,6 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		}
 		args = append(args, a)
 	}
-	lower := strings.ToLower(fc.Name)
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args, IsIfNull: lower == "ifnull"}, nil
 	}
@@ -322,6 +431,31 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		result.Over = over
 	}
 	return result, nil
+}
+
+func exprContainsColumnRef(expr nodes.ExprNode) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if _, ok := n.(*nodes.ColumnRef); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func builtinRequiresArgs(lower string) bool {
+	switch lower {
+	case "coalesce", "charset", "collation", "dump",
+		"repeat", "reverse", "right", "replace",
+		"truncate", "format", "normal", "password", "encrypt":
+		return true
+	}
+	return false
 }
 
 func analyzeWindowDef(c *Catalog, wd *nodes.WindowDef, scope *analyzerScope, isDecl bool) (*WindowDefQ, error) {

@@ -392,22 +392,34 @@ var walkCodes = map[string]struct {
 		}
 		return []string{"00942"}
 	}},
-	"Table N doesn't exist.":           {codes: []string{"00942"}},
-	"View N doesn't exist.":            {codes: []string{"00942"}},
-	"Sequence N doesn't exist.":        {codes: []string{"02289"}},
-	"Private synonym N doesn't exist.": {codes: []string{"01434"}},
-	"N isn't a private synonym.":       {codes: []string{"01434"}},
-	"Package N doesn't exist.":         {codes: []string{"04043"}},
-	"Procedure N doesn't exist.":       {codes: []string{"04043"}},
-	"Function N doesn't exist.":        {codes: []string{"04043"}},
-	"Type N doesn't exist.":            {codes: []string{"04043"}},
-	"N isn't a package.":               {codes: []string{"04043"}},
-	"N isn't a procedure.":             {codes: []string{"04043"}},
-	"N isn't a function.":              {codes: []string{"04043"}},
-	"N isn't a type.":                  {codes: []string{"04043"}},
-	"Index N doesn't exist.":           {codes: []string{"01418"}},
-	"Trigger N doesn't exist.":         {codes: []string{"04080"}},
-	"Column N doesn't exist in N.":     {codes: []string{"00904"}},
+	"Table N doesn't exist.":              {codes: []string{"00942"}},
+	"View N doesn't exist.":               {codes: []string{"00942"}},
+	"Materialized view N doesn't exist.":  {codes: []string{"12003"}},
+	"Materialized view N already exists.": {codes: []string{"12006"}},
+	"Sequence N doesn't exist.":           {codes: []string{"02289"}},
+	"Private synonym N doesn't exist.": {by: func(stmt, _ string) []string {
+		if leads(stmt, "ALTER") {
+			return []string{"00942"}
+		}
+		return []string{"01434"}
+	}},
+	"N isn't a private synonym.": {by: func(stmt, _ string) []string {
+		if leads(stmt, "ALTER") {
+			return []string{"00942"}
+		}
+		return []string{"01434"}
+	}},
+	"Package N doesn't exist.":     {codes: []string{"04043"}},
+	"Procedure N doesn't exist.":   {codes: []string{"04043"}},
+	"Function N doesn't exist.":    {codes: []string{"04043"}},
+	"Type N doesn't exist.":        {codes: []string{"04043"}},
+	"N isn't a package.":           {codes: []string{"04043"}},
+	"N isn't a procedure.":         {codes: []string{"04043"}},
+	"N isn't a function.":          {codes: []string{"04043"}},
+	"N isn't a type.":              {codes: []string{"04043"}},
+	"Index N doesn't exist.":       {codes: []string{"01418"}},
+	"Trigger N doesn't exist.":     {codes: []string{"04080"}},
+	"Column N doesn't exist in N.": {codes: []string{"00904"}},
 	"Constraint N doesn't exist in N.": {by: func(_, anchor string) []string {
 		switch {
 		case leads(anchor, "DROP"):
@@ -472,8 +484,10 @@ func (e *oracleEngine) Codes(message string) []string {
 		return []string{"03001"}
 	case needed == "table" && found == "materialized view":
 		return []string{"12083"}
-	// DROP and ALTER of a table, view, or sequence refuse a name another
-	// kind holds as missing.
+	// DROP and ALTER of a table, view, materialized view, or sequence refuse a
+	// name another kind holds as missing.
+	case leads(e.stmt, "DROP MATERIALIZED VIEW"):
+		return []string{"12003"}
 	case leads(e.stmt, "DROP SEQUENCE"), leads(e.stmt, "ALTER SEQUENCE"):
 		return []string{"02289"}
 	case leads(e.stmt, "DROP"), leads(e.stmt, "ALTER"):

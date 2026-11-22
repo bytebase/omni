@@ -1,5 +1,7 @@
 package catalog
 
+import "errors"
+
 // InhEntry represents a row in pg_inherits.
 type InhEntry struct {
 	InhRelID  uint32 // child relation OID
@@ -215,6 +217,27 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 		}
 	}
 	return nil, nil, errUndefinedTable(relName)
+}
+
+// openTableLikeRelation mimics PostgreSQL's table_openrv / get_object_address_relobject:
+// tables, views, matviews, foreign tables, partitioned tables, and sequences can be
+// opened, while indexes and composite types are rejected with 42809 (wrong_object_type).
+// When the target is a sequence, rel is nil and isSeq is true.
+func (c *Catalog) openTableLikeRelation(schemaName, relName string) (rel *Relation, isSeq bool, err error) {
+	_, rel, err = c.findRelation(schemaName, relName)
+	if err == nil {
+		if rel.RelKind == 'c' {
+			return nil, false, errWrongObjectType(relName, "a table")
+		}
+		return rel, false, nil
+	}
+	var refusal *Error
+	if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+		if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil && seq != nil {
+			return nil, true, nil
+		}
+	}
+	return nil, false, err
 }
 
 // findRelByOID locates a relation by its OID across all schemas.

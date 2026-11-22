@@ -10,10 +10,13 @@ import (
 // analyzerScope wraps scope.Scope and adds analyzer-specific features:
 // parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	base   *scope.Scope
-	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
-	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	parent *analyzerScope
+	base    *scope.Scope
+	rteMap  []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	cols    [][]*Column // parallel to base entries: entry index -> catalog Column pointers
+	dbNames []string    // parallel to base entries: database name for base tables/views (empty for derived/CTE)
+	ctes    map[string]*CommonTableExprQ
+	source  string // original SQL text for expression-derived column names
+	parent  *analyzerScope
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.
@@ -51,6 +54,11 @@ func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
 
 // add registers a table reference in the scope.
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
+	s.addWithDB("", name, rteIdx, columns)
+}
+
+// addWithDB registers a table reference in the scope with its owning database name.
+func (s *analyzerScope) addWithDB(dbName, name string, rteIdx int, columns []*Column) {
 	visible := make([]*Column, 0, len(columns))
 	for _, c := range columns {
 		if c.Hidden == ColumnHiddenNone {
@@ -64,6 +72,7 @@ func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
 	s.cols = append(s.cols, visible)
+	s.dbNames = append(s.dbNames, dbName)
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.
@@ -143,6 +152,72 @@ func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (i
 		}
 	}
 	return 0, 0, 0, err
+}
+
+// resolveSchemaQualifiedColumnFull resolves a 3-part db.table.col reference,
+// verifying the database qualifier matches the scope entry's database name.
+func (s *analyzerScope) resolveSchemaQualifiedColumnFull(schema, tableName, colName string) (int, int, int, error) {
+	entries := s.base.AllEntries()
+	lowerTbl := strings.ToLower(tableName)
+	for i, e := range entries {
+		if strings.ToLower(e.Name) != lowerTbl {
+			continue
+		}
+		if s.dbNames[i] != "" && !strings.EqualFold(s.dbNames[i], schema) {
+			continue
+		}
+		for pos, col := range s.cols[i] {
+			if strings.EqualFold(col.Name, colName) {
+				return s.rteMap[i], pos + 1, 0, nil
+			}
+		}
+		return 0, 0, 0, errNoSuchColumn(schema+"."+tableName+"."+colName, "field list")
+	}
+	if s.parent != nil {
+		rteIdx, attNum, parentLevels, parentErr := s.parent.resolveSchemaQualifiedColumnFull(schema, tableName, colName)
+		if parentErr == nil {
+			return rteIdx, attNum, parentLevels + 1, nil
+		}
+	}
+	return 0, 0, 0, errNoSuchColumn(schema+"."+tableName+"."+colName, "field list")
+}
+
+// visibleCTEs returns the CTE map visible from this scope, walking parent
+// scopes when the current scope did not record its own.
+func (s *analyzerScope) visibleCTEs() map[string]*CommonTableExprQ {
+	for cur := s; cur != nil; cur = cur.parent {
+		if len(cur.ctes) > 0 {
+			return cur.ctes
+		}
+	}
+	return nil
+}
+
+// entryIndexWithDB finds the first entry matching both schema (when non-empty)
+// and lowered table/alias name. When schema is empty, it delegates to the
+// indexed entryIndex fast path.
+func (s *analyzerScope) entryIndexWithDB(schema, lowerName string) int {
+	if schema == "" {
+		return s.entryIndex(lowerName)
+	}
+	entries := s.base.AllEntries()
+	for i, e := range entries {
+		if toLower(e.Name) != lowerName {
+			continue
+		}
+		if s.dbNames[i] == "" || strings.EqualFold(s.dbNames[i], schema) {
+			return i
+		}
+	}
+	return -1
+}
+
+// entryDBName returns the database name recorded for scope entry i.
+func (s *analyzerScope) entryDBName(i int) string {
+	if i < 0 || i >= len(s.dbNames) {
+		return ""
+	}
+	return s.dbNames[i]
 }
 
 // allEntries returns all scope entries in registration order.

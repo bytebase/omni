@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/trino/ast"
 )
 
@@ -139,14 +141,22 @@ type RoutineCharacteristic struct {
 	Loc        ast.Loc
 }
 
+// FunctionDefinition is the `AS $$...$$` external-language body of a
+// functionSpecification (`functionDefinition : DOLLAR_STRING`).
+type FunctionDefinition struct {
+	Body string // raw text between $$ and $$
+	Loc  ast.Loc
+}
+
 // FunctionSpecification is
-// `FUNCTION functionDeclaration returnsClause routineCharacteristic* controlStatement`
+// `FUNCTION functionDeclaration returnsClause routineCharacteristic* (controlStatement | AS functionDefinition)`
 // — the function body shared by CREATE FUNCTION and WITH FUNCTION.
 type FunctionSpecification struct {
 	Declaration     FunctionDeclaration
 	ReturnType      *DataType               // the RETURNS type
 	Characteristics []RoutineCharacteristic // nil when none
-	Body            RoutineStatement        // the trailing controlStatement (RETURN / BEGIN / …)
+	Body            RoutineStatement        // the trailing controlStatement (nil when Definition is set)
+	Definition      *FunctionDefinition     // the trailing AS $$...$$ body (nil when Body is set)
 	Loc             ast.Loc
 }
 
@@ -321,8 +331,10 @@ func (p *Parser) parseRootQuery() (*Query, error) {
 		return nil, err
 	}
 	for _, fn := range functions {
-		if err := checkFunctionBody(fn.Body); err != nil {
-			return nil, err
+		if fn.Body != nil {
+			if err := checkFunctionBody(fn.Body); err != nil {
+				return nil, err
+			}
 		}
 	}
 	q.Functions = functions
@@ -374,6 +386,27 @@ func (p *Parser) parseFunctionSpecification() (FunctionSpecification, error) {
 		spec.Characteristics = append(spec.Characteristics, ch)
 	}
 
+	// (controlStatement | AS functionDefinition)
+	if p.cur.Kind == kwAS {
+		asTok := p.advance() // consume AS
+		defTok, err := p.expect(tokDollarString)
+		if err != nil {
+			return FunctionSpecification{}, err
+		}
+		spec.Definition = &FunctionDefinition{
+			Body: defTok.Str,
+			Loc:  ast.Loc{Start: asTok.Loc.Start, End: defTok.Loc.End},
+		}
+		spec.Loc.End = defTok.Loc.End
+		// Trino's AstBuilder refuses an `AS $$...$$` function definition when
+		// the function's language is SQL (the default when no LANGUAGE is
+		// given). Defer the check so a trailing syntax error is reported first.
+		if isSQLFunctionLanguage(spec.Characteristics) {
+			p.deferCheck(defTok.Loc, "SQL function cannot have an AS $$...$$ definition")
+		}
+		return spec, nil
+	}
+
 	// controlStatement (the trailing body — RETURN / BEGIN / IF / …). Trino's
 	// AstBuilder refuses a function body that does not START with RETURN or BEGIN,
 	// even though the grammar's controlStatement admits every alternative.
@@ -391,6 +424,18 @@ func (p *Parser) parseFunctionSpecification() (FunctionSpecification, error) {
 	spec.Body = body
 	spec.Loc.End = body.Span().End
 	return spec, nil
+}
+
+// isSQLFunctionLanguage reports whether the function's effective language is
+// SQL (no LANGUAGE characteristic, or LANGUAGE SQL).
+func isSQLFunctionLanguage(chars []RoutineCharacteristic) bool {
+	isSQL := true
+	for _, ch := range chars {
+		if ch.Kind == CharacteristicLanguage && ch.Language != nil {
+			isSQL = strings.EqualFold(ch.Language.Value, "SQL")
+		}
+	}
+	return isSQL
 }
 
 // checkFunctionBody enforces Trino's AstBuilder rule that a function body
@@ -469,27 +514,44 @@ func (p *Parser) parseParameterDeclaration() (ParameterDeclaration, error) {
 
 	// Attempt 1 — unnamed `type` (the `identifier?` is absent).
 	cp := p.checkpoint()
-	if typ, err := p.parseType(); err == nil && p.atParameterBoundary() {
-		return ParameterDeclaration{Type: typ, Loc: ast.Loc{Start: start, End: typ.Loc.End}}, nil
+	var err1 error
+	if typ, err := p.parseType(); err == nil {
+		if p.atParameterBoundary() {
+			return ParameterDeclaration{Type: typ, Loc: ast.Loc{Start: start, End: typ.Loc.End}}, nil
+		}
+		err1 = p.syntaxErrorAtCur()
+	} else {
+		err1 = err
 	}
 	p.restore(cp)
 
 	// Attempt 2 — named `identifier type`. The name is a single identifier
 	// token; the type follows and must reach a parameter boundary.
+	var err2 error
 	if isIdentifierStart(p.cur.Kind) {
 		name := identFromToken(p.advance())
-		if typ, err := p.parseType(); err == nil && p.atParameterBoundary() {
-			return ParameterDeclaration{
-				Name: name,
-				Type: typ,
-				Loc:  ast.Loc{Start: start, End: typ.Loc.End},
-			}, nil
+		if typ, err := p.parseType(); err == nil {
+			if p.atParameterBoundary() {
+				return ParameterDeclaration{
+					Name: name,
+					Type: typ,
+					Loc:  ast.Loc{Start: start, End: typ.Loc.End},
+				}, nil
+			}
+			err2 = p.syntaxErrorAtCur()
+		} else {
+			err2 = err
 		}
 		p.restore(cp)
 	}
 
-	// Neither reading fits: report the error at the parameter's first token.
-	return ParameterDeclaration{}, p.syntaxErrorAtCur()
+	// Neither reading reached a parameter boundary: report the error from the
+	// reading that got further (e.g. `RETURNS TIMESTAMP RETURN` reads RETURNS
+	// as the parameter name and TIMESTAMP as the type, stopping at RETURN).
+	if err2 != nil {
+		return ParameterDeclaration{}, furtherError(err1, err2)
+	}
+	return ParameterDeclaration{}, err1
 }
 
 // atParameterBoundary reports whether the cursor sits at the end of a

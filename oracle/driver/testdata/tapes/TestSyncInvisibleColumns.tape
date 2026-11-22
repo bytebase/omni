@@ -70,7 +70,8 @@
 | 			COLLATION,
 | 			DEFAULT_ON_NULL,
 | 			VIRTUAL_COLUMN,
-| 			IDENTITY_COLUMN
+| 			IDENTITY_COLUMN,
+| 			INTERNAL_COLUMN_ID
 | 		FROM sys.all_tab_cols
 | 		WHERE OWNER = 'OMNI_APP' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
@@ -91,6 +92,7 @@
 < column "DEFAULT_ON_NULL" "NCHAR" "string"
 < column "VIRTUAL_COLUMN" "NCHAR" "string"
 < column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "INTERNAL_COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | OMNI_APP
@@ -119,6 +121,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -149,6 +153,8 @@
 | NO
 : string
 | NO
+: string
+| 3
 < row
 : string
 | OMNI_APP
@@ -178,6 +184,8 @@
 | YES
 : string
 | NO
+: string
+| 5
 < row
 : string
 | OMNI_APP
@@ -205,6 +213,8 @@
 | NO
 : string
 | NO
+: string
+| 2
 < row
 : string
 | OMNI_APP
@@ -233,6 +243,8 @@
 | NO
 : string
 | NO
+: string
+| 4
 < row
 : string
 | OMNI_APP
@@ -261,6 +273,8 @@
 | YES
 : string
 | NO
+: string
+| 6
 < row
 : string
 | OMNI_APP
@@ -289,6 +303,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -318,6 +334,8 @@
 | NO
 : string
 | NO
+: string
+| 2
 > query
 |
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
@@ -460,6 +478,17 @@
 | FUNCTION-BASED NORMAL
 : string
 | VISIBLE
+> query
+|
+| 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
+| 		FROM all_part_tables
+| 		WHERE OWNER = 'OMNI_APP'
+| 		ORDER BY TABLE_NAME
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COLUMN_NAME, COMMENTS
@@ -655,7 +684,7 @@
 | 			TEXT
 | 		FROM ALL_SOURCE
 | 		WHERE
-| 			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+| 			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY')
 | 			AND
 | 			OWNER = 'OMNI_APP'
 | 		ORDER BY NAME, TYPE, LINE
@@ -675,7 +704,7 @@
 < column "COMMENTS" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY
+| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
 | 		FROM sys.all_mviews
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY MVIEW_NAME
@@ -684,6 +713,9 @@
 < column "OWNER" "NCHAR" "string"
 < column "MVIEW_NAME" "NCHAR" "string"
 < column "QUERY" "LONG"
+< column "BUILD_MODE" "NCHAR" "string"
+< column "REFRESH_METHOD" "NCHAR" "string"
+< column "REFRESH_MODE" "NCHAR" "string"
 > query
 |
 | 		SELECT 
@@ -63890,6 +63922,7 @@
 | 			NULL,
 | 			NULL,
 | 			NULL,
+| 			NULL,
 | 			NULL
 | 		FROM sys.all_tab_columns
 | 		WHERE OWNER = 'OMNI_APP'
@@ -63907,6 +63940,7 @@
 < column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
 < column "DATA_DEFAULT" "LONG"
 < column "NULLABLE" "NCHAR" "string"
+< column "NULL" "NCHAR" "string"
 < column "NULL" "NCHAR" "string"
 < column "NULL" "NCHAR" "string"
 < column "NULL" "NCHAR" "string"
@@ -63932,6 +63966,7 @@
 : null
 : string
 | Y
+: null
 : null
 : null
 : null
@@ -63962,6 +63997,7 @@
 : null
 : null
 : null
+: null
 < row
 : string
 | OMNI_APP
@@ -63988,6 +64024,7 @@
 : null
 : null
 : null
+: null
 < row
 : string
 | OMNI_APP
@@ -64008,6 +64045,7 @@
 : null
 : string
 | Y
+: null
 : null
 : null
 : null
@@ -64037,6 +64075,7 @@
 : null
 : null
 : null
+: null
 < row
 : string
 | OMNI_APP
@@ -64058,6 +64097,7 @@
 | "A"*2
 : string
 | Y
+: null
 : null
 : null
 : null
@@ -64087,6 +64127,7 @@
 : null
 : null
 : null
+: null
 < row
 : string
 | OMNI_APP
@@ -64108,6 +64149,7 @@
 : null
 : string
 | Y
+: null
 : null
 : null
 : null

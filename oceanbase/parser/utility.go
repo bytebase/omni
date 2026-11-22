@@ -852,6 +852,13 @@ func (p *Parser) parseHandlerStmt() (nodes.StmtNode, error) {
 //
 // An item may be the bare `*`: OceanBase 4.3.5 answers 1149 for `DO *`, which
 // its SQL parser does not raise, where `DO * = 1` is the parser's 1064.
+//
+// In OceanBase CE v4.3.5_CE_BP6 (src/sql/parser/ob_parser.cpp:412 and
+// src/pl/parser/pl_parser_mysql_mode.y:598-606, do_sp_stmt), OceanBase routes
+// DO statements to the PL parser, whose semantic action rejects any top-level
+// T_COLUMN_REF item (including parenthesized forms such as `DO (a)` because
+// sql_parser_mysql_mode.y returns $2 directly for `'(' expr ')'`) with 1064
+// ("Syntax Error, DO statement cannot reference to a table").
 func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	start := p.pos()
 	p.advance() // consume DO
@@ -859,6 +866,7 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	stmt := &nodes.DoStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
+		exprStart := p.pos()
 		expr := p.parseBareStar()
 		if expr == nil {
 			var err error
@@ -870,6 +878,12 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if p.isBareDoColumnRef(exprStart, expr) {
+			return nil, &ParseError{
+				Message:  "syntax error: DO statement cannot reference a column",
+				Position: exprStart,
+			}
+		}
 		stmt.Exprs = append(stmt.Exprs, expr)
 		if p.cur.Type != ',' {
 			break
@@ -879,6 +893,39 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// isBareDoColumnRef reports whether expr, after unwrapping any outer
+// parentheses, is a column reference (including qualified `t.a` and `t.*`)
+// with no leading unary `+` (which parseExpr drops without wrapping in
+// UnaryExpr, whereas OceanBase wraps `+a` in T_OP_POS and accepts `DO +a`).
+func (p *Parser) isBareDoColumnRef(exprStart int, expr nodes.ExprNode) bool {
+	for {
+		pe, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = pe.Expr
+	}
+	col, ok := expr.(*nodes.ColumnRef)
+	if !ok {
+		return false
+	}
+	start := exprStart - p.lexer.baseOffset
+	end := col.Loc.Start - p.lexer.baseOffset
+	if start >= 0 && end > start && end <= len(p.lexer.input) {
+		lex := NewLexer(p.lexer.input[start:end])
+		for {
+			tok := lex.NextToken()
+			if tok.Type == tokEOF {
+				break
+			}
+			if tok.Type == '+' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // parseChecksumTableStmt parses a CHECKSUM TABLE statement.

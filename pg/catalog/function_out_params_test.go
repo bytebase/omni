@@ -245,3 +245,25 @@ AS 'SELECT input_value';
 `)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
+
+func TestSDLMigration_RecordReturningFunctionView(t *testing.T) {
+	sdl := `
+CREATE FUNCTION public.record_pair(OUT id integer, OUT name text)
+RETURNS record
+LANGUAGE sql
+AS $$
+	SELECT 1::integer, 'alice'::text;
+$$;
+
+CREATE VIEW public.record_pair_view AS
+SELECT *
+FROM public.record_pair();
+`
+	plan, err := BuildSDLMigrationPlan(sdl, sdl, SDLMigrationOptions{})
+	if err != nil {
+		t.Fatalf("BuildSDLMigrationPlan() error: %v", err)
+	}
+	if plan != nil {
+		t.Fatalf("expected nil plan for identical record-returning function view SDL, got:\n%s", plan.SQL())
+	}
+}

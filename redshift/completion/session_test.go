@@ -3,6 +3,7 @@ package completion
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -256,4 +257,167 @@ func TestCompleteSession_NilOrFailedMetadata(t *testing.T) {
 		gotCTERel := CompleteSession(context.Background(), cfg, stmtCTERel, lineR, colR)
 		require.True(t, hasSessionCandidate(gotCTERel, "c", CandidateTable), "got %v", gotCTERel)
 	}
+}
+
+func TestCompleteSession_RedshiftSlotsAndCoverageMatrix(t *testing.T) {
+	type wantSpec struct {
+		text string
+		typ  CandidateType
+	}
+	type matrixCase struct {
+		name       string
+		input      string
+		want       []wantSpec
+		absentText []string
+	}
+
+	// Redshift grammar slot and prefix cases (no metadata needed).
+	slotCases := []matrixCase{
+		{name: "statement start", input: "|", want: []wantSpec{{"SELECT", CandidateKeyword}, {"COPY", CandidateKeyword}, {"UNLOAD", CandidateKeyword}, {"SHOW", CandidateKeyword}}},
+		{name: "prefix filtering", input: "SH|", want: []wantSpec{{"SHOW", CandidateKeyword}}, absentText: []string{"SELECT", "COPY"}},
+		{name: "create dispatch", input: "CREATE |", want: []wantSpec{{"TABLE", CandidateKeyword}, {"VIEW", CandidateKeyword}, {"SCHEMA", CandidateKeyword}, {"DATABASE", CandidateKeyword}}},
+		{name: "alter dispatch", input: "ALTER |", want: []wantSpec{{"TABLE", CandidateKeyword}, {"DATABASE", CandidateKeyword}, {"ROLE", CandidateKeyword}, {"SCHEMA", CandidateKeyword}}},
+		{name: "drop dispatch", input: "DROP |", want: []wantSpec{{"TABLE", CandidateKeyword}, {"VIEW", CandidateKeyword}, {"INDEX", CandidateKeyword}, {"FUNCTION", CandidateKeyword}}},
+		{name: "create table options", input: "CREATE TABLE t (id INT) |", want: []wantSpec{{"DISTSTYLE", CandidateKeyword}, {"DISTKEY", CandidateKeyword}, {"SORTKEY", CandidateKeyword}, {"ENCODE", CandidateKeyword}}},
+		{name: "create table option prefix DIS", input: "CREATE TABLE t (id INT) DIS|", want: []wantSpec{{"DISTSTYLE", CandidateKeyword}, {"DISTKEY", CandidateKeyword}}, absentText: []string{"SORTKEY", "ENCODE"}},
+		{name: "create table option prefix D", input: "CREATE TABLE t (id INT) D|", want: []wantSpec{{"DISTSTYLE", CandidateKeyword}}, absentText: []string{"ENCODE"}},
+		{name: "create table option prefix DI", input: "CREATE TABLE t (id INT) DI|", want: []wantSpec{{"DISTKEY", CandidateKeyword}}, absentText: []string{"ENCODE"}},
+		{name: "create table option prefix S", input: "CREATE TABLE t (id INT) S|", want: []wantSpec{{"SORTKEY", CandidateKeyword}}, absentText: []string{"ENCODE"}},
+		{name: "create table option prefix E", input: "CREATE TABLE t (id INT) E|", want: []wantSpec{{"ENCODE", CandidateKeyword}}, absentText: []string{"SORTKEY"}},
+		{name: "copy options", input: "COPY t FROM 's3://bucket/file' |", want: []wantSpec{{"IAM_ROLE", CandidateKeyword}, {"CREDENTIALS", CandidateKeyword}, {"FORMAT", CandidateKeyword}, {"MANIFEST", CandidateKeyword}}},
+		{name: "copy option prefix C", input: "COPY orders FROM 's3://bucket/file' C|", want: []wantSpec{{"CREDENTIALS", CandidateKeyword}}, absentText: []string{"FORMAT"}},
+		{name: "copy option prefix F", input: "COPY orders FROM 's3://bucket/file' F|", want: []wantSpec{{"FORMAT", CandidateKeyword}}, absentText: []string{"MANIFEST"}},
+		{name: "copy option prefix M", input: "COPY orders FROM 's3://bucket/file' M|", want: []wantSpec{{"MANIFEST", CandidateKeyword}}, absentText: []string{"FORMAT"}},
+		{name: "copy option prefix G", input: "COPY orders FROM 's3://bucket/file' G|", want: []wantSpec{{"GZIP", CandidateKeyword}}, absentText: []string{"BZIP2", "MANIFEST"}},
+		{name: "copy option prefix B", input: "COPY orders FROM 's3://bucket/file' B|", want: []wantSpec{{"BZIP2", CandidateKeyword}}, absentText: []string{"GZIP"}},
+		{name: "unload options", input: "UNLOAD ('SELECT * FROM t') TO 's3://bucket/out' |", want: []wantSpec{{"IAM_ROLE", CandidateKeyword}, {"FORMAT", CandidateKeyword}, {"MANIFEST", CandidateKeyword}, {"HEADER", CandidateKeyword}}},
+		{name: "unload option prefix F", input: "UNLOAD ('SELECT * FROM orders') TO 's3://bucket/out' F|", want: []wantSpec{{"FORMAT", CandidateKeyword}}, absentText: []string{"MANIFEST"}},
+		{name: "unload option prefix M", input: "UNLOAD ('SELECT * FROM orders') TO 's3://bucket/out' M|", want: []wantSpec{{"MANIFEST", CandidateKeyword}}, absentText: []string{"FORMAT"}},
+		{name: "unload option prefix G", input: "UNLOAD ('SELECT * FROM orders') TO 's3://bucket/out' G|", want: []wantSpec{{"GZIP", CandidateKeyword}}, absentText: []string{"BZIP2"}},
+		{name: "unload option prefix B", input: "UNLOAD ('SELECT * FROM orders') TO 's3://bucket/out' B|", want: []wantSpec{{"BZIP2", CandidateKeyword}}, absentText: []string{"GZIP"}},
+		{name: "unload option prefix H", input: "UNLOAD ('SELECT * FROM orders') TO 's3://bucket/out' H|", want: []wantSpec{{"HEADER", CandidateKeyword}}, absentText: []string{"MANIFEST", "FORMAT"}},
+		{name: "show subcommands", input: "SHOW |", want: []wantSpec{{"DATABASES", CandidateKeyword}, {"SCHEMAS", CandidateKeyword}, {"TABLES", CandidateKeyword}, {"DATASHARES", CandidateKeyword}}},
+		{name: "show subcommand prefix DATA", input: "SHOW DATA|", want: []wantSpec{{"DATABASES", CandidateKeyword}, {"DATASHARES", CandidateKeyword}}, absentText: []string{"TABLES", "COLUMNS"}},
+		{name: "show subcommand prefix D", input: "SHOW D|", want: []wantSpec{{"DATASHARES", CandidateKeyword}}, absentText: []string{"TABLES"}},
+		{name: "show subcommand prefix S", input: "SHOW S|", want: []wantSpec{{"SCHEMAS", CandidateKeyword}}, absentText: []string{"TABLES"}},
+		{name: "show subcommand prefix T", input: "SHOW T|", want: []wantSpec{{"TABLES", CandidateKeyword}}, absentText: []string{"SCHEMAS"}},
+		{name: "show subcommand prefix C", input: "SHOW C|", want: []wantSpec{{"COLUMNS", CandidateKeyword}}, absentText: []string{"DATASHARES"}},
+		{name: "show subcommand prefix G", input: "SHOW G|", want: []wantSpec{{"GRANTS", CandidateKeyword}}, absentText: []string{"TABLES"}},
+	}
+
+	// Metadata relation, schema-qualified, column, qualifier, prefix, and CTE cases.
+	metaCases := []matrixCase{
+		// Relation contexts
+		{name: "select from", input: "SELECT * FROM |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "select join", input: "SELECT * FROM orders JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "select comma join", input: "SELECT * FROM orders, |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "left join", input: "SELECT * FROM orders LEFT JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "right join", input: "SELECT * FROM orders RIGHT JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "full join", input: "SELECT * FROM orders FULL JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "cross join", input: "SELECT * FROM orders CROSS JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "insert into", input: "INSERT INTO |", want: []wantSpec{{"orders", CandidateTable}, {"events", CandidateTable}}},
+		{name: "copy relation", input: "COPY | FROM 's3://bucket/file'", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "update relation", input: "UPDATE |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "delete relation", input: "DELETE FROM |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "truncate relation", input: "TRUNCATE TABLE |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "create table as from", input: "CREATE TABLE new_orders AS SELECT * FROM |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "create view as from", input: "CREATE VIEW v AS SELECT * FROM |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "create materialized view as from", input: "CREATE MATERIALIZED VIEW mv AS SELECT * FROM |", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "subquery from", input: "SELECT * FROM (SELECT * FROM |) s", want: []wantSpec{{"orders", CandidateTable}}},
+		{name: "exists subquery from", input: "SELECT * FROM orders WHERE EXISTS (SELECT 1 FROM |)", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "in subquery from", input: "SELECT * FROM orders WHERE id IN (SELECT event_id FROM |)", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "union right from", input: "SELECT * FROM orders UNION ALL SELECT * FROM |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "with body from", input: "WITH x AS (SELECT * FROM |) SELECT * FROM x", want: []wantSpec{{"orders", CandidateTable}}},
+
+		// Column contexts
+		{name: "projection", input: "SELECT | FROM orders", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "projection after expression", input: "SELECT count(*), | FROM orders", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "where", input: "SELECT * FROM orders WHERE |", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "where after predicate", input: "SELECT * FROM orders WHERE amount > 10 AND |", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "group by", input: "SELECT id, sum(amount) FROM orders GROUP BY |", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "order by", input: "SELECT id, amount FROM orders ORDER BY |", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "having", input: "SELECT id, sum(amount) FROM orders GROUP BY id HAVING |", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "join on left", input: "SELECT * FROM orders o JOIN analytics.events e ON |", want: []wantSpec{{"id", CandidateColumn}, {"event_id", CandidateColumn}}},
+		{name: "join on right predicate", input: "SELECT * FROM orders o JOIN analytics.events e ON o.id = e.event_id AND |", want: []wantSpec{{"id", CandidateColumn}, {"event_id", CandidateColumn}}},
+		{name: "subquery projection", input: "SELECT * FROM (SELECT | FROM orders) s", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "exists projection", input: "SELECT * FROM orders WHERE EXISTS (SELECT | FROM analytics.events)", want: []wantSpec{{"event_id", CandidateColumn}}},
+		{name: "with body projection", input: "WITH x AS (SELECT | FROM orders) SELECT * FROM x", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "view projection", input: "SELECT | FROM active_orders", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "materialized view projection", input: "SELECT | FROM orders_summary", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}},
+		{name: "external table projection", input: "SELECT | FROM spectrum_orders", want: []wantSpec{{"external_id", CandidateColumn}}},
+
+		// Qualifier contexts
+		{name: "alias o", input: "SELECT o.| FROM orders AS o", want: []wantSpec{{"id", CandidateColumn}, {"amount", CandidateColumn}}, absentText: []string{"event_id"}},
+		{name: "alias e", input: "SELECT e.| FROM orders o JOIN analytics.events e ON o.id = e.event_id", want: []wantSpec{{"event_id", CandidateColumn}}},
+		{name: "table alias named orders", input: "SELECT orders.| FROM orders AS orders", want: []wantSpec{{"id", CandidateColumn}}},
+		{name: "table events", input: "SELECT events.| FROM analytics.events", want: []wantSpec{{"event_id", CandidateColumn}}, absentText: []string{"amount"}},
+		{name: "cte alias", input: "WITH x(a, b) AS (SELECT id, amount FROM orders) SELECT x.| FROM x", want: []wantSpec{{"a", CandidateColumn}, {"b", CandidateColumn}}},
+		{name: "unknown qualifier", input: "SELECT nope.| FROM orders", absentText: []string{"id", "amount", "event_id"}},
+
+		// Prefix contexts
+		{name: "relation prefix ord", input: "SELECT * FROM ord|", want: []wantSpec{{"orders", CandidateTable}, {"orders_summary", CandidateMaterializedView}}, absentText: []string{"events", "active_orders"}},
+		{name: "relation prefix act", input: "SELECT * FROM act|", want: []wantSpec{{"active_orders", CandidateView}}, absentText: []string{"orders"}},
+		{name: "relation prefix spec", input: "SELECT * FROM spec|", want: []wantSpec{{"spectrum_orders", CandidateTable}}, absentText: []string{"active_orders"}},
+		{name: "schema prefix ana", input: "SELECT * FROM ana|", want: []wantSpec{{"analytics", CandidateSchema}}, absentText: []string{"public"}},
+		{name: "column prefix am", input: "SELECT am| FROM orders", want: []wantSpec{{"amount", CandidateColumn}}, absentText: []string{"id"}},
+		{name: "column prefix event", input: "SELECT event| FROM analytics.events", want: []wantSpec{{"event_id", CandidateColumn}}, absentText: []string{"amount"}},
+
+		// CTE contexts
+		{name: "cte from", input: "WITH x AS (SELECT * FROM orders) SELECT * FROM |", want: []wantSpec{{"x", CandidateTable}}},
+		{name: "cte projection alias cols", input: "WITH x(a, b) AS (SELECT id, amount FROM orders) SELECT | FROM x", want: []wantSpec{{"a", CandidateColumn}, {"b", CandidateColumn}}},
+		{name: "cte prefix", input: "WITH recent_orders AS (SELECT * FROM orders) SELECT * FROM recent_|", want: []wantSpec{{"recent_orders", CandidateTable}}},
+		{name: "cte join relation", input: "WITH x AS (SELECT * FROM orders) SELECT * FROM x JOIN |", want: []wantSpec{{"events", CandidateTable}}},
+		{name: "cte join columns", input: "WITH x(a, b) AS (SELECT id, amount FROM orders) SELECT | FROM x JOIN analytics.events e ON x.a = e.event_id", want: []wantSpec{{"a", CandidateColumn}, {"event_id", CandidateColumn}}},
+	}
+
+	// Schema-qualified relation templates across both schemas.
+	qualifiedTemplates := []string{
+		"SELECT * FROM %s.|",
+		"SELECT * FROM orders JOIN %s.|",
+		"INSERT INTO %s.|",
+		"UPDATE %s.|",
+		"DELETE FROM %s.|",
+		"COPY %s.| FROM 's3://bucket/file'",
+		"CREATE TABLE copy AS SELECT * FROM %s.|",
+		"CREATE VIEW copy_v AS SELECT * FROM %s.|",
+		"SELECT * FROM (SELECT * FROM %s.|) s",
+		"WITH x AS (SELECT * FROM %s.|) SELECT * FROM x",
+	}
+	for _, s := range []struct {
+		schema string
+		want   string
+		absent []string
+	}{
+		{"public", "orders", []string{"events"}},
+		{"analytics", "events", []string{"orders", "active_orders"}},
+	} {
+		for i, tmpl := range qualifiedTemplates {
+			metaCases = append(metaCases, matrixCase{
+				name:       fmt.Sprintf("schema qualified %s %02d", s.schema, i),
+				input:      fmt.Sprintf(tmpl, s.schema),
+				want:       []wantSpec{{s.want, CandidateTable}},
+				absentText: s.absent,
+			})
+		}
+	}
+
+	runCases := func(cfg SessionConfig, cases []matrixCase) {
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				stmt, line, col := catchCaretUTF16(t, tc.input)
+				got := CompleteSession(context.Background(), cfg, stmt, line, col)
+				for _, w := range tc.want {
+					require.Truef(t, hasSessionCandidate(got, w.text, w.typ), "missing {%s, %v} in %v", w.text, w.typ, got)
+				}
+				for _, absent := range tc.absentText {
+					for _, c := range got {
+						require.NotEqualf(t, absent, c.Text, "unexpected %q in %v", absent, got)
+					}
+				}
+			})
+		}
+	}
+
+	runCases(SessionConfig{DefaultDatabase: "db", DefaultSchema: "public"}, slotCases)
+	runCases(redshiftSessionConfig(), metaCases)
 }

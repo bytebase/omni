@@ -1580,7 +1580,15 @@ func (p *Parser) parseServerOptions() ([]string, error) {
 		case tokIDENT:
 			// The lexer gives a user variable as an identifier too; a name
 			// backquoted, `@custom`, is an IDENT_sys all the same.
-			if strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@") {
+			raw := p.inputText(p.cur.Loc, p.cur.End)
+			if strings.HasPrefix(raw, "@") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// MariaDB's server_option takes IDENT_sys (unquoted non-keyword or
+			// backquoted identifier). Keywords from MariaDB's sql/lex.h that
+			// omni's lexer keeps as tokIDENT (e.g. PACKAGE, SOFT) are not
+			// IDENT_sys when written bare.
+			if !strings.HasPrefix(raw, "`") && unlexeredMariaDBKeywords[strings.ToLower(p.cur.Str)] {
 				return nil, p.syntaxErrorAtCur()
 			}
 			word = p.cur.Str
@@ -1614,6 +1622,98 @@ func (p *Parser) parseServerOptions() ([]string, error) {
 		return nil, err
 	}
 	return opts, nil
+}
+
+// unlexeredMariaDBKeywords lists MariaDB 11.8 lexer keywords (sql/lex.h) that
+// omni's lexer intentionally emits as tokIDENT rather than dedicated kw* tokens
+// (matching them contextually via atWord). Positions that require IDENT_sys
+// (not any keyword), such as CREATE/ALTER SERVER OPTIONS, reject these words
+// when written unquoted.
+var unlexeredMariaDBKeywords = map[string]bool{
+	"atomic":                        true,
+	"authors":                       true,
+	"body":                          true,
+	"checkpoint":                    true,
+	"clob":                          true,
+	"column_add":                    true,
+	"column_check":                  true,
+	"column_create":                 true,
+	"column_delete":                 true,
+	"column_get":                    true,
+	"contributors":                  true,
+	"current_pos":                   true,
+	"delete_domain_id":              true,
+	"des_key_file":                  true,
+	"do_domain_ids":                 true,
+	"elsif":                         true,
+	"examined":                      true,
+	"exception":                     true,
+	"federated":                     true,
+	"goto":                          true,
+	"hard":                          true,
+	"id":                            true,
+	"ignored":                       true,
+	"immediate":                     true,
+	"isopen":                        true,
+	"lastval":                       true,
+	"master_connect_retry":          true,
+	"master_delay":                  true,
+	"master_gtid_pos":               true,
+	"master_heartbeat_period":       true,
+	"master_host":                   true,
+	"master_log_file":               true,
+	"master_log_pos":                true,
+	"master_password":               true,
+	"master_port":                   true,
+	"master_server_id":              true,
+	"master_ssl":                    true,
+	"master_ssl_ca":                 true,
+	"master_ssl_capath":             true,
+	"master_ssl_cert":               true,
+	"master_ssl_cipher":             true,
+	"master_ssl_crl":                true,
+	"master_ssl_crlpath":            true,
+	"master_ssl_key":                true,
+	"master_ssl_verify_server_cert": true,
+	"master_use_gtid":               true,
+	"master_user":                   true,
+	"max_statement_time":            true,
+	"median":                        true,
+	"monitor":                       true,
+	"mysql":                         true,
+	"nextval":                       true,
+	"nocopy":                        true,
+	"notfound":                      true,
+	"old_password":                  true,
+	"online":                        true,
+	"package":                       true,
+	"percentile_cont":               true,
+	"percentile_disc":               true,
+	"period":                        true,
+	"persistent":                    true,
+	"raise":                         true,
+	"raw":                           true,
+	"record":                        true,
+	"redofile":                      true,
+	"ref_system_id":                 true,
+	"replay":                        true,
+	"rowcount":                      true,
+	"rownum":                        true,
+	"rowtype":                       true,
+	"setval":                        true,
+	"slave_pos":                     true,
+	"slaves":                        true,
+	"soft":                          true,
+	"sql_cache":                     true,
+	"stage":                         true,
+	"statement":                     true,
+	"system_time":                   true,
+	"threads":                       true,
+	"transactional":                 true,
+	"varchar2":                      true,
+	"versioning":                    true,
+	"via":                           true,
+	"within":                        true,
 }
 
 // parseCreateServerStmt parses a CREATE SERVER statement.

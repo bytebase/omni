@@ -89,25 +89,10 @@ func removeFunctionalIndexHiddenColumns(tbl *Table, idx *Index) {
 	rebuildColIndex(tbl)
 }
 
-func renameFunctionalIndexHiddenColumns(tbl *Table, idx *Index, newIndexName string) {
-	renamed := false
-	for part, idxCol := range idx.Columns {
-		if idxCol.Expr == "" || idxCol.Name == "" {
-			continue
-		}
-		col := tbl.GetColumn(idxCol.Name)
-		if col == nil || col.Hidden != ColumnHiddenSystem {
-			continue
-		}
-		newName := makeFunctionalIndexColumnName(tbl, newIndexName, part)
-		col.Name = newName
-		idxCol.Name = newName
-		renamed = true
-	}
-	if renamed {
-		rebuildColIndex(tbl)
-	}
-}
+// OceanBase names functional-index hidden columns by column ID (SYS_NC<id>$),
+// not by index name, so RENAME INDEX leaves the hidden column name unchanged
+// (measured on OceanBase 4.3.5.6).
+func renameFunctionalIndexHiddenColumns(_ *Table, _ *Index, _ string) {}
 
 func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
 	rt := inferFunctionalIndexExprType(tbl, idxCol.ExprNode)
@@ -513,15 +498,12 @@ func isFunctionalIndexLOBType(rt *ResolvedType) bool {
 	}
 }
 
-func makeFunctionalIndexColumnName(tbl *Table, indexName string, part int) string {
-	for count := 0; ; count++ {
-		suffix := fmt.Sprintf("!%d!%d", part, count)
-		prefix := "!hidden!" + indexName
-		maxPrefixLen := maxFunctionalColumnLength - len(suffix)
-		if len(prefix) > maxPrefixLen {
-			prefix = prefix[:maxPrefixLen]
-		}
-		name := prefix + suffix
+// makeFunctionalIndexColumnName allocates OceanBase's SYS_NC<column_id>$ name
+// for a functional-index hidden virtual column (OB_APP_MIN_COLUMN_ID = 16,
+// monotonically increasing per table).
+func makeFunctionalIndexColumnName(tbl *Table, _ string, _ int) string {
+	for {
+		name := fmt.Sprintf("SYS_NC%d$", tbl.allocColumnID())
 		if tbl.GetColumn(name) == nil {
 			return name
 		}

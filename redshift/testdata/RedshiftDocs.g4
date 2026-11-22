@@ -786,6 +786,7 @@ reset
 // https://docs.aws.amazon.com/redshift/latest/dg/r_REVOKE.html
 // fix: FOR TABLES IN form: two } too many in its privileges; dropped
 // fix: FOR SCHEMAS IN form: its privileges close a { they never open; opened
+// fix: FOR COPY JOBS form: GRANT_OPTION is written as one token, not GRANT OPTION like the other scoped REVOKE forms
 // fix: system privileges: no | after DROP ROLE and TRUNCATE TABLE; added
 // fix: system privileges: ALL PRIVILEGES is chosen outside the braces that hold the choice; moved inside
 // fix: datashare usage: the choice after FROM is not braced
@@ -814,7 +815,7 @@ revoke
     | 'REVOKE' ('GRANT' 'OPTION')? ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'FOR' 'FUNCTIONS' 'IN' ('SCHEMA' ID ('DATABASE' ID)? | 'DATABASE' ID) 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
     | 'REVOKE' ('GRANT' 'OPTION')? ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'FOR' 'PROCEDURES' 'IN' ('SCHEMA' ID ('DATABASE' ID)? | 'DATABASE' ID) 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
     | 'REVOKE' ('GRANT' 'OPTION')? 'USAGE' 'FOR' 'LANGUAGES' 'IN' 'DATABASE' ID 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
-    | 'REVOKE' 'GRANT_OPTION'? (('CREATE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'COPY' 'JOBS' 'IN' 'DATABASE' ID 'FROM' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID) (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID))*
+    | 'REVOKE' ('GRANT' 'OPTION')? (('CREATE' | 'ALTER' | 'DROP') (',' ('CREATE' | 'ALTER' | 'DROP'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'COPY' 'JOBS' 'IN' 'DATABASE' ID 'FROM' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID) (',' (ID ('WITH' 'GRANT' 'OPTION')? | 'ROLE' ID))*
     | 'REVOKE' ('GRANT' 'OPTION')? (('ALTER' | 'DROP' | 'USAGE') (',' ('ALTER' | 'DROP' | 'USAGE'))* | 'ALL' 'PRIVILEGES'?) 'FOR' 'TEMPLATES' 'IN' ('SCHEMA' ID ('DATABASE' ID)? | 'DATABASE' ID) 'FROM' (ID | 'ROLE' ID) (',' (ID | 'ROLE' ID))*
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? 'CREATE' 'MODEL' 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?
     | 'REVOKE' ('GRANT' 'OPTION' 'FOR')? ('EXECUTE' | 'ALL' 'PRIVILEGES'?) 'ON' 'MODEL' ID (',' ID)* 'FROM' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC') (',' (ID | 'ROLE' ID | 'GROUP' ID | 'PUBLIC'))* 'RESTRICT'?

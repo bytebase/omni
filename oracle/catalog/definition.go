@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
@@ -100,12 +102,96 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// Procedures will be created after tables by default order
 	}
 
-	// Views and virtual columns can call functions, so the function must exist
-	// first.
+	// Views and virtual columns can call functions or package functions, and
+	// views can query through synonyms, so those prerequisites must exist first.
+	packageMap := make(map[string]*metadatapb.PackageMetadata)
+	addPackageDep := func(pkg *metadatapb.PackageMetadata, dependentID string) {
+		pkgID := "pkg:" + getObjectID(databaseName, pkg.Name)
+		if _, exists := packageMap[pkgID]; !exists {
+			packageMap[pkgID] = pkg
+			graph.AddNode(pkgID)
+		}
+		graph.AddEdge(pkgID, dependentID)
+	}
+	type synonymEntry struct {
+		syn    *metadatapb.SynonymMetadata
+		public bool
+	}
+	publicSyns := dumpablePublicSynonyms(to.PublicSynonyms, databaseName)
+	allSyns := make([]synonymEntry, 0, len(schema.Synonyms)+len(publicSyns))
+	for _, syn := range schema.Synonyms {
+		allSyns = append(allSyns, synonymEntry{syn: syn})
+	}
+	for _, syn := range publicSyns {
+		allSyns = append(allSyns, synonymEntry{syn: syn, public: true})
+	}
+	synonymMap := make(map[string]synonymEntry)
+	findTargetSynonym := func(entry synonymEntry) (synonymEntry, bool) {
+		if entry.syn.GetTargetDbLink() != "" || entry.syn.GetTargetName() == "" {
+			return synonymEntry{}, false
+		}
+		targetSchema := entry.syn.GetTargetSchema()
+		if targetSchema == "" {
+			targetSchema = databaseName
+		}
+		targetName := entry.syn.GetTargetName()
+		if targetSchema == databaseName {
+			for _, candidate := range allSyns {
+				if !candidate.public && candidate.syn != entry.syn && candidate.syn.GetName() == targetName {
+					return candidate, true
+				}
+			}
+		}
+		for _, candidate := range allSyns {
+			if candidate.public && candidate.syn != entry.syn && candidate.syn.GetName() == targetName {
+				return candidate, true
+			}
+		}
+		return synonymEntry{}, false
+	}
+	var addSynonymDep func(entry synonymEntry, dependentID string)
+	addSynonymDep = func(entry synonymEntry, dependentID string) {
+		prefix := "syn:"
+		if entry.public {
+			prefix = "pubsyn:"
+		}
+		synID := prefix + getObjectID(databaseName, entry.syn.GetName())
+		if _, exists := synonymMap[synID]; !exists {
+			synonymMap[synID] = entry
+			graph.AddNode(synID)
+			if entry.syn.GetTargetDbLink() == "" && entry.syn.GetTargetName() != "" {
+				targetSchema := entry.syn.GetTargetSchema()
+				if targetSchema == "" {
+					targetSchema = databaseName
+				}
+				targetID := getObjectID(targetSchema, entry.syn.GetTargetName())
+				if _, ok := tableMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				} else if _, ok := viewMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				} else if _, ok := materializedViewMap[targetID]; ok {
+					graph.AddEdge(targetID, synID)
+				} else if targetEntry, ok := findTargetSynonym(entry); ok {
+					addSynonymDep(targetEntry, synID)
+				}
+			}
+		}
+		graph.AddEdge(synID, dependentID)
+	}
 	for viewID, view := range viewMap {
 		for functionID, function := range functionMap {
 			if expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkg := range schema.Packages {
+			if expressionReferencesPackage(view.Definition, pkg.Name) {
+				addPackageDep(pkg, viewID)
+			}
+		}
+		for _, entry := range allSyns {
+			if viewReferencesSynonym(view.Definition, view.DependencyColumns, entry.syn.GetName()) {
+				addSynonymDep(entry, viewID)
 			}
 		}
 	}
@@ -113,6 +199,16 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		for functionID, function := range functionMap {
 			if expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkg := range schema.Packages {
+			if expressionReferencesPackage(view.Definition, pkg.Name) {
+				addPackageDep(pkg, viewID)
+			}
+		}
+		for _, entry := range allSyns {
+			if viewReferencesSynonym(view.Definition, view.DependencyColumns, entry.syn.GetName()) {
+				addSynonymDep(entry, viewID)
 			}
 		}
 	}
@@ -125,6 +221,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			for functionID, function := range functionMap {
 				if expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 					graph.AddEdge(functionID, tableID)
+				}
+			}
+			for _, pkg := range schema.Packages {
+				if expressionReferencesPackage(column.GetGeneration().GetExpression(), pkg.Name) {
+					addPackageDep(pkg, tableID)
 				}
 			}
 		}
@@ -144,10 +245,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	// Perform topological sort
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there are cycles, fall back to original order. Functions a virtual
-		// column calls must exist before their table; the foreign keys are added
-		// once all tables exist.
+		// If there are cycles, fall back to original order. Functions and
+		// packages a virtual column calls must exist before their table; the
+		// foreign keys are added once all tables exist.
 		prewrittenFunctions := map[string]bool{}
+		prewrittenPackages := map[string]bool{}
 		for _, table := range tables {
 			for _, column := range table.Columns {
 				if column.GetGeneration() == nil {
@@ -159,6 +261,14 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 							return "", err
 						}
 						prewrittenFunctions[function.Name] = true
+					}
+				}
+				for _, pkg := range schema.Packages {
+					if !prewrittenPackages[pkg.Name] && expressionReferencesPackage(column.GetGeneration().GetExpression(), pkg.Name) {
+						if err := writePackage(&buf, pkg); err != nil {
+							return "", err
+						}
+						prewrittenPackages[pkg.Name] = true
 					}
 				}
 			}
@@ -175,9 +285,23 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				}
 			}
 		}
-		// A view that calls a function needs it before the view, as a virtual
-		// column does.
-		checkView := func(definition string) error {
+		// A view that calls a function or package function or queries a synonym
+		// needs those prerequisites before the view.
+		prewrittenSynonyms := map[*metadatapb.SynonymMetadata]bool{}
+		var writeSynonymChain func(entry synonymEntry) error
+		writeSynonymChain = func(entry synonymEntry) error {
+			if prewrittenSynonyms[entry.syn] {
+				return nil
+			}
+			prewrittenSynonyms[entry.syn] = true
+			if targetEntry, ok := findTargetSynonym(entry); ok {
+				if err := writeSynonymChain(targetEntry); err != nil {
+					return err
+				}
+			}
+			return writeSynonym(&buf, entry.syn, databaseName, entry.public)
+		}
+		checkView := func(definition string, deps []*metadatapb.DependencyColumn) error {
 			for _, function := range schema.Functions {
 				if !prewrittenFunctions[function.Name] && expressionReferencesFunction(definition, function.Name) {
 					if err := writeFunction(&buf, function); err != nil {
@@ -186,15 +310,30 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 					prewrittenFunctions[function.Name] = true
 				}
 			}
+			for _, pkg := range schema.Packages {
+				if !prewrittenPackages[pkg.Name] && expressionReferencesPackage(definition, pkg.Name) {
+					if err := writePackage(&buf, pkg); err != nil {
+						return err
+					}
+					prewrittenPackages[pkg.Name] = true
+				}
+			}
+			for _, entry := range allSyns {
+				if !prewrittenSynonyms[entry.syn] && viewReferencesSynonym(definition, deps, entry.syn.GetName()) {
+					if err := writeSynonymChain(entry); err != nil {
+						return err
+					}
+				}
+			}
 			return nil
 		}
 		for _, view := range schema.Views {
-			if err := checkView(view.Definition); err != nil {
+			if err := checkView(view.Definition, view.DependencyColumns); err != nil {
 				return "", err
 			}
 		}
-		for _, definition := range materializedViewDefinitions(schema) {
-			if err := checkView(definition); err != nil {
+		for _, view := range schema.MaterializedViews {
+			if err := checkView(view.Definition, view.DependencyColumns); err != nil {
 				return "", err
 			}
 		}
@@ -214,16 +353,34 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				return "", err
 			}
 		}
+		for _, pkg := range schema.Packages {
+			if prewrittenPackages[pkg.Name] {
+				continue
+			}
+			if err := writePackage(&buf, pkg); err != nil {
+				return "", err
+			}
+		}
 		if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
 			return "", err
 		}
 		if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
 			return "", err
 		}
+		for _, entry := range allSyns {
+			if prewrittenSynonyms[entry.syn] {
+				continue
+			}
+			if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+				return "", err
+			}
+		}
 		return buf.String(), nil
 	}
 
 	// Generate objects in dependency order
+	writtenPackages := map[string]bool{}
+	writtenSynonyms := map[*metadatapb.SynonymMetadata]bool{}
 	for _, objectID := range orderedList {
 		if table, ok := tableMap[objectID]; ok {
 			if err := writeTableWithoutFunctionIndexes(&buf, table); err != nil {
@@ -250,12 +407,40 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				return "", err
 			}
 		}
+		if pkg, ok := packageMap[objectID]; ok {
+			if err := writePackage(&buf, pkg); err != nil {
+				return "", err
+			}
+			writtenPackages[pkg.Name] = true
+		}
+		if entry, ok := synonymMap[objectID]; ok {
+			if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+				return "", err
+			}
+			writtenSynonyms[entry.syn] = true
+		}
+	}
+	for _, pkg := range schema.Packages {
+		if writtenPackages[pkg.Name] {
+			continue
+		}
+		if err := writePackage(&buf, pkg); err != nil {
+			return "", err
+		}
 	}
 	if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
 		return "", err
 	}
 	if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
 		return "", err
+	}
+	for _, entry := range allSyns {
+		if writtenSynonyms[entry.syn] {
+			continue
+		}
+		if err := writeSynonym(&buf, entry.syn, databaseName, entry.public); err != nil {
+			return "", err
+		}
 	}
 
 	return buf.String(), nil
@@ -419,6 +604,15 @@ func GetProcedureDefinition(_ string, procedure *metadatapb.ProcedureMetadata) (
 	return buf.String(), nil
 }
 
+func GetPackageDefinition(_ string, pkg *metadatapb.PackageMetadata) (string, error) {
+	var buf strings.Builder
+	if err := writePackage(&buf, pkg); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
 func writeTable(buf *strings.Builder, table *metadatapb.TableMetadata) error {
 	return writeTableWithOptions(buf, table, true, true)
 }
@@ -500,7 +694,13 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 			}
 		}
 	}
-	if _, err := buf.WriteString("\n);\n\n"); err != nil {
+	if _, err := buf.WriteString("\n)"); err != nil {
+		return err
+	}
+	if err := writeTablePartitions(buf, table.Partitions); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(";\n\n"); err != nil {
 		return err
 	}
 
@@ -953,6 +1153,14 @@ func writeColumn(buf *strings.Builder, column *metadatapb.ColumnMetadata) error 
 	if _, err := buf.WriteString(column.Type); err != nil {
 		return err
 	}
+	if collation := explicitOracleCollation(column.Collation); collation != "" {
+		if _, err := buf.WriteString(` COLLATE `); err != nil {
+			return err
+		}
+		if _, err := buf.WriteString(collation); err != nil {
+			return err
+		}
+	}
 	if column.IsInvisible {
 		if _, err := buf.WriteString(` INVISIBLE`); err != nil {
 			return err
@@ -980,18 +1188,6 @@ func writeColumn(buf *strings.Builder, column *metadatapb.ColumnMetadata) error 
 		}
 		return nil
 	}
-	// Skip collation for Oracle as it causes issues with standard string size settings
-	// if column.Collation != "" {
-	//	if _, err := buf.WriteString(` COLLATE "`); err != nil {
-	//		return err
-	//	}
-	//	if _, err := buf.WriteString(column.Collation); err != nil {
-	//		return err
-	//	}
-	//	if _, err := buf.WriteString(`"`); err != nil {
-	//		return err
-	//	}
-	// }
 	// Handle default values
 	hasDefault := column.Default != ""
 	if hasDefault {
@@ -1111,14 +1307,15 @@ func writeView(buf *strings.Builder, view *metadatapb.ViewMetadata) error {
 	if _, err := buf.WriteString(view.Name); err != nil {
 		return err
 	}
-	// The synced column names are deliberately not written back as an explicit
-	// list. They would restore the aliases of CREATE VIEW V (RENAMED) AS SELECT
-	// BASE ..., which ALL_VIEWS.TEXT does not carry, but getTableColumns drops
-	// invisible columns (COLUMN_ID IS NULL, sync.go:485) while the query keeps
-	// their expressions -- so a view with an invisible column would get fewer
-	// names than output columns and fail with ORA-01730. Losing an alias beats
-	// emitting DDL that cannot run.
-	if _, err := buf.WriteString(`" AS `); err != nil {
+	if _, err := buf.WriteString(`"`); err != nil {
+		return err
+	}
+	if viewNeedsColumnList(view) {
+		if err := writeViewColumnList(buf, view.Columns); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(` AS `); err != nil {
 		return err
 	}
 	if _, err := buf.WriteString(view.Definition); err != nil {
@@ -1139,6 +1336,238 @@ func writeView(buf *strings.Builder, view *metadatapb.ViewMetadata) error {
 		return err
 	}
 	return writeDefinitionComment(buf, "TABLE", view.Name, view.Comment)
+}
+
+// explicitOracleCollation returns collation when it names an explicit
+// non-default Oracle column collation. USING_NLS_COMP is Oracle's default and
+// fails to re-apply on MAX_STRING_SIZE=STANDARD instances.
+func explicitOracleCollation(collation string) string {
+	trimmed := strings.TrimSpace(collation)
+	if trimmed == "" || strings.EqualFold(trimmed, "USING_NLS_COMP") {
+		return ""
+	}
+	return trimmed
+}
+
+func viewNeedsColumnList(view *metadatapb.ViewMetadata) bool {
+	if view == nil || len(view.Columns) == 0 {
+		return false
+	}
+	for _, column := range view.Columns {
+		if column.GetIsInvisible() {
+			return true
+		}
+	}
+	inferred, ok := inferredViewQueryColumnNames(view.GetDefinition())
+	if !ok || len(inferred) != len(view.Columns) {
+		return true
+	}
+	for i, column := range view.Columns {
+		if inferred[i] != column.GetName() {
+			return true
+		}
+	}
+	return false
+}
+
+func inferredViewQueryColumnNames(definition string) ([]string, bool) {
+	return inferredViewQueryColumnNamesForSchema(definition, nil)
+}
+
+type viewFromSource struct {
+	alias  string
+	schema string
+	name   string
+}
+
+func inferredViewQueryColumnNamesForSchema(definition string, schema *metadatapb.SchemaMetadata) ([]string, bool) {
+	query := strings.TrimSpace(definition)
+	if query == "" {
+		return nil, false
+	}
+	stmts, err := oracle.Parse("CREATE VIEW OMNI_PROBE AS " + query)
+	if err != nil || len(stmts) == 0 {
+		return nil, false
+	}
+	cv, ok := stmts[0].AST.(*ast.CreateViewStmt)
+	if !ok || cv.Query == nil {
+		return nil, false
+	}
+	sel, ok := cv.Query.(*ast.SelectStmt)
+	if !ok {
+		return nil, false
+	}
+	for sel.Larg != nil {
+		sel = sel.Larg
+	}
+	if sel.TargetList == nil || len(sel.TargetList.Items) == 0 {
+		return nil, false
+	}
+	names := make([]string, 0, len(sel.TargetList.Items))
+	for _, item := range sel.TargetList.Items {
+		target, ok := item.(*ast.ResTarget)
+		if !ok {
+			return nil, false
+		}
+		if target.Name != "" {
+			names = append(names, target.Name)
+			continue
+		}
+		if _, isStar := target.Expr.(*ast.Star); isStar {
+			expanded, ok := expandViewWildcardColumns(sel, "", schema)
+			if !ok {
+				return nil, false
+			}
+			names = append(names, expanded...)
+			continue
+		}
+		colRef, ok := target.Expr.(*ast.ColumnRef)
+		if !ok || colRef.Column == "" {
+			return nil, false
+		}
+		if colRef.Column == "*" {
+			expanded, ok := expandViewWildcardColumns(sel, colRef.Table, schema)
+			if !ok {
+				return nil, false
+			}
+			names = append(names, expanded...)
+			continue
+		}
+		names = append(names, colRef.Column)
+	}
+	return names, true
+}
+
+func expandViewWildcardColumns(sel *ast.SelectStmt, qualifier string, schema *metadatapb.SchemaMetadata) ([]string, bool) {
+	if schema == nil || sel.FromClause == nil || len(sel.FromClause.Items) == 0 {
+		return nil, false
+	}
+	var sources []viewFromSource
+	if !collectSelectFromSources(sel.FromClause.Items, &sources) || len(sources) == 0 {
+		return nil, false
+	}
+	lookupColumns := func(src viewFromSource) ([]string, bool) {
+		if src.schema != "" && schema.GetName() != "" && src.schema != schema.GetName() {
+			return nil, false
+		}
+		for _, table := range schema.GetTables() {
+			if table.GetName() == src.name {
+				if len(table.GetColumns()) == 0 {
+					return nil, false
+				}
+				var cols []string
+				for _, col := range table.GetColumns() {
+					if !col.GetIsInvisible() {
+						cols = append(cols, col.GetName())
+					}
+				}
+				return cols, len(cols) > 0
+			}
+		}
+		for _, view := range schema.GetViews() {
+			if view.GetName() == src.name {
+				if len(view.GetColumns()) == 0 {
+					return nil, false
+				}
+				var cols []string
+				for _, col := range view.GetColumns() {
+					if !col.GetIsInvisible() {
+						cols = append(cols, col.GetName())
+					}
+				}
+				return cols, len(cols) > 0
+			}
+		}
+		return nil, false
+	}
+	if qualifier != "" {
+		var matched []string
+		found := false
+		for _, src := range sources {
+			if src.alias == qualifier {
+				if found {
+					return nil, false
+				}
+				cols, ok := lookupColumns(src)
+				if !ok {
+					return nil, false
+				}
+				matched = cols
+				found = true
+			}
+		}
+		return matched, found
+	}
+	var out []string
+	for _, src := range sources {
+		cols, ok := lookupColumns(src)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, cols...)
+	}
+	return out, len(out) > 0
+}
+
+func collectSelectFromSources(items []ast.Node, out *[]viewFromSource) bool {
+	for _, item := range items {
+		switch node := item.(type) {
+		case *ast.TableRef:
+			if node.Name == nil || node.Dblink != "" || node.Name.DBLink != "" {
+				return false
+			}
+			name := objectName(node.Name)
+			if name == "" {
+				return false
+			}
+			alias := name
+			if node.Alias != nil && node.Alias.Name != "" {
+				alias = node.Alias.Name
+			}
+			*out = append(*out, viewFromSource{
+				alias:  alias,
+				schema: node.Name.Schema,
+				name:   name,
+			})
+		case *ast.JoinClause:
+			if (node.Using != nil && node.Using.Len() > 0) ||
+				node.Type == ast.JOIN_NATURAL_INNER ||
+				node.Type == ast.JOIN_NATURAL_LEFT ||
+				node.Type == ast.JOIN_NATURAL_RIGHT ||
+				node.Type == ast.JOIN_NATURAL_FULL {
+				return false
+			}
+			if !collectSelectFromSources([]ast.Node{node.Left, node.Right}, out) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func writeViewColumnList(buf *strings.Builder, columns []*metadatapb.ColumnMetadata) error {
+	if _, err := buf.WriteString(` (`); err != nil {
+		return err
+	}
+	for i, column := range columns {
+		if i > 0 {
+			if _, err := buf.WriteString(`, `); err != nil {
+				return err
+			}
+		}
+		if _, err := buf.WriteString(`"` + column.GetName() + `"`); err != nil {
+			return err
+		}
+		if column.GetIsInvisible() {
+			if _, err := buf.WriteString(` INVISIBLE`); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := buf.WriteString(`)`)
+	return err
 }
 
 // keyColumn renders a key column the snapshot states. The driver's sync keeps a
@@ -1185,7 +1614,10 @@ func virtualColumnClause(generation *metadatapb.GenerationMetadata) string {
 // writeMaterializedView writes a CREATE MATERIALIZED VIEW statement
 func materializedViewDefinitionHasClause(definition string) bool {
 	upper := strings.ToUpper(strings.TrimSpace(definition))
-	return strings.HasPrefix(upper, "BUILD ") || strings.HasPrefix(upper, "REFRESH ")
+	return strings.HasPrefix(upper, "BUILD ") ||
+		strings.HasPrefix(upper, "REFRESH ") ||
+		strings.HasPrefix(upper, "NEVER ") ||
+		strings.HasPrefix(upper, "ON ")
 }
 
 func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedViewMetadata) error {
@@ -1338,4 +1770,275 @@ func writeTrigger(buf *strings.Builder, trigger *metadatapb.TriggerMetadata) err
 		return err
 	}
 	return nil
+}
+
+// writePackage writes a CREATE OR REPLACE PACKAGE [BODY] statement (or both
+// specification and body when stored together).
+func writePackage(buf *strings.Builder, pkg *metadatapb.PackageMetadata) error {
+	definition := strings.TrimSpace(pkg.GetDefinition())
+	if definition == "" {
+		return nil
+	}
+	if !strings.HasPrefix(strings.ToUpper(definition), "CREATE") {
+		if _, err := buf.WriteString("CREATE OR REPLACE "); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(definition); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(definition, ";") {
+		if _, err := buf.WriteString(";"); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString("\n\n"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeSynonyms(buf *strings.Builder, synonyms, publicSynonyms []*metadatapb.SynonymMetadata, databaseName string) error {
+	for _, synonym := range synonyms {
+		if err := writeSynonym(buf, synonym, databaseName, false); err != nil {
+			return err
+		}
+	}
+	for _, synonym := range dumpablePublicSynonyms(publicSynonyms, databaseName) {
+		if err := writeSynonym(buf, synonym, databaseName, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// dumpablePublicSynonyms returns the public synonyms that belong to the schema
+// being defined. Oracle's ALL_SYNONYMS WHERE OWNER = 'PUBLIC' includes
+// thousands of built-in SYS/XDB/MDSYS synonyms that must not be emitted into a
+// user schema's DDL.
+func dumpablePublicSynonyms(publicSynonyms []*metadatapb.SynonymMetadata, databaseName string) []*metadatapb.SynonymMetadata {
+	var out []*metadatapb.SynonymMetadata
+	for _, synonym := range publicSynonyms {
+		if synonym.GetName() == "" || synonym.GetTargetName() == "" {
+			continue
+		}
+		targetSchema := synonym.GetTargetSchema()
+		if databaseName != "" {
+			if targetSchema != "" && targetSchema != databaseName {
+				continue
+			}
+		} else if isOracleSystemSchema(targetSchema) {
+			continue
+		}
+		out = append(out, synonym)
+	}
+	return out
+}
+
+func isOracleSystemSchema(schema string) bool {
+	switch strings.ToUpper(schema) {
+	case "ANONYMOUS", "APPQOSSYS", "AUDSYS", "CTXSYS", "DBSFWUSER", "DBSNMP",
+		"DGPDB_INT", "DIP", "DVF", "DVSYS", "EXFSYS", "FLOWS_FILES", "GGSYS",
+		"GSMADMIN_INTERNAL", "GSMCATUSER", "GSMROOTUSER", "GSMUSER", "LBACSYS",
+		"MDDATA", "MDSYS", "MGMT_VIEW", "OJVMSYS", "OLAPSYS", "OPS$ORACLE",
+		"ORACLE_OCM", "ORDDATA", "ORDPLUGINS", "ORDSYS", "OUTLN", "OWBSYS",
+		"OWBSYS_AUDIT", "PUBLIC", "REMOTE_SCHEDULER_AGENT", "SI_INFORMTN_SCHEMA",
+		"SPATIAL_CSW_ADMIN_USR", "SPATIAL_WFS_ADMIN_USR", "SYS", "SYS$UMF",
+		"SYSBACKUP", "SYSDG", "SYSKM", "SYSMAN", "SYSRAC", "SYSTEM", "WMSYS",
+		"XDB", "XS$NULL", "XS$$NULL":
+		return true
+	}
+	return strings.HasPrefix(strings.ToUpper(schema), "APEX_")
+}
+
+func writeSynonym(buf *strings.Builder, synonym *metadatapb.SynonymMetadata, databaseName string, public bool) error {
+	if synonym.GetName() == "" || synonym.GetTargetName() == "" {
+		return nil
+	}
+	if public {
+		if _, err := buf.WriteString(`CREATE OR REPLACE PUBLIC SYNONYM "`); err != nil {
+			return err
+		}
+	} else {
+		if _, err := buf.WriteString(`CREATE OR REPLACE SYNONYM "`); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(synonym.GetName()); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(`" FOR `); err != nil {
+		return err
+	}
+	if targetSchema := synonym.GetTargetSchema(); targetSchema != "" && (synonym.GetTargetDbLink() != "" || targetSchema != databaseName) {
+		if _, err := buf.WriteString(`"` + targetSchema + `".`); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(`"` + synonym.GetTargetName() + `"`); err != nil {
+		return err
+	}
+	if dbLink := synonym.GetTargetDbLink(); dbLink != "" {
+		if _, err := buf.WriteString(`@` + formatDBLinkName(dbLink)); err != nil {
+			return err
+		}
+	}
+	_, err := buf.WriteString(";\n\n")
+	return err
+}
+
+func formatDBLinkName(dbLink string) string {
+	// Oracle database link names often include a domain suffix separated by dots
+	// (e.g., REMOTE.REGRESS.RDBMS.DEV.US.ORACLE.COM). Simple dotted identifiers
+	// stay unquoted so Oracle parses the domain cleanly.
+	for _, part := range strings.Split(dbLink, ".") {
+		if !isSimpleIdentifier(part) {
+			return `"` + dbLink + `"`
+		}
+	}
+	return dbLink
+}
+
+func partitionTypeKeyword(t metadatapb.TablePartitionMetadata_Type) string {
+	switch t {
+	case metadatapb.TablePartitionMetadata_RANGE, metadatapb.TablePartitionMetadata_RANGE_COLUMNS:
+		return "RANGE"
+	case metadatapb.TablePartitionMetadata_LIST, metadatapb.TablePartitionMetadata_LIST_COLUMNS:
+		return "LIST"
+	case metadatapb.TablePartitionMetadata_HASH, metadatapb.TablePartitionMetadata_LINEAR_HASH:
+		return "HASH"
+	default:
+		return ""
+	}
+}
+
+func formatPartitionKeyExpression(expr string) string {
+	parts := splitPartitionKeyExpressions(expr)
+	quoted := make([]string, 0, len(parts))
+	for _, part := range parts {
+		quoted = append(quoted, keyColumn(part))
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func splitPartitionKeyExpressions(expr string) []string {
+	var parts []string
+	inQuote := false
+	start := 0
+	for i := 0; i < len(expr); i++ {
+		switch expr[i] {
+		case '"':
+			if inQuote && i+1 < len(expr) && expr[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		case ',':
+			if !inQuote {
+				if part := strings.TrimSpace(expr[start:i]); part != "" {
+					parts = append(parts, part)
+				}
+				start = i + 1
+			}
+		}
+	}
+	if part := strings.TrimSpace(expr[start:]); part != "" {
+		parts = append(parts, part)
+	}
+	return parts
+}
+
+func writeTablePartitions(buf *strings.Builder, partitions []*metadatapb.TablePartitionMetadata) error {
+	if len(partitions) == 0 {
+		return nil
+	}
+	first := partitions[0]
+	kind := partitionTypeKeyword(first.GetType())
+	if kind == "" || strings.TrimSpace(first.GetExpression()) == "" {
+		return nil
+	}
+	if _, err := buf.WriteString(" PARTITION BY " + kind + " (" + formatPartitionKeyExpression(first.GetExpression()) + ")"); err != nil {
+		return err
+	}
+	if interval := strings.TrimSpace(first.GetIntervalClause()); interval != "" {
+		if _, err := buf.WriteString(" INTERVAL (" + interval + ")"); err != nil {
+			return err
+		}
+	}
+	var subKind string
+	for _, p := range partitions {
+		if len(p.GetSubpartitions()) > 0 {
+			sub := p.GetSubpartitions()[0]
+			subKind = partitionTypeKeyword(sub.GetType())
+			if subKind != "" && strings.TrimSpace(sub.GetExpression()) != "" {
+				if _, err := buf.WriteString(" SUBPARTITION BY " + subKind + " (" + formatPartitionKeyExpression(sub.GetExpression()) + ")"); err != nil {
+					return err
+				}
+			}
+			break
+		}
+	}
+	if _, err := buf.WriteString(" (\n"); err != nil {
+		return err
+	}
+	for i, part := range partitions {
+		if i > 0 {
+			if _, err := buf.WriteString(",\n"); err != nil {
+				return err
+			}
+		}
+		if _, err := buf.WriteString(`  PARTITION`); err != nil {
+			return err
+		}
+		if name := part.GetName(); name != "" {
+			if _, err := buf.WriteString(` "` + name + `"`); err != nil {
+				return err
+			}
+		}
+		switch kind {
+		case "RANGE":
+			if _, err := buf.WriteString(" VALUES LESS THAN (" + strings.TrimSpace(part.GetValue()) + ")"); err != nil {
+				return err
+			}
+		case "LIST":
+			if _, err := buf.WriteString(" VALUES (" + strings.TrimSpace(part.GetValue()) + ")"); err != nil {
+				return err
+			}
+		}
+		if subKind != "" && len(part.GetSubpartitions()) > 0 {
+			if _, err := buf.WriteString(" (\n"); err != nil {
+				return err
+			}
+			for j, sub := range part.GetSubpartitions() {
+				if j > 0 {
+					if _, err := buf.WriteString(",\n"); err != nil {
+						return err
+					}
+				}
+				if _, err := buf.WriteString(`    SUBPARTITION`); err != nil {
+					return err
+				}
+				if name := sub.GetName(); name != "" {
+					if _, err := buf.WriteString(` "` + name + `"`); err != nil {
+						return err
+					}
+				}
+				switch subKind {
+				case "RANGE":
+					if _, err := buf.WriteString(" VALUES LESS THAN (" + strings.TrimSpace(sub.GetValue()) + ")"); err != nil {
+						return err
+					}
+				case "LIST":
+					if _, err := buf.WriteString(" VALUES (" + strings.TrimSpace(sub.GetValue()) + ")"); err != nil {
+						return err
+					}
+				}
+			}
+			if _, err := buf.WriteString("\n  )"); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := buf.WriteString("\n)")
+	return err
 }

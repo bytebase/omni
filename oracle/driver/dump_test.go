@@ -84,20 +84,42 @@ func TestDumpRestores(t *testing.T) {
 	defer func() { _ = db.Close() }()
 
 	createSchema(t, db, dumpSchema)
+	execIgnoringErrors(t, db, "DROP PUBLIC SYNONYM OMNI_DUMP_PS")
+	t.Cleanup(func() {
+		execIgnoringErrors(t, db, "ALTER SESSION SET CURRENT_SCHEMA = SYSTEM")
+		execIgnoringErrors(t, db, "DROP PUBLIC SYNONYM OMNI_DUMP_PS")
+	})
 	execCorpus(t, db, string(corpus))
 	source := syncSchema(t, db, dumpSchema)
+	sourcePartCount := queryString(t, db, fmt.Sprintf(`SELECT COUNT(*) FROM all_part_tables WHERE owner = '%s'`, dumpSchema))
+	sourceMVPolicy := queryString(t, db, fmt.Sprintf(`SELECT LISTAGG(mview_name || ':' || build_mode || '/' || refresh_method || '/' || refresh_mode, ',') WITHIN GROUP (ORDER BY mview_name) FROM all_mviews WHERE owner = '%s'`, dumpSchema))
+	sourceIdentOpts := queryString(t, db, fmt.Sprintf(`SELECT LISTAGG(cache_size || ':' || cycle_flag || ':' || min_value || ':' || max_value, ',') WITHIN GROUP (ORDER BY cache_size, cycle_flag, min_value) FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name LIKE 'ISEQ$$_%%'`, dumpSchema))
+	sourcePkgBodyCount := queryString(t, db, fmt.Sprintf(`SELECT COUNT(*) FROM all_objects WHERE owner = '%s' AND object_type = 'PACKAGE BODY'`, dumpSchema))
 
 	var dump strings.Builder
 	if err := (&Driver{db: db, databaseName: dumpSchema, engineVersion: testEngineVersion}).Dump(context.Background(), &dump, source); err != nil {
 		t.Fatalf("dumping: %v", err)
 	}
 
+	execCorpus(t, db, "DROP PUBLIC SYNONYM OMNI_DUMP_PS")
 	createSchema(t, db, dumpSchema)
 	execCorpus(t, db, dump.String())
 	restored := syncSchema(t, db, dumpSchema)
 
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored schema differs from the source (-source +restored):\n%s", diff)
+	}
+	if got := queryString(t, db, fmt.Sprintf(`SELECT COUNT(*) FROM all_part_tables WHERE owner = '%s'`, dumpSchema)); got != sourcePartCount {
+		t.Errorf("partitioned tables = %s, want %s", got, sourcePartCount)
+	}
+	if got := queryString(t, db, fmt.Sprintf(`SELECT LISTAGG(mview_name || ':' || build_mode || '/' || refresh_method || '/' || refresh_mode, ',') WITHIN GROUP (ORDER BY mview_name) FROM all_mviews WHERE owner = '%s'`, dumpSchema)); got != sourceMVPolicy {
+		t.Errorf("mview refresh policy = %q, want %q", got, sourceMVPolicy)
+	}
+	if got := queryString(t, db, fmt.Sprintf(`SELECT LISTAGG(cache_size || ':' || cycle_flag || ':' || min_value || ':' || max_value, ',') WITHIN GROUP (ORDER BY cache_size, cycle_flag, min_value) FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name LIKE 'ISEQ$$_%%'`, dumpSchema)); got != sourceIdentOpts {
+		t.Errorf("identity sequence options = %q, want %q", got, sourceIdentOpts)
+	}
+	if got := queryString(t, db, fmt.Sprintf(`SELECT COUNT(*) FROM all_objects WHERE owner = '%s' AND object_type = 'PACKAGE BODY'`, dumpSchema)); got != sourcePkgBodyCount {
+		t.Errorf("package body count = %s, want %s", got, sourcePkgBodyCount)
 	}
 }
 
@@ -171,22 +193,11 @@ func TestDumpGaps(t *testing.T) {
 		check func(t *testing.T, source, restored *metadatapb.DatabaseSchemaMetadata, dump string)
 	}{
 		{
-			name:  "synonym",
-			setup: `CREATE TABLE T (C NUMBER); CREATE SYNONYM S FOR T;`,
-		},
-		{
-			name:          "public synonym",
-			setup:         `CREATE TABLE T (C NUMBER); CREATE PUBLIC SYNONYM OMNIGAP_PS FOR T;`,
-			beforeRestore: `DROP PUBLIC SYNONYM OMNIGAP_PS`,
-		},
-		{
-			name:  "package",
-			setup: `CREATE TABLE T (C NUMBER); CREATE OR REPLACE PACKAGE PKG AS PROCEDURE P; END PKG;`,
-		},
-		{
 			// A database link belongs to the session user, not the current
 			// schema, so the schema's own session creates it, and the restore
-			// lands in an instance that never had it.
+			// lands in an instance that never had it. Oracle's ALL_DB_LINKS
+			// withholds link passwords and rejects CONNECT TO without
+			// IDENTIFIED BY.
 			name:         "database link",
 			prepare:      `DROP PUBLIC DATABASE LINK OMNIGAP_LINK`,
 			setup:        `CREATE TABLE T (C NUMBER); CREATE PUBLIC DATABASE LINK OMNIGAP_LINK CONNECT TO U IDENTIFIED BY P USING 'example.com:1521/x';`,
@@ -214,15 +225,6 @@ func TestDumpGaps(t *testing.T) {
 			setup: `CREATE TABLE XT OF XMLTYPE; CREATE TABLE REL (A NUMBER);`,
 		},
 		{
-			name:  "view column aliases",
-			setup: `CREATE TABLE T (A NUMBER, B NUMBER); CREATE VIEW V (RENAMED_A, RENAMED_B) AS SELECT A, B FROM T;`,
-		},
-		{
-			name:  "partitioning",
-			setup: `CREATE TABLE P (A NUMBER) PARTITION BY RANGE (A) (PARTITION P1 VALUES LESS THAN (10), PARTITION P2 VALUES LESS THAN (MAXVALUE));`,
-			query: `SELECT COUNT(*) FROM all_part_tables WHERE owner = '%s' AND table_name = 'P'`,
-		},
-		{
 			name:  "tablespace and storage",
 			setup: `CREATE TABLESPACE OMNIGAP_TS DATAFILE 'omnigap_ts.dbf' SIZE 10M; CREATE TABLE TS_T (A NUMBER) TABLESPACE OMNIGAP_TS STORAGE (INITIAL 64K);`,
 			query: `SELECT tablespace_name FROM all_tables WHERE owner = '%s' AND table_name = 'TS_T'`,
@@ -238,16 +240,6 @@ func TestDumpGaps(t *testing.T) {
 			name:  "sequence start",
 			setup: `CREATE SEQUENCE S START WITH 10 INCREMENT BY 2 CACHE 20 MAXVALUE 1000;`,
 			query: `SELECT last_number FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name = 'S'`,
-		},
-		{
-			name:  "identity sequence options",
-			setup: `CREATE TABLE I (ID NUMBER GENERATED ALWAYS AS IDENTITY (START WITH 5 INCREMENT BY 2 MAXVALUE 100000 CACHE 100 CYCLE));`,
-			query: `SELECT LISTAGG(cache_size || ':' || cycle_flag, ',') WITHIN GROUP (ORDER BY sequence_name) FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name LIKE 'ISEQ$$_%%'`,
-		},
-		{
-			name:  "materialized view refresh policy",
-			setup: `CREATE TABLE T (C NUMBER); CREATE MATERIALIZED VIEW MV REFRESH COMPLETE ON DEMAND AS SELECT C FROM T;`,
-			query: `SELECT refresh_method || '/' || refresh_mode FROM all_mviews WHERE owner = '%s' AND mview_name = 'MV'`,
 		},
 	}
 

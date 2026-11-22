@@ -26,6 +26,12 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.truncate(v)
 	case *ast.CreateIndexStmt:
 		return b.createIndex(v)
+	case *ast.CreateXmlIndexStmt:
+		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindXMLIndex)
+	case *ast.CreateSelectiveXmlIndexStmt:
+		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindXMLIndex)
+	case *ast.CreateSpatialIndexStmt:
+		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindIndex)
 	case *ast.AlterIndexStmt:
 		return b.alterIndex(v)
 	case *ast.DropStmt:
@@ -50,7 +56,11 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.exec(v)
 	case *ast.InsertStmt:
 		if _, runs := v.Source.(*ast.ExecStmt); runs {
-			return false
+			if !b.dml(v.Relation, v.WithClause, nil, false) {
+				return false
+			}
+			b.Last = true
+			return true
 		}
 		return b.dml(v.Relation, v.WithClause, nil, false)
 	case *ast.UpdateStmt:
@@ -299,15 +309,13 @@ func (b *builder) lacksObject(r objRef, kind string) {
 	b.lacks(spaceRelation, r.parent, r.n, n)
 }
 
-// createSchema follows CREATE SCHEMA without elements. A new schema holds
+// createSchema follows CREATE SCHEMA. A new schema without elements holds
 // nothing; one beside another of its class may share its keys, which the
-// walk then does not trust.
+// walk then does not trust. A CREATE SCHEMA with inline elements still
+// checks that the schema name is free and then ends the walk.
 func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 	if !b.first(v.Loc, "CREATE SCHEMA") {
 		return true
-	}
-	if v.Elements != nil && len(v.Elements.Items) > 0 {
-		return false
 	}
 	sn, ok := keyed(v.Name)
 	if !ok {
@@ -321,6 +329,10 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 		return true
 	}
 	b.lacks(spaceSchema, walk.Path(), sn, note(rng, "", text(msgExists("schema", ident(v.Name)))))
+	if v.Elements != nil && len(v.Elements.Items) > 0 {
+		b.Last = true
+		return true
+	}
 	fresh, _ := b.classFact(sn.classKey(spaceSchema, walk.Path()))
 	b.arrive(spaceSchema, walk.Path(), sn, "")
 	if fresh == walk.Absent {
@@ -451,12 +463,22 @@ func (b *builder) branch(n ast.Node) bool {
 	return b.statement(n)
 }
 
-// enableTrigger follows ENABLE/DISABLE TRIGGER on a table or view; a
-// trigger the change enables may fire on DML. A database or server
-// trigger ends the walk.
+// enableTrigger follows ENABLE/DISABLE TRIGGER on a table or view: its
+// target must exist as a table or view (1088), and a trigger the change
+// enables may fire on DML. A database or server trigger ends the walk.
 func (b *builder) enableTrigger(v *ast.EnableDisableTriggerStmt) bool {
 	if v.OnDatabase || v.OnAllServer || v.OnObject == nil {
 		return false
+	}
+	r, ok := b.ref(v.OnObject, false)
+	if !ok {
+		return false
+	}
+	if b.refTooLong(v.OnObject, r) {
+		return true
+	}
+	if r.where != elsewhere {
+		b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), notKind(r.written, "table or view", kindTable, kindView))
 	}
 	if v.Enable {
 		b.Session(func() { b.w.triggers = true })
@@ -523,11 +545,11 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 			break
 		}
 		if check {
-			b.needs(spaceRelation, r.parent, r.n, nil, note(r.rng, msgMissing("", r.written), nil))
+			b.needs(spaceRelation, r.parent, r.n, []string{kindTable, kindView, kindSynonym}, note(r.rng, msgMissing("", r.written), notKind(r.written, "table, view, or synonym", kindTable, kindView, kindSynonym)))
 		}
 		// A synonym may lead to another database.
 		s := b.see(spaceRelation, r.parent, r.n)
-		reaches = s.fact != walk.Present || s.kind != kindTable && s.kind != kindView && s.kind != kindSequence
+		reaches = s.fact != walk.Present || s.kind != kindTable && s.kind != kindView
 	default:
 		reaches = !r.temp
 	}

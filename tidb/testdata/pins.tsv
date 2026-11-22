@@ -1,3 +1,12 @@
-# The servers this engine's committed answers come from. default judges compat.tsv.
-# columns: role, image, digest, source tag
+# The servers this engine's committed answers come from. default records the
+# tapes and serves the catalog and review suites; parser judges
+# tidb/parser/testdata/compat.tsv at the same pingcap/tidb:v8.5.5 release so
+# a judge revision bump rejudges compat.tsv without touching the default-pinned
+# tapes.
+#
+# parser judge revision 2 re-asks 1273 (Unknown collation) from CollationName's
+# parse-time lookup using TiDB's built-in 'utf8mb4_bin' stand-in so trailing
+# syntax errors are not hidden behind the lookup abort.
+# columns: role, image, digest, source tag, judge revision
 default	pingcap/tidb:v8.5.5	sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26	v8.5.5
+parser	pingcap/tidb:v8.5.5	sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26	v8.5.5	2

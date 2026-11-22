@@ -13,9 +13,7 @@ import (
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
 // scenario tests. The scenarios are MySQL's
 // (mysql/catalog/SCENARIOS-mysql-implicit-behavior.md); here each one runs on
-// OceanBase and on the omni catalog, and asserts OceanBase's answer. Where
-// the catalog still answers as MySQL does, the subtest asserts that beside
-// it under a comment that starts "omni gap:".
+// OceanBase and on the omni catalog, and asserts OceanBase's answer.
 //
 // NOTE: asString is already defined in catalog_spotcheck_test.go and is reused
 // here as-is; do not redeclare it.

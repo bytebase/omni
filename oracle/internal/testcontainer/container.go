@@ -14,6 +14,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"path/filepath"
 	"regexp"
@@ -86,12 +87,24 @@ func Open(t testing.TB, user string) *sql.DB {
 	t.Helper()
 	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
-		return live(t, pin, user)
+		return live(t, &server, pin, user, false)
 	}}
 	return tape.Open(t, s, Default)
 }
 
-var server struct {
+// OpenExtended returns t's connection to a pinned Oracle server configured with
+// MAX_STRING_SIZE=EXTENDED (required by Oracle for explicit column COLLATE
+// clauses). Outside a recording, it replays t's tape without starting a server.
+func OpenExtended(t testing.TB, user string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		return live(t, &extendedServer, pin, user, true)
+	}}
+	return tape.Open(t, s, Default)
+}
+
+type oracleServer struct {
 	once      sync.Once
 	pin       enginetest.Pin
 	container testcontainers.Container
@@ -103,6 +116,11 @@ var server struct {
 	image   imageState      // what the server held when it started
 	emptied map[string]bool // the top-level tests the server was emptied for
 }
+
+var (
+	server         oracleServer
+	extendedServer oracleServer
+)
 
 // imageState is what the pluggable database held when the server started,
 // which emptying leaves: its users, its public synonyms, SYSTEM's objects, and
@@ -120,48 +138,56 @@ type dbLink struct {
 
 // live connects to the pinned server as user, emptying the server first on
 // t's top-level test's first session.
-func live(t testing.TB, pin enginetest.Pin, user string) driver.Connector {
+func live(t testing.TB, srv *oracleServer, pin enginetest.Pin, user string, extended bool) driver.Connector {
 	t.Helper()
 	ctx := context.Background()
-	if err := start(ctx, pin); err != nil {
+	if err := startServer(ctx, srv, pin, extended); err != nil {
 		t.Fatalf("Oracle: %v", err)
 	}
 	top := enginetest.TopName(t.Name())
-	server.mu.Lock()
-	defer server.mu.Unlock()
-	if !server.emptied[top] {
-		if err := empty(ctx); err != nil {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	if !srv.emptied[top] {
+		if err := emptyServer(ctx, srv); err != nil {
 			t.Fatalf("Oracle: empty the server for %s: %v", top, err)
 		}
-		server.emptied[top] = true
+		srv.emptied[top] = true
 	}
-	return connector(user, Password)
+	return serverConnector(srv, user, Password)
 }
 
-// connector connects to FREEPDB1 as user.
+// connector connects to FREEPDB1 as user on the default server.
 func connector(user, password string) driver.Connector {
-	port, _ := strconv.Atoi(server.port)
-	return go_ora.NewConnector(go_ora.BuildUrl(server.host, port, service, user, password, nil))
+	return serverConnector(&server, user, password)
+}
+
+func serverConnector(srv *oracleServer, user, password string) driver.Connector {
+	port, _ := strconv.Atoi(srv.port)
+	return go_ora.NewConnector(go_ora.BuildUrl(srv.host, port, service, user, password, nil))
 }
 
 // start starts the pinned server once, checks it is the pinned image and
 // release, and reads what it holds.
 func start(ctx context.Context, pin enginetest.Pin) error {
-	server.once.Do(func() {
-		server.pin = pin
-		server.emptied = map[string]bool{}
-		server.err = boot(ctx, pin)
+	return startServer(ctx, &server, pin, false)
+}
+
+func startServer(ctx context.Context, srv *oracleServer, pin enginetest.Pin, extended bool) error {
+	srv.once.Do(func() {
+		srv.pin = pin
+		srv.emptied = map[string]bool{}
+		srv.err = bootServer(ctx, srv, pin, extended)
 	})
-	if server.err != nil {
-		return server.err
+	if srv.err != nil {
+		return srv.err
 	}
-	if server.pin != pin {
-		return fmt.Errorf("this run started %s, not %s", server.pin, pin)
+	if srv.pin != pin {
+		return fmt.Errorf("this run started %s, not %s", srv.pin, pin)
 	}
 	return nil
 }
 
-func boot(ctx context.Context, pin enginetest.Pin) error {
+func bootServer(ctx context.Context, srv *oracleServer, pin enginetest.Pin, extended bool) error {
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        pin.ImageRef(),
@@ -172,7 +198,7 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 		Started: true,
 	})
 	if c != nil {
-		server.container = c
+		srv.container = c
 	}
 	if err != nil {
 		return fmt.Errorf("start %s: %w", pin.ImageRef(), err)
@@ -180,15 +206,20 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 	if err := checkDigest(ctx, c, pin.Digest); err != nil {
 		return err
 	}
-	if server.host, err = c.Host(ctx); err != nil {
+	if extended {
+		if err := enableExtendedMaxStringSize(ctx, c); err != nil {
+			return err
+		}
+	}
+	if srv.host, err = c.Host(ctx); err != nil {
 		return err
 	}
 	port, err := c.MappedPort(ctx, "1521")
 	if err != nil {
 		return err
 	}
-	server.port = port.Port()
-	db := sql.OpenDB(connector("system", Password))
+	srv.port = port.Port()
+	db := sql.OpenDB(serverConnector(srv, "system", Password))
 	defer db.Close()
 	var version string
 	if err := db.QueryRowContext(ctx, `SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'`).Scan(&version); err != nil {
@@ -197,17 +228,40 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 	if version != pin.Tag {
 		return fmt.Errorf("the server reports %q, but %s pins %s", version, Pins, pin.Tag)
 	}
-	if server.image.users, err = names(ctx, db, "SELECT username FROM dba_users"); err != nil {
+	if srv.image.users, err = names(ctx, db, "SELECT username FROM dba_users"); err != nil {
 		return err
 	}
-	if server.image.synonyms, err = names(ctx, db, "SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC'"); err != nil {
+	if srv.image.synonyms, err = names(ctx, db, "SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC'"); err != nil {
 		return err
 	}
-	if server.image.systemObjects, err = names(ctx, db, systemObjects); err != nil {
+	if srv.image.systemObjects, err = names(ctx, db, systemObjects); err != nil {
 		return err
 	}
-	if server.image.links, err = dbLinks(ctx, db); err != nil {
+	if srv.image.links, err = dbLinks(ctx, db); err != nil {
 		return err
+	}
+	return nil
+}
+
+func enableExtendedMaxStringSize(ctx context.Context, c testcontainers.Container) error {
+	script := `sqlplus -s / as sysdba <<'SQL'
+WHENEVER SQLERROR EXIT FAILURE
+ALTER PLUGGABLE DATABASE FREEPDB1 CLOSE IMMEDIATE;
+ALTER PLUGGABLE DATABASE FREEPDB1 OPEN UPGRADE;
+ALTER SESSION SET CONTAINER = FREEPDB1;
+ALTER SYSTEM SET MAX_STRING_SIZE = EXTENDED SCOPE = BOTH;
+@?/rdbms/admin/utl32k.sql
+ALTER PLUGGABLE DATABASE FREEPDB1 CLOSE IMMEDIATE;
+ALTER PLUGGABLE DATABASE FREEPDB1 OPEN;
+EXIT;
+SQL`
+	code, out, err := c.Exec(ctx, []string{"bash", "-lc", script})
+	if err != nil {
+		return fmt.Errorf("enable MAX_STRING_SIZE=EXTENDED: %w", err)
+	}
+	if code != 0 {
+		msg, _ := io.ReadAll(out)
+		return fmt.Errorf("enable MAX_STRING_SIZE=EXTENDED exited %d:\n%s", code, string(msg))
 	}
 	return nil
 }
@@ -250,10 +304,10 @@ func names(ctx context.Context, db *sql.DB, query string) (map[string]bool, erro
 	return out, rows.Err()
 }
 
-// empty drops what tests made since the server started: users with all
+// emptyServer drops what tests made since the server started: users with all
 // they own, public synonyms, SYSTEM's own objects, and database links.
-func empty(ctx context.Context) error {
-	db := sql.OpenDB(connector("system", Password))
+func emptyServer(ctx context.Context, srv *oracleServer) error {
+	db := sql.OpenDB(serverConnector(srv, "system", Password))
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 	var stmts []string
@@ -262,7 +316,7 @@ func empty(ctx context.Context) error {
 		return err
 	}
 	for _, u := range sorted(users) {
-		if !server.image.users[u] {
+		if !srv.image.users[u] {
 			stmts = append(stmts, `DROP USER "`+u+`" CASCADE`)
 		}
 	}
@@ -271,7 +325,7 @@ func empty(ctx context.Context) error {
 		return err
 	}
 	for _, s := range sorted(synonyms) {
-		if !server.image.synonyms[s] {
+		if !srv.image.synonyms[s] {
 			stmts = append(stmts, `DROP PUBLIC SYNONYM "`+s+`"`)
 		}
 	}
@@ -280,7 +334,7 @@ func empty(ctx context.Context) error {
 		return err
 	}
 	for _, o := range sorted(objects) {
-		if !server.image.systemObjects[o] {
+		if !srv.image.systemObjects[o] {
 			kind, name, _ := strings.Cut(o, " ")
 			stmt := "DROP " + kind + ` "` + name + `"`
 			if kind == "TABLE" {
@@ -294,7 +348,7 @@ func empty(ctx context.Context) error {
 		return err
 	}
 	for _, l := range sortedLinks(links) {
-		if server.image.links[l] {
+		if srv.image.links[l] {
 			continue
 		}
 		// A private link of a user a test made goes with that user's DROP
@@ -466,10 +520,13 @@ func (d *cutDialer) cut() {
 	d.conns = nil
 }
 
-// Terminate removes the server this process started.
+// Terminate removes the servers this process started.
 func Terminate() {
 	if server.container != nil {
 		_ = testcontainers.TerminateContainer(server.container)
+	}
+	if extendedServer.container != nil {
+		_ = testcontainers.TerminateContainer(extendedServer.container)
 	}
 }
 

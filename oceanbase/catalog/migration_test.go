@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 // In-process, hermetic tests for generate-core. They assert MigrationPlan shape, SQL()
@@ -539,5 +542,93 @@ func TestSortMigrationOps_StableAndPhased(t *testing.T) {
 	want := []string{"DROPZ", "CREATE", "A", "B"} // pre, then table-priority, then column a<b
 	if strings.Join(gotOrder, ",") != strings.Join(want, ",") {
 		t.Errorf("sortMigrationOps order = %v, want %v", gotOrder, want)
+	}
+}
+
+func TestMigration_MetadataEvent(t *testing.T) {
+	event := &metadata.EventMetadata{
+		Name:       "e",
+		Definition: "CREATE EVENT `e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE DO INSERT INTO `t` VALUES (1)",
+	}
+	load := func(events ...*metadata.EventMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		meta := &metadata.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadata.SchemaMetadata{{
+				Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+				Events: events,
+			}},
+		}
+		report, err := c.LoadMetadataInto(context.Background(), meta, "bbcatalog")
+		if err != nil {
+			t.Fatalf("LoadMetadataInto: %v", err)
+		}
+		requireReport(t, report, nil, nil)
+		return c
+	}
+
+	withoutEvent, withEvent := load(), load(event)
+	created := GenerateMigration(withoutEvent, withEvent, Diff(withoutEvent, withEvent)).SQL()
+	if want := "CREATE EVENT `e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT '' DO INSERT INTO `t` VALUES (1)"; !strings.Contains(created, want) {
+		t.Errorf("create event migration:\n%s\nwant it to contain:\n%s", created, want)
+	}
+
+	dropped := GenerateMigration(withEvent, withoutEvent, Diff(withEvent, withoutEvent)).SQL()
+	if want := "DROP EVENT IF EXISTS `e`"; dropped != want {
+		t.Errorf("drop event migration = %q, want %q", dropped, want)
+	}
+}
+
+func TestMigration_MetadataColumnAttributes(t *testing.T) {
+	srid := func(v uint32) *uint32 { return &v }
+	id := &metadata.ColumnMetadata{Name: "id", Type: "int", Nullable: false}
+	diffCols := func(oldCol, newCol *metadata.ColumnMetadata) string {
+		t.Helper()
+		load := func(col *metadata.ColumnMetadata) *Catalog {
+			c := New()
+			meta := &metadata.DatabaseSchemaMetadata{
+				Name: "db",
+				Schemas: []*metadata.SchemaMetadata{{
+					Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{id, col}}},
+				}},
+			}
+			report, err := c.LoadMetadataInto(context.Background(), meta, "bbcatalog")
+			if err != nil {
+				t.Fatalf("LoadMetadataInto: %v", err)
+			}
+			requireReport(t, report, nil, nil)
+			return c
+		}
+		from, to := load(oldCol), load(newCol)
+		return GenerateMigration(from, to, Diff(from, to)).SQL()
+	}
+
+	if got, want := diffCols(
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false},
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false, Srid: srid(4326)},
+	), "ALTER TABLE `bbcatalog`.`t` MODIFY COLUMN `pt` point NOT NULL /*!80003 SRID 4326 */"; got != want {
+		t.Errorf("SRID 4326: got %q, want %q", got, want)
+	}
+
+	if got, want := diffCols(
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false},
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false, Srid: srid(0)},
+	), "ALTER TABLE `bbcatalog`.`t` MODIFY COLUMN `pt` point NOT NULL /*!80003 SRID 0 */"; got != want {
+		t.Errorf("SRID 0: got %q, want %q", got, want)
+	}
+
+	if got := diffCols(
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false, Srid: srid(4326)},
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false, Srid: srid(4326)},
+	); got != "" {
+		t.Errorf("identical SRID should diff empty, got %q", got)
+	}
+
+	if got, want := diffCols(
+		&metadata.ColumnMetadata{Name: "c", Type: "int", Nullable: true, Default: "NULL"},
+		&metadata.ColumnMetadata{Name: "c", Type: "int", Nullable: true, Default: "NULL", IsInvisible: true},
+	), "ALTER TABLE `bbcatalog`.`t` MODIFY COLUMN `c` int DEFAULT NULL /*!80023 INVISIBLE */"; got != want {
+		t.Errorf("INVISIBLE: got %q, want %q", got, want)
 	}
 }

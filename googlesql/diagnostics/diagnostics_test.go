@@ -54,15 +54,9 @@ func TestSeverity_String(t *testing.T) {
 }
 
 func TestAnalyze_StubbedStatementShape(t *testing.T) {
-	// A statement whose body is still stubbed (DEFINE TABLE) produces a "not yet
-	// supported" diagnostic. Assert the diagnostic shape. (The query family —
-	// SELECT/WITH/TABLE — is implemented by parser-select, the DML family by
-	// parser-dml, the transaction / utility family —
-	// BEGIN/COMMIT/ROLLBACK/ASSERT/ANALYZE/DESCRIBE/RENAME/CALL/SHOW/IMPORT/MODULE/
-	// UNDROP — by parser-utility, and the data-movement family — EXPORT
-	// DATA/MODEL/METADATA, LOAD DATA, CLONE DATA — by parser-dml-ext; all produce
-	// zero diagnostics for valid input. See TestAnalyze_ValidQueryNoDiagnostics.)
-	diags := Analyze("DEFINE TABLE a()")
+	// A statement whose body is still stubbed (DEFINE MACRO) produces a "not yet
+	// supported" diagnostic. Assert the diagnostic shape.
+	diags := Analyze("DEFINE MACRO m 1")
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
 	}

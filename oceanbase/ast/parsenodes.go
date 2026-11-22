@@ -2877,17 +2877,15 @@ type KeywordArg struct {
 func (e *KeywordArg) nodeTag()  {}
 func (e *KeywordArg) exprNode() {}
 
-// WeightStringExpr represents WEIGHT_STRING(expr [AS CHAR(n)] [LEVEL ...]).
-// The AS BINARY(n) input form is not stored: MySQL desugars it to
-// weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
-// 5.7.25), so the parser produces that CastExpr shape instead. LEVEL is the
-// MySQL 5.7 clause, which OceanBase 4.3.5.6 accepts and MySQL 8.0 rejects;
-// 5.7 readbacks always carry an explicit level list (e.g. "1" or "1 desc").
+// WeightStringExpr represents WEIGHT_STRING(expr [AS {CHAR|BINARY}(n)] [LEVEL ...]).
+// OceanBase 4.3.5.6 stores every WEIGHT_STRING form as its internal five-argument
+// call weight_string(expr, 0, nweights, flags, is_binary).
 type WeightStringExpr struct {
-	Loc    Loc
-	Expr   ExprNode
-	AsChar *DataType // optional AS CHAR(n); nil when absent
-	Levels []WeightStringLevel
+	Loc      Loc
+	Expr     ExprNode
+	AsChar   *DataType // optional AS CHAR(n) or AS BINARY(n); nil when absent
+	AsBinary bool      // true for AS BINARY(n)
+	Levels   []WeightStringLevel
 }
 
 func (e *WeightStringExpr) nodeTag()  {}
@@ -3286,10 +3284,11 @@ func (s *TableStmt) stmtNode() {}
 // OrderBy and Limit are never set by the parser, and stay because Bytebase still
 // references this node.
 type ValuesStmt struct {
-	Loc     Loc
-	Rows    [][]ExprNode   // list of ROW(...) value lists
-	OrderBy []*OrderByItem // never set by the parser
-	Limit   *Limit         // never set by the parser
+	Loc          Loc
+	Rows         [][]ExprNode   // list of ROW(...) value lists
+	LeadingComma bool           // true if any ROW(...) started with an empty leading comma (e.g. ROW(, a))
+	OrderBy      []*OrderByItem // never set by the parser
+	Limit        *Limit         // never set by the parser
 }
 
 func (s *ValuesStmt) nodeTag()  {}

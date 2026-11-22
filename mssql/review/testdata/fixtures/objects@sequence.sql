@@ -1,0 +1,2 @@
+CREATE TABLE dbo.t (b int NOT NULL CONSTRAINT pk_t PRIMARY KEY, c int, d int);
+CREATE SEQUENCE dbo.a;

@@ -182,6 +182,9 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 						tbl.ExcludeConstraints = append(tbl.ExcludeConstraints, &metadata.ExcludeConstraintMetadata{Name: con.Name})
 					}
 				}
+				for _, tr := range c.TriggersOf(rel.OID) {
+					tbl.Triggers = append(tbl.Triggers, &metadata.TriggerMetadata{Name: tr.Name})
+				}
 				sm.Tables = append(sm.Tables, tbl)
 			case 'v':
 				v := &metadata.ViewMetadata{Name: rel.Name}
@@ -213,6 +216,21 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 		for _, name := range seqNames {
 			sm.Sequences = append(sm.Sequences, &metadata.SequenceMetadata{Name: name})
 		}
+		for _, typ := range c.QueryPgType(s.Name) {
+			if typ.TypType == 'e' {
+				sm.EnumTypes = append(sm.EnumTypes, &metadata.EnumTypeMetadata{Name: typ.TypName})
+			}
+		}
+		for _, proc := range c.QueryPgProc(s.Name) {
+			if builtinCalls[strings.ToLower(proc.ProName)] {
+				continue
+			}
+			if proc.ProKind == 'p' {
+				sm.Procedures = append(sm.Procedures, &metadata.ProcedureMetadata{Name: proc.ProName})
+			} else {
+				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{Name: proc.ProName})
+			}
+		}
 		db.Schemas = append(db.Schemas, sm)
 	}
 	return db
@@ -232,7 +250,6 @@ func pgCatalogInventory(c *pgcatalog.Catalog) []walktest.Object {
 			if rel.RelKind == 'p' {
 				objects = append(objects, walktest.Object{Key: k, Kind: relPartitioned})
 			}
-			objects = append(objects, walktest.Object{Key: typeKey(s.Name, rel.Name), Kind: typOther})
 			for _, col := range rel.Columns {
 				objects = append(objects, walktest.Object{Key: columnKey(k, col.Name)})
 			}
@@ -245,6 +262,16 @@ func pgCatalogInventory(c *pgcatalog.Catalog) []walktest.Object {
 					objects = append(objects, walktest.Object{Key: primaryKeyOf(k)})
 				}
 			}
+			for _, tr := range c.TriggersOf(rel.OID) {
+				objects = append(objects, walktest.Object{Key: trigKey(k, tr.Name)})
+			}
+		}
+		for _, typ := range c.QueryPgType(s.Name) {
+			typKind := typOther
+			if typ.TypType == 'd' {
+				typKind = typDomain
+			}
+			objects = append(objects, walktest.Object{Key: typeKey(s.Name, typ.TypName), Kind: typKind})
 		}
 		for _, seq := range s.Sequences {
 			objects = append(objects, walktest.Object{Key: relKey(s.Name, seq.Name), Kind: relSequence})

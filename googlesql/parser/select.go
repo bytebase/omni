@@ -83,6 +83,29 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 		q.With = with
 	}
 
+	// BigQuery FROM-first pipe query: `[WITH ...] FROM <from_clause> [|> ...]`.
+	// Unlike SELECT-led queries, a FROM-first query cannot take trailing SQL
+	// set-ops, ORDER BY, or LIMIT directly (those must be pipe operators).
+	if p.isBigQuery() && p.cur.Type == kwFROM {
+		fromStart := p.cur.Loc.Start
+		from, err := p.parseFromClause()
+		if err != nil {
+			return nil, err
+		}
+		body := &ast.SelectStmt{From: from, Loc: ast.Loc{Start: fromStart, End: p.prev.Loc.End}}
+		q.Body = body
+		q.Loc.End = body.Loc.End
+		if p.cur.Type == tokPipe {
+			pipe, err := p.parseSubpipelineNoParens()
+			if err != nil {
+				return nil, err
+			}
+			q.Pipe = pipe
+			q.Loc.End = pipe.Loc.End
+		}
+		return q, nil
+	}
+
 	// The query body: a query_primary or a left-recursive set-operation chain.
 	body, err := p.parseQueryPrimaryOrSetOp()
 	if err != nil {
@@ -107,8 +130,14 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 			return nil, err
 		}
 	}
-	// FOR UPDATE (Spanner row-locking; parses in the union grammar).
+	// FOR UPDATE (Spanner row-locking; disabled in BigQuery).
 	if p.cur.Type == kwFOR && p.peekNext().Type == kwUPDATE {
+		if p.isBigQuery() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: FOR UPDATE is not supported",
+			}
+		}
 		p.advance()           // FOR
 		updTok := p.advance() // UPDATE
 		q.ForUpdate = true
@@ -200,6 +229,12 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 		inner.Loc = ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}
 		// Optional `AS alias` (consumed, not retained — see doc comment).
 		if p.cur.Type == kwAS {
+			if p.isSpanner() {
+				return nil, &ParseError{
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "syntax error: alias not allowed on parenthesized outer query",
+				}
+			}
 			p.advance()
 			if _, err := p.expectIdentifier(); err != nil {
 				return nil, err
@@ -272,7 +307,13 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 	if p.cur.Type == kwQUALIFY {
 		// QUALIFY: valid BigQuery, parses in the union grammar; Spanner
-		// feature-rejects (divergence #9). We accept it here.
+		// rejects QUALIFY as unsupported.
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: QUALIFY is not supported",
+			}
+		}
 		p.advance()
 		qualify, err := p.parseExpr()
 		if err != nil {
@@ -474,14 +515,26 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		return item, nil
 	}
 
-	// Expression. After it: `[AS] alias` or nothing. (A non-path `expr.*` —
-	// e.g. `f(x).*` — is not a documented select-list form; GoogleSQL's
-	// select_column_dot_star qualifier is a path. If a `.*` trails a non-path
-	// expression the expression parser surfaces the syntax error, matching the
-	// oracle.)
-	expr, err := p.parseExpr()
+	// Expression (or arbitrary-expression dot-star: `expression_higher_prec_than_and '.' '*' [star_modifiers]`).
+	expr, err := p.parseSelectItemExpr()
 	if err != nil {
 		return nil, err
+	}
+
+	// select_column_dot_star: expression_higher_prec_than_and '.' '*' [star_modifiers].
+	if p.cur.Type == int('.') && p.peekNext().Type == int('*') && isHigherPrecThanAnd(expr) {
+		p.advance()            // '.'
+		starTok := p.advance() // '*'
+		item := &ast.SelectItem{Expr: expr, Star: true, Loc: ast.Loc{Start: nodeLoc(expr).Start, End: starTok.Loc.End}}
+		mods, end, err := p.tryParseStarModifiers(nodeLoc(expr).Start)
+		if err != nil {
+			return nil, err
+		}
+		if mods != nil {
+			item.Modifiers = mods
+			item.Loc.End = end
+		}
+		return item, nil
 	}
 
 	item := &ast.SelectItem{Expr: expr, Loc: nodeLoc(expr)}
@@ -501,7 +554,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		}
 		item.Alias = alias
 		item.Loc.End = aliasTok.Loc.End
-	} else if (isIdentifierStart(p.cur.Type) && !p.atSelectListEnd()) || p.atClauseWordImplicitAlias() {
+	} else if (isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur) && !p.atSelectListEnd()) || p.atClauseWordImplicitAlias() {
 		// Implicit alias: `SELECT a b` → column a aliased b. isIdentifierStart
 		// already excludes reserved keywords (FROM/WHERE/etc are reserved), so a
 		// following clause keyword is never mistaken for an alias — except for a
@@ -519,6 +572,15 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 	return item, nil
 }
 
+// isHigherPrecThanAnd reports whether expr is an expression_higher_prec_than_and
+// (i.e. not an unparenthesized AND or OR binary expression), for select_column_dot_star.
+func isHigherPrecThanAnd(expr ast.Node) bool {
+	if be, ok := expr.(*ast.BinaryExpr); ok && (be.Op == ast.BinAnd || be.Op == ast.BinOr) {
+		return false
+	}
+	return true
+}
+
 // atClauseWordImplicitAlias reports whether the cursor is a word that may be
 // either a bare alias or the next clause's keyword, and is the alias because no
 // QUALIFY expression follows it. QUALIFY is the one such word: the pinned
@@ -528,8 +590,9 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 // `SELECT NULL QUALIFY x > 0` keeps its clause. The clause reading needs an
 // expression after QUALIFY, so anything that ends the select list — the next
 // clause's keyword included — makes the word the alias.
+// BigQuery reserves QUALIFY, so this is disabled in DialectBigQuery.
 func (p *Parser) atClauseWordImplicitAlias() bool {
-	if p.cur.Type != kwQUALIFY {
+	if p.isBigQuery() || p.cur.Type != kwQUALIFY {
 		return false
 	}
 	switch p.peekNext().Type {

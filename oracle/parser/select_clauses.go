@@ -252,11 +252,17 @@ func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
 		Columns: &nodes.List{},
 		Loc:     nodes.Loc{Start: start},
 	}
+	seenCols := map[string]bool{}
 	for {
+		colTok := p.cur
+		if p.isIdentLike() && seenCols[colTok.Str] {
+			return nil, p.syntaxErrorAtTok(colTok)
+		}
 		col, err := p.parseSelectExternalColumn()
 		if err != nil {
 			return nil, err
 		}
+		seenCols[col.Name] = true
 		ref.Columns.Items = append(ref.Columns.Items, col)
 		if p.cur.Type != ',' {
 			break
@@ -271,7 +277,7 @@ func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
 	var err error
 	if p.cur.Type == kwTYPE {
 		p.advance()
-		if ref.Type, err = p.parseSelectExternalName(); err != nil {
+		if ref.Type, err = p.parseSelectExternalType(); err != nil {
 			return nil, err
 		}
 	}
@@ -335,7 +341,22 @@ func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
 	return p.parsePivotSuffix(ref)
 }
 
-// parseSelectExternalName parses the name after TYPE or DEFAULT DIRECTORY.
+// parseSelectExternalType parses the access driver type after TYPE in an
+// inline external table. Oracle 23ai's SQL parser accepts only the built-in
+// access driver keywords here and raises ORA-00922 at any other name.
+func (p *Parser) parseSelectExternalType() (string, error) {
+	if p.cur.Type == tokIDENT || p.cur.Type >= 2000 {
+		switch strings.ToUpper(p.cur.Str) {
+		case "ORACLE_LOADER", "ORACLE_DATAPUMP", "ORACLE_HDFS", "ORACLE_HIVE", "ORACLE_BIGDATA":
+			name := p.cur.Str
+			p.advance()
+			return name, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseSelectExternalName parses the name after DEFAULT DIRECTORY.
 func (p *Parser) parseSelectExternalName() (string, error) {
 	if !p.isIdentLike() {
 		return "", p.syntaxErrorAtCur()
@@ -796,7 +817,14 @@ func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
 		if err := periodFor(); err != nil {
 			return nil, err
 		}
+		if !p.dmlFromClause && p.cur.Type == kwFOR {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != kwBETWEEN {
+			if fc.IsPeriodFor && p.cur.Type != tokEOF && p.cur.Type != ';' {
+				p.advance()
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -853,12 +881,16 @@ func (p *Parser) parseSampleClause() (*nodes.SampleClause, error) {
 	p.advance() // consume SAMPLE
 
 	sc := &nodes.SampleClause{Loc: nodes.Loc{Start: start}}
+	var blockTok Token
 	if p.cur.Type == kwBLOCK {
 		sc.Block = true
-		p.advance()
+		blockTok = p.advance()
 	}
 	var err error
 	if sc.Percent, err = p.parseSelectSampleValue(true); err != nil {
+		if sc.Block && p.cur.Type != '(' && p.prev.Loc == blockTok.Loc {
+			return nil, p.syntaxErrorAtTok(blockTok)
+		}
 		return nil, err
 	}
 	if p.cur.Type == kwSEED {

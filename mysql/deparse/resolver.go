@@ -22,13 +22,30 @@ type ResolverTable = scopepkg.Table
 // Returns nil if the table is not found.
 type TableLookup func(tableName string) *ResolverTable
 
+// SchemaTableLookup looks up a table by schema and name in the catalog.
+// Returns nil if the schema or table is not found.
+type SchemaTableLookup func(schema, tableName string) *ResolverTable
+
 // Resolver resolves column references in a SelectStmt using catalog metadata.
 type Resolver struct {
 	Lookup TableLookup
+	// SchemaLookup optionally resolves schema-qualified table references
+	// (e.g., db2.t). When nil, schema-qualified TABLE query primaries are
+	// preserved unexpanded rather than guessing from the single-schema Lookup.
+	SchemaLookup SchemaTableLookup
 	// DefaultCharset is the database's default character set (e.g., "utf8mb4", "latin1").
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
 	DefaultCharset string
+	// DefaultWeekFormat is the effective session default_week_format (0..7) used
+	// to expand 1-arg WEEK(x) -> week(x, mode). A negative value means unknown,
+	// preserving the 1-arg call unexpanded.
+	DefaultWeekFormat int
+	// NormalizeCastAsYear rewrites MySQL 8.0 SHOW CREATE VIEW's internal
+	// `cast_as_year`(x) spelling to `cast(x as year)` so engine-readback views
+	// converge with executable CAST(... AS YEAR). Left false when a stored
+	// function named `cast_as_year` is in scope or for direct Resolver callers.
+	NormalizeCastAsYear bool
 	// Source is the text the statement was parsed from, which the AST's Loc
 	// offsets index into. When it is set, an unaliased select item is named
 	// after its source text, as MySQL names it; otherwise the name is rebuilt
@@ -91,12 +108,15 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		}
 		for _, cte := range stmt.CTEs {
 			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(mergedCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:              r.withCTELookup(mergedCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup); vt != nil {
+			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
@@ -134,12 +154,15 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			}
 			for _, cte := range leftCTEs {
 				cteResolver := &Resolver{
-					Lookup:         r.withCTELookup(mergedCTETables),
-					DefaultCharset: r.DefaultCharset,
-					Source:         r.Source,
+					Lookup:              r.withCTELookup(mergedCTETables),
+					SchemaLookup:        r.SchemaLookup,
+					DefaultCharset:      r.DefaultCharset,
+					DefaultWeekFormat:   r.DefaultWeekFormat,
+					NormalizeCastAsYear: r.NormalizeCastAsYear,
+					Source:              r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-				vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
 				}
@@ -183,35 +206,44 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
-			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup)
+			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup, r.SchemaLookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
 
 			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
 			rightResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:              r.withCTELookup(localCTETables),
+				SchemaLookup:        r.SchemaLookup,
+				DefaultCharset:      r.DefaultCharset,
+				DefaultWeekFormat:   r.DefaultWeekFormat,
+				NormalizeCastAsYear: r.NormalizeCastAsYear,
+				Source:              r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
-			vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+			vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
@@ -223,7 +255,21 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 	if len(localCTETables) > 0 {
 		r.Lookup = r.withCTELookup(localCTETables)
 	}
-	sc := r.buildScope(stmt.From)
+	// Expand an explicit TABLE query primary into SELECT * FROM t so the
+	// resolved view body matches MySQL 8.0's SHOW CREATE VIEW form
+	// (`select t.c1 AS c1, ... from t`). Direct DeparseSelect without Resolver
+	// keeps `table t`. For a schema-qualified TABLE db.t, only expand when a
+	// schema-aware SchemaLookup can resolve the requested schema so we never
+	// substitute columns from another schema's same-named table.
+	if stmt.TableSource != nil && stmt.TableSource.Table != nil {
+		tbl := stmt.TableSource.Table
+		if r.lookupTableRef(tbl, origLookup, false) != nil {
+			stmt.From = []ast.TableExpr{tbl}
+			stmt.TargetList = []ast.ExprNode{&ast.StarExpr{Loc: stmt.TableSource.Loc}}
+			stmt.TableSource = nil
+		}
+	}
+	sc := r.buildScope(stmt.From, origLookup)
 	sc.parent = parentScope
 	sc.ctes = localCTETables
 	r.Lookup = origLookup
@@ -282,20 +328,44 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 }
 
 // buildScope constructs a scope from the FROM clause table expressions.
-func (r *Resolver) buildScope(from []ast.TableExpr) *fromScope {
+// baseLookup (when non-nil) resolves schema-qualified table references without
+// shadowing by local CTEs.
+func (r *Resolver) buildScope(from []ast.TableExpr, baseLookup TableLookup) *fromScope {
 	sc := newFromScope(from)
 	for _, tbl := range from {
-		r.addTableExprToScope(tbl, sc)
+		r.addTableExprToScope(tbl, sc, baseLookup)
 	}
 	return sc
 }
 
+// lookupTableRef resolves a TableRef using SchemaLookup when schema-qualified
+// (or optionally falling back to baseLookup when no SchemaLookup is configured)
+// and r.Lookup when unqualified.
+func (r *Resolver) lookupTableRef(t *ast.TableRef, baseLookup TableLookup, allowSingleSchemaFallback bool) *ResolverTable {
+	if t == nil {
+		return nil
+	}
+	if t.Schema != "" {
+		if r.SchemaLookup != nil {
+			return r.SchemaLookup(t.Schema, t.Name)
+		}
+		if allowSingleSchemaFallback && baseLookup != nil {
+			return baseLookup(t.Name)
+		}
+		return nil
+	}
+	if r.Lookup != nil {
+		return r.Lookup(t.Name)
+	}
+	return nil
+}
+
 // addTableExprToScope recursively adds table references from a table expression to the scope.
-func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
+func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLookup TableLookup) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		table := r.Lookup(t.Name)
+		table := r.lookupTableRef(t, baseLookup, true)
 		if table == nil {
 			return
 		}
@@ -305,14 +375,14 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 		sc.add(t, effectiveName, table)
 	case *ast.JoinClause:
-		r.addTableExprToScope(t.Left, sc)
-		r.addTableExprToScope(t.Right, sc)
+		r.addTableExprToScope(t.Left, sc, baseLookup)
+		r.addTableExprToScope(t.Right, sc, baseLookup)
 	case *ast.SubqueryExpr:
 		// Derived table: resolve the inner SELECT, then build a virtual table
 		// from its target list so outer queries can reference derived columns.
 		if t.Select != nil {
 			r.Resolve(t.Select)
-			vt := buildDerivedVirtualTable(t, r.Lookup)
+			vt := buildDerivedVirtualTable(t, r.Lookup, r.SchemaLookup)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
 			}
@@ -421,7 +491,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 	}
 
 	var result []ast.ExprNode
-	cols := sortedResolverColumns(table)
+	cols := sortedVisibleResolverColumns(table)
 	for _, col := range cols {
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
@@ -438,6 +508,21 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 func sortedResolverColumns(table *ResolverTable) []ResolverColumn {
 	cols := make([]ResolverColumn, len(table.Columns))
 	copy(cols, table.Columns)
+	sort.Slice(cols, func(i, j int) bool {
+		return cols[i].Position < cols[j].Position
+	})
+	return cols
+}
+
+// sortedVisibleResolverColumns returns non-invisible columns sorted by Position
+// (for SELECT *, t.*, TABLE t, and NATURAL JOIN expansion).
+func sortedVisibleResolverColumns(table *ResolverTable) []ResolverColumn {
+	cols := make([]ResolverColumn, 0, len(table.Columns))
+	for _, c := range table.Columns {
+		if !c.Invisible {
+			cols = append(cols, c)
+		}
+	}
 	sort.Slice(cols, func(i, j int) bool {
 		return cols[i].Position < cols[j].Position
 	})
@@ -509,6 +594,38 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		// Resolve window function OVER clause
 		if n.Over != nil {
 			r.resolveWindowDef(n.Over, sc)
+		}
+		// MySQL 8.0 rewrites 1-arg TIME(x) -> cast(x as time[(fsp)]), 1-arg
+		// TIMESTAMP(x) -> cast(x as datetime[(fsp)]) using the argument's type,
+		// and 1-arg WEEK(x) -> week(x, default_week_format) using the session mode.
+		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 && n.Over == nil {
+			upper := strings.ToUpper(n.Name)
+			switch upper {
+			case "TIME", "TIMESTAMP":
+				if fsp, ok := exprTemporalFSP(n.Args[0], sc); ok {
+					targetType := "time"
+					if upper == "TIMESTAMP" {
+						targetType = "datetime"
+					}
+					return &ast.CastExpr{
+						Loc:      n.Loc,
+						Expr:     n.Args[0],
+						TypeName: &ast.DataType{Name: targetType, Length: fsp},
+					}
+				}
+			case "WEEK":
+				if r.DefaultWeekFormat >= 0 {
+					n.Args = append(n.Args, &ast.IntLit{Value: int64(r.DefaultWeekFormat)})
+				}
+			case "CAST_AS_YEAR":
+				if r.NormalizeCastAsYear {
+					return &ast.CastExpr{
+						Loc:      n.Loc,
+						Expr:     n.Args[0],
+						TypeName: &ast.DataType{Name: "year"},
+					}
+				}
+			}
 		}
 		return n
 	case *ast.CastExpr:
@@ -653,7 +770,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 	if names, ok := sc.naturalColumns(j); ok {
 		if len(names) > 0 {
-			if on, ok := sc.joinOn(j, names); ok {
+			if on, ok := sc.joinOn(j, names, false); ok {
 				j.Condition = &ast.OnCondition{Expr: on}
 			}
 		} else {
@@ -687,7 +804,7 @@ func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondi
 	if len(using.Columns) == 0 {
 		return
 	}
-	if on, ok := sc.joinOn(j, using.Columns); ok {
+	if on, ok := sc.joinOn(j, using.Columns, true); ok {
 		j.Condition = &ast.OnCondition{Expr: on}
 		return
 	}
@@ -835,7 +952,7 @@ func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 // buildCTEVirtualTableFromSelect constructs a ResolverTable from a specific SELECT branch.
 // Used for recursive CTEs where we need to build the virtual table from the non-recursive
 // (left) branch before resolving the recursive (right) branch.
-func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt, lookup TableLookup) *ResolverTable {
+func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if sel == nil {
 		return nil
 	}
@@ -849,7 +966,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 		return &ResolverTable{Name: cteName, Columns: cols}
 	}
 
-	cols := queryOutputColumns(sel, lookup)
+	cols := queryOutputColumns(sel, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -858,7 +975,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 
 // buildCTEVirtualTable constructs a ResolverTable from a CTE's SELECT target list.
 // This allows the main query to resolve column references to CTE columns.
-func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *ResolverTable {
+func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if cte.Select == nil {
 		return nil
 	}
@@ -873,7 +990,7 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *Resolve
 	}
 
 	// Otherwise, derive columns from the CTE's query expression
-	cols := queryOutputColumns(cte.Select, lookup)
+	cols := queryOutputColumns(cte.Select, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -892,11 +1009,17 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *Resolve
 // both v8.5.5 and mysql:8.0, where resolving t to the stored table answered
 // with the table's columns instead (container-verified).
 func PrimaryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
+	return PrimaryOutputColumnsWithSchema(sel, lookup, nil)
+}
+
+// PrimaryOutputColumnsWithSchema is PrimaryOutputColumns with an optional
+// schema-aware lookup for schema-qualified TABLE primaries (e.g., TABLE db2.t).
+func PrimaryOutputColumnsWithSchema(sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) []ResolverColumn {
 	leaf := ast.LeftmostQueryLeaf(sel)
 	if leaf == nil || (leaf.TableSource == nil && leaf.ValuesSource == nil) {
 		return nil
 	}
-	return queryOutputColumns(sel, lookup)
+	return queryOutputColumns(sel, lookup, schemaLookup)
 }
 
 // queryOutputColumns returns the columns a query expression outputs, for the
@@ -915,8 +1038,8 @@ func PrimaryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverCol
 // expanded to nothing, which deparsed to an invalid "select  from `c`".
 // Container-verified: a view over `WITH c AS (TABLE t) SELECT * FROM c` or
 // `SELECT * FROM (TABLE t) d` has the columns of t.
-func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
-	return queryOutputColumnsIn(sel, nil, lookup, nil)
+func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup, schemaLookup SchemaTableLookup) []ResolverColumn {
+	return queryOutputColumnsIn(sel, nil, lookup, schemaLookup, nil)
 }
 
 // queryOutputColumnsIn is queryOutputColumns with the WITH scopes that enclose
@@ -924,7 +1047,7 @@ func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColum
 // bodies are already being read. Both exist for one reason: a TABLE primary may name
 // a CTE rather than a table, that CTE's body may be a primary naming another
 // CTE, and a body may name itself.
-func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLookup, schemaLookup SchemaTableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
 	scopes := append(cteScopesOf(sel), outer...)
 	sel = ast.LeftmostQueryLeaf(sel)
 	if sel == nil {
@@ -942,18 +1065,22 @@ func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLoo
 		// (container-verified on both servers; the same rule the catalog's own
 		// CTE-name check states).
 		if sel.TableSource.Table.Schema == "" {
-			if cols := cteOutputColumns(scopes, sel.TableSource.Table.Name, lookup, seen); cols != nil {
+			if cols := cteOutputColumns(scopes, sel.TableSource.Table.Name, lookup, schemaLookup, seen); cols != nil {
 				return cols
 			}
 		}
-		if lookup == nil {
-			return nil
+		var table *ResolverTable
+		if sel.TableSource.Table.Schema != "" {
+			if schemaLookup != nil {
+				table = schemaLookup(sel.TableSource.Table.Schema, sel.TableSource.Table.Name)
+			}
+		} else if lookup != nil {
+			table = lookup(sel.TableSource.Table.Name)
 		}
-		table := lookup(sel.TableSource.Table.Name)
 		if table == nil {
 			return nil
 		}
-		sorted := sortedResolverColumns(table)
+		sorted := sortedVisibleResolverColumns(table)
 		cols := make([]ResolverColumn, 0, len(sorted))
 		for i, c := range sorted {
 			cols = append(cols, ResolverColumn{Name: c.Name, Position: i + 1})
@@ -1027,7 +1154,7 @@ func cteScopesOf(root *ast.SelectStmt) []cteScope {
 // (`WITH RECURSIVE x AS (TABLE x)`, `WITH x AS (TABLE y), y AS (TABLE x)`,
 // neither of which the servers will run), since those come back to the same
 // declaration.
-func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, schemaLookup SchemaTableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
 	cte, rest := findCTE(scopes, name)
 	if cte == nil {
 		return nil
@@ -1050,7 +1177,7 @@ func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, seen m
 		next[k] = true
 	}
 	next[cte] = true
-	return queryOutputColumnsIn(cte.Select, rest, lookup, next)
+	return queryOutputColumnsIn(cte.Select, rest, lookup, schemaLookup, next)
 }
 
 // bodyScopes returns the WITH scopes in scope inside the body of the CTE found
@@ -1108,12 +1235,12 @@ func cteColumnName(target ast.ExprNode, position int) string {
 
 // buildDerivedVirtualTable constructs a ResolverTable from a derived table's SELECT target list.
 // This allows the outer query to resolve column references to derived table columns.
-func buildDerivedVirtualTable(sub *ast.SubqueryExpr, lookup TableLookup) *ResolverTable {
+func buildDerivedVirtualTable(sub *ast.SubqueryExpr, lookup TableLookup, schemaLookup SchemaTableLookup) *ResolverTable {
 	if sub.Select == nil || sub.Alias == "" {
 		return nil
 	}
 
-	cols := queryOutputColumns(sub.Select, lookup)
+	cols := queryOutputColumns(sub.Select, lookup, schemaLookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -1128,4 +1255,194 @@ type AmbiguousColumnError struct {
 
 func (e *AmbiguousColumnError) Error() string {
 	return fmt.Sprintf("column %q is ambiguous, found in tables: %s", e.Column, strings.Join(e.Tables, ", "))
+}
+
+// exprTemporalFSP returns the fractional seconds precision MySQL 8.0 uses when
+// rewriting 1-arg TIME(expr) -> cast(expr as time[(fsp)]) or 1-arg
+// TIMESTAMP(expr) -> cast(expr as datetime[(fsp)]). Returns (0, false) when
+// the argument's type is not known.
+func exprTemporalFSP(expr ast.ExprNode, sc *fromScope) (int, bool) {
+	expr = unwrapParen(expr)
+	switch n := expr.(type) {
+	case *ast.IntLit, *ast.BoolLit, *ast.NullLit:
+		return 0, true
+	case *ast.StringLit, *ast.HexLit, *ast.BitLit:
+		return 6, true
+	case *ast.FloatLit:
+		if strings.ContainsAny(n.Value, "eE") {
+			return 6, true
+		}
+		if _, frac, ok := strings.Cut(n.Value, "."); ok {
+			return clampFSP(len(frac)), true
+		}
+		return 0, true
+	case *ast.TemporalLit:
+		return temporalLitFSP(n.Type, n.Value), true
+	case *ast.CastExpr:
+		if n.TypeName == nil {
+			return 0, false
+		}
+		switch strings.ToLower(n.TypeName.Name) {
+		case "signed", "signed integer", "unsigned", "unsigned integer", "date", "year":
+			return 0, true
+		case "datetime", "time":
+			return clampFSP(n.TypeName.Length), true
+		case "decimal":
+			return clampFSP(n.TypeName.Scale), true
+		case "char", "binary", "float", "double", "json":
+			return 6, true
+		}
+		return 0, false
+	case *ast.ColumnRef:
+		col := lookupScopeColumn(n, sc)
+		if col == nil || col.DataType == "" {
+			return 0, false
+		}
+		switch strings.ToLower(col.DataType) {
+		case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "year", "date", "bit":
+			return 0, true
+		case "datetime", "timestamp", "time", "decimal", "numeric":
+			return clampFSP(col.Scale), true
+		case "float", "double",
+			"char", "varchar", "tinytext", "text", "mediumtext", "longtext",
+			"binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob",
+			"enum", "set", "json":
+			return 6, true
+		}
+		return 0, false
+	default:
+		return 0, false
+	}
+}
+
+func lookupScopeColumn(ref *ast.ColumnRef, sc *fromScope) *ResolverColumn {
+	if ref == nil || ref.Star {
+		return nil
+	}
+	for cur := sc; cur != nil; cur = cur.parent {
+		if ref.Table != "" {
+			if tbl := cur.GetTable(ref.Table); tbl != nil {
+				return tbl.GetColumn(ref.Column)
+			}
+			continue
+		}
+		if entry, ok := cur.FirstWithColumn(ref.Column); ok && entry.Table != nil {
+			return entry.Table.GetColumn(ref.Column)
+		}
+	}
+	return nil
+}
+
+func clampFSP(n int) int {
+	if n < 0 {
+		return 0
+	}
+	if n > 6 {
+		return 6
+	}
+	return n
+}
+
+// temporalLitFSP returns the fractional seconds precision of a MySQL DATE,
+// TIME, or TIMESTAMP literal. Unlike splitting at the first '.', this
+// distinguishes date/time field delimiters (such as '.' in
+// TIMESTAMP '2020.01.01 12:34:56.1' or '2020.01.01 12.34.56') from the
+// fractional-seconds suffix and stops before any trailing timezone suffix.
+func temporalLitFSP(typ, val string) int {
+	if strings.EqualFold(typ, "DATE") {
+		return 0
+	}
+	s := strings.TrimSpace(val)
+	if s == "" {
+		return 0
+	}
+	if strings.EqualFold(typ, "TIME") {
+		t := s
+		if t[0] == '+' || t[0] == '-' {
+			t = strings.TrimSpace(t[1:])
+		}
+		plain := true
+		dotIdx := -1
+		for i := 0; i < len(t); i++ {
+			ch := t[i]
+			switch {
+			case ch >= '0' && ch <= '9', ch == ':', ch == ' ':
+			case ch == '.':
+				if dotIdx >= 0 {
+					plain = false
+				} else {
+					dotIdx = i
+				}
+			default:
+				plain = false
+			}
+		}
+		if plain {
+			if dotIdx < 0 {
+				return 0
+			}
+			n := 0
+			for i := dotIdx + 1; i < len(t) && t[i] >= '0' && t[i] <= '9'; i++ {
+				n++
+			}
+			return clampFSP(n)
+		}
+	}
+	return datetimeLitFSP(s)
+}
+
+func datetimeLitFSP(s string) int {
+	var parts []string
+	var seps []string
+	i := 0
+	for i < len(s) {
+		sepStart := i
+		for i < len(s) && (s[i] < '0' || s[i] > '9') {
+			i++
+		}
+		sep := s[sepStart:i]
+		if i >= len(s) {
+			break
+		}
+		digStart := i
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		seps = append(seps, sep)
+		parts = append(parts, s[digStart:i])
+	}
+	if len(parts) == 0 {
+		return 0
+	}
+	n0 := len(parts[0])
+	if n0 >= 5 {
+		filled := 3
+		switch {
+		case n0 >= 11:
+			filled = 6
+		case n0 >= 9:
+			filled = 5
+		case n0 == 7:
+			filled = 4
+		}
+		for idx := 1; idx < len(parts); idx++ {
+			if filled < 6 {
+				if filled == 3 && len(parts[idx]) >= 5 {
+					filled = 6
+				} else {
+					filled++
+				}
+			} else {
+				if seps[idx] == "." {
+					return clampFSP(len(parts[idx]))
+				}
+				return 0
+			}
+		}
+		return 0
+	}
+	if len(parts) >= 7 && seps[6] == "." {
+		return clampFSP(len(parts[6]))
+	}
+	return 0
 }

@@ -57,6 +57,14 @@ func primaryKeyOf(t walk.Key) walk.Key {
 	return walk.Key{Space: spacePrimaryKey, Parent: tableOf(t)}
 }
 
+func trigKey(t walk.Key, name string) walk.Key {
+	return walk.Key{Space: spaceTrigger, Parent: tableOf(t), Name: name}
+}
+
+func polKey(t walk.Key, name string) walk.Key {
+	return walk.Key{Space: spacePolicy, Parent: tableOf(t), Name: name}
+}
+
 // tableOf is the parent path of what a relation holds: its columns,
 // constraints, and primary key.
 func tableOf(rel walk.Key) string {
@@ -93,6 +101,7 @@ type resolved struct {
 	kind          string
 	missingSchema string
 	fail          string
+	builtin       bool
 	keys          []walk.Key
 }
 
@@ -265,6 +274,100 @@ func (b *builder) nameList(parts []string) resolved {
 		return b.relation(parts[0], parts[1], parts[2])
 	}
 	return resolved{}
+}
+
+// resolveType resolves a type name (1-, 2-, or 3-part) in the type namespace.
+// Unqualified names follow PostgreSQL's search path (pg_temp, pg_catalog, then
+// path), stopping at the first schema whose answer is Unknown so an unsynced
+// domain, range, or base type in an earlier schema is never bypassed.
+//
+// pg: src/backend/catalog/namespace.c — TypenameGetTypidExtended
+func (b *builder) resolveType(parts []string) resolved {
+	var catalog, schema, name string
+	switch len(parts) {
+	case 1:
+		name = parts[0]
+	case 2:
+		schema, name = parts[0], parts[1]
+	case 3:
+		catalog, schema, name = parts[0], parts[1], parts[2]
+	default:
+		return resolved{}
+	}
+	if b.w.crossDatabase(catalog) {
+		return resolved{fail: crossDatabaseMessage(qualified(parts))}
+	}
+	typ, ok := walkName(name)
+	if !ok || !b.w.currentDatabase(catalog) {
+		return resolved{}
+	}
+	if schema != "" {
+		s, ok := walkName(schema)
+		if !ok {
+			return resolved{}
+		}
+		if s == "pg_catalog" {
+			if builtinCatalogTypes[typ] {
+				return resolved{fact: walk.Present, kind: typOther, builtin: true}
+			}
+			return resolved{}
+		}
+		return b.typeInSchema(s, typ)
+	}
+	path, ok := b.w.searchPath()
+	if !ok {
+		return resolved{}
+	}
+	var keys []walk.Key
+	order := make([]string, 0, len(path)+2)
+	for _, implicit := range []string{tempSchema, "pg_catalog"} {
+		if !containsString(path, implicit) {
+			order = append(order, implicit)
+		}
+	}
+	order = append(order, path...)
+	for _, s := range order {
+		if s == "pg_catalog" {
+			if builtinCatalogTypes[typ] {
+				return resolved{fact: walk.Present, kind: typOther, builtin: true, keys: keys}
+			}
+			if strings.HasPrefix(typ, "pg_") || strings.HasPrefix(typ, "_") {
+				return resolved{}
+			}
+			continue
+		}
+		r := b.typeInSchema(s, typ)
+		keys = append(keys, r.keys...)
+		switch r.fact {
+		case walk.Present:
+			r.keys = keys
+			return r
+		case walk.Unknown:
+			return resolved{}
+		}
+	}
+	return resolved{fact: walk.Absent, keys: keys}
+}
+
+func (b *builder) typeInSchema(schema, typ string) resolved {
+	if schema == tempSchema {
+		k := typeKey(tempSchema, typ)
+		f, kind := b.l.Lookup(k)
+		return resolved{fact: f, key: k, kind: kind, keys: []walk.Key{k}}
+	}
+	sk := schemaKey(schema)
+	k := typeKey(schema, typ)
+	switch f, _ := b.l.Lookup(sk); f {
+	case walk.Absent:
+		return resolved{fact: walk.Absent, missingSchema: schema, keys: []walk.Key{sk}}
+	case walk.Unknown:
+		if f, kind := b.l.Lookup(k); f == walk.Present {
+			return resolved{fact: f, key: k, kind: kind, keys: []walk.Key{sk, k}}
+		}
+		return resolved{keys: []walk.Key{sk}}
+	}
+	f, kind := b.l.Lookup(k)
+	return resolved{fact: f, key: k, kind: kind, keys: []walk.Key{sk, k}}
 }
 
 // created is the schema a new object goes to. fail is set when the

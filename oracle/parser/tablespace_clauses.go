@@ -585,7 +585,7 @@ func (p *Parser) parseCreateTablespaceEncryption() (string, string, error) {
 	algorithm := ""
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if p.cur.Type != tokSCONST {
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
 			return "", "", p.syntaxErrorAtCur() // ORA-28339
 		}
 		algorithm = p.advance().Str
@@ -1043,7 +1043,7 @@ func (p *Parser) parseTablespaceILMPolicy() error {
 			return err
 		}
 		switch {
-		case p.isKeywordStr("SEGMENT"), p.cur.Type == kwGROUP, p.cur.Type == kwROW:
+		case p.isKeywordStr("SEGMENT"), p.cur.Type == kwGROUP:
 			p.advance()
 		default:
 			return p.syntaxErrorAtCur()
@@ -1366,6 +1366,11 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 		if p.tsEndsBeforeOperand() {
 			return nil
 		}
+		// ALTER TABLESPACE SET uses OMF and takes no datafile name or number
+		// (ORA-02580 at the operand; ALTER-TABLESPACE-SET.bnf).
+		if stmt.IsSet && stmt.DropDatafile {
+			return p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != tokSCONST && p.cur.Type != tokICONST {
 			return p.syntaxErrorAtCur() // ORA-02236
 		}
@@ -1550,8 +1555,13 @@ func (p *Parser) parseAlterTablespaceAddFile(stmt *nodes.AlterTablespaceStmt) er
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if stmt.IsSet && stmt.AddDatafile && p.tsEndsBeforeOperand() {
-		return nil
+	if stmt.IsSet && stmt.AddDatafile {
+		if p.tsEndsBeforeOperand() {
+			return nil
+		}
+		// ALTER TABLESPACE SET uses OMF and takes no file specification
+		// (ORA-02580 at the operand; ALTER-TABLESPACE-SET.bnf).
+		return p.syntaxErrorAtCur()
 	}
 	files, err := p.parseTablespaceFileSpecs()
 	stmt.Datafiles = append(stmt.Datafiles, files...)
@@ -1608,7 +1618,7 @@ func (p *Parser) parseAlterTablespaceEncryption() error {
 // USING 'encrypt_algorithm' (ORA-28339).
 func (p *Parser) parseTablespaceEncryptionSpec() error {
 	p.advance() // USING
-	if p.cur.Type != tokSCONST {
+	if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()

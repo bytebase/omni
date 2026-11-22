@@ -1372,6 +1372,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *PartitionDef:
 		walkList(v, n.Values)
+		walkList(v, n.Subpartitions)
 	case *PartitionExtClause:
 		walkList(v, n.Keys)
 	case *PivotAggregate:

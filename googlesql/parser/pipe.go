@@ -381,11 +381,8 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		return &ast.PipeWith{With: wc, Loc: loc(wc.Loc.End)}, nil
 
 	case kwEXPORT:
-		// export_data_no_query is `EXPORT DATA …`. The helper does not require
-		// DATA here: compat.tsv records the emulator accepting the truncated
-		// `|> EXPORT` and `|> EXPORT AS` (its pipe statement answers are not a
-		// parse verdict; see testdata/README.md), and requiring DATA would
-		// regress those two recorded rows without a re-record.
+		// export_data_no_query: EXPORT DATA opt_with_connection_clause opt_options_list
+		// (googlesql.tm:4273, pipe_export_data googlesql.tm:5487).
 		stmt, err := p.parseExportDataNoQuery()
 		if err != nil {
 			return nil, err
@@ -405,6 +402,9 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		return p.parsePipeInsert(start)
 
 	case kwMATCH_RECOGNIZE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		clause, err := p.parseMatchRecognizeClause()
 		if err != nil {
 			return nil, err
@@ -585,6 +585,9 @@ func (p *Parser) parsePipeGroupBy() (*ast.GroupByClause, error) {
 		}
 	}
 	if p.cur.Type == kwAND {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if _, err := p.expect(kwORDER); err != nil {
 			return nil, err
@@ -902,7 +905,7 @@ func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 		}
 	}
 	tc := &ast.TableClause{Table: te, Loc: ast.Loc{Start: tableTok.Loc.Start, End: te.Loc.End}}
-	if p.cur.Type == kwWHERE {
+	if !p.isBigQuery() && p.cur.Type == kwWHERE {
 		p.advance()
 		where, err := p.parseExpr()
 		if err != nil {
@@ -1377,7 +1380,7 @@ func (p *Parser) parsePipeCreateTable(start int) (ast.Node, error) {
 	if p.cur.Type != kwTABLE {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt, err := p.parseCreateTablePrefix(create, orReplace, scope)
+	stmt, err := p.parseCreateTablePrefix(create, orReplace, scope, true /*fromPipe*/)
 	if err != nil {
 		return nil, err
 	}

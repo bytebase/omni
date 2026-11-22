@@ -20,10 +20,11 @@ import (
 )
 
 // TestSimulation holds the catalog to testdata/simulate.tsv: every table,
-// index and view statement MariaDB accepts in the parser's compat.tsv, run
-// on each fixture, with what MariaDB did and what Exec does. An outcome is
-// the error number the statement is refused with, or ok: and a hash of the
-// SHOW CREATE texts the database holds afterwards.
+// index, view, sequence, stored routine, trigger and event statement MariaDB
+// accepts in the parser's compat.tsv, run on each fixture, with what MariaDB
+// did and what Exec does. An outcome is the error number the statement is
+// refused with, or ok: and a hash of the SHOW CREATE texts the database holds
+// afterwards.
 //
 // MariaDB's side is on the test's tape, so the test starts no server.
 // OMNI_RECORD=1 runs every row on the pinned MariaDB again; -update-compat
@@ -51,25 +52,34 @@ func TestSimulation(t *testing.T) {
 // simulationFixtures are the starting schemas, in testdata/fixtures. A
 // compat.tsv statement writes a for every name it holds, so what a statement
 // finds is set by what the fixture names a: nothing, a table, a column, an
-// index, a view, a partition of a RANGE-partitioned table, or a foreign key on
-// a constrained table.
+// index, a view, a partition of a RANGE-partitioned table, a foreign key on
+// a constrained table, a sequence, a stored procedure and function, a trigger,
+// or an event.
 var simulationFixtures = []string{
 	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
 	"objects@view", "objects@partitioned", "objects@fk",
+	"objects@sequence", "objects@routine", "objects@trigger", "objects@event",
 }
 
 // simulatedStatement matches the statements the file holds: DDL on tables,
-// indexes and views, whose whole effect is in the database a row reads back.
-// A temporary table is in no SHOW FULL TABLES, so CREATE TEMPORARY is left
-// out; so are databases, sequences, routines, triggers, events, accounts and
-// servers, which a later fixture can take.
+// indexes, views, sequences, stored routines, triggers and events, whose whole
+// effect is in the database a row reads back. Temporary objects (CREATE
+// TEMPORARY TABLE/SEQUENCE) are in no SHOW FULL TABLES, loadable UDFs (SONAME)
+// live outside any database, and databases, packages, accounts and servers are
+// left out.
 var simulatedStatement = regexp.MustCompile(`^(?:` +
 	`ALTER (?:ONLINE |IGNORE )*TABLE |CREATE (?:OR REPLACE )?TABLE |DROP TABLE |RENAME TABLE |TRUNCATE ` +
 	`|CREATE (?:OR REPLACE )?(?:UNIQUE |FULLTEXT |SPATIAL |VECTOR )?INDEX |DROP INDEX ` +
 	`|(?:CREATE (?:OR REPLACE )?|ALTER )(?:ALGORITHM = \w+ )?(?:DEFINER = \S+ )?(?:SQL SECURITY \w+ )?VIEW |DROP VIEW ` +
+	`|(?:CREATE (?:OR REPLACE )?|ALTER |DROP )SEQUENCE ` +
+	`|(?:CREATE (?:OR REPLACE )?(?:DEFINER = \S+ )?|ALTER |DROP )(?:PROCEDURE|FUNCTION) ` +
+	`|(?:CREATE (?:OR REPLACE )?(?:DEFINER = \S+ )?|DROP )TRIGGER ` +
+	`|(?:CREATE (?:OR REPLACE )?(?:DEFINER = \S+ )?|ALTER (?:DEFINER = \S+ )?|DROP )EVENT ` +
 	`)`)
 
-func simulated(statement string) bool { return simulatedStatement.MatchString(statement) }
+func simulated(statement string) bool {
+	return simulatedStatement.MatchString(statement) && !strings.Contains(statement, " SONAME ")
+}
 
 // simulationDatabase holds every row's fixture, on the server and in omni.
 const simulationDatabase = "omni_simulation"
@@ -77,8 +87,16 @@ const simulationDatabase = "omni_simulation"
 // simulationEngine asks MariaDB, or the tape. Each row is three kinds of
 // request, none of which reads omni: the database dropped and built again
 // with the fixture, the statement, and after one MariaDB took, the
-// database's tables and views and the SHOW CREATE of each.
+// database's objects and the SHOW CREATE of each.
 func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return simulationEngineWith(t, true)
+}
+
+func simulationEngineTablesOnly(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return simulationEngineWith(t, false)
+}
+
+func simulationEngineWith(t testing.TB, includeRoutinesEventsTriggers bool) func(simulate.Fixture, string) (simulate.Answer, error) {
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		_, err := db.ExecContext(ctx, "DROP DATABASE IF EXISTS "+simulationDatabase)
 		return err
@@ -97,15 +115,16 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 			}
 			return simulate.Answer{Code: strconv.Itoa(int(refusal.Number))}, nil
 		}
-		forms, err := simulationForms(ctx, db)
+		forms, err := simulationForms(ctx, db, includeRoutinesEventsTriggers)
 		return simulate.Answer{Forms: forms}, err
 	}
 }
 
-// simulationForms reads the fixture database's tables and views as MariaDB
-// prints them, in name order. It names the database, since a statement may
+// simulationForms reads the fixture database's tables, views, sequences, and
+// (when includeExtra is true) routines, triggers and events as MariaDB prints
+// them, in deterministic order. It names the database, since a statement may
 // have selected another.
-func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
+func simulationForms(ctx context.Context, db *sql.DB, includeExtra bool) ([]simulate.Form, error) {
 	rows, err := db.QueryContext(ctx, "SHOW FULL TABLES FROM "+simulationDatabase)
 	if err != nil {
 		return nil, err
@@ -118,8 +137,11 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 			return nil, err
 		}
 		f := simulate.Form{Kind: "TABLE", Name: name}
-		if kind == "VIEW" {
+		switch kind {
+		case "VIEW":
 			f.Kind = "VIEW"
+		case "SEQUENCE":
+			f.Kind = "SEQUENCE"
 		}
 		forms = append(forms, f)
 	}
@@ -130,14 +152,63 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 		return nil, err
 	}
 	slices.SortFunc(forms, func(a, b simulate.Form) int { return strings.Compare(a.Name, b.Name) })
+
+	if includeExtra {
+		// Read routines, triggers and events in one query and append them in fixed
+		// kind order (PROCEDURE, FUNCTION, TRIGGER, EVENT) and name order so
+		// existing table/view fixtures keep the exact form order they were recorded with.
+		const extraQuery = "" +
+			"SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = '" + simulationDatabase + "' AND ROUTINE_TYPE = 'PROCEDURE' " +
+			"UNION ALL " +
+			"SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = '" + simulationDatabase + "' AND ROUTINE_TYPE = 'FUNCTION' " +
+			"UNION ALL " +
+			"SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = '" + simulationDatabase + "' " +
+			"UNION ALL " +
+			"SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = '" + simulationDatabase + "'"
+		extraRows, err := db.QueryContext(ctx, extraQuery)
+		if err != nil {
+			return nil, err
+		}
+		var extra []simulate.Form
+		for extraRows.Next() {
+			var kind, name string
+			if err := extraRows.Scan(&kind, &name); err != nil {
+				extraRows.Close()
+				return nil, err
+			}
+			extra = append(extra, simulate.Form{Kind: kind, Name: name})
+		}
+		if err := extraRows.Close(); err != nil {
+			return nil, err
+		}
+		if err := extraRows.Err(); err != nil {
+			return nil, err
+		}
+		kindRank := map[string]int{"PROCEDURE": 1, "FUNCTION": 2, "TRIGGER": 3, "EVENT": 4}
+		slices.SortFunc(extra, func(a, b simulate.Form) int {
+			if c := kindRank[a.Kind] - kindRank[b.Kind]; c != 0 {
+				return c
+			}
+			return strings.Compare(a.Name, b.Name)
+		})
+		forms = append(forms, extra...)
+	}
+
 	for i, f := range forms {
 		show := fmt.Sprintf("SHOW CREATE %s %s.`%s`", f.Kind, simulationDatabase, strings.ReplaceAll(f.Name, "`", "``"))
 		row, err := db.QueryContext(ctx, show)
 		if err != nil {
+			// After ALTER TABLE <seq> DISCARD TABLESPACE on an InnoDB sequence,
+			// both SHOW CREATE SEQUENCE and SHOW CREATE TABLE fail with 1030
+			// because opening a sequence reads its single data row from the
+			// discarded .ibd tablespace. Record the error text deterministically.
+			var me *gomysql.MySQLError
+			if f.Kind == "SEQUENCE" && errors.As(err, &me) && me.Number == 1030 {
+				forms[i].Text = fmt.Sprintf("-- ERROR %d: %s", me.Number, me.Message)
+				continue
+			}
 			return nil, fmt.Errorf("%s: %w", show, err)
 		}
-		// SHOW CREATE TABLE answers two columns and SHOW CREATE VIEW four;
-		// the text is the second of either.
 		columns, err := row.Columns()
 		if err != nil {
 			row.Close()
@@ -148,7 +219,14 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 		for k := range values {
 			into[k] = &values[k]
 		}
-		if !row.Next() || len(values) < 2 {
+		textCol := 1
+		switch f.Kind {
+		case "PROCEDURE", "FUNCTION", "TRIGGER":
+			textCol = 2
+		case "EVENT":
+			textCol = 3
+		}
+		if !row.Next() || len(values) <= textCol {
 			row.Close()
 			return nil, fmt.Errorf("%s: no text", show)
 		}
@@ -156,7 +234,7 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 			row.Close()
 			return nil, err
 		}
-		forms[i].Text = values[1].String
+		forms[i].Text = values[textCol].String
 		if err := row.Close(); err != nil {
 			return nil, err
 		}
@@ -165,10 +243,10 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 }
 
 // simulationOmni runs the row in the catalog. The catalog stores what MariaDB
-// stores when it prints the same tables and views as a catalog loaded from
-// MariaDB's SHOW CREATE texts: both sides are printed by the catalog, so what
-// it does not keep, such as a view's definer, does not count, and what it
-// keeps and stores otherwise does.
+// stores when it prints the same objects as a catalog loaded from MariaDB's
+// SHOW CREATE texts: both sides are printed by the catalog, so what it does
+// not keep, such as a view's definer, does not count, and what it keeps and
+// stores otherwise does.
 func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
 	database := fmt.Sprintf("CREATE DATABASE %[1]s;\nUSE %[1]s;\n", simulationDatabase)
 	c, err := LoadSQL(database + fx.SQL)
@@ -197,22 +275,40 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		return simulate.Omni{}
 	}
 
-	var stored strings.Builder
-	stored.WriteString(database)
 	// engine.Forms are in name order, so a child table (e.g. a) can precede
 	// its FK parent (e.g. parent). Disable FK checks while loading SHOW CREATE
-	// forms from MariaDB.
-	stored.WriteString("SET FOREIGN_KEY_CHECKS = 0;\n")
-	for _, kind := range []string{"TABLE", "VIEW"} { // a view reads the tables
+	// forms from MariaDB, and load each object statement individually so
+	// compound routine/trigger/event bodies need no delimiter rewriting.
+	want, err := LoadSQL(database + "SET FOREIGN_KEY_CHECKS = 0;\n")
+	if err != nil {
+		return simulate.Omni{Why: fmt.Sprintf("the catalog does not initialize want database: %v", err)}
+	}
+	for _, kind := range []string{"TABLE", "SEQUENCE", "VIEW", "PROCEDURE", "FUNCTION", "TRIGGER", "EVENT"} {
 		for _, f := range engine.Forms {
-			if f.Kind == kind {
-				stored.WriteString(f.Text + ";\n")
+			if f.Kind != kind {
+				continue
+			}
+			// After ALTER TABLE <seq> DISCARD TABLESPACE, SHOW CREATE SEQUENCE
+			// fails with 1030 on MariaDB; mirror that state on want directly.
+			if f.Kind == "SEQUENCE" && strings.HasPrefix(f.Text, "-- ERROR 1030:") {
+				wantDB := want.GetDatabase(simulationDatabase)
+				wantDB.Sequences[toLower(f.Name)] = &Sequence{
+					Name:                f.Name,
+					Database:            wantDB,
+					TablespaceDiscarded: true,
+				}
+				continue
+			}
+			res, err := want.Exec(f.Text, nil)
+			if err != nil {
+				return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what MariaDB stores (%s %s): %v", f.Kind, f.Name, err)}
+			}
+			for _, r := range res {
+				if r.Error != nil {
+					return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what MariaDB stores (%s %s): %v", f.Kind, f.Name, r.Error)}
+				}
 			}
 		}
-	}
-	want, err := LoadSQL(stored.String())
-	if err != nil {
-		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what MariaDB stores: %v", err)}
 	}
 	got, wanted := simulationPrint(c), simulationPrint(want)
 	if got == wanted {
@@ -232,8 +328,8 @@ func parseCode(pe *parser.ParseError) string {
 	return "1064"
 }
 
-// simulationPrint prints the fixture database's tables and views as the
-// catalog shows them, in name order.
+// simulationPrint prints the fixture database's objects as the catalog shows
+// them, in kind and name order.
 func simulationPrint(c *Catalog) string {
 	db := c.GetDatabase(simulationDatabase)
 	if db == nil {
@@ -257,6 +353,55 @@ func simulationPrint(c *Catalog) string {
 		}
 	}) {
 		fmt.Fprintf(&b, "-- VIEW %s\n%s\n", name, c.ShowCreateView(simulationDatabase, name))
+	}
+	for _, name := range slices.Sorted(func(yield func(string) bool) {
+		for _, s := range db.Sequences {
+			if !yield(s.Name) {
+				return
+			}
+		}
+	}) {
+		if seq := db.Sequences[toLower(name)]; seq != nil && seq.TablespaceDiscarded {
+			fmt.Fprintf(&b, "-- SEQUENCE %s\n-- ERROR 1030: Got error 194 \"Tablespace is missing for a table\" from storage engine InnoDB\n", name)
+			continue
+		}
+		fmt.Fprintf(&b, "-- SEQUENCE %s\n%s\n", name, c.ShowCreateSequence(simulationDatabase, name))
+	}
+	for _, name := range slices.Sorted(func(yield func(string) bool) {
+		for _, p := range db.Procedures {
+			if !yield(p.Name) {
+				return
+			}
+		}
+	}) {
+		fmt.Fprintf(&b, "-- PROCEDURE %s\n%s\n", name, c.ShowCreateProcedure(simulationDatabase, name))
+	}
+	for _, name := range slices.Sorted(func(yield func(string) bool) {
+		for _, fn := range db.Functions {
+			if !yield(fn.Name) {
+				return
+			}
+		}
+	}) {
+		fmt.Fprintf(&b, "-- FUNCTION %s\n%s\n", name, c.ShowCreateFunction(simulationDatabase, name))
+	}
+	for _, name := range slices.Sorted(func(yield func(string) bool) {
+		for _, tr := range db.Triggers {
+			if !yield(tr.Name) {
+				return
+			}
+		}
+	}) {
+		fmt.Fprintf(&b, "-- TRIGGER %s\n%s\n", name, c.ShowCreateTrigger(simulationDatabase, name))
+	}
+	for _, name := range slices.Sorted(func(yield func(string) bool) {
+		for _, ev := range db.Events {
+			if !yield(ev.Name) {
+				return
+			}
+		}
+	}) {
+		fmt.Fprintf(&b, "-- EVENT %s\n%s\n", name, c.ShowCreateEvent(simulationDatabase, name))
 	}
 	return b.String()
 }

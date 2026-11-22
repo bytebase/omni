@@ -43,15 +43,20 @@ func (p *Parser) parseZonemapInteger(v **int) error {
 func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMaterializedZonemapStmt, error) {
 	stmt := &nodes.CreateMaterializedZonemapStmt{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.cur
-		p.advance() // IF
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // EXISTS
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.cur
+			p.advance() // IF
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // EXISTS
+			stmt.IfNotExists = true
+		}
 	}
 	if !p.isCreateTableNameStart() {
 		return nil, p.syntaxErrorAtCur()
@@ -72,8 +77,13 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 			continue
 		case p.isKeywordStr("SCALE"):
 			p.advance()
+			scaleTok := p.cur
 			if err := p.parseZonemapInteger(&stmt.Scale); err != nil {
 				return nil, err
+			}
+			// Oracle 23ai requires zonemap SCALE to be between 3 and 20 (ORA-31951).
+			if stmt.Scale != nil && (*stmt.Scale < 3 || *stmt.Scale > 20) {
+				return nil, p.syntaxErrorAtTok(scaleTok)
 			}
 			continue
 		case p.cur.Type == kwPCTFREE:
@@ -123,12 +133,31 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 		if stmt.OnTable, err = p.parseObjectName(); err != nil {
 			return nil, err
 		}
-		if stmt.OnColumns, err = p.parseGraphNameList(); err != nil {
+		if stmt.OnColumns, err = p.parseGraphNameListUnique(true); err != nil {
 			return nil, err
 		}
 	case p.cur.Type == '(' || p.cur.Type == kwAS:
 		if p.cur.Type == '(' {
-			if stmt.ColumnAliases, err = p.parseGraphNameList(); err != nil {
+			if err := p.expectCreateTableToken('('); err != nil {
+				return nil, err
+			}
+			firstTok := map[string]Token{}
+			for {
+				tok := p.cur
+				if err := p.parseCreateTableName(); err != nil {
+					return nil, err
+				}
+				if prev, dup := firstTok[tok.Str]; dup {
+					return nil, p.syntaxErrorAtTok(prev)
+				}
+				firstTok[tok.Str] = tok
+				stmt.ColumnAliases = append(stmt.ColumnAliases, tok.Str)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // ','
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
 				return nil, err
 			}
 		}

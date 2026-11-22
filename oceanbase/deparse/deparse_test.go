@@ -77,8 +77,8 @@ func TestDeparse_Section_1_2_BoolStringLiterals(t *testing.T) {
 		expected string
 	}{
 		// Boolean literals
-		{"true_literal", "TRUE", "true"},
-		{"false_literal", "FALSE", "false"},
+		{"true_literal", "TRUE", "(1 = 1)"},
+		{"false_literal", "FALSE", "(0 = 1)"},
 
 		// String literals
 		{"simple_string", "'hello'", "'hello'"},
@@ -816,7 +816,7 @@ func TestDeparse_Section_4_2_IsBooleanExpr(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := parseRewriteDeparse(t, tc.input)
 			// None of these should contain "(0 <>" wrapping
-			if contains0Ne(got) {
+			if strings.Contains(got, "(0 <>") {
 				t.Errorf("Boolean expression was incorrectly wrapped: RewriteExpr+Deparse(%q) = %q", tc.input, got)
 			}
 		})
@@ -937,8 +937,8 @@ func TestDeparseSelect_Section_5_1_TargetListAliases(t *testing.T) {
 		{"auto_alias_func", "SELECT CONCAT(a, b) FROM t", "select concat(`a`,`b`) AS `CONCAT(a, b)` from `t`"},
 		{"auto_alias_in_list", "SELECT a IN (1,2,3) FROM t", "select (`a` in (1,2,3)) AS `a IN (1, 2, 3)` from `t`"},
 		// Auto-alias boolean literal
-		{"auto_alias_true", "SELECT TRUE", "select true AS `TRUE`"},
-		{"auto_alias_false", "SELECT FALSE", "select false AS `FALSE`"},
+		{"auto_alias_true", "SELECT TRUE", "select (1 = 1) AS `TRUE`"},
+		{"auto_alias_false", "SELECT FALSE", "select (0 = 1) AS `FALSE`"},
 	}
 
 	for _, tc := range cases {

@@ -1,10 +1,12 @@
 package catalog
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode/utf16"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/deparse"
@@ -27,7 +29,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	var analyzedQuery *Query
 	analyzed := false
 	if checkBody {
-		q, err := c.resolveQueryFirst(stmt.Select)
+		q, err := c.resolveQueryFirst(stmt.Select, true)
 		if err != nil {
 			return err
 		}
@@ -92,9 +94,9 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
+	derivedCols, finalizeDef := c.prepareViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// A column list is folded into the body's aliases (prepareViewSelect), so the view
 	// states none of its own.
 	const hasExplicit = false
 	viewCols := derivedCols
@@ -105,6 +107,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if err != nil {
 		return err
 	}
+	definition := finalizeDef()
 
 	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
 	// updatable (TestOracle_OceanBaseViewAttributes).
@@ -396,7 +399,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err != nil {
 		return err
 	}
-	analyzedQuery, err := c.resolveQueryFirst(stmt.Select)
+	analyzedQuery, err := c.resolveQueryFirst(stmt.Select, true)
 	if err != nil {
 		return err
 	}
@@ -437,9 +440,9 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	aliased := aliasedTargets(stmt.Select)
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
+	derivedCols, finalizeDef := c.prepareViewSelect(stmt.Select, stmt.Columns, stmt.SelectText, source, db)
 
-	// A column list is folded into the body's aliases (deparseViewSelect), so the view
+	// A column list is folded into the body's aliases (prepareViewSelect), so the view
 	// states none of its own.
 	const hasExplicit = false
 	viewCols := derivedCols
@@ -450,6 +453,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err != nil {
 		return err
 	}
+	definition := finalizeDef()
 
 	// OceanBase takes ALGORITHM and SQL SECURITY and keeps neither, and reports every view
 	// updatable (TestOracle_OceanBaseViewAttributes).
@@ -1244,8 +1248,18 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // FROM t is stored as select a AS p, b AS q (TestOracle_ViewIdempotence, explicit-columns
 // and explicit-columns-union).
 func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, columns []string, rawText, source string, db *Database) (string, []string) {
+	derivedCols, finalize := c.prepareViewSelect(sel, columns, rawText, source, db)
+	return finalize(), derivedCols
+}
+
+// prepareViewSelect resolves and rewrites sel for a view, returning the derived
+// column names and a finalize callback that applies OceanBase stored-view
+// literal normalization (charset introducer stripping and _binary hex folding)
+// and deparses to SQL. Splitting finalize lets callers run
+// inferViewColumnMetadata while StringLit.Charset is still intact.
+func (c *Catalog) prepareViewSelect(sel *nodes.SelectStmt, columns []string, rawText, source string, db *Database) ([]string, func() string) {
 	if sel == nil {
-		return rawText, columns
+		return columns, func() string { return rawText }
 	}
 
 	// Build a TableLookup that resolves table names from this database.
@@ -1275,7 +1289,236 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, columns []string, raw
 	bindings.substitute()
 
 	// Deparse: AST → canonical SQL text.
-	return deparse.DeparseSelect(sel), derivedCols
+	return derivedCols, func() string {
+		normalizeOceanBaseViewLiterals(sel)
+		return deparse.DeparseSelect(sel)
+	}
+}
+
+// normalizeOceanBaseViewLiterals applies OceanBase 4.3.5.6's stored-view
+// literal normalization: non-binary charset introducers are stripped from
+// string literals (_utf8's' -> 's') and _binary string literals are stored as
+// hex literals (_binary's' -> X'73').
+func normalizeOceanBaseViewLiterals(sel *nodes.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	rewriteViewExprs(sel)
+}
+
+func rewriteViewExprs(sel *nodes.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	for _, cte := range sel.CTEs {
+		if cte != nil {
+			rewriteViewExprs(cte.Select)
+		}
+	}
+	if sel.ParenSource != nil {
+		rewriteViewExprs(sel.ParenSource)
+	}
+	if sel.Left != nil {
+		rewriteViewExprs(sel.Left)
+	}
+	if sel.Right != nil {
+		rewriteViewExprs(sel.Right)
+	}
+	for i, t := range sel.TargetList {
+		if rt, ok := t.(*nodes.ResTarget); ok {
+			rt.Val = normalizeViewLiteralExpr(rt.Val)
+		} else {
+			sel.TargetList[i] = normalizeViewLiteralExpr(t)
+		}
+	}
+	for _, te := range sel.From {
+		normalizeViewTableExpr(te)
+	}
+	if sel.Where != nil {
+		sel.Where = normalizeViewLiteralExpr(sel.Where)
+	}
+	for _, item := range sel.GroupBy {
+		item.Expr = normalizeViewLiteralExpr(item.Expr)
+	}
+	if sel.Having != nil {
+		sel.Having = normalizeViewLiteralExpr(sel.Having)
+	}
+	for _, wd := range sel.WindowClause {
+		normalizeViewWindowDef(wd)
+	}
+	for _, item := range sel.OrderBy {
+		item.Expr = normalizeViewLiteralExpr(item.Expr)
+	}
+	if sel.Limit != nil {
+		sel.Limit.Count = normalizeViewLiteralExpr(sel.Limit.Count)
+		sel.Limit.Offset = normalizeViewLiteralExpr(sel.Limit.Offset)
+	}
+	if sel.ValuesSource != nil {
+		for _, row := range sel.ValuesSource.Rows {
+			for i, item := range row {
+				row[i] = normalizeViewLiteralExpr(item)
+			}
+		}
+	}
+}
+
+func normalizeViewWindowDef(wd *nodes.WindowDef) {
+	if wd == nil {
+		return
+	}
+	for i, expr := range wd.PartitionBy {
+		wd.PartitionBy[i] = normalizeViewLiteralExpr(expr)
+	}
+	for _, item := range wd.OrderBy {
+		item.Expr = normalizeViewLiteralExpr(item.Expr)
+	}
+	if wd.Frame != nil {
+		if wd.Frame.Start != nil {
+			wd.Frame.Start.Offset = normalizeViewLiteralExpr(wd.Frame.Start.Offset)
+		}
+		if wd.Frame.End != nil {
+			wd.Frame.End.Offset = normalizeViewLiteralExpr(wd.Frame.End.Offset)
+		}
+	}
+}
+
+func normalizeViewTableExpr(te nodes.TableExpr) {
+	switch t := te.(type) {
+	case *nodes.JoinClause:
+		normalizeViewTableExpr(t.Left)
+		normalizeViewTableExpr(t.Right)
+		if on, ok := t.Condition.(*nodes.OnCondition); ok {
+			on.Expr = normalizeViewLiteralExpr(on.Expr)
+		}
+	case *nodes.SubqueryExpr:
+		rewriteViewExprs(t.Select)
+	case *nodes.JsonTableExpr:
+		t.Expr = normalizeViewLiteralExpr(t.Expr)
+	case *nodes.UnnestExpr:
+		for i, arg := range t.Args {
+			t.Args[i] = normalizeViewLiteralExpr(arg)
+		}
+	case *nodes.RbIterateExpr:
+		t.Arg = normalizeViewLiteralExpr(t.Arg)
+	case *nodes.TableCollectionExpr:
+		t.Expr = normalizeViewLiteralExpr(t.Expr)
+	}
+}
+
+func normalizeViewLiteralExpr(expr nodes.ExprNode) nodes.ExprNode {
+	if expr == nil {
+		return nil
+	}
+	switch n := expr.(type) {
+	case *nodes.StringLit:
+		if n.Charset != "" {
+			cs := strings.ToLower(strings.TrimPrefix(n.Charset, "_"))
+			switch cs {
+			case "binary":
+				return &nodes.HexLit{
+					Loc:   n.Loc,
+					Value: fmt.Sprintf("%X", []byte(n.Value)),
+				}
+			case "utf16le":
+				// OceanBase 4.3.5.6 reinterprets _utf16le string bytes as UTF-16LE
+				// (left-padding odd-length byte runs with a leading 0x00 byte) when
+				// storing the literal in SHOW CREATE VIEW.
+				raw := []byte(n.Value)
+				if len(raw)%2 == 1 {
+					padded := make([]byte, len(raw)+1)
+					copy(padded[1:], raw)
+					raw = padded
+				}
+				u16 := make([]uint16, len(raw)/2)
+				for i := range u16 {
+					u16[i] = binary.LittleEndian.Uint16(raw[2*i:])
+				}
+				n.Value = string(utf16.Decode(u16))
+			}
+			n.Charset = ""
+		}
+		return n
+	case *nodes.ParenExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.UnaryExpr:
+		n.Operand = normalizeViewLiteralExpr(n.Operand)
+	case *nodes.BinaryExpr:
+		n.Left = normalizeViewLiteralExpr(n.Left)
+		n.Right = normalizeViewLiteralExpr(n.Right)
+	case *nodes.FuncCallExpr:
+		for i, a := range n.Args {
+			n.Args[i] = normalizeViewLiteralExpr(a)
+		}
+		for _, item := range n.OrderBy {
+			item.Expr = normalizeViewLiteralExpr(item.Expr)
+		}
+		n.Separator = normalizeViewLiteralExpr(n.Separator)
+		normalizeViewWindowDef(n.Over)
+	case *nodes.CaseExpr:
+		n.Operand = normalizeViewLiteralExpr(n.Operand)
+		for _, w := range n.Whens {
+			w.Cond = normalizeViewLiteralExpr(w.Cond)
+			w.Result = normalizeViewLiteralExpr(w.Result)
+		}
+		n.Default = normalizeViewLiteralExpr(n.Default)
+	case *nodes.CastExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.ConvertExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.CollateExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.InExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+		for i, item := range n.List {
+			n.List[i] = normalizeViewLiteralExpr(item)
+		}
+		rewriteViewExprs(n.Select)
+	case *nodes.BetweenExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+		n.Low = normalizeViewLiteralExpr(n.Low)
+		n.High = normalizeViewLiteralExpr(n.High)
+	case *nodes.LikeExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+		n.Pattern = normalizeViewLiteralExpr(n.Pattern)
+		n.Escape = normalizeViewLiteralExpr(n.Escape)
+	case *nodes.IsExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.PositionExpr:
+		n.Substr = normalizeViewLiteralExpr(n.Substr)
+		n.Str = normalizeViewLiteralExpr(n.Str)
+	case *nodes.ExtractExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.WeightStringExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.IntervalExpr:
+		n.Value = normalizeViewLiteralExpr(n.Value)
+	case *nodes.RowExpr:
+		for i, item := range n.Items {
+			n.Items[i] = normalizeViewLiteralExpr(item)
+		}
+	case *nodes.MemberOfExpr:
+		n.Value = normalizeViewLiteralExpr(n.Value)
+		n.Array = normalizeViewLiteralExpr(n.Array)
+	case *nodes.MatchExpr:
+		n.Against = normalizeViewLiteralExpr(n.Against)
+	case *nodes.QuantifiedExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.OdbcEscapeExpr:
+		n.Expr = normalizeViewLiteralExpr(n.Expr)
+	case *nodes.LambdaExpr:
+		n.Body = normalizeViewLiteralExpr(n.Body)
+	case *nodes.GroupingSet:
+		for i, item := range n.Items {
+			n.Items[i] = normalizeViewLiteralExpr(item)
+		}
+	case *nodes.ResTarget:
+		n.Val = normalizeViewLiteralExpr(n.Val)
+	case *nodes.SubqueryExpr:
+		rewriteViewExprs(n.Select)
+	case *nodes.ExistsExpr:
+		rewriteViewExprs(n.Select)
+	}
+	return expr
 }
 
 // aliasedTargets returns the items of a view's select list that are written with an alias,
@@ -1679,26 +1922,325 @@ func showCreateView(v *View) string {
 	return b.String()
 }
 
-// resolveQueryFirst refuses a view's or CREATE TABLE ... SELECT's query that names a
-// table (1146) or a column (1054) that does not exist. OceanBase resolves the query
-// before it looks at the name being created or altered, so these come before 1050,
-// and before ALTER VIEW's 1146 or 1347 for a name that is no view: CREATE VIEW a AS
-// SELECT zz FROM a, with a a table, answers 1054 (TestOracle_OceanBaseQueryFirst).
+// resolveQueryFirst refuses a view's or CREATE TABLE ... SELECT's query that
+// violates OceanBase's view/query semantic rules: pre-analysis checks (syntax,
+// VALUES, windows, charsets/collations, JSON_QUERY paths, SQL_CALC_FOUND_ROWS),
+// table/column/star/alias resolution (1146, 1054, 1051, 1109, 1096, 1066, 1052,
+// 1582), and post-analysis checks (view-only variables 1351, remote sequences
+// 5835, vector APPROX 1235). OceanBase resolves the query before it looks at
+// the name being created or altered, so these come before 1050, and before
+// ALTER VIEW's 1146 or 1347 for a name that is no view: CREATE VIEW a AS
+// SELECT zz FROM a, with a a table, answers 1054
+// (TestOracle_OceanBaseQueryFirst).
 //
 // The analyzer's other errors are left alone, as createView has always left them:
 // it does not yet read every query OceanBase takes. The analyzed query is returned,
 // or nil when analysis did not finish, so the caller need not analyze it again.
-func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt) (*Query, error) {
+func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
+	blocks := collectSelectBlocks(sel)
+	if err := validateViewQueryPreAnalysis(blocks); err != nil {
+		return nil, err
+	}
 	q, err := c.AnalyzeSelectStmt(sel)
 	var refusal *Error
-	if errors.As(err, &refusal) && (refusal.Code == ErrNoSuchTable || refusal.Code == ErrNoSuchColumn) {
-		return nil, refusal
+	if errors.As(err, &refusal) {
+		switch refusal.Code {
+		case ErrNoSuchTable, ErrNoSuchColumn, ErrUnknownTable, ErrUnknownTableInFieldList,
+			ErrNoTablesUsed, 1066, 1052, ErrWrongParamCount, 1583, ErrWrongArguments:
+			return nil, refusal
+		}
+	}
+	if postErr := c.validateViewQueryPostAnalysis(blocks, isView); postErr != nil {
+		return nil, postErr
 	}
 	if err != nil {
 		return nil, nil
 	}
 	return q, nil
+}
+
+// collectSelectBlocks collects all SelectStmt query blocks in sel in order,
+// including set-op arms, parenthesized queries, CTE bodies, derived tables,
+// and subqueries in expressions (including inside VALUES ROW(...) items, which
+// nodes.Inspect skips).
+func collectSelectBlocks(root *nodes.SelectStmt) []*nodes.SelectStmt {
+	var blocks []*nodes.SelectStmt
+	var walk func(nodes.Node)
+	walk = func(node nodes.Node) {
+		nodes.Inspect(node, func(n nodes.Node) bool {
+			if s, ok := n.(*nodes.SelectStmt); ok {
+				blocks = append(blocks, s)
+				if s.ValuesSource != nil {
+					for _, row := range s.ValuesSource.Rows {
+						for _, item := range row {
+							if item != nil {
+								walk(item)
+							}
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+	walk(root)
+	return blocks
+}
+
+// inspectBlockOwnNodes visits AST nodes belonging directly to block without
+// descending into nested SelectStmt query blocks or CTE definitions.
+// Also walks ValuesSource.Rows, which nodes.Inspect skips.
+func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
+	walk := func(root nodes.Node) {
+		nodes.Inspect(root, func(n nodes.Node) bool {
+			switch e := n.(type) {
+			case *nodes.SelectStmt:
+				if e != block {
+					return false
+				}
+			case *nodes.CommonTableExpr:
+				return false
+			}
+			return fn(n)
+		})
+	}
+	walk(block)
+	if block.ValuesSource != nil {
+		for _, row := range block.ValuesSource.Rows {
+			for _, item := range row {
+				if item != nil {
+					walk(item)
+				}
+			}
+		}
+	}
+}
+
+func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
+	for _, block := range blocks {
+		if block.CalcFoundRows {
+			return errWrongUsage("SQL_CALC_FOUND_ROWS")
+		}
+		if block.ValuesSource != nil {
+			if block.ValuesSource.LeadingComma {
+				return errEmptyRowInTVC()
+			}
+			for _, row := range block.ValuesSource.Rows {
+				if len(row) == 0 {
+					return errEmptyRowInTVC()
+				}
+				for _, item := range row {
+					if d, ok := item.(*nodes.DefaultExpr); ok && d.Column == "" {
+						return errDefaultAsValInTVC()
+					}
+				}
+			}
+		}
+		// Collect WINDOW clause declarations and check for duplicate names.
+		declaredWindows := make(map[string]bool, len(block.WindowClause))
+		for _, wd := range block.WindowClause {
+			if wd == nil {
+				continue
+			}
+			if wd.Name != "" {
+				key := toLower(wd.Name)
+				if declaredWindows[key] {
+					return &Error{Code: ErrNotSupportedYet, SQLState: "0A000", Message: "duplicate window name not supported"}
+				}
+				declaredWindows[key] = true
+			}
+		}
+		for _, wd := range block.WindowClause {
+			if err := validateWindowDefPreAnalysis(wd, declaredWindows); err != nil {
+				return err
+			}
+		}
+
+		var err error
+		inspectBlockOwnNodes(block, func(n nodes.Node) bool {
+			if err != nil {
+				return false
+			}
+			switch e := n.(type) {
+			case *nodes.FuncCallExpr:
+				if e.Schema == "" {
+					lower := strings.ToLower(e.Name)
+					switch lower {
+					case "_st_asmvt", "check":
+						err = errOBSyntaxError()
+						return false
+					case "nth_value":
+						// OceanBase 4.3.5.6 validates that NTH_VALUE's second argument
+						// is a constant before resolving window names (5929).
+						if len(e.Args) == 2 && exprContainsColumnRef(e.Args[1]) {
+							err = &Error{
+								Code:     ErrWrongArguments,
+								SQLState: sqlState(ErrWrongArguments),
+								Message:  "Incorrect arguments to nth_value",
+							}
+							return false
+						}
+					}
+				}
+				if e.Over != nil {
+					if werr := validateWindowDefPreAnalysis(e.Over, declaredWindows); werr != nil {
+						err = werr
+						return false
+					}
+				}
+				if e.JSONQueryArm && len(e.Args) >= 2 {
+					if lit, ok := e.Args[1].(*nodes.StringLit); ok && !isValidJSONPathLit(lit.Value) {
+						err = errOBJSONPathSyntax(lit.Value)
+						return false
+					}
+				}
+				if e.Using != "" {
+					if cerr := checkCharsetName(e.Using); cerr != nil {
+						err = cerr
+						return false
+					}
+				}
+			case *nodes.CastExpr:
+				if e.Ignore {
+					err = errOBSyntaxError()
+					return false
+				}
+				if e.TypeName != nil && e.TypeName.Charset != "" {
+					if cerr := checkCharsetName(e.TypeName.Charset); cerr != nil {
+						err = cerr
+						return false
+					}
+				}
+			case *nodes.ConvertExpr:
+				if e.Charset != "" {
+					if cerr := checkCharsetName(e.Charset); cerr != nil {
+						err = cerr
+						return false
+					}
+				}
+				if e.TypeName != nil && e.TypeName.Charset != "" {
+					if cerr := checkCharsetName(e.TypeName.Charset); cerr != nil {
+						err = cerr
+						return false
+					}
+				}
+			case *nodes.CollateExpr:
+				if cerr := checkCollationName(e.Collation); cerr != nil {
+					err = cerr
+					return false
+				}
+			case *nodes.MatchExpr:
+				if strings.Contains(strings.ToUpper(e.Modifier), "QUERY EXPANSION") {
+					err = &Error{Code: ErrNotSupportedYet, SQLState: "0A000", Message: "search modes other than NATURAL_LANGUAGE_MODE or BOOLEAN_MODE not supported"}
+					return false
+				}
+			}
+			return true
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateWindowDefPreAnalysis(wd *nodes.WindowDef, declared map[string]bool) error {
+	if wd == nil {
+		return nil
+	}
+	if wd.RefName != "" && !declared[toLower(wd.RefName)] {
+		return errOBWindowNotDefined(wd.RefName)
+	}
+	if wd.Frame != nil {
+		f := wd.Frame
+		if f.Type == nodes.FrameRows {
+			if (f.Start != nil && isIntervalExpr(f.Start.Offset)) ||
+				(f.End != nil && isIntervalExpr(f.End.Offset)) {
+				return errWindowRangeFrameNumericType()
+			}
+		}
+		if f.End == nil && f.Start != nil &&
+			(f.Start.Type == nodes.BoundFollowing || f.Start.Type == nodes.BoundUnboundedFollowing) {
+			return errOBSyntaxError()
+		}
+	}
+	return nil
+}
+
+func isIntervalExpr(e nodes.ExprNode) bool {
+	for {
+		p, ok := e.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		e = p.Expr
+	}
+	_, ok := e.(*nodes.IntervalExpr)
+	return ok
+}
+
+func isValidJSONPathLit(s string) bool {
+	s = strings.TrimSpace(s)
+	return len(s) > 0 && s[0] == '$'
+}
+
+func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isView bool) error {
+	for _, block := range blocks {
+		if block.Approx && !hasVectorSortExpr(block.OrderBy) {
+			return &Error{Code: ErrNotSupportedYet, SQLState: "0A000", Message: "Using vector index without vector_sort_expr is not supported"}
+		}
+		var err error
+		inspectBlockOwnNodes(block, func(n nodes.Node) bool {
+			if err != nil {
+				return false
+			}
+			switch n.(type) {
+			case *nodes.VariableRef:
+				if isView {
+					err = errViewSelectVariable()
+					return false
+				}
+			case *nodes.RemoteSequenceExpr:
+				err = errOBRemoteDBNotFound()
+				return false
+			}
+			return true
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func hasVectorSortExpr(orderBy []*nodes.OrderByItem) bool {
+	for _, item := range orderBy {
+		if item == nil {
+			continue
+		}
+		found := false
+		nodes.Inspect(item.Expr, func(n nodes.Node) bool {
+			if found {
+				return false
+			}
+			if fn, ok := n.(*nodes.FuncCallExpr); ok {
+				switch strings.ToLower(fn.Name) {
+				case "l2_distance", "cosine_distance", "inner_product", "negative_inner_product",
+					"l1_distance", "l2_squared", "approx_l2_distance", "approx_cosine_distance",
+					"approx_inner_product", "approx_l1_distance", "approx_l2_squared",
+					"vec_l2_distance", "vec_cosine_distance", "vec_inner_product",
+					"vec_negative_inner_product", "vec_l1_distance", "vec_l2_squared":
+					found = true
+				}
+			}
+			return !found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }

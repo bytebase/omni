@@ -90,7 +90,6 @@ func TestSplitCommands(t *testing.T) {
 		script  string
 		want    []string
 		offsets [][2]int
-		err     string
 	}{
 		{
 			name:    "one statement",
@@ -130,19 +129,20 @@ func TestSplitCommands(t *testing.T) {
 			want:   []string{"/* a comment */\nSELECT 1;"},
 		},
 		{
-			name:   "a block comment whose closing does not end its line",
+			name:   "an inline block comment before a statement",
 			script: "/* a comment */ SELECT 1;",
-			err:    "`*/` must be the end of the line",
+			want:   []string{"/* a comment */ SELECT 1;"},
+		},
+		{
+			name:    "two statements on one line",
+			script:  "SELECT 'a;b'; SELECT 2;",
+			want:    []string{"SELECT 'a;b';", " SELECT 2;"},
+			offsets: [][2]int{{0, 13}, {13, 23}},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			commands, err := splitCommands(tc.script)
-			if tc.err != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err)
-				return
-			}
 			require.NoError(t, err)
 			texts := make([]string, 0, len(commands))
 			for _, command := range commands {

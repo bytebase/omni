@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -28,6 +29,80 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.NextValueForExpr, *nodes.PreviousValueForExpr:
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.DefaultExpr:
+		if n.Column != "" {
+			if _, err := analyzeColumnRef(&nodes.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}, scope); err != nil {
+				return nil, err
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.LikeExpr:
+		left, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		pat, err := analyzeExpr(c, n.Pattern, scope)
+		if err != nil {
+			return nil, err
+		}
+		if n.Escape != nil {
+			if _, err := analyzeExpr(c, n.Escape, scope); err != nil {
+				return nil, err
+			}
+			return nil, unsupportedAnalyzerExpr()
+		}
+		op := "LIKE"
+		if n.Not {
+			op = "NOT LIKE"
+		}
+		return &OpExprQ{Op: op, Left: left, Right: pat}, nil
+	case *nodes.ExtractExpr:
+		if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.IntervalExpr:
+		if _, err := analyzeExpr(c, n.Value, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.CollateExpr:
+		if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.ConvertExpr:
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		if n.TypeName != nil && n.Charset == "" {
+			if rt, ok := convertTargetResolvedType(n.TypeName); ok {
+				return &CastExprQ{Arg: arg, TargetType: rt}, nil
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.RowExpr:
+		for _, item := range n.Items {
+			if _, err := analyzeExpr(c, item, scope); err != nil {
+				return nil, err
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
+	case *nodes.MatchExpr:
+		for _, col := range n.Columns {
+			if _, err := analyzeColumnRef(col, scope); err != nil {
+				return nil, err
+			}
+		}
+		if n.Against != nil {
+			if _, err := analyzeExpr(c, n.Against, scope); err != nil {
+				return nil, err
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.
@@ -64,11 +139,15 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ExistsExpr:
 		return analyzeExistsSubquery(c, n, scope)
 	default:
-		return nil, &Error{
-			Code:     0,
-			SQLState: "HY000",
-			Message:  "unsupported expression type in analyzer",
-		}
+		return nil, unsupportedAnalyzerExpr()
+	}
+}
+
+func unsupportedAnalyzerExpr() error {
+	return &Error{
+		Code:     0,
+		SQLState: "HY000",
+		Message:  "unsupported expression type in analyzer",
 	}
 }
 
@@ -76,6 +155,13 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 // Uses the Full resolution methods to support correlated subquery references
 // (setting LevelsUp > 0 when the column comes from a parent scope).
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
+	if ref.Schema != "" {
+		rteIdx, attNum, levelsUp, err := scope.resolveSchemaQualifiedColumnFull(ref.Schema, ref.Table, ref.Column)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+	}
 	if ref.Table != "" {
 		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
 		if err != nil {
@@ -92,15 +178,36 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 
 // analyzeFuncCall resolves a function call expression.
 func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	lower := strings.ToLower(fc.Name)
+	// Sequence functions (NEXTVAL, LASTVAL, SETVAL) take a sequence table
+	// identifier as their first argument, not a column reference. Analyze any
+	// remaining value arguments for column validity, then fall back to the
+	// unsupported-expression path so the sequence name is not misread as an
+	// unknown column (1054) or represented as a plain column argument in the IR.
+	if fc.Schema == "" && !fc.SpacedParen && len(fc.Args) >= 1 &&
+		(lower == "nextval" || lower == "lastval" || lower == "setval") {
+		for _, arg := range fc.Args[1:] {
+			if _, err := analyzeExpr(c, arg, scope); err != nil {
+				return nil, err
+			}
+		}
+		return nil, unsupportedAnalyzerExpr()
+	}
+	isQualifiedRoutine := fc.Schema != "" && !qualifiedBuiltin(fc, lower)
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
 		a, err := analyzeExpr(c, arg, scope)
 		if err != nil {
+			if isQualifiedRoutine {
+				var ce *Error
+				if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn {
+					return nil, unsupportedAnalyzerExpr()
+				}
+			}
 			return nil, err
 		}
 		args = append(args, a)
 	}
-	lower := strings.ToLower(fc.Name)
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
 	}
@@ -165,6 +272,31 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		result.ArgTypes = make([]string, len(fc.Args))
 		for i := range fc.Args {
 			result.ArgTypes[i] = deparse.DynColArgType(fc, i)
+		}
+	}
+	// Analyze ORDER BY (e.g., GROUP_CONCAT) and window OVER expressions so
+	// column references inside them are checked against scope.
+	if !fc.WithinGroup {
+		for _, item := range fc.OrderBy {
+			if item != nil && item.Expr != nil {
+				if _, err := analyzeExpr(c, item.Expr, scope); err != nil {
+					return nil, err
+				}
+			}
+		}
+		if fc.Over != nil {
+			for _, e := range fc.Over.PartitionBy {
+				if _, err := analyzeExpr(c, e, scope); err != nil {
+					return nil, err
+				}
+			}
+			for _, item := range fc.Over.OrderBy {
+				if item != nil && item.Expr != nil {
+					if _, err := analyzeExpr(c, item.Expr, scope); err != nil {
+						return nil, err
+					}
+				}
+			}
 		}
 	}
 	// Phase 3: populate return type from function type table.
@@ -252,7 +384,7 @@ func analyzeQuantifiedComparison(c *Catalog, expr *nodes.BinaryExpr, sub *nodes.
 	if err != nil {
 		return nil, err
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(sub.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(sub.Select, scope, scope.visibleCTEs(), scope.source)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +432,7 @@ func analyzeInExpr(c *Catalog, expr *nodes.InExpr, scope *analyzerScope) (Analyz
 
 	if expr.Select != nil {
 		// IN (SELECT ...) / NOT IN (SELECT ...)
-		innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+		innerQ, err := c.analyzeSelectStmtIn(expr.Select, scope, scope.visibleCTEs(), scope.source)
 		if err != nil {
 			return nil, err
 		}
@@ -434,6 +566,30 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 	return &CastExprQ{Arg: arg, TargetType: targetType}, nil
 }
 
+// convertTargetResolvedType maps a CONVERT(expr, type) target DataType to a
+// ResolvedType when the IR can represent it without losing semantics (such as
+// charset/collation modifiers, fractional-second precision, or unmapped types).
+func convertTargetResolvedType(dt *nodes.DataType) (*ResolvedType, bool) {
+	if dt == nil || dt.Charset != "" || dt.Collate != "" || dt.Binary {
+		return nil, false
+	}
+	rt := dataTypeToResolvedType(dt)
+	if rt.BaseType == BaseTypeUnknown {
+		return nil, false
+	}
+	switch rt.BaseType {
+	case BaseTypeDateTime, BaseTypeTime:
+		if dt.Length > 0 {
+			return nil, false
+		}
+	case BaseTypeFloat:
+		if dt.Length > 0 || dt.Scale > 0 {
+			return nil, false
+		}
+	}
+	return rt, true
+}
+
 // dataTypeToResolvedType maps a parser DataType to a ResolvedType for CAST targets.
 func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 	name := strings.ToLower(dt.Name)
@@ -442,7 +598,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "unsigned", "unsigned integer":
 		return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
-	case "char":
+	case "char", "varchar":
 		rt := &ResolvedType{BaseType: BaseTypeChar}
 		if dt.Length > 0 {
 			rt.Length = dt.Length
@@ -475,7 +631,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 
 // analyzeScalarSubquery resolves a scalar subquery expression: (SELECT ...).
 func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(subq.Select, scope, scope.visibleCTEs(), scope.source)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +643,7 @@ func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzer
 
 // analyzeExistsSubquery resolves an EXISTS (SELECT ...) expression.
 func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(expr.Select, scope, scope.visibleCTEs(), scope.source)
 	if err != nil {
 		return nil, err
 	}

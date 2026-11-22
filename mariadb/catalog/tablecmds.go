@@ -10,7 +10,22 @@ import (
 	"github.com/bytebase/omni/mariadb/deparse"
 )
 
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+// checkFieldDBs holds 3-part field_ident database qualifiers on an unqualified
+// CREATE/ALTER TABLE to the session's current database, case-sensitively,
+// matching MariaDB's field_ident grammar action (1102).
+func (c *Catalog) checkFieldDBs(fieldDBs []string) error {
+	for _, db := range fieldDBs {
+		if c.currentDB != db {
+			return errWrongDBName(db)
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error {
+	if err := c.checkFieldDBs(stmt.FieldDBs); err != nil {
+		return err
+	}
 	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
@@ -92,7 +107,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// reads the SELECT, and 1054 only when the name is free.
 	var ctasQuery *Query
 	if stmt.Select != nil {
-		if ctasQuery, err = c.analyzeViewBody(stmt.Select); err != nil {
+		if ctasQuery, err = c.analyzeViewBody(stmt.Select, source); err != nil {
 			return err
 		}
 	}

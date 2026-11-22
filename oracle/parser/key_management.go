@@ -319,6 +319,9 @@ func (k *keyManagementClauses) parseKey(start int, name string) error {
 	if err != nil {
 		return err
 	}
+	if !store && p.prev.Type != tokQIDENT && p.prev.Str == "REVERSE" && k.word("MIGRATE") {
+		return p.syntaxErrorAtCur()
+	}
 	if migrate && !store && k.isMigrateStart(true) {
 		return k.migrate(true)
 	}
@@ -373,7 +376,11 @@ func (k *keyManagementClauses) isMigrateStart(reverse bool) bool {
 // [ WITH BACKUP [ USING backup_identifier ] ].
 func (k *keyManagementClauses) migrate(reverse bool) error {
 	p := k.p
+	forceTok := p.cur
 	if _, err := k.forceKeystore(); err != nil {
+		if forceTok.Type == kwFORCE && p.isStatementEnd() {
+			return p.syntaxErrorAtTok(forceTok)
+		}
 		return err
 	}
 	optStart := p.pos()
@@ -618,18 +625,71 @@ func (k *keyManagementClauses) parseMoveKeys(start int) error {
 		return err
 	}
 	if p.cur.Type == kwWITH && k.nextWord("IDENTIFIER") {
-		subquery, err := k.withIdentifier(false)
-		if err != nil {
+		if err := k.moveKeysWithIdentifier(); err != nil {
 			return err
-		}
-		// Oracle 23.26.3 takes a subquery here only before WITH BACKUP: one
-		// that ends the statement, or is followed by anything else, it
-		// answers with ORA-00921 at the end of the text.
-		if subquery && p.cur.Type != kwWITH {
-			return p.syntaxErrorAtCur()
 		}
 	}
 	return k.withBackup()
+}
+
+// moveKeysWithIdentifier parses MOVE KEYS' optional WITH IDENTIFIER IN clause.
+// Oracle 23.26.3 accepts a parenthesized subquery here only when followed by
+// WITH BACKUP; any other parenthesized form (including non-query lists or a
+// subquery not followed by WITH BACKUP) is consumed through the end of the
+// statement and rejected there with ORA-00921.
+func (k *keyManagementClauses) moveKeysWithIdentifier() error {
+	p := k.p
+	start := p.pos()
+	if err := k.words("WITH", "IDENTIFIER"); err != nil {
+		return err
+	}
+	if p.cur.Type != kwIN {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == '(' {
+		snap := p.snapshot()
+		p.advance() // (
+		if p.atQuery() {
+			if sub, err := p.parseSelectStmt(); err == nil && p.cur.Type == ')' {
+				p.advance() // )
+				if p.cur.Type == kwWITH {
+					k.opts.Items = append(k.opts.Items, &nodes.DDLOption{
+						Key:   "WITH IDENTIFIER IN",
+						Items: &nodes.List{Items: []nodes.Node{sub}},
+						Loc:   nodes.Loc{Start: start, End: p.prev.End},
+					})
+					return nil
+				}
+			}
+		}
+		p.restore(snap)
+		for p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		return p.syntaxErrorAtCur()
+	}
+	items := &nodes.List{}
+	for {
+		if p.cur.Type != tokSCONST && !k.isName() {
+			return p.syntaxErrorAtCur()
+		}
+		tok := p.advance()
+		if tok.Type != tokSCONST && p.cur.Type == ')' {
+			return p.syntaxErrorAtTok(tok)
+		}
+		items.Items = append(items.Items, &nodes.String{Str: tok.Str})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	k.opts.Items = append(k.opts.Items, &nodes.DDLOption{
+		Key:   "WITH IDENTIFIER IN",
+		Items: items,
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+	})
+	return nil
 }
 
 // parseAddUpdateSecret parses { ADD | UPDATE } SECRET.
@@ -893,7 +953,11 @@ func (k *keyManagementClauses) withIdentifier(deferred bool) (bool, error) {
 			if p.cur.Type != tokSCONST && !k.isName() {
 				return false, p.syntaxErrorAtCur()
 			}
-			items.Items = append(items.Items, &nodes.String{Str: p.advance().Str})
+			tok := p.advance()
+			if tok.Type != tokSCONST && p.cur.Type == ')' {
+				return false, p.syntaxErrorAtTok(tok)
+			}
+			items.Items = append(items.Items, &nodes.String{Str: tok.Str})
 			if p.cur.Type != ',' {
 				break
 			}

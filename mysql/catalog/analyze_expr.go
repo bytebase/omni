@@ -22,11 +22,15 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		}
 		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10), Type: &ResolvedType{BaseType: bt}}, nil
 	case *nodes.StringLit:
+		rt := &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)}
+		if isBinaryIntroducer(n.Charset) {
+			rt = &ResolvedType{BaseType: BaseTypeVarBinary, Length: len(n.Value)}
+		}
 		return &ConstExprQ{
 			Value:      n.Value,
 			IsString:   true,
 			Introducer: n.Charset,
-			Type:       &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)},
+			Type:       rt,
 		}, nil
 	case *nodes.FloatLit:
 		return &ConstExprQ{Value: n.Value, Type: floatLitResolvedType(n.Value)}, nil
@@ -40,6 +44,36 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: val, Type: &ResolvedType{BaseType: BaseTypeInt}}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.HexLit:
+		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: &ResolvedType{BaseType: BaseTypeVarBinary}}, nil
+	case *nodes.BitLit:
+		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: &ResolvedType{BaseType: BaseTypeVarBinary}}, nil
+	case *nodes.TemporalLit:
+		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: temporalLitResolvedType(n.Type)}, nil
+	case *nodes.DefaultExpr:
+		if n.Column == "" {
+			return nil, &Error{
+				Code:     0,
+				SQLState: "HY000",
+				Message:  "unsupported bare DEFAULT in analyzer",
+			}
+		}
+		resolved, err := analyzeColumnRef(&nodes.ColumnRef{Column: n.Column}, scope)
+		if err != nil {
+			return nil, err
+		}
+		var resType *ResolvedType
+		if v, ok := resolved.(*VarExprQ); ok {
+			if col := scope.lookupColumn(v.RangeIdx, v.AttNum, v.LevelsUp); col != nil {
+				if c != nil && c.validatingViewBody && !col.Nullable && col.Default == nil && !col.AutoIncrement {
+					return nil, errNoDefaultForField(col.Name)
+				}
+				if bt := columnDataTypeToBaseType(col.DataType); bt != BaseTypeUnknown {
+					resType = &ResolvedType{BaseType: bt}
+				}
+			}
+		}
+		return &FuncCallExprQ{Name: "default", Args: []AnalyzedExpr{resolved}, ResultType: resType}, nil
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.
@@ -343,20 +377,46 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		args = append(args, a)
 	}
 	lower := strings.ToLower(fc.Name)
-	if lower == "coalesce" || lower == "ifnull" {
+	if c != nil && c.validatingViewBody {
+		if fc.JSONValueArm && len(args) >= 1 {
+			bt, isNull := analyzedExprBaseType(args[0], scope)
+			if !isNull && bt != BaseTypeUnknown && !isJSONInputBaseType(bt) {
+				return nil, errInvalidTypeForJSON(1, "json_value")
+			}
+		}
+		if fc.Schema == "" && !fc.SpacedParen && isGeometryCollectionConstructor(lower) {
+			for _, arg := range args {
+				bt, isNull := analyzedExprBaseType(arg, scope)
+				if isNull || (bt != BaseTypeUnknown && !isGeometryBaseType(bt)) {
+					return nil, errIllegalValueForType("non geometric", fc.Name)
+				}
+			}
+		}
+	}
+	if fc.Schema == "" && !fc.SpacedParen && (lower == "coalesce" || lower == "ifnull") {
 		return &CoalesceExprQ{Args: args, IsIfNull: lower == "ifnull"}, nil
 	}
 	result := &FuncCallExprQ{
-		Name: lower,
-		Args: args,
-		// A spaced gated keyword is a generic call, not the builtin, so it is
-		// never the aggregate: `count (a)` is a stored-function call, not COUNT.
-		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
+		Schema: fc.Schema,
+		Name:   lower,
+		Args:   args,
+		// A schema-qualified or spaced gated keyword is a stored-function call,
+		// not the builtin, so it is never the aggregate: `count (a)` and
+		// `db1.count(a)` are stored-function calls, not COUNT.
+		IsAggregate: fc.Schema == "" && !fc.SpacedParen && isAggregateFunc(fc.Name),
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
 	}
-	// Phase 3: populate return type from function type table.
-	result.ResultType = functionReturnType(result.Name, result.Args)
+	// Phase 3: populate return type from function type table for builtin calls,
+	// or from the registered stored function for qualified / non-builtin calls.
+	if fc.Schema != "" || fc.SpacedParen {
+		result.ResultType = c.storedFuncReturnType(fc.Schema, lower)
+	} else {
+		result.ResultType = functionReturnType(result.Name, result.Args)
+		if result.ResultType == nil && (!isBuiltinMySQLFunction(lower) || lower == "cast_as_year") {
+			result.ResultType = c.storedFuncReturnType("", lower)
+		}
+	}
 	if fc.JSONValueArm {
 		result.JSONValueClauses = deparse.JSONValueClauses(fc.JSONValue, "")
 		if fc.JSONValue != nil && fc.JSONValue.Returning != nil {
@@ -364,6 +424,33 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		}
 	}
 	return result, nil
+}
+
+func (c *Catalog) storedFuncReturnType(schema, lowerName string) *ResolvedType {
+	if c == nil {
+		return nil
+	}
+	var db *Database
+	if schema != "" {
+		db = c.GetDatabase(schema)
+	} else if cur := c.CurrentDatabase(); cur != "" {
+		db = c.GetDatabase(cur)
+	}
+	if db == nil {
+		return nil
+	}
+	fn := db.Functions[lowerName]
+	if fn == nil || fn.Returns == "" {
+		return nil
+	}
+	baseName := fn.Returns
+	if idx := strings.IndexAny(baseName, " ("); idx >= 0 {
+		baseName = baseName[:idx]
+	}
+	if bt := columnDataTypeToBaseType(baseName); bt != BaseTypeUnknown {
+		return &ResolvedType{BaseType: bt}
+	}
+	return nil
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be
@@ -607,6 +694,13 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 		return nil, err
 	}
 
+	if c != nil && c.validatingViewBody && expr.AtTimeZone != "" {
+		bt, isNull := analyzedExprBaseType(arg, scope)
+		if !isNull && bt != BaseTypeUnknown && bt != BaseTypeTimestamp {
+			return nil, errInvalidCastToTimestampWithTimeZone()
+		}
+	}
+
 	var targetType *ResolvedType
 	if expr.TypeName != nil {
 		targetType = dataTypeToResolvedType(expr.TypeName)
@@ -632,6 +726,9 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 		rt := &ResolvedType{BaseType: BaseTypeChar}
 		if dt.Length > 0 {
 			rt.Length = dt.Length
+		}
+		if dt.Charset != "" {
+			rt.Charset = strings.ToLower(dt.Charset)
 		}
 		return rt
 	case "binary":
@@ -695,4 +792,336 @@ func isAggregateFunc(name string) bool {
 		return true
 	}
 	return false
+}
+
+func temporalLitResolvedType(kind string) *ResolvedType {
+	switch strings.ToUpper(kind) {
+	case "DATE":
+		return &ResolvedType{BaseType: BaseTypeDate}
+	case "TIME":
+		return &ResolvedType{BaseType: BaseTypeTime}
+	case "TIMESTAMP":
+		// MySQL treats TIMESTAMP '...' literals as DATETIME values (for
+		// example, CAST(TIMESTAMP '...' AT TIME ZONE 'UTC' AS DATETIME) fails
+		// with 3998 just like DATETIME).
+		return &ResolvedType{BaseType: BaseTypeDateTime}
+	default:
+		return &ResolvedType{BaseType: BaseTypeUnknown}
+	}
+}
+
+// analyzedExprBaseType returns the MySQL base type of expr (when statically
+// determinable) and whether expr is an explicit NULL literal. Returns
+// (BaseTypeUnknown, false) when the type cannot be determined conservatively.
+func analyzedExprBaseType(expr AnalyzedExpr, scope *analyzerScope) (MySQLBaseType, bool) {
+	switch e := expr.(type) {
+	case *VarExprQ:
+		if scope == nil {
+			return BaseTypeUnknown, false
+		}
+		if col := scope.lookupColumn(e.RangeIdx, e.AttNum, e.LevelsUp); col != nil {
+			bt := columnDataTypeToBaseType(col.DataType)
+			if strings.EqualFold(col.Charset, "binary") && isCharStringBaseType(bt) {
+				return BaseTypeVarBinary, false
+			}
+			return bt, false
+		}
+		return BaseTypeUnknown, false
+	case *ConstExprQ:
+		if e.IsNull {
+			return BaseTypeUnknown, true
+		}
+		if e.Type != nil {
+			return e.Type.BaseType, false
+		}
+		return BaseTypeUnknown, false
+	case *CastExprQ:
+		if e.TargetType != nil {
+			if e.TargetType.BaseType == BaseTypeChar && strings.EqualFold(e.TargetType.Charset, "binary") {
+				return BaseTypeVarBinary, false
+			}
+			return e.TargetType.BaseType, false
+		}
+		return BaseTypeUnknown, false
+	case *CollateExprQ:
+		return analyzedExprBaseType(e.Arg, scope)
+	case *FuncCallExprQ:
+		if e.Schema == "" && !e.SpacedParen && isGeometryReturningFunc(e.Name) {
+			return BaseTypeGeometry, false
+		}
+		if e.Schema == "" && !e.SpacedParen {
+			if bt, ok := binaryPreservingStringResultType(e.Name, e.Args, scope); ok {
+				return bt, false
+			}
+		}
+		if e.ResultType != nil {
+			return e.ResultType.BaseType, false
+		}
+		return BaseTypeUnknown, false
+	case *OpExprQ:
+		return analyzedOpExprBaseType(e, scope), false
+	case *BoolExprQ, *NullTestExprQ, *InListExprQ, *BetweenExprQ, *LikeExprQ:
+		return BaseTypeBigInt, false
+	default:
+		return BaseTypeUnknown, false
+	}
+}
+
+func analyzedOpExprBaseType(e *OpExprQ, scope *analyzerScope) MySQLBaseType {
+	switch e.Op {
+	case "->":
+		return BaseTypeJSON
+	case "->>":
+		return BaseTypeLongText
+	case "BINARY":
+		return BaseTypeVarBinary
+	case "=", "!=", "<", ">", "<=", ">=", "<=>", "XOR", "REGEXP", "LIKE", "SOUNDS LIKE",
+		"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+		return BaseTypeBigInt
+	case "+", "-", "*", "/", "%", "DIV":
+		if _, ok := e.Left.(*IntervalExprQ); ok {
+			return BaseTypeUnknown
+		}
+		if _, ok := e.Right.(*IntervalExprQ); ok {
+			return BaseTypeUnknown
+		}
+		if e.Op == "/" {
+			return BaseTypeDecimal
+		}
+		return BaseTypeBigInt
+	case "~":
+		bt, _ := analyzedExprBaseType(e.Right, scope)
+		if isBinaryStringBaseType(bt) {
+			return BaseTypeVarBinary
+		}
+		if bt == BaseTypeUnknown {
+			return BaseTypeUnknown
+		}
+		return BaseTypeBigInt
+	case "<<", ">>":
+		bt, _ := analyzedExprBaseType(e.Left, scope)
+		if isBinaryStringBaseType(bt) {
+			return BaseTypeVarBinary
+		}
+		if bt == BaseTypeUnknown {
+			return BaseTypeUnknown
+		}
+		return BaseTypeBigInt
+	case "&", "|", "^":
+		lbt, _ := analyzedExprBaseType(e.Left, scope)
+		rbt, _ := analyzedExprBaseType(e.Right, scope)
+		if isBinaryStringBaseType(lbt) && isBinaryStringBaseType(rbt) {
+			return BaseTypeVarBinary
+		}
+		if (lbt != BaseTypeUnknown && !isBinaryStringBaseType(lbt)) ||
+			(rbt != BaseTypeUnknown && !isBinaryStringBaseType(rbt)) {
+			return BaseTypeBigInt
+		}
+		return BaseTypeUnknown
+	default:
+		return BaseTypeUnknown
+	}
+}
+
+func isBinaryStringBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeBinary, BaseTypeVarBinary,
+		BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCharStringBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeChar, BaseTypeVarchar,
+		BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText:
+		return true
+	default:
+		return false
+	}
+}
+
+func binaryPreservingStringResultType(name string, args []AnalyzedExpr, scope *analyzerScope) (MySQLBaseType, bool) {
+	var check []AnalyzedExpr
+	switch strings.ToLower(name) {
+	case "concat", "concat_ws", "trim", "replace":
+		check = args
+	case "lpad", "rpad":
+		if len(args) >= 1 {
+			check = append(check, args[0])
+		}
+		if len(args) >= 3 {
+			check = append(check, args[2])
+		}
+	case "lower", "upper", "ltrim", "rtrim",
+		"substring", "substr", "left", "right", "reverse", "repeat":
+		if len(args) >= 1 {
+			check = args[:1]
+		}
+	default:
+		return BaseTypeUnknown, false
+	}
+	hasUnknown := false
+	for _, arg := range check {
+		abt, isNull := analyzedExprBaseType(arg, scope)
+		if isNull {
+			continue
+		}
+		if isBinaryStringBaseType(abt) {
+			return BaseTypeVarBinary, true
+		}
+		if abt == BaseTypeUnknown {
+			hasUnknown = true
+		}
+	}
+	if hasUnknown {
+		return BaseTypeUnknown, true
+	}
+	return BaseTypeUnknown, false
+}
+
+func columnDataTypeToBaseType(dataType string) MySQLBaseType {
+	switch strings.ToLower(dataType) {
+	case "tinyint":
+		return BaseTypeTinyInt
+	case "smallint":
+		return BaseTypeSmallInt
+	case "mediumint":
+		return BaseTypeMediumInt
+	case "int", "integer":
+		return BaseTypeInt
+	case "bigint":
+		return BaseTypeBigInt
+	case "decimal", "numeric":
+		return BaseTypeDecimal
+	case "float":
+		return BaseTypeFloat
+	case "double", "real":
+		return BaseTypeDouble
+	case "bit":
+		return BaseTypeBit
+	case "date":
+		return BaseTypeDate
+	case "datetime":
+		return BaseTypeDateTime
+	case "timestamp":
+		return BaseTypeTimestamp
+	case "time":
+		return BaseTypeTime
+	case "year":
+		return BaseTypeYear
+	case "char":
+		return BaseTypeChar
+	case "varchar":
+		return BaseTypeVarchar
+	case "binary":
+		return BaseTypeBinary
+	case "varbinary":
+		return BaseTypeVarBinary
+	case "tinytext":
+		return BaseTypeTinyText
+	case "text":
+		return BaseTypeText
+	case "mediumtext":
+		return BaseTypeMediumText
+	case "longtext":
+		return BaseTypeLongText
+	case "tinyblob":
+		return BaseTypeTinyBlob
+	case "blob":
+		return BaseTypeBlob
+	case "mediumblob":
+		return BaseTypeMediumBlob
+	case "longblob":
+		return BaseTypeLongBlob
+	case "enum":
+		return BaseTypeEnum
+	case "set":
+		return BaseTypeSet
+	case "json":
+		return BaseTypeJSON
+	case "geometry":
+		return BaseTypeGeometry
+	case "point":
+		return BaseTypePoint
+	case "linestring":
+		return BaseTypeLineString
+	case "polygon":
+		return BaseTypePolygon
+	case "multipoint":
+		return BaseTypeMultiPoint
+	case "multilinestring":
+		return BaseTypeMultiLineString
+	case "multipolygon":
+		return BaseTypeMultiPolygon
+	case "geometrycollection", "geomcollection":
+		return BaseTypeGeometryCollection
+	default:
+		return BaseTypeUnknown
+	}
+}
+
+func isJSONInputBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeJSON,
+		BaseTypeChar, BaseTypeVarchar,
+		BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,
+		BaseTypeEnum, BaseTypeSet,
+		BaseTypeBinary, BaseTypeVarBinary,
+		BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob:
+		return true
+	default:
+		return false
+	}
+}
+
+func isGeometryBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
+		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
+		return true
+	default:
+		return false
+	}
+}
+
+func isGeometryCollectionConstructor(lowerName string) bool {
+	switch lowerName {
+	case "linestring", "polygon", "multipoint", "multilinestring", "multipolygon",
+		"geometrycollection", "geomcollection":
+		return true
+	default:
+		return false
+	}
+}
+
+func isGeometryReturningFunc(lowerName string) bool {
+	switch lowerName {
+	case "point", "linestring", "polygon", "multipoint", "multilinestring", "multipolygon",
+		"geometrycollection", "geomcollection",
+		"st_geomfromtext", "st_geometryfromtext", "st_geomfromwkb", "st_geometryfromwkb",
+		"st_geomfromgeojson", "st_pointfromtext", "st_pointfromwkb", "st_pointfromgeohash",
+		"st_linefromtext", "st_linestringfromtext", "st_linefromwkb", "st_linestringfromwkb",
+		"st_polyfromtext", "st_polygonfromtext", "st_polyfromwkb", "st_polygonfromwkb",
+		"st_mpointfromtext", "st_multipointfromtext", "st_mpointfromwkb", "st_multipointfromwkb",
+		"st_mlinefromtext", "st_multilinestringfromtext", "st_mlinefromwkb", "st_multilinestringfromwkb",
+		"st_mpolyfromtext", "st_multipolygonfromtext", "st_mpolyfromwkb", "st_multipolygonfromwkb",
+		"st_geomcollfromtext", "st_geomcollfromtxt", "st_geometrycollectionfromtext",
+		"st_geomcollfromwkb", "st_geometrycollectionfromwkb",
+		"st_buffer", "st_centroid", "st_convexhull", "st_difference", "st_envelope",
+		"st_exteriorring", "st_geometryn", "st_interiorringn", "st_intersection",
+		"st_lineinterpolatepoint", "st_lineinterpolatepoints", "st_makeenvelope",
+		"st_pointatdistance", "st_pointn", "st_simplify", "st_startpoint", "st_endpoint",
+		"st_swapxy", "st_symdifference", "st_transform", "st_union",
+		"geomfromtext", "geometryfromtext", "geomfromwkb", "geometryfromwkb",
+		"pointfromtext", "pointfromwkb", "linefromtext", "linefromwkb",
+		"polyfromtext", "polyfromwkb", "mpointfromtext", "mpointfromwkb",
+		"mlinefromtext", "mlinefromwkb", "mpolyfromtext", "mpolyfromwkb",
+		"geomcollfromtext", "geomcollfromwkb", "geometrycollectionfromtext", "geometrycollectionfromwkb":
+		return true
+	default:
+		return false
+	}
 }

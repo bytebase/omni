@@ -1330,6 +1330,7 @@ func (r *ResTargetExprQ) exprCollation() string {
 type RawExprQ struct {
 	Text       string
 	ResultType *ResolvedType
+	Args       []AnalyzedExpr // analyzed child operands, when present, for nullability propagation
 }
 
 func (*RawExprQ) analyzedExprTag()          {}

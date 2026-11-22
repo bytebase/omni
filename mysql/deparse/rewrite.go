@@ -128,7 +128,7 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
-		return rewriteDateArith(n)
+		return rewriteFuncCall(n)
 
 	case *ast.ExtractExpr:
 		n.Expr = rewriteExpr(n.Expr)
@@ -143,9 +143,13 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		return n
 
 	case *ast.PositionExpr:
-		n.Substr = rewriteExpr(n.Substr)
-		n.Str = rewriteExpr(n.Str)
-		return n
+		// MySQL 8.0 stores POSITION(substr IN str) as locate(substr, str) in views.
+		return &ast.FuncCallExpr{
+			Loc:       n.Loc,
+			Name:      "locate",
+			HasParens: true,
+			Args:      []ast.ExprNode{rewriteExpr(n.Substr), rewriteExpr(n.Str)},
+		}
 
 	case *ast.CastExpr:
 		n.Expr = rewriteExpr(n.Expr)
@@ -163,6 +167,12 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		// Leaf nodes (literals, column refs, etc.) — no rewriting needed
 		return node
 	}
+}
+
+// rewriteFuncCall folds MySQL 8.0 view-resolver date-arithmetic function rewrites
+// (TIMESTAMPADD/DATE_ADD/ADDDATE/DATE_SUB/SUBDATE).
+func rewriteFuncCall(n *ast.FuncCallExpr) ast.ExprNode {
+	return rewriteDateArith(n)
 }
 
 // rewriteDateArith folds the date-arithmetic function family into INTERVAL

@@ -207,13 +207,15 @@ func (p *Parser) parsePredicateSuffix(left Expr) (Expr, error) {
 		case kwBETWEEN, kwIN, kwLIKE:
 			notTok := p.advance() // consume NOT
 			return p.parseNegatablePredicate(left, true, notTok.Loc)
-		default:
-			// Not a predicate NOT: a column constraint (`x varchar DEFAULT 'c'
-			// NOT NULL`) or a malformed `a NOT b`. Leave it for the caller, which
-			// either takes it or reports it. (Trino's prediction can report the
-			// token after it instead, along the negated-predicate path it
-			// abandons; see testdata/README.md.)
+		case kwNULL:
+			// Column constraint (`x varchar DEFAULT 'c' NOT NULL`): leave NOT
+			// for the caller.
 			return left, nil
+		default:
+			// Enter the negated predicate path and report the token after NOT,
+			// matching Trino's `(NOT)? (BETWEEN|IN|LIKE)` prediction.
+			p.advance() // consume NOT
+			return nil, p.exprErrorAt("expected BETWEEN, IN, or LIKE after NOT")
 		}
 	case kwBETWEEN, kwIN, kwLIKE:
 		return p.parseNegatablePredicate(left, false, ast.NoLoc())

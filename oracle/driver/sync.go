@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -279,7 +280,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get identity columns from database %q: %w", schemaName, err)
 	}
-	columnMap, err := getTableColumns(txn, schemaName, version, identityColumns)
+	columnMap, internalPos, err := getTableColumns(txn, schemaName, version, identityColumns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get table columns from database %q: %w", schemaName, err)
 	}
@@ -291,11 +292,15 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indices: %w", err)
 	}
-	tableMap, err := getTables(txn, schemaName, columnMap, indexMap, checkConstraintMap, foreignKeyMap, tableTriggerMap)
+	partitionMap, err := getTablePartitions(txn, schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table partitions from database %q: %w", schemaName, err)
+	}
+	tableMap, err := getTables(txn, schemaName, columnMap, indexMap, checkConstraintMap, foreignKeyMap, tableTriggerMap, partitionMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables from database %q: %w", schemaName, err)
 	}
-	viewMap, err := getViews(txn, schemaName, columnMap, viewTriggerMap)
+	viewMap, err := getViews(txn, schemaName, columnMap, internalPos, viewTriggerMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get views from database %q: %w", schemaName, err)
 	}
@@ -535,6 +540,7 @@ func getTables(
 	checkConstraintMap map[tableKey][]*metadatapb.CheckConstraintMetadata,
 	foreignKeyMap map[tableKey][]*metadatapb.ForeignKeyMetadata,
 	triggerMap map[tableKey][]*metadatapb.TriggerMetadata,
+	partitionMap map[tableKey][]*metadatapb.TablePartitionMetadata,
 ) (map[string][]*metadatapb.TableMetadata, error) {
 	columnCommentMap, err := getTableColumnComments(txn, schemaName)
 	if err != nil {
@@ -577,6 +583,7 @@ func getTables(
 			table.CheckConstraints = checkConstraintMap[key]
 			table.ForeignKeys = foreignKeyMap[key]
 			table.Triggers = triggerMap[key]
+			table.Partitions = partitionMap[key]
 			if comment, ok := tableCommentMap[tableKey{Schema: schemaName, Table: table.Name}]; ok {
 				table.Comment = comment
 			}
@@ -718,6 +725,7 @@ type identityColumn struct {
 	generation metadatapb.ColumnMetadata_IdentityGeneration
 	seed       int64
 	increment  int64
+	options    []string
 }
 
 // getIdentityColumns reads the identity columns of a schema. Identity arrived in
@@ -758,7 +766,7 @@ func getIdentityColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.
 			identity.generation = metadatapb.ColumnMetadata_BY_DEFAULT
 		}
 		if options.Valid {
-			identity.seed, identity.increment = identityOptions(options.String)
+			identity.seed, identity.increment, identity.options = identityOptions(options.String)
 		}
 		identityColumns[columnKey{Schema: schemaName, Table: tableName, Column: columnName}] = identity
 	}
@@ -768,28 +776,96 @@ func getIdentityColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.
 	return identityColumns, nil
 }
 
-// identityOptions reads START WITH and INCREMENT BY out of the option list Oracle
-// writes for an identity, such as
+const (
+	oracleDefaultSeqMaxAsc  = "9999999999999999999999999999"
+	oracleDefaultSeqMinAsc  = "1"
+	oracleDefaultSeqMaxDesc = "-1"
+	oracleDefaultSeqMinDesc = "-999999999999999999999999999"
+	oracleDefaultSeqCache   = "20"
+)
+
+// identityOptions reads START WITH, INCREMENT BY, and any non-default sequence
+// options out of the option list Oracle writes for an identity, such as
 // "START WITH: 5, INCREMENT BY: 3, MAX_VALUE: 999…, CYCLE_FLAG: N".
-func identityOptions(options string) (seed, increment int64) {
+func identityOptions(options string) (seed, increment int64, seqOptions []string) {
 	seed, increment = 1, 1
+	var maxVal, minVal, cacheSize string
+	var cycle, order, keep, scale, extend, session, shard bool
 	for _, part := range strings.Split(options, ",") {
 		name, value, ok := strings.Cut(part, ":")
 		if !ok {
 			continue
 		}
-		parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
-		if err != nil {
-			continue
-		}
-		switch strings.TrimSpace(name) {
+		key := strings.TrimSpace(name)
+		val := strings.TrimSpace(value)
+		switch key {
 		case "START WITH":
-			seed = parsed
+			if parsed, err := strconv.ParseInt(val, 10, 64); err == nil {
+				seed = parsed
+			}
 		case "INCREMENT BY":
-			increment = parsed
+			if parsed, err := strconv.ParseInt(val, 10, 64); err == nil {
+				increment = parsed
+			}
+		case "MAX_VALUE":
+			maxVal = val
+		case "MIN_VALUE":
+			minVal = val
+		case "CACHE_SIZE":
+			cacheSize = val
+		case "CYCLE_FLAG":
+			cycle = val == "Y"
+		case "ORDER_FLAG":
+			order = val == "Y"
+		case "KEEP_VALUE":
+			keep = val == "Y"
+		case "SCALE_FLAG":
+			scale = val == "Y"
+		case "EXTEND_FLAG":
+			extend = val == "Y"
+		case "SESSION_FLAG":
+			session = val == "Y"
+		case "SHARDED_FLAG":
+			shard = val == "Y"
 		}
 	}
-	return seed, increment
+	defaultMax := oracleDefaultSeqMaxAsc
+	defaultMin := oracleDefaultSeqMinAsc
+	if increment < 0 {
+		defaultMax = oracleDefaultSeqMaxDesc
+		defaultMin = oracleDefaultSeqMinDesc
+	}
+	if maxVal != "" && maxVal != defaultMax {
+		seqOptions = append(seqOptions, "MAXVALUE="+maxVal)
+	}
+	if minVal != "" && minVal != defaultMin {
+		seqOptions = append(seqOptions, "MINVALUE="+minVal)
+	}
+	if cacheSize != "" && cacheSize != oracleDefaultSeqCache {
+		seqOptions = append(seqOptions, "CACHE="+cacheSize)
+	}
+	if cycle {
+		seqOptions = append(seqOptions, "CYCLE=true")
+	}
+	if order {
+		seqOptions = append(seqOptions, "ORDER=true")
+	}
+	if keep {
+		seqOptions = append(seqOptions, "KEEP=true")
+	}
+	if scale {
+		seqOptions = append(seqOptions, "SCALE=true")
+		if extend {
+			seqOptions = append(seqOptions, "EXTEND=true")
+		}
+	}
+	if session {
+		seqOptions = append(seqOptions, "SESSION=true")
+	}
+	if shard {
+		seqOptions = append(seqOptions, "SHARD=true")
+	}
+	return seed, increment, seqOptions
 }
 
 // isGeneratedNotNull reports whether a check constraint's condition is the
@@ -804,9 +880,12 @@ func sqlLiteral(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
-// getTableColumns gets the columns of a table.
-func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version, identityColumns map[columnKey]identityColumn) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
+// getTableColumns gets the columns of a table or view. It also returns each
+// column's INTERNAL_COLUMN_ID so views can keep their projection order even
+// when an invisible column appears before a visible one.
+func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version, identityColumns map[columnKey]identityColumn) (map[tableKey][]*metadatapb.ColumnMetadata, map[columnKey]int32, error) {
 	columnsMap := make(map[tableKey][]*metadatapb.ColumnMetadata)
+	internalPos := make(map[columnKey]int32)
 
 	// Invisible columns have no COLUMN_ID. They sort after the visible columns
 	// and take the positions that follow. ALL_TAB_COLUMNS is ALL_TAB_COLS with
@@ -834,7 +913,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			COLLATION,
 			DEFAULT_ON_NULL,
 			VIRTUAL_COLUMN,
-			IDENTITY_COLUMN
+			IDENTITY_COLUMN,
+			INTERNAL_COLUMN_ID
 		FROM sys.all_tab_cols
 		WHERE OWNER = '%s' AND USER_GENERATED = 'YES'
 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, sqlLiteral(schemaName))
@@ -863,6 +943,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			NULL,
 			NULL,
 			NULL,
+			NULL,
 			NULL
 		FROM sys.all_tab_columns
 		WHERE OWNER = '%s'
@@ -872,7 +953,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 	slog.Debug("running get columns query")
 	rows, err := txn.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
@@ -881,7 +962,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		var defaultStr, collation, defaultOnNull, virtualColumn sql.NullString
 		var dataLength, dataPrecision, dataScale, charLength sql.NullInt64
 		var charUsed, identityColumnValue sql.NullString
-		var columnID sql.NullInt32
+		var columnID, internalColumnID sql.NullInt32
 		if err := rows.Scan(
 			&schemaName,
 			&tableName,
@@ -899,8 +980,9 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			&defaultOnNull,
 			&virtualColumn,
 			&identityColumnValue,
+			&internalColumnID,
 		); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		column.Type = getTypeString(column.Type, dataLength, dataPrecision, dataScale, charLength, charUsed)
 		if defaultStr.Valid {
@@ -918,7 +1000,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		}
 		isNullBool, err := convertYesNo(nullable)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		column.Nullable = isNullBool
 		if collation.Valid {
@@ -930,12 +1012,16 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			column.IdentityGeneration = identity.generation
 			column.IdentitySeed = identity.seed
 			column.IdentityIncrement = identity.increment
+			column.Options = identity.options
 		}
 		if defaultOnNull.Valid && defaultOnNull.String == "YES" {
 			column.DefaultOnNull = true
 		}
 
 		key := tableKey{Schema: schemaName, Table: tableName}
+		if internalColumnID.Valid {
+			internalPos[columnKey{Schema: schemaName, Table: tableName, Column: column.Name}] = internalColumnID.Int32
+		}
 		if columnID.Valid {
 			column.Position = columnID.Int32
 		} else {
@@ -948,13 +1034,13 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		columnsMap[key] = append(columnsMap[key], column)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close rows: %w", err)
+		return nil, nil, fmt.Errorf("failed to close rows: %w", err)
 	}
 
-	return columnsMap, nil
+	return columnsMap, internalPos, nil
 }
 
 // getVirtualColumns lists the virtual columns for versions whose column query
@@ -1450,7 +1536,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 }
 
 // getViews gets all views of a database.
-func getViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
+func getViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, internalPos map[columnKey]int32, triggerMap map[tableKey][]*metadatapb.TriggerMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
 	viewMap := make(map[string][]*metadatapb.ViewMetadata)
 
 	// Get view comments
@@ -1480,7 +1566,7 @@ func getViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadata
 		}
 		view.Definition = sanitizeOracleDefinition(schemaName, "VIEW", view.Name, view.Definition)
 		key := tableKey{Schema: schemaName, Table: view.Name}
-		view.Columns = columnMap[key]
+		view.Columns = orderViewColumns(schemaName, view.Name, columnMap[key], internalPos)
 		view.Triggers = triggerMap[key]
 		if comment, ok := viewCommentMap[key]; ok {
 			view.Comment = comment
@@ -1605,7 +1691,7 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 	}
 
 	query := fmt.Sprintf(`
-		SELECT OWNER, MVIEW_NAME, QUERY
+		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
 		FROM sys.all_mviews
 		WHERE OWNER = '%s'
 		ORDER BY MVIEW_NAME
@@ -1621,7 +1707,8 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 	for rows.Next() {
 		materializedView := &metadatapb.MaterializedViewMetadata{}
 		var schemaName string
-		if err := rows.Scan(&schemaName, &materializedView.Name, &materializedView.Definition); err != nil {
+		var buildMode, refreshMethod, refreshMode sql.NullString
+		if err := rows.Scan(&schemaName, &materializedView.Name, &materializedView.Definition, &buildMode, &refreshMethod, &refreshMode); err != nil {
 			return nil, err
 		}
 		materializedView.Definition = sanitizeOracleDefinition(
@@ -1630,6 +1717,9 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 			materializedView.Name,
 			materializedView.Definition,
 		)
+		if prefix := materializedViewRefreshPrefix(buildMode.String, refreshMethod.String, refreshMode.String); prefix != "" && materializedView.Definition != "" {
+			materializedView.Definition = prefix + " AS " + strings.TrimSpace(materializedView.Definition)
+		}
 
 		// Ensure the definition ends with a newline to match expected format
 		if materializedView.Definition != "" && !strings.HasSuffix(materializedView.Definition, "\n") {
@@ -1833,6 +1923,7 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 	var functions []*metadatapb.FunctionMetadata
 	var procedures []*metadatapb.ProcedureMetadata
 	var packages []*metadatapb.PackageMetadata
+	packageIndex := make(map[string]int)
 
 	query := fmt.Sprintf(`
 		SELECT
@@ -1841,7 +1932,7 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 			TEXT
 		FROM ALL_SOURCE
 		WHERE
-			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY')
 			AND
 			OWNER = '%s'
 		ORDER BY NAME, TYPE, LINE`, sqlLiteral(schemaName))
@@ -1853,6 +1944,43 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 	}
 	defer func() { _ = rows.Close() }()
 
+	flush := func(currentName, currentType string, defText []string) {
+		if currentType == "" {
+			return
+		}
+		text := sanitizeOracleDefinition(schemaName, currentType, currentName, strings.Join(defText, ""))
+		switch currentType {
+		case "FUNCTION":
+			functions = append(functions, &metadatapb.FunctionMetadata{
+				Name:       currentName,
+				Definition: text,
+			})
+		case "PROCEDURE":
+			procedures = append(procedures, &metadatapb.ProcedureMetadata{
+				Name:       currentName,
+				Definition: text,
+			})
+		case "PACKAGE":
+			packageIndex[currentName] = len(packages)
+			packages = append(packages, &metadatapb.PackageMetadata{
+				Name:       currentName,
+				Definition: text,
+			})
+		case "PACKAGE BODY":
+			if idx, ok := packageIndex[currentName]; ok {
+				spec := ensurePLSQLUnitCreateAndSemicolon(packages[idx].Definition)
+				body := ensurePLSQLUnitCreateAndSemicolon(text)
+				packages[idx].Definition = spec + "\n\n" + body
+			} else {
+				packageIndex[currentName] = len(packages)
+				packages = append(packages, &metadatapb.PackageMetadata{
+					Name:       currentName,
+					Definition: text,
+				})
+			}
+		}
+	}
+
 	var currentName, currentType string
 	var defText []string
 	for rows.Next() {
@@ -1863,51 +1991,13 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 		if name == currentName && t == currentType {
 			defText = append(defText, def)
 		} else {
-			// Oracle may include a trailing C-string null terminator via the go-ora driver.
-			switch currentType {
-			case "FUNCTION":
-				functions = append(functions, &metadatapb.FunctionMetadata{
-					Name:       currentName,
-					Definition: sanitizeOracleDefinition(schemaName, "FUNCTION", currentName, strings.Join(defText, "")),
-				})
-			case "PROCEDURE":
-				procedures = append(procedures, &metadatapb.ProcedureMetadata{
-					Name:       currentName,
-					Definition: sanitizeOracleDefinition(schemaName, "PROCEDURE", currentName, strings.Join(defText, "")),
-				})
-			case "PACKAGE":
-				packages = append(packages, &metadatapb.PackageMetadata{
-					Name:       currentName,
-					Definition: sanitizeOracleDefinition(schemaName, "PACKAGE", currentName, strings.Join(defText, "")),
-				})
-			default:
-				// Ignore other types
-			}
+			flush(currentName, currentType, defText)
 			currentName = name
 			currentType = t
 			defText = []string{def}
 		}
 	}
-	// Oracle may include a trailing C-string null terminator via the go-ora driver.
-	switch currentType {
-	case "FUNCTION":
-		functions = append(functions, &metadatapb.FunctionMetadata{
-			Name:       currentName,
-			Definition: sanitizeOracleDefinition(schemaName, "FUNCTION", currentName, strings.Join(defText, "")),
-		})
-	case "PROCEDURE":
-		procedures = append(procedures, &metadatapb.ProcedureMetadata{
-			Name:       currentName,
-			Definition: sanitizeOracleDefinition(schemaName, "PROCEDURE", currentName, strings.Join(defText, "")),
-		})
-	case "PACKAGE":
-		packages = append(packages, &metadatapb.PackageMetadata{
-			Name:       currentName,
-			Definition: sanitizeOracleDefinition(schemaName, "PACKAGE", currentName, strings.Join(defText, "")),
-		})
-	default:
-		// Ignore other types
-	}
+	flush(currentName, currentType, defText)
 	if err := rows.Err(); err != nil {
 		return nil, nil, nil, err
 	}
@@ -1916,6 +2006,307 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 	}
 
 	return functions, procedures, packages, nil
+}
+
+func ensurePLSQLUnitCreateAndSemicolon(unit string) string {
+	trimmed := strings.TrimSpace(unit)
+	if trimmed == "" {
+		return ""
+	}
+	if !strings.HasPrefix(strings.ToUpper(trimmed), "CREATE") {
+		trimmed = "CREATE OR REPLACE " + trimmed
+	}
+	if !strings.HasSuffix(trimmed, ";") {
+		trimmed += ";"
+	}
+	return trimmed
+}
+
+func materializedViewRefreshPrefix(buildMode, refreshMethod, refreshMode string) string {
+	build := strings.ToUpper(strings.TrimSpace(buildMode))
+	method := strings.ToUpper(strings.TrimSpace(refreshMethod))
+	mode := strings.ToUpper(strings.TrimSpace(refreshMode))
+
+	// Materialized view logs (CREATE MATERIALIZED VIEW LOG) are not synced or
+	// rendered yet, so emitting REFRESH FAST would fail when restoring into an
+	// empty schema (ORA-23413). Fall back to Oracle's default FORCE method.
+	if method == "FAST" {
+		method = "FORCE"
+	}
+
+	// Omit the prefix when the effective clauses match Oracle's default
+	// CREATE MATERIALIZED VIEW AS ... settings (BUILD IMMEDIATE REFRESH FORCE
+	// ON DEMAND). BUILD_MODE='PREBUILT' is intentionally not emitted as
+	// ON PREBUILT TABLE because getTables excludes tables listed in ALL_MVIEWS,
+	// so a dump restored into an empty schema does not recreate the prebuilt
+	// backing table first.
+	if build != "DEFERRED" && (method == "" || method == "FORCE") && (mode == "" || mode == "DEMAND") {
+		return ""
+	}
+	var parts []string
+	if build == "DEFERRED" {
+		parts = append(parts, "BUILD DEFERRED")
+	}
+	if method == "NEVER" {
+		parts = append(parts, "NEVER REFRESH")
+	} else if method != "" || mode != "" {
+		refresh := "REFRESH"
+		if method != "" {
+			refresh += " " + method
+		}
+		if mode != "" && mode != "NEVER" {
+			refresh += " ON " + mode
+		}
+		parts = append(parts, refresh)
+	}
+	return strings.Join(parts, " ")
+}
+
+func orderViewColumns(schemaName, viewName string, columns []*metadatapb.ColumnMetadata, internalPos map[columnKey]int32) []*metadatapb.ColumnMetadata {
+	if len(columns) <= 1 || len(internalPos) == 0 {
+		return columns
+	}
+	ordered := make([]*metadatapb.ColumnMetadata, len(columns))
+	copy(ordered, columns)
+	slices.SortStableFunc(ordered, func(a, b *metadatapb.ColumnMetadata) int {
+		posA := internalPos[columnKey{Schema: schemaName, Table: viewName, Column: a.GetName()}]
+		posB := internalPos[columnKey{Schema: schemaName, Table: viewName, Column: b.GetName()}]
+		if posA != posB {
+			if posA < posB {
+				return -1
+			}
+			return 1
+		}
+		return int(a.GetPosition() - b.GetPosition())
+	})
+	for i, col := range ordered {
+		col.Position = int32(i + 1)
+	}
+	return ordered
+}
+
+func oraclePartitionType(name string) metadatapb.TablePartitionMetadata_Type {
+	switch strings.ToUpper(strings.TrimSpace(name)) {
+	case "RANGE":
+		return metadatapb.TablePartitionMetadata_RANGE
+	case "LIST":
+		return metadatapb.TablePartitionMetadata_LIST
+	case "HASH":
+		return metadatapb.TablePartitionMetadata_HASH
+	default:
+		return metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED
+	}
+}
+
+func formatOraclePartitionKeyColumn(name string) string {
+	if isSimpleOracleIdentifier(name) {
+		return name
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func isSimpleOracleIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isLetter := 'A' <= c && c <= 'Z'
+		isDigit := '0' <= c && c <= '9'
+		if i == 0 && !isLetter {
+			return false
+		}
+		if !isLetter && !isDigit && c != '_' && c != '$' && c != '#' {
+			return false
+		}
+	}
+	return true
+}
+
+func getTablePartitions(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.TablePartitionMetadata, error) {
+	result := make(map[tableKey][]*metadatapb.TablePartitionMetadata)
+
+	type partTableInfo struct {
+		partType    metadatapb.TablePartitionMetadata_Type
+		subpartType metadatapb.TablePartitionMetadata_Type
+		interval    string
+	}
+	partTables := make(map[string]partTableInfo)
+	hasSubpartitions := false
+
+	queryTables := fmt.Sprintf(`
+		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
+		FROM all_part_tables
+		WHERE OWNER = '%s'
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
+	slog.Debug("running get partitioned tables query")
+	rows, err := txn.Query(queryTables)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryTables, err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var tableName, partType, subpartType string
+		var interval sql.NullString
+		if err := rows.Scan(&tableName, &partType, &subpartType, &interval); err != nil {
+			return nil, err
+		}
+		pt := oraclePartitionType(partType)
+		if pt == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			continue
+		}
+		spt := oraclePartitionType(subpartType)
+		if spt != metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			hasSubpartitions = true
+		}
+		partTables[tableName] = partTableInfo{
+			partType:    pt,
+			subpartType: spt,
+			interval:    strings.TrimSpace(interval.String),
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryTables, err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close rows: %w", err)
+	}
+	if len(partTables) == 0 {
+		return result, nil
+	}
+
+	partKeys := make(map[string][]string)
+	queryKeys := fmt.Sprintf(`
+		SELECT NAME, COLUMN_NAME
+		FROM all_part_key_columns
+		WHERE OWNER = '%s' AND OBJECT_TYPE = 'TABLE'
+		ORDER BY NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
+	keyRows, err := txn.Query(queryKeys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryKeys, err)
+	}
+	defer func() { _ = keyRows.Close() }()
+	for keyRows.Next() {
+		var tableName, colName string
+		if err := keyRows.Scan(&tableName, &colName); err != nil {
+			return nil, err
+		}
+		partKeys[tableName] = append(partKeys[tableName], formatOraclePartitionKeyColumn(colName))
+	}
+	if err := keyRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryKeys, err)
+	}
+	if err := keyRows.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close rows: %w", err)
+	}
+
+	type partRef struct {
+		table     string
+		partition string
+	}
+	subpartMap := make(map[partRef][]*metadatapb.TablePartitionMetadata)
+	if hasSubpartitions {
+		subpartKeys := make(map[string][]string)
+		querySubKeys := fmt.Sprintf(`
+			SELECT NAME, COLUMN_NAME
+			FROM all_subpart_key_columns
+			WHERE OWNER = '%s' AND OBJECT_TYPE = 'TABLE'
+			ORDER BY NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
+		subKeyRows, err := txn.Query(querySubKeys)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute query %q: %w", querySubKeys, err)
+		}
+		defer func() { _ = subKeyRows.Close() }()
+		for subKeyRows.Next() {
+			var tableName, colName string
+			if err := subKeyRows.Scan(&tableName, &colName); err != nil {
+				return nil, err
+			}
+			subpartKeys[tableName] = append(subpartKeys[tableName], formatOraclePartitionKeyColumn(colName))
+		}
+		if err := subKeyRows.Err(); err != nil {
+			return nil, fmt.Errorf("failed to execute query %q: %w", querySubKeys, err)
+		}
+		if err := subKeyRows.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close rows: %w", err)
+		}
+
+		querySubparts := fmt.Sprintf(`
+			SELECT TABLE_NAME, PARTITION_NAME, SUBPARTITION_NAME, HIGH_VALUE
+			FROM all_tab_subpartitions
+			WHERE TABLE_OWNER = '%s'
+			ORDER BY TABLE_NAME, PARTITION_NAME, SUBPARTITION_POSITION`, sqlLiteral(schemaName))
+		subRows, err := txn.Query(querySubparts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute query %q: %w", querySubparts, err)
+		}
+		defer func() { _ = subRows.Close() }()
+		for subRows.Next() {
+			var tableName, partName, subpartName string
+			var highValue sql.NullString
+			if err := subRows.Scan(&tableName, &partName, &subpartName, &highValue); err != nil {
+				return nil, err
+			}
+			info, ok := partTables[tableName]
+			if !ok || info.subpartType == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+				continue
+			}
+			ref := partRef{table: tableName, partition: partName}
+			subpartMap[ref] = append(subpartMap[ref], &metadatapb.TablePartitionMetadata{
+				Name:       subpartName,
+				Type:       info.subpartType,
+				Expression: strings.Join(subpartKeys[tableName], ", "),
+				Value:      strings.TrimSpace(highValue.String),
+			})
+		}
+		if err := subRows.Err(); err != nil {
+			return nil, fmt.Errorf("failed to execute query %q: %w", querySubparts, err)
+		}
+		if err := subRows.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close rows: %w", err)
+		}
+	}
+
+	queryParts := fmt.Sprintf(`
+		SELECT TABLE_NAME, PARTITION_NAME, HIGH_VALUE, INTERVAL
+		FROM all_tab_partitions
+		WHERE TABLE_OWNER = '%s'
+		ORDER BY TABLE_NAME, PARTITION_POSITION`, sqlLiteral(schemaName))
+	partRows, err := txn.Query(queryParts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryParts, err)
+	}
+	defer func() { _ = partRows.Close() }()
+	for partRows.Next() {
+		var tableName, partName string
+		var highValue, intervalFlag sql.NullString
+		if err := partRows.Scan(&tableName, &partName, &highValue, &intervalFlag); err != nil {
+			return nil, err
+		}
+		info, ok := partTables[tableName]
+		if !ok {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(intervalFlag.String), "YES") {
+			continue
+		}
+		key := tableKey{Schema: schemaName, Table: tableName}
+		result[key] = append(result[key], &metadatapb.TablePartitionMetadata{
+			Name:           partName,
+			Type:           info.partType,
+			Expression:     strings.Join(partKeys[tableName], ", "),
+			Value:          strings.TrimSpace(highValue.String),
+			IntervalClause: info.interval,
+			Subpartitions:  subpartMap[partRef{table: tableName, partition: partName}],
+		})
+	}
+	if err := partRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", queryParts, err)
+	}
+	if err := partRows.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close rows: %w", err)
+	}
+	return result, nil
 }
 
 func sanitizeOracleDefinition(schemaName, objectType, objectName, definition string) string {

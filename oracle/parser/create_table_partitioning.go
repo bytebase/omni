@@ -84,6 +84,11 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		p.createTableEngineCheck = true
 		return p.parseCreateTableReferencePartitioning(clause, hasColumns)
 	case p.isKeywordStr("SYSTEM"):
+		if p.createTablePartitionsOfMview {
+			// System partitioning is not supported on materialized views (ORA-32362).
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateTableSystemPartitioning(clause)
 	case p.isKeywordStr("CONSISTENT"):
 		// consistent_hash_partitions and consistent_hash_with_subpartitions
@@ -157,6 +162,10 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		clause.Loc.End = p.prev.End
 		return clause, nil
 	}
+	if clause.Type == nodes.PARTITION_HASH && p.cur.Type == kwTABLESPACE {
+		p.advance() // consume TABLESPACE before refusing SET on non-sharded hash partitioning
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	bound := createTableHashBound
 	switch clause.Type {
@@ -168,8 +177,12 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	if err := p.expectCreateTableToken('('); err != nil {
 		return nil, err
 	}
+	maxRangeVals := 0
+	if bound == createTableRangeBound {
+		maxRangeVals = clause.Columns.Len()
+	}
 	for {
-		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub)
+		def, err := p.parseCreateTablePartitionDescWithArity(bound, clause.Subpartition != nil, sub, maxRangeVals)
 		if err != nil {
 			return nil, err
 		}
@@ -335,6 +348,11 @@ func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, creat
 			}
 			break
 		}
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance() // consume (
+			p.advance() // consume )
+			break
+		}
 		if err := p.parseCreateTableSubpartitionDescs(bound, sub.Partitions); err != nil {
 			return nil, 0, err
 		}
@@ -404,22 +422,47 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 //	PARTITION [ partition ] [ read_only_clause ] [ indexing_clause ]
 //	[ partitioning_storage_clause ]                      -- hash
 func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind) (*nodes.PartitionDef, error) {
+	return p.parseCreateTablePartitionDescWithArity(bound, composite, sub, 0)
+}
+
+func (p *Parser) parseCreateTablePartitionDescWithArity(bound createTablePartitionKind, composite bool, sub createTablePartitionKind, maxRangeVals int) (*nodes.PartitionDef, error) {
 	start := p.pos()
 	if p.cur.Type != kwPARTITION {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume PARTITION
 	def := &nodes.PartitionDef{Values: &nodes.List{}, Loc: nodes.Loc{Start: start}}
+	var nameTok Token
+	hasName := false
 	if p.isCreateTablePartitionName(bound) {
+		nameTok = p.cur
+		hasName = true
 		def.Name = p.cur.Str
 		p.advance()
 	}
+	afterNamePos := p.pos()
+	firstAttrTok := p.cur
 	if bound == createTableHashBound {
 		if err := p.parseCreateTableHashPartitionAttributes(def); err != nil {
+			if hasName && p.pos() == afterNamePos && p.cur.Type != tokEOF {
+				return nil, p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) && p.prev.Loc == firstAttrTok.Loc && p.cur.Type != tokEOF {
+				return nil, p.syntaxErrorAtTok(firstAttrTok)
+			}
 			return nil, err
 		}
+		if p.cur.Type != ',' && p.cur.Type != ')' &&
+			!(composite && (p.cur.Type == '(' || (sub == createTableHashBound && p.isKeywordStr("SUBPARTITIONS")))) {
+			if hasName && p.pos() == afterNamePos {
+				return nil, p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) {
+				return nil, p.syntaxErrorAtTok(firstAttrTok)
+			}
+		}
 	} else {
-		if err := p.parseCreateTablePartitionBound(bound, def); err != nil {
+		if err := p.parseCreateTablePartitionBoundWithArity(bound, def, maxRangeVals); err != nil {
 			return nil, err
 		}
 		if err := p.parseCreateTablePartitionDescription(def); err != nil {
@@ -429,7 +472,8 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 	if composite {
 		switch {
 		case p.cur.Type == '(':
-			if err := p.parseCreateTableSubpartitionDescs(sub, &nodes.List{}); err != nil {
+			def.Subpartitions = &nodes.List{}
+			if err := p.parseCreateTableSubpartitionDescs(sub, def.Subpartitions); err != nil {
 				return nil, err
 			}
 		case sub == createTableHashBound && p.isKeywordStr("SUBPARTITIONS"):
@@ -455,7 +499,7 @@ func (p *Parser) isCreateTablePartitionName(bound createTablePartitionKind) bool
 		return true
 	}
 	next := p.peekNext()
-	if next.Type == ',' || next.Type == ')' {
+	if next.Type == ',' || next.Type == ')' || next.Type == tokEOF {
 		return true
 	}
 	return !p.isCreateTableHashPartitionAttributeStart()
@@ -467,6 +511,10 @@ func (p *Parser) isCreateTablePartitionName(bound createTablePartitionKind) bool
 //	list_values_clause: VALUES ( { list_values | DEFAULT } )
 //	list_values: { literal | NULL } [, { literal | NULL } ] ...
 func (p *Parser) parseCreateTablePartitionBound(bound createTablePartitionKind, def *nodes.PartitionDef) error {
+	return p.parseCreateTablePartitionBoundWithArity(bound, def, 0)
+}
+
+func (p *Parser) parseCreateTablePartitionBoundWithArity(bound createTablePartitionKind, def *nodes.PartitionDef, maxRangeVals int) error {
 	if bound == createTableHashBound {
 		return nil
 	}
@@ -486,12 +534,22 @@ func (p *Parser) parseCreateTablePartitionBound(bound createTablePartitionKind, 
 		return err
 	}
 	for {
+		valTok := p.cur
+		if bound == createTableRangeBound && maxRangeVals > 0 && def.Values.Len() >= maxRangeVals && valTok.Type != tokEOF {
+			return p.syntaxErrorAtTok(valTok)
+		}
 		val, err := p.parseExpr()
 		if err != nil {
 			return err
 		}
 		if val == nil {
 			return p.syntaxErrorAtCur()
+		}
+		if col, ok := val.(*nodes.ColumnRef); ok && col.Schema == "" && col.Table == "" {
+			if !(bound == createTableRangeBound && col.Column == "MAXVALUE") &&
+				!(bound == createTableListBound && col.Column == "DEFAULT") {
+				return p.syntaxErrorAtCur()
+			}
 		}
 		def.Values.Items = append(def.Values.Items, val)
 		if p.cur.Type != ',' {
@@ -576,7 +634,8 @@ func (p *Parser) isCreateTableHashPartitionAttributeStart() bool {
 	switch {
 	case p.cur.Type == kwREAD, p.cur.Type == kwTABLESPACE, p.isKeywordStr("INDEXING"),
 		p.isKeywordStr("OVERFLOW"), p.isCreateTablePartitionCompressionStart(),
-		p.isCreateTableInmemoryStart(), p.isKeywordStr("ILM"), p.isKeywordStr("VARRAY"):
+		p.isCreateTableInmemoryStart(), p.isKeywordStr("ILM"), p.isKeywordStr("VARRAY"),
+		p.isKeywordStr("LOB"):
 		return true
 	}
 	return p.isCreateTableLobStorageStart()
@@ -601,7 +660,11 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 	for {
 		if p.createTablePartitionsOfLog && p.cur.Type != kwTABLESPACE && !p.isKeywordStr("OVERFLOW") {
 			// A log's hash partition or subpartition takes TABLESPACE and
-			// OVERFLOW only.
+			// OVERFLOW only; Oracle consumes INMEMORY before refusing what follows.
+			if p.isKeywordStr("INMEMORY") {
+				p.advance()
+				return p.syntaxErrorAtCur()
+			}
 			if p.cur.Type != ',' && p.cur.Type != ')' {
 				return p.syntaxErrorAtCur()
 			}
@@ -615,6 +678,9 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			}
 			p.advance()
 		case p.isKeywordStr("INDEXING"):
+			if p.createTablePartitionsOfMview {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance() // consume INDEXING
 			if p.cur.Type != kwON && !p.isKeywordStr("OFF") {
 				return p.syntaxErrorAtCur()
@@ -632,7 +698,10 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			if p.cur.Type == kwTABLESPACE {
 				p.advance()
 				if err := p.parseCreateTableName(); err != nil {
-					return err
+					return p.syntaxErrorAtTok(overflow)
+				}
+				if p.cur.Type != ',' && p.cur.Type != ')' {
+					return p.syntaxErrorAtTok(overflow)
 				}
 			} else if p.cur.Type != ',' && p.cur.Type != ')' {
 				return p.syntaxErrorAtTok(overflow)
@@ -647,7 +716,7 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			}
 		case p.isKeywordStr("ILM"):
 			return p.syntaxErrorAtCur()
-		case p.isCreateTableLobStorageStart():
+		case p.isCreateTableLobStorageStart(), p.isKeywordStr("LOB"):
 			if err := p.parseCreateTableLobPartitioningStorage(); err != nil {
 				return err
 			}
@@ -799,6 +868,9 @@ func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) e
 			}
 			p.advance()
 		case p.isKeywordStr("INDEXING"):
+			if p.createTablePartitionsOfMview {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance() // consume INDEXING
 			if p.cur.Type != kwON && !p.isKeywordStr("OFF") {
 				return p.syntaxErrorAtCur()

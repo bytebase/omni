@@ -152,6 +152,16 @@ type relation struct {
 // expand a bare `*` in FROM order; column / `rel.*` lookups use the SELECT's leaf
 // relations (w.leaves), which keep each join side findable by name.
 func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*relation) []projColumn {
+	// A BigQuery FROM-first pipe query (`FROM t`, `WITH c AS (...) FROM c`) has
+	// no SELECT item list; its implicit projection is every FROM relation's
+	// columns (`SELECT * FROM ...`).
+	if len(stmt.Items) == 0 && len(stmt.From) > 0 {
+		if w.fromUnresolved || len(fromRels) == 0 {
+			w.failClosed(fmt.Errorf("a FROM-first query with an unresolvable source has no resolvable output columns (fail closed)"))
+			return nil
+		}
+		return w.starProjColumns(allColumns(fromRels), nil)
+	}
 	var out []projColumn
 	for _, item := range stmt.Items {
 		if item == nil {
@@ -407,6 +417,7 @@ func (w *spanWalker) resolveColumnStrict(relQualifier, column string) ([]ColumnR
 func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	parts := exprToParts(expr)
 	if len(parts) == 0 {
+		w.failClosed(fmt.Errorf("cannot resolve expression .* to a FROM relation's columns (fail closed)"))
 		return nil
 	}
 	// `rel.*`: a SINGLE-part qualifier naming a leaf relation reproduces that

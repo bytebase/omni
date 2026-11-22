@@ -53,38 +53,15 @@ func TestWalkThrough_7_3_HashByExpr(t *testing.T) {
 	}
 }
 
-// Scenario 2: CREATE TABLE PARTITION BY LINEAR HASH (expr) PARTITIONS 4
+// Scenario 2: OceanBase has no LINEAR partitioning (4.3.5.6 answers 1064).
 func TestWalkThrough_7_3_LinearHash(t *testing.T) {
 	c := wtSetup(t)
 
-	wtExec(t, c, `CREATE TABLE t2 (
+	if _, err := c.Exec(`CREATE TABLE t2 (
 		id INT NOT NULL,
 		val INT NOT NULL
-	) PARTITION BY LINEAR HASH (id) PARTITIONS 4`)
-
-	ddl := c.ShowCreateTable("testdb", "t2")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
-	}
-
-	// LINEAR keyword should be rendered
-	if !strings.Contains(ddl, "LINEAR HASH") {
-		t.Errorf("expected LINEAR HASH in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "PARTITIONS 4") {
-		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t2")
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	if !tbl.Partitioning.Linear {
-		t.Error("expected Linear=true for LINEAR HASH")
-	}
-	if tbl.Partitioning.Type != "HASH" {
-		t.Errorf("expected partition type HASH, got %q", tbl.Partitioning.Type)
+	) PARTITION BY LINEAR HASH (id) PARTITIONS 4`, nil); err == nil {
+		t.Fatal("expected parse error for LINEAR HASH; OceanBase answers 1064")
 	}
 }
 
@@ -207,7 +184,7 @@ func TestWalkThrough_7_3_KeyAlgorithm(t *testing.T) {
 	}
 }
 
-// Scenario 6: ALTER TABLE COALESCE PARTITION 2 on HASH table (4→2)
+// Scenario 6: OceanBase has no COALESCE PARTITION (4.3.5.6 answers 1064).
 func TestWalkThrough_7_3_CoalesceHash(t *testing.T) {
 	c := wtSetup(t)
 
@@ -216,25 +193,16 @@ func TestWalkThrough_7_3_CoalesceHash(t *testing.T) {
 		val INT NOT NULL
 	) PARTITION BY HASH (id) PARTITIONS 4`)
 
+	if _, err := c.Exec(`ALTER TABLE t6 COALESCE PARTITION 2`, nil); err == nil {
+		t.Fatal("expected parse error for COALESCE PARTITION; OceanBase answers 1064")
+	}
 	tbl := c.GetDatabase("testdb").GetTable("t6")
 	if tbl.Partitioning.NumParts != 4 {
-		t.Fatalf("expected NumParts 4 before COALESCE, got %d", tbl.Partitioning.NumParts)
-	}
-
-	wtExec(t, c, `ALTER TABLE t6 COALESCE PARTITION 2`)
-
-	tbl = c.GetDatabase("testdb").GetTable("t6")
-	if tbl.Partitioning.NumParts != 2 {
-		t.Errorf("expected NumParts 2 after COALESCE, got %d", tbl.Partitioning.NumParts)
-	}
-
-	ddl := c.ShowCreateTable("testdb", "t6")
-	if !strings.Contains(ddl, "PARTITIONS 2") {
-		t.Errorf("expected PARTITIONS 2 in DDL:\n%s", ddl)
+		t.Errorf("expected NumParts 4 preserved after refused COALESCE, got %d", tbl.Partitioning.NumParts)
 	}
 }
 
-// Scenario 7: ALTER TABLE COALESCE PARTITION on KEY table
+// Scenario 7: OceanBase has no COALESCE PARTITION on KEY tables either.
 func TestWalkThrough_7_3_CoalesceKey(t *testing.T) {
 	c := wtSetup(t)
 
@@ -243,21 +211,12 @@ func TestWalkThrough_7_3_CoalesceKey(t *testing.T) {
 		val INT NOT NULL
 	) PARTITION BY KEY (id) PARTITIONS 4`)
 
+	if _, err := c.Exec(`ALTER TABLE t7 COALESCE PARTITION 2`, nil); err == nil {
+		t.Fatal("expected parse error for COALESCE PARTITION; OceanBase answers 1064")
+	}
 	tbl := c.GetDatabase("testdb").GetTable("t7")
 	if tbl.Partitioning.NumParts != 4 {
-		t.Fatalf("expected NumParts 4 before COALESCE, got %d", tbl.Partitioning.NumParts)
-	}
-
-	wtExec(t, c, `ALTER TABLE t7 COALESCE PARTITION 2`)
-
-	tbl = c.GetDatabase("testdb").GetTable("t7")
-	if tbl.Partitioning.NumParts != 2 {
-		t.Errorf("expected NumParts 2 after COALESCE, got %d", tbl.Partitioning.NumParts)
-	}
-
-	ddl := c.ShowCreateTable("testdb", "t7")
-	if !strings.Contains(ddl, "PARTITIONS 2") {
-		t.Errorf("expected PARTITIONS 2 in DDL:\n%s", ddl)
+		t.Errorf("expected NumParts 4 preserved after refused COALESCE, got %d", tbl.Partitioning.NumParts)
 	}
 }
 

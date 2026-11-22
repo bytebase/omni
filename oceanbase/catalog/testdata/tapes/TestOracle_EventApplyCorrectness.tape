@@ -23,13 +23,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -73,13 +73,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -123,13 +123,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -173,13 +173,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -223,13 +223,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -273,13 +273,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -323,13 +323,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -376,13 +376,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 > exec
@@ -407,13 +407,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -457,13 +457,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -510,13 +510,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -560,13 +560,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -610,13 +610,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -663,13 +663,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -713,13 +713,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -763,13 +763,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -816,13 +816,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -866,13 +866,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -916,13 +916,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -969,13 +969,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1032,13 +1032,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1082,13 +1082,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1135,13 +1135,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1185,13 +1185,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1235,13 +1235,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1288,13 +1288,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1338,13 +1338,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1388,13 +1388,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1441,13 +1441,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1491,13 +1491,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1541,13 +1541,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1594,13 +1594,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1644,13 +1644,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1694,13 +1694,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1747,13 +1747,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1797,13 +1797,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1847,13 +1847,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1888,7 +1888,10 @@
 | CREATE EVENT e ON SCHEDULE EVERY 1 HOUR COMMENT 'old' DO SET @x = 1
 < ok 0 0
 > exec
-| ALTER EVENT `e` ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SET @x = 1
+| DROP EVENT IF EXISTS `e`
+< ok 0 0
+> exec
+| CREATE EVENT `e` ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SET @x = 1
 < ok 0 0
 > query
 | SELECT EVENT_TYPE, IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), ''),
@@ -1900,13 +1903,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -1925,7 +1928,7 @@
 : bytes
 | NOT PRESERVE
 : bytes
-| old
+|
 : bytes
 | SET @x = 1;
 > exec
@@ -1950,13 +1953,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2000,13 +2003,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2056,13 +2059,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2106,13 +2109,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2156,13 +2159,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2209,13 +2212,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2259,13 +2262,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2309,13 +2312,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2362,13 +2365,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2412,13 +2415,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2462,13 +2465,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row
@@ -2515,13 +2518,13 @@
 : string
 | e
 < result
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "IFNULL(DATE_FORMAT(EXECUTE_AT, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
 < column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
 < column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
 < column "IFNULL(DATE_FORMAT(ENDS, '%Y-%m-%d %H:%i:%s'), '')" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 < column "IFNULL(EVENT_COMMENT, '')" "TEXT"
 < column "EVENT_DEFINITION" "TEXT"
 < row

@@ -14,6 +14,9 @@ func splitCommands(script string) ([]driver.Command, error) {
 	}
 	commands := make([]driver.Command, 0, len(statements))
 	for _, stmt := range statements {
+		if stmt.Empty {
+			continue
+		}
 		commands = append(commands, driver.Command{Text: stmt.Text, ByteStart: stmt.Start, ByteEnd: stmt.End})
 	}
 	return commands, nil

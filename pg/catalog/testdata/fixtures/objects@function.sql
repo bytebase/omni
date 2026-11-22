@@ -1,0 +1,3 @@
+CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+CREATE FUNCTION a() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+CREATE FUNCTION "authorization"() RETURNS int LANGUAGE sql AS 'SELECT 1';

@@ -48,11 +48,11 @@ func makeDomainTypname(schema, name string) *nodes.List {
 }
 
 func makeAlterDomainSetNotNull(schema, name string) *nodes.AlterDomainStmt {
-	return &nodes.AlterDomainStmt{Subtype: 'N', Typname: makeDomainTypname(schema, name)}
+	return &nodes.AlterDomainStmt{Subtype: 'O', Typname: makeDomainTypname(schema, name)}
 }
 
 func makeAlterDomainDropNotNull(schema, name string) *nodes.AlterDomainStmt {
-	return &nodes.AlterDomainStmt{Subtype: 'O', Typname: makeDomainTypname(schema, name)}
+	return &nodes.AlterDomainStmt{Subtype: 'N', Typname: makeDomainTypname(schema, name)}
 }
 
 func makeAlterDomainSetDefault(schema, name, defaultExpr string) *nodes.AlterDomainStmt {

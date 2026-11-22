@@ -242,7 +242,7 @@ func showCreateTrigger(tr *Trigger) string {
 
 	// DEFINER
 	if tr.Definer != "" {
-		b.WriteString(fmt.Sprintf(" DEFINER=%s", tr.Definer))
+		b.WriteString(fmt.Sprintf(" DEFINER=%s", formatDefiner(tr.Definer)))
 	}
 
 	// MariaDB echoes the statement the trigger was created by, so where this

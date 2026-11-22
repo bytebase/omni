@@ -19,12 +19,19 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if !ok {
 		return false
 	}
+	if hasModifyVarrayShrink(b.w.sql, v.Actions) {
+		// Oracle 23 accepts ALTER TABLE ... MODIFY VARRAY ... (SHRINK SPACE [CASCADE])
+		// even when the table does not exist or names a non-table object (verified).
+		return false
+	}
 	var cmds []*ast.AlterTableCmd
+	unfollowed := false
 	if v.Actions != nil {
 		for _, item := range v.Actions.Items {
 			c, ok := item.(*ast.AlterTableCmd)
 			if !ok || !alterFollowed(c) {
-				return false
+				unfollowed = true
+				continue
 			}
 			cmds = append(cmds, c)
 		}
@@ -34,17 +41,68 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	k := r.key(spaceTable)
-	if b.heldByOther(k, r, kindTable) {
+	if !unfollowed && alterFollowsSynonym(cmds) {
+		// ALTER TABLE ... MOVE and ALTER TABLE ... MODIFY PARTITION BY ...
+		// follow private and public synonyms in Oracle 23 (verified).
+		if f, _ := b.look(k); f == walk.Absent {
+			if objFact, objKind := b.look(r.key(spaceObject)); objFact == walk.Present {
+				if objKind == kindSynonym {
+					b.Last = true
+					return true
+				}
+				if objKind != "" && objKind != kindTable && objKind != kindMView {
+					b.heldByOther(k, r, kindTable)
+					return true
+				}
+			}
+			if !generated(spaceTable, r.name) {
+				keys := []walk.Key{k, r.key(spaceSynonym)}
+				if v.Name.Schema == "" {
+					keys = append(keys, publicKey(r.name))
+				}
+				allAbsent := true
+				for _, sk := range keys {
+					if sf, _ := b.look(sk); sf != walk.Absent {
+						allAbsent = false
+						break
+					}
+				}
+				if allAbsent {
+					b.Fail(keys, walk.Absent, noteOf(r.rng, review.ObjectNotFound, missingTable(r.written)))
+					return true
+				}
+			}
+			b.Last = true
+			return true
+		}
+	} else {
+		if b.heldByOther(k, r, kindTable) {
+			return true
+		}
+		f, _ := b.look(k)
+		b.need(k, walk.Present, nil, r.rng, missingTable(r.written), "")
+		if f == walk.Absent {
+			return true
+		}
+	}
+	if unfollowed {
+		// Table existence has been verified, but an unfollowed clause may add
+		// hidden columns or constraints, so stop walking after this statement.
+		b.Last = true
 		return true
 	}
-	f, kind := b.look(k)
-	b.need(k, walk.Present, nil, r.rng, missingTable(r.written), "")
-	if f == walk.Absent {
-		return true
-	}
+	_, kind := b.look(k)
 	declared, fails := b.alterTextFails(cmds, r)
 	if fails {
 		return true
+	}
+	addedCols := make(map[string]bool)
+	for _, c := range cmds {
+		if c.Action == ast.AT_ADD_COLUMN {
+			for _, col := range alterColumns(c) {
+				addedCols[col.Name] = true
+			}
+		}
 	}
 	b.Last = b.domain(r)
 	for _, c := range cmds {
@@ -52,7 +110,48 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		if c.Action == ast.AT_RENAME && kind == kindMView {
 			return false
 		}
-		if !b.alterCmd(r, c, declared) {
+		if !b.alterCmd(r, kind, c, declared, addedCols) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasModifyVarrayShrink reports whether any action is MODIFY VARRAY ... (SHRINK SPACE ...),
+// which Oracle 23 accepts as a no-op even when the table is missing or another kind.
+func hasModifyVarrayShrink(sql string, actions *ast.List) bool {
+	if actions == nil {
+		return false
+	}
+	for _, item := range actions.Items {
+		c, ok := item.(*ast.AlterTableCmd)
+		if !ok || c.Action != ast.AT_MODIFY_VARRAY {
+			continue
+		}
+		toks := tokens(sql, c.Loc)
+		inParen := false
+		for i, tok := range toks {
+			if tok.Type == tokenOpenParen {
+				inParen = true
+				continue
+			}
+			if inParen && tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "SHRINK") &&
+				i+1 < len(toks) && toks[i+1].Type != tokenQuoted && strings.EqualFold(toks[i+1].Str, "SPACE") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// alterFollowsSynonym reports whether every clause of an ALTER TABLE is one
+// that follows synonyms in Oracle 23 (MOVE and MODIFY PARTITION BY).
+func alterFollowsSynonym(cmds []*ast.AlterTableCmd) bool {
+	if len(cmds) == 0 {
+		return false
+	}
+	for _, c := range cmds {
+		if c.Action != ast.AT_MOVE && c.Action != ast.AT_MODIFY_TO_PARTITIONED {
 			return false
 		}
 	}
@@ -73,6 +172,7 @@ var alterProperties = map[string]bool{
 	"SEGMENT CREATION IMMEDIATE": true, "SEGMENT CREATION DEFERRED": true, "MEMOPTIMIZE FOR READ": true,
 	"NO MEMOPTIMIZE FOR READ": true, "MEMOPTIMIZE FOR WRITE": true, "NO MEMOPTIMIZE FOR WRITE": true,
 	"ILM": true, "UPGRADE": true, "DEFAULT COLLATION": true, "CLUSTERING": true, "NO CLUSTERING": true,
+	"MODIFY COLUMN SUBSTITUTABLE": true,
 }
 
 // alterFollowed reports whether the walk follows a clause of ALTER TABLE.
@@ -197,7 +297,7 @@ func (b *builder) cascadesConstraints(c *ast.AlterTableCmd) bool {
 	return cascades(b.w.sql, c.Loc)
 }
 
-func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bool {
+func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared []string, addedCols map[string]bool) bool {
 	rng := rangeOf(c.Loc)
 	switch c.Action {
 	case ast.AT_ADD_COLUMN:
@@ -207,6 +307,10 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		}
 		var d tableDecl
 		for _, col := range alterColumns(c) {
+			if columnMissingDatatype(col) {
+				b.fail(rangeOf(col.Loc), review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" must specify a datatype.")
+				return true
+			}
 			ck := r.childKey(spaceColumn, col.Name)
 			b.need(ck, walk.Absent, nil, rangeOf(col.Loc), "", takenColumn(col.Name, r.written))
 			b.Set(ck, walk.Present, "")
@@ -256,6 +360,13 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		if c.Constraint == nil {
 			return false
 		}
+		if c.Constraint.Columns != nil {
+			for _, item := range c.Constraint.Columns.Items {
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") && !addedCols[s.Str] {
+					b.columnNeeds(r, s.Str, rng)
+				}
+			}
+		}
 		var d tableDecl
 		b.declareConstraint(&d, c.Constraint)
 		b.declChecks(&d, r)
@@ -286,19 +397,108 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 	case ast.AT_DROP_UNUSED_COLUMNS:
 		// An unused nested table column's storage table goes now.
 		b.forgetStorage(r)
+	case ast.AT_MODIFY_NESTED_TABLE:
+		if c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") && !strings.EqualFold(c.ColumnName, "COLUMN_VALUE") {
+			b.columnNeeds(r, c.ColumnName, rng)
+		}
+	case ast.AT_MODIFY_LOB:
+		if col := b.modifyLobColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
+			b.columnNeeds(r, col, rng)
+		}
+	case ast.AT_MODIFY_VARRAY:
+		if col := b.modifyVarrayColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
+			b.columnNeeds(r, col, rng)
+		}
+	case ast.AT_ALTER_PROPERTY:
+		if c.Subtype == "MODIFY COLUMN SUBSTITUTABLE" && c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") {
+			b.columnNeeds(r, c.ColumnName, rng)
+		}
+	case ast.AT_MODIFY_TO_PARTITIONED:
+		if kind == kindMView {
+			// ORA-14427: cannot modify a materialized view to partitioned.
+			b.need(r.key(spaceTable), walk.Present, []string{kindTable}, r.rng, "", wrongKind(r.written, kindMView, kindWord(kindTable)))
+			return true
+		}
+		if kind == kindTable {
+			for _, col := range b.partitionByColumns(c.Loc) {
+				b.columnNeeds(r, col, rng)
+			}
+		}
 	case ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK, ast.AT_MOVE,
-		ast.AT_SHRINK_SPACE, ast.AT_ALTER_PROPERTY, ast.AT_MODIFY_LOB, ast.AT_MODIFY_VARRAY, ast.AT_MODIFY_NESTED_TABLE,
-		ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
+		ast.AT_SHRINK_SPACE, ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
 		ast.AT_ADD_PARTITION, ast.AT_DROP_PARTITION, ast.AT_TRUNCATE_PARTITION, ast.AT_SPLIT_PARTITION,
 		ast.AT_SPLIT_SUBPARTITION, ast.AT_MERGE_PARTITIONS, ast.AT_MERGE_SUBPARTITIONS, ast.AT_EXCHANGE_PARTITION,
 		ast.AT_COALESCE_PARTITION, ast.AT_COALESCE_SUBPARTITION, ast.AT_MODIFY_PARTITION, ast.AT_MODIFY_SUBPARTITION,
 		ast.AT_MODIFY_DEFAULT_ATTRS, ast.AT_DROP_SUBPARTITION, ast.AT_RENAME_PARTITION, ast.AT_SET_INTERVAL,
-		ast.AT_SET_PARTITIONING, ast.AT_SET_SUBPARTITION_TEMPLATE, ast.AT_MODIFY_TO_PARTITIONED, ast.AT_MODIFY_PARTITIONSET:
+		ast.AT_SET_PARTITIONING, ast.AT_SET_SUBPARTITION_TEMPLATE, ast.AT_MODIFY_PARTITIONSET:
 		// Storage, partitions, and properties: no name the walk keeps.
 	default:
 		return false
 	}
 	return true
+}
+
+// modifyLobColumn extracts the top-level column name from MODIFY LOB ( col ... ).
+func (b *builder) modifyLobColumn(loc ast.Loc) string {
+	toks := tokens(b.w.sql, loc)
+	for i, tok := range toks {
+		if tok.Type == tokenOpenParen && i+1 < len(toks) {
+			if name, ok := tokenName(toks[i+1]); ok {
+				return name
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// modifyVarrayColumn extracts the top-level column name from MODIFY VARRAY col (...).
+func (b *builder) modifyVarrayColumn(loc ast.Loc) string {
+	toks := tokens(b.w.sql, loc)
+	for i, tok := range toks {
+		if tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "VARRAY") && i+1 < len(toks) {
+			if name, ok := tokenName(toks[i+1]); ok {
+				return name
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// partitionByColumns extracts the partitioning key columns from
+// MODIFY PARTITION BY {RANGE|LIST|HASH} (col1, col2, ...).
+// PARTITION BY REFERENCE names a constraint, not a column, and returns nil.
+func (b *builder) partitionByColumns(loc ast.Loc) []string {
+	toks := tokens(b.w.sql, loc)
+	isWord := func(i int, w string) bool {
+		return i < len(toks) && toks[i].Type != tokenQuoted && strings.EqualFold(toks[i].Str, w)
+	}
+	for i := 0; i+3 < len(toks); i++ {
+		if !isWord(i, "PARTITION") || !isWord(i+1, "BY") {
+			continue
+		}
+		if !isWord(i+2, "RANGE") && !isWord(i+2, "LIST") && !isWord(i+2, "HASH") {
+			return nil
+		}
+		j := i + 3
+		if toks[j].Type != tokenOpenParen {
+			return nil
+		}
+		var out []string
+		for j++; j < len(toks) && toks[j].Type != tokenCloseParen; j++ {
+			if toks[j].Type == tokenComma {
+				continue
+			}
+			if name, ok := tokenName(toks[j]); ok {
+				out = append(out, name)
+			} else {
+				return nil
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // constraintNeeds checks that a constraint the clause names is the
@@ -351,6 +551,13 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 		b.Set(pk, walk.Absent, "")
 		b.dropsConstraints(r)
 	case c.Subtype == "UNIQUE":
+		if c.Constraint != nil && c.Constraint.Columns != nil {
+			for _, item := range c.Constraint.Columns.Items {
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
+					b.columnNeeds(r, s.Str, rng)
+				}
+			}
+		}
 		b.dropsConstraints(r)
 	case c.Constraint != nil && c.Constraint.Name != "":
 		name := c.Constraint.Name
@@ -392,6 +599,11 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})
 		}
 	case strings.HasSuffix(c.Subtype, "PRIMARY KEY"), strings.HasSuffix(c.Subtype, "UNIQUE"):
+		if strings.HasSuffix(c.Subtype, "UNIQUE") {
+			for _, col := range b.uniqueClauseColumns(c) {
+				b.columnNeeds(r, col, rng)
+			}
+		}
 		// The constraint's name, and so its index's, is not in the text.
 		b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})
 	default:
@@ -399,4 +611,46 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 	}
 	b.dropIndexes(r)
 	return true
+}
+
+// uniqueClauseColumns returns the column names listed in an ENABLE/DISABLE/MODIFY
+// UNIQUE (col1, col2, ...) clause.
+func (b *builder) uniqueClauseColumns(c *ast.AlterTableCmd) []string {
+	if c.Constraint != nil && c.Constraint.Columns != nil {
+		var out []string
+		for _, item := range c.Constraint.Columns.Items {
+			if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
+				out = append(out, s.Str)
+			}
+		}
+		return out
+	}
+	toks := tokens(b.w.sql, c.Loc)
+	for i, tok := range toks {
+		if tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "UNIQUE") && i+1 < len(toks) && toks[i+1].Type == tokenOpenParen {
+			var out []string
+			for j := i + 2; j < len(toks) && toks[j].Type != tokenCloseParen; j++ {
+				if toks[j].Type == tokenComma {
+					continue
+				}
+				if j+1 < len(toks) && toks[j+1].Str == "." {
+					// Skip dotted object-attribute paths (e.g. o.x).
+					for j < len(toks) && toks[j].Type != tokenComma && toks[j].Type != tokenCloseParen {
+						j++
+					}
+					if j < len(toks) && toks[j].Type == tokenCloseParen {
+						break
+					}
+					continue
+				}
+				if name, ok := tokenName(toks[j]); ok {
+					out = append(out, name)
+				} else {
+					return nil
+				}
+			}
+			return out
+		}
+	}
+	return nil
 }

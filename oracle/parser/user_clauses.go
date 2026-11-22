@@ -89,8 +89,11 @@ func (p *Parser) parseUserClauses(alter bool, c *userClauses) error {
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
-		case p.cur.Type == kwENABLE && p.isIdentLikeStrAt(p.peekNext(), "EDITIONS"):
+		case p.cur.Type == kwENABLE && (p.isIdentLikeStrAt(p.peekNext(), "EDITIONS") || (!alter && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';'))):
 			p.advance()
+			if !p.isKeywordStr("EDITIONS") {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
 			c.enableEditions = true
 			err = p.parseUserEditionsFor()

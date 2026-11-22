@@ -136,16 +136,10 @@ func TestScenario_C6(t *testing.T) {
 		// OceanBase has no LINEAR partitioning: the keyword is a syntax error.
 		const ddl = `CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4`
 		oracleRefuses(t, mc, ddl, 1064)
-
-		// omni gap: the parser takes LINEAR and the catalog keeps it, as for
-		// MySQL.
-		assertIntEq(t, "omni LINEAR HASH error code", omniCode(c, ddl), 0)
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil || tbl.Partitioning == nil {
-			t.Errorf("omni: table or partitioning missing")
-			return
+		assertIntEq(t, "omni LINEAR HASH error code", omniCode(c, ddl), -1)
+		if tbl := c.GetDatabase("testdb").GetTable("t"); tbl != nil {
+			t.Errorf("omni: table t should not exist after refused LINEAR HASH")
 		}
-		assertBoolEq(t, "omni Linear", tbl.Partitioning.Linear, true)
 	})
 
 	// --- 6.7 RANGE/LIST require explicit partition definitions ---------
@@ -236,17 +230,15 @@ func TestScenario_C6(t *testing.T) {
 		ddl := `CREATE TABLE t (c INT) PARTITION BY LIST(c)
              (PARTITION p0 VALUES IN (1,2), PARTITION pd VALUES IN (DEFAULT))`
 		// OceanBase has a DEFAULT list partition, which MySQL 8.0 rejects.
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
-			t.Fatalf("oracle: LIST DEFAULT partition: %v", err)
-		}
+		runOnBoth(t, mc, c, ddl)
 		names := oraclePartitionNames(t, mc, "t")
 		assertStringEq(t, "oracle partition names", strings.Join(names, ","), "p0,pd")
-
-		// omni gap: the catalog rejects the syntax, as MySQL does.
-		results, err := c.Exec(ddl, nil)
-		if c6ExecError(results, err) == nil {
-			t.Fatalf("omni: LIST DEFAULT partition is now accepted: drop the gap above")
+		tbl := c.GetDatabase("testdb").GetTable("t")
+		if tbl == nil || tbl.Partitioning == nil {
+			t.Fatalf("omni: table or partitioning missing")
 		}
+		assertStringEq(t, "omni partition names", strings.Join(c6OmniPartitionNames(tbl), ","), "p0,pd")
+		assertStringEq(t, "omni default partition value", tbl.Partitioning.Partitions[1].ValueExpr, "DEFAULT")
 	})
 
 	// --- 6.11 Partition function result must be INTEGER --------------
@@ -432,28 +424,15 @@ func TestScenario_C6(t *testing.T) {
 		assertStringEq(t, "oracle partition names after the refused COALESCE",
 			strings.Join(names, ","), "p0,p1,p2,p3,p4,p5")
 
-		// omni gap: the catalog runs the ALTER and drops the tail, as MySQL
-		// does.
-		want := []string{"p0", "p1", "p2", "p3"}
-
-		results, err := c.Exec(coalesce, nil)
-		if err != nil {
-			t.Errorf("omni: COALESCE parse error: %v", err)
-			return
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: COALESCE exec error: %v", r.Error)
-			}
-		}
+		assertIntEq(t, "omni COALESCE PARTITION error code", omniCode(c, coalesce), -1)
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
 			t.Errorf("omni: table/partitioning missing")
 			return
 		}
 		omniNames := c6OmniPartitionNames(tbl)
-		assertStringEq(t, "omni partition names after COALESCE",
-			strings.Join(omniNames, ","), strings.Join(want, ","))
+		assertStringEq(t, "omni partition names after refused COALESCE",
+			strings.Join(omniNames, ","), "p0,p1,p2,p3,p4,p5")
 	})
 }
 

@@ -1124,41 +1124,37 @@ func (p *Parser) parseTableFunctionCall() (*TableFunctionCall, error) {
 	}
 	call := &TableFunctionCall{Name: name, Loc: ast.Loc{Start: name.Loc.Start}}
 
-	// Argument list (possibly empty). COPARTITION is non-reserved, so a leading
-	// COPARTITION is the COPARTITION clause only when it is NOT a `copartition =>`
-	// named argument (atCopartitionClause); otherwise it begins an argument.
-	if p.cur.Kind != int(')') && !p.atCopartitionClause() {
-		first, err := p.parseTableFunctionArgument()
-		if err != nil {
-			return nil, err
-		}
-		call.Args = []TableFunctionArgument{first}
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			next, err := p.parseTableFunctionArgument()
-			if err != nil {
-				return nil, err
+	// COPARTITION is non-reserved, so at the start of the argument list it can
+	// introduce either the COPARTITION clause (no arguments) or a function-call
+	// expression argument (`copartition(a, b), c`). Try the COPARTITION clause
+	// first and fall back to the argument list if it does not close cleanly.
+	if p.cur.Kind != int(')') && p.atCopartitionClause() {
+		cp := p.checkpoint()
+		groups, copErr := p.parseCopartitionClause()
+		if copErr == nil {
+			if closeTok, err := p.expect(int(')')); err == nil {
+				call.Copartition = groups
+				call.Loc.End = closeTok.Loc.End
+				return call, nil
+			} else {
+				copErr = err
 			}
-			call.Args = append(call.Args, next)
 		}
+		p.restore(cp)
+		if err := p.parseTableFunctionArgsAndCopartition(call); err != nil {
+			return nil, furtherError(copErr, err)
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, furtherError(copErr, err)
+		}
+		call.Loc.End = closeTok.Loc.End
+		return call, nil
 	}
 
-	// Optional COPARTITION groups: one COPARTITION keyword followed by a
-	// comma-separated list of table groups.
-	if p.atCopartitionClause() {
-		p.advance() // consume COPARTITION
-		group, err := p.parseCopartitionTables()
-		if err != nil {
+	if p.cur.Kind != int(')') {
+		if err := p.parseTableFunctionArgsAndCopartition(call); err != nil {
 			return nil, err
-		}
-		call.Copartition = append(call.Copartition, group)
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			next, err := p.parseCopartitionTables()
-			if err != nil {
-				return nil, err
-			}
-			call.Copartition = append(call.Copartition, next)
 		}
 	}
 
@@ -1168,6 +1164,52 @@ func (p *Parser) parseTableFunctionCall() (*TableFunctionCall, error) {
 	}
 	call.Loc.End = closeTok.Loc.End
 	return call, nil
+}
+
+// parseTableFunctionArgsAndCopartition parses the non-empty argument list of a
+// tableFunctionCall followed by its optional trailing COPARTITION clause.
+func (p *Parser) parseTableFunctionArgsAndCopartition(call *TableFunctionCall) error {
+	first, err := p.parseTableFunctionArgument()
+	if err != nil {
+		return err
+	}
+	call.Args = []TableFunctionArgument{first}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		next, err := p.parseTableFunctionArgument()
+		if err != nil {
+			return err
+		}
+		call.Args = append(call.Args, next)
+	}
+
+	if p.atCopartitionClause() {
+		groups, err := p.parseCopartitionClause()
+		if err != nil {
+			return err
+		}
+		call.Copartition = groups
+	}
+	return nil
+}
+
+// parseCopartitionClause parses `COPARTITION copartitionTables (, copartitionTables)*`.
+func (p *Parser) parseCopartitionClause() ([][]*ast.QualifiedName, error) {
+	p.advance() // consume COPARTITION
+	group, err := p.parseCopartitionTables()
+	if err != nil {
+		return nil, err
+	}
+	groups := [][]*ast.QualifiedName{group}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		next, err := p.parseCopartitionTables()
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, next)
+	}
+	return groups, nil
 }
 
 // parseTableFunctionArgument parses one `tableFunctionArgument`: an optional
@@ -1365,25 +1407,23 @@ func (p *Parser) parseParenOrBareSortItems() ([]SortItem, int, error) {
 		return nil, 0, err
 	}
 	if p.cur.Kind == int('(') {
+		cp := p.checkpoint()
 		p.advance() // consume '('
-		first, err := p.parseSortItem()
-		if err != nil {
-			return nil, 0, err
+		items, closeTok, parenErr := p.parseParenSortItemList()
+		if parenErr == nil && (p.cur.Kind == int(',') || p.cur.Kind == int(')') || p.cur.Kind == kwCOPARTITION) {
+			return items, closeTok.Loc.End, nil
 		}
-		items := []SortItem{first}
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			next, err := p.parseSortItem()
-			if err != nil {
-				return nil, 0, err
-			}
-			items = append(items, next)
+		if parenErr == nil {
+			parenErr = p.syntaxErrorAtCur()
 		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
-			return nil, 0, err
+		// Fall back to a single bare sortItem whose expression begins with '('
+		// (e.g. `ORDER BY (x + 1) DESC` or a lambda `ORDER BY () -> 1`).
+		p.restore(cp)
+		first, bareErr := p.parseSortItem()
+		if bareErr == nil {
+			return []SortItem{first}, first.Loc.End, nil
 		}
-		return items, closeTok.Loc.End, nil
+		return nil, 0, furtherError(parenErr, bareErr)
 	}
 	first, err := p.parseSortItem()
 	if err != nil {
@@ -1399,6 +1439,29 @@ func (p *Parser) parseParenOrBareSortItems() ([]SortItem, int, error) {
 		items = append(items, next)
 	}
 	return items, items[len(items)-1].Loc.End, nil
+}
+
+// parseParenSortItemList parses `sortItem (, sortItem)* )` after the opening '('
+// of a table-argument `ORDER BY ( ... )` clause has been consumed.
+func (p *Parser) parseParenSortItemList() ([]SortItem, Token, error) {
+	first, err := p.parseSortItem()
+	if err != nil {
+		return nil, Token{}, err
+	}
+	items := []SortItem{first}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		next, err := p.parseSortItem()
+		if err != nil {
+			return nil, Token{}, err
+		}
+		items = append(items, next)
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, Token{}, err
+	}
+	return items, closeTok, nil
 }
 
 // tryParseDescriptorArg parses a `descriptorArgument`:

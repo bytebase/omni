@@ -139,7 +139,9 @@ type Lexer struct {
 	newlines *newlineIndex
 
 	// Error
-	Err error
+	Err       error
+	errLoc    int
+	hasErrLoc bool
 }
 
 // ccRecord records where conditional compilation was used, for the checks
@@ -1194,6 +1196,8 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 
 	if !terminated {
 		l.Err = fmt.Errorf("unterminated block comment")
+		l.errLoc = l.start
+		l.hasErrLoc = true
 		return Token{Type: tokEOF, Loc: l.start}
 	}
 
@@ -1230,6 +1234,8 @@ func (l *Lexer) lexSingleQuotedString() string {
 	}
 
 	l.Err = fmt.Errorf("unterminated string literal")
+	l.errLoc = l.start
+	l.hasErrLoc = true
 	return buf.String()
 }
 
@@ -1239,6 +1245,8 @@ func (l *Lexer) lexQQuote() Token {
 
 	if l.pos >= l.end {
 		l.Err = fmt.Errorf("unterminated q-quote string")
+		l.errLoc = l.start
+		l.hasErrLoc = true
 		return Token{Type: tokEOF, Loc: l.start}
 	}
 
@@ -1279,6 +1287,8 @@ func (l *Lexer) lexQQuote() Token {
 	}
 
 	l.Err = fmt.Errorf("unterminated q-quote string")
+	l.errLoc = l.start
+	l.hasErrLoc = true
 	return Token{Type: tokEOF, Loc: l.start}
 }
 
@@ -1307,6 +1317,8 @@ func (l *Lexer) lexDoubleQuotedIdent() Token {
 			str := buf.String()
 			if str == "" {
 				l.Err = fmt.Errorf("zero-length delimited identifier")
+				l.errLoc = l.start
+				l.hasErrLoc = true
 				return Token{Type: tokEOF, Loc: l.start}
 			}
 			if quote {
@@ -1319,6 +1331,8 @@ func (l *Lexer) lexDoubleQuotedIdent() Token {
 	}
 
 	l.Err = fmt.Errorf("unterminated quoted identifier")
+	l.errLoc = l.start
+	l.hasErrLoc = true
 	return Token{Type: tokEOF, Loc: l.start}
 }
 

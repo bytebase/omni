@@ -17,7 +17,7 @@ import (
 //	    GROUP log_group ( column [ NO LOG ] [, column [ NO LOG ] ]... ) [ ALWAYS ]
 //	supplemental_id_key_clause:
 //	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
-func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *nodes.List) error {
+func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *nodes.List, suppTok ...Token) error {
 	if err := p.atExpectWord("LOG"); err != nil {
 		return err
 	}
@@ -32,9 +32,7 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 			// Each kind of key stands once (ORA-32586).
 			seen := map[int]bool{}
 			for {
-				if seen[p.cur.Type] {
-					return p.syntaxErrorAtCur()
-				}
+				dup := seen[p.cur.Type]
 				seen[p.cur.Type] = true
 				switch {
 				case p.cur.Type == kwALL, p.cur.Type == kwUNIQUE:
@@ -45,6 +43,9 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 						return err
 					}
 				default:
+					return p.syntaxErrorAtCur()
+				}
+				if dup {
 					return p.syntaxErrorAtCur()
 				}
 				if objectProperties || p.cur.Type != ',' {
@@ -74,6 +75,9 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 			}
 		case p.cur.Type == kwGROUP:
 			p.advance()
+			if p.cur.Type == '(' && len(suppTok) > 0 {
+				return p.syntaxErrorAtTok(suppTok[0])
+			}
 			if err := p.parseATName(); err != nil {
 				return err
 			}
@@ -81,10 +85,16 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 				if err := p.atExpect('('); err != nil {
 					return err
 				}
+				seenCols := map[string]bool{}
 				for {
+					colTok := p.cur
 					if err := p.parseATName(); err != nil {
 						return err
 					}
+					if seenCols[colTok.Str] {
+						return p.syntaxErrorAtTok(colTok)
+					}
+					seenCols[colTok.Str] = true
 					if p.atWord("NO") {
 						p.advance()
 						if err := p.atExpectWord("LOG"); err != nil {
@@ -185,7 +195,7 @@ func (p *Parser) parseATColumnProperties(opts *nodes.List) error {
 		case p.cur.Type == kwNESTED:
 			err = p.parseATNestedTableStorage()
 		case p.isATLobStorageStart() || p.atWord("LOB"):
-			if err = p.parseATLobStorage(); err == nil && p.cur.Type == '(' && p.peekNext().Type == kwPARTITION {
+			if err = p.parseATLobStorage(); err == nil && p.cur.Type == '(' {
 				err = p.parseATLobPartitionStorage()
 			}
 		case p.atWord("XMLTYPE"):
@@ -239,6 +249,7 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 		}
 		return p.atOneOf("LOBS", "TABLES")
 	}
+	objectRelational := false
 	if p.atWord("STORE") {
 		p.advance()
 		if p.cur.Type == kwALL {
@@ -254,6 +265,7 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 				if err := p.atExpectWord("RELATIONAL"); err != nil {
 					return err
 				}
+				objectRelational = true
 			} else {
 				p.atOptOneOf("SECUREFILE", "BASICFILE")
 				clob := p.cur.Type == kwCLOB
@@ -298,14 +310,18 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 			return err
 		}
 		if p.atWord("STORE") {
-			p.advance()
+			storeTok := p.advance()
 			if p.cur.Type != kwALL {
-				return p.syntaxErrorAtCur()
+				return p.syntaxErrorAtTok(storeTok)
 			}
 			if err := storeAllVarrays(); err != nil {
 				return err
 			}
 		}
+	} else if objectRelational {
+		// STORE AS OBJECT RELATIONAL requires an XMLSCHEMA/ELEMENT specification
+		// (ORA-19002).
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }

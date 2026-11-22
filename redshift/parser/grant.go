@@ -87,9 +87,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	grantOptionWithFor := false
 	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
 	if p.cur.Type == GRANT {
-		// r_REVOKE's scoped forms write 'GRANT_OPTION' as one token, and the
-		// notes beside them write GRANT OPTION: the one-token spelling is the
-		// docs' notation, not SQL, and stays rejected.
+		// r_REVOKE's FOR COPY JOBS form writes 'GRANT_OPTION' as one token
+		// while the other scoped forms write GRANT OPTION: the one-token
+		// spelling is a docs typo, not SQL, and stays rejected.
 		p.advance()
 		if _, err := p.expect(OPTION); err != nil {
 			return nil, err

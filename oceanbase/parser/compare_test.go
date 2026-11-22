@@ -3840,14 +3840,10 @@ func TestParseAlterTableDropPartition(t *testing.T) {
 }
 
 func TestParseAlterTableCoalescePartition(t *testing.T) {
-	t.Run("coalesce partition", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t COALESCE PARTITION 4")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATCoalescePartition {
-			t.Errorf("Type = %d, want ATCoalescePartition", cmd.Type)
-		}
-		if cmd.Number != 4 {
-			t.Errorf("Number = %d, want 4", cmd.Number)
+	// OceanBase has no COALESCE PARTITION (4.3.5.6 answers 1064).
+	t.Run("coalesce partition rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t COALESCE PARTITION 4"); err == nil {
+			t.Errorf("Parse(COALESCE PARTITION) succeeded; OceanBase answers 1064")
 		}
 	})
 }
@@ -3869,8 +3865,22 @@ func TestParseAlterTableReorganizePartition(t *testing.T) {
 }
 
 func TestParseAlterTableExchangePartition(t *testing.T) {
-	t.Run("exchange partition", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2")
+	// OceanBase's EXCHANGE PARTITION requires WITHOUT VALIDATION (4.3.5.6 answers
+	// 1064 when omitted or when WITH VALIDATION is written).
+	t.Run("exchange partition missing validation rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2"); err == nil {
+			t.Errorf("Parse(EXCHANGE PARTITION without WITHOUT VALIDATION) succeeded; OceanBase answers 1064")
+		}
+	})
+
+	t.Run("exchange partition with validation rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITH VALIDATION"); err == nil {
+			t.Errorf("Parse(EXCHANGE PARTITION WITH VALIDATION) succeeded; OceanBase answers 1064")
+		}
+	})
+
+	t.Run("exchange partition without validation", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITHOUT VALIDATION")
 		cmd := stmt.Commands[0]
 		if cmd.Type != ast.ATExchangePartition {
 			t.Errorf("Type = %d, want ATExchangePartition", cmd.Type)
@@ -3881,19 +3891,6 @@ func TestParseAlterTableExchangePartition(t *testing.T) {
 		if cmd.ExchangeTable == nil || cmd.ExchangeTable.Name != "t2" {
 			t.Errorf("ExchangeTable = %v, want t2", cmd.ExchangeTable)
 		}
-	})
-
-	t.Run("exchange partition with validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITH VALIDATION")
-		cmd := stmt.Commands[0]
-		if cmd.WithValidation == nil || !*cmd.WithValidation {
-			t.Errorf("WithValidation = %v, want true", cmd.WithValidation)
-		}
-	})
-
-	t.Run("exchange partition without validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITHOUT VALIDATION")
-		cmd := stmt.Commands[0]
 		if cmd.WithValidation == nil || *cmd.WithValidation {
 			t.Errorf("WithValidation = %v, want false", cmd.WithValidation)
 		}
@@ -4716,13 +4713,10 @@ func TestParseShow(t *testing.T) {
 		}
 	})
 
-	t.Run("create event", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE EVENT myevent")
-		if stmt.Type != "CREATE EVENT" {
-			t.Errorf("Type = %s, want CREATE EVENT", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "myevent" {
-			t.Errorf("From = %v, want myevent", stmt.From)
+	// OceanBase has no SHOW CREATE EVENT (4.3.5.6 answers 1064).
+	t.Run("create event rejected", func(t *testing.T) {
+		if _, err := Parse("SHOW CREATE EVENT myevent"); err == nil {
+			t.Errorf("Parse(SHOW CREATE EVENT) succeeded; OceanBase answers 1064")
 		}
 	})
 
@@ -9305,13 +9299,16 @@ func TestParseCreateTableBareSelect(t *testing.T) {
 }
 
 func TestParseCreateTableLinearHash(t *testing.T) {
+	// OceanBase has no LINEAR partitioning (4.3.5.6 answers 1064).
 	tests := []string{
 		"CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4",
 		"CREATE TABLE t (id INT) PARTITION BY LINEAR KEY(id) PARTITIONS 4",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) succeeded; OceanBase answers 1064", sql)
+			}
 		})
 	}
 }
@@ -10519,9 +10516,8 @@ func TestParsePartitionKeyAlgorithm(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY ALGORITHM=1 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY ALGORITHM=2 (id)",
-		"CREATE TABLE t1 (id INT) PARTITION BY LINEAR KEY ALGORITHM=1 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY (id)",
-		// OceanBase refuses KEY ALGORITHM in a subpartition (subpartitionCases), so
+		// OceanBase refuses LINEAR and KEY ALGORITHM in a subpartition, so
 		// TestParseSubPartitionKeyAlgorithm holds those forms.
 	}
 	for _, sql := range tests {
@@ -11858,7 +11854,6 @@ func TestParseCreateTableChecksum(t *testing.T) {
 func TestParseCreateTableTablespace(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT) TABLESPACE ts1",
-		"CREATE TABLE t (id INT) TABLESPACE = ts1",
 		"CREATE TABLE t (id INT) TABLESPACE ts1 STORAGE DISK",
 		"CREATE TABLE t (id INT) TABLESPACE ts1 STORAGE MEMORY",
 	}
@@ -11867,6 +11862,12 @@ func TestParseCreateTableTablespace(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	// OceanBase's TABLESPACE table option takes no "=" (4.3.5.6 answers 1064).
+	t.Run("tablespace with equals rejected", func(t *testing.T) {
+		if _, err := Parse("CREATE TABLE t (id INT) TABLESPACE = ts1"); err == nil {
+			t.Errorf("Parse(TABLESPACE = ts1) succeeded; OceanBase answers 1064")
+		}
+	})
 }
 
 func TestParseCreateTableEncryption(t *testing.T) {
@@ -12237,17 +12238,9 @@ func TestAlterTablePartitionBy(t *testing.T) {
 		ParseAndCheck(t, "ALTER TABLE t PARTITION BY RANGE COLUMNS(created_at) (PARTITION p0 VALUES LESS THAN ('2024-01-01'))")
 	})
 
-	t.Run("linear hash", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY LINEAR HASH(id) PARTITIONS 8")
-		cmd := stmt.Commands[0]
-		if cmd.PartitionBy == nil {
-			t.Fatal("PartitionBy is nil")
-		}
-		if !cmd.PartitionBy.Linear {
-			t.Errorf("Linear = false, want true")
-		}
-		if cmd.PartitionBy.NumParts != 8 {
-			t.Errorf("NumParts = %d, want 8", cmd.PartitionBy.NumParts)
+	t.Run("linear hash rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t PARTITION BY LINEAR HASH(id) PARTITIONS 8"); err == nil {
+			t.Errorf("Parse(ALTER TABLE ... LINEAR HASH) succeeded; OceanBase answers 1064")
 		}
 	})
 

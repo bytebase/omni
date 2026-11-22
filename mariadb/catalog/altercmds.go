@@ -9,6 +9,9 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	if err := c.checkFieldDBs(stmt.FieldDBs); err != nil {
+		return err
+	}
 	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
@@ -31,6 +34,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	tbl := db.Tables[key]
 	if tbl == nil {
+		if seq := db.Sequences[key]; seq != nil {
+			return c.alterSequenceTable(db, seq, key, stmt)
+		}
 		// A partition maintenance command is not an error on a missing table or
 		// a view: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
 		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and

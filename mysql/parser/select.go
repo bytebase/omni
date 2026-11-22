@@ -885,7 +885,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	// "... INTO OUTFILE 'f' ORDER BY a" and "... INTO OUTFILE 'f' LIMIT 1" are
 	// syntax errors (container-verified). An INTO before FROM (position 1
 	// above) is a separate rule, query_specification's own into_clause.
-	if p.cur.Type == kwINTO && stmt.Into == nil {
+	if !p.noTrailingInto && p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
 		if err != nil {
@@ -900,7 +900,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	}
 
 	// INTO clause (position 3: after the locking clause)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
+	if !p.noTrailingInto && p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
 		if err != nil {
@@ -2797,7 +2797,7 @@ func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 	// select_stmt_with_into gives a query expression that stands alone
 	// (container-verified: "... INTO OUTFILE 'f' FOR UPDATE" and
 	// "... FOR UPDATE INTO OUTFILE 'f'" are both accepted).
-	if p.cur.Type == kwINTO {
+	if !p.noTrailingInto && p.cur.Type == kwINTO {
 		p.advance()
 		i, err := p.parseIntoClause()
 		if err != nil {
@@ -2810,7 +2810,7 @@ func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 		return err
 	}
 
-	if p.cur.Type == kwINTO && stmt.Into == nil {
+	if !p.noTrailingInto && p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		i, err := p.parseIntoClause()
 		if err != nil {

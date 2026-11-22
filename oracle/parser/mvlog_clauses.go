@@ -128,6 +128,11 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 		}
 	}
 
+	if p.atWord("INMEMORY") || p.atWord("NOMAPPING") || p.cur.Type == kwIMMEDIATE {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -344,11 +349,17 @@ func (p *Parser) parseMVLogColumnList(list *nodes.List) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for {
+		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return err
 		}
+		if seen[name] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[name] = true
 		list.Items = append(list.Items, &nodes.String{Str: name})
 		if p.cur.Type != ',' {
 			break
@@ -533,6 +544,9 @@ func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, er
 		err = p.parseMVLogMerge(stmt)
 	case p.cur.Type == kwADD && p.peekNext().Type == kwPARTITION:
 		err = p.parseMVLogAddPartitions(stmt)
+	case p.atWord("INMEMORY") || p.atWord("NOMAPPING") || p.cur.Type == kwIMMEDIATE:
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
 	default:
 		err = p.parseMVLogOptions(stmt)
 	}
@@ -1091,6 +1105,7 @@ func (p *Parser) parseMVLogPartitionValues() error {
 // at what follows. update_index_clauses are read and refused (ORA-30566).
 func (p *Parser) parseMVLogAddSubpartitions() error {
 	values := false
+	named := false
 	for first := true; ; first = false {
 		if err := p.atExpect(kwSUBPARTITION); err != nil {
 			return err
@@ -1098,6 +1113,7 @@ func (p *Parser) parseMVLogAddSubpartitions() error {
 		if p.isATNameStart() && !p.isMVLogParallelStart() {
 			name := p.cur
 			p.advance()
+			named = true
 			if first && !p.isMVLogAddSubpartitionFollow() {
 				return p.syntaxErrorAtTok(name)
 			}
@@ -1114,6 +1130,9 @@ func (p *Parser) parseMVLogAddSubpartitions() error {
 		p.advance()
 	}
 	if p.isMVLogIndexMaintenanceStart() {
+		if !values && !named {
+			return p.syntaxErrorAtCur()
+		}
 		return p.refuseMVLogIndexMaintenance()
 	}
 	if !values && p.isMVLogParallelStart() {
@@ -1503,6 +1522,9 @@ func (p *Parser) parseMVLogSplit(stmt *nodes.AlterMviewLogStmt) error {
 	if p.cur.Type == kwINTO {
 		p.advance()
 		if p.cur.Type != '(' {
+			if !sub {
+				return p.syntaxErrorAtCur()
+			}
 			// Oracle reads the list without its parentheses, and the
 			// closing one left over at the end (compat.tsv's
 			// ALTER MATERIALIZED VIEW LOG ... AT(1) INTO SUBPARTITION,
@@ -1613,6 +1635,13 @@ func (p *Parser) parseMVLogMerge(stmt *nodes.AlterMviewLogStmt) error {
 func (p *Parser) parseMVLogPartitionKey() error {
 	if p.cur.Type == '(' {
 		return p.parseATExprList()
+	}
+	if p.cur.Type == kwFORCE && p.peekNext().Type == '(' {
+		p.advance()
+		if err := p.parseATExprList(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
 	}
 	return p.parseATName()
 }

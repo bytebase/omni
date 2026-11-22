@@ -42,6 +42,8 @@ type Parser struct {
 	// column definitions with the datatype left to the engine.
 	alterTableAddColumn bool
 
+	alterTableActionCount int
+
 	// alterTableModifyColumn is set while a column of ALTER TABLE MODIFY is
 	// parsed. Oracle leaves a word there to the resolve phase, as it does a
 	// bare ADD column: MODIFY (a KEY), MODIFY (a IDENTITY) and MODIFY (a
@@ -74,11 +76,16 @@ type Parser struct {
 	// VALUES, and an annotations_clause as balanced text.
 	alterMview bool
 
+	// alterSubpartition is set while ALTER TABLE MODIFY SUBPARTITION is parsed.
+	// Oracle refuses partition-only LOB attributes such as RETENTION there (ORA-14160).
+	alterSubpartition bool
+
 	// atSubpartitionTemplate is set while a subpartition template's
 	// description list is parsed. Oracle reads a description's values
 	// without VALUES, a parenthesized list where a hash subpartition has no
 	// values, and a trailing word there on ALTER MATERIALIZED VIEW.
-	atSubpartitionTemplate bool
+	atSubpartitionTemplate   bool
+	atLastSubpartitionMethod atMethod
 
 	// createTablePartitionsOfLog is set while CREATE MATERIALIZED VIEW LOG's
 	// table_partitioning_clauses are read with CREATE TABLE's reader: a
@@ -87,6 +94,13 @@ type Parser struct {
 	// (ORA-14020, 14160, 14006 at the rest), and it takes neither STORE IN
 	// after AUTOMATIC nor compression after PARTITIONS (ORA-12044).
 	createTablePartitionsOfLog bool
+	// createTablePartitionsOfMview is set while CREATE MATERIALIZED VIEW's
+	// table_partitioning_clauses are read with CREATE TABLE's reader.
+	createTablePartitionsOfMview bool
+
+	// updateSetSubquery is set while parsing the RHS expression of an UPDATE
+	// SET assignment so an unclosed "(SELECT ..." blames SELECT.
+	updateSetSubquery bool
 
 	// createTableEngineCheck is set while CREATE TABLE is parsed once a
 	// clause Oracle checks against the table before it asks for a missing
@@ -95,6 +109,11 @@ type Parser struct {
 	// COLLATION (ORA-43929) and PARENT (ORA-02523). Those are the engine's
 	// answers, not syntax, and omni leaves them to it.
 	createTableEngineCheck bool
+
+	// createTableConstraintNames records constraint names declared inside the
+	// current CREATE TABLE statement (including named inline NOT NULL/NULL
+	// constraints whose names are not stored as ColumnConstraint nodes).
+	createTableConstraintNames map[string]bool
 
 	// caseKinds tells, for each CASE token from the first one parsePrimary
 	// met to the end of the range, whether it opens a CASE expression (true)
@@ -162,6 +181,10 @@ type Parser struct {
 	// shadowedTypes records the datatypes spelled as a predefined type
 	// where a redeclaration of that name is, or may be, in scope.
 	shadowedTypes map[*nodes.TypeName]bool
+
+	// orderByTok records the ORDER keyword token of each SelectStmt's ORDER BY
+	// clause so trailingOrderBy refuses parenthesized ORDER BY at ORDER (ORA-00907).
+	orderByTok map[*nodes.SelectStmt]Token
 
 	// addedConstraints holds the constraints of the ALTER TABLE ADD ( ... )
 	// list just parsed, actions of their own after its columns'.
@@ -316,7 +339,7 @@ func Parse(sql string) (*nodes.List, error) {
 // is an offset into source, so a caller that split a script can parse each
 // segment with absolute positions without copying or padding the text.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
-	undecided, open, scanErr := validateBalancedDelimiters(source, start, end)
+	undecided, scanErr := validateBalancedDelimiters(source, start, end)
 	p := &Parser{
 		lexer:        NewLexerRange(source, start, end),
 		source:       source,
@@ -341,23 +364,19 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	if scanErr == nil {
 		return nil, err
 	}
-	// The scan's error answers for every statement whose parsers stopped
-	// inside an unterminated group (open >= 0 and pe.Position > open) or past
-	// a stray ')' (open < 0 and pe.Position > scanPE.Position). A statement
-	// whose parsers stopped at or before that delimiter stopped at an earlier
-	// token the grammar cannot take, which is its first error and the token
-	// Oracle reports, so that error is the answer. p.engineCrash names a
-	// refusal whose byte is the engine's and not the grammar's (see
-	// Parser.engineCrash).
+	// The scan's error answers only when the statement parsers stopped past
+	// it (pe.Position > scanPE.Position). Whenever the statement parsers stop
+	// at or before the delimiter scan's position (whether an unterminated '('
+	// at EOF or a stray ')'), the parsers stopped at an earlier token the
+	// grammar cannot take, which is the first error Oracle reports.
+	// p.engineCrash names a refusal whose byte is the engine's and not the
+	// grammar's (see Parser.engineCrash).
 	var pe, scanPE *ParseError
 	if !errors.As(err, &pe) {
 		return nil, err
 	}
 	if pe.Position != p.engineCrash {
-		if open >= 0 && pe.Position <= open {
-			return nil, err
-		}
-		if open < 0 && errors.As(scanErr, &scanPE) && pe.Position <= scanPE.Position {
+		if errors.As(scanErr, &scanPE) && pe.Position <= scanPE.Position {
 			return nil, err
 		}
 	}
@@ -708,15 +727,12 @@ func (p *Parser) restore(s parseSnapshot) {
 // selection each statement parses with, which may be another: it reports
 // undecided, and parseStmtSelections checks each statement
 // (checkSelectionDelimiters).
-//
-// It also returns the byte of the outermost parenthesis still open where it
-// reports an unterminated group, and -1 otherwise (see ParseRange).
-func validateBalancedDelimiters(sql string, start, end int) (undecided bool, open int, err error) {
+func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err error) {
 	var decided []ccDecision
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccDecisions = &decided
-	open, err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
-	return len(decided) > 0 || lexer.Err != nil, open, err
+	err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
+	return len(decided) > 0 || lexer.Err != nil, err
 }
 
 // checkSelectionDelimiters checks that the parentheses of the statement at
@@ -724,8 +740,7 @@ func validateBalancedDelimiters(sql string, start, end int) (undecided bool, ope
 func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) error {
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccChoices = choices
-	_, err := scanDelimiters(lexer, sql, end, func() bool { return true })
-	return err
+	return scanDelimiters(lexer, sql, end, func() bool { return true })
 }
 
 // extraCloseShape records the statement shape that Oracle still parses
@@ -806,14 +821,9 @@ func (s *extraCloseShape) allowsExtraClose() bool {
 
 // scanDelimiters checks the parentheses of the tokens lexer returns up to
 // end, reporting an imbalance only while settled says the selection the
-// lexer reads is the one to check. It returns the byte of the outermost
-// parenthesis still open where it reports an unterminated group, and -1
-// where it reports anything else.
-func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (open int, err error) {
+// lexer reads is the one to check.
+func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) error {
 	depth := 0
-	// openAt is the byte of the outermost parenthesis still open, the one a
-	// group that never closes started at.
-	openAt := -1
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
 	var shape extraCloseShape
@@ -831,11 +841,11 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (ope
 			}
 		}
 		if lexer.Err != nil {
-			return -1, nil
+			return nil
 		}
 		if javaHead.observe(tok) {
 			// The rest of the range is Java or JavaScript source, not SQL.
-			return -1, nil
+			return nil
 		}
 		if (prev3.Type == kwIS || prev3.Type == kwAS) &&
 			prev2.Type == tokIDENT && prev2.Str == "MLE" && prev1.Type == tokIDENT && prev1.Str == "LANGUAGE" {
@@ -852,7 +862,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (ope
 				if depth == -1 && settled() && shape.allowsExtraClose() {
 					depth = 0
 				} else if settled() {
-					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
 				}
 			}
 			javaHead = embeddedSourceHead{}
@@ -863,26 +873,20 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (ope
 		case tokEOF:
 			if extraClose != nil {
 				if depth == -1 && !afterExtra && settled() && shape.allowsExtraClose() {
-					return -1, nil
+					return nil
 				}
 				if settled() {
-					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
 				}
 			}
 			if depth > 0 && settled() {
-				return openAt, &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
+				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
-			return -1, nil
+			return nil
 		case '(':
-			if depth == 0 {
-				openAt = tok.Loc
-			}
 			depth++
 		case ')':
 			depth--
-			if depth <= 0 {
-				openAt = -1
-			}
 			if depth < 0 {
 				// Only a closing parenthesis that ends the statement may be
 				// read as Oracle does; one in the middle is the error it
@@ -894,7 +898,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (ope
 				}
 				if settled() {
 					text := ")"
-					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
 				}
 			}
 		}
@@ -1338,7 +1342,9 @@ func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
 // lexerError returns the lexer's error with token context.
 func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
-	if tok.Type == tokEOF && p.prev.Type != 0 {
+	if p.lexer != nil && p.lexer.hasErrLoc {
+		tok = Token{Type: tokEOF, Loc: p.lexer.errLoc, End: p.lexer.pos}
+	} else if tok.Type == tokEOF && p.prev.Type != 0 {
 		tok = p.prev
 	}
 	var directive *directiveError

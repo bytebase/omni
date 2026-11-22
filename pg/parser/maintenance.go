@@ -223,6 +223,9 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 				Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
+		if p.isSpannerPG() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.ClusterStmt{Params: params, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 

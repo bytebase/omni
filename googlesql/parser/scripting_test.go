@@ -471,15 +471,17 @@ func TestParseBeginExceptionEmptyAccepted(t *testing.T) {
 	parseOneScript(t, "BEGIN EXCEPTION WHEN ERROR THEN SELECT 1; END")
 }
 
-// TestParseLabeledEndLabelNotMatched defends a Codex finding: a labeled
-// statement's optional END label is grammatically just `identifier?`
-// (.g4: `label ':' unterminated_unlabeled_script_statement identifier?`), with NO
-// syntactic requirement that it match the opening label — matching is a SEMANTIC
-// check, not the parser's job. So omni accepts a mismatched end label (parity with
-// the legacy ANTLR parser); this guards against a future change that wrongly
-// rejects it at parse time. (parseOneScript fatals on any parse error.)
-func TestParseLabeledEndLabelNotMatched(t *testing.T) {
-	parseOneScript(t, "label_1: LOOP SELECT 1; END LOOP different")
+// TestParseLabeledEndLabelMismatch verifies googlesql.tm:1242-1249: the
+// upstream GoogleSQL parser's action on unterminated_script_statement rejects
+// a mismatched trailing end label with MakeSyntaxError ("Mismatched end label;
+// expected ..., got ..."), while accepting a case-insensitively matching one.
+// Both BigQuery and Spanner reject mismatched end labels at parse time.
+func TestParseLabeledEndLabelMismatch(t *testing.T) {
+	if _, err := Parse("label_1: LOOP SELECT 1; END LOOP different"); err == nil {
+		t.Fatal("expected parse error for mismatched end label, got nil")
+	}
+	parseOneScript(t, "label_1: LOOP SELECT 1; END LOOP label_1")
+	parseOneScript(t, "label_1: LOOP SELECT 1; END LOOP LABEL_1")
 }
 
 func TestParseBeginEndNested(t *testing.T) {

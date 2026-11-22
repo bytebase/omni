@@ -87,7 +87,13 @@ func (p *Parser) parseUnqualifiedName() (*nodes.ObjectName, error) {
 // EXISTS at the IF, and IF NOT EXISTS beside OR REPLACE at the name after
 // it.
 func (p *Parser) parseIfNotExistsAfterKind(orReplace bool) (bool, error) {
-	if p.cur.Type != kwIF || p.peekNext().Type != kwNOT {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	if p.peekNext().Type == kwEXISTS {
+		return false, p.syntaxErrorAtCur()
+	}
+	if p.peekNext().Type != kwNOT {
 		return false, nil
 	}
 	ifTok := p.cur

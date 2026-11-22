@@ -100,12 +100,31 @@ func (p *Parser) parseATInteger() error {
 
 // parseATNameList reads ( name [, name ]... ).
 func (p *Parser) parseATNameList() error {
+	return p.parseATNameListUnique(false)
+}
+
+func (p *Parser) parseATUniqueNameList() error {
+	return p.parseATNameListUnique(true)
+}
+
+func (p *Parser) parseATNameListUnique(unique bool) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		if err := p.parseATName(); err != nil {
 			return err
+		}
+		if unique {
+			if seen[tok.Str] {
+				return p.syntaxErrorAtTok(tok)
+			}
+			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -117,14 +136,33 @@ func (p *Parser) parseATNameList() error {
 
 // parseATNameListStrings reads ( name [, name ]... ) and returns the names.
 func (p *Parser) parseATNameListStrings() ([]string, error) {
+	return p.parseATNameListStringsUnique(false)
+}
+
+func (p *Parser) parseATUniqueNameListStrings() ([]string, error) {
+	return p.parseATNameListStringsUnique(true)
+}
+
+func (p *Parser) parseATNameListStringsUnique(unique bool) ([]string, error) {
 	if err := p.atExpect('('); err != nil {
 		return nil, err
 	}
 	var names []string
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return nil, err
+		}
+		if unique {
+			if seen[name] {
+				return nil, p.syntaxErrorAtTok(tok)
+			}
+			seen[name] = true
 		}
 		names = append(names, name)
 		if p.cur.Type != ',' {
@@ -198,6 +236,25 @@ func (p *Parser) parseATSizeClause() error {
 		switch p.cur.Str {
 		case "K", "M", "G", "T", "P", "E":
 			p.advance()
+		}
+	}
+	return nil
+}
+
+// parseATExtentSizeClause reads size_clause for ALLOCATE EXTENT / DEALLOCATE
+// UNUSED KEEP, where Oracle refuses P and E units at the integer (ORA-03277).
+func (p *Parser) parseATExtentSizeClause() error {
+	intTok := p.cur
+	if err := p.parseATInteger(); err != nil {
+		return err
+	}
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "K", "M", "G", "T":
+			p.advance()
+		case "P", "E":
+			p.advance()
+			return p.syntaxErrorAtTok(intTok)
 		}
 	}
 	return nil
@@ -509,17 +566,19 @@ func (p *Parser) parseATInmemoryRest() error {
 		if p.atWord("AUTO") {
 			p.advance()
 		} else if p.cur.Type == kwBY {
+			byTok := p.cur
 			p.advance()
 			switch {
 			case p.cur.Type == kwROWID:
 				p.advance()
-				if err := p.atExpectWord("RANGE"); err != nil {
-					return err
+				if !p.atWord("RANGE") {
+					return p.syntaxErrorAtTok(byTok)
 				}
+				p.advance()
 			case p.cur.Type == kwPARTITION, p.cur.Type == kwSUBPARTITION:
 				p.advance()
 			default:
-				return p.syntaxErrorAtCur()
+				return p.syntaxErrorAtTok(byTok)
 			}
 		}
 		if p.cur.Type == kwFOR {
@@ -593,7 +652,11 @@ func (p *Parser) parseATInmemoryMemcompress() error {
 // parseATInmemoryColumnItem reads one item of inmemory_column_clause:
 // { INMEMORY [ inmemory_memcompress ] | NO INMEMORY } ( column [, column ]... ).
 func (p *Parser) parseATInmemoryColumnItem() error {
+	var noTok Token
+	hasNo := false
 	if p.atWord("NO") {
+		noTok = p.cur
+		hasNo = true
 		p.advance() // NO
 		p.advance() // INMEMORY
 	} else {
@@ -603,11 +666,18 @@ func (p *Parser) parseATInmemoryColumnItem() error {
 			p.advance()
 			return nil
 		}
+		if p.atWord("NO") && p.atNextWord("MEMCOMPRESS") {
+			noTok = p.cur
+			hasNo = true
+		}
 		if err := p.parseATInmemoryMemcompress(); err != nil {
 			return err
 		}
 	}
-	return p.parseATNameList()
+	if p.cur.Type != '(' && hasNo {
+		return p.syntaxErrorAtTok(noTok)
+	}
+	return p.parseATUniqueNameList()
 }
 
 // parseATIlmClause reads ilm_clause:
@@ -829,7 +899,7 @@ func (p *Parser) parseATAllocateExtent() error {
 		switch {
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			err = p.parseATSizeClause()
+			err = p.parseATExtentSizeClause()
 		case p.atWord("DATAFILE"):
 			p.advance()
 			err = p.atExpect(tokSCONST)
@@ -859,7 +929,7 @@ func (p *Parser) parseATDeallocateUnused() error {
 	}
 	if p.atWord("KEEP") {
 		p.advance()
-		return p.parseATSizeClause()
+		return p.parseATExtentSizeClause()
 	}
 	return nil
 }
@@ -889,20 +959,26 @@ func (p *Parser) parseATShrink() error {
 func (p *Parser) parseATEncryptionSpec() error {
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if err := p.atExpect(tokSCONST); err != nil {
-			return err
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
 		if err := p.atExpect(kwBY); err != nil {
 			return err
 		}
-		if err := p.parseATName(); err != nil {
+		if p.cur.Type == ')' {
+			p.advance()
+		} else if err := p.parseATName(); err != nil {
 			return err
 		}
 	}
 	if p.cur.Type == tokSCONST {
+		if !isValidOracleIntegrityAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
+		}
 		p.advance()
 	}
 	if p.atWord("NO") && p.atNextWord("SALT") {
@@ -975,6 +1051,9 @@ func (p *Parser) parseATModifyLobParameters() error {
 			p.advance()
 			err = p.atExpectWord("FREEPOOLS")
 		case p.atWord("RETENTION"):
+			if p.alterSubpartition {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
 			err = p.parseATLobRetention()
 		case p.atWord("DEDUPLICATE"), p.atWord("KEEP_DUPLICATES"), p.atWord("DECRYPT"), p.cur.Type == kwNOCOMPRESS:
@@ -1105,16 +1184,45 @@ func (p *Parser) parseATLobItemList() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for {
-		if err := p.parseATItemPath(); err != nil {
+		tok := p.cur
+		key, err := p.parseATItemPathKey()
+		if err != nil {
 			return err
 		}
+		if seen[key] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[key] = true
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
 	}
 	return p.atExpect(')')
+}
+
+// parseATItemPathKey reads a LOB or collection item path and returns a
+// normalized duplicate-detection key preserving quoted identifier case.
+func (p *Parser) parseATItemPathKey() (string, error) {
+	first, err := p.parseATNameString()
+	if err != nil {
+		return "", err
+	}
+	if p.cur.Type != '.' {
+		return first, nil
+	}
+	parts := []string{first}
+	for p.cur.Type == '.' {
+		p.advance()
+		part, err := p.parseATNameString()
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, "\x00"), nil
 }
 
 // parseATItemPath reads a LOB or collection item: a column, or an
@@ -1200,13 +1308,21 @@ func (p *Parser) parseATLobPartitionStorage() error {
 		if err := p.parseATName(); err != nil {
 			return err
 		}
-		// Oracle takes one storage clause for each partition and
-		// subpartition (ORA-00907 at a second one).
-		if !p.isATLobStorageStart() {
-			return p.syntaxErrorAtCur()
+		// Oracle parses repeated storage clauses inside a partition item and
+		// rejects a second one at the token that closes or follows it.
+		count := 0
+		for p.isATLobStorageStart() || p.atWord("LOB") {
+			if err := p.parseATLobStorage(); err != nil {
+				return err
+			}
+			count++
 		}
-		if err := p.parseATLobStorage(); err != nil {
-			return err
+		if count == 0 && p.cur.Type == '(' {
+			p.advance()
+			return p.atExpect(kwSUBPARTITION)
+		}
+		if count == 0 || count > 1 {
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1252,6 +1368,10 @@ func (p *Parser) parseATLobModify() error {
 		}
 		if err := p.parseATItemPath(); err != nil {
 			return err
+		}
+		if p.alterMview && p.cur.Type == ',' {
+			p.advance()
+			return p.syntaxErrorAtCur()
 		}
 		if err := p.atExpect(')'); err != nil {
 			return err
@@ -1588,6 +1708,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 	if err := p.atExpect(kwTABLE); err != nil {
 		return err
 	}
+	itemTok := p.cur
 	if p.cur.Type == kwCOLUMN_VALUE {
 		p.advance()
 	} else if err := p.parseATItemPath(); err != nil {
@@ -1611,11 +1732,11 @@ func (p *Parser) parseATNestedTableStorage() error {
 		// DATA with a nested table's storage, on a table that holds the
 		// column as on one that does not, and reads no item of the group:
 		// ((a) ZZZ) and ((a) SEGMENT CREATION IMMEDIATE) answer alike, an
-		// unbalanced group answers ORA-00921 at its '(', and a token after
+		// unbalanced group blames the nested item token, and a token after
 		// the group ORA-00922. So the group is text, and the page's items
 		// are held where an ordinary ALTER TABLE reads it.
 		if err := p.skipATNestedStorageGroup(); err != nil {
-			return err
+			return p.syntaxErrorAtTok(itemTok)
 		}
 	} else if p.cur.Type == '(' {
 		p.advance()
@@ -2041,9 +2162,13 @@ func (p *Parser) parseATFilterCondition() error {
 	if err := p.atExpect(kwROWS); err != nil {
 		return err
 	}
-	if err := p.atExpect(kwWHERE); err != nil {
-		return err
+	if p.cur.Type != kwWHERE {
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		return p.syntaxErrorAtCur()
 	}
+	p.advance() // WHERE
 	cond, err := p.parseExpr()
 	if err != nil {
 		return err
@@ -2160,8 +2285,12 @@ func (p *Parser) parseATIndexPartitionDescription() error {
 	if err := p.atExpect(kwPARTITION); err != nil {
 		return err
 	}
+	var nameTok Token
+	hasName := false
 	if p.isATNameStart() && !p.isATSegmentAttrStart() && !p.isATIndexCompressionStart() &&
 		!p.atWord("USABLE") && !p.atWord("UNUSABLE") {
+		nameTok = p.cur
+		hasName = true
 		p.advance()
 		if p.atWord("PARAMETERS") {
 			p.advance()
@@ -2175,6 +2304,11 @@ func (p *Parser) parseATIndexPartitionDescription() error {
 				return err
 			}
 		}
+	}
+	afterNamePos := p.pos()
+	firstAttrTok := p.cur
+	if !hasName && p.cur.Type == kwNOCOMPRESS {
+		return p.syntaxErrorAtCur()
 	}
 	for {
 		switch {
@@ -2192,6 +2326,14 @@ func (p *Parser) parseATIndexPartitionDescription() error {
 		break
 	}
 	p.atOptOneOf("USABLE", "UNUSABLE")
+	if p.cur.Type != ',' && p.cur.Type != ')' {
+		if hasName && p.pos() == afterNamePos {
+			return p.syntaxErrorAtTok(nameTok)
+		}
+		if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) {
+			return p.syntaxErrorAtTok(firstAttrTok)
+		}
+	}
 	return nil
 }
 
@@ -2235,7 +2377,6 @@ func (p *Parser) parseATBoundValues(maxvalue bool) error {
 
 // parseATBoundValue reads one value of a partition bound.
 func (p *Parser) parseATBoundValue() error {
-	start := p.cur
 	if p.cur.Type == '-' || p.cur.Type == '+' {
 		p.advance()
 	}
@@ -2247,7 +2388,7 @@ func (p *Parser) parseATBoundValue() error {
 		return p.syntaxErrorAtCur()
 	}
 	if _, ok := e.(*nodes.ColumnRef); ok {
-		return p.syntaxErrorAtTok(start)
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }
@@ -2353,16 +2494,29 @@ func (p *Parser) parseATPartitionSpec(values *bool) error {
 	if err := p.atExpect(kwPARTITION); err != nil {
 		return err
 	}
+	var nameTok Token
+	hasName := false
 	if p.isATPartitionNameHere(atcTablePartitionDescription) {
+		nameTok = p.cur
+		hasName = true
 		p.advance()
 	}
+	afterNamePos := p.pos()
 	if values != nil && p.cur.Type == kwVALUES {
 		if err := p.parseATValuesClause(); err != nil {
 			return err
 		}
 		*values = true
 	}
-	return p.parseATClauses(atcTablePartitionDescription, nil)
+	if err := p.parseATClauses(atcTablePartitionDescription, nil); err != nil {
+		return err
+	}
+	const follow = atcSplitMerge | atcSplitFilter
+	if hasName && p.pos() == afterNamePos && p.cur.Type != ',' && p.cur.Type != ')' &&
+		p.cur.Type != ';' && p.cur.Type != tokEOF && p.atClauseAt(follow) == 0 {
+		return p.syntaxErrorAtTok(nameTok)
+	}
+	return nil
 }
 
 // parseATSubpartitionSpec reads subpartition_spec:
@@ -2373,16 +2527,29 @@ func (p *Parser) parseATSubpartitionSpec(values *bool) error {
 	if err := p.atExpect(kwSUBPARTITION); err != nil {
 		return err
 	}
+	var nameTok Token
+	hasName := false
 	if p.isATPartitionNameHere(atcPartitioningStorage) {
+		nameTok = p.cur
+		hasName = true
 		p.advance()
 	}
+	afterNamePos := p.pos()
 	if values != nil && p.cur.Type == kwVALUES {
 		if err := p.parseATValuesClause(); err != nil {
 			return err
 		}
 		*values = true
 	}
-	return p.parseATClauses(atcPartitioningStorage, nil)
+	if err := p.parseATClauses(atcPartitioningStorage, nil); err != nil {
+		return err
+	}
+	const follow = atcSplitMerge | atcSplitFilter
+	if hasName && p.pos() == afterNamePos && p.cur.Type != ',' && p.cur.Type != ')' &&
+		p.cur.Type != ';' && p.cur.Type != tokEOF && p.atClauseAt(follow) == 0 {
+		return p.syntaxErrorAtTok(nameTok)
+	}
+	return nil
 }
 
 // parseATSubpartitionDesc reads one of range_subpartition_desc,
@@ -2399,9 +2566,14 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 		return err
 	}
 	const allowed = atcReadOnly | atcIndexing | atcPartitioningStorage | atcExternal
+	var nameTok Token
+	hasName := false
 	if p.isATPartitionNameHere(allowed) {
+		nameTok = p.cur
+		hasName = true
 		p.advance()
 	}
+	afterNamePos := p.pos()
 	if p.alterMview && p.atSubpartitionTemplate && p.cur.Type == '(' && p.peekNext().Type != ')' {
 		// Oracle reads a parenthesized list where a hash subpartition has
 		// no values (compat.tsv's SUBPARTITION(1) row).
@@ -2422,6 +2594,14 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 			p.advance()
 		}
 	}
+	p.atLastSubpartitionMethod = atMethodAny
+	if method == atMethodAny && p.cur.Type == kwVALUES {
+		if p.atNextWord("LESS") {
+			p.atLastSubpartitionMethod = atMethodRange
+		} else if p.peekNext().Type == '(' {
+			p.atLastSubpartitionMethod = atMethodList
+		}
+	}
 	if err := p.parseATMethodValues(method); err != nil {
 		return err
 	}
@@ -2430,7 +2610,15 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 		// (compat.tsv's SUBPARTITION VALUES LESS THAN(1) zzz row).
 		p.advance()
 	}
-	return p.parseATClauses(allowed, nil)
+	if err := p.parseATClauses(allowed, nil); err != nil {
+		return err
+	}
+	const follow = atcDependentTables | atcIndexMaintenance | atcParallel
+	if hasName && p.pos() == afterNamePos && p.cur.Type != ',' && p.cur.Type != ')' &&
+		p.cur.Type != ';' && p.cur.Type != tokEOF && p.atClauseAt(follow) == 0 {
+		return p.syntaxErrorAtTok(nameTok)
+	}
+	return nil
 }
 
 // parseATSubpartitionDescList reads ( subpartition_desc [, subpartition_desc ]... ).
@@ -2509,7 +2697,7 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	case p.atWord("RANGE"), p.atWord("LIST"):
 		list := p.atWord("LIST")
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATPartitionColumnList(); err != nil {
 			return err
 		}
 		if !list && p.cur.Type == kwINTERVAL {
@@ -2547,7 +2735,7 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 		return nil
 	case p.atWord("HASH"):
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATPartitionColumnList(); err != nil {
 			return err
 		}
 		p.atOption(opts, start)
@@ -2611,6 +2799,45 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	return p.syntaxErrorAtCur()
 }
 
+// parseATPartitionColumnList reads ( column [, column ]... ) of a PARTITION BY
+// or SUBPARTITION BY clause. When a name is followed by '(' (e.g. a missing ')'
+// before "(PARTITION VALUES ...)"), parseExpr enters the parenthesized group to
+// match Oracle's error token while rejecting completed function-call expressions.
+func (p *Parser) parseATPartitionColumnList() error {
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for {
+		if !p.isATNameStart() {
+			return p.syntaxErrorAtCur()
+		}
+		if p.peekNext().Type == '(' {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr != nil {
+				return p.syntaxErrorAtCur()
+			}
+			return p.syntaxErrorAtCur()
+		}
+		tok := p.cur
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+		if seen[tok.Str] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[tok.Str] = true
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
 // parseATPartitionSpecList reads ( PARTITION [ partition ]
 // [ table_partition_description ] [, ...] ), the partitions of reference and
 // system partitioning.
@@ -2655,7 +2882,7 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if err := p.parseATNameList(); err != nil {
+	if err := p.parseATPartitionColumnList(); err != nil {
 		return err
 	}
 	if *method == atMethodHash && p.atWord("SUBPARTITIONS") {
@@ -2809,11 +3036,19 @@ func (p *Parser) parseATHashPartitions() error {
 		if err := p.atExpect(kwPARTITION); err != nil {
 			return err
 		}
+		var nameTok Token
+		hasName := false
 		if p.isATPartitionNameHere(allowed) {
+			nameTok = p.cur
+			hasName = true
 			p.advance()
 		}
+		afterNamePos := p.pos()
 		if err := p.parseATClauses(allowed, nil); err != nil {
 			return err
+		}
+		if hasName && p.pos() == afterNamePos && p.cur.Type != ',' && p.cur.Type != ')' {
+			return p.syntaxErrorAtTok(nameTok)
 		}
 		if p.cur.Type != ',' {
 			break

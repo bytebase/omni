@@ -37,7 +37,7 @@ func (p *Parser) isAlterTablePartitioningStart() bool {
 	case p.cur.Type == kwADD:
 		return next.Type == kwPARTITION
 	case p.cur.Type == kwTRUNCATE:
-		return true
+		return !p.alterMview
 	case p.cur.Type == kwDROP, p.cur.Type == kwRENAME:
 		return next.Type == kwPARTITION || next.Type == kwSUBPARTITION
 	case p.atWord("MOVE"):
@@ -114,6 +114,13 @@ func (p *Parser) parseATPartitionOrKey(name *string) error {
 	if p.cur.Type == kwFOR {
 		p.advance()
 		return p.parseATExprList()
+	}
+	if p.cur.Type == kwFORCE && p.peekNext().Type == '(' {
+		p.advance()
+		if err := p.parseATExprList(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == '(' {
 		return p.parseATExprList()
@@ -236,18 +243,35 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 		//   ADD subpartition_desc [, subpartition_desc ]...
 		//       [ dependent_tables_clause ] [ update_index_clauses ] [ parallel_clause ]
 		p.advance()
-		if p.cur.Type == kwVALUES && !p.atNextWord("LESS") {
-			// Oracle reads ADD VALUES on a partition (compat.tsv's row);
-			// ADD VALUES LESS THAN is still the range form it refuses.
+		if p.cur.Type == kwVALUES {
+			if p.atNextWord("LESS") {
+				// Oracle consumes VALUES before refusing LESS on ADD VALUES LESS THAN.
+				p.advance()
+				return p.syntaxErrorAtCur()
+			}
+			// Oracle reads ADD VALUES on a partition (compat.tsv's row).
 			if err := p.parseATValuesClause(); err != nil {
 				return err
 			}
 			p.atOption(cmd.Options, start)
 			return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
 		}
+		var lastSubUpdateTok Token
+		subMethod := atMethodAny
 		for {
-			if err := p.parseATSubpartitionDesc(atMethodAny); err != nil {
+			subStartPos := p.pos()
+			beforeValues := p.cur
+			if err := p.parseATSubpartitionDesc(subMethod); err != nil {
 				return err
+			}
+			_ = beforeValues
+			if subMethod == atMethodAny && p.atLastSubpartitionMethod != atMethodAny {
+				subMethod = p.atLastSubpartitionMethod
+			}
+			if p.prev.Type == kwSUBPARTITION && p.cur.Type == kwUPDATE {
+				lastSubUpdateTok = p.cur
+			} else if p.pos() > subStartPos {
+				lastSubUpdateTok = Token{}
 			}
 			if p.cur.Type != ',' {
 				break
@@ -255,7 +279,16 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 			p.advance()
 		}
 		p.atOption(cmd.Options, start)
-		return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
+		if err := p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
+			if lastSubUpdateTok.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(lastSubUpdateTok)
+			}
+			return err
+		}
+		if lastSubUpdateTok.Type == kwUPDATE && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			return p.syntaxErrorAtTok(lastSubUpdateTok)
+		}
+		return nil
 	case p.atWord("COALESCE"):
 		// Oracle takes COALESCE alone as well, as it does at the top of
 		// ALTER TABLE for an index-organized table.
@@ -323,6 +356,8 @@ func (p *Parser) parseATUnusableLocalIndexes() error {
 //	    | { ADD | DROP } VALUES ( value [, value ]... )
 //	    | read_only_clause | indexing_clause }
 func (p *Parser) parseATModifySubpartition(cmd *nodes.AlterTableCmd) error {
+	defer func(saved bool) { p.alterSubpartition = saved }(p.alterSubpartition)
+	p.alterSubpartition = true
 	cmd.Action = nodes.AT_MODIFY_SUBPARTITION
 	p.advance() // SUBPARTITION
 	name, err := p.parseATPartitionName()
@@ -477,7 +512,11 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		if p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS {
 			return p.syntaxErrorAtCur()
 		}
+		var nameTok Token
+		hasName := false
 		if p.isATPartitionNameHere(allowed) {
+			nameTok = p.cur
+			hasName = true
 			name, err := p.parseATPartitionName()
 			if err != nil {
 				return err
@@ -486,6 +525,8 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 				cmd.ColumnName = name
 			}
 		}
+		afterNamePos := p.pos()
+		firstTokAfterPart := p.cur
 		if p.cur.Type == kwVALUES {
 			start := p.pos()
 			if err := p.parseATValuesClause(); err != nil {
@@ -494,11 +535,17 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 			p.atOption(cmd.Options, start)
 		}
 		if err := p.parseATClauses(allowed, cmd.Options); err != nil {
+			if !hasName && firstTokAfterPart.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(firstTokAfterPart)
+			}
 			return err
 		}
 		start := p.pos()
 		switch {
 		case p.cur.Type == '(':
+			if !hasName && p.pos() == afterNamePos && p.peekNext().Type != kwSUBPARTITION {
+				return p.syntaxErrorAtCur()
+			}
 			if err := p.parseATSubpartitionDescList(atMethodAny); err != nil {
 				return err
 			}
@@ -510,6 +557,14 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		p.atOption(cmd.Options, start)
 		if err := p.parseATClauses(atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
 			return err
+		}
+		if p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if hasName && p.pos() == afterNamePos {
+				return p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && firstTokAfterPart.Type == kwUPDATE {
+				return p.syntaxErrorAtTok(firstTokAfterPart)
+			}
 		}
 		if p.cur.Type != ',' || p.peekNext().Type != kwPARTITION {
 			return nil
@@ -726,21 +781,27 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 	if into {
 		p.advance() // INTO
 		if p.cur.Type != '(' {
-			// Oracle reads the list without its parentheses, and the
-			// closing one left over at the end, after AT(values)
+			if !sub {
+				return p.syntaxErrorAtCur()
+			}
+			// Oracle reads the subpartition list without its parentheses, and
+			// the closing one left over at the end, after AT(values)
 			// (compat.tsv's SPLIT SUBPARTITION ... AT(1) INTO SUBPARTITION,
 			// SUBPARTITION) rows).
 			for {
-				if sub {
-					err = p.parseATSubpartitionSpec(nil)
-				} else {
-					err = p.parseATPartitionSpec(nil)
+				var had bool
+				values := &had
+				if !intoOnly {
+					values = nil
 				}
-				if err != nil {
+				if err = p.parseATSubpartitionSpec(values); err != nil {
 					return err
 				}
 				if p.cur.Type != ',' {
 					break
+				}
+				if intoOnly && !had {
+					return p.syntaxErrorAtCur()
 				}
 				p.advance()
 			}
@@ -804,10 +865,14 @@ func (p *Parser) parseATSplitNestedTablePart() error {
 	if err := p.atExpect(kwTABLE); err != nil {
 		return err
 	}
+	colTok := p.cur
 	if err := p.parseATName(); err != nil {
 		return err
 	}
 	if err := p.atExpect(kwINTO); err != nil {
+		if p.cur.Type == '(' {
+			return p.syntaxErrorAtTok(colTok)
+		}
 		return err
 	}
 	if err := p.atExpect('('); err != nil {

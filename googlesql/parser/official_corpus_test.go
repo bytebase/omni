@@ -174,7 +174,6 @@ var officialCorpusSkips = map[string]string{
 	"bigquery/ddl.md#45":      "OUT-OF-SCOPE: DROP EXTERNAL TABLE — no migration node (DROP external-object variant, ZetaSQL long-tail)",
 	"spanner/ddl.md#37":       "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT — ML model DDL, no migration node",
 	"spanner/ddl.md#38":       "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",
-	"spanner/ddl.md#39":       "OUT-OF-SCOPE: DROP MODEL — ML model DDL, no migration node",
 
 	// ========================== DOC-REJECTED (6) ==========================
 	// One statement in the block is REJECTED by the live Spanner oracle too, so

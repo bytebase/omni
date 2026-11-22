@@ -369,12 +369,28 @@ func (p *Parser) isCreateStmtTailStart() bool {
 // sequence.go, and vice versa.
 var seqOptElemLeadTokens = []int{AS, CACHE, CYCLE, NO, INCREMENT, LOGGED, MAXVALUE, MINVALUE, OWNED, SEQUENCE, START, RESTART, UNLOGGED}
 
+// isSpannerSeqOptElemStart reports whether the current token starts a
+// Spanner-PG-specific SeqOptElem (BIT_REVERSED_POSITIVE or SKIP RANGE).
+//
+// DO NOT extend without also extending parseSeqOptElem in sequence.go, and
+// vice versa. Covered by TestIsSeqOptElemStartMatchesSlice in
+// seq_opt_elem_start_test.go.
+func (p *Parser) isSpannerSeqOptElemStart() bool {
+	if !p.isSpannerPG() {
+		return false
+	}
+	return p.isSpannerIdent("bit_reversed_positive") || p.cur.Type == SKIP
+}
+
 // isSeqOptElemStart reports whether the current token starts a SeqOptElem
 // after ALTER SEQUENCE name.
 //
 // No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
 // against the whole Keywords table.
 func (p *Parser) isSeqOptElemStart() bool {
+	if p.isSpannerSeqOptElemStart() {
+		return true
+	}
 	if !slices.Contains(seqOptElemLeadTokens, p.cur.Type) {
 		return false
 	}
@@ -382,6 +398,8 @@ func (p *Parser) isSeqOptElemStart() bool {
 		switch p.peekNext().Type {
 		case CYCLE, MAXVALUE, MINVALUE:
 			return true
+		case SKIP:
+			return p.isSpannerPG()
 		}
 		return false
 	}
@@ -396,7 +414,7 @@ func (p *Parser) isSeqOptElemStart() bool {
 // Its set is seqOptElemLeadTokens, which TestSeqOptElemLeadTokensMatchPG
 // holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
-	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+	return p.isSpannerSeqOptElemStart() || slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
 
 // isFetchOptionStart reports whether tok starts what follows row_or_rows in

@@ -118,7 +118,23 @@ func errToSlice(err error) []ParseError {
 // one comparison operator, no second comparison operator is accepted; the
 // trailing operator is left as an unexpected token.
 func (p *Parser) parseExpr() (ast.Node, error) {
-	return p.parseOr()
+	saved := p.stopAtDotStar
+	p.stopAtDotStar = false
+	n, err := p.parseOr()
+	p.stopAtDotStar = saved
+	return n, err
+}
+
+// parseSelectItemExpr parses an expression in a select_list item position where
+// a top-level trailing `.*` may close a select_column_dot_star (`expr.*`).
+// Any nested parseExpr call clears stopAtDotStar so `.*` is never accepted
+// inside parenthesized expressions or function arguments.
+func (p *Parser) parseSelectItemExpr() (ast.Node, error) {
+	saved := p.stopAtDotStar
+	p.stopAtDotStar = true
+	n, err := p.parseOr()
+	p.stopAtDotStar = saved
+	return n, err
 }
 
 // parseOr parses the OR level: `and_expr (OR and_expr)*` (left-associative).
@@ -392,6 +408,12 @@ func (p *Parser) parseIs(left ast.Node) (ast.Node, error) {
 	}
 	// DISTINCT FROM form.
 	if p.cur.Type == kwDISTINCT {
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: IS DISTINCT FROM is not supported",
+			}
+		}
 		p.advance() // DISTINCT
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
@@ -610,6 +632,9 @@ func (p *Parser) parsePostfix(base ast.Node) (ast.Node, error) {
 	for {
 		switch p.cur.Type {
 		case int('.'):
+			if p.stopAtDotStar && p.peekNext().Type == int('*') {
+				return base, nil
+			}
 			next, err := p.parseDotAccess(base)
 			if err != nil {
 				return nil, err
@@ -644,8 +669,8 @@ func (p *Parser) parseDotAccess(base ast.Node) (ast.Node, error) {
 		}
 		return &ast.ExtensionAccess{Expr: base, Path: path, Loc: ast.Loc{Start: nodeLoc(base).Start, End: closeTok.Loc.End}}, nil
 	}
-	// Field access: . identifier (any keyword permitted as a field name part).
-	if !isAnyKeywordIdentifier(p.cur.Type) {
+	// Field access: . identifier_or_function_name_from_keyword.
+	if (!isIdentifierStart(p.cur.Type) && !isFunctionNameFromKeyword(p.cur.Type) && !p.atTmNonReservedWord()) || isExtraReservedIdent(p.cur) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	tok := p.advance()
@@ -786,7 +811,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 	// --- identifier / path / function call ---
 	default:
-		if isIdentifierStart(p.cur.Type) || p.atTmNonReservedWord() {
+		if (isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || p.atTmNonReservedWord() {
 			return p.parseNameOrCall()
 		}
 		return nil, p.syntaxErrorAtCur()
@@ -2069,6 +2094,12 @@ func (p *Parser) parseNewArg() (*ast.StructFieldExpr, error) {
 // `( path )`; the value expressions are retained for walking. A trailing comma
 // is permitted.
 func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) {
+	if p.isBigQuery() {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: braced constructors are not supported",
+		}
+	}
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
@@ -2388,7 +2419,19 @@ func (p *Parser) parseUnnestExpression() (ast.Node, error) {
 	if p.cur.Type != int('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
-	return p.parseFuncCallSuffix(name)
+	n, err := p.parseFuncCallSuffix(name)
+	if err != nil {
+		return nil, err
+	}
+	if p.isBigQuery() {
+		if fc, ok := n.(*ast.FuncCall); ok && len(fc.Args) == 0 {
+			return nil, &ParseError{
+				Position: unnestTok.Loc.Start, End: fc.Loc.End,
+				Message: "syntax error: UNNEST requires at least one argument",
+			}
+		}
+	}
+	return n, nil
 }
 
 // atQueryStart reports whether the current token begins a query (so a following
@@ -2835,7 +2878,7 @@ func (p *Parser) expectIdentifier() (Token, error) {
 	// name, a LET variable), and the callers that must not read a clause keyword
 	// as one — the select list's QUALIFY, a statement's leading MATCH_RECOGNIZE —
 	// disambiguate before they ask for an identifier.
-	if isIdentifierStart(p.cur.Type) || p.atTmNonReservedWord() {
+	if (isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || p.atTmNonReservedWord() {
 		return p.advance(), nil
 	}
 	return Token{}, p.syntaxErrorAtCur()
@@ -2872,6 +2915,10 @@ func (p *Parser) skipHint() *ParseError {
 	case next.Type == tokInteger:
 		p.advance() // '@'
 		p.advance() // int
+		if p.cur.Type == int('@') && p.peekNext().Type == int('{') {
+			p.advance() // '@'
+			return p.parseHintBody(hintStart, "empty hint", "unterminated hint")
+		}
 	}
 	return nil
 }

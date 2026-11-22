@@ -19,9 +19,9 @@ import "testing"
 // 2026-11-04. TestShowTargetsOceanBaseOracle reads that column back from a
 // live server; TestShowTargets holds the parser to the record without one.
 //
-// overAccepted marks the 23 rows where this parser takes a statement
+// overAccepted marks the 22 rows where this parser takes a statement
 // OceanBase answers 1064 on. All of them are MySQL replication, binary-log,
-// relay-log, event and profiling statements this tree inherited from mysql
+// relay-log and profiling statements this tree inherited from mysql
 // and OceanBase CE does not have; closing them is a change of its own, and
 // the flag is here so the measurement is on record rather than lost.
 type showTargetCase struct {
@@ -102,7 +102,7 @@ var showTargetCases = []showTargetCase{
 	{sql: "SHOW CREATE PROCEDURE pr", engine: true},
 	{sql: "SHOW CREATE FUNCTION fn", engine: true},
 	{sql: "SHOW CREATE TRIGGER tg", engine: true},
-	{sql: "SHOW CREATE EVENT ev", engine: false, overAccepted: true},
+	{sql: "SHOW CREATE EVENT ev", engine: false},
 	{sql: "SHOW CREATE USER u", engine: true},
 	{sql: "SHOW CREATE USER", engine: false},
 	{sql: "SHOW CREATE SEQUENCE seq", engine: false},

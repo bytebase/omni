@@ -52,6 +52,8 @@ package parser
 // segmentation, not seen here.
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -868,6 +870,9 @@ func (p *Parser) parseRaiseStmt() (ast.Node, error) {
 // block / loop forms may be labeled (NOT IF / CASE / DECLARE / SET / …). A
 // trailing identifier after the block's END is the optional end-label.
 func (p *Parser) parseLabeledStmt() (ast.Node, error) {
+	if p.isSpanner() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	labelTok := p.advance() // label identifier
 	name, err := p.identifierText(labelTok)
 	if err != nil {
@@ -884,12 +889,24 @@ func (p *Parser) parseLabeledStmt() (ast.Node, error) {
 	case kwBEGIN:
 		inner, err = p.parseBeginEndBlock()
 	case kwWHILE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseWhileStmt()
 	case kwLOOP:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseLoopStmt()
 	case kwREPEAT:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseRepeatStmt()
 	case kwFOR:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseForInStmt()
 	default:
 		// Only the unlabeled block forms can carry a label.
@@ -911,6 +928,13 @@ func (p *Parser) parseLabeledStmt() (ast.Node, error) {
 		endName, err := p.identifierText(endTok)
 		if err != nil {
 			return nil, err
+		}
+		// googlesql.tm:1242-1249 — end label must match start label (case-insensitive).
+		if !strings.EqualFold(endName, name) {
+			return nil, &ParseError{
+				Position: endTok.Loc.Start, End: endTok.Loc.End,
+				Message: "syntax error: mismatched end label; expected " + name + ", got " + endName,
+			}
 		}
 		stmt.EndLabel = endName
 		stmt.Loc.End = endTok.Loc.End

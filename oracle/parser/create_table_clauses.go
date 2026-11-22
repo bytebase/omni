@@ -102,14 +102,30 @@ func (p *Parser) parseCreateTableName() error {
 	return nil
 }
 
-// parseCreateTableColumnNames reads ( column [, column ] ... ).
+// parseCreateTableColumnNames reads ( column [, column ] ... ), rejecting
+// duplicate column names at the repeated token (ORA-00957).
 func (p *Parser) parseCreateTableColumnNames() error {
+	return p.parseCreateTableColumnNamesUnique(true)
+}
+
+func (p *Parser) parseCreateTableColumnNamesUnique(unique bool) error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		if err := p.parseCreateTableName(); err != nil {
 			return err
+		}
+		if unique {
+			if seen[tok.Str] {
+				return p.syntaxErrorAtTok(tok)
+			}
+			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -212,17 +228,19 @@ func (p *Parser) parseCreateTableInmemoryAttributes(memcompressSeen bool) error 
 			case p.isKeywordStr("AUTO"):
 				p.advance()
 			case p.cur.Type == kwBY:
+				byTok := p.cur
 				p.advance() // consume BY
 				switch {
 				case p.cur.Type == kwROWID:
 					p.advance() // consume ROWID
-					if err := p.expectCreateTableWord("RANGE"); err != nil {
-						return err
+					if !p.isKeywordStr("RANGE") {
+						return p.syntaxErrorAtTok(byTok)
 					}
+					p.advance()
 				case p.cur.Type == kwPARTITION, p.isKeywordStr("SUBPARTITION"):
 					p.advance()
 				default:
-					return p.syntaxErrorAtCur()
+					return p.syntaxErrorAtTok(byTok)
 				}
 			}
 			if p.cur.Type == kwFOR {
@@ -250,6 +268,15 @@ func (p *Parser) parseCreateTableInmemoryAttributes(memcompressSeen bool) error 
 				return err
 			}
 			duplicate = true
+		case p.isKeywordStr("MEMOPTIMIZE"):
+			p.advance() // consume MEMOPTIMIZE
+			if err := p.expectCreateTableToken(kwFOR); err != nil {
+				return err
+			}
+			if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
 		default:
 			return nil
 		}
@@ -507,10 +534,21 @@ func (p *Parser) parseCreateTableLobStorageClause() error {
 		return err
 	}
 	items := 0
+	seen := map[string]bool{}
 	for {
-		if err := p.parseCreateTableItem(); err != nil {
+		tok := p.cur
+		item, err := p.parseColumnPath()
+		if err != nil {
 			return err
 		}
+		key := item.Str
+		if parts, ok := p.attributePaths[item]; ok {
+			key = strings.Join(parts, "\x00")
+		}
+		if seen[key] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[key] = true
 		items++
 		if p.cur.Type != ',' {
 			break
@@ -736,6 +774,9 @@ func (p *Parser) parseCreateTableVarrayLobTarget() error {
 		return err
 	}
 	if p.cur.Type == '(' {
+		if p.peekNext().Type == kwPARTITION {
+			return p.syntaxErrorAtCur()
+		}
 		return p.parseCreateTableLobStorageParameters()
 	}
 	return nil
@@ -757,6 +798,7 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 	if err := p.expectCreateTableToken(kwTABLE); err != nil {
 		return err
 	}
+	itemTok := p.cur
 	if p.cur.Type == kwCOLUMN_VALUE {
 		p.advance()
 	} else if err := p.parseCreateTableNestedItem(); err != nil {
@@ -767,7 +809,7 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 			return err
 		}
 	}
-	if p.cur.Type == kwGLOBAL || p.isKeywordStr("LOCAL") {
+	if p.cur.Type == kwGLOBAL {
 		p.advance()
 	}
 	if err := p.expectCreateTableWord("STORE"); err != nil {
@@ -780,9 +822,8 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 		return err
 	}
 	if p.cur.Type == '(' {
-		p.skipParenthesized()
-		if p.prev.Type != ')' {
-			return p.syntaxErrorAtCur()
+		if !p.skipParenthesizedBalanced() {
+			return p.syntaxErrorAtTok(itemTok)
 		}
 	}
 	if p.cur.Type == kwRETURN {
@@ -932,6 +973,7 @@ func (p *Parser) parseCreateTableSize() error {
 //	    | DELETE_ALL | ENABLE_ALL | DISABLE_ALL
 //	    }
 func (p *Parser) parseCreateTableIlmClause() error {
+	ilmTok := p.cur
 	p.advance() // consume ILM
 	switch {
 	case p.cur.Type == kwADD:
@@ -941,8 +983,11 @@ func (p *Parser) parseCreateTableIlmClause() error {
 		}
 		return p.parseCreateTableIlmPolicy()
 	case p.cur.Type == kwDELETE, p.cur.Type == kwENABLE, p.cur.Type == kwDISABLE:
-		p.advance()
+		actionTok := p.advance()
 		if err := p.expectCreateTableWord("POLICY"); err != nil {
+			if actionTok.Type != kwDELETE {
+				return p.syntaxErrorAtTok(ilmTok)
+			}
 			return err
 		}
 		err := p.parseCreateTableName()
@@ -1304,6 +1349,7 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 		return nil, err
 	}
 	seen := map[string]bool{}
+	hasDup := false
 	for {
 		start := p.pos()
 		op := ""
@@ -1312,13 +1358,13 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 			p.advance()
 		}
 		if seen[p.cur.Str] && p.isCreateTableNameStart() {
-			return nil, p.syntaxErrorAtCur()
+			hasDup = true
 		}
-		seen[p.cur.Str] = true
 		name := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, err
 		}
+		seen[name] = true
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start}}
 		if p.cur.Type == tokSCONST {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}}}
@@ -1333,6 +1379,9 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 	}
 	if err := p.expectCreateTableToken(')'); err != nil {
 		return nil, err
+	}
+	if hasDup {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return anns, nil
 }
@@ -1572,9 +1621,9 @@ func (p *Parser) parseCreateTableXMLSchemaSpec() error {
 		return err
 	}
 	if p.isKeywordStr("STORE") {
-		p.advance()
+		storeTok := p.advance()
 		if err := p.expectCreateTableToken(kwALL); err != nil {
-			return err
+			return p.syntaxErrorAtTok(storeTok)
 		}
 		if err := p.expectCreateTableWord("VARRAYS"); err != nil {
 			return err
@@ -1734,7 +1783,15 @@ func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) er
 //	supplemental_id_key_clause:
 //	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
 func (p *Parser) parseCreateTableSupplementalLogging() error {
+	suppTok := p.cur
 	p.advance() // consume SUPPLEMENTAL
+	if p.cur.Type == kwGROUP {
+		p.advance()
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
+	}
 	if err := p.expectCreateTableWord("LOG"); err != nil {
 		return err
 	}
@@ -1743,7 +1800,10 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 		if err := p.expectCreateTableToken('('); err != nil {
 			return err
 		}
+		seen := map[int]bool{}
 		for {
+			dup := seen[p.cur.Type]
+			seen[p.cur.Type] = true
 			switch {
 			case p.cur.Type == kwALL, p.cur.Type == kwUNIQUE:
 				p.advance()
@@ -1753,6 +1813,9 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 					return err
 				}
 			default:
+				return p.syntaxErrorAtCur()
+			}
+			if dup {
 				return p.syntaxErrorAtCur()
 			}
 			if p.cur.Type != ',' {
@@ -1768,19 +1831,30 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 	if err := p.expectCreateTableToken(kwGROUP); err != nil {
 		return err
 	}
+	if p.cur.Type == '(' {
+		return p.syntaxErrorAtTok(suppTok)
+	}
 	if err := p.parseCreateTableName(); err != nil {
 		return err
 	}
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	seenCols := map[string]bool{}
 	for {
+		tok := p.cur
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
-		if p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "LOG") {
+		if seenCols[tok.Str] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seenCols[tok.Str] = true
+		if p.isKeywordStr("NO") {
 			p.advance()
-			p.advance()
+			if err := p.expectCreateTableWord("LOG"); err != nil {
+				return err
+			}
 		}
 		if p.cur.Type != ',' {
 			break
@@ -1792,6 +1866,157 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 	}
 	if p.cur.Type == kwALWAYS {
 		p.advance()
+	}
+	return nil
+}
+
+// parseCreateTableClustering reads attribute_clustering_clause after
+// CLUSTERING has been consumed.
+//
+// BNF (CREATE-TABLE.bnf lines 705-732):
+//
+//	CLUSTERING [ [ schema. ] table [ alias ] ]
+//	    [ JOIN [ schema. ] table [ alias ] ON ( condition ) ] ...
+//	    BY [ LINEAR | INTERLEAVED ] ORDER ( clustering_columns )
+//	    [ { YES | NO } ON LOAD ] [ { YES | NO } ON DATA MOVEMENT ]
+//	    [ WITH MATERIALIZED ZONEMAP [ ( column [, ...] ) ]
+//	    | WITHOUT MATERIALIZED ZONEMAP ]
+func (p *Parser) parseCreateTableClustering() error {
+	if p.cur.Type != kwBY {
+		// [ schema. ] table [ alias ]
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if p.cur.Type == '.' {
+			p.advance()
+			if err := p.parseCreateTableName(); err != nil {
+				return err
+			}
+		}
+		// Optional table alias (not JOIN or BY).
+		if p.cur.Type != kwJOIN && p.cur.Type != kwBY && p.isCreateTableNameStart() {
+			p.advance()
+		}
+		// Optional clustering_join chain.
+		for p.cur.Type == kwJOIN {
+			p.advance() // consume JOIN
+			if err := p.parseCreateTableName(); err != nil {
+				return err
+			}
+			if p.cur.Type == '.' {
+				p.advance()
+				if err := p.parseCreateTableName(); err != nil {
+					return err
+				}
+			}
+			if p.cur.Type != kwON && p.isCreateTableNameStart() {
+				p.advance()
+			}
+			if err := p.expectCreateTableToken(kwON); err != nil {
+				return err
+			}
+			if err := p.expectCreateTableToken('('); err != nil {
+				return err
+			}
+			cond, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if cond == nil {
+				return p.syntaxErrorAtCur()
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+		}
+	}
+	if err := p.expectCreateTableToken(kwBY); err != nil {
+		return err
+	}
+	if p.isKeywordStr("LINEAR") || p.isKeywordStr("INTERLEAVED") {
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(kwORDER); err != nil {
+		return err
+	}
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
+	for {
+		if p.cur.Type == '(' {
+			p.advance()
+			for {
+				if err := p.parseCreateTableColumnRef(); err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+		} else {
+			if err := p.parseCreateTableColumnRef(); err != nil {
+				return err
+			}
+		}
+		if p.cur.Type == kwASC || p.cur.Type == kwDESC {
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
+	}
+	// Optional clustering_when: { YES | NO } ON LOAD / { YES | NO } ON DATA MOVEMENT
+	for p.isKeywordStr("YES") || p.isKeywordStr("NO") {
+		p.advance()
+		if err := p.expectCreateTableToken(kwON); err != nil {
+			return err
+		}
+		if p.isKeywordStr("LOAD") {
+			p.advance()
+		} else if p.isKeywordStr("DATA") {
+			p.advance()
+			if err := p.expectCreateTableWord("MOVEMENT"); err != nil {
+				return err
+			}
+		} else {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	// Optional zonemap_clause
+	if p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT") {
+		with := p.cur.Type == kwWITH
+		p.advance()
+		if err := p.expectCreateTableToken(kwMATERIALIZED); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("ZONEMAP"); err != nil {
+			return err
+		}
+		if with && p.cur.Type == '(' {
+			if err := p.parseCreateTableColumnNames(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// parseCreateTableColumnRef reads [ table. ] column in a clustering_columns list.
+func (p *Parser) parseCreateTableColumnRef() error {
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if p.cur.Type == '.' {
+		p.advance()
+		return p.parseCreateTableName()
 	}
 	return nil
 }

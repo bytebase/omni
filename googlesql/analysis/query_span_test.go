@@ -928,3 +928,222 @@ func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
 		})
 	}
 }
+
+// TestGetQuerySpan_ExprDotStarFailClosed verifies that arbitrary non-path
+// `expr.*` projections (such as `(SELECT AS STRUCT ...).*`, `fn().*`, or
+// `STRUCT(...).*`) fail closed instead of silently dropping output columns.
+func TestGetQuerySpan_ExprDotStarFailClosed(t *testing.T) {
+	cases := []string{
+		"SELECT (SELECT AS STRUCT secret FROM sensitive).*, 1 AS public",
+		"SELECT STRUCT(a AS x, b AS y).* FROM t",
+		"SELECT fn(a).* FROM t",
+	}
+	for _, sql := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if span, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded with results=%v, want fail-closed error", sql, dialect, span.Results)
+			}
+		}
+	}
+	// A parenthesized FROM relation `(t).*` still resolves to t's projection.
+	span, err := GetQuerySpan("SELECT (t).* FROM t", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(SELECT (t).* FROM t): %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "*" {
+		t.Errorf("SELECT (t).* FROM t results = %+v, want single star segment", span.Results)
+	}
+}
+
+// TestGetQuerySpan_GraphTableFailClosed verifies that GRAPH_TABLE(...) FROM
+// sources fail closed in GetQuerySpan (rather than returning an empty span)
+// while still walking embedded SQL subqueries for Classify.
+func TestGetQuerySpan_GraphTableFailClosed(t *testing.T) {
+	cases := []string{
+		"SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret AS secret))",
+		"SELECT * FROM GRAPH_TABLE(g MATCH (n) RETURN n.secret AS secret)",
+		"SELECT * FROM t JOIN GRAPH_TABLE(g MATCH (n) COLUMNS(n.id AS id)) gt ON t.id = gt.id",
+	}
+	for _, sql := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if span, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded with tables=%v results=%v, want fail-closed error", sql, dialect, span.AccessTables, span.Results)
+			}
+		}
+	}
+	// Classify is best-effort and still discovers tables inside embedded SQL
+	// subqueries in GRAPH_TABLE operators and COLUMNS expressions.
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) WHERE n.id IN (SELECT id FROM secret) COLUMNS(n.id))", DialectSpanner); got != Select {
+		t.Errorf("ClassifySQL(GRAPH_TABLE with subquery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS((SELECT id FROM INFORMATION_SCHEMA.TABLES) AS id))", DialectSpanner); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(GRAPH_TABLE with info_schema subquery) = %v, want SelectInfoSchema", got)
+	}
+}
+
+// TestGetQuerySpan_BigQueryDialectPropagation verifies that DialectBigQuery
+// analysis entry points parse BigQuery-specific syntax (such as FROM-first
+// pipe queries, MATCH_RECOGNIZE, and BigQuery DDL) consistently with
+// bigquery/parser.
+func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
+	if got := ClassifySQL("FROM sensitive", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(FROM sensitive, BigQuery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("FROM INFORMATION_SCHEMA.TABLES", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(FROM INFORMATION_SCHEMA.TABLES, BigQuery) = %v, want SelectInfoSchema", got)
+	}
+	if got := ClassifySQL("FROM sensitive", DialectSpanner); got != Unknown {
+		t.Errorf("ClassifySQL(FROM sensitive, Spanner) = %v, want Unknown", got)
+	}
+	if got := ClassifySQL("CREATE EXTERNAL TABLE ds.ext OPTIONS(format='CSV', uris=['gs://b/f'])", DialectBigQuery); got != DDL {
+		t.Errorf("ClassifySQL(CREATE EXTERNAL TABLE, BigQuery) = %v, want DDL", got)
+	}
+
+	// FROM sensitive projects the same base-table star as SELECT * FROM sensitive.
+	span, err := GetQuerySpan("FROM sensitive", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(FROM sensitive, BigQuery): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("FROM sensitive tables = %v, want [sensitive]", got)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "*" {
+		t.Errorf("FROM sensitive results = %+v, want single base-table star", span.Results)
+	}
+
+	// WITH CTE + FROM-first preserves CTE column lineage.
+	span, err = GetQuerySpan("WITH c AS (SELECT secret FROM sensitive) FROM c", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(WITH c ... FROM c, BigQuery): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("WITH c ... FROM c tables = %v, want [sensitive]", got)
+	}
+	if got := resultNames(span); !eqStrings(got, []string{"secret"}) {
+		t.Errorf("WITH c ... FROM c results = %v, want [secret]", got)
+	}
+
+	// Row-only pipe suffix on FROM-first keeps the projection; projection-changing
+	// suffix, unresolvable TVF FROM-first, and MATCH_RECOGNIZE fail closed.
+	if _, err := GetQuerySpan("FROM sensitive |> WHERE id > 1", DialectBigQuery); err != nil {
+		t.Errorf("GetQuerySpan(FROM sensitive |> WHERE id > 1, BigQuery): %v", err)
+	}
+	for _, sql := range []string{
+		"FROM sensitive |> SELECT secret",
+		"FROM tvf()",
+		"FROM (SELECT 1 AS public) CROSS JOIN tvf()",
+		"FROM (SELECT 1 AS public), tvf()",
+		"SELECT * FROM sensitive MATCH_RECOGNIZE (MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS x > 0)",
+		"SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
+		"SELECT * FROM (a JOIN b ON a.id = b.id) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
+	} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q, BigQuery) succeeded, want fail-closed error", sql)
+		}
+	}
+
+	// Subqueries inside MATCH_RECOGNIZE on non-TableExpr sources are still
+	// discovered by ClassifySQL (tablesOnly pass).
+	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM INFORMATION_SCHEMA.TABLES) > 0)", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with info_schema subquery) = %v, want SelectInfoSchema", got)
+	}
+	if got := ClassifySQL("SELECT * FROM (INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.COLUMNS ON true) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(Join MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
+	}
+
+	// Consecutive join conditions reassociate right-to-left:
+	// `a JOIN b JOIN c USING (id) ON a.id = b.id` matches
+	// `a JOIN (b JOIN c USING (id)) ON a.id = b.id` (5 columns: [ax, id, id, bx, cz]).
+	seqSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN b JOIN c USING (id) ON a.id = b.id"
+	parenSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN (b JOIN c USING (id)) ON a.id = b.id"
+	seqSpan, err := GetQuerySpan(seqSQL, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(join sequence): %v", err)
+	}
+	parenSpan, err := GetQuerySpan(parenSQL, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(parenthesized join): %v", err)
+	}
+	if !eqStrings(resultNames(seqSpan), []string{"ax", "id", "id", "bx", "cz"}) {
+		t.Errorf("join sequence results = %v, want [ax id id bx cz]", resultNames(seqSpan))
+	}
+	if !eqStrings(resultNames(seqSpan), resultNames(parenSpan)) {
+		t.Errorf("join sequence results %v != parenthesized results %v", resultNames(seqSpan), resultNames(parenSpan))
+	}
+
+	// Correlated LATERAL sources fail closed in GetQuerySpan while still
+	// discovering tables inside the LATERAL body for ClassifySQL.
+	for _, sql := range []string{
+		"SELECT t.x FROM (SELECT secret AS exposed FROM sensitive) b, LATERAL (SELECT b.exposed AS x) t",
+		"SELECT t.x FROM sensitive b, LATERAL tvf(b.id) t",
+	} {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if _, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded, want fail-closed error", sql, dialect)
+			}
+		}
+	}
+	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT * FROM secret) t", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(LATERAL with user table) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT b.table_name AS x) t", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(LATERAL info_schema only) = %v, want SelectInfoSchema", got)
+	}
+}
+
+// TestGetQuerySpan_ExplainAndExtendedDDL verifies that EXPLAIN traverses its
+// inner statement for AccessTables (keeping Results empty) and that extended
+// DDL statements (CREATE MODEL AS query, ALTER ROW ACCESS POLICY) record
+// referenced tables.
+func TestGetQuerySpan_ExplainAndExtendedDDL(t *testing.T) {
+	for _, dialect := range []Dialect{DialectSpanner, DialectBigQuery} {
+		span, err := GetQuerySpan("EXPLAIN SELECT secret FROM sensitive", dialect)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(EXPLAIN SELECT, %v): %v", dialect, err)
+		}
+		if span.Type != Explain {
+			t.Errorf("EXPLAIN Type = %v, want Explain", span.Type)
+		}
+		if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+			t.Errorf("EXPLAIN AccessTables = %v, want [sensitive]", got)
+		}
+		if len(span.Results) != 0 {
+			t.Errorf("EXPLAIN Results = %+v, want empty", span.Results)
+		}
+
+		span, err = GetQuerySpan("EXPLAIN INSERT INTO dst SELECT * FROM src", dialect)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(EXPLAIN INSERT, %v): %v", dialect, err)
+		}
+		if got := tableNames(span); !eqStrings(got, []string{"dst", "src"}) {
+			t.Errorf("EXPLAIN INSERT AccessTables = %v, want [dst src]", got)
+		}
+
+		if _, err := GetQuerySpan("EXPLAIN SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret))", dialect); err == nil {
+			t.Errorf("GetQuerySpan(EXPLAIN GRAPH_TABLE, %v) succeeded, want fail-closed error", dialect)
+		}
+	}
+
+	// Extended DDL statements referencing source/target tables.
+	span, err := GetQuerySpan("CREATE MODEL m AS SELECT secret FROM sensitive", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(CREATE MODEL AS SELECT): %v", err)
+	}
+	if span.Type != DDL {
+		t.Errorf("CREATE MODEL Type = %v, want DDL", span.Type)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("CREATE MODEL AccessTables = %v, want [sensitive]", got)
+	}
+
+	span, err = GetQuerySpan("ALTER ROW ACCESS POLICY p ON sensitive FILTER USING (id IN (SELECT id FROM acl))", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(ALTER ROW ACCESS POLICY): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"acl", "sensitive"}) {
+		t.Errorf("ALTER ROW ACCESS POLICY AccessTables = %v, want [acl sensitive]", got)
+	}
+}

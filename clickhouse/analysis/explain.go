@@ -1,6 +1,10 @@
 package analysis
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/clickhouse/parser"
+)
 
 // ExplainStatement returns the ClickHouse EXPLAIN statement for statement.
 // When format is "JSON" (case-insensitive), it requests `json = 1, indexes = 1`
@@ -17,127 +21,174 @@ func ExplainStatement(statement, format string) string {
 }
 
 // StartsWithExplain reports whether the first keyword of statement is EXPLAIN,
-// ignoring leading comments and whitespace. A block comment left open or
-// holding another `/*` cannot be settled without a parser and returns false.
+// ignoring leading whitespace and comments (including nested block comments).
+// An unclosed block comment or quoted identifier returns false.
 func StartsWithExplain(statement string) bool {
-	return startsWithKeyword(statementBody(statement), "EXPLAIN")
+	return parser.NewLexer(statement).NextToken().Type == parser.KwExplain
+}
+
+// PlanFormat reports the plan format ("JSON" or "TEXT") of a statement that
+// already starts with EXPLAIN.
+func PlanFormat(statement string) (string, bool) {
+	info := inspectExplain(statement)
+	if !info.isExplain {
+		return "", false
+	}
+	return info.format, true
 }
 
 // DescribeExplain returns the plan format ("JSON" or "TEXT") and whether
 // statement executes what it plans (EXPLAIN ANALYZE). ok is false when
 // statement does not start with EXPLAIN.
 func DescribeExplain(statement string) (format string, executed bool, ok bool) {
-	if !StartsWithExplain(statement) {
+	info := inspectExplain(statement)
+	if !info.isExplain {
 		return "", false, false
 	}
-	return explainFormatOf(statement), explainAnalyzes(statement), true
+	return info.format, info.executed, true
 }
 
-func explainAnalyzes(statement string) bool {
-	body, err := removeQuotedTextAndComment(statement)
-	if err != nil {
-		return false
-	}
-	tokens := keywordTokens(body)
-	return len(tokens) > 1 && tokens[1].word && strings.EqualFold(tokens[1].text, "ANALYZE")
+type explainHeader struct {
+	isExplain bool
+	format    string
+	executed  bool
 }
 
-func explainFormatOf(statement string) string {
-	body, err := removeQuotedTextAndComment(statement)
-	if err != nil {
-		return "TEXT"
+// inspectExplain inspects a ClickHouse EXPLAIN statement via clickhouse/parser.
+// When the full statement parses as an *parser.ExplainStmt, the AST directly
+// determines both the plan format and execution flag. Otherwise (for example,
+// partial/non-standard EXPLAIN headers such as `EXPLAIN JSON SELECT 1`), it
+// scans the EXPLAIN header using clickhouse/parser's lexer so nested block
+// comments, line comments (`--`, `#`), quoted identifiers, and inner query
+// expressions (such as `EXPLAIN SELECT json = 1 FROM t`) are handled
+// accurately.
+func inspectExplain(statement string) explainHeader {
+	l := parser.NewLexer(statement)
+	if l.NextToken().Type != parser.KwExplain {
+		return explainHeader{}
 	}
-	tokens := keywordTokens(body)
-	// Skip EXPLAIN and its optional kind, unless the first word is already a
-	// setting (json = 1).
-	i := 1
-	if i < len(tokens) && tokens[i].word && !(i+1 < len(tokens) && tokens[i+1].text == "=") {
-		kind := tokens[i].text
-		i++
-		if strings.EqualFold(kind, "QUERY") || strings.EqualFold(kind, "TABLE") {
-			i++
-		}
-		if strings.EqualFold(kind, "JSON") {
-			return "JSON"
+
+	if stmts, err := parser.Parse(statement); err == nil && len(stmts) == 1 {
+		if ex, ok := stmts[0].(*parser.ExplainStmt); ok {
+			return explainHeaderFromAST(ex)
 		}
 	}
-	// The settings are name = value pairs; the query body starts at the first
-	// word that is not one.
-	for i < len(tokens) {
-		if !tokens[i].word || i+1 >= len(tokens) || tokens[i+1].text != "=" || i+2 >= len(tokens) {
-			break
-		}
-		if strings.EqualFold(tokens[i].text, "JSON") {
-			if settingIsOff(tokens[i+2].text) {
-				return "TEXT"
+
+	return inspectExplainHeaderLex(l)
+}
+
+func explainHeaderFromAST(ex *parser.ExplainStmt) explainHeader {
+	format := "TEXT"
+	for _, s := range ex.Settings {
+		if strings.EqualFold(s.Name, "JSON") {
+			if settingExprIsOff(s.Value) {
+				format = "TEXT"
+			} else {
+				format = "JSON"
 			}
-			return "JSON"
 		}
-		i += 3
-		if i >= len(tokens) || tokens[i].text != "," {
-			break
-		}
-		i++
 	}
-	return "TEXT"
+	return explainHeader{
+		isExplain: true,
+		format:    format,
+		executed:  strings.EqualFold(ex.Kind, "ANALYZE"),
+	}
 }
 
-func settingIsOff(value string) bool {
-	switch strings.ToUpper(value) {
-	case "0", "FALSE", "OFF", "NO":
-		return true
+func inspectExplainHeaderLex(l *parser.Lexer) explainHeader {
+	info := explainHeader{
+		isExplain: true,
+		format:    "TEXT",
+	}
+
+	cur := l.NextToken()
+	next := l.NextToken()
+	advance := func() {
+		cur = next
+		next = l.NextToken()
+	}
+
+	// Optional EXPLAIN kind when not followed by `=` (which begins settings).
+	if next.Type != parser.TokEq {
+		switch cur.Type {
+		case parser.KwAst, parser.KwSyntax, parser.KwPlan, parser.KwPipeline, parser.KwEstimate:
+			advance()
+		case parser.KwQuery:
+			if next.Type == parser.KwTree {
+				advance()
+				advance()
+			}
+		case parser.KwTable:
+			if next.Type == parser.KwOverride {
+				advance()
+				advance()
+			}
+		case parser.KwCurrent:
+			if next.Type == parser.TokIdent && strings.EqualFold(next.Val, "TRANSACTION") {
+				return info
+			}
+		case parser.TokIdent:
+			switch {
+			case strings.EqualFold(cur.Val, "ANALYZE"):
+				info.executed = true
+				advance()
+			case strings.EqualFold(cur.Val, "JSON"):
+				info.format = "JSON"
+				return info
+			}
+		}
+	}
+
+	// Optional `name = value (, name = value)*` settings before the query body.
+	for (cur.Type == parser.TokIdent || cur.IsKeyword()) && next.Type == parser.TokEq {
+		name := cur.Val
+		advance() // move cur to '='
+		advance() // move cur to value (or sign)
+		if cur.Type == parser.TokEOF || cur.Type == parser.TokIllegal {
+			break
+		}
+		val := cur.Val
+		if (cur.Type == parser.TokPlus || cur.Type == parser.TokMinus) &&
+			(next.Type == parser.TokInt || next.Type == parser.TokFloat) {
+			val = cur.Raw + next.Val
+			advance()
+		}
+		if strings.EqualFold(name, "JSON") {
+			if settingIsOff(val) {
+				info.format = "TEXT"
+			} else {
+				info.format = "JSON"
+			}
+		}
+		advance() // move past value
+		if cur.Type != parser.TokComma {
+			break
+		}
+		advance() // consume ','
+	}
+	return info
+}
+
+func settingExprIsOff(expr parser.Expr) bool {
+	switch e := expr.(type) {
+	case *parser.LiteralExpr:
+		return settingIsOff(e.Val)
+	case *parser.IdentExpr:
+		if len(e.Parts) == 1 {
+			return settingIsOff(e.Parts[0])
+		}
+	case *parser.UnaryExpr:
+		if e.Op == "+" || e.Op == "-" {
+			return settingExprIsOff(e.Expr)
+		}
 	}
 	return false
 }
 
-// statementBody returns statement without its leading comments and whitespace,
-// or "" when a block comment is unclosed or contains a nested `/*`.
-func statementBody(statement string) string {
-	s := statement
-	for {
-		s = strings.TrimLeft(s, " \t\r\n\v\f")
-		switch {
-		case strings.HasPrefix(s, "--"), strings.HasPrefix(s, "#"):
-			_, rest, found := strings.Cut(s, "\n")
-			if !found {
-				return ""
-			}
-			s = rest
-		case strings.HasPrefix(s, "/*"):
-			rest, closed := pastBlockComment(s)
-			if !closed {
-				return ""
-			}
-			s = rest
-		default:
-			return s
-		}
-	}
-}
-
-// pastBlockComment returns what follows the block comment opening s, and
-// reports whether it could be read at all. A comment left open cannot be, and
-// neither can one holding another `/*`.
-func pastBlockComment(s string) (string, bool) {
-	for at := len("/*"); at < len(s); at++ {
-		switch {
-		case strings.HasPrefix(s[at:], "/*"):
-			return "", false
-		case strings.HasPrefix(s[at:], "*/"):
-			return s[at+len("*/"):], true
-		}
-	}
-	return "", false
-}
-
-// startsWithKeyword reports whether s begins with keyword as a whole word.
-func startsWithKeyword(s, keyword string) bool {
-	if len(s) < len(keyword) || !strings.EqualFold(s[:len(keyword)], keyword) {
-		return false
-	}
-	if len(s) == len(keyword) {
+func settingIsOff(value string) bool {
+	switch strings.ToUpper(value) {
+	case "0", "+0", "-0", "FALSE", "OFF", "NO":
 		return true
 	}
-	c := s[len(keyword)]
-	return c != '_' && c != '$' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c < 0x80
+	return false
 }

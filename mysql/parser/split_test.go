@@ -40,6 +40,16 @@ func TestSplitCompoundBlocks(t *testing.T) {
 			want: []string{"SELECT REPEAT('x', 3)", " SELECT 1"}},
 		{name: "IF function is not compound", sql: "SELECT IF(1, 'a', 'b'); SELECT 1;",
 			want: []string{"SELECT IF(1, 'a', 'b')", " SELECT 1"}},
+		{name: "CREATE DEFINER PROCEDURE bare IF body", sql: "CREATE DEFINER=`root`@`%` PROCEDURE `p`()\nIF x THEN COMMIT; END IF",
+			want: []string{"CREATE DEFINER=`root`@`%` PROCEDURE `p`()\nIF x THEN COMMIT; END IF"}},
+		{name: "CREATE DEFINER PROCEDURE characteristics + bare IF body", sql: "CREATE DEFINER=`root`@`%` PROCEDURE `p`()\n    DETERMINISTIC\n    COMMENT 'c'\nIF x THEN COMMIT; END IF; SELECT 1;",
+			want: []string{"CREATE DEFINER=`root`@`%` PROCEDURE `p`()\n    DETERMINISTIC\n    COMMENT 'c'\nIF x THEN COMMIT; END IF", " SELECT 1"}},
+		{name: "CREATE DEFINER CURRENT_USER() PROCEDURE IF NOT EXISTS bare IF body", sql: "CREATE DEFINER = CURRENT_USER() PROCEDURE IF NOT EXISTS p() SQL SECURITY INVOKER IF x THEN COMMIT; END IF; SELECT 1;",
+			want: []string{"CREATE DEFINER = CURRENT_USER() PROCEDURE IF NOT EXISTS p() SQL SECURITY INVOKER IF x THEN COMMIT; END IF", " SELECT 1"}},
+		{name: "CREATE TABLE with column named procedure does not enter routine header", sql: "CREATE TABLE t (`procedure` VARCHAR(10), IF_col INT); SELECT 1;",
+			want: []string{"CREATE TABLE t (`procedure` VARCHAR(10), IF_col INT)", " SELECT 1"}},
+		{name: "CREATE TABLE with unquoted procedure column before IF", sql: "CREATE TABLE t (procedure VARCHAR(10)) COMMENT 'c'; SELECT IF(1,2,3); SELECT 2;",
+			want: []string{"CREATE TABLE t (procedure VARCHAR(10)) COMMENT 'c'", " SELECT IF(1,2,3)", " SELECT 2"}},
 	}
 
 	for _, tt := range tests {

@@ -58,7 +58,8 @@ type Parser struct {
 	// parse in the end. See noteLookup and preferLookup.
 	lookupRefusal *ParseError
 
-	noBareDefault bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
+	noBareDefault  bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
+	noTrailingInto bool // inside a CREATE/ALTER VIEW query_expression (disallows trailing INTO after FROM/LIMIT/locking)
 
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 

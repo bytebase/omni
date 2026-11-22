@@ -275,7 +275,7 @@ CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T;
 	if err != nil {
 		t.Fatal(err)
 	}
-	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
+	columnMap, _, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -797,4 +797,225 @@ func namesOfViews(views []*metadatapb.ViewMetadata) []string {
 		names[i] = view.Name
 	}
 	return names
+}
+
+func execStatements(t *testing.T, db *sql.DB, statements ...string) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	for _, stmt := range statements {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("%s:\n%v", stmt, err)
+		}
+	}
+}
+
+// TestSyncMaterializedViewIndexesAndTriggers pins that a materialized view is
+// reported under MaterializedViews (not Tables) with both its system-generated
+// ROWID index and user indexes/triggers attached.
+func TestSyncMaterializedViewIndexesAndTriggers(t *testing.T) {
+	d := openTestDriver(t)
+	execStatements(t, d.db,
+		`CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS`,
+		`GRANT CREATE SESSION, CREATE TABLE, CREATE MATERIALIZED VIEW, CREATE TRIGGER TO OMNI_APP`,
+		`CREATE TABLE OMNI_APP.BASE (ID NUMBER CONSTRAINT BASE_PK PRIMARY KEY, V NUMBER)`,
+		`CREATE MATERIALIZED VIEW LOG ON OMNI_APP.BASE WITH PRIMARY KEY, ROWID`,
+		`CREATE MATERIALIZED VIEW OMNI_APP.MV REFRESH FAST WITH ROWID AS SELECT ID, V FROM OMNI_APP.BASE`,
+		`CREATE INDEX OMNI_APP.MV_V ON OMNI_APP.MV (V)`,
+		`CREATE TRIGGER OMNI_APP.MV_TRG BEFORE INSERT ON OMNI_APP.MV FOR EACH ROW BEGIN NULL; END;`,
+	)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	for _, table := range schema.Tables {
+		if table.Name == "MV" {
+			t.Fatalf("materialized view MV also appeared in Tables: %v", namesOfTables(schema.Tables))
+		}
+	}
+	if len(schema.MaterializedViews) != 1 {
+		t.Fatalf("materialized views = %d, want 1", len(schema.MaterializedViews))
+	}
+	mv := schema.MaterializedViews[0]
+	var indexNames []string
+	for _, idx := range mv.Indexes {
+		indexNames = append(indexNames, idx.Name)
+	}
+	if diff := cmp.Diff([]string{"I_SNAP$_MV", "MV_V"}, indexNames); diff != "" {
+		t.Errorf("MV indexes (-want +got):\n%s", diff)
+	}
+	var triggerNames []string
+	for _, trg := range mv.Triggers {
+		triggerNames = append(triggerNames, trg.Name)
+	}
+	if diff := cmp.Diff([]string{"MV_TRG"}, triggerNames); diff != "" {
+		t.Errorf("MV triggers (-want +got):\n%s", diff)
+	}
+}
+
+// TestSyncLeavesOutTriggersOnOtherSchemasTables pins that a trigger owned by
+// the synced schema targeting a same-named table in another schema is not
+// attached to the local table.
+func TestSyncLeavesOutTriggersOnOtherSchemasTables(t *testing.T) {
+	d := openTestDriver(t)
+	execStatements(t, d.db,
+		`CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS`,
+		`CREATE USER OMNI_OTHER NO AUTHENTICATION QUOTA UNLIMITED ON USERS`,
+		`GRANT CREATE SESSION, CREATE TABLE, CREATE TRIGGER TO OMNI_APP`,
+		`GRANT CREATE SESSION, CREATE TABLE TO OMNI_OTHER`,
+		`CREATE TABLE OMNI_APP.T (A NUMBER)`,
+		`CREATE TABLE OMNI_OTHER.T (A NUMBER)`,
+		`CREATE TRIGGER OMNI_APP.ON_OWN BEFORE INSERT ON OMNI_APP.T FOR EACH ROW BEGIN NULL; END;`,
+		`CREATE TRIGGER OMNI_APP.ON_OTHER BEFORE INSERT ON OMNI_OTHER.T FOR EACH ROW BEGIN NULL; END;`,
+	)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	table := tableByName(t, schema, "T")
+	var triggerNames []string
+	for _, trg := range table.Triggers {
+		triggerNames = append(triggerNames, trg.Name)
+	}
+	if diff := cmp.Diff([]string{"ON_OWN"}, triggerNames); diff != "" {
+		t.Errorf("T triggers (-want +got):\n%s", diff)
+	}
+}
+
+// TestSyncSynonyms pins private synonyms (same-schema, cross-schema, and
+// excluding dangling synonyms whose target does not exist) and public synonyms.
+func TestSyncSynonyms(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+CREATE USER OMNI_OTHER NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE, CREATE SYNONYM TO OMNI_APP;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_OTHER;
+CREATE TABLE OMNI_APP.T (A NUMBER);
+CREATE TABLE OMNI_OTHER.OT (A NUMBER);
+CREATE SYNONYM OMNI_APP.S_OWN FOR OMNI_APP.T;
+CREATE SYNONYM OMNI_APP.S_OTHER FOR OMNI_OTHER.OT;
+CREATE SYNONYM OMNI_APP.S_GONE FOR OMNI_APP.NOSUCH;
+CREATE PUBLIC SYNONYM OMNI_APP_PUB FOR OMNI_APP.T;
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	wantPrivate := []*metadatapb.SynonymMetadata{
+		{Name: "S_OTHER", TargetSchema: "OMNI_OTHER", TargetName: "OT"},
+		{Name: "S_OWN", TargetSchema: "OMNI_APP", TargetName: "T"},
+	}
+	if diff := cmp.Diff(wantPrivate, schema.Synonyms, protocmp.Transform()); diff != "" {
+		t.Errorf("private synonyms (-want +got):\n%s", diff)
+	}
+	publicByName := make(map[string]*metadatapb.SynonymMetadata, len(metadata.PublicSynonyms))
+	for _, syn := range metadata.PublicSynonyms {
+		publicByName[syn.Name] = syn
+	}
+	if diff := cmp.Diff(&metadatapb.SynonymMetadata{Name: "OMNI_APP_PUB", TargetSchema: "OMNI_APP", TargetName: "T"}, publicByName["OMNI_APP_PUB"], protocmp.Transform()); diff != "" {
+		t.Errorf("public synonym OMNI_APP_PUB (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(&metadatapb.SynonymMetadata{Name: "DUAL", TargetSchema: "SYS", TargetName: "DUAL"}, publicByName["DUAL"], protocmp.Transform()); diff != "" {
+		t.Errorf("public synonym DUAL (-want +got):\n%s", diff)
+	}
+}
+
+func TestMaterializedViewRefreshPrefix(t *testing.T) {
+	cases := []struct {
+		name          string
+		buildMode     string
+		refreshMethod string
+		refreshMode   string
+		want          string
+	}{
+		{
+			name:          "oracle defaults omitted",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "FORCE",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "deferred build with complete refresh",
+			buildMode:     "DEFERRED",
+			refreshMethod: "COMPLETE",
+			refreshMode:   "DEMAND",
+			want:          "BUILD DEFERRED REFRESH COMPLETE ON DEMAND",
+		},
+		{
+			name:          "never refresh",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "NEVER",
+			refreshMode:   "NEVER",
+			want:          "NEVER REFRESH",
+		},
+		{
+			name:          "prebuilt with default refresh omits ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "FORCE",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "prebuilt with non-default refresh preserves refresh policy without ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "COMPLETE",
+			refreshMode:   "DEMAND",
+			want:          "REFRESH COMPLETE ON DEMAND",
+		},
+		{
+			name:          "prebuilt with never refresh preserves NEVER REFRESH without ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "NEVER",
+			refreshMode:   "NEVER",
+			want:          "NEVER REFRESH",
+		},
+		{
+			name:          "fast refresh on demand falls back to default without MV logs",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "FAST",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "deferred fast refresh falls back to FORCE while keeping BUILD DEFERRED",
+			buildMode:     "DEFERRED",
+			refreshMethod: "FAST",
+			refreshMode:   "DEMAND",
+			want:          "BUILD DEFERRED REFRESH FORCE ON DEMAND",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := materializedViewRefreshPrefix(tc.buildMode, tc.refreshMethod, tc.refreshMode); got != tc.want {
+				t.Errorf("materializedViewRefreshPrefix(%q, %q, %q) = %q, want %q", tc.buildMode, tc.refreshMethod, tc.refreshMode, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatOraclePartitionKeyColumn(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{in: "A", want: "A"},
+		{in: "ORDER_DATE", want: "ORDER_DATE"},
+		{in: "A,B", want: `"A,B"`},
+		{in: "Mixed Case", want: `"Mixed Case"`},
+		{in: " A ", want: `" A "`},
+	}
+	for _, tc := range cases {
+		if got := formatOraclePartitionKeyColumn(tc.in); got != tc.want {
+			t.Errorf("formatOraclePartitionKeyColumn(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
 }

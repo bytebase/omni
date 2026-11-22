@@ -241,3 +241,87 @@ func TestCompleteSession_NilAndDefaultOnlyConfig(t *testing.T) {
 	require.Equal(t, 1, loads["Company"])
 	require.Zero(t, loads["School"])
 }
+
+func TestCompleteSession_CoverageMatrix(t *testing.T) {
+	catalogs := trinoTestCatalogs()
+	cfg := SessionConfig{
+		DefaultCatalog: "Company",
+		DefaultSchema:  "dbo",
+		ListCatalogNames: func(context.Context) ([]string, error) {
+			return []string{"Company", "School", "Warehouse"}, nil
+		},
+		LoadCatalog: func(_ context.Context, name string) (*metadatapb.DatabaseSchemaMetadata, error) {
+			return catalogs[name], nil
+		},
+	}
+
+	type wantSpec struct {
+		text string
+		typ  CandidateType
+	}
+	tests := []struct {
+		name       string
+		input      string
+		want       []wantSpec
+		absentText []string
+	}{
+		{
+			name:  "FROM offers catalogs, schemas, and current-schema tables",
+			input: "SELECT * FROM |",
+			want: []wantSpec{
+				{"company", CandidateCatalog},
+				{"school", CandidateCatalog},
+				{"dbo", CandidateSchema},
+				{"myschema", CandidateSchema},
+				{"address", CandidateTable},
+				{"employees", CandidateTable},
+			},
+		},
+		{
+			name:       "schema-qualified FROM offers that schema's tables",
+			input:      "SELECT * FROM dbo.|",
+			want:       []wantSpec{{"address", CandidateTable}, {"employees", CandidateTable}},
+			absentText: []string{"salarylevel"},
+		},
+		{
+			name:  "schema-qualified FROM for non-current schema",
+			input: "SELECT * FROM myschema.|",
+			want:  []wantSpec{{"salarylevel", CandidateTable}},
+		},
+		{
+			name:  "SELECT column context offers in-scope columns",
+			input: "SELECT | FROM Employees",
+			want:  []wantSpec{{"id", CandidateColumn}, {"name", CandidateColumn}},
+		},
+		{
+			name:  "WHERE column context offers in-scope columns",
+			input: "SELECT * FROM Employees WHERE |",
+			want:  []wantSpec{{"id", CandidateColumn}, {"name", CandidateColumn}},
+		},
+		{
+			name:  "alias-qualified column context",
+			input: "SELECT tableAlias.| FROM Employees AS tableAlias",
+			want:  []wantSpec{{"id", CandidateColumn}, {"name", CandidateColumn}},
+		},
+		{
+			name:  "CTE name offered as a relation after FROM",
+			input: "WITH MyCTE_01 AS (SELECT * FROM dbo.Employees) SELECT * FROM |",
+			want:  []wantSpec{{"mycte_01", CandidateTable}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt, line, col := catchCaretUTF16(t, tc.input)
+			got := CompleteSession(context.Background(), cfg, stmt, line, col)
+			for _, w := range tc.want {
+				require.Truef(t, hasSessionCandidate(got, w.text, w.typ), "missing {%s, %v} in %v", w.text, w.typ, got)
+			}
+			for _, absent := range tc.absentText {
+				for _, c := range got {
+					require.NotEqualf(t, absent, c.Text, "unexpected %q in %v", absent, got)
+				}
+			}
+		})
+	}
+}

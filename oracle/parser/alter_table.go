@@ -41,9 +41,12 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Loc:     nodes.Loc{Start: start},
 	}
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// ALTER TABLE t alone is refused (ORA-02210).
@@ -51,7 +54,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	enableDisable, upgrade := false, false
+	defer func(saved int) { p.alterTableActionCount = saved }(p.alterTableActionCount)
+	p.alterTableActionCount = 0
 	for !p.isStatementEnd() {
+		p.alterTableActionCount = stmt.Actions.Len()
 		tok := p.cur
 		if enableDisable && p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE {
 			return nil, p.syntaxErrorAtCur()
@@ -127,6 +133,12 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case kwADD:
 		return p.parseAlterTableAdd()
+	case kwIMMEDIATE:
+		if p.alterTableActionCount == 0 {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, p.syntaxErrorAtCur()
 	case kwMODIFY:
 		return p.parseAlterTableModify()
 	case kwDROP:
@@ -161,6 +173,20 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 		return p.parseAlterTableInmemory()
 	case p.atWord("ILM"):
 		return p.parseAlterTableClause("ILM", p.parseATIlmClause)
+	case p.atWord("NESTED"), p.atWord("VARRAY"):
+		// Oracle enters top-level NESTED TABLE / VARRAY column_properties on
+		// ALTER TABLE (expecting STORE AS / SUBSTITUTABLE) before refusing
+		// clauses that require MODIFY (e.g., RETURN AS LOCATOR or (RETENTION)).
+		start := p.pos()
+		opts := &nodes.List{}
+		if err := p.parseATColumnProperties(opts); err != nil {
+			return nil, err
+		}
+		return withAlterTableOptions(&nodes.AlterTableCmd{
+			Action:  nodes.AT_ALTER_PROPERTY,
+			Subtype: "COLUMN_PROPERTIES",
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, opts), nil
 	case p.atWord("ALLOCATE"):
 		return p.parseAlterTableClause("ALLOCATE EXTENT", p.parseATAllocateExtent)
 	case p.atWord("DEALLOCATE"):
@@ -231,9 +257,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	}
 
 	if p.atWord("SUPPLEMENTAL") {
-		p.advance() // consume SUPPLEMENTAL
+		suppTok := p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options, suppTok); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -545,13 +571,16 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 			Action: action,
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	case p.atWord("OPAQUE") && p.atNextWord("TYPE"):
+	case p.atWord("OPAQUE") && (p.atNextWord("TYPE") || isCreateTableWordTok(p.peekAhead(2)[1], "STORE")):
 		return p.parseAlterTableModifyOpaqueType(start)
 	case p.atWord("CLUSTERING"):
 		p.advance() // consume CLUSTERING
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "MODIFY CLUSTERING", Options: &nodes.List{}}
 		if err := p.parseATClusteringWhen(cmd.Options); err != nil {
 			return nil, err
+		}
+		if cmd.Options.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
 		return withAlterTableOptions(cmd, cmd.Options), nil
@@ -596,6 +625,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		for {
 			var err error
 			colTok := p.cur
+			if p.isATNameStart() && named[colTok.Str] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
 			col, err = p.parseATModifyColumn(true)
 			if err != nil {
 				return nil, err
@@ -723,7 +755,7 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 		tc.Type = nodes.CONSTRAINT_PRIMARY
 	default:
 		p.advance() // UNIQUE
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATUniqueNameList(); err != nil {
 			return nil, err
 		}
 		cmd.Subtype = "UNIQUE"
@@ -763,7 +795,9 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 // ORA-00906); the clause above is the one of its MODIFY OPAQUE TYPE.
 func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCmd, error) {
 	p.advance() // OPAQUE
-	p.advance() // TYPE
+	if err := p.atExpectWord("TYPE"); err != nil {
+		return nil, err
+	}
 	name, err := p.parseATNameString()
 	if err != nil {
 		return nil, err
@@ -774,8 +808,17 @@ func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCm
 	}
 	optStart := p.pos()
 	if p.cur.Type == kwAS {
-		// Oracle refuses what follows the page's STORE AS.
+		// Oracle reads LOB [ segname ] ( before refusing what follows the page's STORE AS.
 		p.advance()
+		if p.atWord("LOB") {
+			p.advance()
+			if p.cur.Type != '(' && p.isATNameStart() {
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+			}
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	if err := p.atExpect('('); err != nil {
@@ -882,7 +925,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		} else {
 			p.advance()
 			var err error
-			columns, err = p.parseATNameListStrings()
+			columns, err = p.parseATUniqueNameListStrings()
 			if err != nil {
 				return nil, err
 			}
@@ -931,6 +974,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		// DROP ( PERIOD FOR valid_time_column )
 		if p.atWord("PERIOD") {
 			p.advance() // consume PERIOD
+			forTok := p.cur
 			if err := p.atExpect(kwFOR); err != nil {
 				return nil, err
 			}
@@ -939,6 +983,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			if err := p.atExpect(')'); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(forTok)
+				}
 				return nil, err
 			}
 			return &nodes.AlterTableCmd{
@@ -1003,9 +1050,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		}, nil
 
 	case p.atWord("SUPPLEMENTAL"):
-		p.advance() // consume SUPPLEMENTAL
+		suppTok := p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options, suppTok); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -1136,15 +1183,20 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if err := p.atExpect(')'); err != nil {
 			return nil, err
 		}
+		oldName, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
+		}
 		newName, err := renameTo()
 		if err != nil {
 			return nil, err
 		}
 		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "RENAME LOB",
-			NewName: newName,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Action:     nodes.AT_ALTER_PROPERTY,
+			Subtype:    "RENAME LOB",
+			ColumnName: oldName,
+			NewName:    newName,
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
@@ -1220,8 +1272,11 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 		optStart := p.pos()
 		switch {
 		case p.cur.Type == kwALL:
-			p.advance()
+			allTok := p.advance()
 			if err := p.atExpectWord("KEYS"); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(allTok)
+				}
 				return nil, err
 			}
 		case p.atWord("ALLOW"):
@@ -1229,7 +1284,11 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("NOVALIDATE"); err != nil {
 				return nil, err
 			}
+			novalTok := p.prev
 			if err := p.atExpectWord("KEYS"); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(novalTok)
+				}
 				return nil, err
 			}
 		}
@@ -1249,7 +1308,7 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	case kwUNIQUE:
 		constraintType = "UNIQUE"
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATUniqueNameList(); err != nil {
 			return nil, err
 		}
 	case kwPRIMARY:
@@ -1459,7 +1518,19 @@ func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 		}
 	} else {
 		p.advance() // INMEMORY
-		if err := p.parseATInmemoryMemcompress(); err != nil {
+		if p.alterMview && p.atWord("MEMOPTIMIZE") {
+			p.advance()
+			if err := p.atExpect(kwFOR); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		} else if p.alterMview && p.cur.Type == kwFOR {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		} else if err := p.parseATInmemoryMemcompress(); err != nil {
 			return nil, err
 		}
 		if p.cur.Type == '(' {
@@ -1650,6 +1721,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			}
 			// Oracle reads no item of a nested table's object_properties
 			// here: parseATObjectProperties takes it as text.
+			if p.cur.Type == '(' {
+				p.advance()
+				return nil, p.syntaxErrorAtCur()
+			}
 			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
 			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {
@@ -1926,6 +2001,7 @@ func (p *Parser) parseAlterTableExternal() (*nodes.AlterTableCmd, error) {
 //
 // Oracle takes only DAYS in NO DROP UNTIL (ORA-00905 for DAY).
 func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
+	noTok := p.cur
 	start := p.pos()
 	if p.atNextWord("INMEMORY") {
 		return p.parseAlterTableInmemory()
@@ -2014,7 +2090,7 @@ func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
 		return withAlterTableOptions(cmd, cmd.Options), nil
 	}
-	return nil, p.syntaxErrorAtCur()
+	return nil, p.syntaxErrorAtTok(noTok)
 }
 
 // ---------------------------------------------------------------------------
@@ -2023,8 +2099,14 @@ func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 
 // skipParenthesized skips a parenthesized group if present.
 func (p *Parser) skipParenthesized() {
+	p.skipParenthesizedBalanced()
+}
+
+// skipParenthesizedBalanced skips a parenthesized group if present and reports
+// whether all opening parentheses were closed before EOF.
+func (p *Parser) skipParenthesizedBalanced() bool {
 	if p.cur.Type != '(' {
-		return
+		return true
 	}
 	depth := 1
 	p.advance() // consume '('
@@ -2036,6 +2118,7 @@ func (p *Parser) skipParenthesized() {
 		}
 		p.advance()
 	}
+	return depth == 0
 }
 
 func withAlterTableOptions(cmd *nodes.AlterTableCmd, options *nodes.List) *nodes.AlterTableCmd {

@@ -10,6 +10,7 @@ import (
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 
+	chparser "github.com/bytebase/omni/clickhouse/parser"
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -275,38 +276,32 @@ func (d *Driver) syncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 // key and index expressions at top-level commas only: a function or tuple keeps
 // its own commas.
 func splitKeyExpressions(s string) []string {
-	runes := []rune(s)
-	var out []string
+	l := chparser.NewLexer(s)
+	var expressions []string
 	start, depth := 0, 0
-	var quote rune
-	for i := 0; i < len(runes); i++ {
-		c := runes[i]
-		switch {
-		case quote != 0:
-			if c == '\\' && quote == '\'' {
-				i++
-			} else if c == quote {
-				quote = 0
-			}
-		case c == '\'' || c == '"' || c == '`':
-			quote = c
-		case c == '(' || c == '[' || c == '{':
+	for {
+		tok := l.NextToken()
+		if tok.Type == chparser.TokEOF {
+			break
+		}
+		switch tok.Type {
+		case chparser.TokLParen, chparser.TokLBracket, chparser.TokLBrace:
 			depth++
-		case c == ')' || c == ']' || c == '}':
+		case chparser.TokRParen, chparser.TokRBracket, chparser.TokRBrace:
 			if depth > 0 {
 				depth--
 			}
-		case c == ',' && depth == 0:
-			out = append(out, strings.TrimSpace(string(runes[start:i])))
-			start = i + 1
+		case chparser.TokComma:
+			if depth == 0 {
+				if expr := strings.TrimSpace(s[start:tok.Pos]); expr != "" {
+					expressions = append(expressions, expr)
+				}
+				start = tok.End
+			}
 		}
 	}
-	out = append(out, strings.TrimSpace(string(runes[start:])))
-	var expressions []string
-	for _, expression := range out {
-		if expression != "" {
-			expressions = append(expressions, expression)
-		}
+	if expr := strings.TrimSpace(s[start:]); expr != "" {
+		expressions = append(expressions, expr)
 	}
 	return expressions
 }

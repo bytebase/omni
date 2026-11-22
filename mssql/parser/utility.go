@@ -1291,7 +1291,7 @@ func (p *Parser) parseDropFederationStmt() (*nodes.DropFederationStmt, error) {
 
 // parseUseFederationStmt parses a USE FEDERATION statement.
 //
-// Grammar: TSql160.g:2709 useFederationStatement
+// Grammar: TSql160.g:13647 useFederationStatement
 // BNF: mssql/parser/bnf/use-federation-transact-sql.bnf
 //
 //	USE FEDERATION
@@ -1302,52 +1302,82 @@ func (p *Parser) parseDropFederationStmt() (*nodes.DropFederationStmt, error) {
 //	}
 //	RESET
 //
-// Its parts stay read loosely, unlike the statements above: SQL Server 2022
-// does not know FEDERATION, so it reads `USE FEDERATION ...` as a USE of a
-// database named FEDERATION, which does not exist — Msg 911, a lookup and so
-// an acceptance for the judge of testdata/compat.tsv, which never reads the
-// words after it. The rows it already agrees on are the loose case
-// (`USE FEDERATION a(a = 1) WITH FILTERING = ON, RESET`), and requiring the
-// grammar's parts would turn them into gaps; testdata/README.md says so.
+// SQL Server 2022 does not know the statement (with a database named
+// FEDERATION it reads past the name and refuses the tail with Msg 102/319,
+// measured); omni reads it for the Azure SQL Database it comes from, so the
+// grammar's parts are all required.
 func (p *Parser) parseUseFederationStmt() (*nodes.UseFederationStmt, error) {
 	stmt := &nodes.UseFederationStmt{
 		Loc: nodes.Loc{Start: p.pos(), End: -1},
 	}
 
-	// ROOT or federation_name
+	// ROOT WITH | federation_name ( distribution_name = value ) WITH FILTERING = { ON | OFF } ,
 	if p.cur.Type == kwROOT {
 		stmt.IsRoot = true
 		p.advance() // consume ROOT
-		p.match(kwWITH)
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
 	} else {
 		// federation_name
-		if name, ok := p.parseIdentifier(); ok {
-			stmt.FederationName = name
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.FederationName = name
+
 		// ( distribution_name = value )
-		p.match('(')
-		if name, ok := p.parseIdentifier(); ok {
-			stmt.DistributionName = name
+		if _, err := p.expect('('); err != nil {
+			return nil, err
 		}
-		p.match('=')
-		stmt.Value, _ = p.parseExpr()
-		p.match(')')
-		// WITH FILTERING = { ON | OFF }
-		p.match(kwWITH)
-		p.matchIdentCI("FILTERING")
-		p.match('=')
-		if p.cur.Type == kwON {
+		dist, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.DistributionName = dist
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		val, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if val == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Value = val
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+
+		// WITH FILTERING = { ON | OFF } ,
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwFILTERING); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case kwON:
 			stmt.Filtering = true
 			p.advance()
-		} else if p.cur.Type == kwOFF {
+		case kwOFF:
 			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		// comma separator
-		p.match(',')
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
 	}
 
 	// RESET
-	p.matchIdentCI("RESET")
+	if _, err := p.expect(kwRESET); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

@@ -96,6 +96,26 @@ func (p *Parser) ixSize() (string, error) {
 	return v, nil
 }
 
+// ixExtentSize reads size_clause for ALLOCATE EXTENT / DEALLOCATE UNUSED KEEP,
+// where Oracle refuses P and E units at the integer (ORA-03277).
+func (p *Parser) ixExtentSize() (string, error) {
+	intTok := p.cur
+	v, err := p.ixInteger()
+	if err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "K", "M", "G", "T":
+			v += p.advance().Str
+		case "P", "E":
+			p.advance()
+			return "", p.syntaxErrorAtTok(intTok)
+		}
+	}
+	return v, nil
+}
+
 // ixString reads a required string literal.
 func (p *Parser) ixString() (string, error) {
 	if p.cur.Type != tokSCONST {
@@ -436,7 +456,7 @@ func (b *ixDescBlame) clear() { b.set = false }
 // ixDescEnd ends a partition description: a word other than ',' or ')'
 // fails at the blamed token, when one is kept, or else where it stands.
 func (p *Parser) ixDescEnd(b *ixDescBlame) error {
-	if b.set && p.cur.Type != ',' && p.cur.Type != ')' {
+	if b.set && p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
 		return p.syntaxErrorAtTok(b.tok)
 	}
 	return nil
@@ -653,7 +673,7 @@ func (p *Parser) ixGlobalPartitioned() error {
 	switch {
 	case p.isKeywordStr("RANGE"):
 		p.advance()
-		if err := p.ixColumnList(); err != nil {
+		if err := p.ixPartitionColumnList(); err != nil {
 			return err
 		}
 		if p.cur.Type != '(' {
@@ -695,6 +715,44 @@ func (p *Parser) ixGlobalPartitioned() error {
 		return nil
 	}
 	return p.syntaxErrorAtCur()
+}
+
+// ixPartitionColumnList reads ( column [, column ]... ) for GLOBAL PARTITION BY
+// RANGE/HASH. When a name is followed by '(' (e.g. a missing ')' before
+// "(PARTITION VALUES ...)"), parseExpr enters the group to match Oracle's error
+// token while rejecting completed function-call expressions.
+func (p *Parser) ixPartitionColumnList() error {
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	for {
+		if !p.isIxName() {
+			return p.syntaxErrorAtCur()
+		}
+		if p.peekNext().Type == '(' {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr != nil {
+				return p.syntaxErrorAtCur()
+			}
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.ixName(); err != nil {
+			return err
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // ixColumnList reads ( column [, column ]... ).
@@ -878,6 +936,9 @@ func (p *Parser) ixDomainLocal() error {
 				return err
 			}
 			if p.cur.Type != ')' {
+				if p.cur.Type == tokEOF {
+					return p.syntaxErrorAtTok(str)
+				}
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
@@ -935,6 +996,9 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			case "PCTFREE":
 				stmt.PctFree = v
 			case "INITRANS":
+				if p.prev.Ival < 2 {
+					return p.syntaxErrorAtCur()
+				}
 				stmt.InitTrans = v
 			default:
 				stmt.MaxTrans = v
@@ -1032,6 +1096,9 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			}
 			stmt.AnnotationsSpec = value
 			appendCreateIndexOption(stmt, "ANNOTATIONS", value, nodes.Loc{Start: optStart, End: p.prev.End})
+		case p.isKeywordStr("INMEMORY"), p.isKeywordStr("NOMAPPING"):
+			p.advance()
+			return p.syntaxErrorAtCur()
 		case cluster:
 			return nil
 		case p.cur.Type == kwLOCAL && stmt.IndexType != nil:
@@ -1195,6 +1262,7 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 		p.advance()
 		return p.ixWord("USAGE")
 	case "UNUSABLE":
+		unusableTok := p.cur
 		stmt.Action = "UNUSABLE"
 		p.advance()
 		if p.cur.Type == kwONLINE {
@@ -1207,6 +1275,9 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 				return err
 			}
 			stmt.Invalidation = inv
+		}
+		if !p.ixEnd() {
+			return p.syntaxErrorAtTok(unusableTok)
 		}
 		return nil
 	case "VISIBLE", "INVISIBLE", "ENABLE", "DISABLE", "COMPILE":
@@ -1278,7 +1349,7 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 			return err
 		}
 		return p.syntaxErrorAtCur()
-	case "NOMAPPING":
+	case "NOMAPPING", "INMEMORY":
 		p.advance()
 		return p.syntaxErrorAtCur()
 	}
@@ -1384,6 +1455,9 @@ func (p *Parser) ixAlterSegmentOption(stmt *nodes.AlterIndexStmt, seen map[strin
 			return false, err
 		}
 		if word == "INITRANS" {
+			if p.prev.Ival < 2 {
+				return false, p.syntaxErrorAtCur()
+			}
 			stmt.InitTrans = v
 		} else {
 			stmt.MaxTrans = v
@@ -1432,7 +1506,7 @@ func (p *Parser) ixDeallocateUnused() (string, error) {
 		return "", nil
 	}
 	p.advance()
-	return p.ixSize()
+	return p.ixExtentSize()
 }
 
 // ixAllocateExtent reads allocate_extent_clause:
@@ -1456,7 +1530,7 @@ func (p *Parser) ixAllocateExtent() error {
 		case p.cur.Type == kwSIZE:
 			if err = p.ixOnce(seen, "SIZE"); err == nil {
 				p.advance()
-				_, err = p.ixSize()
+				_, err = p.ixExtentSize()
 			}
 		case p.isKeywordStr("DATAFILE"):
 			if err = p.ixOnce(seen, "DATAFILE"); err == nil {
@@ -1818,10 +1892,16 @@ func (p *Parser) parseAlterIndexAddPartition(stmt *nodes.AlterIndexStmt) error {
 	p.advance()
 	// TABLESPACE not followed by a name is the partition's name: ADD
 	// PARTITION TABLESPACE parses.
+	var nameTok Token
+	hasName := false
 	if p.isIxName() && !p.isIxCompressionStart() && !p.isIxParallelStart() &&
 		(p.cur.Type != kwTABLESPACE || !p.isIxNameTok(p.peekNext())) {
+		nameTok = p.cur
+		hasName = true
 		stmt.AddPartitionName = p.advance().Str
 	}
+	afterNamePos := p.pos()
+	firstAttrTok := p.cur
 	if p.cur.Type == kwTABLESPACE {
 		p.advance()
 		name, err := p.ixTablespaceName(false)
@@ -1835,6 +1915,14 @@ func (p *Parser) parseAlterIndexAddPartition(stmt *nodes.AlterIndexStmt) error {
 	}
 	if p.isIxParallelStart() {
 		p.ixAlterParallel(stmt)
+	}
+	if !p.isStatementEnd() {
+		if hasName && p.pos() == afterNamePos {
+			return p.syntaxErrorAtTok(nameTok)
+		}
+		if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) {
+			return p.syntaxErrorAtTok(firstAttrTok)
+		}
 	}
 	return nil
 }

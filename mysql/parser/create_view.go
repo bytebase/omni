@@ -96,9 +96,15 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// SELECT statement — capture raw text
+	// SELECT statement — capture raw text.
+	// MySQL's CREATE VIEW grammar takes query_expression (not select_stmt_with_into),
+	// so trailing INTO after FROM/LIMIT/locking is a 1064 syntax error while
+	// position-1 INTO inside query_specification parses and fails semantically with 1350.
 	selectStart := p.pos()
+	savedNoTrailingInto := p.noTrailingInto
+	p.noTrailingInto = true
 	sel, err := p.parseSelectStmt()
+	p.noTrailingInto = savedNoTrailingInto
 	if err != nil {
 		return nil, err
 	}

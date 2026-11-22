@@ -592,6 +592,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	// construct, and it rejects the + inside it. Pseudo-columns stay
 	// pseudo-columns: Oracle reads SYSTIMESTAMP(+) as SYSTIMESTAMP(precision)
 	// and rejects it (ORA-30088) even when the table has such a column.
+	if p.cur.Type == kwSYSTIMESTAMP && p.nextIsOuterJoinMarker() {
+		p.advance() // consume SYSTIMESTAMP
+		p.advance() // consume (
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) &&
 		!isOraclePseudoColumnKeyword(p.cur.Type) && p.nextIsOuterJoinMarker() {
 		if keepsConstructBeforeOuterJoin(p.cur.Type) {
@@ -605,6 +610,14 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
+		// In SQL (outside PL/SQL range loops), 1..2 is lexed by Oracle as
+		// numeric literal "1." followed by ".2", blaming the second dot.
+		if !p.plsqlCode && p.cur.Type == tokDOTDOT && p.cur.Loc == tok.End {
+			return nil, &ParseError{
+				Message:  `syntax error at or near "."`,
+				Position: p.cur.Loc + 1,
+			}
+		}
 		return &nodes.NumberLiteral{
 			Val:  tok.Str,
 			Ival: tok.Ival,
@@ -683,7 +696,13 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		return p.parseCastExpr()
 
-	case kwDATE, kwTIMESTAMP:
+	case kwDATE:
+		if p.peekNext().Type == tokSCONST {
+			return p.parseDateTimeLiteral()
+		}
+		return nil, p.syntaxErrorAtCur()
+
+	case kwTIMESTAMP:
 		if p.peekNext().Type == tokSCONST {
 			return p.parseDateTimeLiteral()
 		}
@@ -754,9 +773,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
 		}
-		// CURRENT is reserved and starts no expression: Oracle 23ai
-		// fails at it as a column or a function (ORA-00936).
-		if p.cur.Type == kwCURRENT {
+		// CURRENT and ADD are reserved and start no SQL expression: Oracle 23ai
+		// fails at them as a column or a function (ORA-00936).
+		if p.cur.Type == kwCURRENT || (p.cur.Type == kwADD && !p.plsqlCode) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if p.isIdentLike() {
@@ -1597,9 +1616,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		}
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	return p.parseFuncCallPostfix(fc)
 }
@@ -2003,8 +2023,8 @@ func (p *Parser) parseWithinGroup() (*nodes.List, error) {
 // OFFSET or FETCH after the ORDER BY. An inline view, a WITH element, MERGE
 // USING, CURSOR(...), and a cursor FOR loop's query take a plain one.
 func (p *Parser) checkExpressionSubquery(sub *nodes.SelectStmt) error {
-	if sort := trailingOrderBy(sub); sort != nil {
-		return p.syntaxErrorAtNode(sort)
+	if orderTok, ok := p.trailingOrderByToken(sub); ok {
+		return p.syntaxErrorAtTok(orderTok)
 	}
 	return nil
 }
@@ -2020,6 +2040,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 
 	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
 	if p.atQueryStart() {
+		queryTok := p.cur
 		sub, parseErr728 := p.parseSelectStmt()
 		if parseErr728 != nil {
 			return nil, parseErr728
@@ -2029,9 +2050,13 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' {
+			if p.updateSetSubquery && queryTok.Type == kwSELECT {
+				return nil, p.syntaxErrorAtTok(queryTok)
+			}
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		expr := &nodes.SubqueryExpr{
 			Subquery: sub,
 			Loc:      nodes.Loc{Start: start, End: p.prev.End},
@@ -2086,9 +2111,10 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		}, nil
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	return &nodes.ParenExpr{
 		Expr: inner,

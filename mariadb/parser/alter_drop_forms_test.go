@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -126,5 +127,88 @@ func TestCollectAlterTableDropKey(t *testing.T) {
 	sql := "ALTER TABLE t1 DROP FOREIGN KEY "
 	if cs := Collect(sql, len(sql)); cs == nil || !cs.HasRule("constraint_ref") {
 		t.Errorf("expected constraint_ref after %q", sql)
+	}
+}
+
+// TestAlterTableQualifiedFieldIdent covers 2-part and 3-part field_ident
+// qualifiers in ALTER TABLE and CREATE TABLE, including 3-part names on an
+// unqualified table whose database qualifier is recorded in FieldDBs for
+// session-aware callers (such as the catalog) to check against the current DB.
+func TestAlterTableQualifiedFieldIdent(t *testing.T) {
+	acceptCases := []struct {
+		sql      string
+		name     string
+		ifExists bool
+		fieldDBs []string
+	}{
+		{"ALTER TABLE a DROP a.a.a", "a", false, []string{"a"}},
+		{"ALTER TABLE a DROP COLUMN a.a.a", "a", false, []string{"a"}},
+		{"ALTER TABLE a DROP IF EXISTS a.a.a", "a", true, []string{"a"}},
+		{"ALTER TABLE a DROP COLUMN IF EXISTS a.a.a RESTRICT", "a", true, []string{"a"}},
+		{"ALTER TABLE a DROP COLUMN IF EXISTS a.a.a CASCADE", "a", true, []string{"a"}},
+		{"ALTER TABLE a DROP d.a.c", "c", false, []string{"d"}},
+		{"ALTER TABLE a DROP `d`.`a`.`c`", "c", false, []string{"d"}},
+		{"ALTER TABLE a DROP a.c", "c", false, nil},
+		{"ALTER TABLE a DROP .c", "c", false, nil},
+		{"ALTER TABLE d.a DROP d.a.c", "c", false, nil},
+		{"ALTER TABLE d.a DROP a.c", "c", false, nil},
+	}
+	for _, tc := range acceptCases {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmt := parseSeqStmt[*ast.AlterTableStmt](t, tc.sql)
+			if len(stmt.Commands) != 1 {
+				t.Fatalf("got %d commands, want 1", len(stmt.Commands))
+			}
+			cmd := stmt.Commands[0]
+			if cmd.Type != ast.ATDropColumn || cmd.Name != tc.name || cmd.IfExists != tc.ifExists {
+				t.Errorf("got Type=%v Name=%q IfExists=%v, want ATDropColumn Name=%q IfExists=%v",
+					cmd.Type, cmd.Name, cmd.IfExists, tc.name, tc.ifExists)
+			}
+			if !slices.Equal(stmt.FieldDBs, tc.fieldDBs) {
+				t.Errorf("FieldDBs = %v, want %v", stmt.FieldDBs, tc.fieldDBs)
+			}
+			wantLoc := ast.Loc{Start: strings.Index(tc.sql, "DROP"), End: len(tc.sql)}
+			if cmd.Loc != wantLoc {
+				t.Errorf("cmd Loc = %+v, want %+v", cmd.Loc, wantLoc)
+			}
+		})
+	}
+
+	t.Run("CREATE TABLE 3-part field_ident", func(t *testing.T) {
+		stmt := parseSeqStmt[*ast.CreateTableStmt](t, "CREATE TABLE a (d.a.c INT)")
+		if len(stmt.Columns) != 1 || stmt.Columns[0].Name != "c" {
+			t.Fatalf("got columns %+v, want single column c", stmt.Columns)
+		}
+		if !slices.Equal(stmt.FieldDBs, []string{"d"}) {
+			t.Errorf("FieldDBs = %v, want [d]", stmt.FieldDBs)
+		}
+	})
+
+	t.Run("multi-command FieldDBs order", func(t *testing.T) {
+		stmt := parseSeqStmt[*ast.AlterTableStmt](t, "ALTER TABLE a DROP d1.a.c1, DROP d2.a.c2")
+		if !slices.Equal(stmt.FieldDBs, []string{"d1", "d2"}) {
+			t.Errorf("FieldDBs = %v, want [d1 d2]", stmt.FieldDBs)
+		}
+	})
+
+	rejectCases := []string{
+		"ALTER TABLE a DROP a.a.a.a",
+		"ALTER TABLE a DROP COLUMN a.a.a.a",
+		"ALTER TABLE a DROP a.a.a zzz",
+		"ALTER TABLE a DROP a.b.a",
+		"ALTER TABLE a DROP b.a",
+		"ALTER TABLE d.a DROP x.a.c",
+		"ALTER TABLE d.a DROP d.b.c",
+		"ALTER TABLE a DROP ``.a.c",
+		"ALTER TABLE a DROP `d `.a.c",
+		"ALTER TABLE a DROP a.a.",
+		"ALTER TABLE a DROP a..a",
+		"CREATE TABLE a (d.b.c INT)",
+		"CREATE TABLE d.a (x.a.c INT)",
+	}
+	for _, sql := range rejectCases {
+		t.Run("reject/"+sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
 	}
 }

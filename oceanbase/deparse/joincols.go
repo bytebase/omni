@@ -201,14 +201,13 @@ func isRightJoin(t ast.JoinType) bool {
 	return t == ast.JoinRight || t == ast.JoinNaturalRight
 }
 
-// inputs returns a join's inputs in the order it lists their columns. A
-// NATURAL or USING join, and a RIGHT join within the inputs of one
-// (natural), lists a RIGHT join's right input first.
-func (sc *fromScope) inputs(j *ast.JoinClause, natural bool) (ast.TableExpr, ast.TableExpr) {
-	if _, ok := sc.joined[j]; ok {
-		natural = true
-	}
-	if natural && isRightJoin(j.Type) {
+// inputs returns a join's inputs in the order OceanBase lists their columns.
+// OceanBase flips a RIGHT join's inputs only when that join itself has at least
+// one NATURAL or USING join column; a RIGHT JOIN ... ON nested inside a USING
+// join, or a NATURAL RIGHT JOIN over inputs sharing no columns, keeps its left
+// input first (measured on OceanBase 4.3.5.6, view_names_test.go b17, b22-b24).
+func (sc *fromScope) inputs(j *ast.JoinClause, _ bool) (ast.TableExpr, ast.TableExpr) {
+	if len(sc.joined[j]) > 0 && isRightJoin(j.Type) {
 		return j.Right, j.Left
 	}
 	return j.Left, j.Right

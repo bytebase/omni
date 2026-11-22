@@ -912,10 +912,19 @@ func TestAlterConstraintRevert(t *testing.T) {
 
 func TestAlterTypeStmtNoOp(t *testing.T) {
 	c := New()
-	err := c.ProcessUtility(&nodes.AlterTypeStmt{})
-	if err != nil {
-		t.Fatalf("ALTER TYPE should be no-op, got: %v", err)
+	if err := c.DefineEnum(makeCreateEnumStmt("", "myenum", []string{"a"})); err != nil {
+		t.Fatal(err)
 	}
+	err := c.ProcessUtility(&nodes.AlterTypeStmt{
+		TypeName: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myenum"}}},
+	})
+	if err != nil {
+		t.Fatalf("ALTER TYPE with valid target should succeed, got: %v", err)
+	}
+	err = c.ProcessUtility(&nodes.AlterTypeStmt{
+		TypeName: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "missing_type"}}},
+	})
+	assertCode(t, err, CodeUndefinedObject)
 }
 
 func TestDefineStmtNoOp(t *testing.T) {

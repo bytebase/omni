@@ -162,6 +162,17 @@ func (p *Parser) parseSetOperands(first *nodes.SelectStmt) (*nodes.SelectStmt, e
 func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectStmt, bool, error) {
 	open := p.pos()
 	p.advance() // consume '('
+	if p.cur.Type == kwWITH {
+		// Oracle 23ai reads a parenthesized WITH subquery and rejects it at
+		// its closing ')' (ORA-32034) when a parenthesized query cannot hold
+		// WITH.
+		withStmt, err := p.parseSelectStmt()
+		_ = withStmt
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, false, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 		return nil, false, p.syntaxErrorAtCur()
 	}
@@ -169,8 +180,8 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 	if err != nil {
 		return nil, false, err
 	}
-	if sort := trailingOrderBy(inner); sort != nil {
-		return nil, false, p.syntaxErrorAtNode(sort)
+	if orderTok, ok := p.trailingOrderByToken(inner); ok {
+		return nil, false, p.syntaxErrorAtTok(orderTok)
 	}
 	if lock := trailingForUpdate(inner); lock != nil {
 		return nil, false, p.syntaxErrorAtNode(lock)
@@ -386,26 +397,33 @@ func trailingForUpdate(query *nodes.SelectStmt) nodes.Node {
 	return nil
 }
 
-// trailingOrderBy returns the first item of the ORDER BY that ends query, if
-// one does: the query's own, or that of the last operand of its set
-// operation.
-func trailingOrderBy(query *nodes.SelectStmt) nodes.Node {
+// trailingOrderByToken returns the ORDER keyword token of the ORDER BY that
+// ends query, if one does: the query's own, or that of the last operand of
+// its set operation.
+func (p *Parser) trailingOrderByToken(query *nodes.SelectStmt) (Token, bool) {
 	for query != nil {
 		if query.OrderBy != nil && query.OrderBy.Len() > 0 {
 			// One a row-limiting clause follows is that clause's: Oracle
 			// 23ai runs (SELECT ... ORDER BY d FETCH FIRST 10 ROWS ONLY)
 			// UNION ALL ..., with OFFSET too.
 			if query.FetchFirst != nil {
-				return nil
+				return Token{}, false
 			}
-			return query.OrderBy.Items[0]
+			if tok, ok := p.orderByTok[query]; ok {
+				return tok, true
+			}
+			if item := query.OrderBy.Items[0]; item != nil {
+				loc := nodes.NodeLoc(item)
+				return Token{Loc: loc.Start, End: loc.End}, true
+			}
+			return Token{}, false
 		}
 		if query.Op == nodes.SETOP_NONE {
-			return nil
+			return Token{}, false
 		}
 		query = query.Rarg
 	}
-	return nil
+	return Token{}, false
 }
 
 // parseSelectAfterKeyword parses the rest of a query into sel, from the
@@ -645,7 +663,7 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 // after it for parseSetOperands to parse.
 func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	if p.cur.Type == kwORDER {
-		p.advance()
+		orderTok := p.advance()
 		if p.isIdentLikeStr("SIBLINGS") {
 			// SIBLINGS orders a hierarchical query's rows (ORA-30929).
 			if sel.Hierarchical == nil {
@@ -665,6 +683,10 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 		if sel.OrderBy.Len() == 0 {
 			return false, p.syntaxErrorAtCur()
 		}
+		if p.orderByTok == nil {
+			p.orderByTok = map[*nodes.SelectStmt]Token{}
+		}
+		p.orderByTok[sel] = orderTok
 	}
 
 	if p.cur.Type == kwOFFSET || p.cur.Type == kwFETCH {
@@ -712,8 +734,16 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	}
 	// A query follows the operator (ORA-00928 on Oracle 23ai for UNION ),
 	// UNION (1), or UNION at the end), without a WITH clause of its own
-	// (ORA-32034 for UNION WITH w AS (...) SELECT ...).
-	if p.cur.Type == kwWITH || !p.atQuery() {
+	// (ORA-32034 for UNION WITH w AS (...) SELECT ..., reported at SELECT).
+	if p.cur.Type == kwWITH {
+		withClause, err := p.parseWithClause()
+		_ = withClause
+		if err != nil {
+			return false, err
+		}
+		return false, p.syntaxErrorAtCur()
+	}
+	if !p.atQuery() {
 		return false, p.syntaxErrorAtCur()
 	}
 	return true, nil
@@ -1079,7 +1109,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	start := p.pos()
 
 	// LATERAL ( subquery )
-	if p.cur.Type == kwLATERAL {
+	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
 		return p.parseLateralRef(start)
 	}
 
@@ -1202,6 +1232,9 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
+	if p.cur.Type == kwAS && (p.peekNext().Type == kwSCN || p.peekNext().Type == kwTIMESTAMP || isCreateTableWordTok(p.peekNext(), "PERIOD")) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwVERSIONS || (p.cur.Type == kwAS && p.peekNext().Type == kwOF) {
 		var parseErr974 error
 		tr.Flashback, parseErr974 = p.parseFlashbackClause()
@@ -1246,20 +1279,24 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parsePivotSuffix(tr)
 	}
 
-	// Nor does it match patterns: Oracle 23ai fails in its own code on
-	// MATCH_RECOGNIZE there, so the byte its judge recorded is the engine's
-	// crash position and not a token this grammar cannot take (ParseRange).
-	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
-		p.engineCrash = p.cur.Loc
-		return nil, p.syntaxErrorAtCur()
-	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
+		mrTok := p.cur
+		hasParen := p.peekNext().Type == '('
 		// The clause wraps the table it reads, so it starts where the table
 		// does, and the table ends before it.
 		tr.Loc.End = p.prev.End
 		mrRef, parseErr976 := p.parseMatchRecognize(tr.Loc.Start)
 		if parseErr976 != nil {
 			return nil, parseErr976
+		}
+		// Oracle 23ai parses MATCH_RECOGNIZE(...) inside a DML FROM clause and
+		// reports syntax errors within it, then fails in its own code on a
+		// syntactically valid clause (ORA-00600 -> bare reject in compat.tsv).
+		// Without '(', MATCH_RECOGNIZE is a table alias, so let the caller
+		// report any unexpected trailing token (e.g. PATTERN without '(').
+		if p.dmlFromClause && hasParen {
+			p.engineCrash = mrTok.Loc
+			return nil, p.syntaxErrorAtTok(mrTok)
 		}
 		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
 			mrClause.Source = tr
@@ -1313,12 +1350,22 @@ func (p *Parser) isTableAliasCandidate() bool {
 	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
-		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE",
-			"SIBLINGS", "SEARCH", "CYCLE", "VERSIONS", "PERIOD",
+		case "WINDOW":
+			if p.inSelectQuery {
+				return false
+			}
+		case "QUALIFY", "MATCH_RECOGNIZE",
+			"SIBLINGS", "SEARCH", "CYCLE", "VERSIONS",
 			"XML":
 			return false
 		}
 		return true
+	}
+	if p.cur.Type == kwLEFT {
+		ahead := p.peekAhead(2)
+		if len(ahead) == 2 && ahead[0].Type == kwPARTITION && ahead[1].Type == kwBY {
+			return true
+		}
 	}
 	if p.cur.Type == kwRETURNING && !p.inSelectQuery {
 		return false
@@ -1357,9 +1404,10 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		return nil, parseErr979
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
 		ref.Loc.End = p.prev.End
@@ -1940,7 +1988,9 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 	}
 
 	// START WITH first, then CONNECT BY
+	var startTok Token
 	if p.cur.Type == kwSTART {
+		startTok = p.cur
 		if err := startWith(); err != nil {
 			return nil, err
 		}
@@ -1963,6 +2013,8 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 		if hc.ConnectBy == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+	} else if hc.StartWith != nil {
+		return nil, p.syntaxErrorAtTok(startTok)
 	}
 
 	// START WITH may come after CONNECT BY
@@ -2169,6 +2221,9 @@ func (p *Parser) parseFetchFirstClause() (*nodes.FetchFirstClause, error) {
 
 		// ROW | ROWS
 		if p.cur.Type != kwROW && p.cur.Type != kwROWS {
+			if !fc.Percent && (p.peekNext().Type == kwROW || p.peekNext().Type == kwROWS) {
+				p.advance()
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -2251,7 +2306,7 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 	}
 
 	start := p.pos()
-	name, parseErr1019 := p.parseIdentifier()
+	name, parseErr1019 := p.parseObjectNameIdentifier()
 	if parseErr1019 != nil {
 		return nil, parseErr1019
 	}
@@ -2299,7 +2354,7 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 			if !p.isIdentLike() {
 				return nil, p.syntaxErrorAtCur()
 			}
-			col, parseErr1020 := p.parseIdentifier()
+			col, parseErr1020 := p.parseObjectNameIdentifier()
 			if parseErr1020 != nil {
 				return nil, parseErr1020
 			}
@@ -3259,6 +3314,9 @@ func (p *Parser) parsePartitionExtClause(emptyAtOpen bool) (*nodes.PartitionExtC
 		}
 	}
 	if p.cur.Type != ')' {
+		if emptyAtOpen && !pe.IsFor {
+			return nil, p.syntaxErrorAtTok(open)
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
@@ -3310,11 +3368,15 @@ func (p *Parser) parseTableCollectionExpr(start int) (nodes.TableExpr, error) {
 	p.advance()
 
 	// Optional (+)
-	if p.cur.Type == '(' && p.peekNext().Type == '+' {
+	if p.cur.Type == '(' {
+		open := p.cur
+		if p.peekNext().Type != '+' {
+			return nil, p.syntaxErrorAtTok(open)
+		}
 		p.advance() // (
 		p.advance() // +
 		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtTok(open)
 		}
 		p.advance()
 		tc.OuterJoin = true

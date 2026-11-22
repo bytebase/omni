@@ -661,10 +661,6 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
 
-	case kwOFF:
-		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
-
 	case kwNULL:
 		tok := p.advance()
 		return &nodes.NullLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
@@ -2141,7 +2137,6 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		p.addRuleCandidate("func_name")
 		return nil, &ParseError{Message: "collecting"}
 	}
-	argStart := p.cur.Loc
 	arg, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -2216,24 +2211,15 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		}
 		dt := &nodes.DataType{
 			Loc:    nodes.Loc{Start: typeTok.Loc, End: p.prev.End},
-			Name:   "CHAR",
+			Name:   typeName,
 			Length: int(lenTok.Ival),
 		}
+		ws.AsChar = dt
 		if typeName == "BINARY" {
-			// Engine-stored form of AS BINARY(n):
-			// weight_string(cast(expr as char(n) charset binary)).
-			dt.Charset = "binary"
+			// OceanBase 4.3.5.6 stores WEIGHT_STRING(expr AS BINARY(n)) as
+			// weight_string(expr,0,n,64,1) rather than MySQL's CAST wrapper.
 			asBinary = true
-			// The synthetic cast wraps arg, so its Loc must start at arg, not
-			// at the BINARY token, to stay inside WeightStringExpr and keep arg
-			// inside it (the Loc contract: a child lies within its parent).
-			ws.Expr = &nodes.CastExpr{
-				Loc:      nodes.Loc{Start: argStart, End: p.prev.End},
-				Expr:     arg,
-				TypeName: dt,
-			}
-		} else {
-			ws.AsChar = dt
+			ws.AsBinary = true
 		}
 	}
 

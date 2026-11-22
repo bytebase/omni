@@ -33,17 +33,14 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// IF NOT EXISTS skips an existing relation or conflicting row/type name
-	// before column definitions and parents are resolved; without IF NOT EXISTS,
-	// PostgreSQL runs MergeAttributes and BuildDescForRelation (checking
+	// IF NOT EXISTS skips an existing relation before column definitions and
+	// parents are resolved; a non-relation type (e.g. enum/domain) does NOT
+	// satisfy IF NOT EXISTS and instead fails later with 42710. Without IF NOT
+	// EXISTS, PostgreSQL runs MergeAttributes and BuildDescForRelation (checking
 	// duplicate column names and column types) before heap_create_with_catalog
 	// rejects a duplicate relation name.
 	if stmt.IfNotExists {
 		if _, exists := schema.Relations[relName]; exists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
-			return nil
-		}
-		if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
 			return nil
 		}
@@ -160,7 +157,12 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 
 		// Now merge user-specified columns.
+		seenUserCols := make(map[string]bool, len(userColDefs))
 		for _, ucd := range userColDefs {
+			if seenUserCols[ucd.Name] {
+				return errDuplicateColumn(ucd.Name)
+			}
+			seenUserCols[ucd.Name] = true
 			typeIdx, exists := childColMap[ucd.Name]
 			if !exists {
 				// User specified a column that doesn't exist in the type.
@@ -529,9 +531,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		if _, ok := relationNamespaceKind(schema, relName); ok {
 			return errDuplicateTable(relName)
 		}
-		if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
-			return errDuplicateTable(relName)
-		}
+	}
+	// A non-relation type (e.g. enum or domain) with the same name conflicts
+	// with the table's implicit row type (42710), even with IF NOT EXISTS.
+	if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
+		return errDuplicateObject("type", relName)
 	}
 
 	// DefineRelation calls toast_reloptions(toastOptions, true) unconditionally
@@ -1751,7 +1755,7 @@ func (c *Catalog) ExecuteTruncate(stmt *nodes.TruncateStmt) error {
 				fRelName = fRel.Name
 			}
 			return &Error{
-				Code:    CodeDependentObjects,
+				Code:    CodeFeatureNotSupported,
 				Message: fmt.Sprintf("cannot truncate a table referenced in a foreign key constraint\nDetail: Table %q references %q.", refRel.Name, fRelName),
 			}
 		}

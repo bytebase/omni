@@ -54,20 +54,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwINDEX:
 		kind = ast.AlterIndex
 	case kwSEARCH:
-		// ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN (Spanner DDL-049). A
-		// two-word object: consume SEARCH here so the shared p.advance() below
-		// consumes INDEX. SEARCH must be followed by INDEX — otherwise this is not
-		// a SEARCH INDEX alter and falls through to a syntax error.
-		//
-		// This is a documented Spanner GoogleSQL form the BigQuery+Spanner union
-		// parser must accept; the live emulator non-authoritatively REJECTS it (its
-		// grammar is a subset that lags the docs — same shape as ALTER VECTOR INDEX
-		// REBUILD). Triangulated against the Spanner DDL reference + the legacy
-		// GoogleSQLParser.g4 (schema_object_kind has INDEX but not SEARCH INDEX, and
-		// SEARCH is a keyword token so the generic-entity alt — IDENTIFIER|PROJECT —
-		// does not match it either ⇒ legacy rejects it too). The action set is the
-		// same STORED COLUMN actions ALTER INDEX uses, so it reuses the shared
-		// alter_action_list flow below.
+		if p.isBigQuery() {
+			return p.parseBQAlterSearchVectorIndex(alter)
+		}
 		if p.peekNext().Type != kwINDEX {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -79,11 +68,30 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		kind = ast.AlterDatabase
 	// --- BigQuery-only ALTER objects (parser-ddl-bigquery node) ---
 	case kwMATERIALIZED, kwAPPROX:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// ALTER MATERIALIZED|APPROX VIEW SET OPTIONS (bq_materialized_view.go).
 		return p.parseBQAlterMaterializedView(alter)
 	case kwVECTOR:
+		if p.isBigQuery() {
+			return p.parseBQAlterSearchVectorIndex(alter)
+		}
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// ALTER VECTOR INDEX … ON … REBUILD (bq_search_vector_index.go).
 		return p.parseBQAlterVectorIndex(alter)
+	case kwPRIVILEGE:
+		if p.isBigQuery() {
+			return p.parseAlterPrivilegeRestriction(alter)
+		}
+		return p.unsupported("ALTER PRIVILEGE")
+	case kwROW, kwALL:
+		if p.isBigQuery() {
+			return p.parseAlterRowAccessPolicy(alter)
+		}
+		return p.unsupported("ALTER")
 	// --- Spanner-only ALTER objects (parser-ddl-spanner node) ---
 	case kwSEQUENCE:
 		// ALTER SEQUENCE [IF EXISTS] name SET OPTIONS … (spanner_sequence.go).
@@ -109,7 +117,7 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// (bq_capacity.go). ALTER FUNCTION / PROCEDURE / MODEL / PRIVILEGE
 		// RESTRICTION / ROW ACCESS POLICY / ALL ROW ACCESS POLICIES are not owned
 		// here.
-		if isGenericEntityType(p.cur.Type) {
+		if !p.isSpanner() && isGenericEntityType(p.cur) {
 			return p.parseBQAlterEntity(alter)
 		}
 		return p.unsupported("ALTER")
@@ -195,7 +203,7 @@ func (p *Parser) parseAlterSetAction(start ast.Loc) (*ast.AlterAction, error) {
 	p.advance() // SET
 	switch p.cur.Type {
 	case kwOPTIONS:
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -553,7 +561,7 @@ func (p *Parser) parseAlterColumnSet(start ast.Loc, ifExists bool, name string) 
 		action.Loc = locTo(start, p.prev)
 		return action, nil
 	case kwOPTIONS:
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -639,7 +647,7 @@ func (p *Parser) parseSpannerAlterColumn(start ast.Loc, ifExists bool, name stri
 
 	// opt_options_list?
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -775,6 +783,9 @@ func (p *Parser) parseStoredColumn() (string, error) {
 func (p *Parser) parseOptionsListBody() ([]*ast.OptionsEntry, error) {
 	var entries []*ast.OptionsEntry
 	if p.cur.Type == int(')') {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		return entries, nil
 	}

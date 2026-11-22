@@ -95,10 +95,12 @@ answers its own code again (`compat.PrepareVerdict`, held to the server by
 One class counts as read even though it is raised while parsing: a name the
 server looks up, a system variable (1193), a character set (1115) or a collation
 (1273, 1253). `Parse` holds no such list, so those are not grammar it can follow.
-It is why the one row that disagrees does: TiDB stops `ALTER DATABASE COLLATE 's'
-zzz` at the unknown collation with 1273, and never reads `zzz`, which omni
-rejects as TiDB does after a collation it knows (`suite:cited`, kept as the gap
-it is).
+For 1273 (`Unknown collation`), judge revision 2 (`parser` role in
+`../../testdata/pins.tsv`) re-asks the statement with the unknown collation
+replaced by TiDB's built-in `'utf8mb4_bin'` stand-in so TiDB parses past
+`CollationName` and still rejects trailing syntax errors with 1064 (e.g.
+`suite:cited`'s `ALTER DATABASE COLLATE 's' zzz`, bringing `compat.tsv` to
+43,952 / 43,952 = 100.00% agreement).
 
 The judge binds each statement to a user variable and prepares from it, so a
 row reaches the server byte for byte: five rows are not valid UTF-8 (pingcap's

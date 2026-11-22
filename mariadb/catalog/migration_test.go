@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 func planFor(t *testing.T, from, to string) *MigrationPlan {
@@ -125,5 +128,180 @@ func TestMigration_EventInheritsSourceCommentEscaping(t *testing.T) {
 	}
 	if !strings.Contains(stmt, `COMMENT 'c\d'`) || strings.Contains(stmt, `COMMENT 'c\\d'`) {
 		t.Errorf("event comment not escaped for NO_BACKSLASH_ESCAPES:\n%s", stmt)
+	}
+}
+
+func TestMigration_MetadataSystemVersioning(t *testing.T) {
+	implicit := &metadata.TableMetadata{
+		Name:          "history",
+		Engine:        "InnoDB",
+		CreateOptions: "WITH SYSTEM VERSIONING",
+		Columns:       []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Expressions: []string{"id"}, Primary: true, Unique: true, Visible: true, Type: "BTREE"},
+		},
+	}
+	explicit := &metadata.TableMetadata{
+		Name:          "explicit_period",
+		Engine:        "InnoDB",
+		CreateOptions: "WITH SYSTEM VERSIONING",
+		Columns: []*metadata.ColumnMetadata{
+			{Name: "id", Type: "int", Nullable: true},
+			{Name: "valid_from", Type: "timestamp(6)", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "ROW START"}},
+			{Name: "valid_to", Type: "timestamp(6)", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "ROW END"}},
+		},
+	}
+	load := func(tables ...*metadata.TableMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		meta := &metadata.DatabaseSchemaMetadata{
+			Name:    "db",
+			Schemas: []*metadata.SchemaMetadata{{Name: "", Tables: tables}},
+		}
+		report, err := c.LoadMetadataInto(context.Background(), meta, "bbcatalog")
+		if err != nil {
+			t.Fatalf("LoadMetadataInto: %v", err)
+		}
+		requireReport(t, report, nil, nil)
+		return c
+	}
+
+	empty := load()
+	withSV := load(implicit, explicit)
+	got := GenerateMigration(empty, withSV, Diff(empty, withSV)).SQL()
+	for _, want := range []string{
+		"CREATE TABLE `bbcatalog`.`explicit_period`",
+		"`valid_from` timestamp(6) GENERATED ALWAYS AS ROW START",
+		"`valid_to` timestamp(6) GENERATED ALWAYS AS ROW END",
+		"PERIOD FOR SYSTEM_TIME (`valid_from`, `valid_to`)",
+		") ENGINE=InnoDB",
+		"WITH SYSTEM VERSIONING",
+		"CREATE TABLE `bbcatalog`.`history`",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("migration missing %q:\n%s", want, got)
+		}
+	}
+
+	if selfDiff := GenerateMigration(withSV, load(implicit, explicit), Diff(withSV, load(implicit, explicit))).SQL(); selfDiff != "" {
+		t.Errorf("self-diff of system-versioned tables not empty:\n%s", selfDiff)
+	}
+}
+
+func TestMigration_MetadataColumnAttributes(t *testing.T) {
+	srid := func(v uint32) *uint32 { return &v }
+	id := &metadata.ColumnMetadata{Name: "id", Type: "int", Nullable: false}
+	diffCols := func(oldCol, newCol *metadata.ColumnMetadata) string {
+		t.Helper()
+		load := func(col *metadata.ColumnMetadata) *Catalog {
+			c := New()
+			meta := &metadata.DatabaseSchemaMetadata{
+				Name: "d",
+				Schemas: []*metadata.SchemaMetadata{{
+					Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{id, col}}},
+				}},
+			}
+			report, err := c.LoadMetadataInto(context.Background(), meta, "bbcatalog")
+			if err != nil {
+				t.Fatalf("LoadMetadataInto: %v", err)
+			}
+			requireReport(t, report, nil, nil)
+			return c
+		}
+		from, to := load(oldCol), load(newCol)
+		return GenerateMigration(from, to, Diff(from, to)).SQL()
+	}
+
+	// MariaDB has no SRID column attribute, so an SRID-only change is a no-op.
+	if got := diffCols(
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false},
+		&metadata.ColumnMetadata{Name: "pt", Type: "point", Nullable: false, Srid: srid(4326)},
+	); got != "" {
+		t.Errorf("SRID-only change should be empty in MariaDB, got:\n%s", got)
+	}
+
+	// INVISIBLE uses plain MariaDB syntax rather than MySQL's version-gated comment.
+	got := diffCols(
+		&metadata.ColumnMetadata{Name: "c", Type: "int", Nullable: true, Default: "NULL"},
+		&metadata.ColumnMetadata{Name: "c", Type: "int", Nullable: true, Default: "NULL", IsInvisible: true},
+	)
+	if want := "ALTER TABLE `bbcatalog`.`t` MODIFY COLUMN `c` int(11) DEFAULT NULL INVISIBLE"; got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestMigration_MetadataAcrossDatabaseNames(t *testing.T) {
+	id := &metadata.ColumnMetadata{Name: "id", Type: "int"}
+	view := func(db string) *metadata.ViewMetadata {
+		return &metadata.ViewMetadata{Name: "v", Definition: "select `" + db + "`.`t`.`id` AS `id` from `" + db + "`.`t`"}
+	}
+	load := func(db string, views ...*metadata.ViewMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		meta := &metadata.DatabaseSchemaMetadata{
+			Name: db,
+			Schemas: []*metadata.SchemaMetadata{{
+				Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{id}}},
+				Views:  views,
+			}},
+		}
+		report, err := c.LoadMetadataInto(context.Background(), meta, "bbcatalog")
+		if err != nil {
+			t.Fatalf("LoadMetadataInto: %v", err)
+		}
+		requireReport(t, report, nil, nil)
+		return c
+	}
+
+	prodWithView := load("prod", view("prod"))
+	stagingWithView := load("staging", view("staging"))
+	if got := GenerateMigration(prodWithView, stagingWithView, Diff(prodWithView, stagingWithView)).SQL(); got != "" {
+		t.Errorf("identical views across database names should diff empty, got:\n%s", got)
+	}
+
+	prodNoView := load("prod")
+	got := GenerateMigration(prodNoView, stagingWithView, Diff(prodNoView, stagingWithView)).SQL()
+	if strings.Contains(got, "staging") {
+		t.Errorf("new view leaked source database name:\n%s", got)
+	}
+	if !strings.Contains(got, "VIEW `bbcatalog`.`v` AS select `t`.`id` AS `id` from `bbcatalog`.`t`") {
+		t.Errorf("unexpected view migration SQL:\n%s", got)
+	}
+}
+
+func TestMigration_JSONColumnsAndFunctionalIndexes(t *testing.T) {
+	from := `
+CREATE TABLE users (
+	id INT NOT NULL AUTO_INCREMENT,
+	name VARCHAR(100) NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB;`
+	to := `
+CREATE TABLE users (
+	id INT NOT NULL AUTO_INCREMENT,
+	name VARCHAR(100) NOT NULL,
+	preferences JSON,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB;
+CREATE TABLE products (
+	id INT NOT NULL AUTO_INCREMENT,
+	details JSON NOT NULL,
+	brand VARCHAR(50) AS (json_unquote(json_extract(details, '$.brand'))) VIRTUAL,
+	PRIMARY KEY (id),
+	INDEX idx_brand (brand),
+	CONSTRAINT chk_details_not_empty CHECK (json_type(details) IS NOT NULL)
+) ENGINE=InnoDB;`
+
+	got := planFor(t, from, to).SQL()
+	for _, want := range []string{
+		"CREATE TABLE `app`.`products`",
+		"`details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`details`))",
+		"ALTER TABLE `app`.`users` ADD COLUMN `preferences` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`preferences`))",
+		"ALTER TABLE `app`.`products` ADD KEY `idx_brand` (`brand`)",
+		"ALTER TABLE `app`.`products` ADD CONSTRAINT `chk_details_not_empty` CHECK (json_type(`details`) is not null)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("JSON migration missing %q:\n%s", want, got)
+		}
 	}
 }

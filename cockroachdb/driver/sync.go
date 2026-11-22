@@ -11,8 +11,6 @@ import (
 	"github.com/blang/semver/v4"
 	metadatapb "github.com/bytebase/omni/metadata"
 
-	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
-
 	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
 )
@@ -1062,33 +1060,14 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 			return nil, err
 		}
 
-		nodes, err := crrawanalysis.Parse(statement)
+		indexDef, err := crrawanalysis.ParseIndexDefinition(statement)
 		if err != nil {
 			return nil, err
 		}
-		if len(nodes) != 1 {
-			return nil, fmt.Errorf("invalid number of statement %v, expecting one", len(nodes))
-		}
-		node, ok := nodes[0].AST.(*crrawparsertree.CreateIndex)
-		if !ok {
-			return nil, fmt.Errorf("invalid statement type %T, expecting CreateIndex", nodes[0].AST)
-		}
-		for _, indexElem := range node.Columns {
-			switch {
-			case indexElem.Column != "":
-				index.Expressions = append(index.Expressions, indexElem.Column.String())
-			case indexElem.Expr != nil:
-				index.Expressions = append(index.Expressions, indexElem.Expr.String())
-			case indexElem.OpClass != "":
-				index.Expressions = append(index.Expressions, indexElem.OpClass.String())
-			default:
-				continue
-			}
-			index.Descending = append(index.Descending, indexElem.Direction == crrawparsertree.Descending)
-		}
-
+		index.Expressions = indexDef.Expressions
+		index.Descending = indexDef.Descending
 		index.Definition = statement
-		index.Unique = node.Unique
+		index.Unique = indexDef.Unique
 
 		// FIXME(zp): Get expression.
 		index.Type = getIndexMethodType(statement)

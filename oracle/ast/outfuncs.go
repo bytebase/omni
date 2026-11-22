@@ -2350,6 +2350,10 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 	if n.Tablespace != "" {
 		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
 	}
+	if n.Subpartitions != nil {
+		sb.WriteString(" :subpartitions ")
+		writeNode(sb, n.Subpartitions)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

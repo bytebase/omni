@@ -66,7 +66,7 @@ func (p *Parser) parseCreateSchema(create Token, orReplace bool) (ast.Node, erro
 
 	// opt_options_list?  — OPTIONS ( … ) (BigQuery).
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (p *Parser) parseCreateDatabase(create Token, orReplace bool, scope string)
 
 	// opt_options_list?
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
+		opts, err := p.parseDDLOptionsList()
 		if err != nil {
 			return nil, err
 		}

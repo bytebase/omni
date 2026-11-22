@@ -8,12 +8,35 @@ import (
 	"github.com/bytebase/omni/review/walk"
 )
 
+// fieldDBsMatchCurrent reports whether every 3-part field_ident database
+// qualifier on an unqualified CREATE/ALTER TABLE matches the known current
+// database (MariaDB checks table->db.streq($1) at parse time and answers 1102
+// otherwise). When the current database is unknown or differs, the walk stops
+// following the statement conservatively.
+func (b *builder) fieldDBsMatchCurrent(fieldDBs []string) bool {
+	if len(fieldDBs) == 0 {
+		return true
+	}
+	if b.w.lost || b.w.noDatabase || b.w.foldTables {
+		return false
+	}
+	for _, db := range fieldDBs {
+		if db != b.w.current {
+			return false
+		}
+	}
+	return true
+}
+
 // alterTable follows ALTER TABLE. MariaDB judges DROP, RENAME, CHANGE, and
 // MODIFY against the table as it was and ADD after them, and resolves
 // index columns against the final ones (verified): the drops and renames
 // are lowered first, then the rest, then a RENAME TO of the table itself,
 // each subcommand a part of its own (walk.Passes).
 func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
+	if !b.fieldDBsMatchCurrent(v.FieldDBs) {
+		return false
+	}
 	r, st := b.ref(v.Table)
 	switch st {
 	case refFailed:

@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"math"
 	"net"
 	"reflect"
@@ -309,9 +310,32 @@ func TestSplitKeyExpressions(t *testing.T) {
 		{"id, name", []string{"id", "name"}},
 		{"a, tuple(b, c), d", []string{"a", "tuple(b, c)", "d"}},
 		{"f('x,y'), `a,b`", []string{"f('x,y')", "`a,b`"}},
+		{"f('it''s,here'), $tag$a,b$tag$, g(1, 2)", []string{"f('it''s,here')", "$tag$a,b$tag$", "g(1, 2)"}},
 	} {
 		if got := splitKeyExpressions(tc.in); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("splitKeyExpressions(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestTranslateAggregateFunctionError(t *testing.T) {
+	if got := translateAggregateFunctionError(nil); got != nil {
+		t.Fatalf("nil error = %v, want nil", got)
+	}
+
+	unrelated := errors.New("code: 47, message: Unknown expression identifier")
+	if got := translateAggregateFunctionError(unrelated); got != unrelated {
+		t.Fatalf("unrelated error = %v, want original %v", got, unrelated)
+	}
+
+	raw := errors.New(`clickhouse [Scan]: unsupported column type "AggregateFunction(sum, UInt64)"`)
+	translated := translateAggregateFunctionError(raw)
+	if !errors.Is(translated, raw) {
+		t.Fatalf("translated error %q does not wrap original error", translated)
+	}
+	for _, want := range []string{"AggregateFunction", "-Merge", "finalizeAggregation(col)"} {
+		if !strings.Contains(translated.Error(), want) {
+			t.Errorf("translated error %q does not contain %q", translated, want)
 		}
 	}
 }

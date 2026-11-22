@@ -95,7 +95,6 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, er
 		key = "AS_PROXY_FROM"
 		p.advance()
 		if p.adbWord("SEED") {
-			p.advance()
 			return nil, p.syntaxErrorAtCur()
 		}
 		if err := p.adbExpect("PROXY"); err != nil {
@@ -624,11 +623,18 @@ func (p *Parser) pdbContainerMap() (string, error) {
 	case p.cur.Type == kwADD:
 		p.advance()
 		if p.cur.Type != kwPARTITION {
+			if p.isIdentLike() && p.peekNext().Type == kwVALUES {
+				p.advance()
+			}
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
 		v = "ADD PARTITION"
+		var nameTok Token
+		hasName := false
 		if p.cur.Type != kwVALUES || p.isIdentLikeStrAt(p.peekNext(), "VALUES") {
+			nameTok = p.cur
+			hasName = true
 			name, err := p.adbName()
 			if err != nil {
 				return "", err
@@ -636,6 +642,9 @@ func (p *Parser) pdbContainerMap() (string, error) {
 			v += " " + name
 		}
 		if p.cur.Type != kwVALUES {
+			if hasName && p.adbWord("LESS") {
+				return "", p.syntaxErrorAtTok(nameTok)
+			}
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -680,9 +689,15 @@ func (p *Parser) pdbContainerMap() (string, error) {
 		}
 		p.advance()
 		var into []string
+		var firstPartTok Token
+		hasFirstPart := false
+		missingName := false
 		for i := 0; i < 2; i++ {
 			if i == 1 {
 				if p.cur.Type != ',' {
+					if hasFirstPart {
+						return "", p.syntaxErrorAtTok(firstPartTok)
+					}
 					return "", p.syntaxErrorAtCur()
 				}
 				p.advance()
@@ -691,6 +706,14 @@ func (p *Parser) pdbContainerMap() (string, error) {
 				return "", p.syntaxErrorAtCur()
 			}
 			p.advance()
+			if (i == 0 && p.cur.Type == ',') || (i == 1 && p.cur.Type == ')') {
+				missingName = true
+				continue
+			}
+			if i == 0 {
+				firstPartTok = p.cur
+				hasFirstPart = true
+			}
 			part, err := p.adbName()
 			if err != nil {
 				return "", err
@@ -701,6 +724,12 @@ func (p *Parser) pdbContainerMap() (string, error) {
 			return "", p.syntaxErrorAtCur()
 		}
 		p.advance()
+		if missingName {
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+			return "", p.syntaxErrorAtCur()
+		}
 		v = "SPLIT PARTITION " + name + " AT (" + strings.Join(vals, ", ") + ") INTO (" + strings.Join(into, ", ") + ")"
 	default:
 		return "", p.syntaxErrorAtCur()
@@ -850,12 +879,16 @@ func (p *Parser) parseAlterPluggableDatabaseStmt(start int) (nodes.StmtNode, err
 		stateOnly = true
 	case p.adbWord("APPLICATION"):
 	case !p.isAlterPDBClauseStart():
+		if (p.cur.Type == tokSCONST && p.peekNext().Type == kwONLINE) || p.cur.Type == tokICONST || p.cur.Type == '(' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != tokQIDENT && isOracleSQLReservedKeyword(p.cur) {
 			// Oracle reads a reserved word here as the PDB name and refuses
 			// it (ORA-65000) when a clause follows; otherwise it fails at
 			// the token after it.
 			tok := p.advance()
-			if p.adbEnd() || p.isAlterPDBClauseStart() {
+			if (p.adbEnd() && tok.Type != kwCLUSTER) || p.isAlterPDBClauseStart() {
 				return nil, p.syntaxErrorAtTok(tok)
 			}
 			return nil, p.syntaxErrorAtCur()
@@ -958,10 +991,18 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 		}
 		err = p.parseAlterDatabaseFile(opt, word)
 	case "TEMPFILE":
+		if p.peekNext().Type == kwDROP {
+			p.advance()
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		err = p.parseAlterDatabaseFile(opt, word)
 	case "CREATE":
-		p.advance()
+		createTok := p.advance()
 		opt.Key = "CREATE_DATAFILE"
+		if p.adbWord("SNAPSHOT") {
+			return nil, p.syntaxErrorAtTok(createTok)
+		}
 		if !p.adbWord("DATAFILE") {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -1133,7 +1174,10 @@ func (p *Parser) parseAlterPDBDefault(opt *nodes.DDLOption) error {
 //	SET STANDBY NOLOGGING FOR { LOAD PERFORMANCE | DATA AVAILABILITY }
 //	SET MAX_PDB_SNAPSHOTS = integer
 func (p *Parser) parseAlterPDBSet(opt *nodes.DDLOption) error {
-	p.advance()
+	setTok := p.advance()
+	if p.adbWord("NOLOGGING") {
+		return p.syntaxErrorAtTok(setTok)
+	}
 	switch {
 	case p.cur.Type == kwDEFAULT:
 		p.advance()

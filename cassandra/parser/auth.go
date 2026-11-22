@@ -285,12 +285,18 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 			}, nil
 		}
 
-	case p.cur.Type == tokFUNCTION && isIdentLike(next.Type):
-		// FUNCTION fn(types): the argument types are mandatory (Parser.g:1182).
+	case p.cur.Type == tokFUNCTION && (isCQLName(next) || isAllowedFunctionName(next)):
+		// FUNCTION ks.fn(types): argument types are mandatory (Parser.g:1182)
+		// and FunctionResource.functionFromCql unconditionally requires an
+		// explicit keyspace qualifier during parsing (Parser.g:1191).
 		p.advance()
+		nameTok := p.cur
 		name, err := p.parseFunctionQualifiedName()
 		if err != nil {
 			return nil, err
+		}
+		if len(name.Parts) < 2 {
+			return nil, p.errorAt(nameTok, "function name in FUNCTION resource must be explicitly qualified by a keyspace")
 		}
 		res := &ast.Resource{Type: "FUNCTION", Name: name}
 		if _, err := p.expect(tokLPAREN); err != nil {

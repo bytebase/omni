@@ -154,7 +154,8 @@
 | 			COLLATION,
 | 			DEFAULT_ON_NULL,
 | 			VIRTUAL_COLUMN,
-| 			IDENTITY_COLUMN
+| 			IDENTITY_COLUMN,
+| 			INTERNAL_COLUMN_ID
 | 		FROM sys.all_tab_cols
 | 		WHERE OWNER = 'OMNI_APP' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
@@ -175,6 +176,7 @@
 < column "DEFAULT_ON_NULL" "NCHAR" "string"
 < column "VIRTUAL_COLUMN" "NCHAR" "string"
 < column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "INTERNAL_COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | OMNI_APP
@@ -203,6 +205,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -231,6 +235,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -259,6 +265,8 @@
 | NO
 : string
 | NO
+: string
+| 2
 < row
 : string
 | OMNI_APP
@@ -287,6 +295,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -317,6 +327,8 @@
 | NO
 : string
 | NO
+: string
+| 2
 < row
 : string
 | OMNI_APP
@@ -345,6 +357,8 @@
 | NO
 : string
 | NO
+: string
+| 3
 < row
 : string
 | OMNI_APP
@@ -373,6 +387,8 @@
 | NO
 : string
 | NO
+: string
+| 1
 < row
 : string
 | OMNI_APP
@@ -403,6 +419,8 @@
 | NO
 : string
 | NO
+: string
+| 2
 > query
 |
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
@@ -790,6 +808,68 @@
 | VISIBLE
 > query
 |
+| 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
+| 		FROM all_part_tables
+| 		WHERE OWNER = 'OMNI_APP'
+| 		ORDER BY TABLE_NAME
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+< row
+: string
+| P
+: string
+| RANGE
+: string
+| NONE
+: null
+> query
+|
+| 		SELECT NAME, COLUMN_NAME
+| 		FROM all_part_key_columns
+| 		WHERE OWNER = 'OMNI_APP' AND OBJECT_TYPE = 'TABLE'
+| 		ORDER BY NAME, COLUMN_POSITION
+< result
+< column "NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| P
+: string
+| D
+> query
+|
+| 		SELECT TABLE_NAME, PARTITION_NAME, HIGH_VALUE, INTERVAL
+| 		FROM all_tab_partitions
+| 		WHERE TABLE_OWNER = 'OMNI_APP'
+| 		ORDER BY TABLE_NAME, PARTITION_POSITION
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITION_NAME" "NCHAR" "string"
+< column "HIGH_VALUE" "LONG"
+< column "INTERVAL" "NCHAR" "string"
+< row
+: string
+| P
+: string
+| P1
+: string
+| TO_DATE(' 2025-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN')
+: string
+| NO
+< row
+: string
+| P
+: string
+| P2
+: string
+| MAXVALUE
+: string
+| NO
+> query
+|
 | 		SELECT OWNER, TABLE_NAME, COLUMN_NAME, COMMENTS
 | 		FROM all_col_comments
 | 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
@@ -1046,7 +1126,7 @@
 | 			TEXT
 | 		FROM ALL_SOURCE
 | 		WHERE
-| 			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+| 			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY')
 | 			AND
 | 			OWNER = 'OMNI_APP'
 | 		ORDER BY NAME, TYPE, LINE
@@ -1080,7 +1160,7 @@
 | materialized view comment
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY
+| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
 | 		FROM sys.all_mviews
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY MVIEW_NAME
@@ -1089,6 +1169,9 @@
 < column "OWNER" "NCHAR" "string"
 < column "MVIEW_NAME" "NCHAR" "string"
 < column "QUERY" "LONG"
+< column "BUILD_MODE" "NCHAR" "string"
+< column "REFRESH_METHOD" "NCHAR" "string"
+< column "REFRESH_MODE" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -1096,6 +1179,12 @@
 | MV
 : string
 | SELECT ID FROM OMNI_APP.T
+: string
+| IMMEDIATE
+: string
+| FORCE
+: string
+| DEMAND
 > query
 |
 | 		SELECT 

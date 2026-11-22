@@ -43,16 +43,21 @@ import (
 // ORA-03048); and USING INDEX, FOR UPDATE and the unusable editions clause,
 // left out of the page, stand where the 19c page has them.
 func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		// Oracle answers IF NOT without EXISTS at the IF (ORA-11543).
-		ifTok := p.cur
-		p.advance() // consume IF
-		p.advance() // consume NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // consume EXISTS
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			// Oracle answers IF NOT without EXISTS at the IF (ORA-11543).
+			ifTok := p.cur
+			p.advance() // consume IF
+			p.advance() // consume NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error
@@ -123,7 +128,14 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 			if err := p.expectCreateTableToken(kwINDEX); err != nil {
 				return nil, err
 			}
+		default:
+			p.advance() // consume USING
+			return nil, p.syntaxErrorAtCur()
 		}
+	}
+	if p.cur.Type == kwON {
+		p.advance() // consume ON (expected ON PREBUILT TABLE)
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	switch {
@@ -217,6 +229,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // consume '('
 	stmt.Columns = &nodes.List{}
+	seenCols := map[string]Token{}
 	for {
 		if p.isKeywordStr("SCOPE") && p.peekNext().Type == kwFOR {
 			if err := p.parseMviewScopeFor(true); err != nil {
@@ -226,10 +239,15 @@ func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 			if !p.isCreateTableNameStart() {
 				return p.syntaxErrorAtCur()
 			}
+			colTok := p.cur
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return err
 			}
+			if firstTok, dup := seenCols[name]; dup {
+				return p.syntaxErrorAtTok(firstTok)
+			}
+			seenCols[name] = colTok
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("ENCRYPT") {
 				p.advance() // consume ENCRYPT
@@ -289,26 +307,36 @@ func (p *Parser) parseMviewScopeFor(ref bool) error {
 func (p *Parser) parseMviewEncryptionSpec() error {
 	if p.cur.Type == kwUSING {
 		p.advance() // consume USING
-		if err := p.expectCreateTableToken(tokSCONST); err != nil {
-			return err
+		if p.cur.Type != tokSCONST || !isValidOracleEncryptionAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance() // consume IDENTIFIED
 		if err := p.expectCreateTableToken(kwBY); err != nil {
 			return err
 		}
-		if !p.isIdentLike() {
-			return p.syntaxErrorAtCur()
+		if p.cur.Type == ')' {
+			p.advance()
+		} else {
+			if !p.isIdentLike() {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume password
 		}
-		p.advance() // consume password
 	}
 	if p.cur.Type == tokSCONST {
+		if !isValidOracleIntegrityAlgorithm(p.cur.Str) {
+			return p.syntaxErrorAtCur()
+		}
 		p.advance()
 	}
-	if p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "SALT") {
+	if p.isKeywordStr("NO") {
 		p.advance() // consume NO
-		p.advance() // consume SALT
+		if err := p.expectCreateTableWord("SALT"); err != nil {
+			return err
+		}
 	} else if p.isKeywordStr("SALT") {
 		p.advance()
 	}
@@ -452,7 +480,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseCreateTableName(); err != nil {
 				return err
 			}
-			if err := p.parseCreateTableColumnNames(); err != nil {
+			if err := p.parseCreateTableColumnNamesUnique(false); err != nil {
 				return err
 			}
 		case p.cur.Type == kwCACHE, p.cur.Type == kwNOCACHE:
@@ -499,20 +527,39 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			// as Oracle refuses it), and parsePartitionClause reports it.
 			if p.isMviewReferencePartitioningStart() {
 				// Oracle refuses reference partitioning on a materialized
-				// view after its constraint (ORA-14655).
+				// view at its constraint name once the clause's ')' closes
+				// (ORA-14655).
 				p.advance() // consume PARTITION
 				p.advance() // consume BY
 				p.advance() // consume REFERENCE
-				if err := p.parseCreateTableColumnNames(); err != nil {
+				if err := p.expectCreateTableToken('('); err != nil {
 					return err
 				}
-				return p.syntaxErrorAtCur()
+				nameTok := p.cur
+				if err := p.parseCreateTableName(); err != nil {
+					return err
+				}
+				if err := p.expectCreateTableToken(')'); err != nil {
+					return err
+				}
+				return p.syntaxErrorAtTok(nameTok)
 			}
+			savedMviewPart := p.createTablePartitionsOfMview
+			p.createTablePartitionsOfMview = true
 			partition, err := p.parsePartitionClause(table, true)
+			p.createTablePartitionsOfMview = savedMviewPart
 			if err != nil {
 				return err
 			}
 			_ = partition // the AST keeps no partitioning of a view
+		case p.isKeywordStr("CLUSTERING"):
+			p.advance() // consume CLUSTERING
+			if err := p.parseCreateTableClustering(); err != nil {
+				return err
+			}
+		case p.isKeywordStr("NOMAPPING"), p.cur.Type == kwIMMEDIATE:
+			p.advance()
+			return p.syntaxErrorAtCur()
 		case p.isKeywordStr("BUILD"):
 			p.advance() // consume BUILD
 			switch p.cur.Type {
@@ -558,9 +605,14 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 	if p.cur.Type == kwCOLUMN {
 		p.advance()
 	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return err
+	}
 	if err := p.parseCreateTableItem(); err != nil {
 		return err
 	}
+	objectRelational := false
+	binary := false
 	if p.isKeywordStr("STORE") {
 		p.advance() // consume STORE
 		if err := p.expectCreateTableToken(kwAS); err != nil {
@@ -571,11 +623,11 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 			if err := p.expectCreateTableWord("RELATIONAL"); err != nil {
 				return err
 			}
+			objectRelational = true
 		} else {
 			if p.isKeywordStr("SECUREFILE") || p.isKeywordStr("BASICFILE") {
 				p.advance()
 			}
-			binary := false
 			switch {
 			case p.isKeywordStr("CLOB"):
 				p.advance()
@@ -601,11 +653,16 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		}
 	}
 	if !p.isMviewXmlschemaSpecStart() {
+		if objectRelational || binary {
+			return p.syntaxErrorAtCur()
+		}
 		return nil
 	}
 	if p.isKeywordStr("XMLSCHEMA") {
 		p.advance() // consume XMLSCHEMA
-		if err := p.expectCreateTableToken(tokSCONST); err != nil {
+		// Oracle refuses a string literal here (ORA-02000 at XMLSCHEMA 's'),
+		// matching alter_table_properties.go's parseATXMLTypeColumnProperties.
+		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
 	}
@@ -623,9 +680,9 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		return err
 	}
 	if p.isKeywordStr("STORE") {
-		p.advance() // consume STORE
+		storeTok := p.advance() // consume STORE
 		if err := p.expectCreateTableToken(kwALL); err != nil {
-			return err
+			return p.syntaxErrorAtTok(storeTok)
 		}
 		if err := p.expectCreateTableWord("VARRAYS"); err != nil {
 			return err
@@ -637,12 +694,6 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-	}
-	for _, word := range []string{"NONSCHEMA", "ANYSCHEMA"} {
-		if (p.isKeywordStr("ALLOW") || p.isKeywordStr("DISALLOW")) && isCreateTableWordTok(p.peekNext(), word) {
-			p.advance() // consume ALLOW / DISALLOW
-			p.advance() // consume NONSCHEMA / ANYSCHEMA
-		}
 	}
 	return nil
 }
@@ -886,6 +937,9 @@ func (p *Parser) parseMviewRollbackSegment() error {
 
 // parseMviewDateExpr reads the date expression of START WITH or NEXT.
 func (p *Parser) parseMviewDateExpr() (nodes.ExprNode, error) {
+	if p.cur.Type == kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err

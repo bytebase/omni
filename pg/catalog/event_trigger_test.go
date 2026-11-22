@@ -292,3 +292,86 @@ func TestEventTriggerFunctionDefinitionValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestEventTriggerSDLMigration(t *testing.T) {
+	const fnOnly = `
+CREATE FUNCTION audit_ddl() RETURNS event_trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+END;
+$$;
+`
+	const withTrigger = fnOnly + `
+CREATE EVENT TRIGGER audit_ddl_start
+	ON ddl_command_start
+	WHEN TAG IN ('CREATE TABLE')
+	EXECUTE FUNCTION audit_ddl();
+`
+	const modifiedTrigger = fnOnly + `
+CREATE EVENT TRIGGER audit_ddl_start
+	ON ddl_command_end
+	WHEN TAG IN ('CREATE TABLE')
+	EXECUTE FUNCTION audit_ddl();
+`
+
+	t.Run("self idempotent", func(t *testing.T) {
+		plan, err := BuildSDLMigrationPlan(withTrigger, withTrigger, SDLMigrationOptions{})
+		if err != nil {
+			t.Fatalf("BuildSDLMigrationPlan: %v", err)
+		}
+		if plan != nil {
+			t.Fatalf("expected nil plan for identical event trigger SDL, got:\n%s", plan.SQL())
+		}
+	})
+
+	for _, tt := range []struct {
+		name     string
+		fromSDL  string
+		toSDL    string
+		contains []string
+	}{
+		{
+			name:    "add event trigger",
+			fromSDL: fnOnly,
+			toSDL:   withTrigger,
+			contains: []string{
+				`CREATE EVENT TRIGGER "audit_ddl_start" ON "ddl_command_start"`,
+				`WHEN TAG IN ('CREATE TABLE')`,
+				`EXECUTE FUNCTION "public"."audit_ddl"()`,
+			},
+		},
+		{
+			name:    "drop event trigger",
+			fromSDL: withTrigger,
+			toSDL:   fnOnly,
+			contains: []string{
+				`DROP EVENT TRIGGER "audit_ddl_start"`,
+			},
+		},
+		{
+			name:    "modify event trigger",
+			fromSDL: withTrigger,
+			toSDL:   modifiedTrigger,
+			contains: []string{
+				`DROP EVENT TRIGGER "audit_ddl_start"`,
+				`CREATE EVENT TRIGGER "audit_ddl_start" ON "ddl_command_end"`,
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			plan, err := BuildSDLMigrationPlan(tt.fromSDL, tt.toSDL, SDLMigrationOptions{})
+			if err != nil {
+				t.Fatalf("BuildSDLMigrationPlan: %v", err)
+			}
+			if plan == nil {
+				t.Fatalf("expected non-nil plan")
+			}
+			sql := plan.SQL()
+			for _, want := range tt.contains {
+				if !strings.Contains(sql, want) {
+					t.Errorf("migration SQL missing %q:\n%s", want, sql)
+				}
+			}
+		})
+	}
+}

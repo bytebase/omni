@@ -27,6 +27,7 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join("..", "testdata", "pins.tsv"),
+		PinRole: "parser",
 		Grammar: enginetest.Fetched(t, filepath.Join("..", "testdata", "sources.tsv"), "sql_parser_mysql_mode.y"),
 		Tokens:  filepath.Join("..", "testdata", "tokens.tsv"),
 		Omni:    omniVerdict,
@@ -75,6 +76,15 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	if code, ok := oceanBaseErrorCode(j.prepare("EXECUTE a")); !ok || code != oceanBaseParseErrorAfterParsing {
 		t.Fatalf("OceanBase no longer answers PREPARE of an EXECUTE with a bare 1064: got %v", j.prepare("EXECUTE a"))
 	}
+	if accepts, err := j.ask("DO a zzz"); err != nil || accepts {
+		t.Fatalf("OceanBase judge rev 2 must reject DO a zzz (1149 with probe 1064 at line 1): accepts=%v err=%v", accepts, err)
+	}
+	if accepts, err := j.ask("SELECT RANK() OVER(ROWS 1 FOLLOWING)"); err != nil || !accepts {
+		t.Fatalf("OceanBase judge rev 2 must accept post-parse 1149 with probe 1064 at line 2: accepts=%v err=%v", accepts, err)
+	}
+	if accepts, err := j.ask("SELECT /*+ TRANS_PARAM('s') */ a"); err != nil || !accepts {
+		t.Fatalf("OceanBase judge rev 2 must accept ignored-hint 1054: accepts=%v err=%v", accepts, err)
+	}
 	return j.verdict
 }
 
@@ -109,9 +119,36 @@ func (j *compatJudgeOceanBase) prepare(text string) error {
 // refuses to prepare a text of two statements before it parses either
 // (1235, with the probe's tail too, which reads as a rejection), so the
 // tail stays inside the statement, and one statement is all a row can hold.
+//
+// A 1149 ("You have an error in your SQL syntax", with no near clause) can
+// come either from a post-parse resolver check (SELECT RANK() OVER(ROWS 1
+// FOLLOWING), whose probe fails at line 2 near '@@@ (((') or from a parse-time
+// syntax error (DO a zzz, whose probe fails at line 1 near 'a zzz\n @@@ (((').
+// When the first error is 1149 and the probe's 1064 is not reported on the
+// probe tail's own line, the parser failed earlier in the statement and the
+// row is rejected.
 func (j *compatJudgeOceanBase) ask(stmt string) (bool, error) {
-	return compat.PrepareVerdict(j.prepare(stmt), oceanBaseErrorCode, func() error {
+	return oceanBaseAskVerdict(stmt, func() error {
+		return j.prepare(stmt)
+	}, func() error {
 		return j.prepare(stmt + compat.ProbeTailInStatement)
+	})
+}
+
+func oceanBaseAskVerdict(stmt string, first, probe func() error) (bool, error) {
+	firstErr := first()
+	firstCode, firstOK := oceanBaseErrorCode(firstErr)
+	probeLine := fmt.Sprintf(" at line %d", strings.Count(stmt, "\n")+2)
+	return compat.PrepareVerdict(firstErr, oceanBaseErrorCode, func() error {
+		tailErr := probe()
+		var myErr *gomysql.MySQLError
+		if firstOK && firstCode == 1149 &&
+			errors.As(tailErr, &myErr) && myErr.Number == 1064 &&
+			strings.HasPrefix(myErr.Message, oceanBaseSyntaxError) &&
+			!strings.HasSuffix(myErr.Message, probeLine) {
+			return firstErr
+		}
+		return tailErr
 	})
 }
 
@@ -218,4 +255,65 @@ func oceanBaseErrorCode(err error) (uint16, bool) {
 		return oceanBaseParseErrorAfterParsing, true
 	}
 	return myErr.Number, true
+}
+
+func TestOceanBaseAskVerdict(t *testing.T) {
+	syntax1149 := &gomysql.MySQLError{
+		Number:  1149,
+		Message: oceanBaseSyntaxError + "; check the manual that corresponds to your OceanBase version for the right syntax to use",
+	}
+	unknownCol1054 := &gomysql.MySQLError{
+		Number:  1054,
+		Message: "Unknown column 'a' in 'field list'",
+	}
+	probeLine1 := &gomysql.MySQLError{
+		Number:  1064,
+		Message: oceanBaseSyntaxError + "; check the manual that corresponds to your OceanBase version for the right syntax to use near 'a zzz\n @@@ (((' at line 1",
+	}
+	probeLine2 := &gomysql.MySQLError{
+		Number:  1064,
+		Message: oceanBaseSyntaxError + "; check the manual that corresponds to your OceanBase version for the right syntax to use near '@@@ (((' at line 2",
+	}
+
+	cases := []struct {
+		name  string
+		stmt  string
+		first error
+		probe error
+		want  bool
+	}{
+		{
+			name:  "1149 with early probe 1064 at line 1 rejects",
+			stmt:  "DO a zzz",
+			first: syntax1149,
+			probe: probeLine1,
+			want:  false,
+		},
+		{
+			name:  "1149 with probe 1064 at line 2 accepts",
+			stmt:  "SELECT RANK() OVER(ROWS 1 FOLLOWING)",
+			first: syntax1149,
+			probe: probeLine2,
+			want:  true,
+		},
+		{
+			name:  "1054 ignored-hint with line 1 hint syntax error still accepts",
+			stmt:  "SELECT /*+ TRANS_PARAM('s') */ a",
+			first: unknownCol1054,
+			probe: probeLine1,
+			want:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := oceanBaseAskVerdict(tc.stmt, func() error { return tc.first }, func() error { return tc.probe })
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("got accepts=%v, want %v", got, tc.want)
+			}
+		})
+	}
 }

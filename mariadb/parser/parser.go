@@ -83,7 +83,10 @@ type Parser struct {
 	// ddlTable is the table the CREATE TABLE or ALTER TABLE being parsed names,
 	// which a qualified field_ident must name again (parseFieldIdent) and which
 	// LIKE, EXCHANGE PARTITION and CONVERT TABLE must not (refuseSameTable).
-	ddlTable *nodes.TableRef
+	// ddlFieldDBs records database qualifiers from 3-part field_idents when
+	// ddlTable has no explicit schema, for callers with a current database.
+	ddlTable    *nodes.TableRef
+	ddlFieldDBs []string
 
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates

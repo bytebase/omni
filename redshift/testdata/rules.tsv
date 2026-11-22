@@ -685,7 +685,6 @@ revoke(DATABASE_ID_(,_ID)*|SCHEMA_ID)	redshift/parser/grant.go	parseRevokeStmt
 revoke(EXECUTE_(,_EXECUTE)*|ALL_PRIVILEGES?)	redshift/parser/grant.go	parseRevokeStmt
 revoke(EXECUTE|ALL_PRIVILEGES?)	redshift/parser/grant.go	parseRevokeStmt
 revoke(GRANT_OPTION)?	redshift/parser/grant.go	parseRevokeStmt
-revoke(GRANT_OPTION)?#2	redshift/parser/grant.go	parseRevokeStmt
 revoke(GRANT_OPTION_FOR)?	redshift/parser/grant.go	parseRevokeStmt
 revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)	redshift/parser/grant.go	parseRevokeStmt
 revoke(ID)?	redshift/parser/grant.go	parseRevokeStmt

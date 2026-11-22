@@ -599,9 +599,9 @@ func (p *Parser) parseRowType() (*DataType, error) {
 	// Reading 1 — rowType (no integer fields).
 	cp := p.checkpoint()
 	p.speculating++
-	fields, closeTok, ok := p.tryRowFields()
+	fields, closeTok, rowErr := p.tryRowFields()
 	p.speculating--
-	if ok {
+	if rowErr == nil {
 		return &DataType{
 			Kind:   TypeRow,
 			Name:   "ROW",
@@ -614,7 +614,7 @@ func (p *Parser) parseRowType() (*DataType, error) {
 	// Reading 2 — genericType "ROW" with a typeParameter list (admits integers).
 	params, endLoc, err := p.parseTypeParamList()
 	if err != nil {
-		return nil, err
+		return nil, furtherError(rowErr, err)
 	}
 	return &DataType{
 		Kind:   TypeGeneric,
@@ -625,28 +625,28 @@ func (p *Parser) parseRowType() (*DataType, error) {
 }
 
 // tryRowFields parses `rowField (, rowField)* )` after the opening '(' has been
-// consumed, returning the fields and the closing-')' token. ok is false (with
-// the cursor left wherever the attempt stopped — the caller restores) if the
-// body is not a valid rowField list, e.g. it contains a bare integer entry.
-func (p *Parser) tryRowFields() (fields []RowField, closeTok Token, ok bool) {
+// consumed, returning the fields and the closing-')' token, or the error where
+// the rowField list failed (with the cursor left where the attempt stopped —
+// the caller restores).
+func (p *Parser) tryRowFields() (fields []RowField, closeTok Token, err error) {
 	first, err := p.parseRowField()
 	if err != nil {
-		return nil, Token{}, false
+		return nil, Token{}, err
 	}
 	fields = []RowField{first}
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
 		f, err := p.parseRowField()
 		if err != nil {
-			return nil, Token{}, false
+			return nil, Token{}, err
 		}
 		fields = append(fields, f)
 	}
 	closeTok, err = p.expect(int(')'))
 	if err != nil {
-		return nil, Token{}, false
+		return nil, Token{}, err
 	}
-	return fields, closeTok, true
+	return fields, closeTok, nil
 }
 
 // parserCheckpoint captures enough parser+lexer state to rewind a speculative
@@ -662,6 +662,7 @@ type parserCheckpoint struct {
 	nextBuf  Token
 	hasNext  bool
 	rawqs    int // len(p.rawQueries) at the checkpoint
+	deferred *ParseError
 }
 
 // checkpoint snapshots the parser/lexer state for a later restore.
@@ -675,6 +676,7 @@ func (p *Parser) checkpoint() parserCheckpoint {
 		nextBuf:  p.nextBuf,
 		hasNext:  p.hasNext,
 		rawqs:    len(p.rawQueries),
+		deferred: p.deferred,
 	}
 }
 
@@ -691,6 +693,7 @@ func (p *Parser) restore(c parserCheckpoint) {
 	if len(p.rawQueries) > c.rawqs {
 		p.rawQueries = p.rawQueries[:c.rawqs]
 	}
+	p.deferred = c.deferred
 }
 
 // parseRowField parses one `rowField := type | identifier type` (the integer
@@ -720,29 +723,43 @@ func (p *Parser) restore(c parserCheckpoint) {
 func (p *Parser) parseRowField() (RowField, error) {
 	// Attempt 1 — unnamed `type` (ANTLR's first rowField alternative).
 	cp := p.checkpoint()
-	if fieldType, err := p.parseType(); err == nil && p.atRowFieldBoundary() {
-		return RowField{Type: fieldType, Loc: fieldType.Loc}, nil
+	var err1 error
+	if fieldType, err := p.parseType(); err == nil {
+		if p.atRowFieldBoundary() {
+			return RowField{Type: fieldType, Loc: fieldType.Loc}, nil
+		}
+		err1 = p.syntaxErrorAtCur()
+	} else {
+		err1 = err
 	}
 	p.restore(cp)
 
 	// Attempt 2 — named `identifier type`. The name is a single identifier
 	// token; the type follows and must reach a field boundary.
+	var err2 error
 	if isIdentifierStart(p.cur.Kind) {
 		name := identFromToken(p.advance())
-		if fieldType, err := p.parseType(); err == nil && p.atRowFieldBoundary() {
-			return RowField{
-				Name: name,
-				Type: fieldType,
-				Loc:  ast.Loc{Start: name.Loc.Start, End: fieldType.Loc.End},
-			}, nil
+		if fieldType, err := p.parseType(); err == nil {
+			if p.atRowFieldBoundary() {
+				return RowField{
+					Name: name,
+					Type: fieldType,
+					Loc:  ast.Loc{Start: name.Loc.Start, End: fieldType.Loc.End},
+				}, nil
+			}
+			err2 = p.syntaxErrorAtCur()
+		} else {
+			err2 = err
 		}
 		p.restore(cp)
 	}
 
-	// Neither rowField reading fits. Return an error so the ROW dispatch can
-	// fall back to the genericType "ROW" reading (which admits integer entries,
-	// e.g. ROW(1)). The cursor is left for the caller's restore.
-	return RowField{}, p.typeErrorAt("invalid ROW field")
+	// Neither rowField reading fits. Return the error from whichever reading
+	// got further (used by parseRowType if the genericType fallback also fails).
+	if err2 != nil {
+		return RowField{}, furtherError(err1, err2)
+	}
+	return RowField{}, err1
 }
 
 // atRowFieldBoundary reports whether the cursor sits at the end of a ROW field

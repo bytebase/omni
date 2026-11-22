@@ -119,6 +119,24 @@ func (s *analyzerScope) getColumns(tableName string) []*Column {
 	return nil
 }
 
+// lookupColumn returns the catalog Column referenced by (rteIdx, attNum, levelsUp),
+// or nil if the entry is not backed by a catalog column.
+func (s *analyzerScope) lookupColumn(rteIdx, attNum, levelsUp int) *Column {
+	cur := s
+	for i := 0; i < levelsUp && cur != nil; i++ {
+		cur = cur.parent
+	}
+	if cur == nil || attNum < 1 {
+		return nil
+	}
+	for i, r := range cur.rteMap {
+		if r == rteIdx && attNum <= len(cur.cols[i]) {
+			return cur.cols[i][attNum-1]
+		}
+	}
+	return nil
+}
+
 // addSelectAlias records a preceding select-list alias so nested subqueries
 // in the same SELECT / GROUP BY / HAVING / ORDER BY can reference it.
 func (s *analyzerScope) addSelectAlias(name string, expr AnalyzedExpr) {

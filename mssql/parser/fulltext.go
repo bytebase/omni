@@ -4,9 +4,8 @@
 // Every statement follows ScriptDOM's TSql160.g (mssql/testdata/TSql160.g4 is
 // the conversion; each rule cites its TSql160.g line), checked against the
 // pinned SQL Server 2022, whose verdict wins where the two differ. That server
-// has no full-text search installed, so a full-text statement it reads to the
-// end fails with Msg 7609 or a language lookup (Msg 7678); the judge counts
-// both as acceptances, and the grammar decides what follows such a lookup.
+// has no full-text search installed, so judge rev 2 probes past Msg 7609/7678
+// language lookups to check the statement's tail and required semicolon.
 package parser
 
 import (
@@ -758,16 +757,10 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	// requiredSemicolon applies to every form, but the pinned server, having
-	// no full-text search, stops at the language lookup (Msg 7609, 7678)
-	// before it checks for ';', and compat.tsv records those forms without
-	// ';' as accepted. Parse keeps accepting them until a judge with
-	// full-text search installed says otherwise; DROP ALL has no lookup, and
-	// the server refuses it without ';' (Msg 10736).
-	if stmt.Language == "" {
-		if err := p.fulltextRequireSemicolon(); err != nil {
-			return nil, err
-		}
+	// requiredSemicolon (TSql160.g:8688, SQL Server Msg 10736) applies to
+	// every ALTER FULLTEXT STOPLIST form.
+	if err := p.fulltextRequireSemicolon(); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()

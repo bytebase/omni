@@ -73,6 +73,25 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		return nil, err
 	}
 
+	// Spanner PG: optional SQL SECURITY {INVOKER | DEFINER}
+	sqlSecurity := ""
+	if p.isSpannerPG() && p.cur.Type == SQL_P {
+		p.advance() // consume SQL
+		if _, err := p.expect(SECURITY); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case INVOKER:
+			p.advance()
+			sqlSecurity = "invoker"
+		case DEFINER:
+			p.advance()
+			sqlSecurity = "definer"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// AS
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
@@ -130,6 +149,7 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		Query:           query,
 		Replace:         replace,
 		WithCheckOption: checkOption,
+		SqlSecurity:     sqlSecurity,
 	}, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/deparse"
 )
 
 // analyzeTargetList processes the SELECT list, populating q.TargetList.
@@ -26,14 +27,26 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	switch n := item.(type) {
 	case *nodes.ResTarget:
 		// Aliased expression: SELECT expr AS alias
+		if row, ok := unwrapParenExpr(n.Val).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			for _, item := range row.Items {
+				if _, err := analyzeExpr(c, item, scope); err != nil {
+					return nil, err
+				}
+			}
+			return nil, errOperandColumns(1)
+		}
 		analyzed, err := analyzeExpr(c, n.Val, scope)
 		if err != nil {
 			return nil, err
 		}
+		name := n.Name
+		if name == "" {
+			name = deriveColumnName(n.Val, analyzed, *resNo, scope.source)
+		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: n.Name,
+			ResName: name,
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -41,12 +54,12 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	case *nodes.StarExpr:
 		// SELECT *
-		return expandStar("", q, scope, resNo)
+		return expandStar("", "", q, scope, resNo)
 
 	case *nodes.ColumnRef:
 		if n.Star {
-			// SELECT t.*
-			return expandStar(n.Table, q, scope, resNo)
+			// SELECT [db.]t.*
+			return expandStar(n.Schema, n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
 		analyzed, err := analyzeExpr(c, item, scope)
@@ -56,7 +69,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -64,6 +77,14 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	default:
 		// Bare expression (literal, function call, etc.)
+		if row, ok := unwrapParenExpr(item).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			for _, elem := range row.Items {
+				if _, err := analyzeExpr(c, elem, scope); err != nil {
+					return nil, err
+				}
+			}
+			return nil, errOperandColumns(1)
+		}
 		analyzed, err := analyzeExpr(c, item, scope)
 		if err != nil {
 			return nil, err
@@ -71,7 +92,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -79,14 +100,28 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	}
 }
 
-// expandStar expands a star expression (SELECT * or SELECT t.*) into
+func unwrapParenExpr(e nodes.ExprNode) nodes.ExprNode {
+	for {
+		p, ok := e.(*nodes.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.Expr
+	}
+}
+
+// expandStar expands a star expression (SELECT * or SELECT [db.]t.*) into
 // individual TargetEntryQ values.
-func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+func expandStar(schema, tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 
 	if tableName == "" {
+		entries := scope.allEntries()
+		if len(entries) == 0 {
+			return nil, errNoTablesUsed()
+		}
 		// SELECT * — expand all tables in scope order.
-		for _, e := range scope.allEntries() {
+		for _, e := range entries {
 			entries, err := expandScopeEntry(e, q, scope, resNo)
 			if err != nil {
 				return nil, err
@@ -94,15 +129,18 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 			result = append(result, entries...)
 		}
 	} else {
-		// SELECT t.* — expand only the named table.
+		// SELECT [db.]t.* — expand only the named table.
 		lower := toLower(tableName)
-		if i := scope.entryIndex(lower); i >= 0 {
+		if i := scope.entryIndexWithDB(schema, lower); i >= 0 {
 			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		} else {
+			if schema != "" {
+				return nil, errUnknownTable(schema, tableName)
+			}
 			return nil, &Error{
 				Code:     ErrUnknownTable,
 				SQLState: sqlState(ErrUnknownTable),
@@ -144,8 +182,14 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) 
 	return result, nil
 }
 
-// deriveColumnName generates the output column name for an unaliased expression.
-func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
+// deriveColumnName generates the output column name for an unaliased
+// expression. When source SQL text is available (as on CREATE/ALTER VIEW and
+// CTAS), it uses MariaDB's expression-derived naming rules via deparse.AutoName;
+// otherwise it falls back to the AST-only analyzer naming.
+func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr, position int, source string) string {
+	if source != "" {
+		return deparse.AutoName(source, astNode, position)
+	}
 	switch n := astNode.(type) {
 	case *nodes.ColumnRef:
 		return n.Column
@@ -165,7 +209,7 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 	case *nodes.FuncCallExpr:
 		return n.Name
 	case *nodes.ParenExpr:
-		return deriveColumnName(n.Expr, nil)
+		return deriveColumnName(n.Expr, nil, position, "")
 	default:
 		return "?"
 	}

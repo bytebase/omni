@@ -1766,10 +1766,11 @@ func (n *PartitionClause) nodeTag() {}
 
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
-	Name       string // partition name
-	Values     *List  // VALUES LESS THAN / VALUES (for list)
-	Tablespace string // TABLESPACE
-	Loc        Loc    // start location
+	Name          string // partition name
+	Values        *List  // VALUES LESS THAN / VALUES (for list)
+	Tablespace    string // TABLESPACE
+	Subpartitions *List  // list of *PartitionDef for composite subpartitions
+	Loc           Loc    // start location
 }
 
 func (n *PartitionDef) nodeTag() {}

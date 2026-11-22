@@ -140,7 +140,7 @@ func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExist
 	}
 	var parseErr611 error
 
-	stmt.Name, parseErr611 = p.parseObjectName()
+	stmt.Name, parseErr611 = p.parseReservedCheckedObjectName()
 	if parseErr611 != nil {
 		return nil, parseErr611
 	}

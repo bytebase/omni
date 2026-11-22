@@ -161,7 +161,9 @@ func (p *Parser) parseExportData() (ast.Node, error) {
 // pipe EXPORT DATA operator, nothing: the exported rows are the pipe input.
 func (p *Parser) parseExportDataNoQuery() (*ast.ExportDataStmt, error) {
 	export := p.advance() // EXPORT
-	p.advance()           // DATA
+	if _, err := p.expect(kwDATA); err != nil {
+		return nil, err
+	}
 
 	stmt := &ast.ExportDataStmt{}
 	stmt.Loc.Start = export.Loc.Start
@@ -272,6 +274,13 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 	// `temp`. Only consume the scope prefix when TABLE follows; otherwise fall
 	// through to parse the leading TEMP/TEMPORARY as the path's first component.
 	if (p.cur.Type == kwTEMP || p.cur.Type == kwTEMPORARY) && p.peekNext().Type == kwTABLE {
+		if p.isSpanner() {
+			// googlesql.tm:3156 — LOAD DATA statement with TEMP TABLE is not supported.
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "LOAD DATA statement with TEMP TABLE is not supported",
+			}
+		}
 		scopeTok := p.advance() // TEMP | TEMPORARY
 		stmt.Temp = true
 		stmt.TempKeyword = TokenName(scopeTok.Type)
@@ -285,9 +294,17 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 
 	// table_element_list? — an explicit `( col defs / constraints )`.
 	if p.cur.Type == int('(') {
+		openTok := p.cur
 		cols, cons, err := p.parseTableElementList()
 		if err != nil {
 			return nil, err
+		}
+		if len(cols) == 0 && len(cons) == 0 {
+			// googlesql.tm:3295 — A table must define at least one column.
+			return nil, &ParseError{
+				Position: openTok.Loc.Start, End: p.prev.Loc.End,
+				Message: "A table must define at least one column.",
+			}
 		}
 		stmt.Columns = cols
 		stmt.Constraints = cons
@@ -295,6 +312,13 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 
 	// load_data_partitions_clause? — OVERWRITE? PARTITIONS ( expr ).
 	if p.cur.Type == kwOVERWRITE || p.cur.Type == kwPARTITIONS {
+		if p.isSpanner() {
+			// googlesql.tm:3104 — LOAD DATA statement with PARTITIONS is not supported.
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "LOAD DATA statement with PARTITIONS is not supported",
+			}
+		}
 		ow, expr, err := p.parseLoadDataPartitions()
 		if err != nil {
 			return nil, err

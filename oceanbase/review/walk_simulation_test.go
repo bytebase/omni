@@ -15,26 +15,36 @@ import (
 )
 
 // TestWalkSimulation holds OceanBase's WALK_THROUGH to oceanbase/catalog's
-// simulate.tsv offline: each fixture is built once in the in-memory catalog,
-// and every row is checked with no server started.
+// simulate.tsv and programs/simulate.tsv offline: each fixture is built once
+// in the in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&oceanBaseEngine{}).Same
-	walktest.CheckSimulation(t, walktest.Simulation{
-		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
-		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
-		Setup:    oceanBaseSimFixture,
-		Codes: func(message, stmt string) []string {
-			var codes []string
-			for _, c := range walkCodes {
-				if c.match(message, stmt) {
-					codes = c.codes
-					break
-				}
-			}
-			return append(slices.Clone(codes), oceanBaseCodes(message, stmt)...)
-		},
-		Same: same,
-	})
+	for _, suite := range []struct {
+		name string
+		path string
+	}{
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv")},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv")},
+	} {
+		t.Run(suite.name, func(t *testing.T) {
+			walktest.CheckSimulation(t, walktest.Simulation{
+				Path:     suite.path,
+				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
+				Setup:    oceanBaseSimFixture,
+				Codes: func(message, stmt string) []string {
+					var codes []string
+					for _, c := range walkCodes {
+						if c.match(message, stmt) {
+							codes = c.codes
+							break
+						}
+					}
+					return append(slices.Clone(codes), oceanBaseCodes(message, stmt)...)
+				},
+				Same: same,
+			})
+		})
+	}
 }
 
 func oceanBaseSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {

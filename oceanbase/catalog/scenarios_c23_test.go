@@ -15,24 +15,15 @@ import (
 //	23.2  CONCAT_WS(sep, ...) — NULL data args skipped; NULL separator → NULL
 //	23.3  IFNULL/COALESCE     — rescue pattern around CONCAT NULL propagation
 //
-// These are runtime expression behaviors. The omni catalog stores parsed
-// VIEWs as a *catalog.View whose `Columns` field is just a list of column
-// NAMES (see oceanbase/catalog/table.go). It does NOT track per-column
-// nullability. So the most useful representation of these scenarios in
-// omni today is:
+// These are runtime expression behaviors. Each subtest:
 //
-//  1. Run the same CREATE TABLE / CREATE VIEW DDL against both OceanBase
+//  1. Runs the same CREATE TABLE / CREATE VIEW DDL against both OceanBase
 //     and the omni catalog (proves the DDL parses on both sides).
-//  2. Use information_schema.COLUMNS on the container to assert that
-//     MySQL infers IS_NULLABLE the way the SCENARIOS doc claims.
-//  3. SELECT the actual rows from the container to lock the runtime
+//  2. Uses information_schema.COLUMNS on the container to assert OceanBase's
+//     IS_NULLABLE inference, and checks omni's View.ColumnMetadata.Nullable
+//     against it.
+//  3. Selects the actual rows from the container to lock the runtime
 //     string values into the test (oracle ground truth).
-//  4. Record the omni gap: the View struct has no per-column nullability
-//     info, so omni cannot answer "is column c1 of view v nullable?" —
-//     this is the declared bug, documented in mysql/catalog/scenarios_bug_queue/c23.md.
-//
-// Failed omni assertions are NOT proof failures — they are recorded in
-// mysql/catalog/scenarios_bug_queue/c23.md.
 func TestScenario_C23(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()

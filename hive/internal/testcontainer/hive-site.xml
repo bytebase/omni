@@ -17,4 +17,11 @@
     <name>hive.metastore.warehouse.dir</name>
     <value>file:/opt/hive/data/warehouse</value>
   </property>
+  <!-- Disable per-operation log appenders so long compat.tsv recording and
+       verification runs (thousands of EXPLAIN statements) do not exhaust
+       HiveServer2's Log4j2 async logger heap. -->
+  <property>
+    <name>hive.server2.logging.operation.enabled</name>
+    <value>false</value>
+  </property>
 </configuration>

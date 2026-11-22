@@ -33,6 +33,9 @@ import (
 // prefix (OR REPLACE / scope) and an optional RECURSIVE have been consumed and
 // cur is at the VIEW keyword.
 func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, recursive bool) (ast.Node, error) {
+	if p.isSpanner() && (recursive || scope != "") {
+		return nil, p.syntaxErrorAtCur()
+	}
 	p.advance() // consume VIEW
 
 	stmt := &ast.CreateViewStmt{OrReplace: orReplace, Scope: scope, Recursive: recursive}
@@ -52,8 +55,11 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 
 	// column_with_options_list?  — `( column_with_options (, …)* )`, where each is
 	// `identifier opt_options_list?`. Distinguished from anything else by the
-	// leading '('.
+	// leading '('. Not supported in Spanner views.
 	if p.cur.Type == int('(') {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		cols, err := p.parseViewColumnList()
 		if err != nil {
 			return nil, err
@@ -70,8 +76,11 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 		stmt.SQLSecurity = sec
 	}
 
-	// opt_options_list?
+	// opt_options_list? (not supported in Spanner views).
 	if p.cur.Type == kwOPTIONS {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		opts, err := p.parseOptionsList()
 		if err != nil {
 			return nil, err

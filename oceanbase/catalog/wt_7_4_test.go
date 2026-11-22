@@ -456,7 +456,7 @@ func TestWalkThrough_7_4_ExchangePartition(t *testing.T) {
 	ddlBefore := c.ShowCreateTable("testdb", "t8")
 	ddlSwapBefore := c.ShowCreateTable("testdb", "t8_swap")
 
-	wtExec(t, c, `ALTER TABLE t8 EXCHANGE PARTITION p1 WITH TABLE t8_swap`)
+	wtExec(t, c, `ALTER TABLE t8 EXCHANGE PARTITION p1 WITH TABLE t8_swap WITHOUT VALIDATION`)
 
 	ddlAfter := c.ShowCreateTable("testdb", "t8")
 	ddlSwapAfter := c.ShowCreateTable("testdb", "t8_swap")
@@ -480,7 +480,7 @@ func TestWalkThrough_7_4_ExchangePartition(t *testing.T) {
 	}
 
 	// Verify exchange with nonexistent table errors
-	results, err := c.Exec(`ALTER TABLE t8 EXCHANGE PARTITION p1 WITH TABLE nonexistent`, nil)
+	results, err := c.Exec(`ALTER TABLE t8 EXCHANGE PARTITION p1 WITH TABLE nonexistent WITHOUT VALIDATION`, nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

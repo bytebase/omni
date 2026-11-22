@@ -2007,3 +2007,159 @@ CREATE TABLE [dbo].[u] ([id] int NOT NULL, [v] int NOT NULL, CONSTRAINT [PK_u] P
 	require.Less(t, alterT, createF)
 	require.Less(t, createF, addCK)
 }
+
+func TestGetDatabaseMetadataSequenceUsesExplicitSchema(t *testing.T) {
+	meta, err := GetDatabaseMetadata(`
+CREATE SCHEMA audit;
+CREATE SEQUENCE audit.EventSeq AS BIGINT;
+`)
+	require.NoError(t, err)
+	require.Equal(t, []*metadata.SchemaMetadata{
+		{
+			Name:   "audit",
+			Tables: []*metadata.TableMetadata{},
+			Sequences: []*metadata.SequenceMetadata{
+				{
+					Name:     "EventSeq",
+					DataType: "BIGINT",
+				},
+			},
+		},
+	}, meta.Schemas)
+}
+
+func TestGetDatabaseMetadataColumnForeignKeyUsesDefaultSchemaFallback(t *testing.T) {
+	meta, err := GetDatabaseMetadata(`
+CREATE SCHEMA sales;
+CREATE TABLE sales.customers (
+    id INT PRIMARY KEY
+);
+CREATE TABLE sales.orders (
+    id INT PRIMARY KEY,
+    customer_id INT REFERENCES customers(id)
+);
+`)
+	require.NoError(t, err)
+
+	var orders *metadata.TableMetadata
+	for _, table := range meta.Schemas[0].Tables {
+		if table.Name == "orders" {
+			orders = table
+			break
+		}
+	}
+	require.NotNil(t, orders)
+	require.Len(t, orders.ForeignKeys, 1)
+	require.Equal(t, "dbo", orders.ForeignKeys[0].ReferencedSchema)
+	require.Equal(t, "customers", orders.ForeignKeys[0].ReferencedTable)
+	require.Equal(t, []string{"customer_id"}, orders.ForeignKeys[0].Columns)
+	require.Equal(t, []string{"id"}, orders.ForeignKeys[0].ReferencedColumns)
+}
+
+func TestExtendedPropertyConstraintCommentDoesNotPolluteTableComment(t *testing.T) {
+	meta, err := GetDatabaseMetadata(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [CK_t] CHECK ([id] > 0));
+EXEC sp_addextendedproperty @name = N'MS_Description', @value = N'ck comment',
+  @level0type = N'SCHEMA', @level0name = N'dbo',
+  @level1type = N'TABLE', @level1name = N't',
+  @level2type = N'CONSTRAINT', @level2name = N'CK_t';`)
+	require.NoError(t, err)
+	require.Empty(t, meta.Schemas[0].Tables[0].Comment)
+}
+
+func TestDefinitionHoistsReferencedFunctionsAndKeepsUnreferencedLast(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[f]())"},
+			},
+			Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+		}},
+		Views: []*metadata.ViewMetadata{{Name: "v1", Definition: "CREATE VIEW [dbo].[v1] AS SELECT [dbo].[g]() AS x"}},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "f", Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END"},
+			{Name: "g", Definition: "CREATE FUNCTION [dbo].[g]() RETURNS int AS BEGIN RETURN 2 END"},
+			{Name: "h", Definition: "CREATE FUNCTION [dbo].[h]() RETURNS int AS BEGIN RETURN 3 END"},
+		},
+	}}}
+	got, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	at := func(s string) int {
+		i := strings.Index(got, s)
+		require.GreaterOrEqual(t, i, 0, "missing %q", s)
+		return i
+	}
+	require.Less(t, at("CREATE FUNCTION [dbo].[f]"), at("CREATE TABLE [dbo].[t]"))
+	require.Less(t, at("CREATE FUNCTION [dbo].[g]"), at("CREATE VIEW [dbo].[v1]"))
+	require.Less(t, at("CREATE VIEW [dbo].[v1]"), at("CREATE FUNCTION [dbo].[h]"))
+}
+
+func TestMigrationSequencesTriggersAndSynonyms(t *testing.T) {
+	loadMeta := func(t *testing.T, meta *metadata.DatabaseSchemaMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		require.NoError(t, c.LoadMetadata(t.Context(), meta))
+		return c
+	}
+
+	sequence := func(increment string) *metadata.DatabaseSchemaMetadata {
+		meta := &metadata.DatabaseSchemaMetadata{}
+		if increment != "" {
+			meta.Schemas = []*metadata.SchemaMetadata{{Name: "dbo", Sequences: []*metadata.SequenceMetadata{{
+				Name: "seq", DataType: "bigint", Start: "1", Increment: increment,
+			}}}}
+		}
+		return meta
+	}
+
+	triggerBody := "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS BEGIN SELECT 1 END"
+	withTrigger := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:     "t",
+			Columns:  []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+			Indexes:  []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			Triggers: []*metadata.TriggerMetadata{{Name: "trg", Body: triggerBody}},
+		}},
+	}}}
+	withoutTrigger := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+
+	synonym := func(synonyms []*metadata.SynonymMetadata) *metadata.DatabaseSchemaMetadata {
+		return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo", Synonyms: synonyms,
+		}}}
+	}
+
+	tests := []struct {
+		name string
+		old  *metadata.DatabaseSchemaMetadata
+		new  *metadata.DatabaseSchemaMetadata
+		want string
+	}{
+		{name: "create sequence keeps the options", old: sequence(""), new: sequence("1"), want: "CREATE SEQUENCE [dbo].[seq] AS bigint START WITH 1 INCREMENT BY 1;\nGO\n"},
+		{name: "alter sequence", old: sequence("1"), new: sequence("5"), want: "ALTER SEQUENCE [dbo].[seq] INCREMENT BY 5 NO CYCLE;\nGO\n"},
+		{name: "drop sequence", old: sequence("1"), new: sequence(""), want: "DROP SEQUENCE [dbo].[seq];\nGO\n"},
+		{name: "create trigger", old: withoutTrigger, new: withTrigger, want: "\nGO\nCREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS BEGIN SELECT 1 END\nGO\n"},
+		{name: "drop trigger", old: withTrigger, new: withoutTrigger, want: "DROP TRIGGER [dbo].[trg];\nGO\n\n"},
+		{name: "create synonym", old: synonym(nil), new: synonym([]*metadata.SynonymMetadata{{Name: "s1", TargetSchema: "dbo", TargetName: "t"}}), want: "CREATE SYNONYM [dbo].[s1] FOR [dbo].[t];\nGO\n"},
+		{name: "drop synonym", old: synonym([]*metadata.SynonymMetadata{{Name: "s1", TargetSchema: "dbo", TargetName: "t"}}), new: synonym(nil), want: "DROP SYNONYM [dbo].[s1];\nGO\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			from := loadMeta(t, tc.old)
+			to := loadMeta(t, tc.new)
+			got := GenerateMigration(from, to, Diff(from, to)).SQL()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

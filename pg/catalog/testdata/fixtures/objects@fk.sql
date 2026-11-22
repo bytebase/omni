@@ -1,0 +1,3 @@
+CREATE TABLE p (b int PRIMARY KEY, d int);
+CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));

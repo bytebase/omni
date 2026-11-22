@@ -174,7 +174,7 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 		p.cur.Type == kwONLINE || p.cur.Type == kwDEFERRED || p.cur.Type == kwIMMEDIATE {
 		return nil, p.syntaxErrorAtCur()
 	}
-	name, parseErr692 := p.parseObjectName()
+	name, parseErr692 := p.parseReservedCheckedObjectName()
 	if parseErr692 != nil {
 		return nil, parseErr692
 	}
@@ -264,7 +264,7 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*node
 	}
 
 	// Parse object name
-	name, parseErr693 := p.parseObjectName()
+	name, parseErr693 := p.parseReservedCheckedObjectName()
 	if parseErr693 != nil {
 		return nil, parseErr693
 	}
@@ -368,7 +368,7 @@ func (p *Parser) parseDropMaterializedViewLogStmt(start int) (*nodes.DropStmt, e
 	p.advance() // consume ON
 
 	// Parse table name
-	name, parseErr694 := p.parseObjectName()
+	name, parseErr694 := p.parseReservedCheckedObjectName()
 	if parseErr694 != nil {
 		return nil, parseErr694
 	}

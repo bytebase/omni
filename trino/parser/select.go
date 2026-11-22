@@ -308,16 +308,6 @@ func (p *Parser) parseQuery() (*Query, error) {
 	var with *WithClause
 	start := p.cur.Loc.Start
 	if p.cur.Kind == kwWITH {
-		// WITH FUNCTION (the rootQuery inline-routine prefix, parser-routines
-		// node) is valid ONLY at the statement level — parseStmt routes it to
-		// parseWithFunctionQuery there. Reaching parseQuery with a leading
-		// WITH FUNCTION means it appeared in a subquery / nested-query position,
-		// which Trino 481 rejects with a SYNTAX_ERROR; a CTE WITH is
-		// `WITH [RECURSIVE] namedQuery …`. Report the syntax error rather than
-		// mis-parsing it as a CTE.
-		if p.peekNext().Kind == kwFUNCTION {
-			return nil, p.syntaxErrorAtCur()
-		}
 		w, err := p.parseWithClause()
 		if err != nil {
 			return nil, err
