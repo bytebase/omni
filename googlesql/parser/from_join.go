@@ -53,35 +53,46 @@ func (p *Parser) parseFromClause() ([]ast.Node, error) {
 }
 
 // parseJoinTree parses one comma-separated FROM item: a primary source followed
-// by zero or more explicit JOIN suffixes, folded into a left-deep *JoinExpr.
+// by zero or more explicit JOIN suffixes. Left-to-right joins with immediate
+// ON/USING clauses fold left-deep; consecutive condition-needing joins followed
+// by consecutive ON/USING clauses (e.g.
+// `a JOIN b JOIN c USING (id) ON a.id = b.id`) reassociate right-to-left as
+// each ON/USING closes the most recent open join, producing
+// `a JOIN (b JOIN c USING (id)) ON a.id = b.id`.
 func (p *Parser) parseJoinTree() (ast.Node, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	left, err := p.parseTablePrimary()
+	cur, err := p.parseTablePrimary()
 	if err != nil {
 		return nil, err
 	}
-	var pendingJoins []*ast.JoinExpr
+	var open []*ast.JoinExpr
 	for {
-		joined, ok, err := p.tryParseJoinSuffix(left, &pendingJoins)
+		next, ok, err := p.tryParseJoinSuffix(cur, &open)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
-			return left, nil
+			for i := len(open) - 1; i >= 0; i-- {
+				j := open[i]
+				j.Right = cur
+				j.Loc = ast.Loc{Start: qLoc(j.Left).Start, End: qLoc(cur).End}
+				cur = j
+			}
+			return cur, nil
 		}
-		left = joined
+		cur = next
 	}
 }
 
-// tryParseJoinSuffix parses one explicit join suffix on left if the current
+// tryParseJoinSuffix parses one explicit join suffix on cur if the current
 // position starts one (a [NATURAL] [join_type] [join_hint] JOIN). It returns
-// (joinExpr, true, nil) on success, (nil, false, nil) when no JOIN follows, or
+// (nextCur, true, nil) on success, (nil, false, nil) when no JOIN follows, or
 // (nil, false, err) on a malformed join. A comma is NOT consumed here — the
 // top-level comma is handled by parseFromClause (comma cross join binds looser).
-func (p *Parser) tryParseJoinSuffix(left ast.Node, pendingJoins *[]*ast.JoinExpr) (ast.Node, bool, error) {
+func (p *Parser) tryParseJoinSuffix(cur ast.Node, open *[]*ast.JoinExpr) (ast.Node, bool, error) {
 	natural, joinType, joinHint, ok, err := p.tryParseJoinKeywords()
 	if err != nil {
 		return nil, false, err
@@ -90,7 +101,7 @@ func (p *Parser) tryParseJoinSuffix(left ast.Node, pendingJoins *[]*ast.JoinExpr
 		return nil, false, nil
 	}
 
-	je := &ast.JoinExpr{Type: joinType, Natural: natural, JoinHint: joinHint, Left: left}
+	je := &ast.JoinExpr{Type: joinType, Natural: natural, JoinHint: joinHint, Left: cur}
 
 	// Optional per-join `@{...}` hint between JOIN and the right source.
 	if p.cur.Type == int('@') {
@@ -103,25 +114,60 @@ func (p *Parser) tryParseJoinSuffix(left ast.Node, pendingJoins *[]*ast.JoinExpr
 	if err != nil {
 		return nil, false, err
 	}
-	je.Right = right
-	je.Loc = ast.Loc{Start: qLoc(left).Start, End: qLoc(right).End}
 
-	// ON / USING criteria. NATURAL and CROSS joins take no criteria; the others
-	// push onto pendingJoins so consecutive ON/USING clauses (e.g.
-	// `a JOIN b JOIN c ON b.id = c.id ON a.id = b.id`) bind right-to-left to
-	// each pending join, while excess ON/USING clauses beyond the pending joins
-	// (e.g. `FROM a JOIN a ON NULL ON NULL`) are left unconsumed in BigQuery.
-	if !natural && joinType != ast.JoinCross {
-		*pendingJoins = append(*pendingJoins, je)
-		consumed, err := p.parseJoinCriteria(je, pendingJoins)
-		if err != nil {
-			return nil, false, err
-		}
-		if consumed {
-			je.Loc.End = p.prev.Loc.End
-		}
+	// NATURAL and CROSS joins take no criteria and attach directly to cur.
+	if natural || joinType == ast.JoinCross {
+		je.Right = right
+		je.Loc = ast.Loc{Start: qLoc(cur).Start, End: qLoc(right).End}
+		return je, true, nil
 	}
-	return je, true, nil
+
+	// Condition-needing join: push je onto open with cur as its left operand,
+	// and let right become the active right-hand tree. Each immediately
+	// following ON/USING closes the top open join, reassociating consecutive
+	// joins right-to-left (e.g. `a JOIN b JOIN c USING (id) ON a.id = b.id`
+	// -> `a JOIN (b JOIN c USING (id)) ON a.id = b.id`). In BigQuery, excess
+	// ON/USING clauses beyond the open joins are left unconsumed so they fail.
+	*open = append(*open, je)
+	cur = right
+	for p.cur.Type == kwON || p.cur.Type == kwUSING {
+		var target *ast.JoinExpr
+		if len(*open) > 0 {
+			top := len(*open) - 1
+			target = (*open)[top]
+			*open = (*open)[:top]
+			target.Right = cur
+		} else {
+			if p.isBigQuery() {
+				break
+			}
+			j, ok := cur.(*ast.JoinExpr)
+			if !ok {
+				break
+			}
+			target = j
+		}
+		switch p.cur.Type {
+		case kwON:
+			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, false, err
+			}
+			target.On = expr
+			target.Using = nil
+		case kwUSING:
+			cols, err := p.parseUsingClause()
+			if err != nil {
+				return nil, false, err
+			}
+			target.Using = cols
+			target.On = nil
+		}
+		target.Loc = ast.Loc{Start: qLoc(target.Left).Start, End: p.prev.Loc.End}
+		cur = target
+	}
+	return cur, true, nil
 }
 
 // tryParseJoinKeywords parses the join-type keyword prefix
@@ -191,46 +237,6 @@ func (p *Parser) tryParseJoinKeywords() (natural bool, joinType ast.JoinType, jo
 	}
 	p.advance() // JOIN
 	return natural, jt, joinHint, true, nil
-}
-
-// parseJoinCriteria parses the ON / USING clause(s) of a join (on_or_using_
-// clause_list). The current token is just past the right source. Each clause
-// binds to the most recent unconditioned join on pendingJoins (supporting
-// BigQuery join sequences such as `a JOIN b JOIN c ON b.id = c.id ON a.id = b.id`).
-// In BigQuery dialect, once every pending join has been matched, any additional
-// ON/USING is left unconsumed so excess clauses on a single join are rejected.
-func (p *Parser) parseJoinCriteria(je *ast.JoinExpr, pendingJoins *[]*ast.JoinExpr) (bool, error) {
-	consumed := false
-	for p.cur.Type == kwON || p.cur.Type == kwUSING {
-		if p.isBigQuery() && len(*pendingJoins) == 0 {
-			return consumed, nil
-		}
-		target := je
-		if len(*pendingJoins) > 0 {
-			top := len(*pendingJoins) - 1
-			target = (*pendingJoins)[top]
-			*pendingJoins = (*pendingJoins)[:top]
-		}
-		switch p.cur.Type {
-		case kwON:
-			p.advance()
-			expr, err := p.parseExpr()
-			if err != nil {
-				return consumed, err
-			}
-			target.On = expr
-			target.Using = nil
-		case kwUSING:
-			cols, err := p.parseUsingClause()
-			if err != nil {
-				return consumed, err
-			}
-			target.Using = cols
-			target.On = nil
-		}
-		consumed = true
-	}
-	return consumed, nil
 }
 
 // parseUsingClause parses `USING ( column (, column)* )` (using_clause). USING is

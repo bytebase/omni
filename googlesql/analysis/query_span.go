@@ -1497,10 +1497,19 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 	case n.Subquery != nil:
 		// A FROM subquery: resolve its projection and expose it under the alias so a
 		// `SELECT *` / `alias.col` over it reproduces the subquery's resolved columns.
+		// A LATERAL subquery may reference columns from preceding FROM items, which
+		// visitSelect's fresh scope does not carry; walk its body for table discovery
+		// (Classify) and fail closed for span lineage.
 		cols := w.visitBody(n.Subquery)
 		w.registerFromAlias(n.Alias)
-		rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
-		w.addLeaf(rel)
+		if n.Lateral {
+			w.fromUnresolved = true
+			w.failClosed(fmt.Errorf("LATERAL subquery cannot be resolved to correlated column lineage (fail closed)"))
+			rel = nil
+		} else {
+			rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
+			w.addLeaf(rel)
+		}
 	case n.Func != nil:
 		// Table-valued function: its arguments may reference columns and
 		// subqueries. The argument columns are predicate-position references
@@ -1512,6 +1521,9 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		w.walkPredicate(n.Func)
 		w.registerFromAlias(n.Alias)
 		w.fromUnresolved = true
+		if n.Lateral {
+			w.failClosed(fmt.Errorf("LATERAL table-valued function cannot be resolved to correlated column lineage (fail closed)"))
+		}
 		rel = nil
 	case n.GraphTable != nil:
 		// A GRAPH_TABLE(graph MATCH ... [COLUMNS (...)]) source reads from a

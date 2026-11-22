@@ -1053,6 +1053,45 @@ func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
 	if got := ClassifySQL("SELECT * FROM (INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.COLUMNS ON true) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
 		t.Errorf("ClassifySQL(Join MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
 	}
+
+	// Consecutive join conditions reassociate right-to-left:
+	// `a JOIN b JOIN c USING (id) ON a.id = b.id` matches
+	// `a JOIN (b JOIN c USING (id)) ON a.id = b.id` (5 columns: [ax, id, id, bx, cz]).
+	seqSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN b JOIN c USING (id) ON a.id = b.id"
+	parenSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN (b JOIN c USING (id)) ON a.id = b.id"
+	seqSpan, err := GetQuerySpan(seqSQL, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(join sequence): %v", err)
+	}
+	parenSpan, err := GetQuerySpan(parenSQL, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(parenthesized join): %v", err)
+	}
+	if !eqStrings(resultNames(seqSpan), []string{"ax", "id", "id", "bx", "cz"}) {
+		t.Errorf("join sequence results = %v, want [ax id id bx cz]", resultNames(seqSpan))
+	}
+	if !eqStrings(resultNames(seqSpan), resultNames(parenSpan)) {
+		t.Errorf("join sequence results %v != parenthesized results %v", resultNames(seqSpan), resultNames(parenSpan))
+	}
+
+	// Correlated LATERAL sources fail closed in GetQuerySpan while still
+	// discovering tables inside the LATERAL body for ClassifySQL.
+	for _, sql := range []string{
+		"SELECT t.x FROM (SELECT secret AS exposed FROM sensitive) b, LATERAL (SELECT b.exposed AS x) t",
+		"SELECT t.x FROM sensitive b, LATERAL tvf(b.id) t",
+	} {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			if _, err := GetQuerySpan(sql, dialect); err == nil {
+				t.Errorf("GetQuerySpan(%q, %v) succeeded, want fail-closed error", sql, dialect)
+			}
+		}
+	}
+	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT * FROM secret) t", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(LATERAL with user table) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT b.table_name AS x) t", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(LATERAL info_schema only) = %v, want SelectInfoSchema", got)
+	}
 }
 
 // TestGetQuerySpan_ExplainAndExtendedDDL verifies that EXPLAIN traverses its
