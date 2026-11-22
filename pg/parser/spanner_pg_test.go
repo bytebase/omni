@@ -216,4 +216,53 @@ func TestDialectSpannerPG_AST(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("QuotedIdentifiersNotTreatedAsSpannerKeywords", func(t *testing.T) {
+		// ALTER TABLE t DROP "ttl" and DROP "interleave" must remain AT_DropColumn,
+		// not AT_SpannerDropTTL / AT_SpannerDropInterleave.
+		for _, tc := range []struct {
+			sql     string
+			colName string
+		}{
+			{`ALTER TABLE t DROP "ttl"`, "ttl"},
+			{`ALTER TABLE t DROP U&"ttl"`, "ttl"},
+			{`ALTER TABLE t DROP "interleave"`, "interleave"},
+			{`ALTER TABLE t DROP U&"interleave"`, "interleave"},
+		} {
+			list, err := ParseWithDialect(tc.sql, DialectSpannerPG)
+			if err != nil {
+				t.Fatalf("parse %q: %v", tc.sql, err)
+			}
+			stmt := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.AlterTableStmt)
+			cmd := stmt.Cmds.Items[0].(*nodes.AlterTableCmd)
+			if cmd.Subtype != int(nodes.AT_DropColumn) || cmd.Name != tc.colName {
+				t.Errorf("%q: got Subtype=%d Name=%q, want AT_DropColumn (%d) Name=%q",
+					tc.sql, cmd.Subtype, cmd.Name, nodes.AT_DropColumn, tc.colName)
+			}
+		}
+
+		// Quoted "parent" is a table name, not the optional PARENT keyword.
+		list, err := ParseWithDialect(`CREATE TABLE child (id bigint PRIMARY KEY) INTERLEAVE IN "parent"`, DialectSpannerPG)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		cs := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.CreateStmt)
+		if cs.Interleave == nil || cs.Interleave.InParent || cs.Interleave.Parent.Relname != "parent" {
+			t.Errorf("unexpected Interleave for quoted parent: %+v", cs.Interleave)
+		}
+
+		// Quoted Spanner extension keywords must not be accepted as DDL keywords.
+		for _, bad := range []string{
+			`CREATE "change" STREAM cs`,
+			`CREATE CHANGE "stream" cs`,
+			`CREATE "locality" GROUP lg`,
+			`CREATE SEQUENCE s "bit_reversed_positive"`,
+			`CREATE TABLE t (id bigint PRIMARY KEY, c text "hidden")`,
+			`CREATE TABLE t (id bigint PRIMARY KEY, c text GENERATED ALWAYS AS (id + 1) "virtual")`,
+		} {
+			if _, err := ParseWithDialect(bad, DialectSpannerPG); err == nil {
+				t.Errorf("ParseWithDialect(%q, DialectSpannerPG) unexpectedly succeeded; want error", bad)
+			}
+		}
+	})
 }

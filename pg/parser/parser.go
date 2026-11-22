@@ -758,11 +758,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtTok(next)
 	case IDENT:
 		if p.isSpannerPG() {
-			if isSpannerIdentTok(next, "change") {
+			if p.isSpannerIdentTok(next, "change") {
 				p.advance() // consume CREATE
 				return p.parseCreateChangeStreamStmt(createLoc)
 			}
-			if isSpannerIdentTok(next, "locality") {
+			if p.isSpannerIdentTok(next, "locality") {
 				p.advance() // consume CREATE
 				return p.parseCreateLocalityGroupStmt(createLoc)
 			}

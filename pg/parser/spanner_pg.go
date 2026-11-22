@@ -32,12 +32,28 @@ func (p *Parser) isSpannerPG() bool {
 	return p.dialect == DialectSpannerPG
 }
 
-func isSpannerIdentTok(tok Token, kw string) bool {
-	return tok.Type == IDENT && strings.EqualFold(tok.Str, kw)
+func (p *Parser) isUnquotedIdentTok(tok Token) bool {
+	if tok.Type != IDENT {
+		return false
+	}
+	if tok.Loc >= 0 && tok.Loc < len(p.source) {
+		ch := p.source[tok.Loc]
+		if ch == '"' {
+			return false
+		}
+		if (ch == 'u' || ch == 'U') && tok.Loc+2 < len(p.source) && p.source[tok.Loc+1] == '&' && p.source[tok.Loc+2] == '"' {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *Parser) isSpannerIdentTok(tok Token, kw string) bool {
+	return p.isUnquotedIdentTok(tok) && strings.EqualFold(tok.Str, kw)
 }
 
 func (p *Parser) isSpannerIdent(kw string) bool {
-	return isSpannerIdentTok(p.cur, kw)
+	return p.isSpannerIdentTok(p.cur, kw)
 }
 
 // isPG17SQLJsonKeyword reports whether tok is one of the SQL/JSON query
@@ -80,7 +96,7 @@ func (p *Parser) parseSpannerTableInterleave(allowFullKeyAction bool) (*nodes.Sp
 	// Otherwise PARENT itself is the parent table name.
 	if p.isSpannerIdent("parent") {
 		next := p.peekNext()
-		if isColIdToken(next) && next.Type != ON && !isSpannerIdentTok(next, "ttl") {
+		if isColIdToken(next) && next.Type != ON && !p.isSpannerIdentTok(next, "ttl") {
 			p.advance() // consume PARENT
 			inParent = true
 		}
