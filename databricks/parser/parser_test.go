@@ -526,6 +526,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "unquoted values table before where, join on, temporal, options, and pivot clauses",
+			sql:  `SELECT * FROM values WHERE x = 1 UNION ALL SELECT * FROM t JOIN values ON t.x = values.x UNION ALL SELECT * FROM values VERSION AS OF 1 UNION ALL SELECT * FROM values FOR SYSTEM_VERSION AS OF 1 UNION ALL SELECT * FROM values WITH (k = 'v')`,
+			kind: StmtQuery,
+		},
+		{
+			name: "non-reserved clause keywords inside simple CASE operands",
+			sql:  `SELECT CASE from WHEN 1 THEN 2 END, CASE order WHEN 1 THEN 2 END, CASE x + group WHEN 1 THEN 2 END, CASE from + 1 WHEN 1 THEN 2 END, CASE limit WHEN 1 THEN 2 END, CASE end WHEN 1 THEN 2 END FROM t WHERE CASE x WHEN 1 THEN true END`,
+			kind: StmtQuery,
+		},
+		{
+			name: "case column before FROM with CASE in WHERE",
+			sql:  `SELECT case FROM t WHERE CASE x WHEN 1 THEN true END`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,

@@ -1156,7 +1156,15 @@ func (p *Parser) parseParenthesizedPrimary() error {
 }
 
 func (p *Parser) isCaseColumnReference() bool {
-	return isCaseColumnNext(p.peek(1).Kind)
+	next := p.peek(1).Kind
+	if next == kwWHEN {
+		return false
+	}
+	if p.peek(2).Kind == kwWHEN {
+		// `CASE <keyword> WHEN ...` uses the non-reserved keyword as the operand.
+		return !next.isIdentifier()
+	}
+	return isCaseColumnNext(next)
 }
 
 func isCaseColumnNext(next TokenKind) bool {
@@ -1169,9 +1177,42 @@ func isCaseColumnNext(next TokenKind) bool {
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
 		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
 		tokArrow, tokFatArrow, kwAS,
-		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER,
-		kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
 		kwTHEN, kwELSE, kwEND:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) isCaseClauseBoundaryAt(i int) bool {
+	k := p.peek(i).Kind
+	switch k {
+	case tokComma, tokOperatorPipe:
+		return true
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(i+1).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(i+1).Kind.isIdentifier() && p.peek(i+2).Kind == kwAS
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch p.peek(i + 1).Kind {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	case kwFROM, kwWHERE, kwHAVING, kwLIMIT, kwOFFSET:
+		if i > 0 && p.peek(i-1).Kind == tokDot {
+			return false
+		}
+		switch p.peek(i + 1).Kind {
+		case kwWHEN, kwTHEN, kwELSE, kwEND,
+			tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+			tokArrow, tokFatArrow:
+			return false
+		}
 		return true
 	}
 	return false
@@ -1267,7 +1308,8 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 		case kwEND:
 			if depth == 0 {
 				next := p.peek(i + 1).Kind
-				if next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
+				if !(i == 1 && next == kwWHEN) &&
+					next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
 					if siblingCases > 0 {
 						siblingCases--
 					} else {
@@ -1278,11 +1320,8 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 					}
 				}
 			}
-		case tokComma, tokOperatorPipe,
-			kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER,
-			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
-			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-			if depth == 0 {
+		default:
+			if depth == 0 && p.isCaseClauseBoundaryAt(i) {
 				record(p.pos + i)
 				return sawWhen && (open == 0 || ends > open)
 			}

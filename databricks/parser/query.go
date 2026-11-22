@@ -1015,12 +1015,12 @@ func (p *Parser) parseJoinType() error {
 func (p *Parser) parseRelationPrimary() error {
 	switch p.cur().Kind {
 	case kwVALUES:
-		if p.isValuesQueryAt(0, false) {
+		if !p.isValuesFollowedByRelationClause() && p.isValuesQueryAt(0, false) {
 			if p.peek(1).Kind == tokLParen {
 				return p.parseInlineTable()
 			}
 			cp := p.save()
-			if err := p.parseInlineTable(); err == nil {
+			if err := p.parseInlineTable(); err == nil && p.isValidRelationPrimaryEnd() {
 				return nil
 			}
 			p.restore(cp)
@@ -1084,6 +1084,54 @@ func (p *Parser) parseRelationPrimary() error {
 		}
 	}
 	return p.parseTableAlias()
+}
+
+func (p *Parser) isValuesFollowedByRelationClause() bool {
+	next := p.peek(1).Kind
+	switch next {
+	case kwFOR:
+		n := p.peek(2).Kind
+		return n == kwSYSTEM_TIME || n == kwSYSTEM_VERSION || n == kwVERSION || n == kwTIMESTAMP
+	case kwSYSTEM_TIME, kwSYSTEM_VERSION, kwVERSION, kwTIMESTAMP:
+		return p.peek(2).Kind == kwAS && p.peek(3).Kind == kwOF
+	case kwWITH:
+		return p.peek(2).Kind == tokLParen
+	case kwLATERAL:
+		return p.peek(2).Kind == kwVIEW
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(2).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwPIVOT, kwUNPIVOT, kwTABLESAMPLE:
+		return p.peek(2).Kind == tokLParen || (next == kwUNPIVOT && (p.peek(2).Kind == kwINCLUDE || p.peek(2).Kind == kwEXCLUDE))
+	case kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL:
+		return !p.isStatementEndAt(2) && p.peek(2).Kind != tokRParen && p.peek(2).Kind != tokComma
+	case kwON, kwUSING, kwWHERE, kwHAVING, kwLIMIT, kwOFFSET,
+		kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwSELECT, kwFROM, kwMAP, kwREDUCE, kwSET, kwINTO:
+		return !p.isStatementEndAt(2) && p.peek(2).Kind != tokRParen && p.peek(2).Kind != tokComma
+	case tokIdent:
+		if isWord(p.peek(1), "QUALIFY") && !p.isStatementEndAt(2) && p.peek(2).Kind != tokRParen && p.peek(2).Kind != tokComma {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) isValidRelationPrimaryEnd() bool {
+	k := p.cur().Kind
+	switch k {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+		kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
+		kwPIVOT, kwUNPIVOT, kwLATERAL, kwON, kwUSING,
+		kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwSELECT, kwFROM, kwMAP, kwREDUCE, kwSET, kwINTO:
+		return true
+	case tokIdent:
+		return isWord(p.cur(), "QUALIFY")
+	}
+	return false
 }
 
 func (p *Parser) isTemporalClauseStart() bool {
