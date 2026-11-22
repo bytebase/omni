@@ -921,13 +921,10 @@ func (p *Parser) parseRelationPrimary() error {
 		return p.parseTableAlias()
 	}
 
-	// Could be functionTable (funcName(...) tableAlias) or tableName (identifierReference ...).
+	// functionTable (`funcName(...)` or `IDENTIFIER(expr)(...)`) or dynamic tableName (`IDENTIFIER(expr) ...`).
+	// parseFunctionTable handles all of these in a single pass, so commit directly without retrying.
 	if p.canStartFunctionCall() {
-		cp := p.save()
-		if err := p.parseFunctionTable(); err == nil {
-			return nil
-		}
-		p.restore(cp)
+		return p.parseFunctionTable()
 	}
 
 	// tableName: identifierReference temporalClause? optionsClause? sample? tableAlias

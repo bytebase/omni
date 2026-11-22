@@ -75,9 +75,24 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 		return true
 	}
 	// Allow a keyword as implicit column alias right before FROM/WHERE/GROUP/HAVING/WINDOW/ORDER/LIMIT
-	// when the keyword itself doesn't start a clause (e.g. `SELECT a IS FROM a`).
+	// when the keyword itself doesn't start a clause (e.g. `SELECT a IS FROM a`,
+	// `SELECT x filter FROM t`, `SELECT x over FROM t`, `SELECT count(*) filter FROM t`).
 	if k == kwIS && next == kwFROM {
 		return true
+	}
+	switch k {
+	case kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT:
+		switch next {
+		case tokOperatorPipe, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
+			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL:
+			return true
+		case tokIdent:
+			if isWord(p.peek(1), "QUALIFY") && p.peek(2).Kind != tokEOF && p.peek(2).Kind != tokSemicolon && p.peek(2).Kind != tokRParen {
+				return true
+			}
+		}
+		return false
 	}
 	// Otherwise disallow clause-introducing keywords as implicit aliases.
 	switch k {
@@ -624,10 +639,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if !hasQuantifier && p.match(kwAS) {
+		if !hasQuantifier && !isNamed && p.match(kwAS) {
 			if err := p.parseDataType(); err != nil {
 				return err
 			}
@@ -687,13 +703,15 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		// Handle optional DISTINCT/ALL followed by arguments, or Spark's
 		// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
 		// without reparsing the argument expression.
-		if p.isFunctionSetQuantifier() {
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
+		if !hasQuantifier && !isNamed && p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
 			p.advance()
 			p.advance()
 			p.advance()
@@ -720,10 +738,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if !hasQuantifier && p.match(kwIN) {
+		if !hasQuantifier && !isNamed && p.match(kwIN) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -788,10 +807,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if !hasQuantifier && p.match(kwFROM) {
+		if !hasQuantifier && !isNamed && p.match(kwFROM) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -806,10 +826,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			return p.parseFunctionCallSuffixes()
 		}
 		if p.match(tokComma) {
+			isNamed2 := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
-			if !hasQuantifier && p.match(kwFOR) {
+			if !hasQuantifier && !isNamed && !isNamed2 && p.match(kwFOR) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -872,10 +893,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if !hasQuantifier && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+		if !hasQuantifier && !isNamed && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
 				return err
@@ -908,10 +930,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
-		if !hasQuantifier && p.match(kwPLACING) {
+		if !hasQuantifier && !isNamed && p.match(kwPLACING) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -1454,17 +1477,25 @@ func (p *Parser) parseFunctionCallSuffixes() error {
 		p.advance()
 		p.advance()
 	}
-	// Optional OVER windowSpec
+	// Optional OVER windowSpec (skip when OVER is immediately followed by a
+	// clause boundary or delimiter, e.g. `SELECT count(*) over FROM t`).
 	if p.cur().Kind == kwOVER {
-		cpOver := p.save()
-		p.advance()
-		if err := p.parseWindowSpec(); err != nil {
-			// If nothing followed OVER (e.g. `SELECT IDENTIFIER() OVER`), treat OVER as alias.
-			if p.isStatementEnd() || p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
-				p.restore(cpOver)
-				return nil
+		next := p.peek(1).Kind
+		canStartWindow := next == tokLParen || (next.isIdentifier() && next != kwFROM && next != kwWHERE &&
+			next != kwGROUP && next != kwHAVING && next != kwWINDOW && next != kwORDER &&
+			next != kwCLUSTER && next != kwDISTRIBUTE && next != kwSORT && next != kwLIMIT &&
+			next != kwOFFSET && next != kwUNION && next != kwINTERSECT && next != kwEXCEPT &&
+			next != kwMINUS && next != kwLATERAL)
+		if canStartWindow {
+			cpOver := p.save()
+			p.advance()
+			if err := p.parseWindowSpec(); err != nil {
+				if p.isStatementEnd() || p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
+					p.restore(cpOver)
+					return nil
+				}
+				return err
 			}
-			return err
 		}
 	}
 	return nil

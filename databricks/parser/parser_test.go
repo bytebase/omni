@@ -406,6 +406,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "implicit filter and over aliases before FROM",
+			sql:  `SELECT x filter FROM t UNION ALL SELECT x over FROM t UNION ALL SELECT count(*) filter FROM t UNION ALL SELECT count(*) over FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "ordinary named arguments on special-named functions",
+			sql:  `SELECT CAST(k => 1), POSITION(a => 'x', b => 'xy'), SUBSTRING(str => s, pos => 1), OVERLAY(a => s, b => 'x', c => 1) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -478,6 +488,12 @@ func TestParseErrors(t *testing.T) {
 		{"qualified star on star", "SELECT *.* FROM t"},
 		{"qualified star on qualified star", "SELECT t.*.* FROM t"},
 		{"qualified star on function call", "SELECT f().* FROM t"},
+		{"cast named arg with AS", "SELECT CAST(k => 1 AS INT)"},
+		{"position named arg with IN", "SELECT POSITION(k => 1 IN s)"},
+		{"substring named arg with FROM", "SELECT SUBSTRING(k => s FROM 1)"},
+		{"overlay named arg with PLACING", "SELECT OVERLAY(k => s PLACING x FROM 1)"},
+		{"trim named arg with FROM", "SELECT TRIM(k => ' ' FROM s)"},
+		{"nested malformed dynamic identifier table", strings.Repeat("SELECT * FROM IDENTIFIER((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
 	}
 
 	for _, tc := range bad {
