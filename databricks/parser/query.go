@@ -1059,23 +1059,178 @@ func (p *Parser) parseFunctionTable() error {
 }
 
 func (p *Parser) parseFunctionTableArgument() error {
-	if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow && p.peek(2).Kind == kwTABLE {
-		cp := p.save()
+	if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow && p.isTableSubqueryArgAt(2) {
 		p.advance()
 		p.advance()
-		if err := p.parseFunctionTableSubqueryArgument(); err == nil {
-			return nil
-		}
-		p.restore(cp)
+		return p.parseFunctionTableSubqueryArgument()
 	}
-	if p.cur().Kind == kwTABLE {
-		cp := p.save()
-		if err := p.parseFunctionTableSubqueryArgument(); err == nil {
-			return nil
-		}
-		p.restore(cp)
+	if p.isTableSubqueryArgAt(0) {
+		return p.parseFunctionTableSubqueryArgument()
 	}
 	return p.parseFunctionArgument()
+}
+
+// isTableSubqueryArgAt reports whether `TABLE` at offset tOff starts a
+// functionTableSubqueryArgument (`TABLE identRef`, `TABLE(identRef)`, or
+// `TABLE(query)`, with optional partitioning) rather than a bare column `table`
+// or an ordinary `TABLE(...)` function call (e.g. `TABLE((query), k => 1)` or
+// `TABLE(x) + 1`). Avoiding speculative parsing prevents exponential reparsing
+// of nested `f(TABLE((<query>), k => 1))` calls.
+func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
+	if p.peek(tOff).Kind != kwTABLE {
+		return false
+	}
+	next := p.peek(tOff + 1).Kind
+	if next != tokLParen {
+		// `TABLE identRef`: must be followed by an identifier or IDENTIFIER(...),
+		// not `,`, `)`, postfix/binary operators, or statement end.
+		if !next.isIdentifier() && next != kwIDENTIFIER {
+			return false
+		}
+		switch next {
+		case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwDIV, kwCOLLATE:
+			return false
+		}
+		return true
+	}
+
+	// `TABLE ( ... )`: find matching ')' of TABLE(...).
+	depth := 0
+	outerClose := -1
+	for j := tOff + 1; ; j++ {
+		k := p.peek(j).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				outerClose = j
+				break
+			}
+		}
+	}
+	if outerClose == tOff+2 {
+		return false // empty `TABLE()`
+	}
+
+	// Check that what follows `TABLE(...)` can end a functionTableSubqueryArgument.
+	afterOuter := p.peek(outerClose + 1).Kind
+	switch afterOuter {
+	case tokRParen, tokComma:
+	case kwWITH:
+		if p.peek(outerClose+2).Kind != kwSINGLE || p.peek(outerClose+3).Kind != kwPARTITION {
+			return false
+		}
+	case kwPARTITION, kwDISTRIBUTE:
+		if p.peek(outerClose+2).Kind != kwBY {
+			return false
+		}
+	default:
+		return false
+	}
+
+	// Validate inside `TABLE ( <inner> )`: must be either `query` or `identifierReference`.
+	innerOff := tOff + 2
+	innerKind := p.peek(innerOff).Kind
+	switch innerKind {
+	case tokLParen:
+		// Parenthesized query `TABLE((SELECT ...) [UNION ...])`: scan to matching ')'
+		// of the inner '(' and verify a query continuation (or outerClose) follows,
+		// rejecting multi-arg calls like `TABLE((SELECT 1), k => 1)`.
+		d := 0
+		innerClose := -1
+		for j := innerOff; j < outerClose; j++ {
+			k := p.peek(j).Kind
+			if k == tokLParen || k == tokLBracket {
+				d++
+			} else if k == tokRParen || k == tokRBracket {
+				d--
+				if d == 0 {
+					innerClose = j
+					break
+				}
+			}
+		}
+		if innerClose < 0 {
+			return false
+		}
+		if innerClose+1 == outerClose {
+			// `TABLE((...))`: confirm inner '(' starts a query.
+			return p.startsWithQueryKeywordAt(innerOff)
+		}
+		switch p.peek(innerClose + 1).Kind {
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, tokOperatorPipe,
+			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
+			return p.startsWithQueryKeywordAt(innerOff)
+		default:
+			return false
+		}
+	case kwSELECT, kwFROM, kwWITH, kwTABLE, kwVALUES, kwMAP, kwREDUCE:
+		if p.startsWithQueryKeywordAt(innerOff) {
+			return true
+		}
+		// Could still be a table named `values`/`table`/`map`/`reduce` as `TABLE(values)` or `TABLE(values.t)`.
+		return p.isIdentRefSpan(innerOff, outerClose)
+	case kwIDENTIFIER:
+		if p.peek(innerOff+1).Kind == tokLParen {
+			// `TABLE(IDENTIFIER(expr))`: ensure the matching ')' is outerClose-1.
+			d := 0
+			for j := innerOff + 1; j < outerClose; j++ {
+				k := p.peek(j).Kind
+				if k == tokLParen || k == tokLBracket {
+					d++
+				} else if k == tokRParen || k == tokRBracket {
+					d--
+					if d == 0 {
+						return j+1 == outerClose
+					}
+				}
+			}
+			return false
+		}
+		return p.isIdentRefSpan(innerOff, outerClose)
+	default:
+		return p.isIdentRefSpan(innerOff, outerClose)
+	}
+}
+
+func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
+	i := startOffset
+	for p.peek(i).Kind == tokLParen {
+		i++
+	}
+	switch p.peek(i).Kind {
+	case kwSELECT, kwFROM:
+		return true
+	case kwVALUES:
+		return p.isValuesQueryAt(i, true)
+	case kwWITH:
+		next := p.peek(i + 1).Kind
+		return next == kwRECURSIVE || next.isIdentifier()
+	case kwTABLE:
+		return p.peek(i + 1).Kind.isIdentifier()
+	case kwMAP, kwREDUCE:
+		return p.hasKeywordAtDepthZero(i+1, kwUSING)
+	}
+	return false
+}
+
+func (p *Parser) isIdentRefSpan(startOffset, endOffset int) bool {
+	if startOffset >= endOffset {
+		return false
+	}
+	if !p.peek(startOffset).Kind.isIdentifier() {
+		return false
+	}
+	for j := startOffset + 1; j < endOffset; j += 2 {
+		if p.peek(j).Kind != tokDot || j+1 >= endOffset || !p.peek(j+1).Kind.isIdentifier() {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Parser) parseFunctionTableSubqueryArgument() error {
@@ -1083,17 +1238,22 @@ func (p *Parser) parseFunctionTableSubqueryArgument() error {
 		return err
 	}
 	if p.match(tokLParen) {
-		cp := p.save()
-		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-			p.advance()
-		} else {
+		if p.startsWithQueryKeywordAfterParens() {
+			cp := p.save()
+			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+				p.advance()
+				if p.isTableArgPartitioningStart() {
+					return p.parseTableArgumentPartitioning()
+				}
+				return nil
+			}
 			p.restore(cp)
-			if _, err := p.parseIdentifierReference(); err != nil {
-				return err
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
+		}
+		if _, err := p.parseIdentifierReference(); err != nil {
+			return err
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
 		}
 	} else {
 		if _, err := p.parseIdentifierReference(); err != nil {

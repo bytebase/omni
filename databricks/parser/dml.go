@@ -118,7 +118,9 @@ func (p *Parser) parseInsertInto() (string, error) {
 			// Not a directory insert (e.g. `INSERT OVERWRITE DIRECTORY SELECT a` where DIRECTORY is a table name).
 			p.restore(cpDir)
 		}
-		p.match(kwTABLE)
+		if p.isOptionalInsertTableKeyword() {
+			p.advance()
+		}
 		target, err := p.parseIdentifierReference()
 		if err != nil {
 			return "", err
@@ -159,7 +161,9 @@ func (p *Parser) parseInsertInto() (string, error) {
 	if _, err := p.expect(kwINTO); err != nil {
 		return "", err
 	}
-	p.match(kwTABLE)
+	if p.isOptionalInsertTableKeyword() {
+		p.advance()
+	}
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return "", err
@@ -201,6 +205,35 @@ func (p *Parser) parseInsertInto() (string, error) {
 		}
 	}
 	return target, nil
+}
+
+// isOptionalInsertTableKeyword reports whether `TABLE` after `INSERT INTO` or
+// `INSERT OVERWRITE` acts as the optional `TABLE` keyword rather than a target
+// table or namespace named `table` (e.g. `INSERT INTO table VALUES (1)`,
+// `INSERT INTO table.t VALUES (1)`, `INSERT OVERWRITE table SELECT 1`).
+func (p *Parser) isOptionalInsertTableKeyword() bool {
+	if p.cur().Kind != kwTABLE {
+		return false
+	}
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokDot, tokLParen,
+		kwSELECT, kwFROM, kwWITH:
+		return false
+	case kwVALUES:
+		after := p.peek(2).Kind
+		return after == tokDot || after == kwSELECT || after == kwFROM || after == kwWITH ||
+			after == kwVALUES || after == kwTABLE || after == kwPARTITION || after == kwBY || after == kwREPLACE || after == kwIF
+	case kwPARTITION:
+		return p.peek(2).Kind != tokLParen
+	case kwBY:
+		return p.peek(2).Kind != kwNAME
+	case kwREPLACE:
+		return p.peek(2).Kind != kwWHERE
+	case kwIF:
+		return p.peek(2).Kind != kwNOT && p.peek(2).Kind != tokBang
+	}
+	return next.isIdentifier() || next == kwIDENTIFIER
 }
 
 func (p *Parser) parseDeleteFromTable() (Statement, error) {

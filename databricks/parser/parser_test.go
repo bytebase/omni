@@ -356,6 +356,26 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "insert into table named table",
+			sql:  `INSERT INTO table VALUES (1)`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert into schema named table",
+			sql:  `INSERT INTO table.t VALUES (1)`,
+			kind: StmtInsert,
+		},
+		{
+			name: "insert overwrite table named table",
+			sql:  `INSERT OVERWRITE table VALUES (1)`,
+			kind: StmtInsert,
+		},
+		{
+			name: "table function with subquery and table args",
+			sql:  `SELECT * FROM f(TABLE(SELECT 1), TABLE(db.t) PARTITION BY (a), x => TABLE((SELECT 2)))`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -554,6 +574,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested values table function with named arg",
 			sql:  strings.Repeat("SELECT * FROM VALUES((", 25) + "SELECT 1" + strings.Repeat("), k => 1)", 25),
+		},
+		{
+			name: "nested table function call arg",
+			sql:  strings.Repeat("SELECT * FROM f(TABLE((", 25) + "SELECT 1" + strings.Repeat("), k => 1))", 25),
+		},
+		{
+			name: "nested named table function call arg",
+			sql:  strings.Repeat("SELECT * FROM f(arg => TABLE((", 25) + "SELECT 1" + strings.Repeat("), k => 1))", 25),
 		},
 		{
 			name: "nested parens",

@@ -540,7 +540,9 @@ func (p *Parser) parseCreateIndex() (Statement, error) {
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	p.match(kwTABLE)
+	if p.cur().Kind == kwTABLE && p.peek(1).Kind != tokDot && p.peek(1).Kind != tokLParen && p.peek(1).Kind != kwUSING && p.peek(1).Kind != tokEOF && p.peek(1).Kind != tokSemicolon {
+		p.advance()
+	}
 	if _, err := p.parseIdentifierReference(); err != nil {
 		return nil, err
 	}
@@ -1166,7 +1168,9 @@ func (p *Parser) parseDropStatement() (Statement, error) {
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
 		}
-		p.match(kwTABLE)
+		if p.cur().Kind == kwTABLE && p.peek(1).Kind != tokDot && p.peek(1).Kind != tokEOF && p.peek(1).Kind != tokSemicolon {
+			p.advance()
+		}
 		if _, err := p.parseIdentifierReference(); err != nil {
 			return nil, err
 		}
