@@ -1479,6 +1479,8 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 		"SELECT a FROM t QUALIFY WHERE TRUE",
 		"SELECT a FROM t QUALIFY, u",
 		"SELECT a FROM t QUALIFY JOIN u ON TRUE",
+		"SELECT a FROM t QUALIFY LEFT JOIN u ON TRUE",
+		"SELECT a FROM t QUALIFY RIGHT OUTER JOIN u ON TRUE",
 		"SELECT a FROM t QUALIFY ORDER BY a",
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
@@ -1512,6 +1514,8 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY qualify",
 		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY match_recognize",
 		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY WITH(x AS 1, x > 0)",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY LEFT(s, 1) = 'x'",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY RIGHT(s, 1) = 'x'",
 	} {
 		f, err := Parse(sql)
 		if err != nil {

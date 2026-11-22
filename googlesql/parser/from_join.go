@@ -917,15 +917,28 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 // can never start an expression qualify; non-reserved words (PIVOT, UNPIVOT,
 // QUALIFY, MATCH_RECOGNIZE) and expression-starting keywords (such as WITH in
 // `WITH(x AS 1, x > 0)`) are intentionally excluded so `FROM t QUALIFY <expr>`
-// keeps its QUALIFY clause reading.
+// keeps its QUALIFY clause reading. LEFT and RIGHT can start either a join or
+// the LEFT(...)/RIGHT(...) string functions, so they qualify only when followed
+// by a join modifier/keyword (JOIN, OUTER, HASH, LOOKUP).
 func (p *Parser) atTableQualifyImplicitAlias() bool {
-	switch p.peekNext().Type {
+	next := p.peekNext()
+	switch next.Type {
 	case tokEOF, int(';'), int(')'), int(','), tokPipe,
 		kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
 		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT, kwFOR,
-		kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL,
+		kwJOIN, kwINNER, kwFULL, kwCROSS, kwNATURAL,
 		kwON, kwUSING, kwTABLESAMPLE:
 		return true
+	case kwLEFT, kwRIGHT:
+		endIdx := absIndex(p, next.Loc.End)
+		if endIdx < 0 || endIdx > len(p.input) {
+			return false
+		}
+		after := NewLexerWithOffset(p.input[endIdx:], 0).NextToken()
+		switch after.Type {
+		case kwJOIN, kwOUTER, kwHASH, kwLOOKUP:
+			return true
+		}
 	}
 	return false
 }
