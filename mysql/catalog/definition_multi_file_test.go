@@ -1,6 +1,9 @@
 package catalog
 
 import (
+	"cmp"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -110,4 +113,105 @@ func TestMultiFileViewSDLPretty(t *testing.T) {
 	single, err := getSDLFormat(meta)
 	require.NoError(t, err)
 	require.Contains(t, single, files[0].Content, "single-file dump must contain the identical view slice")
+}
+
+func TestMultiFileDefinition_AllObjectKindsAndConcatEquivalence(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:      "audit_log",
+				Engine:    "InnoDB",
+				Charset:   "utf8mb4",
+				Collation: "utf8mb4_0900_ai_ci",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int", Default: "AUTO_INCREMENT"},
+					{Name: "msg", Position: 2, Type: "varchar(200)", CharacterSet: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"},
+					{Name: "created_at", Position: 3, Type: "timestamp", Default: "CURRENT_TIMESTAMP"},
+				},
+				Indexes: []*metadata.IndexMetadata{{
+					Name:        "PRIMARY",
+					Expressions: []string{"id"},
+					KeyLength:   []int64{-1},
+					Descending:  []bool{false},
+					Type:        "BTREE",
+					Unique:      true,
+					Primary:     true,
+					Visible:     true,
+				}},
+				Triggers: []*metadata.TriggerMetadata{{
+					Name:   "audit_log_bi",
+					Timing: "BEFORE",
+					Event:  "INSERT",
+					Body:   "SET NEW.msg = TRIM(NEW.msg)",
+				}},
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "recent_audit",
+				Definition: "select `audit_log`.`id` AS `id`,`audit_log`.`msg` AS `msg` from `audit_log`",
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "audit_count",
+				Definition: "CREATE FUNCTION `audit_count`() RETURNS int\n    DETERMINISTIC\nBEGIN\n\tRETURN 1;\nEND",
+			}},
+			Procedures: []*metadata.ProcedureMetadata{{
+				Name:       "touch_audit",
+				Definition: "CREATE PROCEDURE `touch_audit`()\nBEGIN\n\tSELECT 1;\nEND",
+			}},
+			Events: []*metadata.EventMetadata{{
+				Name:       "purge_audit",
+				Definition: "CREATE EVENT `purge_audit` ON SCHEDULE EVERY 1 DAY ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM audit_log WHERE created_at < (NOW() - INTERVAL 30 DAY)",
+				TimeZone:   "SYSTEM",
+			}},
+		}},
+	}
+
+	files, err := MultiFileDefinition(meta)
+	require.NoError(t, err)
+	require.Len(t, files, 6)
+
+	byDir := map[string][]DefinitionFile{}
+	for _, f := range files {
+		require.True(t, strings.HasSuffix(f.Name, ".sql"), "file %q must end with .sql", f.Name)
+		require.NotEmpty(t, strings.TrimSpace(f.Content), "file %q must be non-empty", f.Name)
+		dir, _, ok := strings.Cut(f.Name, "/")
+		require.True(t, ok, "file %q must be under a directory", f.Name)
+		byDir[dir] = append(byDir[dir], f)
+	}
+	for _, dir := range []string{"tables", "views", "functions", "procedures", "triggers", "events"} {
+		require.Len(t, byDir[dir], 1, "expected 1 file in %s/", dir)
+	}
+
+	// Lexical concatenation places events/ before tables/; SDL diffing must stay
+	// order-independent and equivalent to the single-file SDL dump.
+	sorted := slices.Clone(files)
+	slices.SortFunc(sorted, func(a, b DefinitionFile) int { return cmp.Compare(a.Name, b.Name) })
+	var b strings.Builder
+	for i, f := range sorted {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(f.Content)
+	}
+	concat := b.String()
+	require.Less(t, strings.Index(concat, "CREATE EVENT"), strings.Index(concat, "CREATE TABLE"))
+
+	single, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+
+	planVsSingle, err := BuildSDLMigrationPlan(concat, single, SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, planVsSingle)
+
+	selfPlan, err := BuildSDLMigrationPlan(concat, concat, SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, selfPlan)
+
+	createPlan, err := BuildSDLMigrationPlan("", concat, SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, createPlan)
+	sql := StripDatabaseContext(createPlan.SQL(), "")
+	require.Contains(t, sql, "CREATE TABLE")
+	require.Contains(t, sql, "EVENT")
+	require.NotContains(t, sql, DefaultSDLDatabase)
 }
