@@ -62,16 +62,16 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 		{"get-format-date", "select get_format(DATE, 'USA') AS `x`"},
 		{"get-format-time", "select get_format(TIME, 'USA') AS `x`"},
 		{"get-format-datetime", "select get_format(DATETIME, 'USA') AS `x`"},
-		// WEIGHT_STRING: plain, AS CHAR(n), the desugared AS BINARY cast form,
-		// and the 5.7 LEVEL suffixes (5.7 readbacks always carry a level list).
-		{"weight-string-plain", "select weight_string('ab') AS `x`"},
-		{"weight-string-as-char", "select weight_string('ab' as char(4)) AS `x`"},
-		{"weight-string-cast-binary", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
-		{"weight-string-level", "select weight_string('ab' level 1) AS `x`"},
-		{"weight-string-level-desc", "select weight_string('ab' level 1 desc) AS `x`"},
-		{"weight-string-level-reverse", "select weight_string('ab' level 1 reverse) AS `x`"},
-		{"weight-string-level-desc-reverse", "select weight_string('ab' level 1 desc reverse) AS `x`"},
-		{"weight-string-as-char-level", "select weight_string('ab' as char(4) level 1) AS `x`"},
+		// WEIGHT_STRING: OceanBase 4.3.5.6 stores every WEIGHT_STRING form as
+		// its five-argument call weight_string(expr,0,nweights,flags,is_binary).
+		{"weight-string-plain", "select weight_string('ab',0,0,0,0) AS `x`"},
+		{"weight-string-as-char", "select weight_string('ab',0,4,64,0) AS `x`"},
+		{"weight-string-as-binary", "select weight_string('ab',0,4,64,1) AS `x`"},
+		{"weight-string-level", "select weight_string('ab',0,0,1,0) AS `x`"},
+		{"weight-string-level-desc", "select weight_string('ab',0,0,257,0) AS `x`"},
+		{"weight-string-level-reverse", "select weight_string('ab',0,0,65537,0) AS `x`"},
+		{"weight-string-level-desc-reverse", "select weight_string('ab',0,0,65793,0) AS `x`"},
+		{"weight-string-as-char-level", "select weight_string('ab',0,4,65,0) AS `x`"},
 		// TRIM: directional and the direction-less remstr FROM form.
 		{"trim-both", "select trim(both 'x' from 'xax') AS `x`"},
 		{"trim-leading", "select trim(leading 'x' from 'xax') AS `x`"},
@@ -128,11 +128,12 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		{"get-format-lowercase", "select get_format(date,'USA') AS `x`", "select get_format(DATE, 'USA') AS `x`"},
 		{"get-format-timestamp", "select GET_FORMAT(TIMESTAMP,'USA') AS `x`", "select get_format(DATETIME, 'USA') AS `x`"},
 		{"extract-uppercase-unit", "select EXTRACT(DAY_HOUR FROM '2020-01-01 10:20:30') AS `x`", "select extract(day_hour from '2020-01-01 10:20:30') AS `x`"},
-		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
-		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab' level 1) AS `x`"},
-		// The engine clamps an out-of-range level instead of rejecting:
-		// LEVEL 0 stores as level 1 (oracle 5.7.25).
-		{"weight-string-level-0-clamps", "select WEIGHT_STRING('ab' LEVEL 0) AS `x`", "select weight_string('ab' level 1) AS `x`"},
+		{"weight-string-plain", "select WEIGHT_STRING('ab') AS `x`", "select weight_string('ab',0,0,0,0) AS `x`"},
+		{"weight-string-as-char", "select WEIGHT_STRING('ab' AS CHAR(4)) AS `x`", "select weight_string('ab',0,4,64,0) AS `x`"},
+		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string('ab',0,4,64,1) AS `x`"},
+		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab',0,0,1,0) AS `x`"},
+		{"weight-string-level-0-clamps", "select WEIGHT_STRING('ab' LEVEL 0) AS `x`", "select weight_string('ab',0,0,1,0) AS `x`"},
+		{"weight-string-level-64-clamps", "select WEIGHT_STRING('ab' LEVEL 64) AS `x`", "select weight_string('ab',0,0,32,0) AS `x`"},
 		// CAST/CONVERT to BINARY(n) desugar to the engine-stored
 		// char-charset-binary form in every expression position
 		// (oracle 8.0.32 + 5.7.25).
@@ -188,7 +189,7 @@ func TestTemporalUnitGeneratedColumnRoundTrip(t *testing.T) {
 		"  `c3` datetime GENERATED ALWAYS AS ((`a` + interval 1 day)) VIRTUAL,\n" +
 		"  `c4` int GENERATED ALWAYS AS (abs(-(5))) VIRTUAL,\n" +
 		"  `c5` varbinary(16) GENERATED ALWAYS AS (weight_string(`s` as char(4))) VIRTUAL,\n" +
-		"  `c6` varbinary(16) GENERATED ALWAYS AS (weight_string(cast(`s` as char(4) charset binary))) VIRTUAL,\n" +
+		"  `c6` varbinary(16) GENERATED ALWAYS AS (weight_string(`s` as binary(4))) VIRTUAL,\n" +
 		"  `c7` char(4) GENERATED ALWAYS AS (cast(`a` as char(4) charset latin1)) VIRTUAL,\n" +
 		"  `c8` int GENERATED ALWAYS AS (cast(`s` as signed)) VIRTUAL\n" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n"
@@ -213,8 +214,8 @@ func TestTemporalUnitGeneratedColumnRoundTrip(t *testing.T) {
 		"(extract(day_hour from `a`))",
 		"((`a` + interval 1 day))",
 		"(abs(-(5)))",
-		"(weight_string(`s` as char(4)))",
-		"(weight_string(cast(`s` as char(4) charset binary)))",
+		"(weight_string(`s`,0,4,64,0))",
+		"(weight_string(`s`,0,4,64,1))",
 		"(cast(`a` as char(4) charset latin1))",
 		"(cast(`s` as signed))",
 		"((timestampdiff(SECOND,`a`,`b`)))",

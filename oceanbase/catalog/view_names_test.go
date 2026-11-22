@@ -55,7 +55,7 @@ var viewNameCases = []struct{ name, sql, want string }{
 	{`a05`, `SELECT a+1, a  +  1, count(*), cast(a as char) FROM n1 GROUP BY a`,
 		"select (`n1`.`a` + 1) AS `a+1`,(`n1`.`a` + 1) AS `a  +  1`,count(0) AS `count(*)`,cast(`n1`.`a` as char charset utf8mb4) AS `cast(a as char)` from `n1` group by `n1`.`a`"},
 	{`a06`, `SELECT (a), ((b)), (1), 0004, - 2, x'41', B'10', true, date '2020-01-01', ('e'), (null) FROM n1`,
-		"select `n1`.`a` AS `a`,`n1`.`b` AS `b`,1 AS `1`,4 AS `0004`,-(2) AS `- 2`,0x41 AS `x'41'`,0x02 AS `B'10'`,true AS `true`,DATE'2020-01-01' AS `date '2020-01-01'`,'e' AS `e`,NULL AS `NULL` from `n1`"},
+		"select `n1`.`a` AS `a`,`n1`.`b` AS `b`,1 AS `(1)`,4 AS `0004`,-(2) AS `- 2`,0x41 AS `x'41'`,0x02 AS `B'10'`,(1 = 1) AS `true`,DATE'2020-01-01' AS `date '2020-01-01'`,'e' AS `e`,NULL AS `NULL` from `n1`"},
 	{`a07`, `SELECT a /* c */ + 1 FROM n1`,
 		"select (`n1`.`a` + 1) AS `a /* c */ + 1` from `n1`"},
 	{`a08`, `SELECT concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') FROM n1`,
@@ -109,7 +109,7 @@ var viewNameCases = []struct{ name, sql, want string }{
 	{`b16`, `SELECT * FROM j1 RIGHT JOIN j2 USING (k1) WHERE k1 > 0 ORDER BY k1`,
 		"select `j2`.`k1` AS `k1`,`j2`.`k2` AS `k2`,`j2`.`b` AS `b`,`j1`.`a` AS `a` from (`j2` left join `j1` on((`j2`.`k1` = `j1`.`k1`))) where (`j2`.`k1` > 0) order by 1"},
 	{`b17`, `SELECT * FROM u JOIN ((q RIGHT JOIN p ON 1=1) JOIN s ON 1=1) USING (k)`,
-		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`p`.`p1` AS `p1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`s`.`s1` AS `s1`,`s`.`s2` AS `s2` from (`u` join ((`p` left join `q` on((1 = 1))) join `s` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
+		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`p1` AS `p1`,`s`.`s1` AS `s1`,`s`.`s2` AS `s2` from (`u` join ((`p` left join `q` on((1 = 1))) join `s` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
 	{`b18`, `SELECT * FROM (p JOIN r USING (k)) RIGHT JOIN q ON 1=1`,
 		"select `p`.`k` AS `k`,`p`.`p1` AS `p1`,`r`.`r1` AS `r1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2` from (`q` left join (`p` join `r` on((`p`.`k` = `r`.`k`))) on((1 = 1)))"},
 	{`b19`, `SELECT * FROM j1 JOIN j2 USING (K1)`,
@@ -119,13 +119,13 @@ var viewNameCases = []struct{ name, sql, want string }{
 	{`b21`, `SELECT * FROM j4 JOIN j1 ON j4.d = j1.a JOIN j2 USING (k1)`,
 		"select `j1`.`k1` AS `k1`,`j4`.`k3` AS `k3`,`j4`.`d` AS `d`,`j1`.`a` AS `a`,`j2`.`k2` AS `k2`,`j2`.`b` AS `b` from ((`j4` join `j1` on((`j4`.`d` = `j1`.`a`))) join `j2` on((`j1`.`k1` = `j2`.`k1`)))"},
 	{`b22`, `SELECT * FROM u JOIN (q RIGHT JOIN (s RIGHT JOIN p ON 1=1) ON 1=1) USING (k)`,
-		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`p`.`p1` AS `p1`,`s`.`s1` AS `s1`,`s`.`s2` AS `s2`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2` from (`u` join ((`p` left join `s` on((1 = 1))) left join `q` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
+		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`s`.`s1` AS `s1`,`s`.`s2` AS `s2`,`p`.`p1` AS `p1` from (`u` join ((`p` left join `s` on((1 = 1))) left join `q` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
 	{`b23`, `SELECT * FROM p NATURAL RIGHT JOIN q`,
-		"select `q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`k` AS `k`,`p`.`p1` AS `p1` from (`q` left join `p` on(true))"},
+		"select `p`.`k` AS `k`,`p`.`p1` AS `p1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2` from (`q` left join `p` on((1 = 1)))"},
 	{`b24`, `SELECT * FROM u NATURAL JOIN (p NATURAL RIGHT JOIN q)`,
-		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`p1` AS `p1` from (`u` join (`q` left join `p` on(true)) on((`u`.`k` = `p`.`k`)))"},
+		"select `u`.`k` AS `k`,`u`.`u1` AS `u1`,`p`.`p1` AS `p1`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2` from (`u` join (`q` left join `p` on((1 = 1))) on((`u`.`k` = `p`.`k`)))"},
 	{`b25`, `SELECT * FROM (q NATURAL LEFT JOIN p) NATURAL JOIN u`,
-		"select `p`.`k` AS `k`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`p1` AS `p1`,`u`.`u1` AS `u1` from ((`q` left join `p` on(true)) join `u` on((`p`.`k` = `u`.`k`)))"},
+		"select `p`.`k` AS `k`,`q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`p1` AS `p1`,`u`.`u1` AS `u1` from ((`q` left join `p` on((1 = 1))) join `u` on((`p`.`k` = `u`.`k`)))"},
 }
 
 // viewNameCatalog creates viewNameSchema and every case's view in a fresh
@@ -179,24 +179,8 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 	}
 }
 
-// viewNameColumnGaps holds the columns OceanBase gives the views it names
-// differently than MySQL does. omni gap: the catalog names these as MySQL
-// does. OceanBase keeps the parentheses of an unaliased (1) (a06) and orders
-// the columns of a NATURAL or USING join over a join its own way (b17, b22
-// to b24). The test fails when the catalog comes to agree, so this list
-// cannot outlive the gap.
-var viewNameColumnGaps = map[string][]string{
-	"a06": {"a", "b", "(1)", "0004", "- 2", "x'41'", "B'10'", "true", "date '2020-01-01'", "e", "NULL"},
-	"b17": {"k", "u1", "q1", "q2", "p1", "s1", "s2"},
-	"b22": {"k", "u1", "q1", "q2", "s1", "s2", "p1"},
-	"b23": {"k", "p1", "q1", "q2"},
-	"b24": {"k", "u1", "p1", "q1", "q2"},
-}
-
 // TestViewNamesAndJoinColumnsOracle creates every case's view on OceanBase
 // and checks the view's columns in information_schema against the catalog's.
-// The definition OceanBase writes for a view is not compared: each case's
-// want is MySQL 8.0's text, which mysql/catalog's copy of this test checks.
 func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -216,15 +200,6 @@ func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := c.GetDatabase("test").Views[tc.name].Columns
-		if want, gap := viewNameColumnGaps[tc.name]; gap {
-			if !reflect.DeepEqual(cols, want) {
-				t.Errorf("%s: OceanBase columns %q, want %q", tc.name, cols, want)
-			}
-			if reflect.DeepEqual(got, cols) {
-				t.Errorf("%s: the catalog now names the columns as OceanBase does: drop it from viewNameColumnGaps", tc.name)
-			}
-			continue
-		}
 		if !reflect.DeepEqual(got, cols) {
 			t.Errorf("%s: catalog columns %q, OceanBase columns %q", tc.name, got, cols)
 		}

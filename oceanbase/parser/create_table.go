@@ -1663,8 +1663,8 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwTABLESPACE:
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
+		// OceanBase's table_option takes no "=" after TABLESPACE (4.3.5.6 answers 1064).
 		p.advance()
-		p.match('=')
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2068,12 +2068,7 @@ func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error)
 
 	part := &nodes.PartitionClause{Loc: nodes.Loc{Start: start}}
 
-	// Optional LINEAR
-	if p.cur.Type == kwLINEAR {
-		p.advance()
-		part.Linear = true
-	}
-
+	// OceanBase has no LINEAR partitioning (4.3.5.6 answers 1064).
 	switch p.cur.Type {
 	case kwHASH:
 		p.advance()

@@ -2988,6 +2988,9 @@ func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
 		sb.WriteString(" :aschar ")
 		writeNode(sb, n.AsChar)
 	}
+	if n.AsBinary {
+		sb.WriteString(" :as_binary true")
+	}
 	for _, lv := range n.Levels {
 		fmt.Fprintf(sb, " :level %d", lv.Level)
 		if lv.Desc {

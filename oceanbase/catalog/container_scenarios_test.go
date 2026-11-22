@@ -2143,9 +2143,6 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 
 // TestContainer_Section_4_1_Partitioning holds the partitioning statements of
 // MySQL 8.0 that OceanBase refuses.
-//
-// omni gap: the parser takes the three that are syntax errors (1064), as
-// MySQL's does. The catalog refuses the fourth, REORGANIZE PARTITION.
 func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -2153,7 +2150,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	// OceanBase's grammar has no LINEAR partitioning.
 	t.Run("partition_linear_hash", func(t *testing.T) {
 		containerRefusal(t, ctr, "",
-			"CREATE TABLE t_part_linear (id INT NOT NULL) PARTITION BY LINEAR HASH (id) PARTITIONS 4", 1064, 0)
+			"CREATE TABLE t_part_linear (id INT NOT NULL) PARTITION BY LINEAR HASH (id) PARTITIONS 4", 1064, -1)
 	})
 
 	// REORGANIZE PARTITION is not supported on a table without a primary key.
@@ -2176,7 +2173,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	t.Run("alter_coalesce_partition", func(t *testing.T) {
 		containerRefusal(t, ctr,
 			"CREATE TABLE t_alter_coalp (id INT NOT NULL) PARTITION BY HASH (id) PARTITIONS 4",
-			"ALTER TABLE t_alter_coalp COALESCE PARTITION 2", 1064, 0)
+			"ALTER TABLE t_alter_coalp COALESCE PARTITION 2", 1064, -1)
 	})
 
 	// OceanBase's EXCHANGE PARTITION ends WITHOUT VALIDATION
@@ -2196,7 +2193,7 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 				id INT NOT NULL,
 				val INT NOT NULL
 			)`,
-			"ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap", 1064, 0)
+			"ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap", 1064, -1)
 	})
 }
 
@@ -2453,11 +2450,10 @@ func TestContainer_Section_4_4_Events(t *testing.T) {
 
 	// 4.4.4: SHOW CREATE EVENT. OceanBase has events and no SHOW CREATE EVENT:
 	// the statement is a syntax error, so there is no event text to compare.
-	// omni gap: the parser takes the statement, as MySQL does.
 	t.Run("show_create_event_basic", func(t *testing.T) {
 		containerRefusal(t, ctr,
 			"CREATE EVENT ev_show_test ON SCHEDULE EVERY 1 HOUR COMMENT 'test event' DO SELECT 1",
-			"SHOW CREATE EVENT ev_show_test", 1064, 0)
+			"SHOW CREATE EVENT ev_show_test", 1064, -1)
 	})
 }
 

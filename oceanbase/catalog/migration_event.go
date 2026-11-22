@@ -122,20 +122,19 @@ func eventSortName(database, name string) string {
 }
 
 // eventModifyNeedsRecreate reports whether a same-name event MODIFY must be applied as DROP+CREATE
-// rather than ALTER EVENT, because ALTER cannot express the change on every supported version.
+// rather than ALTER EVENT, because ALTER cannot express the change on OceanBase.
 //
-// The one known case is ENDS removal: 5.7's ALTER EVENT … ON SCHEDULE does not clear a previously
-// set ENDS (the old ENDS survives the re-specification — verified on live 5.7.25), so an event that
-// drops its ENDS bound can only reach the target via DROP+CREATE there. 8.0 clears ENDS on ALTER,
-// but DROP+CREATE is correct on 8.0 too, so the fallback is applied version-independently for a
-// single, simple code path. Every other mutable aspect (schedule interval/unit, EVERY↔AT, status,
-// ON COMPLETION, comment, body) is reachable via ALTER on both versions (verified), so this is the
-// only trigger.
+// Two cases force DROP+CREATE:
+//  1. ENDS removal: ALTER EVENT … ON SCHEDULE does not clear a previously set ENDS on 5.7-derived
+//     engines, so dropping ENDS requires DROP+CREATE.
+//  2. Comment removal: OceanBase 4.3.5.6's ALTER EVENT … COMMENT '' leaves the previous comment
+//     unchanged, whereas DROP+CREATE with COMMENT '' clears it.
 func eventModifyNeedsRecreate(from, to *Event) bool {
 	if from == nil || to == nil {
 		return false
 	}
-	return scheduleHasEnds(from.Schedule) && !scheduleHasEnds(to.Schedule)
+	return (scheduleHasEnds(from.Schedule) && !scheduleHasEnds(to.Schedule)) ||
+		(from.Comment != "" && to.Comment == "")
 }
 
 // scheduleHasEnds reports whether a raw schedule string carries a top-level ENDS clause. It reuses

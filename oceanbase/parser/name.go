@@ -1244,9 +1244,16 @@ func (p *Parser) parseTableNameClauses(ref *nodes.TableRef) (bool, error) {
 		ref.Alias = alias
 		read = true
 	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW && !p.atFullJoin() {
+		// OceanBase's table_reference FULL / opt_full_table_factor rule folds an
+		// unquoted bare FULL alias (without AS) to lowercase "full" (measured on 4.3.5.6;
+		// AS FULL and `FULL` preserve case).
+		isBareFull := p.cur.Type == kwFULL
 		alias, _, err := p.parseIdent()
 		if err != nil {
 			return false, err
+		}
+		if isBareFull {
+			alias = "full"
 		}
 		ref.Alias = alias
 		read = true

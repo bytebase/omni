@@ -328,15 +328,14 @@ func TestScenario_C8(t *testing.T) {
 			`SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES
             WHERE NAME='testdb/t'`, 1109)
 
-		// Omni gap: no Tablespace field. Verify parser accepts an
-		// explicit TABLESPACE clause without crashing.
-		results, err := c.Exec(`CREATE TABLE t_ts (a INT) TABLESPACE=innodb_file_per_table;`, nil)
+		// Verify parser accepts OceanBase's TABLESPACE <name> table option (no "=").
+		results, err := c.Exec(`CREATE TABLE t_ts (a INT) TABLESPACE innodb_file_per_table;`, nil)
 		if err != nil {
-			t.Errorf("omni: parse error for TABLESPACE=innodb_file_per_table: %v", err)
+			t.Errorf("omni: parse error for TABLESPACE innodb_file_per_table: %v", err)
 		}
 		for _, r := range results {
 			if r.Error != nil {
-				t.Errorf("omni: exec error for TABLESPACE=innodb_file_per_table: %v", r.Error)
+				t.Errorf("omni: exec error for TABLESPACE innodb_file_per_table: %v", r.Error)
 			}
 		}
 	})

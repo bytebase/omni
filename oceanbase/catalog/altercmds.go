@@ -404,6 +404,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, cmd *node
 	if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 		return err
 	}
+	if tbl.nextColumnID >= obAppMinColumnID {
+		tbl.nextColumnID++
+	}
 	if isSerialColumn(colDef) {
 		ensureSerialUniqueKey(tbl, colDef.Name)
 	}
@@ -512,6 +515,9 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
 
+	if tbl.nextColumnID < obAppMinColumnID {
+		tbl.nextColumnID = obAppMinColumnID + len(tbl.Columns)
+	}
 	tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 	rebuildColIndex(tbl)
 	return nil

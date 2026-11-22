@@ -44,6 +44,20 @@ type Table struct {
 	// addedLater holds, while an ALTER TABLE runs, the lowered names of the columns
 	// it adds or renames to, which a key earlier in the statement may name.
 	addedLater map[string]bool
+	// nextColumnID tracks OceanBase's monotonic column ID allocator (starting at
+	// OB_APP_MIN_COLUMN_ID = 16) for functional-index hidden columns SYS_NC<id>$.
+	nextColumnID int
+}
+
+const obAppMinColumnID = 16
+
+func (t *Table) allocColumnID() int {
+	if t.nextColumnID < obAppMinColumnID {
+		t.nextColumnID = obAppMinColumnID + len(t.Columns)
+	}
+	id := t.nextColumnID
+	t.nextColumnID++
+	return id
 }
 
 // PartitionInfo holds partition metadata for a table.
