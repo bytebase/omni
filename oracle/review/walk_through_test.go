@@ -179,6 +179,60 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "RENAME f TO g;", 0, "`F` is a function, not a table, view, sequence, or private synonym.", shop)
 	oneFinding(t, "RENAME mv TO x;", 0, "`MV` is a materialized view, not a table, view, sequence, or private synonym.", shop)
 	oneFinding(t, "RENAME t TO t;", 0, "The name `T` is already taken.", shop)
+	// Grammar-derived simulation fixes (TestWalkSimulation):
+	// 1) ALTER TABLE ... MODIFY VARRAY ... (SHRINK SPACE [CASCADE]) is accepted
+	//    by Oracle 23 even when the table is missing or another object kind.
+	noFinding(t, "ALTER TABLE nosuch MODIFY VARRAY a (SHRINK SPACE);", shop)
+	noFinding(t, "ALTER TABLE nosuch MODIFY VARRAY a (SHRINK SPACE CASCADE);", shop)
+	noFinding(t, "ALTER TABLE pv MODIFY VARRAY a (SHRINK SPACE);", shop)
+	noFinding(t, "ALTER TABLE sq MODIFY VARRAY a (SHRINK SPACE CASCADE);", shop)
+	oneFinding(t, "ALTER TABLE nosuch MODIFY VARRAY a (CACHE);", 0, "Table `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE nosuch MODIFY VARRAY shrink (CACHE);", 0, "Table `NOSUCH` doesn't exist.", shop)
+	// 2) ALTER TABLE ... MOVE and ALTER TABLE ... MODIFY PARTITION BY ...
+	//    follow private and public synonyms in Oracle 23, while still failing
+	//    on missing names or non-table/non-synonym objects.
+	noFinding(t, "ALTER TABLE syn MOVE;", shop)
+	noFinding(t, "ALTER TABLE syn MOVE ONLINE;", shop)
+	noFinding(t, "ALTER TABLE syn MODIFY PARTITION BY HASH (id) PARTITIONS 2;", shop)
+	noFinding(t, "ALTER TABLE pubt MOVE;", shop)
+	oneFinding(t, "ALTER TABLE nosuch MOVE;", 0, "Table `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE pv MOVE;", 0, "`PV` is a view, not a table.", shop)
+	oneFinding(t, "ALTER TABLE sq MODIFY PARTITION BY HASH (a) PARTITIONS 2;", 0, "`SQ` is a sequence, not a table.", shop)
+	oneFinding(t, "ALTER TABLE f MOVE;", 0, "`F` is a function, not a table.", shop)
+	// 3) CREATE SYNONYM IF NOT EXISTS is a no-op when the name is taken.
+	noFinding(t, "CREATE SYNONYM IF NOT EXISTS t FOR p;", shop)
+	noFinding(t, "CREATE SYNONYM IF NOT EXISTS syn FOR p;", shop)
+	oneFinding(t, "CREATE SYNONYM IF NOT EXISTS s2 FOR p;\nCREATE TABLE s2 (a NUMBER);", 1, "The name `S2` is already taken.", shop)
+	// 4) ALTER TABLE with unfollowed clauses still checks table existence.
+	oneFinding(t, "ALTER TABLE nosuch ADD SUPPLEMENTAL LOG GROUP lg (a) ALWAYS;", 0, "Table `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE pv DROP SUPPLEMENTAL LOG GROUP lg;", 0, "`PV` is a view, not a table.", shop)
+	// 5) CREATE/DROP MATERIALIZED VIEW and special CREATE TABLE name checks.
+	oneFinding(t, "CREATE MATERIALIZED VIEW t AS SELECT 1 a FROM dual;", 0, "The name `T` is already taken.", shop)
+	oneFinding(t, "CREATE MATERIALIZED VIEW mv AS SELECT 1 a FROM dual;", 0, "Materialized view `MV` already exists.", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW IF NOT EXISTS t AS SELECT 1 a FROM dual;", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW t ON PREBUILT TABLE AS SELECT 1 a FROM dual;", shop)
+	oneFinding(t, "DROP MATERIALIZED VIEW nosuch;", 0, "Materialized view `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "DROP MATERIALIZED VIEW t;", 0, "`T` is a table, not a materialized view.", shop)
+	oneFinding(t, "DROP MATERIALIZED VIEW pv;", 0, "`PV` is a view, not a materialized view.", shop)
+	noFinding(t, "DROP MATERIALIZED VIEW IF EXISTS t;", shop)
+	noFinding(t, "DROP MATERIALIZED VIEW mv;", shop)
+	oneFinding(t, "CREATE TABLE t OF ty;", 0, "Table `T` already exists.", shop)
+	noFinding(t, "CREATE TABLE IF NOT EXISTS t OF ty;", shop)
+	// 6) ALTER PROCEDURE/FUNCTION/PACKAGE/TYPE/SYNONYM and CREATE VECTOR INDEX.
+	oneFinding(t, "ALTER PROCEDURE t COMPILE;", 0, "`T` isn't a procedure.", shop)
+	oneFinding(t, "ALTER FUNCTION pr COMPILE;", 0, "`PR` isn't a function.", shop)
+	noFinding(t, "ALTER FUNCTION IF EXISTS pr COMPILE;", shop)
+	noFinding(t, "ALTER FUNCTION f COMPILE;", shop)
+	oneFinding(t, "ALTER PACKAGE f COMPILE;", 0, "`F` isn't a package.", shop)
+	noFinding(t, "ALTER PACKAGE t COMPILE BODY;", shop)
+	oneFinding(t, "ALTER TYPE t COMPILE;", 0, "`T` isn't a type.", shop)
+	noFinding(t, "ALTER TYPE t COMPILE BODY;", shop)
+	oneFinding(t, "ALTER SYNONYM t COMPILE;", 0, "`T` isn't a private synonym.", shop)
+	noFinding(t, "ALTER SYNONYM IF EXISTS t EDITIONABLE;", shop)
+	noFinding(t, "ALTER SYNONYM syn COMPILE;", shop)
+	oneFinding(t, "CREATE VECTOR INDEX ix_n ON nokey (a) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", 0, "The name `IX_N` is already taken.", shop)
+	oneFinding(t, "CREATE VECTOR INDEX vix ON pv (id) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", 0, "`PV` is a view, not a table.", shop)
+	noFinding(t, "CREATE VECTOR INDEX IF NOT EXISTS ix_n ON nokey (a) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", shop)
 }
 
 func TestWalkThroughOracleEffects(t *testing.T) {

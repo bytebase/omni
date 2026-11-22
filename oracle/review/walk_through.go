@@ -139,6 +139,8 @@ var (
 	tokenOpenParen  = parser.Tokenize("(")[0].Type
 	tokenCloseParen = parser.Tokenize(")")[0].Type
 	tokenComma      = parser.Tokenize(",")[0].Type
+	tokenShrink     = parser.Tokenize("SHRINK")[0].Type
+	tokenSpace      = parser.Tokenize("SPACE")[0].Type
 )
 
 // namesOutsideASCII reports whether a statement's text holds a name with
