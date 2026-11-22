@@ -81,6 +81,11 @@ func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 	stmt := &ast.AnalyzeStmt{Loc: analyze.Loc}
 	stmt.Loc.End = p.prev.Loc.End
 
+	// Spanner only supports bare `ANALYZE` with no options or target list.
+	if p.isSpanner() {
+		return stmt, nil
+	}
+
 	// opt_options_list?
 	// In BigQuery, `ANALYZE OPTIONS(...)` always parses as an options_list
 	// rather than falling back to a table named OPTIONS with a column list.
@@ -250,6 +255,9 @@ func (p *Parser) parseDescribeStmt() (ast.Node, error) {
 func (p *Parser) parseRenameStmt() (ast.Node, error) {
 	rename := p.advance() // RENAME
 
+	if p.isSpanner() && p.cur.Type != kwTABLE {
+		return nil, p.syntaxErrorAtCur()
+	}
 	typeTok, err := p.expectIdentifier()
 	if err != nil {
 		return nil, err

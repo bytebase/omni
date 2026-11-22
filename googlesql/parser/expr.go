@@ -408,6 +408,12 @@ func (p *Parser) parseIs(left ast.Node) (ast.Node, error) {
 	}
 	// DISTINCT FROM form.
 	if p.cur.Type == kwDISTINCT {
+		if p.isSpanner() {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: IS DISTINCT FROM is not supported",
+			}
+		}
 		p.advance() // DISTINCT
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err

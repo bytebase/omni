@@ -886,12 +886,24 @@ func (p *Parser) parseLabeledStmt() (ast.Node, error) {
 	case kwBEGIN:
 		inner, err = p.parseBeginEndBlock()
 	case kwWHILE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseWhileStmt()
 	case kwLOOP:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseLoopStmt()
 	case kwREPEAT:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseRepeatStmt()
 	case kwFOR:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inner, err = p.parseForInStmt()
 	default:
 		// Only the unlabeled block forms can carry a label.

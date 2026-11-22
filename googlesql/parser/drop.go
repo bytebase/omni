@@ -39,6 +39,9 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// DROP TABLE — but DROP TABLE FUNCTION is BigQuery-only
 		// (bq_function_procedure.go).
 		if p.peekNext().Type == kwFUNCTION {
+			if p.isSpanner() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			return p.parseBQDropFunction(drop)
 		}
 		return p.parseDropObject(drop, ast.DropTable, false /*external*/)
@@ -47,14 +50,20 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwINDEX:
 		return p.parseDropIndex(drop)
 	case kwSEARCH, kwVECTOR:
-		// DROP {SEARCH|VECTOR} INDEX … ON table — BigQuery-only
-		// (bq_search_vector_index.go).
+		// DROP {SEARCH|VECTOR} INDEX … ON table — BigQuery-only ON table
+		// (bq_search_vector_index.go); Spanner allows bare DROP {SEARCH|VECTOR} INDEX name.
 		return p.parseBQDropSearchVectorIndex(drop)
 	case kwSCHEMA:
 		return p.parseDropObject(drop, ast.DropSchema, false)
 	case kwDATABASE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseDropObject(drop, ast.DropDatabase, false)
 	case kwEXTERNAL:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// DROP EXTERNAL SCHEMA (BigQuery) — owned here as a SCHEMA-family drop;
 		// DROP EXTERNAL TABLE [FUNCTION] is enabled in DialectBigQuery.
 		if p.peekNext().Type == kwSCHEMA {
@@ -91,15 +100,30 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwFUNCTION:
 		return p.parseBQDropFunction(drop)
 	case kwPROCEDURE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseBQDropProcedure(drop)
 	case kwMATERIALIZED, kwAPPROX:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseBQDropMaterializedView(drop)
 	case kwSNAPSHOT:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseBQDropSnapshot(drop)
 	case kwROW:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// DROP ROW ACCESS POLICY … ON table (bq_row_access_policy.go).
 		return p.parseDropRowAccessPolicy(drop)
 	case kwALL:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// DROP ALL ROW ACCESS POLICIES ON table
 		// (drop_all_row_access_policies_statement; bq_row_access_policy.go).
 		return p.parseDropRowAccessPolicy(drop)
@@ -134,7 +158,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// (bq_capacity.go). DROP MODEL / CONNECTION / CONSTANT / PRIVILEGE
 		// RESTRICTION and the bare-identifier dispatch-coverage probe otherwise emit
 		// the not-yet-supported diagnostic.
-		if isGenericEntityType(p.cur) {
+		if !p.isSpanner() && isGenericEntityType(p.cur) {
 			return p.parseBQDropEntity(drop)
 		}
 		return p.unsupported("DROP")
