@@ -175,9 +175,11 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 			merged.Procedures = newSchema.GetProcedures()
 			merged.Sequences = newSchema.GetSequences()
 			merged.Packages = newSchema.GetPackages()
+			merged.Synonyms = newSchema.GetSynonyms()
 			result.Schemas[0] = merged
 		}
 	}
+	result.PublicSynonyms = meta.GetPublicSynonyms()
 	c.meta = result
 	c.namedNotNull = extractor.namedNotNull
 	c.primaryKeyNotNull = extractor.primaryKeyNotNull

@@ -101,6 +101,10 @@ func clonePackage(pkg *metadatapb.PackageMetadata) *metadatapb.PackageMetadata {
 	return clone(pkg)
 }
 
+func cloneSynonym(synonym *metadatapb.SynonymMetadata) *metadatapb.SynonymMetadata {
+	return clone(synonym)
+}
+
 func cloneColumn(column *metadatapb.ColumnMetadata) *metadatapb.ColumnMetadata {
 	return clone(column)
 }

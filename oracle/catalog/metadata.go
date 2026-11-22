@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/analysis"
 	"github.com/bytebase/omni/oracle/ast"
+	oracleparser "github.com/bytebase/omni/oracle/parser"
 )
 
 // GetDatabaseMetadata parses Oracle DDL and returns the schema it defines.
@@ -84,6 +84,8 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		triggers:          make(map[string]*metadatapb.TriggerMetadata),
 		sequences:         make(map[string]*metadatapb.SequenceMetadata),
 		packages:          make(map[string]*metadatapb.PackageMetadata),
+		synonyms:          make(map[string]*metadatapb.SynonymMetadata),
+		publicSynonyms:    make(map[string]*metadatapb.SynonymMetadata),
 		checkNames:        make(map[string]map[string]bool),
 		checkNameNext:     make(map[string]map[string]int),
 		schemaText:        schemaText,
@@ -108,6 +110,8 @@ type oracleMetadataExtractor struct {
 	triggers                    map[string]*metadatapb.TriggerMetadata
 	sequences                   map[string]*metadatapb.SequenceMetadata
 	packages                    map[string]*metadatapb.PackageMetadata
+	synonyms                    map[string]*metadatapb.SynonymMetadata
+	publicSynonyms              map[string]*metadatapb.SynonymMetadata
 	checkNames                  map[string]map[string]bool
 	checkNameNext               map[string]map[string]int
 	schemaText                  string
@@ -196,6 +200,28 @@ func (e *oracleMetadataExtractor) databaseMetadata() *metadatapb.DatabaseSchemaM
 		schema.Packages = append(schema.Packages, e.packages[name])
 	}
 
+	if len(e.synonyms) > 0 {
+		var synonymNames []string
+		for name := range e.synonyms {
+			synonymNames = append(synonymNames, name)
+		}
+		slices.Sort(synonymNames)
+		for _, name := range synonymNames {
+			schema.Synonyms = append(schema.Synonyms, e.synonyms[name])
+		}
+	}
+
+	if len(e.publicSynonyms) > 0 {
+		var publicSynonymNames []string
+		for name := range e.publicSynonyms {
+			publicSynonymNames = append(publicSynonymNames, name)
+		}
+		slices.Sort(publicSynonymNames)
+		for _, name := range publicSynonymNames {
+			schemaMetadata.PublicSynonyms = append(schemaMetadata.PublicSynonyms, e.publicSynonyms[name])
+		}
+	}
+
 	schemaMetadata.Schemas = append(schemaMetadata.Schemas, schema)
 	return schemaMetadata
 }
@@ -267,6 +293,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
 			e.extractCreatePackage(name, n)
 		}
+	case *ast.CreateSynonymStmt:
+		e.extractCreateSynonym(n)
 	case *ast.CreateTriggerStmt:
 		e.extractCreateTrigger(n)
 	case *ast.AlterTableStmt:
@@ -344,6 +372,11 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 			continue
 		}
 		e.extractTableConstraint(constraint, table)
+	}
+	if n.Partition != nil {
+		if partitions := e.extractTablePartitions(n.Partition); len(partitions) > 0 {
+			table.Partitions = partitions
+		}
 	}
 }
 
@@ -835,11 +868,14 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 			column.IdentityGeneration = metadatapb.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED
 			column.IdentitySeed = 0
 			column.IdentityIncrement = 0
+			column.Options = nil
 		} else if def.Identity != nil {
 			applyIdentity(column, def.Identity, e.nodeText(def.Identity))
 		}
 		if def.Collation != "" {
 			column.Collation = def.Collation
+		} else if def.TypeName != nil && !oracleTypeSupportsCollation(column.Type) {
+			column.Collation = ""
 		}
 		if def.Virtual != nil {
 			column.Generation = &metadatapb.GenerationMetadata{
@@ -1120,6 +1156,148 @@ func expressionReferencesFunction(expression, function string) bool {
 	return false
 }
 
+func expressionReferencesPackage(expression, pkg string) bool {
+	if pkg == "" {
+		return false
+	}
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '-' && expression[i+1] == '-' {
+			if end := strings.IndexByte(expression[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '/' && expression[i+1] == '*' {
+			if end := strings.Index(expression[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
+			continue
+		}
+		if expression[i] == '\'' {
+			if end := strings.IndexByte(expression[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
+			continue
+		}
+		matched := false
+		end := i
+		if expression[i] == '"' {
+			end = i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			matched = expression[i+1:end] == pkg
+			if end < len(expression) {
+				end++
+			}
+		} else if isIdentifierByte(expression[i]) {
+			end = i + 1
+			for end < len(expression) && isIdentifierByte(expression[end]) {
+				end++
+			}
+			matched = strings.EqualFold(expression[i:end], pkg)
+		} else {
+			i++
+			continue
+		}
+		if matched {
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			if next < len(expression) && expression[next] == '.' {
+				member := next + 1
+				for member < len(expression) && (expression[member] == ' ' || expression[member] == '\t' || expression[member] == '\n' || expression[member] == '\r') {
+					member++
+				}
+				if member < len(expression) && (expression[member] == '"' || isIdentifierByte(expression[member])) {
+					return true
+				}
+			}
+		}
+		i = end
+	}
+	return false
+}
+
+func viewReferencesSynonym(definition string, deps []*metadatapb.DependencyColumn, synName string) bool {
+	if synName == "" {
+		return false
+	}
+	for _, dep := range deps {
+		if dep.GetTable() == synName {
+			return true
+		}
+	}
+	for i := 0; i < len(definition); {
+		if end, ok := alternativeQuoteEnd(definition, i); ok {
+			i = end
+			continue
+		}
+		if i+1 < len(definition) && definition[i] == '-' && definition[i+1] == '-' {
+			if end := strings.IndexByte(definition[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(definition) && definition[i] == '/' && definition[i+1] == '*' {
+			if end := strings.Index(definition[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
+			continue
+		}
+		if definition[i] == '\'' {
+			if end := strings.IndexByte(definition[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
+			continue
+		}
+		if definition[i] == '"' {
+			end := i + 1
+			for end < len(definition) && definition[end] != '"' {
+				end++
+			}
+			if definition[i+1:end] == synName {
+				return true
+			}
+			if end < len(definition) {
+				end++
+			}
+			i = end
+			continue
+		}
+		if !isIdentifierByte(definition[i]) {
+			i++
+			continue
+		}
+		end := i + 1
+		for end < len(definition) && isIdentifierByte(definition[end]) {
+			end++
+		}
+		if strings.EqualFold(definition[i:end], synName) {
+			return true
+		}
+		i = end
+	}
+	return false
+}
+
 func isIdentifierByte(c byte) bool {
 	return c == '_' || c == '$' || c == '#' ||
 		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
@@ -1354,8 +1532,23 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			delete(e.functions, name)
 		case ast.OBJECT_PROCEDURE:
 			delete(e.procedures, name)
-		case ast.OBJECT_PACKAGE, ast.OBJECT_PACKAGE_BODY:
+		case ast.OBJECT_PACKAGE:
 			delete(e.packages, name)
+		case ast.OBJECT_PACKAGE_BODY:
+			if pkg := e.packages[name]; pkg != nil {
+				spec, _ := splitPackageUnits(pkg.Definition)
+				if spec == "" {
+					delete(e.packages, name)
+				} else {
+					pkg.Definition = spec
+				}
+			}
+		case ast.OBJECT_SYNONYM:
+			if isDropPublicSynonym(e.nodeText(n)) {
+				delete(e.publicSynonyms, name)
+			} else {
+				delete(e.synonyms, name)
+			}
 		case ast.OBJECT_INDEX:
 			e.dropIndex(name)
 		case ast.OBJECT_TRIGGER:
@@ -1811,6 +2004,27 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 		Definition:        definition,
 		DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
 	}
+	if n.Columns != nil && n.Columns.Len() > 0 {
+		invisible := viewInvisibleAliasPositions(e.schemaText, n)
+		for i, item := range n.Columns.Items {
+			colName := ""
+			switch v := item.(type) {
+			case *ast.String:
+				colName = v.Str
+			default:
+				colName = strings.TrimSpace(e.nodeText(item))
+			}
+			if colName == "" {
+				continue
+			}
+			view.Columns = append(view.Columns, &metadatapb.ColumnMetadata{
+				Name:        colName,
+				Position:    int32(i + 1),
+				Nullable:    true,
+				IsInvisible: invisible[i],
+			})
+		}
+	}
 	if table := e.tables[viewName]; table != nil {
 		view.Triggers = append(view.Triggers, table.Triggers...)
 		delete(e.tables, viewName)
@@ -1820,15 +2034,21 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 
 func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) string {
 	var parts []string
-	if n.BuildMode != "" {
+	if n.OnPrebuilt {
+		parts = append(parts, "ON PREBUILT TABLE")
+	} else if n.BuildMode != "" {
 		parts = append(parts, "BUILD "+strings.ToUpper(n.BuildMode))
 	}
-	if n.RefreshMethod != "" || n.RefreshMode != "" || n.StartWith != nil || n.Next != nil {
+	if n.NeverRefresh {
+		parts = append(parts, "NEVER REFRESH")
+	} else if n.RefreshMethod != "" || n.RefreshMode != "" || n.RefreshOnStmt || n.StartWith != nil || n.Next != nil {
 		refresh := "REFRESH"
 		if n.RefreshMethod != "" {
 			refresh += " " + strings.ToUpper(n.RefreshMethod)
 		}
-		if n.RefreshMode != "" {
+		if n.RefreshOnStmt {
+			refresh += " ON STATEMENT"
+		} else if n.RefreshMode != "" {
 			refresh += " " + strings.ToUpper(n.RefreshMode)
 		}
 		if n.StartWith != nil {
@@ -1915,15 +2135,67 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 		return
 	}
 	pkg := e.packages[name]
-	if pkg == nil {
+	if pkg == nil || pkg.Definition == "" {
 		e.packages[name] = &metadatapb.PackageMetadata{Name: name, Definition: definition}
 		return
 	}
-	if pkg.Definition == "" {
-		pkg.Definition = definition
-		return
+	spec, body := splitPackageUnits(pkg.Definition)
+	if n.IsBody {
+		body = definition
+	} else {
+		spec = definition
 	}
-	pkg.Definition += "\n\n" + definition
+	switch {
+	case spec != "" && body != "":
+		pkg.Definition = spec + "\n\n" + body
+	case spec != "":
+		pkg.Definition = spec
+	default:
+		pkg.Definition = body
+	}
+}
+
+func splitPackageUnits(definition string) (spec, body string) {
+	existing := normalizePLSQLPackageDefinition(definition)
+	if existing == "" {
+		return "", ""
+	}
+	for _, seg := range oracleparser.Split(existing) {
+		if seg.Empty() {
+			continue
+		}
+		text := strings.TrimSpace(seg.Text)
+		if isPackageBodyUnit(text) {
+			body = text
+		} else {
+			spec = text
+		}
+	}
+	return spec, body
+}
+
+func normalizePLSQLPackageDefinition(definition string) string {
+	trimmed := strings.TrimSpace(definition)
+	if trimmed == "" {
+		return ""
+	}
+	if words, _ := leadingWords(trimmed, 1); len(words) == 0 || words[0] != "CREATE" {
+		trimmed = "CREATE OR REPLACE " + trimmed
+	}
+	if !strings.HasSuffix(trimmed, ";") {
+		trimmed += ";"
+	}
+	return trimmed
+}
+
+func isPackageBodyUnit(unit string) bool {
+	words, _ := leadingWords(strings.TrimSpace(unit), 6)
+	for i := 0; i+1 < len(words); i++ {
+		if words[i] == "PACKAGE" && words[i+1] == "BODY" {
+			return true
+		}
+	}
+	return false
 }
 
 func removeTriggerDisableClause(body string) string {
@@ -2399,33 +2671,249 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 	for _, pkg := range schema.GetPackages() {
 		e.packages[pkg.GetName()] = clonePackage(pkg)
 	}
+	for _, syn := range schema.GetSynonyms() {
+		e.synonyms[syn.GetName()] = cloneSynonym(syn)
+	}
+	for _, syn := range meta.GetPublicSynonyms() {
+		e.publicSynonyms[syn.GetName()] = cloneSynonym(syn)
+	}
 	return e
 }
 
 var (
-	identityStartPattern     = regexp.MustCompile(`(?i)START\s+WITH\s+([-+]?[0-9]+)`)
-	identityIncrementPattern = regexp.MustCompile(`(?i)INCREMENT\s+BY\s+([-+]?[0-9]+)`)
-	functionCreatePrefix     = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
+	functionCreatePrefix = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
 )
 
 func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClause, text string) {
 	column.IsIdentity = true
 	if identity != nil && !identity.Always {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
-		column.DefaultOnNull = strings.Contains(strings.ToUpper(text), "ON NULL")
+		column.DefaultOnNull = identityTextHasOnNull(text)
 	} else {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
 	}
-	if match := identityStartPattern.FindStringSubmatch(text); len(match) == 2 {
-		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			column.IdentitySeed = value
+	applyIdentitySequenceOptionsFromText(column, text)
+}
+
+func identityTextHasOnNull(text string) bool {
+	lexer := oracleparser.NewLexer(text)
+	var prevQuoted bool
+	var prevStr string
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			return false
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(text) && text[tok.Loc] == '"'
+		if !quoted && strings.EqualFold(tok.Str, "IDENTITY") {
+			return false
+		}
+		if !prevQuoted && !quoted && strings.EqualFold(prevStr, "ON") && strings.EqualFold(tok.Str, "NULL") {
+			return true
+		}
+		prevQuoted = quoted
+		prevStr = tok.Str
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreateSynonym(n *ast.CreateSynonymStmt) {
+	name := objectName(n.Name)
+	if name == "" || n.Target == nil || objectName(n.Target) == "" {
+		return
+	}
+	if !n.Public && !e.useSchema(n.Name.Schema) {
+		return
+	}
+	targetSchema := n.Target.Schema
+	if targetSchema == "" && n.Target.DBLink == "" && e.currentSchema != "" {
+		targetSchema = e.currentSchema
+	}
+	syn := &metadatapb.SynonymMetadata{
+		Name:         name,
+		TargetSchema: targetSchema,
+		TargetName:   objectName(n.Target),
+		TargetDbLink: n.Target.DBLink,
+	}
+	if n.Public {
+		if n.IfNotExists && e.publicSynonyms[name] != nil {
+			return
+		}
+		e.publicSynonyms[name] = syn
+	} else {
+		if n.IfNotExists && e.synonyms[name] != nil {
+			return
+		}
+		e.synonyms[name] = syn
+	}
+}
+
+func isDropPublicSynonym(stmtText string) bool {
+	lexer := oracleparser.NewLexer(stmtText)
+	tok1 := lexer.NextToken()
+	tok2 := lexer.NextToken()
+	return strings.EqualFold(tok1.Str, "DROP") && strings.EqualFold(tok2.Str, "PUBLIC")
+}
+
+func viewInvisibleAliasPositions(schemaText string, n *ast.CreateViewStmt) map[int]bool {
+	out := map[int]bool{}
+	if n == nil || n.Name == nil || n.Query == nil {
+		return out
+	}
+	start := n.Name.Loc.End
+	end := n.Loc.End
+	if qloc := ast.NodeLoc(n.Query); qloc.Start > start && qloc.Start <= len(schemaText) {
+		end = qloc.Start
+	}
+	if start < 0 || end <= start || end > len(schemaText) {
+		return out
+	}
+	header := schemaText[start:end]
+	openIdx := strings.IndexByte(header, '(')
+	if openIdx < 0 {
+		return out
+	}
+	aliasHeader := header[openIdx:]
+	lexer := oracleparser.NewLexer(aliasHeader)
+	depth := 0
+	itemIdx := 0
+	itemTokIdx := 0
+	prevWasConstraint := false
+	started := false
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		if tok.Type == '(' {
+			depth++
+			started = true
+			continue
+		}
+		if tok.Type == ')' {
+			depth--
+			if started && depth == 0 {
+				break
+			}
+			continue
+		}
+		if depth == 1 {
+			if tok.Type == ',' {
+				itemIdx++
+				itemTokIdx = 0
+				prevWasConstraint = false
+				continue
+			}
+			isQuoted := tok.Loc >= 0 && tok.Loc < len(aliasHeader) && aliasHeader[tok.Loc] == '"'
+			if itemTokIdx == 1 && !isQuoted && !prevWasConstraint && strings.EqualFold(tok.Str, "INVISIBLE") {
+				out[itemIdx] = true
+			}
+			prevWasConstraint = !isQuoted && strings.EqualFold(tok.Str, "CONSTRAINT")
+			itemTokIdx++
 		}
 	}
-	if match := identityIncrementPattern.FindStringSubmatch(text); len(match) == 2 {
-		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			column.IdentityIncrement = value
+	return out
+}
+
+func formatPartitionKeyIdentifier(name string) string {
+	if isSimpleIdentifier(name) {
+		return name
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func partitionTypeFromAST(t ast.PartitionType) metadatapb.TablePartitionMetadata_Type {
+	switch t {
+	case ast.PARTITION_RANGE:
+		return metadatapb.TablePartitionMetadata_RANGE
+	case ast.PARTITION_LIST:
+		return metadatapb.TablePartitionMetadata_LIST
+	case ast.PARTITION_HASH:
+		return metadatapb.TablePartitionMetadata_HASH
+	default:
+		return metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED
+	}
+}
+
+func (e *oracleMetadataExtractor) extractPartitionKeyExpr(cols *ast.List) string {
+	var keyCols []string
+	for _, item := range listItems(cols) {
+		if colRef, ok := item.(*ast.ColumnRef); ok && colRef.Column != "" {
+			keyCols = append(keyCols, formatPartitionKeyIdentifier(colRef.Column))
+		} else if txt := strings.TrimSpace(e.nodeText(item)); txt != "" {
+			keyCols = append(keyCols, txt)
 		}
 	}
+	return strings.Join(keyCols, ", ")
+}
+
+func (e *oracleMetadataExtractor) extractPartitionValues(values *ast.List) string {
+	var vals []string
+	for _, val := range listItems(values) {
+		if txt := strings.TrimSpace(e.nodeText(val)); txt != "" {
+			vals = append(vals, txt)
+		}
+	}
+	return strings.Join(vals, ", ")
+}
+
+func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionClause) []*metadatapb.TablePartitionMetadata {
+	if clause == nil {
+		return nil
+	}
+	partType := partitionTypeFromAST(clause.Type)
+	if partType == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+		return nil
+	}
+	keyExpr := e.extractPartitionKeyExpr(clause.Columns)
+	intervalExpr := strings.TrimSpace(e.nodeText(clause.Interval))
+	var subType metadatapb.TablePartitionMetadata_Type
+	var subKeyExpr string
+	var templateSubs []ast.Node
+	if clause.Subpartition != nil {
+		subType = partitionTypeFromAST(clause.Subpartition.Type)
+		subKeyExpr = e.extractPartitionKeyExpr(clause.Subpartition.Columns)
+		templateSubs = listItems(clause.Subpartition.Partitions)
+	}
+	var partitions []*metadatapb.TablePartitionMetadata
+	for _, item := range listItems(clause.Partitions) {
+		def, ok := item.(*ast.PartitionDef)
+		if !ok {
+			continue
+		}
+		pm := &metadatapb.TablePartitionMetadata{
+			Name:           def.Name,
+			Type:           partType,
+			Expression:     keyExpr,
+			Value:          e.extractPartitionValues(def.Values),
+			IntervalClause: intervalExpr,
+		}
+		if subType != metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			subItems := listItems(def.Subpartitions)
+			fromTemplate := false
+			if len(subItems) == 0 && len(templateSubs) > 0 {
+				subItems = templateSubs
+				fromTemplate = true
+			}
+			for _, subItem := range subItems {
+				subDef, ok := subItem.(*ast.PartitionDef)
+				if !ok {
+					continue
+				}
+				subName := subDef.Name
+				if fromTemplate && def.Name != "" && subName != "" {
+					subName = def.Name + "_" + subName
+				}
+				pm.Subpartitions = append(pm.Subpartitions, &metadatapb.TablePartitionMetadata{
+					Name:       subName,
+					Type:       subType,
+					Expression: subKeyExpr,
+					Value:      e.extractPartitionValues(subDef.Values),
+				})
+			}
+		}
+		partitions = append(partitions, pm)
+	}
+	return partitions
 }
 
 type viewDependencyVisitor struct {

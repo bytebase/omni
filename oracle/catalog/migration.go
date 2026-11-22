@@ -79,7 +79,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Add views to graph
 	for _, viewDiff := range diff.ViewChanges {
-		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 			viewID := getMigrationObjectID(viewDiff.SchemaName, viewDiff.ViewName)
 			graph.AddNode(viewID)
 			viewMap[viewID] = viewDiff
@@ -367,6 +367,18 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 		}
 	}
 
+	// Drop synonyms and packages before tables/views/routines they may reference.
+	for _, synDiff := range diff.SynonymChanges {
+		if synDiff.Action == DiffActionDrop {
+			writeDropSynonym(buf, synDiff.SchemaName, synDiff.SynonymName, synDiff.Public)
+		}
+	}
+	for _, pkgDiff := range diff.PackageChanges {
+		if pkgDiff.Action == DiffActionDrop {
+			writeDropPackage(buf, pkgDiff.SchemaName, pkgDiff.PackageName)
+		}
+	}
+
 	// Drop schemas (must be empty)
 	for _, schemaDiff := range diff.SchemaChanges {
 		if schemaDiff.Action == DiffActionDrop {
@@ -374,6 +386,16 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 			// This handles cases where the diff doesn't include objects within a schema being dropped
 			if schemaDiff.OldSchema != nil {
 				// Drop all objects in the schema in the correct order
+
+				// Drop synonyms
+				for _, syn := range schemaDiff.OldSchema.Synonyms {
+					writeDropSynonym(buf, schemaDiff.SchemaName, syn.Name, false)
+				}
+
+				// Drop packages
+				for _, pkg := range schemaDiff.OldSchema.Packages {
+					writeDropPackage(buf, schemaDiff.SchemaName, pkg.Name)
+				}
 
 				// Drop views first (they might depend on tables)
 				for _, view := range schemaDiff.OldSchema.Views {
@@ -519,8 +541,73 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// Views and virtual columns can call functions, so the function must exist
-	// first.
+	// Views and virtual columns can call functions or package functions, and
+	// views can query through synonyms, so those prerequisites must exist first.
+	packageMap := make(map[string]*PackageDiff)
+	addPackageDep := func(pkgDiff *PackageDiff, dependentID string) {
+		pkgID := "pkg:" + getMigrationObjectID(pkgDiff.SchemaName, pkgDiff.PackageName)
+		if _, exists := packageMap[pkgID]; !exists {
+			packageMap[pkgID] = pkgDiff
+			graph.AddNode(pkgID)
+		}
+		graph.AddEdge(pkgID, dependentID)
+	}
+	synonymMap := make(map[string]*SynonymDiff)
+	findTargetSynonymDiff := func(synDiff *SynonymDiff) (*SynonymDiff, bool) {
+		syn := synDiff.NewSynonym
+		if syn == nil || syn.GetTargetDbLink() != "" || syn.GetTargetName() == "" {
+			return nil, false
+		}
+		targetSchema := syn.GetTargetSchema()
+		if targetSchema == "" {
+			targetSchema = synDiff.SchemaName
+		}
+		targetName := syn.GetTargetName()
+		for _, candidate := range diff.SynonymChanges {
+			if (candidate.Action != DiffActionCreate && candidate.Action != DiffActionAlter) || candidate == synDiff {
+				continue
+			}
+			if !candidate.Public && candidate.SchemaName == targetSchema && candidate.SynonymName == targetName {
+				return candidate, true
+			}
+		}
+		for _, candidate := range diff.SynonymChanges {
+			if (candidate.Action != DiffActionCreate && candidate.Action != DiffActionAlter) || candidate == synDiff {
+				continue
+			}
+			if candidate.Public && candidate.SynonymName == targetName {
+				return candidate, true
+			}
+		}
+		return nil, false
+	}
+	var addSynonymDep func(synDiff *SynonymDiff, dependentID string)
+	addSynonymDep = func(synDiff *SynonymDiff, dependentID string) {
+		prefix := "syn:"
+		if synDiff.Public {
+			prefix = "pubsyn:"
+		}
+		synID := prefix + getMigrationObjectID(synDiff.SchemaName, synDiff.SynonymName)
+		if _, exists := synonymMap[synID]; !exists {
+			synonymMap[synID] = synDiff
+			graph.AddNode(synID)
+			if syn := synDiff.NewSynonym; syn != nil && syn.GetTargetDbLink() == "" && syn.GetTargetName() != "" {
+				targetSchema := syn.GetTargetSchema()
+				if targetSchema == "" {
+					targetSchema = synDiff.SchemaName
+				}
+				targetID := getMigrationObjectID(targetSchema, syn.GetTargetName())
+				if allObjects[targetID] {
+					graph.AddEdge(targetID, synID)
+				} else if targetIDNoSchema := getMigrationObjectID("", syn.GetTargetName()); allObjects[targetIDNoSchema] {
+					graph.AddEdge(targetIDNoSchema, synID)
+				} else if targetSyn, ok := findTargetSynonymDiff(synDiff); ok {
+					addSynonymDep(targetSyn, synID)
+				}
+			}
+		}
+		graph.AddEdge(synID, dependentID)
+	}
 	for viewID, viewDiff := range viewMap {
 		view := viewDiff.NewView
 		if view == nil {
@@ -536,6 +623,20 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			}
 			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+				pkgDiff.SchemaName == viewDiff.SchemaName &&
+				expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+				addPackageDep(pkgDiff, viewID)
+			}
+		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) &&
+				(synDiff.Public || synDiff.SchemaName == viewDiff.SchemaName) &&
+				viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+				addSynonymDep(synDiff, viewID)
 			}
 		}
 	}
@@ -556,6 +657,20 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				graph.AddEdge(functionID, viewID)
 			}
 		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+				pkgDiff.SchemaName == viewDiff.SchemaName &&
+				expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+				addPackageDep(pkgDiff, viewID)
+			}
+		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) &&
+				(synDiff.Public || synDiff.SchemaName == viewDiff.SchemaName) &&
+				viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+				addSynonymDep(synDiff, viewID)
+			}
+		}
 	}
 	for tableID, tableDiff := range tableMap {
 		if tableDiff.NewTable == nil {
@@ -572,6 +687,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				}
 				if function != nil && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 					graph.AddEdge(functionID, tableID)
+				}
+			}
+			for _, pkgDiff := range diff.PackageChanges {
+				if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+					pkgDiff.SchemaName == tableDiff.SchemaName &&
+					expressionReferencesPackage(column.GetGeneration().GetExpression(), pkgDiff.PackageName) {
+					addPackageDep(pkgDiff, tableID)
 				}
 			}
 		}
@@ -654,7 +776,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 	earlyAlteredTables := map[string]bool{}
 	for _, viewDiff := range viewMap {
-		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 			for _, dependency := range viewDiff.NewView.GetDependencyColumns() {
 				owner := dependency.GetSchema()
 				if owner == "" {
@@ -677,10 +799,12 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	}
 
 	// Get topological order
+	writtenPackages := map[*PackageDiff]bool{}
+	writtenSynonyms := map[*SynonymDiff]bool{}
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there's a cycle, fall back to a safe order. Functions a virtual
-		// column calls must exist before their table.
+		// If there's a cycle, fall back to a safe order. Functions and packages
+		// a virtual column calls must exist before their table.
 		prewrittenFunctions := map[string]bool{}
 		for _, tableDiff := range tableMap {
 			if tableDiff.NewTable == nil {
@@ -698,6 +822,15 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					if function != nil && !prewrittenFunctions[functionID] && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 						writeFunctionDiff(buf, functionDiff)
 						prewrittenFunctions[functionID] = true
+					}
+				}
+				for _, pkgDiff := range diff.PackageChanges {
+					if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+						!writtenPackages[pkgDiff] &&
+						pkgDiff.SchemaName == tableDiff.SchemaName &&
+						expressionReferencesPackage(column.GetGeneration().GetExpression(), pkgDiff.PackageName) {
+						writePackageDiff(buf, pkgDiff)
+						writtenPackages[pkgDiff] = true
 					}
 				}
 			}
@@ -764,6 +897,74 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] = true
 			}
 		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action != DiffActionCreate && pkgDiff.Action != DiffActionAlter) || writtenPackages[pkgDiff] {
+				continue
+			}
+			called := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && viewDiff.SchemaName == pkgDiff.SchemaName && expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+					called = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && viewDiff.SchemaName == pkgDiff.SchemaName && expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+					called = true
+				}
+			}
+			if called {
+				writePackageDiff(buf, pkgDiff)
+				writtenPackages[pkgDiff] = true
+			}
+		}
+		var writeSynonymDiffChain func(synDiff *SynonymDiff)
+		writeSynonymDiffChain = func(synDiff *SynonymDiff) {
+			if writtenSynonyms[synDiff] {
+				return
+			}
+			writtenSynonyms[synDiff] = true
+			if targetSyn, ok := findTargetSynonymDiff(synDiff); ok {
+				writeSynonymDiffChain(targetSyn)
+			}
+			writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+		}
+		for _, synDiff := range diff.SynonymChanges {
+			if (synDiff.Action != DiffActionCreate && synDiff.Action != DiffActionAlter) || writtenSynonyms[synDiff] {
+				continue
+			}
+			referenced := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && (synDiff.Public || viewDiff.SchemaName == synDiff.SchemaName) &&
+					viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+					referenced = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && (synDiff.Public || viewDiff.SchemaName == synDiff.SchemaName) &&
+					viewReferencesSynonym(view.Definition, view.DependencyColumns, synDiff.SynonymName) {
+					referenced = true
+				}
+			}
+			if referenced {
+				writeSynonymDiffChain(synDiff)
+			}
+		}
 
 		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
 
@@ -821,7 +1022,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					// No action needed
 				}
 			} else if viewDiff, ok := viewMap[objID]; ok {
-				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 					writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
 				}
 			} else if mvDiff, ok := materializedViewMap[objID]; ok {
@@ -832,6 +1033,12 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				writeFunctionDiff(buf, funcDiff)
 			} else if procDiff, ok := procedureMap[objID]; ok {
 				writeProcedureDiff(buf, procDiff)
+			} else if pkgDiff, ok := packageMap[objID]; ok {
+				writePackageDiff(buf, pkgDiff)
+				writtenPackages[pkgDiff] = true
+			} else if synDiff, ok := synonymMap[objID]; ok {
+				writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+				writtenSynonyms[synDiff] = true
 			}
 		}
 
@@ -940,6 +1147,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	// Create/alter remaining packages after tables, views, functions and procedures exist.
+	for _, pkgDiff := range diff.PackageChanges {
+		if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) && !writtenPackages[pkgDiff] {
+			writePackageDiff(buf, pkgDiff)
+		}
+	}
+
 	for _, tableDiff := range diff.TableChanges {
 		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
 			continue
@@ -972,12 +1186,22 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	// category" -- so a metadata comment on one has no statement to render.
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
+
+	// Create/alter remaining synonyms after target objects exist.
+	for _, synDiff := range diff.SynonymChanges {
+		if (synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter) && !writtenSynonyms[synDiff] {
+			writeSynonymDiff(buf, diff.DatabaseName, synDiff)
+		}
+	}
 }
 
 func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMetadata, includeForeignKeys bool) (string, error) {
 	var buf strings.Builder
 
 	writeMigrationCreateTable(&buf, schemaName, tableName, table.Columns, table.CheckConstraints)
+	if err := writeTablePartitions(&buf, table.Partitions); err != nil {
+		return "", err
+	}
 
 	if _, err := buf.WriteString(";\n"); err != nil {
 		return "", err
@@ -1104,6 +1328,63 @@ func columnIdentityAlterClause(oldColumn, newColumn *metadatapb.ColumnMetadata) 
 	if oldColumn.GetIdentityIncrement() != newColumn.GetIdentityIncrement() && newColumn.GetIdentityIncrement() != 0 {
 		options = append(options, fmt.Sprintf("INCREMENT BY %d", newColumn.GetIdentityIncrement()))
 	}
+	oldOpt := parseColumnIdentityOptions(oldColumn.GetOptions())
+	newOpt := parseColumnIdentityOptions(newColumn.GetOptions())
+	if oldOpt.maxValue != newOpt.maxValue {
+		if newOpt.maxValue != "" {
+			options = append(options, "MAXVALUE "+newOpt.maxValue)
+		} else {
+			options = append(options, "NOMAXVALUE")
+		}
+	}
+	if oldOpt.minValue != newOpt.minValue {
+		if newOpt.minValue != "" {
+			options = append(options, "MINVALUE "+newOpt.minValue)
+		} else {
+			options = append(options, "NOMINVALUE")
+		}
+	}
+	if oldOpt.cache != newOpt.cache {
+		if newOpt.cache == "0" {
+			options = append(options, "NOCACHE")
+		} else if newOpt.cache != "" {
+			options = append(options, "CACHE "+newOpt.cache)
+		} else {
+			options = append(options, "CACHE "+oracleDefaultSeqCache)
+		}
+	}
+	if oldOpt.cycle != newOpt.cycle {
+		if newOpt.cycle {
+			options = append(options, "CYCLE")
+		} else {
+			options = append(options, "NOCYCLE")
+		}
+	}
+	if oldOpt.order != newOpt.order {
+		if newOpt.order {
+			options = append(options, "ORDER")
+		} else {
+			options = append(options, "NOORDER")
+		}
+	}
+	if oldOpt.keep != newOpt.keep {
+		if newOpt.keep {
+			options = append(options, "KEEP")
+		} else {
+			options = append(options, "NOKEEP")
+		}
+	}
+	if oldOpt.scale != newOpt.scale || oldOpt.extend != newOpt.extend {
+		if newOpt.scale {
+			if newOpt.extend {
+				options = append(options, "SCALE EXTEND")
+			} else {
+				options = append(options, "SCALE NOEXTEND")
+			}
+		} else {
+			options = append(options, "NOSCALE")
+		}
+	}
 	if len(options) > 0 {
 		mode += " (" + strings.Join(options, " ") + ")"
 	}
@@ -1219,14 +1500,64 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	}
 
 	var oldColumns, newColumns []string
+	var oldCollationColumns, newCollationColumns []string
 	for _, colDiff := range tableDiff.ColumnChanges {
-		if diff.preAltered[colDiff] {
+		if diff.preAltered[colDiff] || colDiff.Action != DiffActionAlter {
 			continue
 		}
-		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
+		if rebuildsColumn(colDiff) {
 			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
 			newColumns = append(newColumns, colDiff.NewColumn.Name)
+		} else if columnCollationChanged(colDiff) {
+			oldCollationColumns = append(oldCollationColumns, colDiff.OldColumn.Name)
+			newCollationColumns = append(newCollationColumns, colDiff.NewColumn.Name)
 		}
+	}
+
+	dropped := diffObjectNames(tableDiff, DiffActionDrop)
+	restoredSkip := make(map[string]bool, len(created))
+	for name := range created {
+		restoredSkip[name] = true
+	}
+	for _, index := range allVirtualDependents.indexes {
+		dropped[index.GetName()] = true
+		restoredSkip[index.GetName()] = true
+	}
+	for _, check := range allVirtualDependents.checks {
+		dropped[check.GetName()] = true
+		restoredSkip[check.GetName()] = true
+	}
+	for _, check := range allVirtualDependents.notNulls {
+		dropped[check.GetName()] = true
+		restoredSkip[check.GetName()] = true
+	}
+	for _, fk := range allVirtualDependents.foreignKeys {
+		dropped[fk.GetName()] = true
+		restoredSkip[fk.GetName()] = true
+	}
+	for _, fk := range tableDiff.OldTable.GetForeignKeys() {
+		if _, ok := detached[incomingForeignKeyKey(tableName, fk.GetName())]; ok {
+			dropped[fk.GetName()] = true
+			restoredSkip[fk.GetName()] = true
+		}
+	}
+
+	oldDeps := findColumnDependents(tableDiff.OldTable, oldColumns, dropped)
+	if len(oldCollationColumns) > 0 {
+		// Oracle prohibits modifying column collation while indexes, unique/PK
+		// constraints, CHECK constraints, or foreign keys reference the column.
+		// Keep named NOT NULL constraints attached because Oracle allows
+		// MODIFY (... COLLATE ...) with NOT NULL and generateAlterColumn only
+		// restores named NOT NULLs for rebuilt columns.
+		collationOldDeps := findColumnDependents(tableDiff.OldTable, oldCollationColumns, dropped)
+		collationOldDeps.notNulls = nil
+		mergeColumnDependents(&oldDeps, collationOldDeps)
+	}
+	newDeps := findColumnDependents(tableDiff.NewTable, newColumns, restoredSkip)
+	if len(newCollationColumns) > 0 {
+		collationNewDeps := findColumnDependents(tableDiff.NewTable, newCollationColumns, restoredSkip)
+		collationNewDeps.notNulls = nil
+		mergeColumnDependents(&newDeps, collationNewDeps)
 	}
 
 	// Oracle refuses a datatype change under a function-based index (ORA-30556)
@@ -1236,6 +1567,12 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		handled := diffObjectNames(tableDiff, DiffActionDrop)
 		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
 			handled[name] = true
+		}
+		for _, index := range allVirtualDependents.indexes {
+			handled[index.GetName()] = true
+		}
+		for _, index := range oldDeps.indexes {
+			handled[index.GetName()] = true
 		}
 		for _, index := range tableDiff.OldTable.GetIndexes() {
 			if index.GetIsConstraint() || handled[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
@@ -1250,15 +1587,22 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 	}
 
-	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
-	// fails (ORA-02273), and come back after it.
-	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldColumns, DiffActionDrop) {
-		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+	// Other tables' foreign keys on a rebuilt or collation-changed key go first,
+	// or dropping the key fails (ORA-02273), and come back after it.
+	droppedIncoming := make(map[string]bool)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, virtualColumns, DiffActionDrop) {
+		droppedIncoming[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = true
+	}
+	oldDetachColumns := append(append([]string(nil), oldColumns...), oldCollationColumns...)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldDetachColumns, DiffActionDrop) {
+		key := incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())
+		if _, handled := detached[key]; handled || droppedIncoming[key] {
 			continue
 		}
+		droppedIncoming[key] = true
 		writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.Name)
 	}
-	findColumnDependents(tableDiff.OldTable, oldColumns, diffObjectNames(tableDiff, DiffActionDrop)).writeDrops(buf, schemaName, tableName)
+	oldDeps.writeDrops(buf, schemaName, tableName)
 	for _, colDiff := range tableDiff.ColumnChanges {
 		if colDiff.Action != DiffActionAlter || diff.preAltered[colDiff] {
 			continue
@@ -1271,7 +1615,7 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 		_, _ = buf.WriteString(generateAlterColumn(schemaName, tableName, colDiff, notNull))
 	}
-	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
+	newDeps.writeCreates(buf, schemaName, tableName)
 	for _, column := range virtualDependents {
 		writeAddColumn(buf, schemaName, tableName, column)
 		if column.GetComment() != "" {
@@ -1288,11 +1632,14 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 		writeMigrationIndex(buf, schemaName, tableName, definition)
 	}
-	restoredColumns := append(append([]string(nil), newColumns...), virtualColumns...)
+	restoredColumns := append(append(append([]string(nil), newColumns...), newCollationColumns...), virtualColumns...)
+	restoredIncoming := make(map[string]bool)
 	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, restoredColumns, DiffActionCreate) {
-		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+		key := incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())
+		if _, handled := detached[key]; handled || restoredIncoming[key] {
 			continue
 		}
+		restoredIncoming[key] = true
 		writeMigrationForeignKey(buf, schemaName, incoming.table, incoming.foreignKey)
 	}
 }
@@ -1305,13 +1652,13 @@ type virtualRebuild struct {
 }
 
 // virtualColumnsRebuiltByTypeChanges lists the virtual columns of tableDiff that
-// read a column whose datatype changes. A virtual column the diff creates needs
-// no detachment, and a virtual one the diff drops is already gone.
+// read a column whose datatype or collation changes. A virtual column the diff
+// creates needs no detachment, and a virtual one the diff drops is already gone.
 func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
 	typeChanged := map[string]bool{}
 	diffs := map[string]*ColumnDiff{}
 	for _, colDiff := range tableDiff.ColumnChanges {
-		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
+		if colDiff.Action == DiffActionAlter && (colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() || columnCollationChanged(colDiff)) {
 			typeChanged[colDiff.OldColumn.GetName()] = true
 		}
 		if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate {
@@ -1438,7 +1785,7 @@ func waitsForRebuild(diff *MetadataDiff, schemaName string, fk *metadatapb.Forei
 			continue
 		}
 		for _, colDiff := range tableDiff.ColumnChanges {
-			if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) &&
+			if colDiff.Action == DiffActionAlter && (rebuildsColumn(colDiff) || columnCollationChanged(colDiff)) &&
 				referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{colDiff.NewColumn.Name}) {
 				return true
 			}
@@ -1474,6 +1821,35 @@ func rebuildsColumn(colDiff *ColumnDiff) bool {
 		return true
 	}
 	return newGeneration != nil && (oldGeneration.Expression != newGeneration.Expression || colDiff.OldColumn.Type != colDiff.NewColumn.Type)
+}
+
+func columnCollationChanged(colDiff *ColumnDiff) bool {
+	if explicitOracleCollation(colDiff.OldColumn.GetCollation()) == explicitOracleCollation(colDiff.NewColumn.GetCollation()) {
+		return false
+	}
+	if !oracleTypeSupportsCollation(colDiff.NewColumn.GetType()) && explicitOracleCollation(colDiff.NewColumn.GetCollation()) == "" {
+		return false
+	}
+	return true
+}
+
+func oracleTypeSupportsCollation(dataType string) bool {
+	trimmed := strings.TrimSpace(dataType)
+	if trimmed == "" {
+		return true
+	}
+	words, _ := leadingWords(trimmed, 2)
+	if len(words) == 0 {
+		return false
+	}
+	switch words[0] {
+	case "CHAR", "CHARACTER", "VARCHAR", "VARCHAR2", "NCHAR", "NVARCHAR2":
+		return true
+	case "NATIONAL":
+		return len(words) >= 2 && (words[1] == "CHAR" || words[1] == "CHARACTER")
+	default:
+		return false
+	}
 }
 
 // columnNotNull is how a rebuilt column's NOT NULL is handled: dropped means a
@@ -1548,7 +1924,8 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			colDiff.OldColumn.GetIdentityGeneration() != colDiff.NewColumn.GetIdentityGeneration() ||
 			colDiff.OldColumn.GetIdentitySeed() != colDiff.NewColumn.GetIdentitySeed() ||
 			colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() ||
-			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull()
+			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull() ||
+			!slices.Equal(colDiff.OldColumn.GetOptions(), colDiff.NewColumn.GetOptions())
 	}
 	if identityChanged && !identityDropped {
 		switch {
@@ -1581,6 +1958,18 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 	if virtualChanged {
 		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type+" AS ("+newGeneration.Expression+")")
 		writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
+	}
+
+	if columnCollationChanged(colDiff) {
+		collation := explicitOracleCollation(colDiff.NewColumn.GetCollation())
+		if collation == "" {
+			collation = "USING_NLS_COMP"
+		}
+		clause := "COLLATE " + collation
+		if colType := strings.TrimSpace(colDiff.NewColumn.GetType()); colType != "" {
+			clause = colType + " " + clause
+		}
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, clause)
 	}
 
 	if colDiff.OldColumn.IsInvisible != colDiff.NewColumn.IsInvisible {
@@ -2031,8 +2420,12 @@ func writeAddColumn(out *strings.Builder, schema, table string, column *metadata
 }
 
 // writeColumnAttributes writes what follows a column's type in CREATE TABLE
-// and ADD: visibility, then the virtual expression or the default, then NOT NULL.
+// and ADD: collation, visibility, then the virtual expression or the default, then NOT NULL.
 func writeColumnAttributes(out *strings.Builder, column *metadatapb.ColumnMetadata) {
+	if collation := explicitOracleCollation(column.Collation); collation != "" {
+		_, _ = out.WriteString(` COLLATE `)
+		_, _ = out.WriteString(collation)
+	}
 	if column.IsInvisible {
 		_, _ = out.WriteString(` INVISIBLE`)
 	}
@@ -2247,6 +2640,16 @@ func hasCreateViewsOrFunctions(diff *MetadataDiff) bool {
 			return true
 		}
 	}
+	for _, pkgDiff := range diff.PackageChanges {
+		if pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, synDiff := range diff.SynonymChanges {
+		if synDiff.Action == DiffActionCreate || synDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
 	return false
 }
 
@@ -2421,10 +2824,105 @@ func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
 	}
 }
 
+func writeDropPackage(out *strings.Builder, schema, pkg string) {
+	_, _ = out.WriteString(`DROP PACKAGE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + pkg + `";` + "\n")
+}
+
+func writeDropPackageBody(out *strings.Builder, schema, pkg string) {
+	_, _ = out.WriteString(`DROP PACKAGE BODY `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + pkg + `";` + "\n")
+}
+
+func writePackageDiff(out *strings.Builder, pkgDiff *PackageDiff) {
+	if pkgDiff.NewPackage == nil {
+		return
+	}
+	definition := strings.TrimSpace(pkgDiff.NewPackage.GetDefinition())
+	if definition == "" {
+		return
+	}
+	if pkgDiff.Action == DiffActionAlter {
+		oldSpec, oldBody := splitPackageUnits(pkgDiff.OldPackage.GetDefinition())
+		newSpec, newBody := splitPackageUnits(definition)
+		if oldBody != "" && newBody == "" {
+			writeDropPackageBody(out, pkgDiff.SchemaName, pkgDiff.PackageName)
+			if newSpec == "" || normalizePackageUnitForCompare(newSpec) == normalizePackageUnitForCompare(oldSpec) {
+				return
+			}
+			definition = newSpec
+		}
+		var parts []string
+		for _, seg := range oracleparser.Split(normalizePLSQLPackageDefinition(definition)) {
+			if seg.Empty() {
+				continue
+			}
+			unit := alterRoutineDefinition(strings.TrimSpace(seg.Text))
+			if !strings.HasSuffix(unit, ";") {
+				unit += ";"
+			}
+			parts = append(parts, unit)
+		}
+		if len(parts) > 0 {
+			definition = strings.Join(parts, "\n\n")
+		}
+	}
+	_ = writePackage(out, &metadatapb.PackageMetadata{
+		Name:       pkgDiff.NewPackage.GetName(),
+		Definition: definition,
+	})
+}
+
+func writeDropSynonym(out *strings.Builder, schema, synonym string, public bool) {
+	if public {
+		_, _ = out.WriteString(`DROP PUBLIC SYNONYM "` + synonym + `";` + "\n")
+		return
+	}
+	_, _ = out.WriteString(`DROP SYNONYM `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + synonym + `";` + "\n")
+}
+
+func writeSynonymDiff(out *strings.Builder, databaseName string, synDiff *SynonymDiff) {
+	if synDiff.NewSynonym == nil {
+		return
+	}
+	syn := synDiff.NewSynonym
+	if synDiff.Public {
+		_, _ = out.WriteString(`CREATE OR REPLACE PUBLIC SYNONYM "` + syn.GetName() + `" FOR `)
+	} else {
+		_, _ = out.WriteString(`CREATE OR REPLACE SYNONYM `)
+		if synDiff.SchemaName != "" {
+			_, _ = out.WriteString(`"` + synDiff.SchemaName + `".`)
+		}
+		_, _ = out.WriteString(`"` + syn.GetName() + `" FOR `)
+	}
+	defaultSchema := synDiff.SchemaName
+	if defaultSchema == "" {
+		defaultSchema = databaseName
+	}
+	if targetSchema := syn.GetTargetSchema(); targetSchema != "" && (syn.GetTargetDbLink() != "" || targetSchema != defaultSchema) {
+		_, _ = out.WriteString(`"` + targetSchema + `".`)
+	}
+	_, _ = out.WriteString(`"` + syn.GetTargetName() + `"`)
+	if dbLink := syn.GetTargetDbLink(); dbLink != "" {
+		_, _ = out.WriteString(`@` + formatDBLinkName(dbLink))
+	}
+	_, _ = out.WriteString(";\n")
+}
+
 func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string]*ViewDiff, materializedViews map[string]*MaterializedViewDiff) {
 	graph := newGraph()
 	for key, diff := range views {
-		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView)) {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && diff.needsViewRecreate()) {
 			graph.AddNode("v:" + key)
 		}
 	}
@@ -2477,7 +2975,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 		if strings.HasPrefix(node, "v:") {
 			key := strings.TrimPrefix(node, "v:")
 			if diff := views[key]; diff != nil &&
-				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView))) {
+				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && diff.needsViewRecreate())) {
 				writeMigrationView(out, diff.SchemaName, diff.NewView)
 			}
 			continue
@@ -2501,6 +2999,9 @@ func writeMigrationView(out *strings.Builder, schema string, view *metadatapb.Vi
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(view.Name)
 	_, _ = out.WriteString(`"`)
+	if viewNeedsColumnList(view) {
+		_ = writeViewColumnList(out, view.Columns)
+	}
 	if materializedViewDefinitionHasClause(view.Definition) {
 		_, _ = out.WriteString(` `)
 	} else {
@@ -3072,8 +3573,19 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 				oldConstraintNames[indexDiff.OldIndex.GetName()] = true
 			}
 		}
+		detachedCols := map[string]bool{}
+		for _, colDiff := range tableDiff.ColumnChanges {
+			if colDiff.Action == DiffActionAlter && (rebuildsColumn(colDiff) || columnCollationChanged(colDiff)) {
+				detachedCols[colDiff.OldColumn.GetName()] = true
+			}
+		}
 		for _, drop := range tableDiff.IndexChanges {
 			if drop.Action != DiffActionDrop || !drop.OldIndex.GetIsConstraint() {
+				continue
+			}
+			if len(detachedCols) > 0 && slices.ContainsFunc(drop.OldIndex.GetExpressions(), func(col string) bool {
+				return detachedCols[unquoteIdentifier(col)]
+			}) {
 				continue
 			}
 			for _, create := range tableDiff.IndexChanges {
@@ -3140,6 +3652,17 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 					referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, indexDiff.OldIndex.GetExpressions()) {
 					detached[incomingForeignKeyKey(tableDiff.TableName, fk.GetName())] = incomingForeignKey{schema: tableDiff.SchemaName, table: tableDiff.TableName, foreignKey: fk}
 				}
+			}
+		}
+		var collationCols []string
+		for _, colDiff := range tableDiff.ColumnChanges {
+			if colDiff.Action == DiffActionAlter && columnCollationChanged(colDiff) {
+				collationCols = append(collationCols, colDiff.OldColumn.GetName())
+			}
+		}
+		if len(collationCols) > 0 {
+			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, collationCols, DiffActionDrop) {
+				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
 			}
 		}
 	}

@@ -115,6 +115,126 @@ func TestQuotedNamesSurviveOracle(t *testing.T) {
 	}
 }
 
+// TestCollationMigrationRunsOnOracle executes generated column-collation
+// migrations (regular index, check constraint, PK/UK with incoming FK, and
+// function-based index with type+collation change) against the pinned Oracle
+// server and verifies the resulting column collations, indexes, and constraints.
+func TestCollationMigrationRunsOnOracle(t *testing.T) {
+	db := testcontainer.OpenExtended(t, "system")
+	defer db.Close()
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	const schema = "OMNI_COLLATE"
+	execScript(t, conn, fmt.Sprintf(`CREATE USER "%s" IDENTIFIED BY "%s" QUOTA UNLIMITED ON USERS`, schema, testcontainer.Password))
+	execScript(t, conn, fmt.Sprintf(`GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE TO "%s"`, schema))
+	execScript(t, conn, fmt.Sprintf(`ALTER SESSION SET CURRENT_SCHEMA = "%s"`, schema))
+
+	fromSQL := `
+CREATE TABLE OMNI_COLLATE.T (
+  ID NUMBER NOT NULL,
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT T_CK CHECK (CODE <> 'x')
+);
+CREATE INDEX OMNI_COLLATE.T_CODE_IDX ON OMNI_COLLATE.T (CODE);
+
+CREATE TABLE OMNI_COLLATE.PARENT (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT PARENT_PK PRIMARY KEY (CODE)
+);
+CREATE TABLE OMNI_COLLATE.CHILD (
+  ID NUMBER NOT NULL,
+  PARENT_CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT CHILD_FK FOREIGN KEY (PARENT_CODE) REFERENCES OMNI_COLLATE.PARENT (CODE)
+);
+
+CREATE TABLE OMNI_COLLATE.T2 (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY
+);
+CREATE INDEX OMNI_COLLATE.T2_UPPER_IDX ON OMNI_COLLATE.T2 (UPPER(CODE));
+`
+	toSQL := `
+CREATE TABLE OMNI_COLLATE.T (
+  ID NUMBER NOT NULL,
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT T_CK CHECK (CODE <> 'x')
+);
+CREATE INDEX OMNI_COLLATE.T_CODE_IDX ON OMNI_COLLATE.T (CODE);
+
+CREATE TABLE OMNI_COLLATE.PARENT (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT PARENT_PK PRIMARY KEY (CODE)
+);
+CREATE TABLE OMNI_COLLATE.CHILD (
+  ID NUMBER NOT NULL,
+  PARENT_CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT CHILD_FK FOREIGN KEY (PARENT_CODE) REFERENCES OMNI_COLLATE.PARENT (CODE)
+);
+
+CREATE TABLE OMNI_COLLATE.T2 (
+  CODE VARCHAR2(40 BYTE) COLLATE BINARY_CI
+);
+CREATE INDEX OMNI_COLLATE.T2_UPPER_IDX ON OMNI_COLLATE.T2 (UPPER(CODE));
+`
+	fromCat, err := LoadSQL(fromSQL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	toCat, err := LoadSQL(toSQL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	migration := GenerateMigration(fromCat, toCat, nil).SQL()
+	if migration == "" {
+		t.Fatal("expected non-empty migration SQL")
+	}
+
+	execScript(t, conn, fromSQL)
+	execScript(t, conn, migration)
+
+	rows, err := conn.QueryContext(ctx, `
+		SELECT table_name, column_name, data_length, collation
+		FROM all_tab_cols
+		WHERE owner = 'OMNI_COLLATE'
+		  AND column_name IN ('CODE', 'PARENT_CODE')
+		ORDER BY table_name, column_name`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var gotCols []string
+	for rows.Next() {
+		var tbl, col, coll string
+		var length int
+		if err := rows.Scan(&tbl, &col, &length, &coll); err != nil {
+			t.Fatal(err)
+		}
+		gotCols = append(gotCols, fmt.Sprintf("%s.%s:%d:%s", tbl, col, length, coll))
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	wantCols := []string{
+		"CHILD.PARENT_CODE:20:BINARY_CI",
+		"PARENT.CODE:20:BINARY_CI",
+		"T.CODE:20:BINARY_CI",
+		"T2.CODE:40:BINARY_CI",
+	}
+	if !slices.Equal(gotCols, wantCols) {
+		t.Errorf("migrated columns = %v, want %v", gotCols, wantCols)
+	}
+
+	gotObjects := readObjects(t, conn, schema)
+	wantObjects := expectedObjects(toCat.Metadata())
+	if !slices.Equal(gotObjects, wantObjects) {
+		t.Errorf("objects = %v, want %v", gotObjects, wantObjects)
+	}
+}
+
 func readObjects(t *testing.T, conn *sql.Conn, schema string) []string {
 	t.Helper()
 	query := fmt.Sprintf(`SELECT object_type || '/' || object_name FROM all_objects
