@@ -76,6 +76,10 @@ type Parser struct {
 	// VALUES, and an annotations_clause as balanced text.
 	alterMview bool
 
+	// alterSubpartition is set while ALTER TABLE MODIFY SUBPARTITION is parsed.
+	// Oracle refuses partition-only LOB attributes such as RETENTION there (ORA-14160).
+	alterSubpartition bool
+
 	// atSubpartitionTemplate is set while a subpartition template's
 	// description list is parsed. Oracle reads a description's values
 	// without VALUES, a parenthesized list where a hash subpartition has no
@@ -105,6 +109,11 @@ type Parser struct {
 	// COLLATION (ORA-43929) and PARENT (ORA-02523). Those are the engine's
 	// answers, not syntax, and omni leaves them to it.
 	createTableEngineCheck bool
+
+	// createTableConstraintNames records constraint names declared inside the
+	// current CREATE TABLE statement (including named inline NOT NULL/NULL
+	// constraints whose names are not stored as ColumnConstraint nodes).
+	createTableConstraintNames map[string]bool
 
 	// caseKinds tells, for each CASE token from the first one parsePrimary
 	// met to the end of the range, whether it opens a CASE expression (true)

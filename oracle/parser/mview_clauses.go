@@ -612,6 +612,7 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		return err
 	}
 	objectRelational := false
+	binary := false
 	if p.isKeywordStr("STORE") {
 		p.advance() // consume STORE
 		if err := p.expectCreateTableToken(kwAS); err != nil {
@@ -627,7 +628,6 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 			if p.isKeywordStr("SECUREFILE") || p.isKeywordStr("BASICFILE") {
 				p.advance()
 			}
-			binary := false
 			switch {
 			case p.isKeywordStr("CLOB"):
 				p.advance()
@@ -653,7 +653,7 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		}
 	}
 	if !p.isMviewXmlschemaSpecStart() {
-		if objectRelational {
+		if objectRelational || binary {
 			return p.syntaxErrorAtCur()
 		}
 		return nil

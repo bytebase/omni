@@ -871,6 +871,7 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 			return p.syntaxErrorAtCur()
 		}
 	}
+	openTok := p.cur
 	p.advance() // consume '('
 
 	// precision
@@ -893,6 +894,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
 		p.advance()
 	default:
+		if p.plsqlCode {
+			return p.syntaxErrorAtTok(openTok)
+		}
 		return p.syntaxErrorAtCur()
 	}
 

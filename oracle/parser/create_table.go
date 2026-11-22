@@ -411,6 +411,7 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
 		return nil, err
 	}
+	nameTok := p.cur
 	var parseErr487 error
 	stmt.Name, parseErr487 = p.parseReservedCheckedObjectName()
 	if parseErr487 !=
@@ -428,6 +429,8 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 	afterName := p.cur
 	defer func(saved bool) { p.createTableEngineCheck = saved }(p.createTableEngineCheck)
 	p.createTableEngineCheck = false
+	defer func(saved map[string]bool) { p.createTableConstraintNames = saved }(p.createTableConstraintNames)
+	p.createTableConstraintNames = map[string]bool{}
 
 	if p.isIdentLikeStr("SHARING") {
 		if err := p.parseCreateTableSharing(stmt); err != nil {
@@ -524,15 +527,23 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 	if p.isIdentLikeStr("PARENT") {
 		p.advance()
 		p.createTableEngineCheck = true
+		parentTok := p.cur
 		var // consume PARENT
 		parseErr494 error
 		stmt.Parent, parseErr494 = p.parseObjectName()
 		if parseErr494 != nil {
 			return nil, parseErr494
 		}
+		if stmt.Parent != nil && stmt.Name != nil && stmt.Parent.Name != "" &&
+			stmt.Parent.Schema == stmt.Name.Schema && stmt.Parent.Name == stmt.Name.Name {
+			return nil, p.syntaxErrorAtTok(parentTok)
+		}
 	}
 
 	if !hasColumns && stmt.AsQuery == nil && p.isStatementEnd() && !p.createTableEngineCheck {
+		if stmt.Sharded {
+			return nil, p.syntaxErrorAtTok(nameTok)
+		}
 		return nil, p.syntaxErrorAtTok(afterName)
 	}
 
@@ -1258,6 +1269,9 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					if parseErr510 != nil {
 						return parseErr510
 					}
+					if col.Collation == "" {
+						return p.syntaxErrorAtCur()
+					}
 				default:
 					return nil
 				}
@@ -1726,7 +1740,13 @@ func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 		if p.cur.Type != kwNULL && (p.cur.Type != kwNOT || p.peekNext().Type != kwNULL) {
 			return nil, p.syntaxErrorAtTok(constTok)
 		}
+		if p.createTableConstraintNames != nil {
+			p.createTableConstraintNames[name] = true
+		}
 		return nil, nil
+	}
+	if p.createTableConstraintNames != nil {
+		p.createTableConstraintNames[name] = true
 	}
 	cc.Name = name
 	cc.Loc.Start = start
@@ -2365,7 +2385,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 				p.createTableEngineCheck = true
 				parseErr542 :=
 					// ENABLE [VALIDATE|NOVALIDATE] constraint_clause - skip it
-					p.parseEnableDisableClause()
+					p.parseEnableDisableClause(stmt)
 				if parseErr542 != nil {
 					return parseErr542
 				}
@@ -2390,7 +2410,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 				appendCreateTableOption(stmt, "DISABLE LOGICAL REPLICATION", "", nodes.Loc{Start: optStart, End: p.prev.End})
 			} else {
 				p.createTableEngineCheck = true
-				parseErr543 := p.parseEnableDisableClause()
+				parseErr543 := p.parseEnableDisableClause(stmt)
 				if parseErr543 != nil {
 					return parseErr543
 
@@ -2871,7 +2891,7 @@ func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) error 
 //	{ ENABLE | DISABLE } [ VALIDATE | NOVALIDATE ]
 //	{ UNIQUE ( column [,...] ) | PRIMARY KEY | CONSTRAINT constraint_name }
 //	[ using_index_clause ] [ exceptions_clause ] [ CASCADE ] [ { KEEP | DROP } INDEX ]
-func (p *Parser) parseEnableDisableClause() error {
+func (p *Parser) parseEnableDisableClause(stmt *nodes.CreateTableStmt) error {
 	p.advance() // consume ENABLE or DISABLE
 
 	// [ VALIDATE | NOVALIDATE ]
@@ -2891,10 +2911,22 @@ func (p *Parser) parseEnableDisableClause() error {
 		if err := p.expectCreateTableToken(kwKEY); err != nil {
 			return err
 		}
+		// In CREATE TABLE, ENABLE/DISABLE PRIMARY KEY followed by any trailing
+		// clause requires a PRIMARY KEY constraint defined on the table
+		// (ORA-02432 at the token immediately following PRIMARY KEY).
+		if !createTableHasPrimaryKey(stmt) && !p.isStatementEnd() {
+			return p.syntaxErrorAtCur()
+		}
 	case kwCONSTRAINT:
 		p.advance()
+		constraintName := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return err
+		}
+		// In CREATE TABLE, ENABLE/DISABLE CONSTRAINT name requires that
+		// constraint to be defined in the statement (ORA-02250).
+		if !p.createTableHasConstraint(stmt, constraintName) {
+			return p.syntaxErrorAtCur()
 		}
 	default:
 		return p.syntaxErrorAtCur()
@@ -2966,6 +2998,36 @@ func createTableHasPrimaryKey(stmt *nodes.CreateTableStmt) bool {
 			}
 			for _, citem := range col.Constraints.Items {
 				if cc, ok := citem.(*nodes.ColumnConstraint); ok && cc.Type == nodes.CONSTRAINT_PRIMARY {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (p *Parser) createTableHasConstraint(stmt *nodes.CreateTableStmt, name string) bool {
+	if stmt == nil || name == "" {
+		return false
+	}
+	if p.createTableConstraintNames[name] {
+		return true
+	}
+	if stmt.Constraints != nil {
+		for _, item := range stmt.Constraints.Items {
+			if tc, ok := item.(*nodes.TableConstraint); ok && tc.Name == name {
+				return true
+			}
+		}
+	}
+	if stmt.Columns != nil {
+		for _, item := range stmt.Columns.Items {
+			col, ok := item.(*nodes.ColumnDef)
+			if !ok || col.Constraints == nil {
+				continue
+			}
+			for _, citem := range col.Constraints.Items {
+				if cc, ok := citem.(*nodes.ColumnConstraint); ok && cc.Name == name {
 					return true
 				}
 			}

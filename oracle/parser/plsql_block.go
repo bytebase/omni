@@ -50,6 +50,9 @@ func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
 	}
 
 	if p.cur.Type != kwBEGIN {
+		if p.cur.Type == tokEOF && p.cur.Loc == len(p.source) && p.prev.Type == ';' {
+			return nil, p.syntaxErrorAtTok(p.prev)
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume BEGIN
@@ -78,6 +81,9 @@ func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
 	}
 
 	if p.cur.Type != kwEND {
+		if p.cur.Type == tokEOF && p.cur.Loc == len(p.source) && p.prev.Type == ';' {
+			return nil, p.syntaxErrorAtTok(p.prev)
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume END
