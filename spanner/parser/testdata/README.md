@@ -20,9 +20,9 @@ end-to-end with `OMNI_RECORD=verify` with zero differences.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,556 | 0 | 58 | 97.78% |
-| Near-misses | 6,223 | 6,205 | 0 | 18 | 99.71% |
-| **All** | **8,837** | **8,761** | **0** | **76** | **99.14%** |
+| One per alternative | 2,614 | 2,614 | 0 | 0 | 100.00% |
+| Near-misses | 6,223 | 6,223 | 0 | 0 | 100.00% |
+| **All** | **8,837** | **8,837** | **0** | **0** | **100.00%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
 refuses every input (`../../../googlesql/testdata/tokens.tsv`).
@@ -42,7 +42,7 @@ lifting generated-row agreement from **7,335 / 8,837 (83.00%)** to
 
 | BigQuery-only family rejected in `DialectSpanner` | Closed generated rows | Notes |
 | --- | ---: | --- |
-| Procedural scripting (`DECLARE`, `IF`, `CASE`, `WHILE`, `LOOP`, `REPEAT`, `FOR ... IN`, `BREAK`, `LEAVE`, `CONTINUE`, `ITERATE`, `RETURN`, `RAISE`, labeled loops) | 104 | Standalone scripting statements rejected in `DialectSpanner`; `BEGIN ... END`, `a : BEGIN END`, `SET`, `CALL`, and `EXECUTE IMMEDIATE` retained. |
+| Procedural scripting (`DECLARE`, `IF`, `CASE`, `WHILE`, `LOOP`, `REPEAT`, `FOR ... IN`, `BREAK`, `LEAVE`, `CONTINUE`, `ITERATE`, `RETURN`, `RAISE`, `BEGIN ... END`, labeled blocks) | 117 | Standalone scripting statements and `BEGIN ... END` / labeled blocks rejected in `DialectSpanner`; SQL transaction `BEGIN`, `SET`, `CALL`, and `EXECUTE IMMEDIATE` retained. |
 | `CREATE FUNCTION` / `CREATE TABLE FUNCTION` / `CREATE PROCEDURE` | 73 | Rejects `CREATE PROCEDURE`, `CREATE TABLE FUNCTION`, `CREATE AGGREGATE FUNCTION`, scoped functions, `DETERMINISTIC`/`IMMUTABLE`/`STABLE`/`VOLATILE`, non-`REMOTE` `LANGUAGE`, BigQuery `REMOTE WITH CONNECTION`, `AS 'string'`, unnamed parameters, and missing `RETURNS` or body; preserves Spanner SQL UDFs `CREATE [OR REPLACE] FUNCTION f(x TYPE) RETURNS TYPE [SQL SECURITY INVOKER] AS (expr)` and Spanner remote functions `CREATE [OR REPLACE] FUNCTION f(x TYPE) RETURNS TYPE [NOT DETERMINISTIC] LANGUAGE REMOTE OPTIONS (...)`. |
 | `CREATE TABLE` without column element list or `PRIMARY KEY` | 63 | Standalone Spanner `CREATE TABLE` requires `(...)` and a table-level or column-level `PRIMARY KEY` (while `\|> CREATE TABLE a` pipe syntax remains accepted). Rejects BigQuery-only `CTAS`, `LIKE`, `CLONE`, `COPY`, `PARTITION BY`, `CLUSTER BY`, `DEFAULT COLLATE`, `WITH CONNECTION`, and table-level `OPTIONS`. |
 | `CREATE [UNIQUE\|NULL_FILTERED\|SEARCH\|VECTOR] INDEX` non-identifier keys & `ALL COLUMNS` | 39 | Requires column identifiers or parenthesized `( expression )` keys on ordinary indexes, column identifiers on `SEARCH`/`VECTOR` indexes and `STORING(...)`; rejects `(ALL COLUMNS)` and `PARTITION BY` on ordinary/vector indexes while preserving `CREATE SEARCH INDEX ... PARTITION BY`, `CREATE INDEX a ON a()`, `NULL_FILTERED`, `STORING`, `, INTERLEAVE IN`, `WHERE`, and Spanner `SEARCH`/`VECTOR` indexes. |
@@ -78,23 +78,27 @@ Judge revision 2 eliminates all 1,092 judge false-accepts (**1,092 → 0**):
   (`CREATE VIEW a AS NULL`, `CREATE VIEW a AS SELECT`) reject on syntax while
   valid view bodies (`CREATE VIEW a AS SELECT NULL`) stay accepted.
 
-### Remaining 76 `Only omni accepts` rows exposed by judge revision 2
+### Closed `DialectSpanner` gaps exposed by judge revision 2 (76 rows → 0)
 
-Judge rev 2 revealed 76 rows where the Spanner emulator `1.5.54` genuinely
-rejects parsing via the `...Stmt` parse-error fallback while `DialectSpanner`
-currently accepts them (tracked for a dedicated `DialectSpanner` parser
-follow-up):
+Judge rev 2 exposed 76 rows where the Spanner emulator `1.5.54` rejected
+parsing via GoogleSQL's `...Stmt` parse-error fallback while `DialectSpanner`
+previously accepted them. All 76 are now closed in `DialectSpanner`, bringing
+agreement to **8,837 / 8,837 (100.00%)**:
 
 - `|> MATCH_RECOGNIZE(...)` pipe operator (47 rows: `MATCH_RECOGNIZE` is
   non-reserved in Spanner emulator `1.5.54`)
 - `BEGIN ... END` / `a : BEGIN END` scripting blocks (13 rows: `BeginStmt`;
   SQL transaction `BEGIN` remains accepted as `BeginStatement`)
 - `LOAD DATA` with `PARTITIONS(...)`, `TEMP[ORARY] TABLE`, or empty `()` column
-  list (7 rows: `AuxLoadDataStmt`)
-- Bare `|> INSERT REPLACE` / `|> INSERT UPDATE` without `OR` (4 rows)
-- Truncated `|> EXPORT` / `|> EXPORT AS` without `DATA` (2 rows)
-- `DESCRIBE ... |> ...` pipe suffix on `DESCRIBE` (2 rows: `DescribeStmt`)
-- `|> AGGREGATE GROUP AND ORDER BY ...` (1 row)
+  list (7 rows: `AuxLoadDataStmt`, `googlesql.tm:3104, 3156, 3295`)
+- Bare `|> INSERT REPLACE` / `|> INSERT UPDATE` without `OR` (4 rows; `OR
+  REPLACE` / `OR UPDATE` / `[OR] IGNORE` remain accepted)
+- Truncated `|> EXPORT` / `|> EXPORT AS` without `DATA` (2 rows; `|> EXPORT
+  DATA` remains accepted)
+- `DESCRIBE ... |> ...` pipe suffix on `DESCRIBE` (2 rows: `DescribeStmt`,
+  `googlesql.tm:1269`)
+- `|> AGGREGATE GROUP AND ORDER BY ...` (1 row; `|> AGGREGATE GROUP BY ...`
+  remains accepted)
 
 ## Recording and verification commands
 

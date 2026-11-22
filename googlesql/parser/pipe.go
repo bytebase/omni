@@ -405,6 +405,9 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		return p.parsePipeInsert(start)
 
 	case kwMATCH_RECOGNIZE:
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		clause, err := p.parseMatchRecognizeClause()
 		if err != nil {
 			return nil, err
@@ -585,6 +588,9 @@ func (p *Parser) parsePipeGroupBy() (*ast.GroupByClause, error) {
 		}
 	}
 	if p.cur.Type == kwAND {
+		if p.isSpanner() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if _, err := p.expect(kwORDER); err != nil {
 			return nil, err

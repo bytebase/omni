@@ -870,6 +870,9 @@ func (p *Parser) parseRaiseStmt() (ast.Node, error) {
 // block / loop forms may be labeled (NOT IF / CASE / DECLARE / SET / …). A
 // trailing identifier after the block's END is the optional end-label.
 func (p *Parser) parseLabeledStmt() (ast.Node, error) {
+	if p.isSpanner() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	labelTok := p.advance() // label identifier
 	name, err := p.identifierText(labelTok)
 	if err != nil {

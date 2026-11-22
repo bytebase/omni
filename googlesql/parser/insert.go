@@ -169,18 +169,18 @@ func (p *Parser) parseInsertOrAction() string {
 		return ""
 	}
 	// Bare IGNORE | REPLACE | UPDATE (no OR).
-	// BigQuery does not accept bare INSERT REPLACE / INSERT UPDATE (requires OR).
+	// BigQuery and Spanner do not accept bare INSERT REPLACE / INSERT UPDATE (require OR).
 	switch p.cur.Type {
 	case kwIGNORE:
 		p.advance()
 		return "IGNORE"
 	case kwREPLACE:
-		if !p.isBigQuery() {
+		if !p.isBigQuery() && !p.isSpanner() {
 			p.advance()
 			return "REPLACE"
 		}
 	case kwUPDATE:
-		if !p.isBigQuery() {
+		if !p.isBigQuery() && !p.isSpanner() {
 			p.advance()
 			return "UPDATE"
 		}
