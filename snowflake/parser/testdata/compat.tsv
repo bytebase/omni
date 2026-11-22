@@ -1160,13 +1160,14 @@ reject	undocumented	docs	statement/alterSnapshotSet!drop-5	ALTER SNAPSHOT SET a 
 reject	undocumented	docs	statement/alterSnapshotSet!drop-6	ALTER SNAPSHOT SET a ADD
 reject	undocumented	docs	statement/alterSnapshotSet!insert	ALTER SNAPSHOT SET a ADD SNAPSHOT zzz
 reject	undocumented	docs	statement/alterSnapshotSet!swap	ALWAYS SNAPSHOT SET a ADD SNAPSHOT
-reject	accept	docs	statement/alterStage	ALTER STAGE a SET
-reject	undocumented	docs	statement/alterStage!drop-1	STAGE a SET
-reject	undocumented	docs	statement/alterStage!drop-2	ALTER a SET
-reject	undocumented	docs	statement/alterStage!drop-3	ALTER STAGE SET
-reject	undocumented	docs	statement/alterStage!drop-4	ALTER STAGE a
-accept	undocumented	docs	statement/alterStage!insert	ALTER STAGE a SET zzz
-reject	undocumented	docs	statement/alterStage!swap	ALWAYS STAGE a SET
+accept	accept	docs	statement/alterStage	ALTER STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	statement/alterStage!drop-1	STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	statement/alterStage!drop-2	ALTER a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	statement/alterStage!drop-3	ALTER STAGE UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	statement/alterStage!drop-4	ALTER STAGE a STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	statement/alterStage!drop-5	ALTER STAGE a UNSET
+accept	undocumented	docs	statement/alterStage!insert	ALTER STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS zzz
+reject	undocumented	docs	statement/alterStage!swap	ALWAYS STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
 accept	accept	docs	statement/alterStorageIntegration	ALTER INTEGRATION a UNSET ENABLED
 accept	accept	docs	statement/alterStorageLifecyclePolicy	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	statement/alterStorageLifecyclePolicy!drop-1	STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
@@ -23098,22 +23099,24 @@ reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(FILE_FOR
 accept	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(FILE_FORMAT_=_(_(FO~bcad99e9!insert	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 zzz
 reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(FILE_FORMAT_=_(_(FO~bcad99e9!swap	ALWAYS STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1
 accept	accept	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef	ALTER STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!drop-1	STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!drop-2	ALTER a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!drop-3	ALTER STAGE UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!drop-4	ALTER STAGE a STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!drop-5	ALTER STAGE a UNSET
-accept	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!insert	ALTER STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS zzz
-reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_UNSET_STAGE_UNDROP_RETEN~5e426cef!swap	ALWAYS STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
-reject	accept	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110	ALTER STAGE a SET
-reject	accept	docs	alterStage(IF_EXISTS)?/%empty	ALTER STAGE a SET
-reject	undocumented	docs	alterStage(IF_EXISTS)?/%empty!insert	ALTER STAGE zzz a SET
-reject	accept	docs	alterStage(IF_EXISTS)?/IF_EXISTS	ALTER STAGE IF EXISTS a SET
-reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER STAGE EXISTS a SET
-reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER STAGE IF a SET
+accept	accept	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110	ALTER STAGE a SET URL = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-1	STAGE a SET URL = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-2	ALTER a SET URL = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-3	ALTER STAGE SET URL = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-4	ALTER STAGE a URL = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-5	ALTER STAGE a SET = 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-6	ALTER STAGE a SET URL 's'
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!drop-7	ALTER STAGE a SET URL =
+accept	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!insert	ALTER STAGE a SET URL = 's' zzz
+reject	undocumented	docs	alterStage/ALTER_STAGE_(IF_EXISTS)?_QNAME_SET_(alterStage_external~2d86f110!swap	ALWAYS STAGE a SET URL = 's'
+accept	accept	docs	alterStage(IF_EXISTS)?/%empty	ALTER STAGE a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	alterStage(IF_EXISTS)?/%empty!insert	ALTER STAGE zzz a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+accept	accept	docs	alterStage(IF_EXISTS)?/IF_EXISTS	ALTER STAGE IF EXISTS a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER STAGE EXISTS a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER STAGE IF a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
 reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!truncate	ALTER STAGE IF
-reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!insert	ALTER STAGE IF EXISTS zzz a SET
-reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!swap	ALTER STAGE IGNORE EXISTS a SET
+reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!insert	ALTER STAGE IF EXISTS zzz a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
+reject	undocumented	docs	alterStage(IF_EXISTS)?/IF_EXISTS!swap	ALTER STAGE IGNORE EXISTS a UNSET STAGE_UNDROP_RETENTION_TIME_IN_DAYS
 accept	accept	docs	alterStage(,_QNAME_=_STRING)*/%empty	ALTER STAGE a SET TAG a = 's'
 accept	accept	docs	alterStage(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER STAGE a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterStage(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER STAGE a SET TAG a = 's' a = 's'
@@ -23139,7 +23142,6 @@ accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae
 accept	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER_(COMMENT_=_STRING)?	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1
 accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER_(COMMENT_=_STRING)?!swap	ALTER STAGE a SET STANDARD = 1
 accept	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/COMMENT_=_STRING	ALTER STAGE a SET COMMENT = 's'
-reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/COMMENT_=_STRING!drop-1	ALTER STAGE a SET = 's'
 reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/COMMENT_=_STRING!drop-2	ALTER STAGE a SET COMMENT 's'
 reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/COMMENT_=_STRING!drop-3	ALTER STAGE a SET COMMENT =
 accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~4588eae7)/COMMENT_=_STRING!insert	ALTER STAGE a SET COMMENT = 's' zzz
@@ -23241,45 +23243,103 @@ reject	undocumented	docs	alterStage(STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER
 reject	undocumented	docs	alterStage(STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER)?/STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER!drop-3	ALTER STAGE a SET FILE_FORMAT =(FORMAT_NAME = 's') STAGE_UNDROP_RETENTION_TIME_IN_DAYS =
 accept	undocumented	docs	alterStage(STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER)?/STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER!insert	ALTER STAGE a SET FILE_FORMAT =(FORMAT_NAME = 's') STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 zzz
 accept	undocumented	docs	alterStage(STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER)?/STAGE_UNDROP_RETENTION_TIME_IN_DAYS_=_NUMBER!swap	ALTER STAGE a SET FILE_FORMAT =(FORMAT_NAME = 's') STANDARD = 1
-reject	accept	docs	alterStage(COMMENT_=_STRING)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER STAGE a SET COMMENT = 's'
-reject	accept	docs	alterStage(alterStage_externalStageParams_(FILE~4a184750)/alterStage_externalStageParams_(FILE_FORMAT_=_(_(FORMAT~e282f846	ALTER STAGE a SET
+accept	accept	docs	alterStage(COMMENT_=_STRING)?/%empty	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1
+accept	accept	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 COMMENT = 's'
+reject	undocumented	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 = 's'
+reject	undocumented	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 COMMENT 's'
+reject	undocumented	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 COMMENT =
+accept	undocumented	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 COMMENT = 's' zzz
+accept	undocumented	docs	alterStage(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER STAGE a SET STAGE_UNDROP_RETENTION_TIME_IN_DAYS = 1 COMMENTS = 's'
+accept	accept	docs	alterStage(alterStage_externalStageParams_(FILE~4a184750)/alterStage_externalStageParams_(FILE_FORMAT_=_(_(FORMAT~e282f846	ALTER STAGE a SET URL = 's'
+accept	undocumented	docs	alterStage(alterStage_externalStageParams_(FILE~4a184750)/alterStage_externalStageParams_(FILE_FORMAT_=_(_(FORMAT~e282f846!swap	ALTER STAGE a SET USAGE = 's'
 accept	accept	docs	alterStage(alterStage_externalStageParams_(FILE~4a184750)/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~631d9405	ALTER STAGE a SET FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	alterStage(alterStage_externalStageParams_(FILE~4a184750)/COMMENT_=_STRING	ALTER STAGE a SET COMMENT = 's'
-reject	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3	ALTER STAGE a SET FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	alterStage_externalStageParams/(URL_=_STRING)?_(AWS_ACCESS_POINT_ARN_=_STRING)?_(STORA~57e8c234	ALTER STAGE a SET
-reject	accept	docs	alterStage_externalStageParams/(URL_=_STRING)?_(STORAGE_INTEGRATION_=_ID)?_(ENCRYPTION~95d2ecd5	ALTER STAGE a SET
-reject	accept	docs	alterStage_externalStageParams/(URL_=_STRING)?_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f~3d06ff0f	ALTER STAGE a SET
-reject	accept	docs	alterStage_externalStageParams(URL_=_STRING)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(URL_=_STRING)?/URL_=_STRING	ALTER STAGE a SET URL = 's'
-reject	undocumented	docs	alterStage_externalStageParams(URL_=_STRING)?/URL_=_STRING!drop-2	ALTER STAGE a SET URL 's'
-reject	undocumented	docs	alterStage_externalStageParams(URL_=_STRING)?/URL_=_STRING!drop-3	ALTER STAGE a SET URL =
-accept	undocumented	docs	alterStage_externalStageParams(URL_=_STRING)?/URL_=_STRING!insert	ALTER STAGE a SET URL = 's' zzz
-accept	undocumented	docs	alterStage_externalStageParams(URL_=_STRING)?/URL_=_STRING!swap	ALTER STAGE a SET USAGE = 's'
-reject	accept	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING	ALTER STAGE a SET AWS_ACCESS_POINT_ARN = 's'
-reject	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-2	ALTER STAGE a SET AWS_ACCESS_POINT_ARN 's'
-reject	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-3	ALTER STAGE a SET AWS_ACCESS_POINT_ARN =
-accept	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!insert	ALTER STAGE a SET AWS_ACCESS_POINT_ARN = 's' zzz
-accept	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!swap	ALTER STAGE a SET AWS_API_GATEWAY = 's'
-reject	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET STORAGE_INTEGRATION = a
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-1	ALTER STAGE a SET = a
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-2	ALTER STAGE a SET STORAGE_INTEGRATION a
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-3	ALTER STAGE a SET STORAGE_INTEGRATION =
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!insert	ALTER STAGE a SET STORAGE_INTEGRATION = a zzz
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!swap	ALTER STAGE a SET STORAGE_LOCATION = a
-accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's')
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-1	ALTER STAGE a SET =(AWS_ROLE = 's')
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-2	ALTER STAGE a SET CREDENTIALS(AWS_ROLE = 's')
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-3	ALTER STAGE a SET CREDENTIALS = AWS_ROLE = 's')
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-4	ALTER STAGE a SET CREDENTIALS =(= 's')
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-5	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE 's')
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-6	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE =)
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-7	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's'
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!insert	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's') zzz
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!swap	ALTER STAGE a SET CREDIT_QUOTA =(AWS_ROLE = 's')
+accept	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3	ALTER STAGE a SET URL = 's' FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-1	ALTER STAGE a SET URL = 's' =(FORMAT_NAME = 's')
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-2	ALTER STAGE a SET URL = 's' FILE_FORMAT(FORMAT_NAME = 's')
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-3	ALTER STAGE a SET URL = 's' FILE_FORMAT = FORMAT_NAME = 's')
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-4	ALTER STAGE a SET URL = 's' FILE_FORMAT =(= 's')
+accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-5	ALTER STAGE a SET URL = 's' FILE_FORMAT =(FORMAT_NAME 's')
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-6	ALTER STAGE a SET URL = 's' FILE_FORMAT =(FORMAT_NAME =)
+reject	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!drop-7	ALTER STAGE a SET URL = 's' FILE_FORMAT =(FORMAT_NAME = 's'
+accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!insert	ALTER STAGE a SET URL = 's' FILE_FORMAT =(FORMAT_NAME = 's') zzz
+accept	undocumented	docs	alterStage(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~331b6b73)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_alt~4~15d78aa3!swap	ALTER STAGE a SET URL = 's' FILE_PATH =(FORMAT_NAME = 's')
+accept	accept	docs	alterStage_externalStageParams/URL_=_STRING_(AWS_ACCESS_POINT_ARN_=_STRING)?_(STORAGE_~574f235f	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams/AWS_ACCESS_POINT_ARN_=_STRING_(STORAGE_INTEGRATION_=_ID~dd0a8648	ALTER STAGE a SET AWS_ACCESS_POINT_ARN = 's'
+reject	undocumented	docs	alterStage_externalStageParams/AWS_ACCESS_POINT_ARN_=_STRING_(STORAGE_INTEGRATION_=_ID~dd0a8648!drop-2	ALTER STAGE a SET AWS_ACCESS_POINT_ARN 's'
+reject	undocumented	docs	alterStage_externalStageParams/AWS_ACCESS_POINT_ARN_=_STRING_(STORAGE_INTEGRATION_=_ID~dd0a8648!drop-3	ALTER STAGE a SET AWS_ACCESS_POINT_ARN =
+accept	undocumented	docs	alterStage_externalStageParams/AWS_ACCESS_POINT_ARN_=_STRING_(STORAGE_INTEGRATION_=_ID~dd0a8648!insert	ALTER STAGE a SET AWS_ACCESS_POINT_ARN = 's' zzz
+accept	undocumented	docs	alterStage_externalStageParams/AWS_ACCESS_POINT_ARN_=_STRING_(STORAGE_INTEGRATION_=_ID~dd0a8648!swap	ALTER STAGE a SET AWS_API_GATEWAY = 's'
+accept	accept	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff	ALTER STAGE a SET STORAGE_INTEGRATION = a
+reject	undocumented	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff!drop-1	ALTER STAGE a SET = a
+accept	undocumented	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff!drop-2	ALTER STAGE a SET STORAGE_INTEGRATION a
+reject	undocumented	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff!drop-3	ALTER STAGE a SET STORAGE_INTEGRATION =
+accept	undocumented	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff!insert	ALTER STAGE a SET STORAGE_INTEGRATION = a zzz
+accept	undocumented	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)_(ENCRYP~7deb21ff!swap	ALTER STAGE a SET STORAGE_LOCATION = a
+accept	accept	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-1	ALTER STAGE a SET =(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-2	ALTER STAGE a SET ENCRYPTION(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-3	ALTER STAGE a SET ENCRYPTION = MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-4	ALTER STAGE a SET ENCRYPTION =(= 's')
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-5	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY 's')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-6	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY =)
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!drop-7	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's'
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!insert	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's') zzz
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dc~4161e41e!swap	ALTER STAGE a SET ENDPOINT =(MASTER_KEY = 's')
+accept	accept	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUE
+reject	undocumented	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-1	ALTER STAGE a SET = TRUE
+accept	undocumented	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-2	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT TRUE
+reject	undocumented	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-3	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT =
+accept	undocumented	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!insert	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUE zzz
+accept	undocumented	docs	alterStage_externalStageParams/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!swap	ALTER STAGE a SET USE_PRIVATELINK_FOR_AUTHORIZATION_ENDPOINT = TRUE
+accept	accept	docs	alterStage_externalStageParams/URL_=_STRING_(STORAGE_INTEGRATION_=_ID)?_(ENCRYPTION_=_~af83a880	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams/STORAGE_INTEGRATION_=_ID_(ENCRYPTION_=_(_(TYPE_=_'GCS_S~38b93286	ALTER STAGE a SET STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-1	ALTER STAGE a SET =(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-2	ALTER STAGE a SET ENCRYPTION(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-3	ALTER STAGE a SET ENCRYPTION = TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-4	ALTER STAGE a SET ENCRYPTION =(= 'GCS_SSE_KMS')
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-5	ALTER STAGE a SET ENCRYPTION =(TYPE 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-6	ALTER STAGE a SET ENCRYPTION =(TYPE =)
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-7	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS'
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS') zzz
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!swap	ALTER STAGE a SET ENDPOINT =(TYPE = 'GCS_SSE_KMS')
+accept	accept	docs	alterStage_externalStageParams/URL_=_STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48e~bb189b14	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams/(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)_(ENCRYP~d487d236	ALTER STAGE a SET STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-1	ALTER STAGE a SET =(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-2	ALTER STAGE a SET ENCRYPTION(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-3	ALTER STAGE a SET ENCRYPTION = TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-4	ALTER STAGE a SET ENCRYPTION =(= 'AZURE_CSE')
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-5	ALTER STAGE a SET ENCRYPTION =(TYPE 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!drop-7	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE'
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE') zzz
+accept	undocumented	docs	alterStage_externalStageParams/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6~d7587ed3!swap	ALTER STAGE a SET ENDPOINT =(TYPE = 'AZURE_CSE')
+accept	accept	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING	ALTER STAGE a SET URL = 's' AWS_ACCESS_POINT_ARN = 's'
+reject	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-1	ALTER STAGE a SET URL = 's' = 's'
+reject	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-2	ALTER STAGE a SET URL = 's' AWS_ACCESS_POINT_ARN 's'
+reject	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!drop-3	ALTER STAGE a SET URL = 's' AWS_ACCESS_POINT_ARN =
+accept	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!insert	ALTER STAGE a SET URL = 's' AWS_ACCESS_POINT_ARN = 's' zzz
+accept	undocumented	docs	alterStage_externalStageParams(AWS_ACCESS_POINT_ARN_=_STRING)?/AWS_ACCESS_POINT_ARN_=_STRING!swap	ALTER STAGE a SET URL = 's' AWS_API_GATEWAY = 's'
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION = a
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-1	ALTER STAGE a SET URL = 's' = a
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-2	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION a
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!drop-3	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION =
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!insert	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION = a zzz
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/STORAGE_INTEGRATION_=_ID!swap	ALTER STAGE a SET URL = 's' STORAGE_LOCATION = a
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27	ALTER STAGE a SET URL = 's' CREDENTIALS =(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-1	ALTER STAGE a SET URL = 's' =(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-2	ALTER STAGE a SET URL = 's' CREDENTIALS(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-3	ALTER STAGE a SET URL = 's' CREDENTIALS = AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-4	ALTER STAGE a SET URL = 's' CREDENTIALS =(= 's')
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-5	ALTER STAGE a SET URL = 's' CREDENTIALS =(AWS_ROLE 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-6	ALTER STAGE a SET URL = 's' CREDENTIALS =(AWS_ROLE =)
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-7	ALTER STAGE a SET URL = 's' CREDENTIALS =(AWS_ROLE = 's'
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!insert	ALTER STAGE a SET URL = 's' CREDENTIALS =(AWS_ROLE = 's') zzz
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)?/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!swap	ALTER STAGE a SET URL = 's' CREDIT_QUOTA =(AWS_ROLE = 's')
 accept	accept	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_(AWS_TOKEN_~9bf7e6ad	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
 reject	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_(AWS_TOKEN_~9bf7e6ad!drop-1	ALTER STAGE a SET CREDENTIALS =(= 's' AWS_SECRET_KEY = 's')
 accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_(AWS_TOKEN_~9bf7e6ad!drop-2	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's')
@@ -23291,6 +23351,9 @@ reject	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_
 accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_(AWS_TOKEN_~9bf7e6ad!insert	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_STRING_(AWS_TOKEN_~9bf7e6ad!swap	ALTER STAGE a SET CREDENTIALS =(AWS_PRIVATE_API_GATEWAY = 's' AWS_SECRET_KEY = 's')
 accept	accept	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!drop-1	ALTER STAGE a SET CREDENTIALS =(= 's')
+accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!drop-2	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE 's')
+reject	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!drop-3	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE =)
 reject	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!truncate	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE =
 accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!insert	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7ac3ff76)/AWS_ROLE_=_STRING!swap	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE_ARN = 's')
@@ -23302,17 +23365,17 @@ reject	undocumented	docs	alterStage_externalStageParams(AWS_TOKEN_=_STRING)?/AWS
 reject	undocumented	docs	alterStage_externalStageParams(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!truncate	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =
 accept	undocumented	docs	alterStage_externalStageParams(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	ALTER STAGE a SET CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's')
-reject	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-1	ALTER STAGE a SET =(MASTER_KEY = 's')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-2	ALTER STAGE a SET ENCRYPTION(MASTER_KEY = 's')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-3	ALTER STAGE a SET ENCRYPTION = MASTER_KEY = 's')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-4	ALTER STAGE a SET ENCRYPTION =(= 's')
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-5	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY 's')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-6	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY =)
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-7	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's'
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!insert	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's') zzz
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!swap	ALTER STAGE a SET ENDPOINT =(MASTER_KEY = 's')
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)	ALTER STAGE a SET URL = 's' ENCRYPTION =(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-1	ALTER STAGE a SET URL = 's' =(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-2	ALTER STAGE a SET URL = 's' ENCRYPTION(MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-3	ALTER STAGE a SET URL = 's' ENCRYPTION = MASTER_KEY = 's')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-4	ALTER STAGE a SET URL = 's' ENCRYPTION =(= 's')
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-5	ALTER STAGE a SET URL = 's' ENCRYPTION =(MASTER_KEY 's')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-6	ALTER STAGE a SET URL = 's' ENCRYPTION =(MASTER_KEY =)
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!drop-7	ALTER STAGE a SET URL = 's' ENCRYPTION =(MASTER_KEY = 's'
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!insert	ALTER STAGE a SET URL = 's' ENCRYPTION =(MASTER_KEY = 's') zzz
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~859c8818)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)_)!swap	ALTER STAGE a SET URL = 's' ENDPOINT =(MASTER_KEY = 's')
 accept	accept	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/(TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STRING	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's')
 reject	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/(TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STRING!truncate	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY =
 accept	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/(TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STRING!insert	ALTER STAGE a SET ENCRYPTION =(MASTER_KEY = 's' zzz)
@@ -23320,7 +23383,6 @@ accept	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MAST
 accept	accept	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AWS_SSE_S3')
 reject	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!drop-1	ALTER STAGE a SET ENCRYPTION =(= 'AWS_SSE_S3')
 accept	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!drop-2	ALTER STAGE a SET ENCRYPTION =(TYPE 'AWS_SSE_S3')
-reject	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!drop-3	ALTER STAGE a SET ENCRYPTION =(TYPE =)
 reject	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!truncate	ALTER STAGE a SET ENCRYPTION =(TYPE =
 accept	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz)
 accept	undocumented	docs	alterStage_externalStageParams((TYPE_=_'AWS_CSE')?_MASTER_KEY_=_STR~dcf4bce0)/TYPE_=_'AWS_SSE_S3'!swap	ALTER STAGE a SET ENCRYPTION =(TYPES = 'AWS_SSE_S3')
@@ -23350,43 +23412,52 @@ reject	undocumented	docs	alterStage_externalStageParams(KMS_KEY_ID_=_STRING)?/KM
 reject	undocumented	docs	alterStage_externalStageParams(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AWS_SSE_KMS' KMS_KEY_ID =
 accept	undocumented	docs	alterStage_externalStageParams(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AWS_SSE_KMS' KMS_KEY_ID = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AWS_SSE_KMS' LABEL = 's')
-reject	accept	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUE
-reject	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-1	ALTER STAGE a SET = TRUE
-accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-2	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT TRUE
-reject	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-3	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT =
-accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!insert	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUE zzz
-accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!swap	ALTER STAGE a SET USE_PRIVATELINK_FOR_AUTHORIZATION_ENDPOINT = TRUE
+accept	accept	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)	ALTER STAGE a SET URL = 's' USE_PRIVATELINK_ENDPOINT = TRUE
+reject	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-1	ALTER STAGE a SET URL = 's' = TRUE
+accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-2	ALTER STAGE a SET URL = 's' USE_PRIVATELINK_ENDPOINT TRUE
+reject	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!drop-3	ALTER STAGE a SET URL = 's' USE_PRIVATELINK_ENDPOINT =
+accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!insert	ALTER STAGE a SET URL = 's' USE_PRIVATELINK_ENDPOINT = TRUE zzz
+accept	undocumented	docs	alterStage_externalStageParams(USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE))?/USE_PRIVATELINK_ENDPOINT_=_(TRUE|FALSE)!swap	ALTER STAGE a SET URL = 's' USE_PRIVATELINK_FOR_AUTHORIZATION_ENDPOINT = TRUE
 accept	accept	docs	alterStage_externalStageParams(TRUE|FALSE)/TRUE	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUE
 accept	undocumented	docs	alterStage_externalStageParams(TRUE|FALSE)/TRUE!swap	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = TRUNCATE
 accept	accept	docs	alterStage_externalStageParams(TRUE|FALSE)/FALSE	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = FALSE
 accept	undocumented	docs	alterStage_externalStageParams(TRUE|FALSE)/FALSE!insert	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = FALSE zzz
 accept	undocumented	docs	alterStage_externalStageParams(TRUE|FALSE)/FALSE!swap	ALTER STAGE a SET USE_PRIVATELINK_ENDPOINT = FAMILIES
-reject	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET STORAGE_INTEGRATION = a
-reject	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-1	ALTER STAGE a SET =(TYPE = 'GCS_SSE_KMS')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-2	ALTER STAGE a SET ENCRYPTION(TYPE = 'GCS_SSE_KMS')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-3	ALTER STAGE a SET ENCRYPTION = TYPE = 'GCS_SSE_KMS')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-4	ALTER STAGE a SET ENCRYPTION =(= 'GCS_SSE_KMS')
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-5	ALTER STAGE a SET ENCRYPTION =(TYPE 'GCS_SSE_KMS')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-7	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS'
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS') zzz
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!swap	ALTER STAGE a SET ENDPOINT =(TYPE = 'GCS_SSE_KMS')
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-1	ALTER STAGE a SET =(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-2	ALTER STAGE a SET CREDENTIALS(AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-3	ALTER STAGE a SET CREDENTIALS = AWS_ROLE = 's')
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!drop-7	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's'
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!insert	ALTER STAGE a SET CREDENTIALS =(AWS_ROLE = 's') zzz
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~5c135385)/CREDENTIALS_=_(_(AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=~7~083c9a27!swap	ALTER STAGE a SET CREDIT_QUOTA =(AWS_ROLE = 's')
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-1	ALTER STAGE a SET URL = 's' =(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-2	ALTER STAGE a SET URL = 's' ENCRYPTION(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-3	ALTER STAGE a SET URL = 's' ENCRYPTION = TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-4	ALTER STAGE a SET URL = 's' ENCRYPTION =(= 'GCS_SSE_KMS')
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-5	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE 'GCS_SSE_KMS')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-6	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE =)
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!drop-7	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS'
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!insert	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS') zzz
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'~9a512624)?/ENCRYPTION_=_(_(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)_)!swap	ALTER STAGE a SET URL = 's' ENDPOINT =(TYPE = 'GCS_SSE_KMS')
 accept	accept	docs	alterStage_externalStageParams(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)/TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
 accept	undocumented	docs	alterStage_externalStageParams(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)/TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)/TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	ALTER STAGE a SET ENCRYPTION =(TYPES = 'GCS_SSE_KMS')
 accept	accept	docs	alterStage_externalStageParams(TYPE_=_'GCS_SSE_KMS'_(KMS_KEY_ID_=_S~4d7c6eeb)/TYPE_=_'NONE'	ALTER STAGE a SET ENCRYPTION =(TYPE = 'NONE')
-reject	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET STORAGE_INTEGRATION = a
-accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	ALTER STAGE a SET CREDENTIALS =()
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	ALTER STAGE a SET =()
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	ALTER STAGE a SET CREDENTIALS()
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	ALTER STAGE a SET CREDENTIALS =)
-reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	ALTER STAGE a SET CREDENTIALS =(
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	ALTER STAGE a SET CREDENTIALS =() zzz
-accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	ALTER STAGE a SET CREDIT_QUOTA =()
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET URL = 's' STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	ALTER STAGE a SET URL = 's' CREDENTIALS =()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	ALTER STAGE a SET URL = 's' =()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	ALTER STAGE a SET URL = 's' CREDENTIALS()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	ALTER STAGE a SET URL = 's' CREDENTIALS =)
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	ALTER STAGE a SET URL = 's' CREDENTIALS =(
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	ALTER STAGE a SET URL = 's' CREDENTIALS =() zzz
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	ALTER STAGE a SET URL = 's' CREDIT_QUOTA =()
 accept	accept	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/%empty	ALTER STAGE a SET CREDENTIALS =()
 accept	undocumented	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	ALTER STAGE a SET CREDENTIALS =(zzz)
 accept	accept	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	ALTER STAGE a SET CREDENTIALS =(AZURE_SAS_TOKEN = 's')
@@ -23395,16 +23466,16 @@ reject	undocumented	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING
 reject	undocumented	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!truncate	ALTER STAGE a SET CREDENTIALS =(AZURE_SAS_TOKEN =
 accept	undocumented	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	ALTER STAGE a SET CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	ALTER STAGE a SET CREDENTIALS =(AZURE_STORAGE_QUEUE = 's')
-reject	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/%empty	ALTER STAGE a SET
-accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-1	ALTER STAGE a SET =(TYPE = 'AZURE_CSE')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-2	ALTER STAGE a SET ENCRYPTION(TYPE = 'AZURE_CSE')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-3	ALTER STAGE a SET ENCRYPTION = TYPE = 'AZURE_CSE')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-4	ALTER STAGE a SET ENCRYPTION =(= 'AZURE_CSE')
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-5	ALTER STAGE a SET ENCRYPTION =(TYPE 'AZURE_CSE')
-reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-7	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE'
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE') zzz
-accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!swap	ALTER STAGE a SET ENDPOINT =(TYPE = 'AZURE_CSE')
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/%empty	ALTER STAGE a SET URL = 's'
+accept	accept	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-1	ALTER STAGE a SET URL = 's' =(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-2	ALTER STAGE a SET URL = 's' ENCRYPTION(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-3	ALTER STAGE a SET URL = 's' ENCRYPTION = TYPE = 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-4	ALTER STAGE a SET URL = 's' ENCRYPTION =(= 'AZURE_CSE')
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-5	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE 'AZURE_CSE')
+reject	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!drop-7	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'AZURE_CSE'
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!insert	ALTER STAGE a SET URL = 's' ENCRYPTION =(TYPE = 'AZURE_CSE') zzz
+accept	undocumented	docs	alterStage_externalStageParams(ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(~26bffa6b)?/ENCRYPTION_=_(_(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)_)!swap	ALTER STAGE a SET URL = 's' ENDPOINT =(TYPE = 'AZURE_CSE')
 accept	accept	docs	alterStage_externalStageParams(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)/TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STRING)?	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE')
 accept	undocumented	docs	alterStage_externalStageParams(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)/TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STRING)?!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STR~b6916c05)/TYPE_=_'AZURE_CSE'_(MASTER_KEY_=_STRING)?!swap	ALTER STAGE a SET ENCRYPTION =(TYPES = 'AZURE_CSE')
@@ -23417,6 +23488,14 @@ reject	undocumented	docs	alterStage_externalStageParams(MASTER_KEY_=_STRING)?/MA
 reject	undocumented	docs	alterStage_externalStageParams(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE' MASTER_KEY =
 accept	undocumented	docs	alterStage_externalStageParams(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE' MASTER_KEY = 's' zzz)
 accept	undocumented	docs	alterStage_externalStageParams(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	ALTER STAGE a SET ENCRYPTION =(TYPE = 'AZURE_CSE' MATCH = 's')
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/STORAGE_INTEGRATION_=_ID	ALTER STAGE a SET STORAGE_INTEGRATION = a
+accept	accept	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	ALTER STAGE a SET CREDENTIALS =()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	ALTER STAGE a SET =()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	ALTER STAGE a SET CREDENTIALS()
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	ALTER STAGE a SET CREDENTIALS =)
+reject	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	ALTER STAGE a SET CREDENTIALS =(
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	ALTER STAGE a SET CREDENTIALS =() zzz
+accept	undocumented	docs	alterStage_externalStageParams(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	ALTER STAGE a SET CREDIT_QUOTA =()
 accept	accept	docs	alterStage_formatTypeOptions_CSV/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e09731ce)_(,?_(CO~3c43986d	ALTER STAGE a SET FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	alterStage_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e09731ce)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	ALTER STAGE a SET FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	alterStage_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~e09731ce)/RECORD_DELIMITER_=_(STRING|NONE)	ALTER STAGE a SET FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's')
@@ -26777,50 +26856,50 @@ reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER TASK a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER TASK a SET TAG a = 's', a =
 reject	undocumented	docs	alterTask(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER TASK a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-1	TASK GRAPH a SET a = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER GRAPH a SET a = a
-accept	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-4	ALTER TASK GRAPH SET a = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-5	ALTER TASK GRAPH a a = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-6	ALTER TASK GRAPH a SET = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-7	ALTER TASK GRAPH a SET a a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!drop-8	ALTER TASK GRAPH a SET a =
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!insert	ALTER TASK GRAPH a SET a = a zzz
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_ID_=_ID_(,_ID_=_ID)*!swap	ALWAYS TASK GRAPH a SET a = a
-reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*	ALTER TASK GRAPH a UNSET a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-1	TASK GRAPH a UNSET a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-2	ALTER GRAPH a UNSET a
-accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-4	ALTER TASK GRAPH UNSET a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-5	ALTER TASK GRAPH a a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!drop-6	ALTER TASK GRAPH a UNSET
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!insert	ALTER TASK GRAPH a UNSET a zzz
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_a_(,_a)*!swap	ALWAYS TASK GRAPH a UNSET a
-reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-1	TASK GRAPH a SET TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-2	ALTER GRAPH a SET TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-3	ALTER TASK a SET TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-4	ALTER TASK GRAPH SET TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-5	ALTER TASK GRAPH a TASK_DEFAULTS(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-6	ALTER TASK GRAPH a SET(a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-7	ALTER TASK GRAPH a SET TASK_DEFAULTS a = a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-8	ALTER TASK GRAPH a SET TASK_DEFAULTS(= a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-9	ALTER TASK GRAPH a SET TASK_DEFAULTS(a a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-10	ALTER TASK GRAPH a SET TASK_DEFAULTS(a =)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!drop-11	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(a = a) zzz
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~aa5c27e3!swap	ALWAYS TASK GRAPH a SET TASK_DEFAULTS(a = a)
-reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-1	TASK GRAPH a UNSET TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-2	ALTER GRAPH a UNSET TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-3	ALTER TASK a UNSET TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-4	ALTER TASK GRAPH UNSET TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-5	ALTER TASK GRAPH a TASK_DEFAULTS(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-6	ALTER TASK GRAPH a UNSET(a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-7	ALTER TASK GRAPH a UNSET TASK_DEFAULTS a)
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-8	ALTER TASK GRAPH a UNSET TASK_DEFAULTS()
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!drop-9	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(a
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(a) zzz
-reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~ec23dd12!swap	ALWAYS TASK GRAPH a UNSET TASK_DEFAULTS(a)
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd	ALTER TASK GRAPH a SET SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-1	TASK GRAPH a SET SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-2	ALTER GRAPH a SET SCHEDULE = 's'
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-4	ALTER TASK GRAPH SET SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-5	ALTER TASK GRAPH a SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-6	ALTER TASK GRAPH a SET = 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-7	ALTER TASK GRAPH a SET SCHEDULE 's'
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!drop-8	ALTER TASK GRAPH a SET SCHEDULE =
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!insert	ALTER TASK GRAPH a SET SCHEDULE = 's' zzz
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_(SCHEDULE_=_STR~0034d4bd!swap	ALWAYS TASK GRAPH a SET SCHEDULE = 's'
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35	ALTER TASK GRAPH a UNSET SCHEDULE
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!drop-1	TASK GRAPH a UNSET SCHEDULE
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!drop-2	ALTER GRAPH a UNSET SCHEDULE
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!drop-4	ALTER TASK GRAPH UNSET SCHEDULE
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!drop-5	ALTER TASK GRAPH a SCHEDULE
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!drop-6	ALTER TASK GRAPH a UNSET
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!insert	ALTER TASK GRAPH a UNSET SCHEDULE zzz
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_(SCHEDULE|ROO~2c9cee35!swap	ALWAYS TASK GRAPH a UNSET SCHEDULE
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-1	TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-2	ALTER GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-3	ALTER TASK a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-4	ALTER TASK GRAPH SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-5	ALTER TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-6	ALTER TASK GRAPH a SET(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-7	ALTER TASK GRAPH a SET TASK_DEFAULTS WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-8	ALTER TASK GRAPH a SET TASK_DEFAULTS(= a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-9	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE a)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-10	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE =)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!drop-11	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a) zzz
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_TASK_DEFAULTS_(~0129cd33!swap	ALWAYS TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-1	TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-2	ALTER GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-3	ALTER TASK a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-4	ALTER TASK GRAPH UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-5	ALTER TASK GRAPH a TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-6	ALTER TASK GRAPH a UNSET(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-7	ALTER TASK GRAPH a UNSET TASK_DEFAULTS WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-8	ALTER TASK GRAPH a UNSET TASK_DEFAULTS()
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!drop-9	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE) zzz
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TASK_DEFAULTS~610cbbc4!swap	ALWAYS TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_MODIFY_WHEN_EXPR	ALTER TASK GRAPH a MODIFY WHEN 1
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_MODIFY_WHEN_EXPR!drop-1	TASK GRAPH a MODIFY WHEN 1
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_MODIFY_WHEN_EXPR!drop-2	ALTER GRAPH a MODIFY WHEN 1
@@ -26854,6 +26933,7 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSE
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-2	ALTER GRAPH a UNSET TAG a
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER TASK GRAPH UNSET TAG a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER TASK GRAPH a TAG a
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER TASK GRAPH a UNSET a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER TASK GRAPH a UNSET TAG
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER TASK GRAPH a UNSET TAG a zzz
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS TASK GRAPH a UNSET TAG a
@@ -26862,7 +26942,8 @@ reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-2	ALTER GRAPH a SET CONTACT a = a
 accept	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-4	ALTER TASK GRAPH SET CONTACT a = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-5	ALTER TASK GRAPH a CONTACT a = a
-reject	accept	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-7	ALTER TASK GRAPH a SET CONTACT = a
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-6	ALTER TASK GRAPH a SET a = a
+reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-7	ALTER TASK GRAPH a SET CONTACT = a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-8	ALTER TASK GRAPH a SET CONTACT a a
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!drop-9	ALTER TASK GRAPH a SET CONTACT a =
 reject	undocumented	docs	alterTaskGraph/ALTER_TASK_GRAPH_(IF_EXISTS)?_QNAME_SET_CONTACT_ID_=_ID~53f3b770!insert	ALTER TASK GRAPH a SET CONTACT a = a zzz
@@ -26903,23 +26984,220 @@ reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER TASK 
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!truncate	ALTER TASK GRAPH IF
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!insert	ALTER TASK GRAPH IF EXISTS zzz a COMMIT
 reject	undocumented	docs	alterTaskGraph(IF_EXISTS)?/IF_EXISTS!swap	ALTER TASK GRAPH IGNORE EXISTS a COMMIT
-reject	accept	docs	alterTaskGraph(,_ID_=_ID)*/%empty	ALTER TASK GRAPH a SET a = a
-reject	accept	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET a = a, a = a
-reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	ALTER TASK GRAPH a SET a = a a = a
-reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER TASK GRAPH a SET a = a, = a
-reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER TASK GRAPH a SET a = a, a a
-reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	ALTER TASK GRAPH a SET a = a, a =
-reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	ALTER TASK GRAPH a SET a = a, a = a zzz
-reject	accept	docs	alterTaskGraph(,_a)*/%empty	ALTER TASK GRAPH a UNSET a
-reject	accept	docs	alterTaskGraph(,_a)*/,_a_(,_a)*	ALTER TASK GRAPH a UNSET a, a
-reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!drop-1	ALTER TASK GRAPH a UNSET a a
-reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!drop-2	ALTER TASK GRAPH a UNSET a,
-reject	undocumented	docs	alterTaskGraph(,_a)*/,_a_(,_a)*!insert	ALTER TASK GRAPH a UNSET a, a zzz
-accept	accept	docs	alterTaskGraph(,_ID)*/%empty	ALTER TASK GRAPH a UNSET CONTACT a
-accept	accept	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*	ALTER TASK GRAPH a UNSET CONTACT a, a
-reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER TASK GRAPH a UNSET CONTACT a a
-reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER TASK GRAPH a UNSET CONTACT a,
-reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!insert	ALTER TASK GRAPH a UNSET CONTACT a, a zzz
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SCHEDULE_=_STRING	ALTER TASK GRAPH a SET SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SCHEDULE_=_STRING!swap	ALTER TASK GRAPH a SET SCHEDULER = 's'
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)	ALTER TASK GRAPH a SET ROOTS =(a)
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!drop-1	ALTER TASK GRAPH a SET =(a)
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!drop-2	ALTER TASK GRAPH a SET ROOTS(a)
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!drop-3	ALTER TASK GRAPH a SET ROOTS = a)
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!drop-4	ALTER TASK GRAPH a SET ROOTS =()
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!drop-5	ALTER TASK GRAPH a SET ROOTS =(a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!insert	ALTER TASK GRAPH a SET ROOTS =(a) zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ROOTS_=_(_QNAME_)!swap	ALTER TASK GRAPH a SET ROOT_LOCATION =(a)
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME	ALTER TASK GRAPH a SET FINALIZER = a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME!drop-1	ALTER TASK GRAPH a SET = a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME!drop-2	ALTER TASK GRAPH a SET FINALIZER a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME!drop-3	ALTER TASK GRAPH a SET FINALIZER =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME!insert	ALTER TASK GRAPH a SET FINALIZER = a zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/FINALIZER_=_QNAME!swap	ALTER TASK GRAPH a SET FIRST = a
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)	ALTER TASK GRAPH a SET OVERLAP_POLICY = NO_OVERLAP
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-1	ALTER TASK GRAPH a SET = NO_OVERLAP
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-2	ALTER TASK GRAPH a SET OVERLAP_POLICY NO_OVERLAP
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!drop-3	ALTER TASK GRAPH a SET OVERLAP_POLICY =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!insert	ALTER TASK GRAPH a SET OVERLAP_POLICY = NO_OVERLAP zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/OVERLAP_POLICY_=_(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)!swap	ALTER TASK GRAPH a SET OVERRIDE = NO_OVERLAP
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ERROR_INTEGRATION_=_ID	ALTER TASK GRAPH a SET ERROR_INTEGRATION = a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ERROR_INTEGRATION_=_ID!drop-2	ALTER TASK GRAPH a SET ERROR_INTEGRATION a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ERROR_INTEGRATION_=_ID!drop-3	ALTER TASK GRAPH a SET ERROR_INTEGRATION =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ERROR_INTEGRATION_=_ID!insert	ALTER TASK GRAPH a SET ERROR_INTEGRATION = a zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/ERROR_INTEGRATION_=_ID!swap	ALTER TASK GRAPH a SET ERROR_LOGGING = a
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUCCESS_INTEGRATION_=_ID	ALTER TASK GRAPH a SET SUCCESS_INTEGRATION = a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUCCESS_INTEGRATION_=_ID!drop-2	ALTER TASK GRAPH a SET SUCCESS_INTEGRATION a
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUCCESS_INTEGRATION_=_ID!drop-3	ALTER TASK GRAPH a SET SUCCESS_INTEGRATION =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUCCESS_INTEGRATION_=_ID!insert	ALTER TASK GRAPH a SET SUCCESS_INTEGRATION = a zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUCCESS_INTEGRATION_=_ID!swap	ALTER TASK GRAPH a SET SUPPORT = a
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/CONFIG_=_STRING	ALTER TASK GRAPH a SET CONFIG = 's'
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/CONFIG_=_STRING!drop-2	ALTER TASK GRAPH a SET CONFIG 's'
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/CONFIG_=_STRING!drop-3	ALTER TASK GRAPH a SET CONFIG =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/CONFIG_=_STRING!insert	ALTER TASK GRAPH a SET CONFIG = 's' zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/CONFIG_=_STRING!swap	ALTER TASK GRAPH a SET CONFIGURATION = 's'
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER	ALTER TASK GRAPH a SET TASK_AUTO_RETRY_ATTEMPTS = 1
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-1	ALTER TASK GRAPH a SET = 1
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-2	ALTER TASK GRAPH a SET TASK_AUTO_RETRY_ATTEMPTS 1
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!drop-3	ALTER TASK GRAPH a SET TASK_AUTO_RETRY_ATTEMPTS =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!insert	ALTER TASK GRAPH a SET TASK_AUTO_RETRY_ATTEMPTS = 1 zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/TASK_AUTO_RETRY_ATTEMPTS_=_NUMBER!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS = 1
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER	ALTER TASK GRAPH a SET SUSPEND_TASK_AFTER_NUM_FAILURES = 1
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-2	ALTER TASK GRAPH a SET SUSPEND_TASK_AFTER_NUM_FAILURES 1
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!drop-3	ALTER TASK GRAPH a SET SUSPEND_TASK_AFTER_NUM_FAILURES =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!insert	ALTER TASK GRAPH a SET SUSPEND_TASK_AFTER_NUM_FAILURES = 1 zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/SUSPEND_TASK_AFTER_NUM_FAILURES_=_NUMBER!swap	ALTER TASK GRAPH a SET SWAP = 1
+accept	accept	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/COMMENT_=_STRING	ALTER TASK GRAPH a SET COMMENT = 's'
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/COMMENT_=_STRING!drop-2	ALTER TASK GRAPH a SET COMMENT 's'
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/COMMENT_=_STRING!drop-3	ALTER TASK GRAPH a SET COMMENT =
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/COMMENT_=_STRING!insert	ALTER TASK GRAPH a SET COMMENT = 's' zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)/COMMENT_=_STRING!swap	ALTER TASK GRAPH a SET COMMENTS = 's'
+accept	accept	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP	ALTER TASK GRAPH a SET OVERLAP_POLICY = NO_OVERLAP
+reject	undocumented	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/NO_OVERLAP!swap	ALTER TASK GRAPH a SET OVERLAP_POLICY = NULL
+accept	accept	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP	ALTER TASK GRAPH a SET OVERLAP_POLICY = ALLOW_CHILD_OVERLAP
+reject	undocumented	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!insert	ALTER TASK GRAPH a SET OVERLAP_POLICY = ALLOW_CHILD_OVERLAP zzz
+reject	undocumented	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_CHILD_OVERLAP!swap	ALTER TASK GRAPH a SET OVERLAP_POLICY = ALLOW_DUPLICATE
+accept	accept	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP	ALTER TASK GRAPH a SET OVERLAP_POLICY = ALLOW_ALL_OVERLAP
+reject	undocumented	docs	alterTaskGraph(NO_OVERLAP|ALLOW_CHILD_OVERLAP|ALLOW~4dd5f83b)/ALLOW_ALL_OVERLAP!insert	ALTER TASK GRAPH a SET OVERLAP_POLICY = ALLOW_ALL_OVERLAP zzz
+accept	accept	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/%empty	ALTER TASK GRAPH a SET SCHEDULE = 's'
+reject	accept	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f	ALTER TASK GRAPH a SET SCHEDULE = 's', SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!drop-1	ALTER TASK GRAPH a SET SCHEDULE = 's' SCHEDULE = 's'
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!drop-2	ALTER TASK GRAPH a SET SCHEDULE = 's', = 's'
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!drop-3	ALTER TASK GRAPH a SET SCHEDULE = 's', SCHEDULE 's'
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!drop-4	ALTER TASK GRAPH a SET SCHEDULE = 's', SCHEDULE =
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!insert	ALTER TASK GRAPH a SET SCHEDULE = 's', SCHEDULE = 's' zzz
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME~c6ee85d6)*/,_(SCHEDULE_=_STRING|ROOTS_=_(_QNAME_)|~8be098ec)_(,_(S~014a7e9f!swap	ALTER TASK GRAPH a SET SCHEDULE = 's', SCHEDULER = 's'
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SCHEDULE	ALTER TASK GRAPH a UNSET SCHEDULE
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SCHEDULE!swap	ALTER TASK GRAPH a UNSET SCHEDULER
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ROOTS	ALTER TASK GRAPH a UNSET ROOTS
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ROOTS!insert	ALTER TASK GRAPH a UNSET ROOTS zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ROOTS!swap	ALTER TASK GRAPH a UNSET ROOT_LOCATION
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/FINALIZER	ALTER TASK GRAPH a UNSET FINALIZER
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/FINALIZER!insert	ALTER TASK GRAPH a UNSET FINALIZER zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/FINALIZER!swap	ALTER TASK GRAPH a UNSET FIRST
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/OVERLAP_POLICY	ALTER TASK GRAPH a UNSET OVERLAP_POLICY
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/OVERLAP_POLICY!insert	ALTER TASK GRAPH a UNSET OVERLAP_POLICY zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/OVERLAP_POLICY!swap	ALTER TASK GRAPH a UNSET OVERRIDE
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ERROR_INTEGRATION	ALTER TASK GRAPH a UNSET ERROR_INTEGRATION
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ERROR_INTEGRATION!insert	ALTER TASK GRAPH a UNSET ERROR_INTEGRATION zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/ERROR_INTEGRATION!swap	ALTER TASK GRAPH a UNSET ERROR_LOGGING
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUCCESS_INTEGRATION	ALTER TASK GRAPH a UNSET SUCCESS_INTEGRATION
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUCCESS_INTEGRATION!insert	ALTER TASK GRAPH a UNSET SUCCESS_INTEGRATION zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUCCESS_INTEGRATION!swap	ALTER TASK GRAPH a UNSET SUPPORT
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/CONFIG	ALTER TASK GRAPH a UNSET CONFIG
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/CONFIG!insert	ALTER TASK GRAPH a UNSET CONFIG zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/CONFIG!swap	ALTER TASK GRAPH a UNSET CONFIGURATION
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/TASK_AUTO_RETRY_ATTEMPTS	ALTER TASK GRAPH a UNSET TASK_AUTO_RETRY_ATTEMPTS
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/TASK_AUTO_RETRY_ATTEMPTS!insert	ALTER TASK GRAPH a UNSET TASK_AUTO_RETRY_ATTEMPTS zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/TASK_AUTO_RETRY_ATTEMPTS!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUSPEND_TASK_AFTER_NUM_FAILURES	ALTER TASK GRAPH a UNSET SUSPEND_TASK_AFTER_NUM_FAILURES
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUSPEND_TASK_AFTER_NUM_FAILURES!insert	ALTER TASK GRAPH a UNSET SUSPEND_TASK_AFTER_NUM_FAILURES zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/SUSPEND_TASK_AFTER_NUM_FAILURES!swap	ALTER TASK GRAPH a UNSET SWAP
+accept	accept	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/COMMENT	ALTER TASK GRAPH a UNSET COMMENT
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/COMMENT!insert	ALTER TASK GRAPH a UNSET COMMENT zzz
+reject	undocumented	docs	alterTaskGraph(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)/COMMENT!swap	ALTER TASK GRAPH a UNSET COMMENTS
+accept	accept	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/%empty	ALTER TASK GRAPH a UNSET SCHEDULE
+accept	accept	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)_(,_(S~4ef9d58d	ALTER TASK GRAPH a UNSET SCHEDULE, SCHEDULE
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)_(,_(S~4ef9d58d!drop-1	ALTER TASK GRAPH a UNSET SCHEDULE SCHEDULE
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)_(,_(S~4ef9d58d!drop-2	ALTER TASK GRAPH a UNSET SCHEDULE,
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)_(,_(S~4ef9d58d!insert	ALTER TASK GRAPH a UNSET SCHEDULE, SCHEDULE zzz
+reject	undocumented	docs	alterTaskGraph(,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_~9e02d119)*/,_(SCHEDULE|ROOTS|FINALIZER|OVERLAP_POL~e88cbdda)_(,_(S~4ef9d58d!swap	ALTER TASK GRAPH a UNSET SCHEDULE, SCHEDULER
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSES = a)
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-1	ALTER TASK GRAPH a SET TASK_DEFAULTS(= 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 's')
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(TARGET_FILE_SIZE = 's')
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERS = 's')
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' zzz)
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS = 1)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-1	ALTER TASK GRAPH a SET TASK_DEFAULTS(= 1)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS 1)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS = 1 zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(USE_ANY_ROLE = 1)
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE AS USER a)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-1	ALTER TASK GRAPH a SET TASK_DEFAULTS(AS USER a)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE USER a)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE AS a)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-4	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE AS USER)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE AS USER
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE AS USER a zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(EXECUTE_AS_ROLE AS USER a)
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENT = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENT 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENT =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENT =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENT = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(COMMENTS = 's')
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOG_LEVEL = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOG_LEVEL 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOG_LEVEL =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOG_LEVEL =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOG_LEVEL = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(LOOKER = 's')
+accept	accept	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRACE_LEVEL = 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRACE_LEVEL 's')
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRACE_LEVEL =)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRACE_LEVEL =
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRACE_LEVEL = 's' zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(TRANSACTION = 's')
+accept	accept	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/%empty	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a)
+reject	accept	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-1	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a WAREHOUSE = a)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-2	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, = a)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-3	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE a)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-4	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE =)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!truncate	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE =
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!insert	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a zzz)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!swap	ALTER TASK GRAPH a SET TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSES = a)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/WAREHOUSE	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/WAREHOUSE!truncate	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/WAREHOUSE!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/WAREHOUSE!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSES)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TARGET_COMPLETION_INTERVAL	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TARGET_COMPLETION_INTERVAL!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TARGET_COMPLETION_INTERVAL!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TARGET_FILE_SIZE)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/SERVERLESS_TASK_MIN_STATEMENT_SIZE	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/SERVERLESS_TASK_MIN_STATEMENT_SIZE!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/SERVERLESS_TASK_MIN_STATEMENT_SIZE!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(SERVERS)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/SERVERLESS_TASK_MAX_STATEMENT_SIZE	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/SERVERLESS_TASK_MAX_STATEMENT_SIZE!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE zzz)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_TIMEOUT_MS	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_TIMEOUT_MS!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USER_TASK_TIMEOUT_MS zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/USER_TASK_TIMEOUT_MS!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(USE_ANY_ROLE)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE AS USER)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!drop-1	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(AS USER)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!drop-2	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE USER)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!drop-3	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE AS)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!truncate	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE AS
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE AS USER zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/EXECUTE_AS_USER!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(EXECUTE_AS_ROLE AS USER)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/COMMENT	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(COMMENT)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/COMMENT!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(COMMENT zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/COMMENT!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(COMMENTS)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/LOG_LEVEL	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(LOG_LEVEL)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/LOG_LEVEL!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(LOG_LEVEL zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/LOG_LEVEL!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(LOOKER)
+accept	accept	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TRACE_LEVEL	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TRACE_LEVEL)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TRACE_LEVEL!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TRACE_LEVEL zzz)
+reject	undocumented	docs	alterTaskGraph(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)/TRACE_LEVEL!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(TRANSACTION)
+accept	accept	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/%empty	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE)
+reject	accept	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE, WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3!drop-1	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE WAREHOUSE)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3!drop-2	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE,)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3!truncate	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE,
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3!insert	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE, WAREHOUSE zzz)
+reject	undocumented	docs	alterTaskGraph(,_(WAREHOUSE|USER_TASK_MANAGED_INITI~4bb3d208)*/,_(WAREHOUSE|USER_TASK_MANAGED_INITIAL_~fe601b4b)_(,_(W~b284f3e3!swap	ALTER TASK GRAPH a UNSET TASK_DEFAULTS(WAREHOUSE, WAREHOUSES)
 accept	accept	docs	alterTaskGraph(,_QNAME_=_STRING)*/%empty	ALTER TASK GRAPH a SET TAG a = 's'
 accept	accept	docs	alterTaskGraph(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER TASK GRAPH a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterTaskGraph(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER TASK GRAPH a SET TAG a = 's' a = 's'
@@ -26932,6 +27210,18 @@ accept	accept	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER TASK GRAPH 
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER TASK GRAPH a UNSET TAG a a
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER TASK GRAPH a UNSET TAG a,
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER TASK GRAPH a UNSET TAG a, a zzz
+accept	accept	docs	alterTaskGraph(,_ID_=_ID)*/%empty	ALTER TASK GRAPH a SET CONTACT a = a
+accept	accept	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER TASK GRAPH a SET CONTACT a = a, a = a
+reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	ALTER TASK GRAPH a SET CONTACT a = a a = a
+reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER TASK GRAPH a SET CONTACT a = a, = a
+reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER TASK GRAPH a SET CONTACT a = a, a a
+reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	ALTER TASK GRAPH a SET CONTACT a = a, a =
+reject	undocumented	docs	alterTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	ALTER TASK GRAPH a SET CONTACT a = a, a = a zzz
+accept	accept	docs	alterTaskGraph(,_ID)*/%empty	ALTER TASK GRAPH a UNSET CONTACT a
+accept	accept	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*	ALTER TASK GRAPH a UNSET CONTACT a, a
+reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER TASK GRAPH a UNSET CONTACT a a
+reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER TASK GRAPH a UNSET CONTACT a,
+reject	undocumented	docs	alterTaskGraph(,_ID)*/,_ID_(,_ID)*!insert	ALTER TASK GRAPH a UNSET CONTACT a, a zzz
 accept	accept	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER TYPE a SET COMMENT = 's'
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-1	TYPE a SET COMMENT = 's'
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-3	ALTER TYPE SET COMMENT = 's'
@@ -49967,17 +50257,17 @@ reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE 
 reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE TASK IF NOT
 reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TASK IF NOT EXISTS zzz a AS SELECT 1
 reject	undocumented	docs	createTask(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TASK IGNORE NOT EXISTS a AS SELECT 1
-accept	accept	docs	createTaskGraph/CREATE_(OR_REPLACE)?_TASK_GRAPH_QNAME_(WITH?_TAG_(_QNAM~363fa4d7	CREATE TASK GRAPH a
-accept	accept	docs	createTaskGraph/CREATE_TASK_GRAPH_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_Q~875d7d7d	CREATE TASK GRAPH a
-accept	accept	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815	CREATE OR ALTER TASK GRAPH a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-1	OR ALTER TASK GRAPH a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-2	CREATE ALTER TASK GRAPH a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-3	CREATE OR TASK GRAPH a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-4	CREATE OR ALTER GRAPH a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-5	CREATE OR ALTER TASK a
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!drop-6	CREATE OR ALTER TASK GRAPH
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!insert	CREATE OR ALTER TASK GRAPH a zzz
-reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~afeae815!swap	CREATION OR ALTER TASK GRAPH a
+accept	accept	docs	createTaskGraph/CREATE_(OR_REPLACE)?_TASK_GRAPH_QNAME_(WITH?_TAG_(_QNAM~ef5ac174	CREATE TASK GRAPH a
+accept	accept	docs	createTaskGraph/CREATE_TASK_GRAPH_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_Q~d8a99ffd	CREATE TASK GRAPH a
+accept	accept	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50	CREATE OR ALTER TASK GRAPH a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-1	OR ALTER TASK GRAPH a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-2	CREATE ALTER TASK GRAPH a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-3	CREATE OR TASK GRAPH a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-4	CREATE OR ALTER GRAPH a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-5	CREATE OR ALTER TASK a
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!drop-6	CREATE OR ALTER TASK GRAPH
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!insert	CREATE OR ALTER TASK GRAPH a zzz
+reject	undocumented	docs	createTaskGraph/CREATE_OR_ALTER_TASK_GRAPH_QNAME_(SCHEDULE_=_STRING)?_(~a1cada50!swap	CREATION OR ALTER TASK GRAPH a
 accept	accept	docs	createTaskGraph(OR_REPLACE)?/%empty	CREATE TASK GRAPH a
 reject	undocumented	docs	createTaskGraph(OR_REPLACE)?/%empty!insert	CREATE zzz TASK GRAPH a
 accept	accept	docs	createTaskGraph(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TASK GRAPH a
@@ -50019,15 +50309,15 @@ reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE TASK GRAPH a WITH CONTACT(a = a
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE TASK GRAPH a WITH CONTACT(a = a) zzz
 reject	undocumented	docs	createTaskGraph(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE TASK GRAPH a WITHIN CONTACT(a = a)
-reject	accept	docs	createTaskGraph(,_ID_=_ID)*/%empty	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/%empty!insert	CREATE TASK GRAPH a TASK_DEFAULTS(a = a zzz)
-reject	accept	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a = a)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(a = a a = a)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, = a)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a a)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a =)
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a =
-reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE TASK GRAPH a TASK_DEFAULTS(a = a, a = a zzz)
+accept	accept	docs	createTaskGraph(,_ID_=_ID)*/%empty	CREATE TASK GRAPH a WITH CONTACT(a = a)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/%empty!insert	CREATE TASK GRAPH a WITH CONTACT(a = a zzz)
+accept	accept	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE TASK GRAPH a WITH CONTACT(a = a, a = a)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE TASK GRAPH a WITH CONTACT(a = a a = a)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE TASK GRAPH a WITH CONTACT(a = a, = a)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE TASK GRAPH a WITH CONTACT(a = a, a a)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE TASK GRAPH a WITH CONTACT(a = a, a =)
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE TASK GRAPH a WITH CONTACT(a = a, a =
+reject	undocumented	docs	createTaskGraph(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE TASK GRAPH a WITH CONTACT(a = a, a = a zzz)
 accept	accept	docs	createTaskGraph(SCHEDULE_=_STRING)?/%empty	CREATE TASK GRAPH a
 accept	accept	docs	createTaskGraph(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE TASK GRAPH a SCHEDULE = 's'
 reject	undocumented	docs	createTaskGraph(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	CREATE TASK GRAPH a = 's'
@@ -50102,16 +50392,86 @@ reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!dro
 reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE TASK GRAPH a COMMENT =
 reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TASK GRAPH a COMMENT = 's' zzz
 reject	undocumented	docs	createTaskGraph(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TASK GRAPH a COMMENTS = 's'
-accept	accept	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE TASK GRAPH a
-reject	accept	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE TASK GRAPH a TASK_DEFAULTS(a = a)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE TASK GRAPH a(a = a)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS a = a)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(= a)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE TASK GRAPH a TASK_DEFAULTS(a a)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE TASK GRAPH a TASK_DEFAULTS(a =)
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE TASK GRAPH a TASK_DEFAULTS(a = a
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE TASK GRAPH a TASK_DEFAULTS(a = a) zzz
-reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_))?/TASK_DEFAULTS_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE TASK GRAPH a TELEMETRY(a = a)
+accept	accept	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/%empty	CREATE TASK GRAPH a
+accept	accept	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-1	CREATE TASK GRAPH a(WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(= a)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-4	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE a)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-5	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE =)
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!drop-6	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!insert	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a) zzz
+reject	undocumented	docs	createTaskGraph(TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER~955c7b57)?/TASK_DEFAULTS_(_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~a~8eba4bca!swap	CREATE TASK GRAPH a TELEMETRY(WAREHOUSE = a)
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!insert	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/WAREHOUSE_=_ID!swap	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSES = a)
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(= 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS = 's')
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_COMPLETION_INTERVAL = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TARGET_COMPLETION_INTERVAL_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(TARGET_FILE_SIZE = 's')
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MIN_STATEMENT_SIZE = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MIN_STATEMENT_SIZE_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERS = 's')
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/SERVERLESS_TASK_MAX_STATEMENT_SIZE_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(SERVERLESS_TASK_MAX_STATEMENT_SIZE = 's' zzz)
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_TIMEOUT_MS = 1)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(= 1)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_TIMEOUT_MS 1)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_TIMEOUT_MS =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_TIMEOUT_MS =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!insert	CREATE TASK GRAPH a TASK_DEFAULTS(USER_TASK_TIMEOUT_MS = 1 zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/USER_TASK_TIMEOUT_MS_=_NUMBER!swap	CREATE TASK GRAPH a TASK_DEFAULTS(USE_ANY_ROLE = 1)
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE AS USER a)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(AS USER a)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE USER a)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE AS a)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!drop-4	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE AS USER)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE AS USER
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!insert	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE AS USER a zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/EXECUTE_AS_USER_ID!swap	CREATE TASK GRAPH a TASK_DEFAULTS(EXECUTE_AS_ROLE AS USER a)
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENT = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENT 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENT =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENT =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENT = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/COMMENT_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(COMMENTS = 's')
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(LOG_LEVEL = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(LOG_LEVEL 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(LOG_LEVEL =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(LOG_LEVEL =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(LOG_LEVEL = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/LOG_LEVEL_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(LOOKER = 's')
+accept	accept	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING	CREATE TASK GRAPH a TASK_DEFAULTS(TRACE_LEVEL = 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(TRACE_LEVEL 's')
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(TRACE_LEVEL =)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(TRACE_LEVEL =
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!insert	CREATE TASK GRAPH a TASK_DEFAULTS(TRACE_LEVEL = 's' zzz)
+reject	undocumented	docs	createTaskGraph(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)/TRACE_LEVEL_=_STRING!swap	CREATE TASK GRAPH a TASK_DEFAULTS(TRANSACTION = 's')
+accept	accept	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/%empty	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a)
+reject	accept	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-1	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a WAREHOUSE = a)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-2	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, = a)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-3	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE a)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!drop-4	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE =)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!truncate	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE =
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!insert	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSE = a zzz)
+reject	undocumented	docs	createTaskGraph(,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_~aad770cf)*/,_(WAREHOUSE_=_ID|USER_TASK_MANAGED_INI~afbb3285)_(,_(W~99df4ca8!swap	CREATE TASK GRAPH a TASK_DEFAULTS(WAREHOUSE = a, WAREHOUSES = a)
 accept	accept	docs	createTaskGraph(WHEN_EXPR)?/%empty	CREATE TASK GRAPH a
 accept	accept	docs	createTaskGraph(WHEN_EXPR)?/WHEN_EXPR	CREATE TASK GRAPH a WHEN 1
 reject	undocumented	docs	createTaskGraph(WHEN_EXPR)?/WHEN_EXPR!drop-1	CREATE TASK GRAPH a 1
@@ -72326,39 +72686,39 @@ accept	accept	docs	showSecrets(SCHEMA)?/%empty	SHOW SECRETS IN a
 accept	accept	docs	showSecrets(SCHEMA)?/SCHEMA	SHOW SECRETS IN SCHEMA a
 reject	undocumented	docs	showSecrets(SCHEMA)?/SCHEMA!insert	SHOW SECRETS IN SCHEMA zzz a
 reject	undocumented	docs	showSecrets(SCHEMA)?/SCHEMA!swap	SHOW SECRETS IN SCHEMAS a
-accept	accept	docs	showSemanticDimensions/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_(IN_(QNAME|ACCO~d74d0756	SHOW SEMANTIC DIMENSIONS
+accept	accept	docs	showSemanticDimensions/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_(IN_(a|ACCOUNT|~fc5c2724	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(LIKE_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC DIMENSIONS LIKE 's'
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC DIMENSIONS 's'
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC DIMENSIONS LIKE
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC DIMENSIONS LIKE 's' zzz
 reject	undocumented	docs	showSemanticDimensions(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC DIMENSIONS LIMIT 's'
-accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC DIMENSIONS
-accept	accept	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC DIMENSIONS IN a
-accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC DIMENSIONS a
-reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC DIMENSIONS IN
-reject	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC DIMENSIONS IN a zzz
-accept	undocumented	docs	showSemanticDimensions(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC DIMENSIONS INBOUND a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC DIMENSIONS IN a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC DIMENSIONS IN ACCOUNT
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC DIMENSIONS IN ACCOUNT zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC DIMENSIONS IN ACCOUNTS
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC DIMENSIONS IN DATABASE
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC DIMENSIONS IN DATABASE a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC DIMENSIONS IN SCHEMA
-accept	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA zzz
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a
-accept	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
-reject	accept	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC DIMENSIONS IN SCHEMA a a
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticDimensions(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS a.a
+accept	accept	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/%empty	SHOW SEMANTIC DIMENSIONS
+accept	accept	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)	SHOW SEMANTIC DIMENSIONS IN a
+accept	undocumented	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-1	SHOW SEMANTIC DIMENSIONS a
+reject	undocumented	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-2	SHOW SEMANTIC DIMENSIONS IN
+reject	undocumented	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!insert	SHOW SEMANTIC DIMENSIONS IN a zzz
+accept	undocumented	docs	showSemanticDimensions(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!swap	SHOW SEMANTIC DIMENSIONS INBOUND a
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/a	SHOW SEMANTIC DIMENSIONS IN a
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT	SHOW SEMANTIC DIMENSIONS IN ACCOUNT
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!insert	SHOW SEMANTIC DIMENSIONS IN ACCOUNT zzz
+accept	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!swap	SHOW SEMANTIC DIMENSIONS IN ACCOUNTS
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE	SHOW SEMANTIC DIMENSIONS IN DATABASE
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE zzz
+accept	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID	SHOW SEMANTIC DIMENSIONS IN DATABASE a
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!insert	SHOW SEMANTIC DIMENSIONS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!swap	SHOW SEMANTIC DIMENSIONS IN DATABASES a
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA	SHOW SEMANTIC DIMENSIONS IN SCHEMA
+accept	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA zzz
+accept	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS
+accept	accept	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a
+accept	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC DIMENSIONS IN a.a
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC DIMENSIONS IN SCHEMA.a
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC DIMENSIONS IN SCHEMA a a
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC DIMENSIONS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticDimensions(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC DIMENSIONS IN SCHEMAS a.a
 accept	accept	docs	showSemanticDimensions(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS
 accept	accept	docs	showSemanticDimensions(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC DIMENSIONS STARTS WITH 's'
 reject	undocumented	docs	showSemanticDimensions(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC DIMENSIONS WITH 's'
@@ -72393,39 +72753,39 @@ reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NU
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT 1 zzz
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LINKED_CATALOG 1
-accept	accept	docs	showSemanticFacts/SHOW_SEMANTIC_FACTS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT|D~217602fb	SHOW SEMANTIC FACTS
+accept	accept	docs	showSemanticFacts/SHOW_SEMANTIC_FACTS_(LIKE_STRING)?_(IN_(a|ACCOUNT|DATAB~8e6cd5d5	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(LIKE_STRING)?/%empty	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC FACTS LIKE 's'
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC FACTS 's'
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC FACTS LIKE
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC FACTS LIKE 's' zzz
 reject	undocumented	docs	showSemanticFacts(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC FACTS LIMIT 's'
-accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC FACTS
-accept	accept	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC FACTS IN a
-accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC FACTS a
-reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC FACTS IN
-reject	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC FACTS IN a zzz
-accept	undocumented	docs	showSemanticFacts(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC FACTS INBOUND a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC FACTS IN a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC FACTS IN ACCOUNT
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC FACTS IN ACCOUNT zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC FACTS IN ACCOUNTS
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC FACTS IN DATABASE
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC FACTS IN DATABASE zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC FACTS IN DATABASES
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC FACTS IN DATABASE a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC FACTS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC FACTS IN DATABASES a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC FACTS IN SCHEMA
-accept	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC FACTS IN SCHEMA zzz
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC FACTS IN SCHEMAS
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC FACTS IN SCHEMA a.a
-accept	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC FACTS IN a.a
-reject	accept	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC FACTS IN SCHEMA a a
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC FACTS IN SCHEMA a.
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC FACTS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticFacts(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC FACTS IN SCHEMAS a.a
+accept	accept	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/%empty	SHOW SEMANTIC FACTS
+accept	accept	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)	SHOW SEMANTIC FACTS IN a
+accept	undocumented	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-1	SHOW SEMANTIC FACTS a
+reject	undocumented	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-2	SHOW SEMANTIC FACTS IN
+reject	undocumented	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!insert	SHOW SEMANTIC FACTS IN a zzz
+accept	undocumented	docs	showSemanticFacts(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!swap	SHOW SEMANTIC FACTS INBOUND a
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/a	SHOW SEMANTIC FACTS IN a
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT	SHOW SEMANTIC FACTS IN ACCOUNT
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!insert	SHOW SEMANTIC FACTS IN ACCOUNT zzz
+accept	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!swap	SHOW SEMANTIC FACTS IN ACCOUNTS
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE	SHOW SEMANTIC FACTS IN DATABASE
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!insert	SHOW SEMANTIC FACTS IN DATABASE zzz
+accept	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!swap	SHOW SEMANTIC FACTS IN DATABASES
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID	SHOW SEMANTIC FACTS IN DATABASE a
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!insert	SHOW SEMANTIC FACTS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!swap	SHOW SEMANTIC FACTS IN DATABASES a
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA	SHOW SEMANTIC FACTS IN SCHEMA
+accept	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!insert	SHOW SEMANTIC FACTS IN SCHEMA zzz
+accept	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!swap	SHOW SEMANTIC FACTS IN SCHEMAS
+accept	accept	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID	SHOW SEMANTIC FACTS IN SCHEMA a.a
+accept	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC FACTS IN a.a
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC FACTS IN SCHEMA.a
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC FACTS IN SCHEMA a a
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC FACTS IN SCHEMA a.
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC FACTS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticFacts(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC FACTS IN SCHEMAS a.a
 accept	accept	docs	showSemanticFacts(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC FACTS
 accept	accept	docs	showSemanticFacts(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC FACTS STARTS WITH 's'
 reject	undocumented	docs	showSemanticFacts(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC FACTS WITH 's'
@@ -72439,39 +72799,39 @@ reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SH
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC FACTS LIMIT
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC FACTS LIMIT 1 zzz
 reject	undocumented	docs	showSemanticFacts(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SEMANTIC FACTS LINKED_CATALOG 1
-accept	accept	docs	showSemanticMetrics/SHOW_SEMANTIC_METRICS_(LIKE_STRING)?_(IN_(QNAME|ACCOUNT~410b58ac	SHOW SEMANTIC METRICS
+accept	accept	docs	showSemanticMetrics/SHOW_SEMANTIC_METRICS_(LIKE_STRING)?_(IN_(a|ACCOUNT|DAT~1c01cb42	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(LIKE_STRING)?/%empty	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC METRICS LIKE 's'
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC METRICS 's'
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC METRICS LIKE
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC METRICS LIKE 's' zzz
 reject	undocumented	docs	showSemanticMetrics(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC METRICS LIMIT 's'
-accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/%empty	SHOW SEMANTIC METRICS
-accept	accept	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)	SHOW SEMANTIC METRICS IN a
-accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-1	SHOW SEMANTIC METRICS a
-reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!drop-2	SHOW SEMANTIC METRICS IN
-reject	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!insert	SHOW SEMANTIC METRICS IN a zzz
-accept	undocumented	docs	showSemanticMetrics(IN_(QNAME|ACCOUNT|DATABASE|DATABASE_~16426871)?/IN_(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)!swap	SHOW SEMANTIC METRICS INBOUND a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/QNAME	SHOW SEMANTIC METRICS IN a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT	SHOW SEMANTIC METRICS IN ACCOUNT
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!insert	SHOW SEMANTIC METRICS IN ACCOUNT zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/ACCOUNT!swap	SHOW SEMANTIC METRICS IN ACCOUNTS
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE	SHOW SEMANTIC METRICS IN DATABASE
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!insert	SHOW SEMANTIC METRICS IN DATABASE zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE!swap	SHOW SEMANTIC METRICS IN DATABASES
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID	SHOW SEMANTIC METRICS IN DATABASE a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!insert	SHOW SEMANTIC METRICS IN DATABASE a zzz
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/DATABASE_ID!swap	SHOW SEMANTIC METRICS IN DATABASES a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA	SHOW SEMANTIC METRICS IN SCHEMA
-accept	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!insert	SHOW SEMANTIC METRICS IN SCHEMA zzz
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA!swap	SHOW SEMANTIC METRICS IN SCHEMAS
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID	SHOW SEMANTIC METRICS IN SCHEMA a.a
-accept	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC METRICS IN a.a
-reject	accept	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC METRICS IN SCHEMA a a
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC METRICS IN SCHEMA a.
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC METRICS IN SCHEMA a.a zzz
-reject	undocumented	docs	showSemanticMetrics(QNAME|ACCOUNT|DATABASE|DATABASE_ID|S~42b1672a)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC METRICS IN SCHEMAS a.a
+accept	accept	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/%empty	SHOW SEMANTIC METRICS
+accept	accept	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)	SHOW SEMANTIC METRICS IN a
+accept	undocumented	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-1	SHOW SEMANTIC METRICS a
+reject	undocumented	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!drop-2	SHOW SEMANTIC METRICS IN
+reject	undocumented	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!insert	SHOW SEMANTIC METRICS IN a zzz
+accept	undocumented	docs	showSemanticMetrics(IN_(a|ACCOUNT|DATABASE|DATABASE_ID|S~fb28a78d)?/IN_(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)!swap	SHOW SEMANTIC METRICS INBOUND a
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/a	SHOW SEMANTIC METRICS IN a
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT	SHOW SEMANTIC METRICS IN ACCOUNT
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!insert	SHOW SEMANTIC METRICS IN ACCOUNT zzz
+accept	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/ACCOUNT!swap	SHOW SEMANTIC METRICS IN ACCOUNTS
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE	SHOW SEMANTIC METRICS IN DATABASE
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!insert	SHOW SEMANTIC METRICS IN DATABASE zzz
+accept	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE!swap	SHOW SEMANTIC METRICS IN DATABASES
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID	SHOW SEMANTIC METRICS IN DATABASE a
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!insert	SHOW SEMANTIC METRICS IN DATABASE a zzz
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/DATABASE_ID!swap	SHOW SEMANTIC METRICS IN DATABASES a
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA	SHOW SEMANTIC METRICS IN SCHEMA
+accept	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!insert	SHOW SEMANTIC METRICS IN SCHEMA zzz
+accept	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA!swap	SHOW SEMANTIC METRICS IN SCHEMAS
+accept	accept	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID	SHOW SEMANTIC METRICS IN SCHEMA a.a
+accept	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-1	SHOW SEMANTIC METRICS IN a.a
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-2	SHOW SEMANTIC METRICS IN SCHEMA.a
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-3	SHOW SEMANTIC METRICS IN SCHEMA a a
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!drop-4	SHOW SEMANTIC METRICS IN SCHEMA a.
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!insert	SHOW SEMANTIC METRICS IN SCHEMA a.a zzz
+reject	undocumented	docs	showSemanticMetrics(a|ACCOUNT|DATABASE|DATABASE_ID|SCHEM~fa889193)/SCHEMA_ID_._ID!swap	SHOW SEMANTIC METRICS IN SCHEMAS a.a
 accept	accept	docs	showSemanticMetrics(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC METRICS
 accept	accept	docs	showSemanticMetrics(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC METRICS STARTS WITH 's'
 reject	undocumented	docs	showSemanticMetrics(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC METRICS WITH 's'
