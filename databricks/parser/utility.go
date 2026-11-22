@@ -230,8 +230,12 @@ func (p *Parser) parseAnalyze() (Statement, error) {
 		if _, err := p.expect(kwSTATISTICS); err != nil {
 			return nil, err
 		}
-		if !p.isStatementEnd() && p.cur().Kind.isIdentifier() {
-			p.advance()
+		if !p.isStatementEnd() {
+			if p.cur().Kind == tokIdent && isWord(p.cur(), "NOSCAN") {
+				p.advance()
+			} else {
+				return nil, p.errorf("expected NOSCAN after COMPUTE STATISTICS, got %q", p.cur().Text)
+			}
 		}
 		return &ParsedStmt{Kind: StmtAnalyze, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
@@ -267,8 +271,12 @@ func (p *Parser) parseAnalyze() (Statement, error) {
 		}
 		p.restore(cp)
 	}
-	if !p.isStatementEnd() && p.cur().Kind.isIdentifier() {
-		p.advance()
+	if !p.isStatementEnd() {
+		if p.cur().Kind == tokIdent && isWord(p.cur(), "NOSCAN") {
+			p.advance()
+		} else {
+			return nil, p.errorf("expected NOSCAN after COMPUTE STATISTICS, got %q", p.cur().Text)
+		}
 	}
 	return &ParsedStmt{Kind: StmtAnalyze, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

@@ -496,14 +496,14 @@ reject	reject	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec
 reject	reject	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!drop-3	ANALYZE TABLE COMPUTE STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!drop-4	ANALYZE TABLE a STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!drop-5	ANALYZE TABLE a COMPUTE
-accept	accept	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!insert	ANALYZE TABLE a COMPUTE STATISTICS zzz
+reject	accept	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!insert	ANALYZE TABLE a COMPUTE STATISTICS zzz
 reject	reject	grammar	statement/ANALYZE_TABLE_identifierReference_(partitionSpec)?_COMP~71e4ffe5!swap	AND TABLE a COMPUTE STATISTICS
 accept	accept	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0	ANALYZE TABLES COMPUTE STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!drop-1	TABLES COMPUTE STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!drop-2	ANALYZE COMPUTE STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!drop-3	ANALYZE TABLES STATISTICS
 reject	reject	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!drop-4	ANALYZE TABLES COMPUTE
-accept	accept	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!insert	ANALYZE TABLES COMPUTE STATISTICS zzz
+reject	accept	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!insert	ANALYZE TABLES COMPUTE STATISTICS zzz
 reject	reject	grammar	statement/ANALYZE_TABLES_((FROM|IN)_identifierReference)?_COMPUTE~36437fb0!swap	AND TABLES COMPUTE STATISTICS
 accept	accept	grammar	statement/ALTER_TABLE_identifierReference_ADD_(COLUMN|COLUMNS)_qu~a5826d5d	ALTER TABLE a ADD COLUMN a BOOLEAN
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_ADD_(COLUMN|COLUMNS)_qu~a5826d5d!drop-1	TABLE a ADD COLUMN a BOOLEAN
@@ -588,7 +588,7 @@ reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_UNSET_TBL
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_UNSET_TBLPROPERT~c4e9d6c8!drop-8	ALTER TABLE a UNSET TBLPROPERTIES(a
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_UNSET_TBLPROPERT~c4e9d6c8!insert	ALTER TABLE a UNSET TBLPROPERTIES(a) zzz
 reject	reject	grammar	statement/ALTER_(TABLE|VIEW)_identifierReference_UNSET_TBLPROPERT~c4e9d6c8!swap	ALWAYS TABLE a UNSET TBLPROPERTIES(a)
-accept	accept	grammar	statement/ALTER_TABLE_identifierReference_(ALTER|CHANGE)_(COLUMN)~310302e1	ALTER TABLE a ALTER a
+reject	accept	grammar	statement/ALTER_TABLE_identifierReference_(ALTER|CHANGE)_(COLUMN)~310302e1	ALTER TABLE a ALTER a
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(ALTER|CHANGE)_(COLUMN)~310302e1!drop-1	TABLE a ALTER a
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(ALTER|CHANGE)_(COLUMN)~310302e1!drop-2	ALTER a ALTER a
 reject	reject	grammar	statement/ALTER_TABLE_identifierReference_(ALTER|CHANGE)_(COLUMN)~310302e1!drop-3	ALTER TABLE ALTER a
@@ -1093,7 +1093,7 @@ reject	reject	grammar	statement(partitionSpec)?/partitionSpec!drop-4	DESC a PART
 accept	accept	grammar	statement(partitionSpec)?/partitionSpec!insert	DESC a PARTITION(a) zzz
 reject	reject	grammar	statement(partitionSpec)?/partitionSpec!swap	DESC a PARTITIONED(a)
 accept	accept	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/%empty	ANALYZE TABLE a COMPUTE STATISTICS
-accept	accept	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/identifier	ANALYZE TABLE a COMPUTE STATISTICS a
+reject	accept	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/identifier	ANALYZE TABLE a COMPUTE STATISTICS a
 reject	reject	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/identifier!insert	ANALYZE TABLE a COMPUTE STATISTICS a zzz
 accept	accept	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/FOR_COLUMNS_identifierSeq	ANALYZE TABLE a COMPUTE STATISTICS FOR COLUMNS a
 reject	reject	grammar	statement(identifier|FOR_COLUMNS_identifierSeq~9be47dfe)?/FOR_COLUMNS_identifierSeq!drop-1	ANALYZE TABLE a COMPUTE STATISTICS COLUMNS a
@@ -1129,15 +1129,15 @@ reject	reject	grammar	statement(TABLE|VIEW)/TABLE!swap	ALTER TABLES a RENAME TO 
 accept	accept	grammar	statement(TABLE|VIEW)/VIEW	ALTER VIEW a RENAME TO a
 reject	reject	grammar	statement(TABLE|VIEW)/VIEW!insert	ALTER VIEW zzz a RENAME TO a
 reject	reject	grammar	statement(TABLE|VIEW)/VIEW!swap	ALTER VIEWS a RENAME TO a
-accept	accept	grammar	statement(ALTER|CHANGE)/ALTER	ALTER TABLE a ALTER a
+reject	accept	grammar	statement(ALTER|CHANGE)/ALTER	ALTER TABLE a ALTER a
 reject	reject	grammar	statement(ALTER|CHANGE)/ALTER!truncate	ALTER TABLE a
 reject	reject	grammar	statement(ALTER|CHANGE)/ALTER!insert	ALTER TABLE a ALTER zzz a
 reject	reject	grammar	statement(ALTER|CHANGE)/ALTER!swap	ALTER TABLE a ALWAYS a
-accept	accept	grammar	statement(ALTER|CHANGE)/CHANGE	ALTER TABLE a CHANGE a
+reject	accept	grammar	statement(ALTER|CHANGE)/CHANGE	ALTER TABLE a CHANGE a
 reject	reject	grammar	statement(ALTER|CHANGE)/CHANGE!insert	ALTER TABLE a CHANGE zzz a
 reject	reject	grammar	statement(ALTER|CHANGE)/CHANGE!swap	ALTER TABLE a CHAR a
-accept	accept	grammar	statement(COLUMN)?/%empty	ALTER TABLE a ALTER a
-accept	accept	grammar	statement(COLUMN)?/COLUMN	ALTER TABLE a ALTER COLUMN a
+reject	accept	grammar	statement(COLUMN)?/%empty	ALTER TABLE a ALTER a
+reject	accept	grammar	statement(COLUMN)?/COLUMN	ALTER TABLE a ALTER COLUMN a
 reject	reject	grammar	statement(COLUMN)?/COLUMN!insert	ALTER TABLE a ALTER COLUMN zzz a
 reject	reject	grammar	statement(COLUMN)?/COLUMN!swap	ALTER TABLE a ALTER COLUMNS a
 accept	accept	grammar	statement(colPosition)?/%empty	ALTER TABLE a CHANGE a a BOOLEAN
@@ -2689,7 +2689,7 @@ reject	reject	grammar	transformClause(rowFormat)?/rowFormat!insert	MAP a ROW FOR
 reject	reject	grammar	transformClause(rowFormat)?/rowFormat!swap	MAP a ROWS FORMAT DELIMITED USING 's'
 accept	accept	grammar	transformClause(RECORDWRITER_stringLit)?/%empty	MAP a USING 's'
 accept	accept	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit	MAP a RECORDWRITER 's' USING 's'
-accept	accept	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!drop-1	MAP a 's' USING 's'
+reject	accept	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!drop-1	MAP a 's' USING 's'
 reject	reject	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!drop-2	MAP a RECORDWRITER USING 's'
 reject	reject	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!truncate	MAP a RECORDWRITER
 reject	reject	grammar	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!insert	MAP a RECORDWRITER 's' zzz USING 's'
@@ -3842,7 +3842,7 @@ reject	reject	grammar	predicate(LEFT_PAREN_RIGHT_PAREN|LEFT_PAREN_ex~37b45398)/L
 accept	accept	grammar	predicate(LEFT_PAREN_RIGHT_PAREN|LEFT_PAREN_ex~37b45398)/LEFT_PAREN_expression_(COMMA_expression)*_RIGHT_PAREN!insert	SELECT a LIKE ANY(a) zzz
 accept	accept	grammar	predicate(ESCAPE_stringLit)?/%empty	SELECT a LIKE a
 accept	accept	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit	SELECT a LIKE a ESCAPE 's'
-accept	accept	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!drop-1	SELECT a LIKE a 's'
+reject	accept	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!drop-1	SELECT a LIKE a 's'
 accept	accept	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!drop-2	SELECT a LIKE a ESCAPE
 accept	accept	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!insert	SELECT a LIKE a ESCAPE 's' zzz
 reject	reject	grammar	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!swap	SELECT a LIKE a ESCAPED 's'
@@ -4325,22 +4325,22 @@ reject	reject	grammar	primaryExpression(FOR_valueExpression)?/FOR_valueExpressio
 reject	reject	grammar	primaryExpression(FOR_valueExpression)?/FOR_valueExpression!swap	SELECT OVERLAY(a PLACING a FROM a FOREIGN a)
 accept	accept	grammar	literalType/DATE	SELECT DATE 's'
 reject	reject	grammar	literalType/DATE!insert	SELECT DATE zzz 's'
-accept	accept	grammar	literalType/DATE!swap	SELECT DATEADD 's'
+reject	accept	grammar	literalType/DATE!swap	SELECT DATEADD 's'
 accept	accept	grammar	literalType/TIMESTAMP	SELECT TIMESTAMP 's'
 reject	reject	grammar	literalType/TIMESTAMP!insert	SELECT TIMESTAMP zzz 's'
-accept	accept	grammar	literalType/TIMESTAMP!swap	SELECT TIMESTAMPADD 's'
+reject	accept	grammar	literalType/TIMESTAMP!swap	SELECT TIMESTAMPADD 's'
 accept	accept	grammar	literalType/TIMESTAMP_LTZ	SELECT TIMESTAMP_LTZ 's'
 reject	reject	grammar	literalType/TIMESTAMP_LTZ!insert	SELECT TIMESTAMP_LTZ zzz 's'
 accept	accept	grammar	literalType/TIMESTAMP_NTZ	SELECT TIMESTAMP_NTZ 's'
 reject	reject	grammar	literalType/TIMESTAMP_NTZ!insert	SELECT TIMESTAMP_NTZ zzz 's'
-accept	accept	grammar	literalType/TIMESTAMP_NTZ!swap	SELECT TINYINT 's'
+reject	accept	grammar	literalType/TIMESTAMP_NTZ!swap	SELECT TINYINT 's'
 accept	accept	grammar	literalType/INTERVAL	SELECT INTERVAL 's'
 reject	reject	grammar	literalType/INTERVAL!insert	SELECT INTERVAL zzz 's'
-accept	accept	grammar	literalType/INTERVAL!swap	SELECT INTO 's'
+reject	accept	grammar	literalType/INTERVAL!swap	SELECT INTO 's'
 accept	accept	grammar	literalType/BINARY_HEX	SELECT X 's'
 reject	reject	grammar	literalType/BINARY_HEX!insert	SELECT X zzz 's'
-accept	accept	grammar	literalType/BINARY_HEX!swap	SELECT YEAR 's'
-accept	accept	grammar	literalType/identifier	SELECT a 's'
+reject	accept	grammar	literalType/BINARY_HEX!swap	SELECT YEAR 's'
+reject	accept	grammar	literalType/identifier	SELECT a 's'
 reject	reject	grammar	literalType/identifier!insert	SELECT a zzz 's'
 accept	accept	grammar	constant/NULL	SELECT NULL
 accept	accept	grammar	constant/QUESTION	SELECT ?
@@ -5195,13 +5195,13 @@ accept	accept	grammar	number(MINUS)?/MINUS	SELECT - 1E1
 reject	reject	grammar	number(MINUS)?/MINUS!insert	SELECT - zzz 1E1
 accept	accept	grammar	number(EXPONENT_VALUE|DECIMAL_VALUE)/EXPONENT_VALUE	SELECT 1E1
 accept	accept	grammar	number(EXPONENT_VALUE|DECIMAL_VALUE)/DECIMAL_VALUE	SELECT 1.5
-accept	accept	grammar	alterColumnSpecList/alterColumnSpec_(COMMA_alterColumnSpec)*	ALTER TABLE a ALTER a
-accept	accept	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/%empty	ALTER TABLE a ALTER a
-accept	accept	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/COMMA_alterColumnSpec_(COMMA_alterColumnSpec)*	ALTER TABLE a ALTER a, a
+reject	accept	grammar	alterColumnSpecList/alterColumnSpec_(COMMA_alterColumnSpec)*	ALTER TABLE a ALTER a
+reject	accept	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/%empty	ALTER TABLE a ALTER a
+reject	accept	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/COMMA_alterColumnSpec_(COMMA_alterColumnSpec)*	ALTER TABLE a ALTER a, a
 reject	reject	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/COMMA_alterColumnSpec_(COMMA_alterColumnSpec)*!drop-2	ALTER TABLE a ALTER a,
 reject	reject	grammar	alterColumnSpecList(COMMA_alterColumnSpec)*/COMMA_alterColumnSpec_(COMMA_alterColumnSpec)*!insert	ALTER TABLE a ALTER a, a zzz
-accept	accept	grammar	alterColumnSpec/multipartIdentifier_(alterColumnAction)?	ALTER TABLE a ALTER a
-accept	accept	grammar	alterColumnSpec(alterColumnAction)?/%empty	ALTER TABLE a ALTER a
+reject	accept	grammar	alterColumnSpec/multipartIdentifier_(alterColumnAction)?	ALTER TABLE a ALTER a
+reject	accept	grammar	alterColumnSpec(alterColumnAction)?/%empty	ALTER TABLE a ALTER a
 accept	accept	grammar	alterColumnSpec(alterColumnAction)?/alterColumnAction	ALTER TABLE a ALTER a FIRST
 accept	accept	grammar	alterColumnAction/TYPE_dataType	ALTER TABLE a ALTER a TYPE BOOLEAN
 reject	reject	grammar	alterColumnAction/TYPE_dataType!drop-1	ALTER TABLE a ALTER a BOOLEAN

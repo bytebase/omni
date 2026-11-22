@@ -813,7 +813,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.hasKeywordAtDepthZero(1, kwAS))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -846,7 +847,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.hasKeywordAtDepthZero(1, kwAS))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -899,7 +901,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
 		// without reparsing the argument expression.
 		hasQuantifier := p.isFunctionSetQuantifier() &&
-			!(p.peek(1).Kind == kwIGNORE && p.peek(2).Kind == kwNULLS && p.peek(3).Kind == tokRParen)
+			!(p.peek(1).Kind == kwIGNORE && p.peek(2).Kind == kwNULLS && p.peek(3).Kind == tokRParen) &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.endsParenWithIgnoreNulls())
 		if hasQuantifier {
 			p.advance()
 		}
@@ -930,7 +933,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.hasKeywordAtDepthZero(1, kwIN))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -1020,7 +1024,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.isQuantifierAmbiguousWithOperand() && (p.hasKeywordAtDepthZero(1, kwFROM) || p.hasKeywordAtDepthZero(1, kwFOR)))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -1098,7 +1103,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			_, err := p.expect(tokRParen)
 			return err
 		}
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.hasKeywordAtDepthZero(1, kwFROM))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -1133,7 +1139,9 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		hasQuantifier := p.isFunctionSetQuantifier() && p.peek(1).Kind != kwPLACING
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			p.peek(1).Kind != kwPLACING &&
+			!(p.isQuantifierAmbiguousWithOperand() && p.hasKeywordAtDepthZero(1, kwPLACING))
 		if hasQuantifier {
 			p.advance()
 		}
@@ -1803,6 +1811,24 @@ func (p *Parser) isFunctionSetQuantifierAt(offset int) bool {
 	return true
 }
 
+// isQuantifierAmbiguousWithOperand reports whether a leading ALL/DISTINCT is
+// followed by a token (`+`, `-`, `(`) that can either start a quantified unary/
+// parenthesized expression (`ALL -1`, `DISTINCT (x)`) or continue an identifier
+// operand (`all + 1`, `distinct - 1`, `all(1)`).
+func (p *Parser) isQuantifierAmbiguousWithOperand() bool {
+	next := p.peek(1).Kind
+	return next == tokPlus || next == tokMinus || next == tokLParen
+}
+
+// endsParenWithIgnoreNulls reports whether the enclosing `(...)` whose '(' is
+// at offset -1 ends with `IGNORE NULLS)`.
+func (p *Parser) endsParenWithIgnoreNulls() bool {
+	closeOff := p.matchingCloseOffset(-1)
+	return closeOff >= 3 &&
+		p.peek(closeOff-2).Kind == kwIGNORE &&
+		p.peek(closeOff-1).Kind == kwNULLS
+}
+
 func (p *Parser) parseFunctionCallSuffixes() error {
 	// Optional WITHIN GROUP (ORDER BY sortItem (COMMA sortItem)*)
 	if p.cur().Kind == kwWITHIN && p.peek(1).Kind == kwGROUP {
@@ -1950,6 +1976,14 @@ func (p *Parser) isStringLitAt(offset int) bool {
 	return k == tokString || k == tokDoubleQuoted
 }
 
+func isSupportedLiteralType(tok Token) bool {
+	switch tok.Kind {
+	case kwDATE, kwTIMESTAMP, kwTIMESTAMP_LTZ, kwTIMESTAMP_NTZ, kwINTERVAL, kwBINARY_HEX:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) canStartConstant() bool {
 	switch p.cur().Kind {
 	case kwNULL, tokQuestion, tokColon, kwINTERVAL,
@@ -1958,8 +1992,8 @@ func (p *Parser) canStartConstant() bool {
 		kwTRUE, kwFALSE, tokString, tokDoubleQuoted:
 		return true
 	}
-	// literalType stringLit: DATE '...', TIMESTAMP '...', X '...', ident '...'
-	if p.cur().Kind.isIdentifier() && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
+	// literalType stringLit: DATE '...', TIMESTAMP '...', TIMESTAMP_LTZ '...', TIMESTAMP_NTZ '...', X '...'
+	if isSupportedLiteralType(p.cur()) && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
 		return true
 	}
 	return false
@@ -1998,8 +2032,8 @@ func (p *Parser) parseConstant() error {
 		return p.parseNumber()
 	}
 
-	// literalType stringLit (DATE '...', TIMESTAMP '...', TIMESTAMP_LTZ '...', TIMESTAMP_NTZ '...', X '...', ident '...')
-	if p.cur().Kind.isIdentifier() && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
+	// literalType stringLit (DATE '...', TIMESTAMP '...', TIMESTAMP_LTZ '...', TIMESTAMP_NTZ '...', X '...')
+	if isSupportedLiteralType(p.cur()) && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
 		p.advance()
 		p.advance()
 		return nil

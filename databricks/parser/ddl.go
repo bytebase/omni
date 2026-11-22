@@ -170,11 +170,12 @@ func (p *Parser) parseReplaceTable() (Statement, error) {
 
 func (p *Parser) parseCreateOrReplaceTableBody() error {
 	// Optional (colDefinitionList), careful not to mistake (query) for colDefinitionList!
+	hasColDefs := false
 	if p.cur().Kind == tokLParen {
 		cp := p.save()
 		p.advance()
 		if err := p.parseColDefinitionList(); err == nil && p.match(tokRParen) {
-			// parsed colDefinitionList
+			hasColDefs = true
 		} else {
 			p.restore(cp)
 		}
@@ -188,9 +189,15 @@ func (p *Parser) parseCreateOrReplaceTableBody() error {
 		return err
 	}
 	if p.match(kwAS) {
+		if hasColDefs {
+			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
+		}
 		return p.parseQuery()
 	}
 	if p.looksLikeQueryStart() {
+		if hasColDefs {
+			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
+		}
 		return p.parseQuery()
 	}
 	return nil
@@ -1038,7 +1045,7 @@ func (p *Parser) parseAlterColumnSpec() error {
 		_, err := p.expect(kwNULL)
 		return err
 	}
-	return nil
+	return p.errorf("expected TYPE, COMMENT, FIRST, AFTER, SET, or DROP in ALTER COLUMN specification, got %q", p.cur().Text)
 }
 
 func (p *Parser) parseHiveChangeColumnTail() error {

@@ -2580,7 +2580,10 @@ func (p *Parser) parseSortItem() error {
 }
 
 func (p *Parser) parseQueryOrganization() error {
+	hasOrder := false
+	hasCluster := false
 	if p.cur().Kind == kwORDER && p.peek(1).Kind == kwBY {
+		hasOrder = true
 		p.advance()
 		p.advance()
 		if err := p.parseSortItemList(); err != nil {
@@ -2588,6 +2591,10 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.cur().Kind == kwCLUSTER && p.peek(1).Kind == kwBY {
+		if hasOrder {
+			return p.errorf("CLUSTER BY cannot be combined with ORDER BY")
+		}
+		hasCluster = true
 		p.advance()
 		p.advance()
 		if err := p.parseExpressionSeq(); err != nil {
@@ -2595,6 +2602,9 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.cur().Kind == kwDISTRIBUTE && p.peek(1).Kind == kwBY {
+		if hasOrder || hasCluster {
+			return p.errorf("DISTRIBUTE BY cannot be combined with ORDER BY or CLUSTER BY")
+		}
 		p.advance()
 		p.advance()
 		if err := p.parseExpressionSeq(); err != nil {
@@ -2602,6 +2612,9 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.cur().Kind == kwSORT && p.peek(1).Kind == kwBY {
+		if hasOrder || hasCluster {
+			return p.errorf("SORT BY cannot be combined with ORDER BY or CLUSTER BY")
+		}
 		p.advance()
 		p.advance()
 		if err := p.parseSortItemList(); err != nil {
