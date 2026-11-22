@@ -1019,8 +1019,8 @@
     CREATE TABLE [test_schema].[users] (
         [id] int IDENTITY(1,1) NOT NULL,
         [email] varchar(255) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
-        [created_at] datetime2(7) DEFAULT (getdate()),
-        [is_active] bit DEFAULT ((1)),
+        [created_at] datetime2(7) CONSTRAINT [DF__users__created_a__38996AB5] DEFAULT (getdate()),
+        [is_active] bit CONSTRAINT [DF__users__is_active__398D8EEE] DEFAULT ((1)),
         [age] int,
         [computed_column] AS ([id]*(2)) PERSISTED,
         CONSTRAINT [PK__users__3213E83F9332C18C] PRIMARY KEY CLUSTERED ([id] ASC),
@@ -1169,13 +1169,13 @@
     CREATE VIEW dbo.v_employee_summary AS
     SELECT department, COUNT(*) as emp_count, AVG(salary) as avg_salary
     FROM dbo.employees
-    GROUP BY department;;
+    GROUP BY department;
 
     GO
 
     CREATE VIEW dbo.v_high_earners AS
     SELECT * FROM dbo.v_employee_summary
-    WHERE avg_salary > 50000;;
+    WHERE avg_salary > 50000;
 
     GO
 
@@ -1719,7 +1719,7 @@
         [boundary_polygon] geography NOT NULL,
         [route_line] geography,
         [description] nvarchar(max) COLLATE SQL_Latin1_General_CP1_CI_AS,
-        [created_at] datetime2(7) DEFAULT (getdate()),
+        [created_at] datetime2(7) CONSTRAINT [DF__locations__creat__37A5467C] DEFAULT (getdate()),
         CONSTRAINT [PK__location__3213E83FC19EBDD5] PRIMARY KEY CLUSTERED ([id] ASC)
     );
 
@@ -2354,7 +2354,7 @@
         geom_shape.STArea() AS shape_area,
         status
     FROM dbo.spatial_mixed
-    WHERE status = 'active';;
+    WHERE status = 'active';
 
     GO
 
@@ -2724,8 +2724,8 @@
         [building_footprint] geometry,
         [floor_plan] geometry,
         [category] varchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS,
-        [is_active] bit DEFAULT ((1)),
-        [last_updated] datetime2(7) DEFAULT (getdate()),
+        [is_active] bit CONSTRAINT [DF__geo_data__is_act__37A5467C] DEFAULT ((1)),
+        [last_updated] datetime2(7) CONSTRAINT [DF__geo_data__last_u__38996AB5] DEFAULT (getdate()),
         CONSTRAINT [PK__geo_data__3213E83F941B2A6B] PRIMARY KEY CLUSTERED ([id] ASC)
     );
 
