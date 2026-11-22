@@ -13,6 +13,13 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		return err
 	}
 
+	// MariaDB evaluates ON SCHEDULE expressions before checking whether the
+	// event already exists: a bare column reference answers 1054 (measured on
+	// mariadb:11.8.8).
+	if err := validateEventSchedule(stmt.Schedule); err != nil {
+		return err
+	}
+
 	name := stmt.Name
 	key := toLower(name)
 
@@ -56,8 +63,25 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 		return err
 	}
 
+	// MariaDB validates ON SCHEDULE expressions before looking up the event
+	// (1054), and rejects renaming an event to its own name (1551) even when
+	// the event does not exist (measured on mariadb:11.8.8).
+	if err := validateEventSchedule(stmt.Schedule); err != nil {
+		return err
+	}
+
 	name := stmt.Name
 	key := toLower(name)
+
+	if stmt.RenameTo != "" {
+		renameSchema := stmt.RenameSchema
+		if renameSchema == "" {
+			renameSchema = c.currentDB
+		}
+		if toLower(renameSchema) == toLower(db.Name) && toLower(stmt.RenameTo) == key {
+			return errEventSameName()
+		}
+	}
 
 	event, exists := db.Events[key]
 	if !exists {
@@ -160,6 +184,38 @@ func (c *Catalog) ShowCreateEvent(database, name string) string {
 	return showCreateEvent(event)
 }
 
+// validateEventSchedule rejects bare column references in ON SCHEDULE
+// expressions (AT, EVERY, STARTS, ENDS), which have no tables in scope and
+// answer 1054 in MariaDB before checking event existence.
+func validateEventSchedule(sched *nodes.EventSchedule) error {
+	if sched == nil {
+		return nil
+	}
+	for _, expr := range []nodes.ExprNode{sched.At, sched.Every, sched.Starts, sched.Ends} {
+		if expr == nil {
+			continue
+		}
+		var err error
+		nodes.Inspect(expr, func(n nodes.Node) bool {
+			if err != nil {
+				return false
+			}
+			switch x := n.(type) {
+			case *nodes.SelectStmt:
+				return false
+			case *nodes.ColumnRef:
+				err = errNoSuchColumn(x.Column, "SELECT")
+				return false
+			}
+			return true
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func showCreateEvent(e *Event) string {
 	var b strings.Builder
 
@@ -167,7 +223,7 @@ func showCreateEvent(e *Event) string {
 
 	// DEFINER
 	if e.Definer != "" {
-		b.WriteString(fmt.Sprintf(" DEFINER=%s", e.Definer))
+		b.WriteString(fmt.Sprintf(" DEFINER=%s", formatDefiner(e.Definer)))
 	}
 
 	b.WriteString(fmt.Sprintf(" EVENT `%s`", e.Name))

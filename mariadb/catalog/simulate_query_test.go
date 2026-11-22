@@ -33,7 +33,7 @@ func TestQuerySimulation(t *testing.T) {
 		Fixtures: filepath.Join("testdata", "fixtures"),
 		Rows:     rows,
 		Omni:     simulationOmni,
-		Engine:   simulationEngine,
+		Engine:   simulationEngineTablesOnly,
 	})
 }
 

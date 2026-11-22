@@ -21,6 +21,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if db.Views[toLower(tableName)] != nil {
 			return errWrongObject(db.Name, tableName, "BASE TABLE")
 		}
+		if db.Sequences[toLower(tableName)] != nil {
+			return errSequenceInvalidTableStructure(db.Name, tableName)
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -261,6 +264,12 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	if tbl == nil {
 		if db.Views[toLower(tableName)] != nil {
 			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
+		if db.Sequences[toLower(tableName)] != nil {
+			if stmt.IfExists {
+				return nil
+			}
+			return errCantDropKey("INDEX", stmt.Name)
 		}
 		return errNoSuchTable(db.Name, tableName)
 	}

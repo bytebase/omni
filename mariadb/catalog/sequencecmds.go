@@ -30,6 +30,9 @@ type Sequence struct {
 	// Temporary marks a CREATE TEMPORARY SEQUENCE, which lasts for the
 	// session and is no part of the schema.
 	Temporary bool
+	// TablespaceDiscarded records ALTER TABLE <seq> DISCARD TABLESPACE on an
+	// InnoDB sequence, after which SHOW CREATE SEQUENCE fails with 1030.
+	TablespaceDiscarded bool
 }
 
 // sequenceTypes are the integer types a sequence may be declared AS, with
@@ -104,12 +107,13 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	if err != nil {
 		return err
 	}
-	seq := db.Sequences[toLower(stmt.Name.Name)]
+	key := toLower(stmt.Name.Name)
+	seq := db.Sequences[key]
 	if seq == nil {
 		if stmt.IfExists {
 			return nil
 		}
-		if db.Tables[toLower(stmt.Name.Name)] != nil {
+		if db.Tables[key] != nil || db.Views[key] != nil {
 			return errNotSequence(4089, db.Name, stmt.Name.Name)
 		}
 		return errUnknownSequence(stmt.Name.Name)
@@ -119,6 +123,22 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 		next.DataType = sequenceDataType(stmt.DataType)
 		if next.DataType == "" {
 			return errSequenceOutOfRange(db.Name, seq.Name)
+		}
+		// MariaDB executes ALTER SEQUENCE ... AS <type> by altering the
+		// underlying sequence table's value columns (minimum_value,
+		// maximum_value, start_value) to the new integer type first, so any
+		// existing bound outside the new type's range fails with 1264
+		// (measured on mariadb:11.8.8). The increment column always stays
+		// signed BIGINT regardless of the sequence value type.
+		typeMin, typeMax := sequenceTypeRange(next.DataType)
+		for _, pair := range []struct{ col, val string }{
+			{"minimum_value", seq.MinValue},
+			{"maximum_value", seq.MaxValue},
+			{"start_value", seq.Start},
+		} {
+			if v, ok := new(big.Int).SetString(pair.val, 10); ok && (v.Cmp(typeMin) < 0 || v.Cmp(typeMax) > 0) {
+				return errOutOfRangeColumn(pair.col)
+			}
 		}
 	}
 	opts := sequenceOptions{
@@ -156,6 +176,9 @@ func (c *Catalog) dropSequence(stmt *nodes.DropSequenceStmt) error {
 		if seq := db.Sequences[key]; seq == nil || (stmt.Temporary && !seq.Temporary) {
 			if stmt.IfExists {
 				continue
+			}
+			if db.Views[key] != nil {
+				return errIsAView(db.Name, ref.Name)
 			}
 			if db.Tables[key] != nil {
 				return errNotSequence(4090, db.Name, ref.Name)
@@ -198,9 +221,18 @@ func (seq *Sequence) apply(o sequenceOptions, create bool) error {
 		return outOfRange
 	}
 	inc, _ := new(big.Int).SetString(seq.Increment, 10)
+	if inc == nil {
+		return outOfRange
+	}
 	if inc.Sign() == 0 {
 		// INCREMENT BY 0 takes auto_increment_increment, 1 by default.
 		seq.Increment, inc = "1", big.NewInt(1)
+	}
+	// MariaDB's sequence increment is a signed 64-bit integer and rejects
+	// LONGLONG_MIN (-9223372036854775808) and values >= LONGLONG_MAX with
+	// 4085 (measured on mariadb:11.8.8).
+	if inc.Cmp(big.NewInt(math.MinInt64+1)) < 0 || inc.Cmp(big.NewInt(math.MaxInt64-1)) > 0 {
+		return outOfRange
 	}
 	typeMin, typeMax := sequenceTypeRange(seq.DataType)
 	setMin, setMax := o.min != nil && !o.noMin, o.max != nil && !o.noMax
@@ -470,4 +502,206 @@ func dropReplacedSequence(db *Database, key string, stmt *nodes.CreateTableStmt)
 	if stmt.OrReplace && !stmt.Temporary {
 		delete(db.Sequences, key)
 	}
+}
+
+// isSequenceColumn reports whether name is one of the eight fixed columns of a
+// MariaDB sequence's underlying table.
+func isSequenceColumn(name string) bool {
+	lower := toLower(name)
+	for _, c := range sequenceColumnNames {
+		if c == lower {
+			return true
+		}
+	}
+	return false
+}
+
+// alterSequenceTable handles ALTER TABLE targeting a sequence. In MariaDB a
+// sequence is backed by an 8-column table with no keys, constraints,
+// partitioning, or system versioning: table-level options, RENAME, FORCE,
+// ENABLE/DISABLE KEYS, CONVERT TO CHARSET, and DISCARD TABLESPACE are allowed,
+// while commands referencing missing columns/keys/partitions/versioning answer
+// their usual errors and commands that alter the 8-column keyless structure
+// answer 4086 (measured on mariadb:11.8.8).
+func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, stmt *nodes.AlterTableStmt) error {
+	synth := &Table{
+		Name:                seq.Name,
+		Database:            db,
+		Engine:              seq.Engine,
+		Charset:             db.Charset,
+		Collation:           db.Collation,
+		Comment:             seq.Comment,
+		Temporary:           seq.Temporary,
+		TablespaceDiscarded: seq.TablespaceDiscarded,
+	}
+	if synth.TablespaceDiscarded {
+		if err := refuseCopyAlterOnDiscarded(synth, stmt.Commands); err != nil {
+			return err
+		}
+	}
+	if repartition := alterRepartition(stmt.Commands); repartition != nil {
+		if repartition.Type == nodes.PartitionSystemTime {
+			return errNotSystemVersioned(seq.Name)
+		}
+		return errSequenceInvalidTableStructure(db.Name, seq.Name)
+	}
+	for _, cmd := range stmt.Commands {
+		if addsColumnVersioning(cmd) {
+			return errNotSystemVersioned(seq.Name)
+		}
+	}
+	if !alterAddsSystemVersioning(stmt.Commands) {
+		for _, cmd := range stmt.Commands {
+			if addsRowBoundColumn(cmd) {
+				return errNotSystemVersioned(seq.Name)
+			}
+		}
+	}
+	if _, err := c.planAlterCharset(synth, stmt.Commands); err != nil {
+		return err
+	}
+
+	next := *seq
+	curDB, curKey := db, key
+	for _, cmd := range stmt.Commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn:
+			if cmd.After != "" && !isSequenceColumn(cmd.After) {
+				return errNoSuchColumn(cmd.After, next.Name)
+			}
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATDropColumn:
+			if !isSequenceColumn(cmd.Name) {
+				if cmd.IfExists {
+					continue
+				}
+				return errCantDropKey("COLUMN", cmd.Name)
+			}
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATModifyColumn:
+			colName := cmd.Name
+			if colName == "" && cmd.Column != nil {
+				colName = cmd.Column.Name
+			}
+			if !isSequenceColumn(colName) {
+				return errNoSuchColumn(colName, next.Name)
+			}
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATChangeColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
+			if !isSequenceColumn(cmd.Name) {
+				return errNoSuchColumn(cmd.Name, next.Name)
+			}
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATAddConstraint:
+			if cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrForeignKey {
+				for _, col := range cmd.Constraint.Columns {
+					if !isSequenceColumn(col) {
+						return errKeyColumnDoesNotExist(col)
+					}
+				}
+			}
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATAddIndex:
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATDropIndex:
+			if cmd.IfExists {
+				continue
+			}
+			return errCantDropKey("INDEX", cmd.Name)
+		case nodes.ATDropConstraint:
+			if cmd.IfExists {
+				continue
+			}
+			return errCantDropKey("CONSTRAINT", cmd.Name)
+		case nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible, nodes.ATRenameIndex:
+			return errKeyDoesNotExist(cmd.Name, next.Name)
+		case nodes.ATAlterCheckEnforced:
+			return c.alterCheckEnforced(synth, cmd)
+		case nodes.ATAddPartition, nodes.ATDropPartition, nodes.ATTruncatePartition,
+			nodes.ATCoalescePartition, nodes.ATReorganizePartition, nodes.ATExchangePartition,
+			nodes.ATConvertPartitionToTable, nodes.ATConvertTableToPartition,
+			nodes.ATRemovePartitioning, nodes.ATRebuildPartition, nodes.ATOptimizePartition,
+			nodes.ATAnalyzePartition, nodes.ATCheckPartition, nodes.ATRepairPartition,
+			nodes.ATDiscardPartitionTablespace, nodes.ATImportPartitionTablespace:
+			return errPartitionMgmtOnNonpartitioned()
+		case nodes.ATAddSystemVersioning:
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATDropSystemVersioning:
+			return errNotSystemVersioned(next.Name)
+		case nodes.ATDropPeriod:
+			if !cmd.IfExists && isSystemTimePeriodName(cmd.PeriodName) {
+				return errNotSystemVersioned(next.Name)
+			}
+			if cmd.IfExists {
+				continue
+			}
+			return errCantDropPeriod(cmd.PeriodName)
+		case nodes.ATAddPeriod:
+			if !isSystemTimePeriodName(cmd.PeriodName) {
+				return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+			}
+		case nodes.ATOrderBy:
+			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
+		case nodes.ATImportTablespace:
+			if err := refuseTablespaceEngine(synth); err != nil {
+				return err
+			}
+			if next.TablespaceDiscarded {
+				return errTablespaceMissing()
+			}
+			return errTablespaceExists(curDB.Name, next.Name)
+		case nodes.ATDiscardTablespace:
+			if err := refuseTablespaceEngine(synth); err != nil {
+				return err
+			}
+			next.TablespaceDiscarded = true
+			synth.TablespaceDiscarded = true
+		case nodes.ATTableOption:
+			if cmd.Option == nil {
+				continue
+			}
+			if cmd.Option.EngineDefined {
+				if !c.ignoresBadTableOptions() {
+					return errUnknownOption(cmd.Option.Name)
+				}
+				continue
+			}
+			switch toLower(cmd.Option.Name) {
+			case "engine":
+				next.Engine = canonicalEngineName(cmd.Option.Value)
+				synth.Engine = next.Engine
+			case "comment":
+				next.Comment = cmd.Option.Value
+			}
+		case nodes.ATRenameTable:
+			newTable := cmd.NewTable
+			if newTable == nil {
+				newTable = &nodes.TableRef{Name: cmd.NewName}
+			}
+			newDB, err := c.resolveDatabase(newTable.Schema)
+			if err != nil {
+				return err
+			}
+			newName := newTable.Name
+			newKey := toLower(newName)
+			if (newDB != curDB || newKey != curKey) &&
+				(newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil || (newDB.Sequences[newKey] != nil && newDB.Sequences[newKey] != seq)) {
+				return errDupTable(newName)
+			}
+			curDB = newDB
+			curKey = newKey
+			next.Name = newName
+			next.Database = newDB
+		}
+	}
+
+	if curDB != db || curKey != key {
+		delete(db.Sequences, key)
+		curDB.Sequences[curKey] = seq
+	}
+	*seq = next
+	return nil
 }

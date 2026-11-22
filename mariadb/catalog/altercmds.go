@@ -31,6 +31,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	tbl := db.Tables[key]
 	if tbl == nil {
+		if seq := db.Sequences[key]; seq != nil {
+			return c.alterSequenceTable(db, seq, key, stmt)
+		}
 		// A partition maintenance command is not an error on a missing table or
 		// a view: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
 		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and
