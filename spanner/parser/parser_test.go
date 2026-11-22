@@ -301,3 +301,36 @@ func TestDialectsRemainIndependent(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePostgres(t *testing.T) {
+	accepted := []string{
+		"SELECT 1",
+		"SELECT 'a'::text, ARRAY[1, 2, 3]",
+		"CREATE TABLE singers (id bigint PRIMARY KEY, name varchar(1024) NOT NULL)",
+		"CREATE VIEW singer_names AS SELECT id, name FROM singers",
+		"INSERT INTO singers (id, name) VALUES (1, 'Ada') RETURNING id",
+		"ALTER TABLE singers ADD COLUMN bio text",
+		"DROP TABLE IF EXISTS singers",
+	}
+	for _, sql := range accepted {
+		list, err := ParsePostgres(sql)
+		if err != nil {
+			t.Errorf("ParsePostgres(%q) unexpected error: %v", sql, err)
+		}
+		if list == nil || len(list.Items) != 1 {
+			t.Errorf("ParsePostgres(%q) got %v, want 1 statement", sql, list)
+		}
+	}
+
+	rejected := []string{
+		"SELECT FROM",
+		"CREATE TABLE",
+		"INSERT INTO",
+		"SELECT (1 + )",
+	}
+	for _, sql := range rejected {
+		if _, err := ParsePostgres(sql); err == nil {
+			t.Errorf("ParsePostgres(%q) expected error, got nil", sql)
+		}
+	}
+}
