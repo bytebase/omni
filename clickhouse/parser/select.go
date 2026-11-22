@@ -1197,13 +1197,6 @@ func (p *parser) parseTableFunctionExpr() (*FuncCallExpr, error) {
 }
 
 func (p *parser) parseTableArgExpr() (Expr, error) {
-	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen {
-		return p.parseTableFunctionExpr()
-	}
-	if isLiteralStart(p.cur(), p.peek(1)) {
-		return p.parseLiteral()
-	}
-	// nestedIdentifier or general expression
 	return p.parseExpr()
 }
 

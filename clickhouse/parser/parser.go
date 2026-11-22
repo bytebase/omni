@@ -218,38 +218,68 @@ func (p *parser) parseQuery() (Statement, error) {
 
 func (p *parser) parseOptionalOutputClause() (*OutputClause, error) {
 	var out *OutputClause
-	if p.cur().Type == KwInto && p.peek(1).Type == KwOutfile {
-		start := p.advance().Pos
-		p.advance()
-		str, err := p.parseStringLiteral()
-		if err != nil {
-			return nil, err
-		}
-		out = &OutputClause{span: span{Pos: start, End: str.End}, Outfile: str.Val}
-		if p.match(KwCompression) {
-			comp, err := p.parseStringLiteral()
+	seenOutfile := false
+	seenFormat := false
+	seenSettings := false
+	for {
+		switch {
+		case !seenOutfile && p.cur().Type == KwInto && p.peek(1).Type == KwOutfile:
+			seenOutfile = true
+			start := p.advance().Pos
+			p.advance()
+			str, err := p.parseStringLiteral()
 			if err != nil {
 				return nil, err
 			}
-			out.Compression = comp.Val
-			out.End = comp.End
+			end := str.End
+			comp := ""
+			if p.match(KwCompression) {
+				c, err := p.parseStringLiteral()
+				if err != nil {
+					return nil, err
+				}
+				comp = c.Val
+				end = c.End
+			}
+			if out == nil {
+				out = &OutputClause{span: span{Pos: start, End: end}}
+			} else {
+				out.End = end
+			}
+			out.Outfile = str.Val
+			out.Compression = comp
+		case !seenFormat && p.match(KwFormat):
+			seenFormat = true
+			fmtStart := p.peek(-1).Pos
+			name, err := p.parseIdentifierOrNull()
+			if err != nil {
+				return nil, err
+			}
+			end := p.peek(-1).End
+			if out == nil {
+				out = &OutputClause{span: span{Pos: fmtStart, End: end}}
+			} else {
+				out.End = end
+			}
+			out.Format = name
+		case !seenSettings && p.cur().Type == KwSettings:
+			seenSettings = true
+			setStart := p.cur().Pos
+			settings, err := p.parseSettingsClause()
+			if err != nil {
+				return nil, err
+			}
+			end := p.peek(-1).End
+			if out == nil {
+				out = &OutputClause{span: span{Pos: setStart, End: end}}
+			} else {
+				out.End = end
+			}
+			out.Settings = settings
+		default:
+			return out, nil
 		}
 	}
-	if p.match(KwFormat) {
-		fmtStart := p.peek(-1).Pos
-		name, err := p.parseIdentifierOrNull()
-		if err != nil {
-			return nil, err
-		}
-		end := p.peek(-1).End
-		if out == nil {
-			out = &OutputClause{span: span{Pos: fmtStart, End: end}}
-		} else {
-			out.End = end
-		}
-		out.Format = name
-	}
-	return out, nil
 }
 
 func attachOutputClause(stmt Statement, out *OutputClause) {

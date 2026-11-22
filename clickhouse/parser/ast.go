@@ -38,13 +38,14 @@ type span struct {
 func (s span) StartPos() int { return s.Pos }
 func (s span) EndPos() int   { return s.End }
 
-// OutputClause captures optional INTO OUTFILE ... and FORMAT ... clauses
-// attached to top-level ClickHouse queries.
+// OutputClause captures optional INTO OUTFILE ..., FORMAT ..., and
+// query-level SETTINGS ... clauses attached to top-level ClickHouse queries.
 type OutputClause struct {
 	span
 	Outfile     string
 	Compression string
 	Format      string
+	Settings    []*SettingExpr
 }
 
 // --- Statements ---
@@ -405,6 +406,7 @@ type TableElement struct {
 	Kind        string // "COLUMN", "CONSTRAINT", "INDEX", "PROJECTION"
 	Name        string
 	Type        *DataType
+	Nullability string // "", "NULL", "NOT NULL"
 	DefaultKind string // "", "DEFAULT", "MATERIALIZED", "ALIAS"
 	Expr        Expr
 	Codec       *CodecExpr  // column CODEC(...)

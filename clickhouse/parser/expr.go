@@ -374,9 +374,14 @@ func (p *parser) parseExprPrec(minPrec int) (Expr, error) {
 					// Handle nested tuple access like `t.1.2` where lexer produced `1.2`.
 					p.advance()
 					parts := strings.Split(next.Raw, ".")
-					for _, part := range parts {
+					memberEnd := next.Pos
+					for i, part := range parts {
+						if i > 0 {
+							memberEnd++ // account for '.'
+						}
+						memberEnd += len(part)
 						left = &TupleAccessExpr{
-							span:   span{Pos: left.StartPos(), End: next.End},
+							span:   span{Pos: left.StartPos(), End: memberEnd},
 							Expr:   left,
 							Member: part,
 						}

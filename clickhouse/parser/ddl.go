@@ -1025,7 +1025,10 @@ func (p *parser) parseTableElementExpr() (*TableElement, error) {
 			p.pos = save
 		}
 	case KwProjection:
-		if isIdentifier(p.peek(1)) && p.peek(2).Type == TokLParen {
+		// Disambiguate PROJECTION definition (`PROJECTION name ([WITH ...] SELECT ...)`)
+		// from a column named `projection` with a parameterized type (`projection Array(String)`).
+		if isIdentifier(p.peek(1)) && p.peek(2).Type == TokLParen &&
+			(p.peek(3).Type == KwSelect || p.peek(3).Type == KwWith) {
 			p.advance() // PROJECTION
 			return p.parseTableProjectionDfnt(start)
 		}
@@ -1051,6 +1054,14 @@ func (p *parser) parseTableColumnDfnt() (*TableElement, error) {
 		}
 		elem.Type = dt
 		hasType = true
+		// Optional explicit nullability modifier: NULL or NOT NULL.
+		if p.match(KwNull) {
+			elem.Nullability = "NULL"
+		} else if p.cur().Type == KwNot && p.peek(1).Type == KwNull {
+			p.advance()
+			p.advance()
+			elem.Nullability = "NOT NULL"
+		}
 	}
 	if p.cur().Type == KwDefault || p.cur().Type == KwMaterialized || p.cur().Type == KwAlias {
 		elem.DefaultKind = strings.ToUpper(p.advance().Val)

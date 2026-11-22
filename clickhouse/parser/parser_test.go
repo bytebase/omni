@@ -916,3 +916,75 @@ func TestParseWithLambdaAlterModifiersFilterAliasesStarTransformersAndOffsetFetc
 		t.Fatalf("Parse FETCH after table name failed: %v", err)
 	}
 }
+
+func TestParseOutputSettingsProjectionColTupleSpanTableFuncExprAndNullability(t *testing.T) {
+	// 1. Query-level SETTINGS in output clause (ALTER mutation + SELECT after FORMAT).
+	a1, err := Parse("ALTER TABLE t DELETE WHERE id = 1 SETTINGS mutations_sync = 2")
+	if err != nil {
+		t.Fatalf("Parse ALTER ... SETTINGS failed: %v", err)
+	}
+	at1 := a1[0].(*AlterTableStmt)
+	if at1.Output == nil || len(at1.Output.Settings) != 1 || at1.Output.Settings[0].Name != "mutations_sync" {
+		t.Errorf("ALTER Output = %+v, want mutations_sync setting", at1.Output)
+	}
+	s1, err := Parse("SELECT 1 FORMAT JSON SETTINGS max_threads = 2")
+	if err != nil {
+		t.Fatalf("Parse SELECT ... FORMAT ... SETTINGS failed: %v", err)
+	}
+	su1 := s1[0].(*SelectUnionStmt)
+	if su1.Output == nil || su1.Output.Format != "JSON" || len(su1.Output.Settings) != 1 || su1.Output.Settings[0].Name != "max_threads" {
+		t.Errorf("SELECT Output = %+v, want Format=JSON and max_threads setting", su1.Output)
+	}
+
+	// 2. Column named `projection` with parameterized type vs real PROJECTION definition.
+	c1, err := Parse("CREATE TABLE t (projection Array(String), PROJECTION p (SELECT projection)) ENGINE = Memory")
+	if err != nil {
+		t.Fatalf("Parse projection column failed: %v", err)
+	}
+	cols1 := c1[0].(*CreateTableStmt).Columns
+	if len(cols1) != 2 || cols1[0].Kind != "COLUMN" || cols1[0].Name != "projection" || cols1[0].Type.Name != "Array" || cols1[1].Kind != "PROJECTION" {
+		t.Errorf("CREATE TABLE cols = %+v", cols1)
+	}
+
+	// 3. Split numeric tuple-access spans (`t.1.2` inner node spans `t.1`, outer spans `t.1.2`).
+	tupSQL := "SELECT t.1.2"
+	tupStmts, err := Parse(tupSQL)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", tupSQL, err)
+	}
+	outer := tupStmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*TupleAccessExpr)
+	inner := outer.Expr.(*TupleAccessExpr)
+	if got := tupSQL[inner.StartPos():inner.EndPos()]; got != "t.1" {
+		t.Errorf("inner tuple access span text = %q, want %q", got, "t.1")
+	}
+	if got := tupSQL[outer.StartPos():outer.EndPos()]; got != "t.1.2" {
+		t.Errorf("outer tuple access span text = %q, want %q", got, "t.1.2")
+	}
+
+	// 4. Full expressions in table-function arguments.
+	for _, sql := range []string{
+		"SELECT * FROM numbers(10 + 1)",
+		"SELECT * FROM numbers(toUInt64(10) + 1)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+
+	// 5. Explicit NULL / NOT NULL column modifiers in CREATE TABLE and ALTER TABLE.
+	n1, err := Parse("CREATE TABLE t (id UInt64 NOT NULL, name String NULL DEFAULT '') ENGINE = Memory")
+	if err != nil {
+		t.Fatalf("Parse CREATE TABLE NULL/NOT NULL failed: %v", err)
+	}
+	ncols := n1[0].(*CreateTableStmt).Columns
+	if ncols[0].Nullability != "NOT NULL" || ncols[1].Nullability != "NULL" || ncols[1].DefaultKind != "DEFAULT" {
+		t.Errorf("column nullability = [%+v, %+v]", ncols[0], ncols[1])
+	}
+	n2, err := Parse("ALTER TABLE t ADD COLUMN id UInt64 NOT NULL")
+	if err != nil {
+		t.Fatalf("Parse ALTER ADD COLUMN NOT NULL failed: %v", err)
+	}
+	if n2[0].(*AlterTableStmt).Clauses[0].Element.Nullability != "NOT NULL" {
+		t.Errorf("ALTER ADD COLUMN Nullability = %q, want NOT NULL", n2[0].(*AlterTableStmt).Clauses[0].Element.Nullability)
+	}
+}
