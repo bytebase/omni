@@ -621,6 +621,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "undotted SET key with unquoted value",
+			sql:  `SET foo = bar`,
+			kind: StmtSet,
+		},
+		{
+			name: "undotted SET compression with unquoted value",
+			sql:  `SET compression = snappy`,
+			kind: StmtSet,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
@@ -754,6 +764,9 @@ func TestParseErrors(t *testing.T) {
 		{"decimal with invalid L suffix", "SELECT 1.0L"},
 		{"decimal with invalid Y suffix", "SELECT 1.0Y"},
 		{"decimal with invalid S suffix", "SELECT 1.0S"},
+		{"grouping sets followed by with rollup", "SELECT a FROM t GROUP BY GROUPING SETS ((a)) WITH ROLLUP"},
+		{"grouping sets followed by with cube", "SELECT a FROM t GROUP BY GROUPING SETS ((a)) WITH CUBE"},
+		{"grouping sets followed by grouping sets", "SELECT a FROM t GROUP BY GROUPING SETS ((a)) GROUPING SETS ((b))"},
 	}
 
 	for _, tc := range bad {

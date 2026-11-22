@@ -13,8 +13,8 @@ recognizer again on every run with no server, credentials, or network.
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
 | One per alternative | 2,229 | 2,220 | 9 | 0 |
-| Near-misses | 4,209 | 4,177 | 29 | 3 |
-| **All** | **6,438** | **6,397** | **38** | **3** |
+| Near-misses | 4,209 | 4,176 | 29 | 4 |
+| **All** | **6,438** | **6,396** | **38** | **4** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,19 +70,20 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,397 / 6,438 (99.36%), with 2,220 / 2,229 (99.60%) on
+- **Agreement: 6,396 / 6,438 (99.35%), with 2,220 / 2,229 (99.60%) on
   generated grammar alternatives (the only 9 excluded alternatives are Spark's
   error-capturing rules for unquoted hyphens, invalid pipe-operator forms, and
-  mixed/repeated interval continuations), 38 `judge-only` rows, and 3
+  mixed/repeated interval continuations), 38 `judge-only` rows, and 4
   `omni-only` near-miss rows.**
 
-## Remaining tail (38 `judge-only`, 3 `omni-only` rows)
+## Remaining tail (38 `judge-only`, 4 `omni-only` rows)
 
 All 38 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
 intentionally rejects while the grammar recognizer accepts them due to known
 properties of the offline recognizer and upstream error-capturing rules, and
-the 3 `omni-only` near-misses are `REFRESH .*?` statements accepted by Spark's
-ANTLR grammar that the offline recognizer's `.` wildcard does not match:
+the 4 `omni-only` near-misses are `.*?` wildcard statements (`REFRESH .*?` and
+`SET .*?`) accepted by Spark's ANTLR grammar that the offline recognizer's `.`
+wildcard does not match:
 
 1. **9 malformed optimizer hint near-misses** (`SELECT /*+ */ a`,
    `SELECT /*+(a) */ a`, `SELECT /*+ a a) */ a`, `SELECT /*+ a() */ a`,
@@ -120,16 +121,15 @@ ANTLR grammar that the offline recognizer's `.` wildcard does not match:
    `|> SET a.a = a`): `SqlBaseParser.g4:1561-1584` explicitly comments that
    these productions (along with `|> WHERE ... WINDOW ...`) are captured solely
    for diagnostic error messages; strict `databricks/parser` rejects them.
-6. **3 `omni-only` `REFRESH .*?` wildcard near-misses**
-   (`BEGIN REFRESH REFRESH; END`,
+6. **4 `omni-only` `.*?` wildcard near-misses**
+   (`SET a = a`, `BEGIN REFRESH REFRESH; END`,
    `BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`,
    `BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`):
-   `SqlBaseParser.g4:325` defines `REFRESH (stringLit | .*?)`, so ANTLR and
-   `databricks/parser` consume unquoted resource paths (such as
-   `REFRESH /mnt/data`) through the statement boundary (`;`), whereas
-   `enginetest/grammar`'s offline recognizer binds `.` only to the identifier
-   token class in `tokens.tsv` and therefore rejects keyword tokens (`REFRESH`,
-   `WHEN`) inside the `.*?` tail.
+   `SqlBaseParser.g4:325` (`REFRESH (stringLit | .*?)`) and `setResetStatement`
+   (`SET .*?`) allow arbitrary unquoted tokens through the statement boundary
+   (`;`), whereas `enginetest/grammar`'s offline recognizer binds `.` only to
+   the identifier token class in `tokens.tsv` and therefore rejects `=` or
+   keyword tokens (`REFRESH`, `WHEN`) inside the `.*?` tail.
 
 ## What the judge cannot decide
 

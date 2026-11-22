@@ -175,16 +175,15 @@ func (p *Parser) parseSetResetStatement() (Statement, error) {
 
 	// SET <unquoted config key> [= value]
 	if p.cur().Kind == tokIdent {
-		hasDot, err := p.parseConfigKeyUnquoted()
-		if err != nil {
+		if _, err := p.parseConfigKeyUnquoted(); err != nil {
 			return nil, err
 		}
 		if p.match(tokEq) {
 			if p.cur().Kind == tokBackquoted {
 				p.advance()
-			} else if !p.isStatementEnd() {
-				if err := p.parseConfigValue(hasDot); err != nil {
-					return nil, err
+			} else {
+				for !p.isStatementEnd() {
+					p.advance()
 				}
 			}
 		} else {
@@ -212,27 +211,6 @@ func (p *Parser) parseConfigKeyUnquoted() (bool, error) {
 		p.advance()
 	}
 	return hasDot, nil
-}
-
-func (p *Parser) parseConfigValue(allowRawTail bool) error {
-	if allowRawTail {
-		// Dotted Spark configuration properties (e.g.
-		// `SET spark.sql.session.timeZone = America/Los_Angeles` or URI paths)
-		// capture the unquoted configuration value through the statement boundary,
-		// matching SqlBaseParser.g4's `SET .*?`.
-		for !p.isStatementEnd() {
-			p.advance()
-		}
-		return nil
-	}
-	switch p.cur().Kind {
-	case tokBackquoted, tokString, tokDoubleQuoted, kwTRUE, kwFALSE,
-		tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
-		tokFloat, tokDouble, tokBigDecimal:
-		p.advance()
-		return nil
-	}
-	return p.errorf("expected configuration value, got %q", p.cur().Text)
 }
 
 func (p *Parser) parseAnalyze() (Statement, error) {

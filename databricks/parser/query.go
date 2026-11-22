@@ -2191,8 +2191,12 @@ func (p *Parser) parseAggregationClause() error {
 	// or expression/alias continuations), commit directly without restoring
 	// and retrying through parseNamedExpression so malformed nested queries
 	// fail in linear time.
+	hasGroupingAnalyticsOnly := false
 	for {
 		if p.isGroupingAnalyticsStart() {
+			if p.cur().Kind == kwGROUPING {
+				hasGroupingAnalyticsOnly = true
+			}
 			if err := p.parseGroupingAnalytics(); err != nil {
 				return err
 			}
@@ -2205,7 +2209,10 @@ func (p *Parser) parseAggregationClause() error {
 			break
 		}
 	}
-	// Optional WITH ROLLUP | WITH CUBE | GROUPING SETS (...)
+	if hasGroupingAnalyticsOnly {
+		return nil
+	}
+	// Optional WITH ROLLUP | WITH CUBE | GROUPING SETS (...) (only on the namedExpression alternative).
 	if p.cur().Kind == kwWITH && (p.peek(1).Kind == kwROLLUP || p.peek(1).Kind == kwCUBE) {
 		p.advance()
 		p.advance()

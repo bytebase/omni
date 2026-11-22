@@ -1503,7 +1503,7 @@ accept	accept	grammar	setResetStatement/SET_TIME_ZONE_(.)*!insert	SET TIME ZONE 
 reject	reject	grammar	setResetStatement/SET_TIME_ZONE_(.)*!swap	SETS TIME ZONE
 accept	accept	grammar	setResetStatement/SET_variable_assignmentList	SET VARIABLE a = a
 reject	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-1	VARIABLE a = a
-reject	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-2	SET a = a
+accept	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-2	SET a = a
 reject	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-3	SET VARIABLE = a
 reject	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-4	SET VARIABLE a a
 reject	reject	grammar	setResetStatement/SET_variable_assignmentList!drop-5	SET VARIABLE a =
