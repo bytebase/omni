@@ -900,9 +900,9 @@ func TestParseP2Features(t *testing.T) {
 				t.Fatal("wrong type")
 			}
 		}},
-		{"FUNCTION resource with types", "GRANT EXECUTE ON FUNCTION f(int, text) TO r", func(t *testing.T, s Statement) {
+		{"FUNCTION resource with types", "GRANT EXECUTE ON FUNCTION ks.f(int, text) TO r", func(t *testing.T, s Statement) {
 			r := s.AST.(*ast.GrantStmt).Resource
-			if r.Type != "FUNCTION" || len(r.ArgTypes) != 2 {
+			if r.Type != "FUNCTION" || len(r.Name.Parts) != 2 || len(r.ArgTypes) != 2 {
 				t.Fatal("wrong func resource")
 			}
 		}},

@@ -592,7 +592,6 @@ var sessions = struct {
 }{byKeyspace: map[string]*gocql.Session{}}
 
 // liveSession returns the pinned server's session in keyspace, starting the
-// liveSession returns the pinned server's session in keyspace, starting the
 // container on the first call. Only a recording calls it.
 func liveSession(keyspace string) (*gocql.Session, error) {
 	sessions.Lock()
@@ -607,7 +606,7 @@ func liveSession(keyspace string) (*gocql.Session, error) {
 	if sessions.startErr != nil {
 		return nil, sessions.startErr
 	}
-	session, err := connect(keyspace)
+	session, err := connectAddress(sessions.address, sessions.tag, keyspace)
 	if err != nil {
 		return nil, err
 	}
@@ -627,14 +626,51 @@ func LiveSession(t testing.TB, keyspace string) *gocql.Session {
 	return session
 }
 
+// Judge starts a fresh Cassandra container matching pin, verifies its image
+// digest and reported release_version, and returns a gocql session outside any
+// tape for judging compat.tsv. Both the session and the container are cleaned
+// up via t.Cleanup. It runs only in a recording or verification (OMNI_RECORD=1
+// or OMNI_RECORD=verify); a replay reaches no server.
+func Judge(t testing.TB, pin enginetest.Pin) *gocql.Session {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	container, address, err := startPinContainer(context.Background(), pin)
+	if err != nil {
+		t.Fatalf("start Cassandra (%s): %v", pin.ImageRef(), err)
+	}
+	t.Cleanup(func() {
+		_ = testcontainers.TerminateContainer(container)
+	})
+	session, err := connectAddress(address, pin.Tag, "")
+	if err != nil {
+		t.Fatalf("connect to Cassandra (%s): %v", pin.ImageRef(), err)
+	}
+	t.Cleanup(session.Close)
+	return session
+}
+
 // startContainer starts the pinned server and holds its address for the
 // sessions a recording opens.
-func startContainer() (err error) {
-	ctx := context.Background()
-	pin, pinErr := enginetest.LoadPin(Pins, Driver)
-	if pinErr != nil {
-		return pinErr
+func startContainer() error {
+	pin, err := enginetest.LoadPin(Pins, Driver)
+	if err != nil {
+		return err
 	}
+	container, address, err := startPinContainer(context.Background(), pin)
+	if err != nil {
+		return err
+	}
+	sessions.container = container
+	sessions.address = address
+	sessions.tag = pin.Tag
+	return nil
+}
+
+// startPinContainer starts the Cassandra container named by pin, verifies its
+// image digest, and returns the container handle and host:port CQL address.
+func startPinContainer(ctx context.Context, pin enginetest.Pin) (container testcontainers.Container, address string, err error) {
 	// testcontainers-go panics from MustExtractDockerHost when the Docker
 	// socket is reachable but access is denied, and a test must report that
 	// rather than crash the binary.
@@ -643,7 +679,7 @@ func startContainer() (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := testcontainers.Run(ctx, pin.ImageRef(),
+	container, err = testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithEnv(map[string]string{
 			// A recording needs one node's answers, not a cluster's, and the
 			// heap the machine can spare.
@@ -652,33 +688,34 @@ func startContainer() (err error) {
 			"HEAP_NEWSIZE":           "200M",
 		}),
 		testcontainers.WithExposedPorts("9042/tcp"),
-		testcontainers.WithWaitStrategy(
+		testcontainers.WithWaitStrategyAndDeadline(startupTimeout,
 			wait.ForLog("Starting listening for CQL clients").WithStartupTimeout(startupTimeout)),
 	)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	if err := checkDigest(ctx, container, pin.Digest); err != nil {
-		return err
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
 	}
 	port, err := container.MappedPort(ctx, "9042/tcp")
 	if err != nil {
-		return err
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
 	}
 	host, err := container.Host(ctx)
 	if err != nil {
-		return err
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
 	}
-	sessions.container = container
-	sessions.address = host + ":" + port.Port()
-	sessions.tag = pin.Tag
-	return nil
+	return container, host + ":" + port.Port(), nil
 }
 
-// connect opens a session on the pinned server in keyspace.
-func connect(keyspace string) (*gocql.Session, error) {
+// connectAddress opens a session on address in keyspace and verifies that the
+// server's release_version matches tag.
+func connectAddress(address, tag, keyspace string) (*gocql.Session, error) {
 	ctx := context.Background()
-	cluster := gocql.NewCluster(sessions.address)
+	cluster := gocql.NewCluster(address)
 	cluster.ConnectTimeout = connectTimeout
 	cluster.Keyspace = keyspace
 	session, err := cluster.CreateSession()
@@ -687,10 +724,12 @@ func connect(keyspace string) (*gocql.Session, error) {
 	}
 	var version string
 	if err := session.Query("SELECT release_version FROM system.local").ScanContext(ctx, &version); err != nil {
+		session.Close()
 		return nil, fmt.Errorf("Cassandra does not answer: %w", err)
 	}
-	if version != sessions.tag {
-		return nil, fmt.Errorf("the server reports %q, but pins.tsv pins Cassandra %s", version, sessions.tag)
+	if version != tag {
+		session.Close()
+		return nil, fmt.Errorf("the server reports %q, but pins.tsv pins Cassandra %s", version, tag)
 	}
 	return session, nil
 }
