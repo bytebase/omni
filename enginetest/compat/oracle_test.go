@@ -469,6 +469,11 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"NOAUDIT PORT a":                   {956, 8, "", nil},
 			"NOAUDIT PORT a" + OracleProbeTail: {956, 8, "", nil},
 		}, Reject},
+		{"AUDIT -> NOAUDIT stand-in preserves duplicate BY mode clauses", "AUDIT SELECT ON t BY ACCESS BY SESSION", map[string]*answer{
+			"AUDIT SELECT ON t BY ACCESS BY SESSION":          {46401, 6, "", nil},
+			"NOAUDIT SELECT ON t BY ACCESS":                   {1718, 20, "", nil},
+			"NOAUDIT SELECT ON t BY ACCESS" + OracleProbeTail: {1718, 20, "", nil},
+		}, Reject},
 		{"RECOVER MANAGED STANDBY FINISH FORCE stand-in accepts valid", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE", map[string]*answer{
 			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE":     {274, 0, "", nil},
 			"ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL IMMEDIATE": {1031, 0, "", nil},
@@ -541,6 +546,14 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE":                   {2014, 0, "", nil},
 			"(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE" + OracleProbeTail: {911, 51, "", nil},
 		}, Reject},
+		{"FOR UPDATE over WITH TIES rejected on ORA-02014", "SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE", map[string]*answer{
+			"SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE":                   {2014, 0, "", nil},
+			"SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE" + OracleProbeTail: {911, 64, "", nil},
+		}, Reject},
+		{"semantic FOR UPDATE over DISTINCT view stays accepted on ORA-02014", "SELECT * FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE", map[string]*answer{
+			"SELECT * FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE":                   {2014, 0, "", nil},
+			"SELECT * FROM (SELECT DISTINCT dummy FROM dual) FOR UPDATE" + OracleProbeTail: {911, 60, "", nil},
+		}, Accept},
 		{"ALTER DISKGROUP trailing comma rejected on ORA-15260", "ALTER DISKGROUP a REBALANCE WITH RESTORE,", map[string]*answer{
 			"ALTER DISKGROUP a REBALANCE WITH RESTORE,": {15260, 0, "", nil},
 		}, Reject},
@@ -563,6 +576,16 @@ func TestOracleVerdictOnly(t *testing.T) {
 		{"unclosed paren caught when Oracle aborts early on ORA-01031", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET a TO 's' IDENTIFIED BY a WITH IDENTIFIER IN(a", map[string]*answer{
 			"ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET a TO 's' IDENTIFIED BY a WITH IDENTIFIER IN(a": {1031, 0, "", nil},
 		}, Reject},
+		{"unclosed paren caught on CREATE INMEMORY JOIN GROUP parser bug", "CREATE INMEMORY JOIN GROUP a(a(a)", map[string]*answer{
+			"CREATE INMEMORY JOIN GROUP a(a(a)": {903, 29, "", nil},
+			"CREATE INMEMORY JOIN GROUP a(t(a)": parsed,
+		}, Reject},
+		{"successful PL/SQL parse with skipped $IF branch preserves Accept", "BEGIN $IF FALSE $THEN ( $ELSE NULL; $END END;", map[string]*answer{
+			"BEGIN $IF FALSE $THEN ( $ELSE NULL; $END END;": parsed,
+		}, Accept},
+		{"PL/SQL $IF branch with semantic PLS-00201 preserves Accept", "BEGIN $IF FALSE $THEN ( $ELSE zz; $END END;", map[string]*answer{
+			"BEGIN $IF FALSE $THEN ( $ELSE zz; $END END;": {6550, 30, "PLS-00201", nil},
+		}, Accept},
 		{"stray rparen still accepted when Oracle accepts", "CREATE JAVA SOURCE USING BFILE a, 's')", map[string]*answer{
 			"CREATE JAVA SOURCE USING BFILE a, 's')": parsed,
 		}, Accept},

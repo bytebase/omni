@@ -256,7 +256,7 @@ var (
 	reStandInCreateSpfileAsCopy       = regexp.MustCompile(`(?i)^\s*CREATE\s+SPFILE\s+FROM\s+(PFILE)(?:\s|$)`)
 	reStandInCreateTablespaceSetTmpl  = regexp.MustCompile(`(?i)^\s*CREATE\s+TABLESPACE\s+SET\s+(\S+)\s+USING\s+TEMPLATE\s*\((.*)\)\s*$`)
 	reStandInTradAudit                = regexp.MustCompile(`(?i)^\s*AUDIT\s+(.+)$`)
-	reStandInTradAuditBy              = regexp.MustCompile(`(?i)\s+BY\s+(?:SESSION|ACCESS)\b`)
+	reStandInTradAuditBy              = regexp.MustCompile(`(?i)\s+BY\s+(?:SESSION|ACCESS)(\s+WHENEVER\b|\s*$)`)
 	reStandInRecoverStandbyPrefix     = regexp.MustCompile(`(?i)^\s*ALTER\s+DATABASE\s+RECOVER\s+MANAGED\s+STANDBY\s+DATABASE\s+`)
 	reStandInRecoverFinishForce       = regexp.MustCompile(`(?i)\bFINISH\s+FORCE\b`)
 	reStandInRecoverFinish            = regexp.MustCompile(`(?i)\bFINISH\b`)
@@ -270,6 +270,8 @@ var (
 	reRawSourceHead                   = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:AND\s+(?:RESOLVE|COMPILE)|NOFORCE|EDITIONABLE|NONEDITIONABLE)\s+)*(?:JAVA|MLE\s+MODULE)\b`)
 	reRawSourceAs                     = regexp.MustCompile(`(?i)\bAS\b`)
 	reInquiryNamedArg                 = regexp.MustCompile(`(?i)\$\$[A-Za-z_][A-Za-z0-9_$#]*\s*=>`)
+	reCondComp                        = regexp.MustCompile(`(?i)\$IF\b`)
+	reRowLimitingForUpdate            = regexp.MustCompile(`(?i)\b(?:OFFSET|FETCH\s+(?:FIRST|NEXT)\b.*?\bWITH\s+TIES)\b.*\bFOR\s+UPDATE\b`)
 )
 
 // oracleStandIn returns statement rewritten with a fixture object, valid
@@ -575,7 +577,13 @@ func oracleStandInRev5(statement, schema string, e oracleError) (string, func(in
 		}
 	case 46401:
 		if m := reStandInTradAudit.FindStringSubmatch(statement); m != nil {
-			body := reStandInTradAuditBy.ReplaceAllString(m[1], "")
+			body := m[1]
+			// Remove at most one properly positioned BY SESSION/ACCESS clause
+			// (right before WHENEVER or at end of statement) so duplicate or
+			// misplaced BY clauses remain for Oracle to reject.
+			if loc := reStandInTradAuditBy.FindStringSubmatchIndex(body); loc != nil {
+				body = body[:loc[0]] + body[loc[2]:loc[3]] + body[loc[1]:]
+			}
 			return "NOAUDIT " + body, func(pos int) int { return pos }, true
 		}
 	case 274:
@@ -735,13 +743,8 @@ var oracleKindChecked = map[int]bool{1735: true}
 // It decides an error whose probe says nothing, and a SQL statement's error
 // inside PL/SQL.
 func oracleParserCode(code int, rev5 bool) bool {
-	if rev5 {
-		if code == 2014 {
-			return true
-		}
-		if oracleStatementRev5[code] {
-			return true
-		}
+	if rev5 && oracleStatementRev5[code] {
+		return true
 	}
 	return (code >= 900 && code <= 999 || oracleLexer[code] || oracleStatement[code] ||
 		code >= 2000 && code <= 2099 || code >= 3046 && code <= 3050) && !oracleResolved[code]
@@ -985,13 +988,20 @@ func OracleVerdictOnlySchema(statement, schema string, parse func(text string) e
 	if strings.HasPrefix(v, Reject+"@") {
 		v = Reject
 	}
-	if v == Accept && hasUnclosedParen(statement) {
-		return Reject, nil
-	}
 	return v, nil
 }
 
 func oracleVerdict(statement, schema string, parse func(text string) error, depth int, rev5 bool) (string, error) {
+	// acceptEarlyError returns Accept unless judge rev 5 sees an unclosed '('
+	// (outside PL/SQL conditional compilation $IF branches), which means Oracle
+	// raised an early lookup, privilege, or semantic error before reaching EOF.
+	acceptEarlyError := func() (string, error) {
+		if rev5 && !reCondComp.MatchString(statement) && hasUnclosedParen(statement) {
+			return Reject, nil
+		}
+		return Accept, nil
+	}
+
 	err := parse(statement)
 	if err != nil && oracleFailed(err) {
 		// Again, on the new session database/sql opens for a dropped one.
@@ -1005,6 +1015,12 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		}
 	}
 	if err == nil {
+		// Preserve successful server parses (including PL/SQL $IF branches that
+		// Oracle skipped), except Oracle 23ai's CREATE INMEMORY JOIN GROUP
+		// parser bug that succeeds without a closing ')'.
+		if rev5 && reStandInInmemJoinGroup.MatchString(statement) && hasUnclosedParen(statement) {
+			return Reject, nil
+		}
 		return Accept, nil
 	}
 	e, ok := readOracle(err)
@@ -1038,7 +1054,7 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 				return Reject, nil
 			}
 		}
-		return Accept, nil
+		return acceptEarlyError()
 	}
 	if depth < maxOracleStandIns {
 		var (
@@ -1060,17 +1076,17 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		}
 	}
 	if oracleAfterParse[e.code] || e.position == 0 && oracleKindChecked[e.code] {
-		return Accept, nil
+		return acceptEarlyError()
 	}
 	if rev5 {
 		if e.code == 1501 && e.position == 0 {
-			return Accept, nil
+			return acceptEarlyError()
 		}
 		if e.code == 29538 && e.position == 0 && reRawSourceHead.MatchString(statement) && reRawSourceAs.MatchString(statement) {
-			return Accept, nil
+			return acceptEarlyError()
 		}
 		if e.code == 439 && e.position == 0 && reCreateMLEModule.MatchString(statement) {
-			return Accept, nil
+			return acceptEarlyError()
 		}
 		if e.code == 15260 && e.position == 0 && strings.HasSuffix(strings.TrimSpace(statement), ",") {
 			return Reject, nil
@@ -1081,17 +1097,18 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		reject = RejectAt(e.position)
 	}
 	byCode := func() string {
-		if oracleParserCode(e.code, rev5) {
+		if oracleParserCode(e.code, rev5) || (rev5 && e.code == 2014 && reRowLimitingForUpdate.MatchString(statement)) {
 			return reject
 		}
-		return Accept
+		v, _ := acceptEarlyError()
+		return v
 	}
 	if e.position == len(statement) {
 		// Past the last token nothing is looked up: what the parser wanted
 		// is missing, whatever the code, unless it is a check Oracle makes
 		// of the whole statement after the parse.
 		if oracleCheckedAtEnd[e.code] && !(rev5 && oracleCheckedAtEndRemovedRev5[e.code]) {
-			return Accept, nil
+			return acceptEarlyError()
 		}
 		return reject, nil
 	}
@@ -1112,7 +1129,7 @@ func oracleVerdict(statement, schema string, parse func(text string) error, dept
 		// the first answer's code decides.
 		return byCode(), nil
 	case p.position == len(statement)+oracleTail:
-		return Accept, nil
+		return acceptEarlyError()
 	}
 	return byCode(), nil
 }
