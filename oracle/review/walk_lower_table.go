@@ -362,7 +362,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		}
 		if c.Constraint.Columns != nil {
 			for _, item := range c.Constraint.Columns.Items {
-				if s, ok := item.(*ast.String); ok && s.Str != "" && !addedCols[s.Str] {
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") && !addedCols[s.Str] {
 					b.columnNeeds(r, s.Str, rng)
 				}
 			}
@@ -398,7 +398,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		// An unused nested table column's storage table goes now.
 		b.forgetStorage(r)
 	case ast.AT_MODIFY_NESTED_TABLE:
-		if c.ColumnName != "" && !strings.EqualFold(c.ColumnName, "COLUMN_VALUE") {
+		if c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") && !strings.EqualFold(c.ColumnName, "COLUMN_VALUE") {
 			b.columnNeeds(r, c.ColumnName, rng)
 		}
 	case ast.AT_MODIFY_LOB:
@@ -410,7 +410,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			b.columnNeeds(r, col, rng)
 		}
 	case ast.AT_ALTER_PROPERTY:
-		if c.Subtype == "MODIFY COLUMN SUBSTITUTABLE" && c.ColumnName != "" {
+		if c.Subtype == "MODIFY COLUMN SUBSTITUTABLE" && c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") {
 			b.columnNeeds(r, c.ColumnName, rng)
 		}
 	case ast.AT_MODIFY_TO_PARTITIONED:
@@ -553,7 +553,7 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 	case c.Subtype == "UNIQUE":
 		if c.Constraint != nil && c.Constraint.Columns != nil {
 			for _, item := range c.Constraint.Columns.Items {
-				if s, ok := item.(*ast.String); ok && s.Str != "" {
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
 					b.columnNeeds(r, s.Str, rng)
 				}
 			}
@@ -619,7 +619,7 @@ func (b *builder) uniqueClauseColumns(c *ast.AlterTableCmd) []string {
 	if c.Constraint != nil && c.Constraint.Columns != nil {
 		var out []string
 		for _, item := range c.Constraint.Columns.Items {
-			if s, ok := item.(*ast.String); ok && s.Str != "" {
+			if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
 				out = append(out, s.Str)
 			}
 		}
@@ -631,6 +631,16 @@ func (b *builder) uniqueClauseColumns(c *ast.AlterTableCmd) []string {
 			var out []string
 			for j := i + 2; j < len(toks) && toks[j].Type != tokenCloseParen; j++ {
 				if toks[j].Type == tokenComma {
+					continue
+				}
+				if j+1 < len(toks) && toks[j+1].Str == "." {
+					// Skip dotted object-attribute paths (e.g. o.x).
+					for j < len(toks) && toks[j].Type != tokenComma && toks[j].Type != tokenCloseParen {
+						j++
+					}
+					if j < len(toks) && toks[j].Type == tokenCloseParen {
+						break
+					}
 					continue
 				}
 				if name, ok := tokenName(toks[j]); ok {

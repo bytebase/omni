@@ -419,25 +419,10 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	}
 	if !v.IfNotExists {
 		if v.AsQuery == nil && v.OfType == nil {
-			colSet := make(map[string]bool, len(columns))
 			for _, c := range columns {
 				if columnMissingDatatype(c) {
 					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Column "+review.Code(ident(c.Name))+" must specify a datatype.")
 					return true
-				}
-				colSet[c.Name] = true
-			}
-			if len(columns) > 0 {
-				for _, tc := range outOfLine(v.Constraints) {
-					if tc.Columns == nil {
-						continue
-					}
-					for _, item := range tc.Columns.Items {
-						if s, ok := item.(*ast.String); ok && s.Str != "" && !colSet[s.Str] && !generated(spaceColumn, s.Str) {
-							b.fail(rangeOf(tc.Loc), review.ObjectNotFound, missingIn("Column", s.Str, r.written))
-							return true
-						}
-					}
 				}
 			}
 		} else if v.AsQuery != nil && len(columns) == 0 {
@@ -1639,6 +1624,9 @@ func (b *builder) alterSession(v *ast.AlterSessionStmt) bool {
 // not a table the walk knows in its schema, which a synonym may make a
 // table of another schema; or it may call a function of a schema.
 func (b *builder) dml(n ast.Node) bool {
+	if dmlHasDBLink(n) {
+		return false
+	}
 	b.Order = walk.Lookups
 	targets, ok := dmlTargets(n)
 	fires := !ok || b.w.triggers
@@ -1664,6 +1652,31 @@ func (b *builder) dml(n ast.Node) bool {
 	}
 	b.Last = fires || b.callsUserCode(n)
 	return true
+}
+
+// dmlHasDBLink reports whether a DML statement targets a remote object via
+// a statement-level or TableRef-level database link, which the walk does not
+// follow against local schema metadata.
+func dmlHasDBLink(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.InsertStmt:
+		return v.Dblink != ""
+	case *ast.UpdateStmt:
+		if v.Dblink != "" {
+			return true
+		}
+		if tr, ok := v.Target.(*ast.TableRef); ok && tr.Dblink != "" {
+			return true
+		}
+	case *ast.DeleteStmt:
+		if v.Dblink != "" {
+			return true
+		}
+		if tr, ok := v.Target.(*ast.TableRef); ok && tr.Dblink != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // dmlInsert checks target columns, explicit column-vs-value counts, and

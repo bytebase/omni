@@ -285,6 +285,8 @@ func TestWalkThroughOracle(t *testing.T) {
 	noFinding(t, "CREATE TABLE x2 (a NUMBER, b AS (a + 1));", shop)
 	noFinding(t, "CREATE TABLE x2 (a REFERENCES p (id));", shop)
 	noFinding(t, "CREATE TABLE x2 (a DOMAIN d);", shop)
+	noFinding(t, "CREATE TABLE x2 (o ty, FOREIGN KEY (o.x) REFERENCES p (id));", shop)
+	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT fk_o FOREIGN KEY (a.x) REFERENCES p (id);", shop)
 	oneFinding(t, "ALTER TABLE nokey ADD (b);", 0, "Column `B` must specify a datatype.", shop)
 	noFinding(t, "ALTER TABLE nokey ADD (b AS (a + 1));", shop)
 	noFinding(t, "ALTER TABLE nokey ADD (b NUMBER) ADD CONSTRAINT pk_nk PRIMARY KEY (b);", shop)
@@ -335,6 +337,9 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "UPDATE (SELECT id FROM p WITH READ ONLY) SET id = 1;", 0, "Cannot modify a subquery declared WITH READ ONLY.", shop)
 	oneFinding(t, "DELETE (SELECT id FROM p WITH READ ONLY);", 0, "Cannot modify a subquery declared WITH READ ONLY.", shop)
 	noFinding(t, "DELETE nokey FROM (SELECT 1 FROM dual WITH READ ONLY);", shop)
+	noFinding(t, "INSERT INTO nokey@remote (zz) VALUES (1);", shop)
+	noFinding(t, "UPDATE nokey@remote SET zz = 1;", shop)
+	noFinding(t, "DELETE FROM nokey@remote LOG ERRORS;", shop)
 }
 
 func TestWalkThroughOracleEffects(t *testing.T) {
