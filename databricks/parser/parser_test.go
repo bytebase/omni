@@ -541,6 +541,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "non-reserved keywords as implicit table aliases before clauses",
+			sql:  `SELECT * FROM t window WHERE x = 1 UNION ALL SELECT * FROM t order WHERE x = 1 UNION ALL SELECT * FROM t group WHERE x = 1 UNION ALL SELECT * FROM t pivot WHERE x = 1 UNION ALL SELECT * FROM t unpivot WHERE x = 1 UNION ALL SELECT * FROM t tablesample WHERE x = 1 UNION ALL SELECT * FROM t semi WHERE x = 1 UNION ALL SELECT * FROM t limit ORDER BY 1`,
+			kind: StmtQuery,
+		},
+		{
+			name: "trim with from column expression and SQL FROM separator forms",
+			sql:  `SELECT TRIM(from, s), TRIM(from || x), TRIM(from.x), TRIM(from FROM s), TRIM(BOTH from FROM s), TRIM(FROM s), TRIM(FROM from), TRIM(FROM from || 'x'), TRIM(from(s), 'a'), TRIM(FROM (SELECT 'a')) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,

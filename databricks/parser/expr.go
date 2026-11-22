@@ -971,7 +971,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if (p.cur().Kind == kwBOTH || p.cur().Kind == kwLEADING || p.cur().Kind == kwTRAILING) &&
 			p.startsTrimOptionForm() {
 			p.advance()
-			if p.cur().Kind != kwFROM {
+			if !p.startsTrimFromSeparator() {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -985,7 +985,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			_, err := p.expect(tokRParen)
 			return err
 		}
-		if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+		if p.startsTrimFromSeparator() {
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
 				return err
@@ -1466,6 +1466,44 @@ func (p *Parser) startsTrimOptionForm() bool {
 	switch next {
 	case tokRParen, tokComma, tokEOF, tokSemicolon,
 		tokDot, tokLParen, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwNOT,
+		tokArrow, tokFatArrow:
+		return false
+	}
+	return true
+}
+
+// startsTrimFromSeparator reports whether `FROM` at p.cur() inside `TRIM(...)`
+// acts as the SQL-specific `FROM srcStr` separator (with omitted trimStr)
+// rather than the start of an argument expression beginning with a column or
+// function named `from` (e.g. `TRIM(from, s)`, `TRIM(from || x)`,
+// `TRIM(from.x)`, `TRIM(from FROM s)`).
+func (p *Parser) startsTrimFromSeparator() bool {
+	if p.cur().Kind != kwFROM {
+		return false
+	}
+	next := p.peek(1).Kind
+	if next == kwFROM {
+		after := p.peek(2).Kind
+		switch after {
+		case tokRParen, tokDot, tokLParen, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU:
+			return true
+		}
+		return false
+	}
+	if next == tokLParen {
+		return p.startsWithQueryKeywordAt(2)
+	}
+	switch next {
+	case tokRParen, tokComma, tokEOF, tokSemicolon,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
 		tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
 		tokShiftLeft, tokShiftRight, tokShiftRightU,

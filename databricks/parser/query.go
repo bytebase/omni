@@ -1037,7 +1037,7 @@ func (p *Parser) parseRelationPrimary() error {
 			if _, err := p.expect(tokRParen); err != nil {
 				return err
 			}
-			if p.cur().Kind == kwTABLESAMPLE {
+			if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 				if err := p.parseSample(); err != nil {
 					return err
 				}
@@ -1050,7 +1050,7 @@ func (p *Parser) parseRelationPrimary() error {
 		if _, err := p.expect(tokRParen); err != nil {
 			return err
 		}
-		if p.cur().Kind == kwTABLESAMPLE {
+		if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 			if err := p.parseSample(); err != nil {
 				return err
 			}
@@ -1078,7 +1078,7 @@ func (p *Parser) parseRelationPrimary() error {
 			return err
 		}
 	}
-	if p.cur().Kind == kwTABLESAMPLE {
+	if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 		if err := p.parseSample(); err != nil {
 			return err
 		}
@@ -1248,7 +1248,7 @@ func (p *Parser) parseFunctionTable() error {
 					return err
 				}
 			}
-			if p.cur().Kind == kwTABLESAMPLE {
+			if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 				if err := p.parseSample(); err != nil {
 					return err
 				}
@@ -1705,16 +1705,42 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 		return true
 	}
 	next := p.peek(1).Kind
-	// If keyword is at end of relation (EOF, ';', ',', ')'), check if it's a valid strict alias.
-	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen {
+	// If keyword is at end of relation (EOF, ';', ',', ')', '|>'), it is a valid strict alias.
+	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen || next == tokOperatorPipe {
 		return true
 	}
 	switch k {
-	case kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
-		kwSORT, kwLIMIT, kwOFFSET, kwPIVOT, kwUNPIVOT, kwTABLESAMPLE, kwSET,
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return next != kwBY
+	case kwWINDOW:
+		return !(next.isIdentifier() && p.peek(2).Kind == kwAS)
+	case kwPIVOT, kwTABLESAMPLE:
+		return next != tokLParen
+	case kwUNPIVOT:
+		return next != tokLParen && next != kwINCLUDE && next != kwEXCLUDE
+	case kwANTI, kwSEMI:
+		return next != kwJOIN
+	case kwWITH:
+		return next != tokLParen && next != kwROLLUP && next != kwCUBE
+	case kwFOR:
+		return next != kwSYSTEM_TIME && next != kwSYSTEM_VERSION && next != kwVERSION && next != kwTIMESTAMP
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON, kwSET,
 		kwSELECT, kwINSERT, kwMAP, kwREDUCE, kwWHEN, kwTHEN, kwELSE, kwEND,
-		kwVALUES, kwFROM, kwWITH, kwFOR, kwDO, kwUNTIL, kwINTO, kwUSING, kwON,
-		kwANTI, kwSEMI, kwAS, kwBY:
+		kwVALUES, kwFROM, kwDO, kwUNTIL, kwINTO, kwAS, kwBY:
+		// Allow as implicit alias when followed by an unmistakable multi-token clause boundary.
+		switch next {
+		case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+			return p.peek(2).Kind == kwBY
+		case kwWINDOW:
+			return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+		case kwLATERAL:
+			return p.peek(2).Kind == kwVIEW
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			switch p.peek(2).Kind {
+			case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+				return true
+			}
+		}
 		return false
 	}
 	return true
