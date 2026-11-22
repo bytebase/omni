@@ -24121,11 +24121,11 @@ accept	accept	engine	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX
 reject@27	reject@27	engine	createIndex_table_index_clause(ASC|DESC)?/DESC!insert	CREATE INDEX a ON a(a DESC zzz)
 reject@22	reject@22	engine	createIndex_table_index_clause(ASC|DESC)?/DESC!swap	CREATE INDEX a ON a(a DESCRIPTION)
 accept	accept	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/%empty	CREATE INDEX a ON a(a)
-reject@23	reject@23	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+accept	reject@23	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 reject@22	reject@22	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1!drop-1	CREATE INDEX a ON a(a a)
 reject@22	reject@22	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1!drop-2	CREATE INDEX a ON a(a,)
 reject@22	reject@22	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1!truncate	CREATE INDEX a ON a(a,
-reject@23	reject@23	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1!insert	CREATE INDEX a ON a(a, a zzz)
+reject@25	reject@23	engine	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1!insert	CREATE INDEX a ON a(a, a zzz)
 accept	accept	engine	createIndex_table_index_clause(createIndex_index_properties)?/%empty	CREATE INDEX a ON a(a)
 accept	accept	engine	createIndex_table_index_clause(createIndex_index_properties)?/createIndex_index_properties	CREATE INDEX a ON a(a)
 reject@25	reject@25	engine	createIndex_bitmap_join_index_clause/ON_(ID_.)?_ID_(_(ID_.)?_ID_._ID_(,_(ID_.)?_ID_._ID)*_)_~c27d6dbb	CREATE INDEX a ON a(a.a) FROM a WHERE a = a

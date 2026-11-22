@@ -19,8 +19,8 @@ grammar readings):
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,681 | 349 | 4 | 500 |
-| Near-misses | 31,318 | 29,492 | 1,687 | 100 | 39 |
+| One per alternative | 14,534 | 13,680 | 349 | 4 | 501 |
+| Near-misses | 31,318 | 29,491 | 1,688 | 100 | 39 |
 | Hand rows | 1,010 | 911 | 80 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -473,8 +473,8 @@ from 93.00% to 93.32% and verdict agreement from 98.29% to 98.40%):
 | Query & DML table-alias and expression readings (`PERIOD`, `WINDOW` in `DELETE`, `LEFT` before `PARTITION BY`, `LATERAL` without `(`, reserved `ADD` in SQL expressions) | 8 | `FOR`, `a`, `1`, `SELECT`, or `ADD` |
 | Other DDL (`ALTER TABLE` top-level `NESTED TABLE`/`VARRAY` column properties, `ADD LOG DATA(ALL)`, `CREATE TABLE` duplicate `ANNOTATIONS` closing `)`, `CREATE SNAPSHOT`, `ALTER MVIEW MERGE SUBPARTITIONS INVALIDATE`, `ALTER MVLOG SPLIT PARTITION INTO`, `MOVE KEYS WITH IDENTIFIER IN a)`) | 8 | `RETURN`, `(`, `DATA`, closing `)`, `a`, `SUBPARTITION`, `PARTITION`, or `a` |
 
-Wave 5 moved 351 more rows to Oracle's exact cell (97 fewer `omni_first`, 166
-fewer `oracle_first`, and 88 fewer only-omni-accepts, bringing exact byte match
+Wave 5 moved 349 more rows to Oracle's exact cell (97 fewer `omni_first`, 165
+fewer `oracle_first`, and 87 fewer only-omni-accepts, bringing exact byte match
 from 93.32% to 94.07% and verdict agreement from 98.40% to 98.59%):
 
 | Cause | Rows | Where Oracle stops |
@@ -486,17 +486,17 @@ from 93.32% to 94.07% and verdict agreement from 98.40% to 98.59%):
 | Utility statements (`LOCK TABLE`, `FLASHBACK TABLE`, `TRUNCATE`) | 25 | the token after an unrecognized lock mode, `PARTITION` on multi-partition `LOCK TABLE`, missing `TO`, or missing `TABLE`/`CLUSTER`/`MATERIALIZED` |
 | Query & DML (`EXTERNAL` duplicate columns, `INSERT ... SET` duplicate target columns, `FETCH FIRST 1 zzz ROW`, `UPDATE ... FOR(1)`) | 19 | the repeated column (`ORA-00957`), `ROW`, or `(` after `FOR` |
 | Other DDL (`ALTER DISKGROUP` volume/quotagroup, `ALTER DATABASE`, `ALTER PLUGGABLE DATABASE`, `CREATE USER`, `ADMINISTER KEY MANAGEMENT`, `CREATE AUDIT POLICY`, `CREATE INMEMORY JOIN GROUP`, `CREATE [OR REPLACE] JAVA SOURCE IF [NOT] EXISTS`) | 18 | the clause keyword, literal, `IF`, or trailing token |
-| `CREATE` / `ALTER VIEW` duplicate aliases/annotations/constraints, `CREATE MATERIALIZED ZONEMAP`, `CREATE VECTOR INDEX INCLUDE`, `CREATE CLUSTER`, `CREATE`/`ALTER INDEX`, `CREATE DIMENSION` duplicate `LEVEL`, `CREATE`/`ALTER PROFILE` & `ALTER RESOURCE COST` duplicate limits | 41 | the repeated alias/column/level/limit name, `UNUSABLE`, or constraint keyword |
+| `CREATE` / `ALTER VIEW` duplicate aliases/annotations/constraints, `CREATE MATERIALIZED ZONEMAP`, `CREATE VECTOR INDEX INCLUDE`, `CREATE CLUSTER`, `ALTER INDEX`, `CREATE DIMENSION` duplicate `LEVEL`, `CREATE`/`ALTER PROFILE` & `ALTER RESOURCE COST` duplicate limits | 39 | the repeated alias/column/level/limit name, `UNUSABLE`, or constraint keyword |
 | `CREATE`/`ALTER OPERATOR` and `CREATE`/`ALTER INDEXTYPE` `OBJECT` datatype refusal & `CREATE PFILE`/`SPFILE` syntax | 10 | `OBJECT` (`ORA-00902`), `FROM`, or EOF after `AS` |
 | `suite:lexer` error offsets (unterminated string/comment/q-quote, `""`, reserved `DATE` in expressions) & parenthesized trailing `ORDER BY` (`suite:reference`) | 11 | the opening lexeme byte, `DATE`, or `ORDER` (`ORA-00907`) |
 
-The remaining 2,778 disagreeing rows are non-grammar causes (99 `suite:*` corpus
+The remaining 2,780 disagreeing rows are non-grammar causes (99 `suite:*` corpus
 rows, 402 bare `reject` without position, 440 `reject@0` lookups/sub-parsers,
-121 measured `only_oracle` lookups/checks, 541 measured `only_omni`
+121 measured `only_oracle` lookups/checks, 542 measured `only_omni`
 engine/setup/value/duplicate checks including `CREATE TABLE`/`ALTER TABLE ADD`/`DROP`
-duplicates intentionally left to semantic review, and ~1,175 `another_byte` rows
-from the documented engine checks below). These are the largest, and a row may
-be one of several, so the counts are not disjoint.
+and `CREATE INDEX` duplicates intentionally left to semantic review, and ~1,176
+`another_byte` rows from the documented engine checks below). These are the
+largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |

@@ -216,21 +216,13 @@ func (p *Parser) collectParenthesizedBlock() string {
 // parseIndexColumnList parses a comma-separated list of index columns.
 func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	list := &nodes.List{}
-	seenCols := map[string]bool{}
 	for {
-		colTok := p.cur
 		col, parseErr424 := p.parseIndexColumn()
 		if parseErr424 != nil {
 			return nil, parseErr424
 		}
 		if col == nil {
 			break
-		}
-		if ref, ok := col.Expr.(*nodes.ColumnRef); ok && ref.Table == "" && ref.Schema == "" && ref.Column != "" {
-			if seenCols[ref.Column] {
-				return nil, p.syntaxErrorAtTok(colTok)
-			}
-			seenCols[ref.Column] = true
 		}
 		list.Items = append(list.Items, col)
 		if p.cur.Type != ',' {
