@@ -308,15 +308,16 @@ func ClassifyFromFile(file *ast.File, dialect Dialect) QueryType {
 // share, so they never disagree about which statement is "first" or whether
 // the input parsed at all.
 //
-// For DialectBigQuery, it parses with parser.DialectBigQuery first so
-// BigQuery-specific syntax (such as FROM-first pipe queries, EXTERNAL TABLE,
-// and BigQuery ML clauses) agrees with bigquery/parser. If that rejects a
-// union-grammar form accepted by Bytebase's legacy ANTLR BigQuery corpus (e.g.
-// Spanner DDL or combined ON/USING clauses in testdata/query-span/bigquery.yaml),
-// it falls back to parser.DialectDefault; if both fail, the BigQuery error is
-// returned.
+// For DialectBigQuery and DialectSpanner, it parses with the dialect's strict
+// parser mode first so dialect-specific syntax (BigQuery FROM-first pipes and
+// ML DDL; Spanner remote functions and unreserved QUALIFY aliases) agrees with
+// the engine parser. If that rejects a union-grammar form accepted by Bytebase's
+// legacy ANTLR corpus (e.g. combined ON/USING or cross-dialect DDL in
+// testdata/query-span/), it falls back to parser.DialectDefault; if both fail,
+// the dialect-specific error is returned.
 func parseFile(sql string, dialect Dialect) (*ast.File, error) {
-	if dialect == DialectBigQuery {
+	switch dialect {
+	case DialectBigQuery:
 		file, err := parser.ParseWithDialect(sql, parser.DialectBigQuery)
 		if err == nil {
 			return file, nil
@@ -325,8 +326,18 @@ func parseFile(sql string, dialect Dialect) (*ast.File, error) {
 			return fallback, nil
 		}
 		return nil, err
+	case DialectSpanner:
+		file, err := parser.ParseWithDialect(sql, parser.DialectSpanner)
+		if err == nil {
+			return file, nil
+		}
+		if fallback, ferr := parser.Parse(sql); ferr == nil {
+			return fallback, nil
+		}
+		return nil, err
+	default:
+		return parser.Parse(sql)
 	}
-	return parser.Parse(sql)
 }
 
 // isAllSystemQuery reports whether a query node reads EXCLUSIVELY from system
