@@ -25,16 +25,17 @@ type caseScanEntry struct {
 }
 
 type Parser struct {
-	src                 string
-	toks                []Token
-	pos                 int
-	gtPending           int
-	gtStart             int
-	gtEnd               int
-	depth               int
-	parenDepth          int
-	openCaseParenDepths []int
-	caseScanCache       []caseScanEntry
+	src                   string
+	toks                  []Token
+	pos                   int
+	gtPending             int
+	gtStart               int
+	gtEnd                 int
+	depth                 int
+	parenDepth            int
+	openCaseParenDepths   []int
+	caseScanCache         []caseScanEntry
+	caseScanConfirmedOpen map[int]int
 }
 
 // Parse parses a Databricks / Spark SQL input string (single statement or

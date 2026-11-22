@@ -547,7 +547,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "trim with from column expression and SQL FROM separator forms",
-			sql:  `SELECT TRIM(from, s), TRIM(from || x), TRIM(from.x), TRIM(from FROM s), TRIM(BOTH from FROM s), TRIM(FROM s), TRIM(FROM from), TRIM(FROM from || 'x'), TRIM(from(s), 'a'), TRIM(FROM (SELECT 'a')) FROM t`,
+			sql:  `SELECT TRIM(from, s), TRIM(from || x), TRIM(from.x), TRIM(from FROM s), TRIM(BOTH from FROM s), TRIM(BOTH from(s) FROM t), TRIM(BOTH from - 1 FROM t), TRIM(BOTH FROM (s)), TRIM(LEADING FROM (s)), TRIM(BOTH FROM -s), TRIM(FROM s), TRIM(FROM from), TRIM(FROM from || 'x'), TRIM(from(s), 'a'), TRIM(FROM (SELECT 'a')) FROM t`,
 			kind: StmtQuery,
 		},
 		{
@@ -714,6 +714,7 @@ func TestParseErrors(t *testing.T) {
 		{"struct mixing named arg then field alias", "SELECT STRUCT(k => 1, x AS a)"},
 		{"struct mixing named arg then implicit alias", "SELECT STRUCT(k => 1, x a)"},
 		{"tablesample bucket qualified name without parens", "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a.b)"},
+		{"alter table partition set tblproperties", "ALTER TABLE t PARTITION (p = 1) SET TBLPROPERTIES ('x' = 'y')"},
 	}
 
 	for _, tc := range bad {
@@ -832,6 +833,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "repeated case identifier arithmetic with calls inside nested simple cases",
 			sql:  "SELECT CASE CASE " + strings.Repeat("case + abs(case + 1) + ", 1000) + "1 WHEN 1 THEN 2 END WHEN 2 THEN 3 END",
+		},
+		{
+			name: "repeated sibling simple case expressions",
+			sql:  "SELECT " + strings.Repeat("CASE x WHEN 1 THEN 2 END + ", 8000) + "1",
+		},
+		{
+			name: "repeated sibling simple case expressions inside outer case",
+			sql:  "SELECT CASE y WHEN 1 THEN " + strings.Repeat("CASE x WHEN 1 THEN 2 END + ", 4000) + "1 END",
 		},
 		{
 			name: "nested parenthesized map calls",

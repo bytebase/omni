@@ -777,7 +777,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		case kwSET:
-			if err := p.parseAlterTableSetWithOptionalPart(cpAll); err != nil {
+			if err := p.parseAlterTableSetWithOptionalPart(cpAll, true); err != nil {
 				return nil, err
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -883,7 +883,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 		p.match(kwPURGE)
 
 	case kwSET:
-		if err := p.parseAlterTableSetWithOptionalPart(cpAll); err != nil {
+		if err := p.parseAlterTableSetWithOptionalPart(cpAll, false); err != nil {
 			return nil, err
 		}
 
@@ -959,12 +959,15 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 	return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
-func (p *Parser) parseAlterTableSetWithOptionalPart(cpAll checkpoint) error {
+func (p *Parser) parseAlterTableSetWithOptionalPart(cpAll checkpoint, hasPartition bool) error {
 	if _, err := p.expect(kwSET); err != nil {
 		return err
 	}
 	switch p.cur().Kind {
 	case kwTBLPROPERTIES:
+		if hasPartition {
+			return p.errorf("SET TBLPROPERTIES is not allowed after PARTITION in ALTER TABLE")
+		}
 		p.advance()
 		return p.parsePropertyList()
 	case kwSERDE:

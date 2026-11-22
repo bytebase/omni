@@ -1024,7 +1024,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if (p.cur().Kind == kwBOTH || p.cur().Kind == kwLEADING || p.cur().Kind == kwTRAILING) &&
 			p.startsTrimOptionForm() {
 			p.advance()
-			if !p.startsTrimFromSeparator() {
+			if !p.startsTrimFromSeparator(true) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -1038,7 +1038,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			_, err := p.expect(tokRParen)
 			return err
 		}
-		if p.startsTrimFromSeparator() {
+		if p.startsTrimFromSeparator(false) {
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
 				return err
@@ -1294,6 +1294,9 @@ func (p *Parser) openCasesAtCurrentParenDepth() int {
 // simple CASE expressions cleanly.
 func (p *Parser) hasCaseWhenAndEndAhead() bool {
 	open := p.openCasesAtCurrentParenDepth()
+	if maxOpen, ok := p.caseScanConfirmedOpen[p.pos]; ok && open <= maxOpen {
+		return true
+	}
 	if p.parenDepth >= 0 && p.parenDepth < len(p.caseScanCache) {
 		entry := p.caseScanCache[p.parenDepth]
 		if p.pos >= entry.start && p.pos < entry.end {
@@ -1308,7 +1311,12 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 	lastWhenPos := -1
 	ends := 0
 	firstEndPos := -1
-	siblingCases := 0
+	type siblingCase struct {
+		pos     int
+		hasWhen bool
+	}
+	var siblingStack []siblingCase
+	var closedSiblings []int
 	record := func(stopPos int) {
 		if p.parenDepth < 0 {
 			return
@@ -1329,6 +1337,19 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 			ends:        ends,
 		}
 	}
+	confirmSiblings := func() {
+		if len(closedSiblings) == 0 {
+			return
+		}
+		if p.caseScanConfirmedOpen == nil {
+			p.caseScanConfirmedOpen = make(map[int]int, len(closedSiblings))
+		}
+		for _, spos := range closedSiblings {
+			if prev, ok := p.caseScanConfirmedOpen[spos]; !ok || open > prev {
+				p.caseScanConfirmedOpen[spos] = open
+			}
+		}
+	}
 	for i := 1; ; i++ {
 		k := p.peek(i).Kind
 		switch k {
@@ -1345,17 +1366,23 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 			depth--
 		case kwWHEN:
 			if depth == 0 {
+				if open == 0 {
+					return true
+				}
 				sawWhen = true
 				lastWhenPos = p.pos + i
+				if len(siblingStack) > 0 {
+					siblingStack[len(siblingStack)-1].hasWhen = true
+				}
 			}
 		case kwCASE:
 			// After an END has closed the first CASE, a subsequent CASE at depth 0
-			// starts a sibling CASE whose own END should not count toward closing
+			// may start a sibling CASE whose own END should not count toward closing
 			// an enclosing open CASE.
 			if depth == 0 && ends > 0 {
 				next := p.peek(i + 1).Kind
 				if next == kwWHEN || !isCaseColumnNext(next) {
-					siblingCases++
+					siblingStack = append(siblingStack, siblingCase{pos: p.pos + i})
 				}
 			}
 		case kwEND:
@@ -1363,13 +1390,26 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 				next := p.peek(i + 1).Kind
 				if !(i == 1 && next == kwWHEN) &&
 					next != kwIF && next != kwCASE && next != kwLOOP && next != kwWHILE && next != kwREPEAT && next != kwFOR {
-					if siblingCases > 0 {
-						siblingCases--
+					// Discard any speculatively pushed sibling CASEs that never saw a WHEN
+					// (they were column references like `case + 1`, not CASE expressions).
+					for len(siblingStack) > 0 && !siblingStack[len(siblingStack)-1].hasWhen {
+						siblingStack = siblingStack[:len(siblingStack)-1]
+					}
+					if len(siblingStack) > 0 {
+						top := siblingStack[len(siblingStack)-1]
+						siblingStack = siblingStack[:len(siblingStack)-1]
+						if len(siblingStack) == 0 {
+							closedSiblings = append(closedSiblings, top.pos)
+						}
 					} else {
 						if firstEndPos < 0 {
 							firstEndPos = p.pos + i
 						}
 						ends++
+						if sawWhen && ends > open {
+							confirmSiblings()
+							return true
+						}
 					}
 				}
 			}
@@ -1534,8 +1574,11 @@ func (p *Parser) startsTrimOptionForm() bool {
 // acts as the SQL-specific `FROM srcStr` separator (with omitted trimStr)
 // rather than the start of an argument expression beginning with a column or
 // function named `from` (e.g. `TRIM(from, s)`, `TRIM(from || x)`,
-// `TRIM(from.x)`, `TRIM(from FROM s)`).
-func (p *Parser) startsTrimFromSeparator() bool {
+// `TRIM(from.x)`, `TRIM(from FROM s)`). When hasOption is true, a trim option
+// (BOTH/LEADING/TRAILING) was already consumed so parenthesized or unary
+// source expressions like `TRIM(BOTH FROM (s))` and `TRIM(BOTH FROM -s)` treat
+// `FROM` as the separator unless another depth-0 `FROM` appears before ')'.
+func (p *Parser) startsTrimFromSeparator(hasOption bool) bool {
 	if p.cur().Kind != kwFROM {
 		return false
 	}
@@ -1550,6 +1593,18 @@ func (p *Parser) startsTrimFromSeparator() bool {
 			return true
 		}
 		return false
+	}
+	if hasOption {
+		switch next {
+		case tokRParen, tokEOF, tokSemicolon:
+			return false
+		case tokLParen, tokPlus, tokMinus, tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU:
+			return !p.hasKeywordAtDepthZero(1, kwFROM)
+		}
+		return true
 	}
 	if next == tokLParen {
 		return p.startsWithQueryKeywordAt(2)
