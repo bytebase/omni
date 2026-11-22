@@ -82,7 +82,9 @@ BEGIN
           WHEN OTHERS THEN NULL;
         END;
         BEGIN
-          EXECUTE IMMEDIATE 'DROP ' || o.object_type || ' "' || o.object_name || '"' ||
+          EXECUTE IMMEDIATE 'DROP ' ||
+            CASE o.object_type WHEN 'MLE ENVIRONMENT' THEN 'MLE ENV' ELSE o.object_type END ||
+            ' "' || o.object_name || '"' ||
             CASE o.object_type
               WHEN 'TABLE' THEN ' CASCADE CONSTRAINTS PURGE'
               WHEN 'TYPE' THEN ' FORCE'
