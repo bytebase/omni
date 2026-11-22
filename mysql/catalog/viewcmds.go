@@ -1330,6 +1330,14 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 }
 
 func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	if fn.JSONValueArm {
+		for _, arg := range fn.Args {
+			if _, err := inferViewExprCollation(arg, relations); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return viewCollationInfo{}, nil
+	}
 	name := strings.ToLower(fn.Name)
 	switch name {
 	case "concat", "concat_ws":
@@ -1457,6 +1465,12 @@ func aggregateViewCollations(left, right viewCollationInfo, op string) (viewColl
 		if left.derivation < right.derivation {
 			return left, nil
 		}
+		return right, nil
+	}
+	if strings.EqualFold(left.charset, "binary") {
+		return left, nil
+	}
+	if strings.EqualFold(right.charset, "binary") {
 		return right, nil
 	}
 	if isCharsetSuperset(left.charset, right.charset) {

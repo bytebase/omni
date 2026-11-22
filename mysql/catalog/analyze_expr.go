@@ -22,11 +22,15 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		}
 		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10), Type: &ResolvedType{BaseType: bt}}, nil
 	case *nodes.StringLit:
+		rt := &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)}
+		if isBinaryIntroducer(n.Charset) {
+			rt = &ResolvedType{BaseType: BaseTypeVarBinary, Length: len(n.Value)}
+		}
 		return &ConstExprQ{
 			Value:      n.Value,
 			IsString:   true,
 			Introducer: n.Charset,
-			Type:       &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)},
+			Type:       rt,
 		}, nil
 	case *nodes.FloatLit:
 		return &ConstExprQ{Value: n.Value, Type: floatLitResolvedType(n.Value)}, nil
@@ -723,6 +727,9 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 		if dt.Length > 0 {
 			rt.Length = dt.Length
 		}
+		if dt.Charset != "" {
+			rt.Charset = strings.ToLower(dt.Charset)
+		}
 		return rt
 	case "binary":
 		rt := &ResolvedType{BaseType: BaseTypeBinary}
@@ -813,7 +820,11 @@ func analyzedExprBaseType(expr AnalyzedExpr, scope *analyzerScope) (MySQLBaseTyp
 			return BaseTypeUnknown, false
 		}
 		if col := scope.lookupColumn(e.RangeIdx, e.AttNum, e.LevelsUp); col != nil {
-			return columnDataTypeToBaseType(col.DataType), false
+			bt := columnDataTypeToBaseType(col.DataType)
+			if strings.EqualFold(col.Charset, "binary") && isCharStringBaseType(bt) {
+				return BaseTypeVarBinary, false
+			}
+			return bt, false
 		}
 		return BaseTypeUnknown, false
 	case *ConstExprQ:
@@ -826,12 +837,22 @@ func analyzedExprBaseType(expr AnalyzedExpr, scope *analyzerScope) (MySQLBaseTyp
 		return BaseTypeUnknown, false
 	case *CastExprQ:
 		if e.TargetType != nil {
+			if e.TargetType.BaseType == BaseTypeChar && strings.EqualFold(e.TargetType.Charset, "binary") {
+				return BaseTypeVarBinary, false
+			}
 			return e.TargetType.BaseType, false
 		}
 		return BaseTypeUnknown, false
+	case *CollateExprQ:
+		return analyzedExprBaseType(e.Arg, scope)
 	case *FuncCallExprQ:
 		if e.Schema == "" && !e.SpacedParen && isGeometryReturningFunc(e.Name) {
 			return BaseTypeGeometry, false
+		}
+		if e.Schema == "" && !e.SpacedParen {
+			if bt, ok := binaryPreservingStringResultType(e.Name, e.Args, scope); ok {
+				return bt, false
+			}
 		}
 		if e.ResultType != nil {
 			return e.ResultType.BaseType, false
@@ -910,6 +931,55 @@ func isBinaryStringBaseType(bt MySQLBaseType) bool {
 	default:
 		return false
 	}
+}
+
+func isCharStringBaseType(bt MySQLBaseType) bool {
+	switch bt {
+	case BaseTypeChar, BaseTypeVarchar,
+		BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText:
+		return true
+	default:
+		return false
+	}
+}
+
+func binaryPreservingStringResultType(name string, args []AnalyzedExpr, scope *analyzerScope) (MySQLBaseType, bool) {
+	var check []AnalyzedExpr
+	switch strings.ToLower(name) {
+	case "concat", "concat_ws", "trim", "replace":
+		check = args
+	case "lpad", "rpad":
+		if len(args) >= 1 {
+			check = append(check, args[0])
+		}
+		if len(args) >= 3 {
+			check = append(check, args[2])
+		}
+	case "lower", "upper", "ltrim", "rtrim",
+		"substring", "substr", "left", "right", "reverse", "repeat":
+		if len(args) >= 1 {
+			check = args[:1]
+		}
+	default:
+		return BaseTypeUnknown, false
+	}
+	hasUnknown := false
+	for _, arg := range check {
+		abt, isNull := analyzedExprBaseType(arg, scope)
+		if isNull {
+			continue
+		}
+		if isBinaryStringBaseType(abt) {
+			return BaseTypeVarBinary, true
+		}
+		if abt == BaseTypeUnknown {
+			hasUnknown = true
+		}
+	}
+	if hasUnknown {
+		return BaseTypeUnknown, true
+	}
+	return BaseTypeUnknown, false
 }
 
 func columnDataTypeToBaseType(dataType string) MySQLBaseType {
