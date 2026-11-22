@@ -369,7 +369,7 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 		p.advance()
 		for {
 			if p.cur().Type == TokStar {
-				if _, err := p.parseStarExpr(nil); err != nil {
+				if _, err := p.parseStarExpr(nil, p.cur().Pos); err != nil {
 					return nil, err
 				}
 			} else {
@@ -1262,7 +1262,7 @@ func (p *parser) parseTTLGroupByKeys() error {
 	}
 	for {
 		if p.cur().Type == TokStar {
-			if _, err := p.parseStarExpr(nil); err != nil {
+			if _, err := p.parseStarExpr(nil, p.cur().Pos); err != nil {
 				return err
 			}
 		} else if _, err := p.parseExpr(); err != nil {

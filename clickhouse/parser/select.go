@@ -519,9 +519,9 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 			var expr Expr
 			var err error
 			if p.cur().Type == TokStar {
-				expr, err = p.parseStarExpr(nil)
-			} else if parts, ok := p.tryMatchQualifiedStar(); ok {
-				expr, err = p.parseStarExpr(parts)
+				expr, err = p.parseStarExpr(nil, p.cur().Pos)
+			} else if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
+				expr, err = p.parseStarExpr(parts, startPos)
 			} else {
 				expr, err = p.parseExpr()
 			}

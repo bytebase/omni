@@ -56,45 +56,49 @@ func (p *parser) isTrailingCommaTerminator() bool {
 func (p *parser) parseColumnsExpr() (Expr, error) {
 	// Bare `* [EXCEPT ...]`
 	if p.cur().Type == TokStar {
-		return p.parseStarExpr(nil)
+		return p.parseStarExpr(nil, p.cur().Pos)
 	}
 	// `a.* [EXCEPT ...]` or `db.tbl.* [EXCEPT ...]`
-	if parts, ok := p.tryMatchQualifiedStar(); ok {
-		return p.parseStarExpr(parts)
+	if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
+		return p.parseStarExpr(parts, startPos)
 	}
 	return p.parseExprWithAlias()
 }
 
-func (p *parser) tryMatchQualifiedStar() ([]string, bool) {
+func (p *parser) tryMatchQualifiedStar() ([]string, int, bool) {
 	save := p.pos
 	if !isIdentifier(p.cur()) {
-		return nil, false
+		return nil, 0, false
 	}
+	startPos := p.cur().Pos
 	first := p.advance().Val
 	if !p.match(TokDot) {
 		p.pos = save
-		return nil, false
+		return nil, 0, false
 	}
 	if p.cur().Type == TokStar {
-		return []string{first}, true
+		return []string{first}, startPos, true
 	}
 	if isIdentifier(p.cur()) {
 		second := p.advance().Val
 		if p.match(TokDot) && p.cur().Type == TokStar {
-			return []string{first, second}, true
+			return []string{first, second}, startPos, true
 		}
 	}
 	p.pos = save
-	return nil, false
+	return nil, 0, false
 }
 
-func (p *parser) parseStarExpr(qualifier []string) (Expr, error) {
+func (p *parser) parseStarExpr(qualifier []string, startPos int) (Expr, error) {
 	tok, err := p.expect(TokStar)
 	if err != nil {
 		return nil, err
 	}
+	if len(qualifier) == 0 {
+		startPos = tok.Pos
+	}
 	star := &StarExpr{
-		span:      span{Pos: tok.Pos, End: tok.End},
+		span:      span{Pos: startPos, End: tok.End},
 		Qualifier: qualifier,
 	}
 	if p.match(KwExcept) {
@@ -575,7 +579,7 @@ func (p *parser) parsePrimaryExpr() (Expr, error) {
 	case TokInt, TokFloat, TokString, TokHexString, TokBinString, KwTrue, KwFalse, KwNull, KwInf, KwNan:
 		return p.parseLiteral()
 	case TokStar:
-		return p.parseStarExpr(nil)
+		return p.parseStarExpr(nil, tok.Pos)
 	case TokLBracket:
 		return p.parseArrayExpr()
 	case TokLParen:
@@ -1059,10 +1063,10 @@ func (p *parser) parseFuncArg() (Expr, error) {
 		return lam, nil
 	}
 	if p.cur().Type == TokStar {
-		return p.parseStarExpr(nil)
+		return p.parseStarExpr(nil, p.cur().Pos)
 	}
-	if parts, ok := p.tryMatchQualifiedStar(); ok {
-		return p.parseStarExpr(parts)
+	if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
+		return p.parseStarExpr(parts, startPos)
 	}
 	expr, err := p.parseExpr()
 	if err != nil {

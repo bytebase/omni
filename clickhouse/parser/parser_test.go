@@ -312,3 +312,25 @@ func TestParseOutputClauseSpan(t *testing.T) {
 		t.Errorf("span = [%d, %d), want [0, %d)", stmts2[0].StartPos(), stmts2[0].EndPos(), len(sql2)-1)
 	}
 }
+
+func TestParseQualifiedStarSpan(t *testing.T) {
+	sql1 := "SELECT db.t.* FROM db.t"
+	stmts1, err := Parse(sql1)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql1, err)
+	}
+	star1 := stmts1[0].(*SelectUnionStmt).Items[0].Columns[0].(*StarExpr)
+	if got := sql1[star1.StartPos():star1.EndPos()]; got != "db.t.*" {
+		t.Errorf("projection star span text = %q, want %q", got, "db.t.*")
+	}
+
+	sql2 := "SELECT f(db.t.*) FROM db.t"
+	stmts2, err := Parse(sql2)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql2, err)
+	}
+	star2 := stmts2[0].(*SelectUnionStmt).Items[0].Columns[0].(*FuncCallExpr).Args[0].(*StarExpr)
+	if got := sql2[star2.StartPos():star2.EndPos()]; got != "db.t.*" {
+		t.Errorf("func-arg star span text = %q, want %q", got, "db.t.*")
+	}
+}
