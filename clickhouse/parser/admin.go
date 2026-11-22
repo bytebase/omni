@@ -364,6 +364,11 @@ func (p *parser) parseExplainStmt() (*ExplainStmt, error) {
 			p.advance()
 			stmt.Kind = "TABLE OVERRIDE"
 		}
+	default:
+		if p.cur().Type == TokIdent && strings.EqualFold(p.cur().Val, "ANALYZE") && p.peek(1).Type != TokEq {
+			p.advance()
+			stmt.Kind = "ANALYZE"
+		}
 	}
 
 	// Optional settings: ident = literal (, ident = literal)*

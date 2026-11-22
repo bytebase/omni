@@ -17,9 +17,9 @@
 // comment. A definition's secret is written as the server states it: the dump
 // asks the server to show one in full, which it does only with its
 // display_secrets_in_show_and_select setting and the displaySecretsInShowAndSelect
-// privilege, and writes ClickHouse's [HIDDEN] placeholder otherwise. There is no clickhouse/parser or clickhouse/analysis yet, so the
-// statement handling the driver needs — splitting, limit and explain rewriting,
-// and the read-only check — lives in this package until that tree holds it.
+// privilege, and writes ClickHouse's [HIDDEN] placeholder otherwise. Statement
+// splitting, limit and explain rewriting, and read-only checks live in
+// clickhouse/analysis, backed by clickhouse/parser.
 //
 // Config.Host and Config.Port name the native endpoint, port 9000. Config.Database
 // is the database a sync reads and a query runs in. Config.User and
