@@ -50,7 +50,14 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		if err != nil {
 			return nil, err
 		}
+		if len(q.CTEList) > 0 {
+			inner.CTEList = append(q.CTEList, inner.CTEList...)
+			inner.IsRecursive = inner.IsRecursive || q.IsRecursive
+			reindexCTERTEs(inner)
+		}
 		if len(stmt.OrderBy) > 0 || stmt.Limit != nil {
+			clobbersOrder := len(stmt.OrderBy) > 0 && len(inner.SortClause) > 0
+			clobbersLimit := stmt.Limit != nil && (inner.LimitCount != nil || inner.LimitOffset != nil)
 			innerScope := newScope()
 			cols := make([]*Column, len(inner.TargetList))
 			for i, te := range inner.TargetList {
@@ -67,38 +74,11 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 					return nil, err
 				}
 			}
-		}
-		return inner, nil
-	}
-
-	// Handle VALUES table value constructor: VALUES (1, 2), (3, 4)
-	if stmt.ValuesSource != nil {
-		q := &Query{
-			CommandType: CmdSelect,
-			JoinTree:    &JoinTreeQ{},
-		}
-		scope := newScopeWithParent(parentScope)
-		cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
-		if err != nil {
-			return nil, err
-		}
-		scope.ctes = mergeCTEMaps(cteMap, inheritedCTEMap)
-		for rowIdx, row := range stmt.ValuesSource.Rows {
-			for colIdx, expr := range row {
-				analyzed, err := analyzeExpr(c, expr, scope)
-				if err != nil {
-					return nil, err
-				}
-				if rowIdx == 0 {
-					q.TargetList = append(q.TargetList, &TargetEntryQ{
-						Expr:    analyzed,
-						ResNo:   colIdx + 1,
-						ResName: deriveColumnName(expr, analyzed),
-					})
-				}
+			if clobbersOrder || clobbersLimit {
+				return nil, unsupportedAnalyzerExpr()
 			}
 		}
-		return q, nil
+		return inner, nil
 	}
 
 	q := &Query{
@@ -189,6 +169,25 @@ func mergeCTEMaps(local, inherited map[string]*CommonTableExprQ) map[string]*Com
 		}
 	}
 	return local
+}
+
+// reindexCTERTEs updates CTEIndex on each RTECTE in q to match its last
+// (innermost) matching definition in q.CTEList after prepending wrapper CTEs.
+func reindexCTERTEs(q *Query) {
+	if q == nil || len(q.CTEList) == 0 {
+		return
+	}
+	for _, rte := range q.RangeTable {
+		if rte.Kind != RTECTE {
+			continue
+		}
+		for i := len(q.CTEList) - 1; i >= 0; i-- {
+			if strings.EqualFold(q.CTEList[i].Name, rte.CTEName) {
+				rte.CTEIndex = i
+				break
+			}
+		}
+	}
 }
 
 // analyzeFromClause processes the FROM clause, populating the query's

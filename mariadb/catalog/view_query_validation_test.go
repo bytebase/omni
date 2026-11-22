@@ -251,4 +251,16 @@ func TestViewSchemaQualifiedStarAcrossDatabasesAndSequenceFuncs(t *testing.T) {
 			t.Fatalf("Exec(%q) failed: parse=%v results=%+v", sql, err, results)
 		}
 	}
+
+	// Wrapper CTEs on a parenthesized query must be preserved on the returned AnalyzedQuery.
+	if results, err := c.Exec("CREATE VIEW v_paren_cte AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v_paren_cte failed: parse=%v results=%+v", err, results)
+	}
+	vParen := c.GetDatabase("db1").Views["v_paren_cte"]
+	if vParen.AnalyzedQuery == nil || len(vParen.AnalyzedQuery.CTEList) != 1 || vParen.AnalyzedQuery.CTEList[0].Name != "c" {
+		t.Fatalf("v_paren_cte.AnalyzedQuery.CTEList = %+v, want [c]", vParen.AnalyzedQuery)
+	}
+	if dep := DeparseQuery(vParen.AnalyzedQuery); !strings.Contains(strings.ToUpper(dep), "WITH") {
+		t.Errorf("DeparseQuery(v_paren_cte) = %q, want WITH clause preserved", dep)
+	}
 }
