@@ -770,7 +770,18 @@ func (p *Parser) parseCall() (Statement, error) {
 	if _, err := p.expect(kwCALL); err != nil {
 		return nil, err
 	}
-	target, err := p.parseIdentifierReference()
+	var target string
+	var err error
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		closeOff := p.matchingCloseOffset(1)
+		if closeOff > 0 && p.peek(closeOff+1).Kind != tokLParen {
+			target, err = p.parseMultipartIdentifier()
+		} else {
+			target, err = p.parseIdentifierReference()
+		}
+	} else {
+		target, err = p.parseIdentifierReference()
+	}
 	if err != nil {
 		return nil, err
 	}

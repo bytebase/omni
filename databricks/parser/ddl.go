@@ -520,7 +520,16 @@ func (p *Parser) parseCreateIndex() (Statement, error) {
 	if p.cur().Kind == kwTABLE && p.peek(1).Kind != tokDot && p.peek(1).Kind != tokLParen && p.peek(1).Kind != kwUSING && p.peek(1).Kind != tokEOF && p.peek(1).Kind != tokSemicolon {
 		p.advance()
 	}
-	if _, err := p.parseIdentifierReference(); err != nil {
+	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		closeOff := p.matchingCloseOffset(1)
+		if closeOff > 0 && p.peek(closeOff+1).Kind != tokLParen && p.peek(closeOff+1).Kind != kwUSING {
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+		} else if _, err := p.parseIdentifierReference(); err != nil {
+			return nil, err
+		}
+	} else if _, err := p.parseIdentifierReference(); err != nil {
 		return nil, err
 	}
 	if p.match(kwUSING) {

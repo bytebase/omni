@@ -781,6 +781,31 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtAlterTable,
 		},
 		{
+			name: "create table named identifier with column list",
+			sql:  `CREATE TABLE identifier (a INT)`,
+			kind: StmtCreateTable,
+		},
+		{
+			name: "create function named identifier with parameter list",
+			sql:  `CREATE FUNCTION identifier(x INT) RETURNS INT RETURN x`,
+			kind: StmtCreateFunction,
+		},
+		{
+			name: "create index on table named identifier",
+			sql:  `CREATE INDEX idx ON identifier (a)`,
+			kind: StmtCreateIndex,
+		},
+		{
+			name: "call procedure named identifier",
+			sql:  `CALL identifier(1)`,
+			kind: StmtCall,
+		},
+		{
+			name: "keyword-named implicit table aliases before WHERE, LIMIT, and JOIN",
+			sql:  `SELECT * FROM t limit WHERE x = 1 UNION ALL SELECT * FROM t from WHERE x = 1 UNION ALL SELECT * FROM t where WHERE x = 1 UNION ALL SELECT * FROM t WHERE where = 1 UNION ALL SELECT * FROM t limit JOIN s ON limit.a = s.a UNION ALL (SELECT * FROM t from LIMIT 1) UNION ALL (SELECT * FROM t LIMIT where)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "double parenthesized row constructor with subquery",
 			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,

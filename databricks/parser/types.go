@@ -125,17 +125,20 @@ func (p *Parser) parseTableIdentifier() (string, error) {
 //	    : IDENTIFIER_KW LEFT_PAREN expression RIGHT_PAREN
 //	    | multipartIdentifier
 //	    ;
+//
+// When `IDENTIFIER` is followed by `(` that does not form a single parenthesized
+// expression (e.g. `CREATE TABLE identifier (a INT)`, `CREATE FUNCTION identifier(x INT) ...`,
+// `INSERT INTO identifier (a, b) ...`), it falls back to multipartIdentifier so
+// objects named `identifier` do not require quoting.
 func (p *Parser) parseIdentifierReference() (string, error) {
 	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
+		cp := p.save()
 		p.advance()
 		p.advance()
-		if err := p.parseExpression(); err != nil {
-			return "", err
+		if err := p.parseExpression(); err == nil && p.match(tokRParen) {
+			return "IDENTIFIER(...)", nil
 		}
-		if _, err := p.expect(tokRParen); err != nil {
-			return "", err
-		}
-		return "IDENTIFIER(...)", nil
+		p.restore(cp)
 	}
 	return p.parseMultipartIdentifier()
 }

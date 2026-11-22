@@ -1733,19 +1733,44 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON, kwSET,
 		kwSELECT, kwINSERT, kwMAP, kwREDUCE, kwWHEN, kwTHEN, kwELSE, kwEND,
 		kwVALUES, kwFROM, kwDO, kwUNTIL, kwINTO, kwAS, kwBY:
-		// Allow as implicit alias when followed by an unmistakable multi-token clause boundary.
+		if k == kwAS {
+			return false
+		}
+		// Allow as implicit alias when followed by an unmistakable clause boundary.
+		after := p.peek(2).Kind
+		isClauseExprArg := func() bool {
+			return after != tokEOF && after != tokSemicolon && after != tokRParen && after != tokComma && !isExprContinuationOp(after)
+		}
 		switch next {
 		case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
-			return p.peek(2).Kind == kwBY
+			return after == kwBY
 		case kwWINDOW:
-			return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+			return after.isIdentifier() && p.peek(3).Kind == kwAS
 		case kwLATERAL:
-			return p.peek(2).Kind == kwVIEW
+			return after == kwVIEW
+		case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON:
+			return isClauseExprArg()
+		case kwSET:
+			return after.isIdentifier() && (p.peek(3).Kind == tokEq || p.peek(3).Kind == tokDot)
+		case kwUSING:
+			return after == tokLParen || isClauseExprArg()
+		case kwJOIN:
+			return isClauseExprArg()
+		case kwINNER, kwCROSS, kwNATURAL, kwSEMI, kwANTI:
+			return after == kwJOIN
+		case kwLEFT, kwRIGHT, kwFULL:
+			return after == kwJOIN || after == kwOUTER || after == kwSEMI || after == kwANTI
+		case kwPIVOT, kwTABLESAMPLE:
+			return after == tokLParen
+		case kwUNPIVOT:
+			return after == tokLParen || after == kwINCLUDE || after == kwEXCLUDE
 		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-			switch p.peek(2).Kind {
+			switch after {
 			case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
 				return true
 			}
+		case tokIdent:
+			return isWord(p.peek(1), "QUALIFY") && isClauseExprArg()
 		}
 		return false
 	}
