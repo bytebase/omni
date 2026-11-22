@@ -462,6 +462,11 @@ func (p *Parser) parseColConstraintBody() (nodes.Node, error) {
 		return p.parseColConstraintElem()
 	case GENERATED:
 		return p.parseColConstraintElem()
+	case ON:
+		if p.isSpannerColOnUpdateStart() {
+			return p.parseColConstraintElem()
+		}
+		return nil, nil
 	case COLLATE:
 		p.advance()
 		collname, err := p.parseAnyName()
@@ -708,10 +713,38 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		return n, nil
 	case GENERATED:
 		return p.parseGeneratedConstraint()
+	case ON:
+		if p.isSpannerColOnUpdateStart() {
+			p.advance() // ON
+			p.advance() // UPDATE
+			// DEFAULT is not a valid b_expr in PostgreSQL's gram.y (omni's
+			// parseCExpr accepts it for INSERT/UPDATE targets), so reject it
+			// explicitly here to match Spanner-PG's b_expr rule.
+			if p.cur.Type == DEFAULT {
+				return nil, p.syntaxErrorAtCur()
+			}
+			expr, err := p.parseBExpr(0)
+			if err != nil {
+				return nil, err
+			}
+			if !p.collectMode() && expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if containsSetToDefault(expr) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return &nodes.Constraint{
+				Contype: nodes.CONSTR_SPANNER_ON_UPDATE,
+				RawExpr: expr,
+				Loc:     nodes.NoLoc(),
+			}, nil
+		}
+		return nil, p.syntaxErrorAtCur()
 	// exhaustive: gram.y:3901 — ColConstraintElem enumerates NOT NULL /
 	// NULL / UNIQUE / PRIMARY KEY / CHECK / DEFAULT / REFERENCES /
-	// GENERATED. A `CONSTRAINT name <bad>` should raise rather than be
-	// silently dropped at the caller.
+	// GENERATED (plus ON UPDATE b_expr in DialectSpannerPG). A
+	// `CONSTRAINT name <bad>` should raise rather than be silently dropped
+	// at the caller.
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -1522,10 +1555,12 @@ func (p *Parser) parseKeyActions() (updAction byte, delAction byte, delSetCols *
 	updAction = 'a' // default NO ACTION
 	delAction = 'a' // default NO ACTION
 
-	// Nothing else after a key's references starts with ON, so ON leads
-	// a key action until both are read.
+	// Nothing else after a key's references starts with ON in PostgreSQL,
+	// so ON leads a key action until both are read. In DialectSpannerPG,
+	// ON UPDATE followed by a non-key_action token starts a column-level
+	// ON UPDATE b_expr constraint instead of key_actions.
 	var sawUpdate, sawDelete bool
-	for p.cur.Type == ON && !(sawUpdate && sawDelete) {
+	for p.cur.Type == ON && !p.isSpannerColOnUpdateStart() && !(sawUpdate && sawDelete) {
 		onLoc := p.pos()
 		p.advance() // ON
 		switch {
@@ -1613,7 +1648,7 @@ func (p *Parser) parseKeyActionType(setCols **nodes.List) (byte, error) {
 		return action, nil
 	}
 	if p.collectMode() {
-		for _, t := range []int{NO, RESTRICT, CASCADE, SET} {
+		for _, t := range keyActionLeadTokens {
 			p.addTokenCandidate(t)
 		}
 		return 0, errCollecting

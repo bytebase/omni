@@ -77,6 +77,55 @@ func isPG17SQLJsonKeyword(tok int) bool {
 	return false
 }
 
+// isPG17AddedKeyword reports whether tok is one of the 20 keywords added in
+// PostgreSQL 17 (SQL/JSON query clauses and MERGE SOURCE/TARGET/MERGE_ACTION)
+// that lexed as ordinary IDENT tokens in PostgreSQL 16, Cloud Spanner's
+// embedded PostgreSQL parser base. Not a FIRST set — this is a lexer-version
+// token classification used where PG's grammar accepts bare IDENT (such as
+// createdb_opt_name).
+func isPG17AddedKeyword(tok int) bool {
+	switch tok {
+	case CONDITIONAL, EMPTY_P, ERROR_P,
+		JSON_EXISTS, JSON_QUERY, JSON_SCALAR, JSON_SERIALIZE, JSON_TABLE, JSON_VALUE,
+		KEEP, MERGE_ACTION, NESTED, OMIT, PATH, PLAN, QUOTES,
+		SOURCE, STRING_P, TARGET, UNCONDITIONAL:
+		return true
+	}
+	return false
+}
+
+// isSpannerColOnUpdateStart reports whether the current token begins Cloud
+// Spanner PG's column-level ON UPDATE b_expr constraint rather than a foreign
+// key ON UPDATE key_action clause.
+//
+// In Spanner-PG's parser.c lookahead, ON followed by UPDATE is reclassified as
+// the column-constraint lead whenever the token after UPDATE is not in
+// FIRST(key_action) (NO, RESTRICT, CASCADE, SET).
+func (p *Parser) isSpannerColOnUpdateStart() bool {
+	if !p.isSpannerPG() || p.cur.Type != ON {
+		return false
+	}
+	if p.peekNext().Type != UPDATE {
+		return false
+	}
+	return !isKeyActionStart(p.peekTokenAfterNext().Type)
+}
+
+func containsSetToDefault(n nodes.Node) bool {
+	found := false
+	nodes.Inspect(n, func(cur nodes.Node) bool {
+		if found {
+			return false
+		}
+		if _, ok := cur.(*nodes.SetToDefault); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
 func (p *Parser) spannerXMLUnsupportedError() *ParseError {
 	return &ParseError{
 		Code:     "0A000",

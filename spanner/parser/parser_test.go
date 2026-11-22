@@ -5,6 +5,7 @@ import (
 
 	bigqueryparser "github.com/bytebase/omni/bigquery/parser"
 	googlesqlparser "github.com/bytebase/omni/googlesql/parser"
+	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 func TestSpannerAcceptedSyntax(t *testing.T) {
@@ -363,10 +364,46 @@ func TestParsePostgres(t *testing.T) {
 		"SELECT a AT LOCAL",
 		"CREATE VIEW v SQL SECURITY UNKNOWN AS SELECT 1",
 		"CREATE SEQUENCE s SKIP RANGE 1000",
+		"ALTER TABLE a SET zzz",
+		"ALTER TABLE a ALTER COLUMN c SET",
+		"ALTER DATABASE a TARGET",
+		"ALTER DATABASE a JSON 1.5",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE NO",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE SET",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF DEFAULT",
+		"CREATE DOMAIN a a REFERENCES a ON DELETE ACTION",
+		"CREATE TABLE t (a int PRIMARY KEY, FOREIGN KEY (a) REFERENCES p ON UPDATE ACTION)",
+		"CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE CASCADE)",
+		"CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a AND b)",
 	}
 	for _, sql := range rejected {
 		if _, err := ParsePostgres(sql); err == nil {
 			t.Errorf("ParsePostgres(%q) expected error, got nil", sql)
+		}
+	}
+
+	// Spanner-PG 1.5.54 grammar forms accepted by ParsePostgres (DialectSpannerPG)
+	// and strictly rejected by standard PostgreSQL 17 (pg/parser.Parse).
+	spannerPGOnly := []string{
+		"ALTER TABLE a SET",
+		"ALTER TABLE a SET, ADD COLUMN b int",
+		"ALTER DATABASE a TARGET 1.5",
+		"ALTER DATABASE a SOURCE = 1.5",
+		"CREATE DATABASE a TARGET 1.5",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE NULL",
+		"CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL",
+		"CREATE TABLE t (a bigint PRIMARY KEY, ts timestamptz DEFAULT spanner.pending_commit_timestamp() ON UPDATE spanner.pending_commit_timestamp())",
+	}
+	for _, sql := range spannerPGOnly {
+		if _, err := ParsePostgres(sql); err != nil {
+			t.Errorf("ParsePostgres(%q) unexpected error: %v", sql, err)
+		}
+		if _, err := pgparser.Parse(sql); err == nil {
+			t.Errorf("pg/parser.Parse(%q) unexpectedly succeeded in DialectDefault; want error", sql)
 		}
 	}
 }

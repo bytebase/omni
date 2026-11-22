@@ -596,3 +596,21 @@ var numericOnlyLeadTokens = []int{ICONST, FCONST, '+', '-'}
 func (p *Parser) isNumericOnlyStart() bool {
 	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }
+
+// keyActionLeadTokens is the FIRST set of key_action (NO ACTION | RESTRICT |
+// CASCADE | SET NULL | SET DEFAULT).
+//
+// Grammar reference: key_action in postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseKeyActionType in
+// create_table.go, and vice versa.
+var keyActionLeadTokens = []int{NO, RESTRICT, CASCADE, SET}
+
+// isKeyActionStart reports whether tok starts a PostgreSQL key_action.
+//
+// No PG oracle test: key_action only appears after ON UPDATE / ON DELETE in
+// REFERENCES clauses; TestIsKeyActionStartMatchesSlice checks the whole
+// Keywords table against keyActionLeadTokens.
+func isKeyActionStart(tok int) bool {
+	return slices.Contains(keyActionLeadTokens, tok)
+}
