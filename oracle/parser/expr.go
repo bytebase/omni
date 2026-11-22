@@ -2021,6 +2021,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 
 	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
 	if p.atQueryStart() {
+		queryTok := p.cur
 		sub, parseErr728 := p.parseSelectStmt()
 		if parseErr728 != nil {
 			return nil, parseErr728
@@ -2030,9 +2031,13 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' {
+			if p.updateSetSubquery && queryTok.Type == kwSELECT {
+				return nil, p.syntaxErrorAtTok(queryTok)
+			}
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		expr := &nodes.SubqueryExpr{
 			Subquery: sub,
 			Loc:      nodes.Loc{Start: start, End: p.prev.End},

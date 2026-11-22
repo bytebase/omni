@@ -92,6 +92,10 @@ type Parser struct {
 	// table_partitioning_clauses are read with CREATE TABLE's reader.
 	createTablePartitionsOfMview bool
 
+	// updateSetSubquery is set while parsing the RHS expression of an UPDATE
+	// SET assignment so an unclosed "(SELECT ..." blames SELECT.
+	updateSetSubquery bool
+
 	// createTableEngineCheck is set while CREATE TABLE is parsed once a
 	// clause Oracle checks against the table before it asks for a missing
 	// column list has been read: enable_disable_clause (ORA-02432),

@@ -102,6 +102,9 @@ func TestWave3CompatReadings(t *testing.T) {
 
 		// Query, DML, and utility statements.
 		{`UPDATE SET a = 1`, 7},
+		{`UPDATE a SET a =(SELECT 1 FROM dual`, 17},
+		{`UPDATE a SET(a) =(SELECT 1 FROM dual`, 18},
+		{`UPDATE a SET VALUE(a) =(SELECT 1 FROM dual`, 24},
 		{`DELETE FROM t RETURNING INTO :x`, 24},
 		{`ANALYZE TABLE VALIDATE STRUCTURE`, 14},
 		{`MERGE a USING b ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1`, 6},
@@ -179,6 +182,13 @@ func TestWave3CompatReadings(t *testing.T) {
 		`LOCK TABLE t PARTITION (p1) IN EXCLUSIVE MODE`,
 		`MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.v = s.v`,
 		`UPDATE t SET a = 1 WHERE b = 2 RETURNING a INTO :x`,
+		`UPDATE t SET a = (SELECT 1 FROM dual) + 1`,
+		`UPDATE t SET VALUE(a) = (SELECT 1 FROM dual) + 1`,
+		`UPDATE t SET "UID" = 1`,
+		`DROP TABLE "UID"`,
+		`DROP TABLE "RESOURCE"`,
+		`DROP TABLE "MLSLABEL"`,
+		`CREATE USER "UID" IDENTIFIED BY secret`,
 		`FLASHBACK TABLE t TO BEFORE DROP`,
 	}
 

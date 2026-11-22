@@ -172,6 +172,9 @@ func (p *Parser) atEndName() bool {
 // isOracleSQLReservedKeyword returns true when tok is an Oracle SQL reserved word
 // that cannot be used as a nonquoted object or column identifier.
 func isOracleSQLReservedKeyword(tok Token) bool {
+	if tok.Type == tokQIDENT {
+		return false
+	}
 	switch tok.Type {
 	case kwACCESS, kwADD, kwALL, kwALTER, kwAND, kwANY, kwAS, kwASC,
 		kwAUDIT, kwBETWEEN, kwBY, kwCHAR, kwCHECK, kwCLUSTER, kwCOLUMN, kwCOLUMN_VALUE,

@@ -236,18 +236,8 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 		if p.cur.Type == kwSELECT {
 			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
-			selTok := p.peekNext()
-			if sc.Value, err = p.parseExpr(); err != nil {
-				return nil, err
-			}
-			if p.prev.Type != ')' {
-				return nil, p.syntaxErrorAtTok(selTok)
-			}
-		} else {
-			if sc.Value, err = p.parseExpr(); err != nil {
-				return nil, err
-			}
+		if sc.Value, err = p.parseSetClauseValueExpr(); err != nil {
+			return nil, err
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -298,20 +288,9 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		var parseErr1140 error
-		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
-			selTok := p.peekNext()
-			sc.Value, parseErr1140 = p.parseExpr()
-			if parseErr1140 != nil {
-				return nil, parseErr1140
-			}
-			if p.prev.Type != ')' {
-				return nil, p.syntaxErrorAtTok(selTok)
-			}
-		} else {
-			sc.Value, parseErr1140 = p.parseExpr()
-			if parseErr1140 != nil {
-				return nil, parseErr1140
-			}
+		sc.Value, parseErr1140 = p.parseSetClauseValueExpr()
+		if parseErr1140 != nil {
+			return nil, parseErr1140
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -359,20 +338,9 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		var parseErr1142 error
-		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
-			selTok := p.peekNext()
-			sc.Value, parseErr1142 = p.parseExpr()
-			if parseErr1142 != nil {
-				return nil, parseErr1142
-			}
-			if p.prev.Type != ')' {
-				return nil, p.syntaxErrorAtTok(selTok)
-			}
-		} else {
-			sc.Value, parseErr1142 = p.parseExpr()
-			if parseErr1142 != nil {
-				return nil, parseErr1142
-			}
+		sc.Value, parseErr1142 = p.parseSetClauseValueExpr()
+		if parseErr1142 != nil {
+			return nil, parseErr1142
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -380,6 +348,15 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	}
 	sc.Loc.End = p.prev.End
 	return sc, nil
+}
+
+// parseSetClauseValueExpr parses the RHS expression of an UPDATE SET assignment,
+// enabling SELECT-token blame when a scalar subquery is missing its closing ')'.
+func (p *Parser) parseSetClauseValueExpr() (nodes.ExprNode, error) {
+	saved := p.updateSetSubquery
+	p.updateSetSubquery = true
+	defer func() { p.updateSetSubquery = saved }()
+	return p.parseExpr()
 }
 
 func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
