@@ -12,9 +12,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/elasticsearch"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 func TestEndpoint(t *testing.T) {
@@ -287,4 +289,132 @@ func TestTruncate(t *testing.T) {
 	// The limit counts code points, and the cut lands between them.
 	require.Equal(t, "éé...", truncate([]byte("éééé"), 2))
 	require.True(t, strings.HasSuffix(truncate([]byte("abcdef"), 2), "..."))
+}
+
+// TestSyncInstanceFiltersHiddenAndClosedIndices pins hidden-index filtering,
+// closed-index null count/size handling, name-order sorting, and role sorting
+// against recorded Elasticsearch 8.19.25 responses.
+func TestSyncInstanceFiltersHiddenAndClosedIndices(t *testing.T) {
+	var requests []string
+	routes := map[string]string{
+		"GET /": `{"version":{"number":"8.19.25"}}`,
+		"GET /*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden": `{
+			"alpha":{"settings":{"index":{"hidden":"false"}}},
+			"beta":{"settings":{"index":{"hidden":"false"}}},
+			"hidden-one":{"settings":{"index":{"hidden":"true"}}},
+			"closed-index":{"settings":{"index":{}}}
+		}`,
+		"GET /_cat/indices?format=json&pretty": `[
+			{"index":"beta","docs.count":"2","store.size":"227b"},
+			{"index":"alpha","docs.count":"4","store.size":"1.5kb"},
+			{"index":"hidden-one","docs.count":"1","store.size":"1kb"},
+			{"index":"closed-index","docs.count":null,"store.size":null}
+		]`,
+		"GET /_security/user": `{
+			"u1":{"roles":["r1","r2"]},
+			"elastic":{"roles":["superuser"]}
+		}`,
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Method + " " + r.URL.RequestURI()
+		requests = append(requests, key)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(routes[key]))
+	}))
+	defer srv.Close()
+
+	d, err := Open(context.Background(), driver.Config{Host: srv.URL})
+	require.NoError(t, err)
+	defer func() { _ = d.Close() }()
+
+	instance, err := d.SyncInstance(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "8.19.25", instance.Version)
+	wantDB := &metadatapb.DatabaseSchemaMetadata{
+		Name: "node",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "alpha", RowCount: 4, DataSize: 1536},
+				{Name: "beta", RowCount: 2, DataSize: 227},
+				{Name: "closed-index"},
+			},
+		}},
+	}
+	require.Len(t, instance.Databases, 1)
+	require.True(t, proto.Equal(wantDB, instance.Databases[0]))
+
+	elasticRole := "[superuser]"
+	u1Role := "[r1, r2]"
+	require.Equal(t, []*driver.Role{
+		{Name: "elastic", Attribute: &elasticRole},
+		{Name: "u1", Attribute: &u1Role},
+	}, instance.Roles)
+	require.Equal(t, []string{
+		"GET /",
+		"GET /*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden",
+		"GET /_cat/indices?format=json&pretty",
+		"GET /_security/user",
+	}, requests)
+
+	dbMeta, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	require.True(t, proto.Equal(instance.Databases[0], dbMeta))
+}
+
+// TestSyncInstanceFailsOpenOnUsers pins that a security-endpoint failure leaves
+// Roles empty without failing SyncInstance.
+func TestSyncInstanceFailsOpenOnUsers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case "/":
+			_, _ = w.Write([]byte(`{"version":{"number":"8.19.25"}}`))
+		case "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden":
+			_, _ = w.Write([]byte(`{}`))
+		case "/_cat/indices?format=json&pretty":
+			_, _ = w.Write([]byte(`[]`))
+		case "/_security/user":
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	defer srv.Close()
+
+	d, err := Open(context.Background(), driver.Config{Host: srv.URL})
+	require.NoError(t, err)
+	defer func() { _ = d.Close() }()
+
+	instance, err := d.SyncInstance(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "8.19.25", instance.Version)
+	require.Empty(t, instance.Roles)
+}
+
+func TestQueryUnsupportedContentTypeAndMissingProfile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/image":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte("not json"))
+		case "/alpha/_search":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"took": 1, "hits": {"total": {"value": 0}}}`))
+		}
+	}))
+	defer srv.Close()
+
+	d, err := Open(context.Background(), driver.Config{Host: srv.URL})
+	require.NoError(t, err)
+	defer func() { _ = d.Close() }()
+	sess := openSession(t, d)
+
+	res, err := sess.Query(context.Background(), "GET /image", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.ErrorContains(t, res[0].Err, "Content-Type not supported: image/png")
+
+	res, err = sess.Query(context.Background(), "POST /alpha/_search\n{}", driver.QueryOptions{Explain: true})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.ErrorContains(t, res[0].Err, "the search answered with no profile to explain")
 }
