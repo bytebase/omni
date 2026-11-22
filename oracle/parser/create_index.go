@@ -295,7 +295,7 @@ func (p *Parser) parseIndexColumn() (*nodes.IndexColumn, error) {
 // NUMBER(1) ORA-29827 at the '(', TIMESTAMP WITH TIME ZONE ORA-00907 at
 // WITH. LONG RAW and DOUBLE PRECISION are the two-word names it takes.
 func (p *Parser) parseOperatorType() (string, error) {
-	if !p.isIdentLike() || p.cur.Type == kwRETURN {
+	if !p.isIdentLike() || p.cur.Type == kwRETURN || p.isKeywordStr("OBJECT") {
 		return "", p.syntaxErrorAtCur()
 	}
 	name := p.advance().Str

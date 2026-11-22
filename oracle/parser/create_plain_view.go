@@ -91,7 +91,19 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 		if err != nil {
 			return nil, err
 		}
-		_ = annotations
+		if annotations != nil {
+			seenAnns := map[string]bool{}
+			for _, item := range annotations.Items {
+				opt, ok := item.(*nodes.DDLOption)
+				if !ok {
+					continue
+				}
+				if seenAnns[opt.Key] {
+					return nil, p.syntaxErrorAtCur()
+				}
+				seenAnns[opt.Key] = true
+			}
+		}
 	}
 
 	if p.cur.Type == kwDEFAULT {
@@ -183,8 +195,20 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // (
 	stmt.Columns = &nodes.List{}
+	seenCols := map[string]bool{}
 	for {
-		if p.isViewConstraintStart() {
+		if p.isViewConstraintStart() || p.cur.Type == kwUNIQUE {
+			if (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS) &&
+				p.peekNext().Type != kwUNIQUE && p.peekNext().Type != kwPRIMARY && p.peekNext().Type != kwFOREIGN {
+				ahead := p.peekAhead(3)
+				if len(ahead) == 3 && ahead[2].Type == kwUNIQUE {
+					p.advance() // CONSTRAINT
+					p.advance() // name
+					p.advance() // unexpected word
+					p.advance() // UNIQUE
+					return p.syntaxErrorAtCur()
+				}
+			}
 			viewConstraint, err := p.parseTableConstraintBody(false)
 			if err != nil {
 				return err
@@ -202,10 +226,15 @@ func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 			stmt.Constraints.Items = append(stmt.Constraints.Items, viewConstraint)
 		} else {
 			// Oracle 23ai takes an alias after an out-of-line constraint too.
-			name := p.cur.Str
+			aliasTok := p.cur
+			name := aliasTok.Str
 			if !p.isCreateTableNameStart() {
 				return p.syntaxErrorAtCur()
 			}
+			if seenCols[name] {
+				return p.syntaxErrorAtTok(aliasTok)
+			}
+			seenCols[name] = true
 			p.advance()
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("VISIBLE") || p.isKeywordStr("INVISIBLE") {

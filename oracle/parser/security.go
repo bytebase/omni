@@ -446,6 +446,7 @@ func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
+	seen := map[string]bool{}
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if !p.isIdentLike() {
 			break
@@ -460,13 +461,18 @@ func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 				Loc:  nodes.Loc{Start: entryStart},
 			}
 			if p.cur.Type == tokICONST {
+				valTok := p.cur
 				entry.Value = p.cur.Str
 				p.advance()
+				if seen[name] {
+					return nil, p.syntaxErrorAtTok(valTok)
+				}
 			} else if len(stmt.Costs) == 0 {
 				// The first cost takes its value (ORA-00923 at the end).
 				// Oracle 23ai takes a name without one after it.
 				return nil, p.syntaxErrorAtCur()
 			}
+			seen[name] = true
 			entry.Loc.End = p.prev.End
 			stmt.Costs = append(stmt.Costs, entry)
 		default:

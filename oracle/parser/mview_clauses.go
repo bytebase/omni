@@ -229,6 +229,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // consume '('
 	stmt.Columns = &nodes.List{}
+	seenCols := map[string]Token{}
 	for {
 		if p.isKeywordStr("SCOPE") && p.peekNext().Type == kwFOR {
 			if err := p.parseMviewScopeFor(true); err != nil {
@@ -238,10 +239,15 @@ func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 			if !p.isCreateTableNameStart() {
 				return p.syntaxErrorAtCur()
 			}
+			colTok := p.cur
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return err
 			}
+			if firstTok, dup := seenCols[name]; dup {
+				return p.syntaxErrorAtTok(firstTok)
+			}
+			seenCols[name] = colTok
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("ENCRYPT") {
 				p.advance() // consume ENCRYPT
@@ -310,10 +316,14 @@ func (p *Parser) parseMviewEncryptionSpec() error {
 		if err := p.expectCreateTableToken(kwBY); err != nil {
 			return err
 		}
-		if !p.isIdentLike() {
-			return p.syntaxErrorAtCur()
+		if p.cur.Type == ')' {
+			p.advance()
+		} else {
+			if !p.isIdentLike() {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume password
 		}
-		p.advance() // consume password
 	}
 	if p.cur.Type == tokSCONST {
 		p.advance()
@@ -466,7 +476,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseCreateTableName(); err != nil {
 				return err
 			}
-			if err := p.parseCreateTableColumnNames(); err != nil {
+			if err := p.parseCreateTableColumnNamesUnique(false); err != nil {
 				return err
 			}
 		case p.cur.Type == kwCACHE, p.cur.Type == kwNOCACHE:

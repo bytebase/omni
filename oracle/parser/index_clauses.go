@@ -1239,6 +1239,7 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 		p.advance()
 		return p.ixWord("USAGE")
 	case "UNUSABLE":
+		unusableTok := p.cur
 		stmt.Action = "UNUSABLE"
 		p.advance()
 		if p.cur.Type == kwONLINE {
@@ -1251,6 +1252,9 @@ func (p *Parser) parseAlterIndexAction(stmt *nodes.AlterIndexStmt) error {
 				return err
 			}
 			stmt.Invalidation = inv
+		}
+		if !p.ixEnd() {
+			return p.syntaxErrorAtTok(unusableTok)
 		}
 		return nil
 	case "VISIBLE", "INVISIBLE", "ENABLE", "DISABLE", "COMPILE":

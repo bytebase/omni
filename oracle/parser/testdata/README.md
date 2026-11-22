@@ -11,15 +11,17 @@ Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
 are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
 #1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings),
-Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings), and
-Wave 4 (inline external table driver types and remaining grammar readings):
+Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings),
+Wave 4 (inline external table driver types and remaining grammar readings), and
+Wave 5 (intra-statement duplicate checks, lexer/ORDER BY offsets, and remaining
+grammar readings):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,599 | 367 | 4 | 564 |
-| Near-misses | 31,318 | 29,241 | 1,914 | 100 | 63 |
-| Hand rows | 1,010 | 893 | 98 | 17 | 2 |
+| One per alternative | 14,534 | 13,680 | 349 | 4 | 501 |
+| Near-misses | 31,318 | 29,491 | 1,688 | 100 | 39 |
+| Hand rows | 1,010 | 911 | 80 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -61,9 +63,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
-| `suite:reference` | 321 | 230 | 75 | 16 | 0 |
-| `suite:manifest` | 612 | 593 | 16 | 1 | 2 |
+| `suite:lexer` | 77 | 76 | 1 | 0 | 0 |
+| `suite:reference` | 321 | 241 | 64 | 16 | 0 |
+| `suite:manifest` | 612 | 594 | 15 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -471,12 +473,30 @@ from 93.00% to 93.32% and verdict agreement from 98.29% to 98.40%):
 | Query & DML table-alias and expression readings (`PERIOD`, `WINDOW` in `DELETE`, `LEFT` before `PARTITION BY`, `LATERAL` without `(`, reserved `ADD` in SQL expressions) | 8 | `FOR`, `a`, `1`, `SELECT`, or `ADD` |
 | Other DDL (`ALTER TABLE` top-level `NESTED TABLE`/`VARRAY` column properties, `ADD LOG DATA(ALL)`, `CREATE TABLE` duplicate `ANNOTATIONS` closing `)`, `CREATE SNAPSHOT`, `ALTER MVIEW MERGE SUBPARTITIONS INVALIDATE`, `ALTER MVLOG SPLIT PARTITION INTO`, `MOVE KEYS WITH IDENTIFIER IN a)`) | 8 | `RETURN`, `(`, `DATA`, closing `)`, `a`, `SUBPARTITION`, `PARTITION`, or `a` |
 
-The remaining 3,129 disagreeing rows are almost entirely non-grammar causes
-(117 `suite:*` corpus rows, 402 bare `reject` without position, 440 `reject@0`
-lookups/sub-parsers, 121 measured `only_oracle` lookups/checks, 629 measured
-`only_omni` engine/setup/duplicate-name checks, and ~1,350 `another_byte` rows
-from the documented engine checks below). These are the largest, and a row may
-be one of several, so the counts are not disjoint.
+Wave 5 moved 349 more rows to Oracle's exact cell (97 fewer `omni_first`, 165
+fewer `oracle_first`, and 87 fewer only-omni-accepts, bringing exact byte match
+from 93.32% to 94.07% and verdict agreement from 98.40% to 98.59%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE PROPERTY GRAPH` duplicate element tables/aliases, `KEY`, `EXCEPT`, and `PROPERTIES` | 91 | the repeated table/alias (`ORA-42404`), key column (`ORA-42416`), excluded column (`ORA-42426`), or property (`ORA-42407`) |
+| `ALTER TABLE` duplicate column lists (`UNIQUE`, `PRIMARY KEY`, `REFERENCES`, `INMEMORY`, `LOB`, `PARTITION BY`, `SUPPLEMENTAL LOG GROUP`), virtual column non-built-in datatypes, `FORCE(1)` partition key, `INCLUDING ROWS`, `IMMEDIATE`, `ADD DEFERRABLE`, `UPGRADE INCLUDING DATA(`, and reserved table name | 68 | the repeated name, virtual column name (`ORA-54003`), `(` after `FORCE`, missing `WHERE`, `ADD`, or trailing token |
+| `CREATE TABLE` duplicate column/key lists, bare column duplicates, virtual column datatypes & `ALWAYS AS IDENTITY`, range bound arity, `CONSTRAINT` body, `SUPPLEMENTAL GROUP`, `ENCRYPT IDENTIFIED BY)`, `IMMEDIATE`/`EXTERNAL`, and `VARRAY`/`NESTED TABLE ... STORE AS` | 37 | the repeated column, virtual column name, extra bound expression, missing keyword, or `)` |
+| `CREATE` / `ALTER MATERIALIZED VIEW` & `LOG` duplicate column lists, `ALLOCATE EXTENT(SIZE)`, `SCOPE FOR`, `MERGE SUBPARTITIONS FORCE(1)` / trailing token, and `ENCRYPT IDENTIFIED BY)` | 31 | the first repeated alias (for `CREATE MATERIALIZED VIEW`) or second column name, `)`, `FORCE`, or trailing token |
+| Utility statements (`LOCK TABLE`, `FLASHBACK TABLE`, `TRUNCATE`) | 25 | the token after an unrecognized lock mode, `PARTITION` on multi-partition `LOCK TABLE`, missing `TO`, or missing `TABLE`/`CLUSTER`/`MATERIALIZED` |
+| Query & DML (`EXTERNAL` duplicate columns, `INSERT ... SET` duplicate target columns, `FETCH FIRST 1 zzz ROW`, `UPDATE ... FOR(1)`) | 19 | the repeated column (`ORA-00957`), `ROW`, or `(` after `FOR` |
+| Other DDL (`ALTER DISKGROUP` volume/quotagroup, `ALTER DATABASE`, `ALTER PLUGGABLE DATABASE`, `CREATE USER`, `ADMINISTER KEY MANAGEMENT`, `CREATE AUDIT POLICY`, `CREATE INMEMORY JOIN GROUP`, `CREATE [OR REPLACE] JAVA SOURCE IF [NOT] EXISTS`) | 18 | the clause keyword, literal, `IF`, or trailing token |
+| `CREATE` / `ALTER VIEW` duplicate aliases/annotations/constraints, `CREATE MATERIALIZED ZONEMAP`, `CREATE VECTOR INDEX INCLUDE`, `CREATE CLUSTER`, `ALTER INDEX`, `CREATE DIMENSION` duplicate `LEVEL`, `CREATE`/`ALTER PROFILE` & `ALTER RESOURCE COST` duplicate limits | 39 | the repeated alias/column/level/limit name, `UNUSABLE`, or constraint keyword |
+| `CREATE`/`ALTER OPERATOR` and `CREATE`/`ALTER INDEXTYPE` `OBJECT` datatype refusal & `CREATE PFILE`/`SPFILE` syntax | 10 | `OBJECT` (`ORA-00902`), `FROM`, or EOF after `AS` |
+| `suite:lexer` error offsets (unterminated string/comment/q-quote, `""`, reserved `DATE` in expressions) & parenthesized trailing `ORDER BY` (`suite:reference`) | 11 | the opening lexeme byte, `DATE`, or `ORDER` (`ORA-00907`) |
+
+The remaining 2,780 disagreeing rows are non-grammar causes (99 `suite:*` corpus
+rows, 402 bare `reject` without position, 440 `reject@0` lookups/sub-parsers,
+121 measured `only_oracle` lookups/checks, 542 measured `only_omni`
+engine/setup/value/duplicate checks including `CREATE TABLE`/`ALTER TABLE ADD`/`DROP`
+and `CREATE INDEX` duplicates intentionally left to semantic review, and ~1,176
+`another_byte` rows from the documented engine checks below). These are the
+largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |

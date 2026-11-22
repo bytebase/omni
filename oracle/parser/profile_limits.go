@@ -100,6 +100,7 @@ func (p *Parser) parseProfileParam(seen map[string]bool) (*nodes.ProfileLimit, e
 	lim := &nodes.ProfileLimit{Name: p.cur.Str, Loc: nodes.Loc{Start: start}}
 	kind := profileParams[lim.Name]
 	p.advance()
+	valTok := p.cur
 	switch {
 	case p.cur.Type == tokEOF || p.cur.Type == ';':
 		// compat.tsv records a parameter named a second time with no value
@@ -107,6 +108,8 @@ func (p *Parser) parseProfileParam(seen map[string]bool) (*nodes.ProfileLimit, e
 		if !seen[lim.Name] {
 			return nil, p.syntaxErrorAtCur()
 		}
+		lim.Loc.End = p.prev.End
+		return lim, nil
 	case p.isKeywordStr("UNLIMITED") && kind != profileFunction, p.cur.Type == kwDEFAULT:
 		lim.Value = p.advance().Str
 	case kind == profileFunction:
@@ -150,6 +153,9 @@ func (p *Parser) parseProfileParam(seen map[string]bool) (*nodes.ProfileLimit, e
 		}
 	default:
 		return nil, p.syntaxErrorAtCur()
+	}
+	if seen[lim.Name] {
+		return nil, p.syntaxErrorAtTok(valTok)
 	}
 	lim.Loc.End = p.prev.End
 	return lim, nil

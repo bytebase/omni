@@ -4,16 +4,32 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
-// parseGraphNameList reads ( name [, name ] ... ).
+// parseGraphNameList reads ( name [, name ] ... ). When unique is true, a
+// repeated name is rejected at the duplicate token (ORA-42416, ORA-42426).
 func (p *Parser) parseGraphNameList() ([]string, error) {
+	return p.parseGraphNameListUnique(false)
+}
+
+func (p *Parser) parseGraphNameListUnique(unique bool) ([]string, error) {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return nil, err
 	}
 	var names []string
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
-		names = append(names, p.cur.Str)
+		tok := p.cur
+		names = append(names, tok.Str)
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, err
+		}
+		if unique {
+			if seen[tok.Str] {
+				return nil, p.syntaxErrorAtTok(tok)
+			}
+			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -84,8 +100,9 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 	if err := p.expectCreateTableToken('('); err != nil {
 		return nil, err
 	}
+	seenTables := map[string]bool{}
 	for {
-		vtd, err := p.parseGraphTableDef()
+		vtd, err := p.parseGraphTableDef(seenTables)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +125,7 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 			return nil, err
 		}
 		for {
-			etd, err := p.parseGraphEdgeDef()
+			etd, err := p.parseGraphEdgeDef(seenTables)
 			if err != nil {
 				return nil, err
 			}
@@ -169,26 +186,44 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 //
 //	[ schema. ] graph_element_object_name [ AS graph_element_name ]
 //	[ KEY ( column_name [, column_name ]... ) ]
-func (p *Parser) parseGraphElementNameAndKey() (*nodes.ObjectName, string, []string, error) {
+//
+// Each element table in a property graph has a unique effective name (its AS
+// alias if given, otherwise its unqualified object name; ORA-42404).
+func (p *Parser) parseGraphElementNameAndKey(seenTables map[string]bool) (*nodes.ObjectName, string, []string, error) {
 	if !p.isCreateTableNameStart() {
 		return nil, "", nil, p.syntaxErrorAtCur()
 	}
+	nameStart := p.cur
 	name, err := p.parseObjectName()
 	if err != nil {
 		return nil, "", nil, err
 	}
+	tableTok := p.prev
+	if name.Schema == "" {
+		tableTok = nameStart
+	}
 	var alias string
 	if p.cur.Type == kwAS {
 		p.advance()
-		alias = p.cur.Str
+		aliasTok := p.cur
+		alias = aliasTok.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, "", nil, err
 		}
+		if seenTables[alias] {
+			return nil, "", nil, p.syntaxErrorAtTok(aliasTok)
+		}
+		seenTables[alias] = true
+	} else {
+		if seenTables[name.Name] {
+			return nil, "", nil, p.syntaxErrorAtTok(tableTok)
+		}
+		seenTables[name.Name] = true
 	}
 	var key []string
 	if p.cur.Type == kwKEY {
 		p.advance()
-		if key, err = p.parseGraphNameList(); err != nil {
+		if key, err = p.parseGraphNameListUnique(true); err != nil {
 			return nil, "", nil, err
 		}
 	}
@@ -198,10 +233,10 @@ func (p *Parser) parseGraphElementNameAndKey() (*nodes.ObjectName, string, []str
 // parseGraphTableDef parses a vertex_table_definition.
 //
 //	graph_element_name_and_key [ graph_table_label_and_properties ]
-func (p *Parser) parseGraphTableDef() (*nodes.GraphTableDef, error) {
+func (p *Parser) parseGraphTableDef(seenTables map[string]bool) (*nodes.GraphTableDef, error) {
 	def := &nodes.GraphTableDef{Loc: nodes.Loc{Start: p.pos()}}
 	var err error
-	if def.Name, def.Alias, def.KeyColumns, err = p.parseGraphElementNameAndKey(); err != nil {
+	if def.Name, def.Alias, def.KeyColumns, err = p.parseGraphElementNameAndKey(seenTables); err != nil {
 		return nil, err
 	}
 	if err := p.parseGraphLabelAndProperties(def); err != nil {
@@ -224,7 +259,7 @@ func (p *Parser) parseGraphVertexReference() ([]string, string, []string, error)
 	var err error
 	if p.cur.Type == kwKEY {
 		p.advance()
-		if key, err = p.parseGraphNameList(); err != nil {
+		if key, err = p.parseGraphNameListUnique(true); err != nil {
 			return nil, "", nil, err
 		}
 		if err := p.expectCreateTableToken(kwREFERENCES); err != nil {
@@ -237,7 +272,7 @@ func (p *Parser) parseGraphVertexReference() ([]string, string, []string, error)
 	}
 	var cols []string
 	if p.cur.Type == '(' {
-		if cols, err = p.parseGraphNameList(); err != nil {
+		if cols, err = p.parseGraphNameListUnique(true); err != nil {
 			return nil, "", nil, err
 		}
 	}
@@ -250,10 +285,10 @@ func (p *Parser) parseGraphVertexReference() ([]string, string, []string, error)
 //	SOURCE [ KEY ( column_name [, column_name ]... ) REFERENCES ] vertex_table_reference
 //	DESTINATION [ KEY ( column_name [, column_name ]... ) REFERENCES ] vertex_table_reference
 //	[ graph_table_label_and_properties ]
-func (p *Parser) parseGraphEdgeDef() (*nodes.GraphEdgeDef, error) {
+func (p *Parser) parseGraphEdgeDef(seenTables map[string]bool) (*nodes.GraphEdgeDef, error) {
 	def := &nodes.GraphEdgeDef{Loc: nodes.Loc{Start: p.pos()}}
 	var err error
-	if def.Name, def.Alias, def.KeyColumns, err = p.parseGraphElementNameAndKey(); err != nil {
+	if def.Name, def.Alias, def.KeyColumns, err = p.parseGraphElementNameAndKey(seenTables); err != nil {
 		return nil, err
 	}
 	if err := p.expectCreateTableWord("SOURCE"); err != nil {
@@ -304,6 +339,7 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 		if p.cur.Type == '(' {
 			def.Properties = "LIST"
 			p.advance() // '('
+			seenProps := map[string]bool{}
 			for {
 				start := p.cur
 				if p.cur.Type == kwAS {
@@ -327,13 +363,21 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 				if !column && p.cur.Type != kwAS {
 					return p.syntaxErrorAtCur()
 				}
+				propTok := start
+				propName := prop
 				if p.cur.Type == kwAS {
 					p.advance()
-					def.PropAliases = append(def.PropAliases, p.cur.Str)
+					propTok = p.cur
+					propName = propTok.Str
+					def.PropAliases = append(def.PropAliases, propName)
 					if err := p.parseCreateTableName(); err != nil {
 						return err
 					}
 				}
+				if seenProps[propName] {
+					return p.syntaxErrorAtTok(propTok)
+				}
+				seenProps[propName] = true
 				if p.cur.Type != ',' {
 					break
 				}
@@ -358,7 +402,7 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 			p.advance()
 			def.Properties = "ALL_EXCEPT"
 			var err error
-			if def.PropColumns, err = p.parseGraphNameList(); err != nil {
+			if def.PropColumns, err = p.parseGraphNameListUnique(true); err != nil {
 				return err
 			}
 		}

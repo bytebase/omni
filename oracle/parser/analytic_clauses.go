@@ -1453,8 +1453,9 @@ func (p *Parser) parseCreateDimensionStmt(start int) (*nodes.CreateDimensionStmt
 	if p.cur.Type != kwLEVEL {
 		return nil, p.syntaxErrorAtCur()
 	}
+	seenLevels := map[string]bool{}
 	for p.cur.Type == kwLEVEL {
-		lvl, err := p.parseDimensionLevelClause()
+		lvl, err := p.parseDimensionLevelClause(seenLevels)
 		if err != nil {
 			return nil, err
 		}
@@ -1544,10 +1545,13 @@ func (p *Parser) parseDimensionColumns(qualified bool) ([]*nodes.ObjectName, err
 	return cols, nil
 }
 
-// parseDimensionLevelClause reads a level_clause.
-func (p *Parser) parseDimensionLevelClause() (*nodes.DimensionLevel, error) {
+// parseDimensionLevelClause reads a level_clause. When seen is non-nil, a
+// repeated level name is rejected at the duplicate name after the clause
+// finishes parsing.
+func (p *Parser) parseDimensionLevelClause(seen map[string]bool) (*nodes.DimensionLevel, error) {
 	lvl := &nodes.DimensionLevel{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // LEVEL
+	nameTok := p.cur
 	var err error
 	if lvl.Name, err = p.anParseName(); err != nil {
 		return nil, err
@@ -1567,6 +1571,12 @@ func (p *Parser) parseDimensionLevelClause() (*nodes.DimensionLevel, error) {
 			return nil, err
 		}
 		lvl.SkipWhenNull = true
+	}
+	if seen != nil {
+		if seen[lvl.Name] {
+			return nil, p.syntaxErrorAtTok(nameTok)
+		}
+		seen[lvl.Name] = true
 	}
 	lvl.Loc.End = p.prev.End
 	return lvl, nil
@@ -1708,7 +1718,7 @@ func (p *Parser) parseAlterDimensionStmt(start int) (*nodes.AlterDimensionStmt, 
 func (p *Parser) parseAlterDimensionAdd(stmt *nodes.AlterDimensionStmt) error {
 	switch {
 	case p.cur.Type == kwLEVEL:
-		lvl, err := p.parseDimensionLevelClause()
+		lvl, err := p.parseDimensionLevelClause(nil)
 		if err != nil {
 			return err
 		}

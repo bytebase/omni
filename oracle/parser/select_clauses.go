@@ -252,11 +252,17 @@ func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
 		Columns: &nodes.List{},
 		Loc:     nodes.Loc{Start: start},
 	}
+	seenCols := map[string]bool{}
 	for {
+		colTok := p.cur
+		if p.isIdentLike() && seenCols[colTok.Str] {
+			return nil, p.syntaxErrorAtTok(colTok)
+		}
 		col, err := p.parseSelectExternalColumn()
 		if err != nil {
 			return nil, err
 		}
+		seenCols[col.Name] = true
 		ref.Columns.Items = append(ref.Columns.Items, col)
 		if p.cur.Type != ',' {
 			break
@@ -816,6 +822,9 @@ func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != kwBETWEEN {
+			if fc.IsPeriodFor && p.cur.Type != tokEOF && p.cur.Type != ';' {
+				p.advance()
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()

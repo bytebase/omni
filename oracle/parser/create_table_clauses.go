@@ -102,14 +102,30 @@ func (p *Parser) parseCreateTableName() error {
 	return nil
 }
 
-// parseCreateTableColumnNames reads ( column [, column ] ... ).
+// parseCreateTableColumnNames reads ( column [, column ] ... ), rejecting
+// duplicate column names at the repeated token (ORA-00957).
 func (p *Parser) parseCreateTableColumnNames() error {
+	return p.parseCreateTableColumnNamesUnique(true)
+}
+
+func (p *Parser) parseCreateTableColumnNamesUnique(unique bool) error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		if err := p.parseCreateTableName(); err != nil {
 			return err
+		}
+		if unique {
+			if seen[tok.Str] {
+				return p.syntaxErrorAtTok(tok)
+			}
+			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -518,10 +534,21 @@ func (p *Parser) parseCreateTableLobStorageClause() error {
 		return err
 	}
 	items := 0
+	seen := map[string]bool{}
 	for {
-		if err := p.parseCreateTableItem(); err != nil {
+		tok := p.cur
+		item, err := p.parseColumnPath()
+		if err != nil {
 			return err
 		}
+		key := item.Str
+		if parts, ok := p.attributePaths[item]; ok {
+			key = strings.Join(parts, "\x00")
+		}
+		if seen[key] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[key] = true
 		items++
 		if p.cur.Type != ',' {
 			break
@@ -1758,6 +1785,13 @@ func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) er
 func (p *Parser) parseCreateTableSupplementalLogging() error {
 	suppTok := p.cur
 	p.advance() // consume SUPPLEMENTAL
+	if p.cur.Type == kwGROUP {
+		p.advance()
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
+	}
 	if err := p.expectCreateTableWord("LOG"); err != nil {
 		return err
 	}
@@ -1806,10 +1840,16 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	seenCols := map[string]bool{}
 	for {
+		tok := p.cur
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
+		if seenCols[tok.Str] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seenCols[tok.Str] = true
 		if p.isKeywordStr("NO") {
 			p.advance()
 			if err := p.expectCreateTableWord("LOG"); err != nil {

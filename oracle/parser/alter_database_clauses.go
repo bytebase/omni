@@ -1111,6 +1111,9 @@ func (p *Parser) parseAlterDatabaseSet(opt *nodes.DDLOption) error {
 				p.advance()
 				opt.Value = "DATA AVAILABILITY"
 				return p.adbExpect("AVAILABILITY")
+			case p.cur.Type == kwDATABASE:
+				p.advance()
+				return p.syntaxErrorAtCur()
 			default:
 				return p.syntaxErrorAtCur()
 			}
@@ -1699,6 +1702,9 @@ func (p *Parser) parseAlterDatabasePrepareCommit(opt *nodes.DDLOption, verb stri
 	}
 	opt.Key = verb + "_TO_SWITCHOVER"
 	if p.cur.Type != kwTO {
+		if verb == "COMMIT" && p.adbWord("SWITCHOVER") {
+			p.advance()
+		}
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()

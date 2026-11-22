@@ -683,7 +683,13 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		return p.parseCastExpr()
 
-	case kwDATE, kwTIMESTAMP:
+	case kwDATE:
+		if p.peekNext().Type == tokSCONST {
+			return p.parseDateTimeLiteral()
+		}
+		return nil, p.syntaxErrorAtCur()
+
+	case kwTIMESTAMP:
 		if p.peekNext().Type == tokSCONST {
 			return p.parseDateTimeLiteral()
 		}
@@ -2004,8 +2010,8 @@ func (p *Parser) parseWithinGroup() (*nodes.List, error) {
 // OFFSET or FETCH after the ORDER BY. An inline view, a WITH element, MERGE
 // USING, CURSOR(...), and a cursor FOR loop's query take a plain one.
 func (p *Parser) checkExpressionSubquery(sub *nodes.SelectStmt) error {
-	if sort := trailingOrderBy(sub); sort != nil {
-		return p.syntaxErrorAtNode(sort)
+	if orderTok, ok := p.trailingOrderByToken(sub); ok {
+		return p.syntaxErrorAtTok(orderTok)
 	}
 	return nil
 }

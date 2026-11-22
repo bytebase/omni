@@ -115,6 +115,13 @@ func (p *Parser) parseATPartitionOrKey(name *string) error {
 		p.advance()
 		return p.parseATExprList()
 	}
+	if p.cur.Type == kwFORCE && p.peekNext().Type == '(' {
+		p.advance()
+		if err := p.parseATExprList(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == '(' {
 		return p.parseATExprList()
 	}

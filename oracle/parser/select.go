@@ -169,8 +169,8 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 	if err != nil {
 		return nil, false, err
 	}
-	if sort := trailingOrderBy(inner); sort != nil {
-		return nil, false, p.syntaxErrorAtNode(sort)
+	if orderTok, ok := p.trailingOrderByToken(inner); ok {
+		return nil, false, p.syntaxErrorAtTok(orderTok)
 	}
 	if lock := trailingForUpdate(inner); lock != nil {
 		return nil, false, p.syntaxErrorAtNode(lock)
@@ -386,26 +386,33 @@ func trailingForUpdate(query *nodes.SelectStmt) nodes.Node {
 	return nil
 }
 
-// trailingOrderBy returns the first item of the ORDER BY that ends query, if
-// one does: the query's own, or that of the last operand of its set
-// operation.
-func trailingOrderBy(query *nodes.SelectStmt) nodes.Node {
+// trailingOrderByToken returns the ORDER keyword token of the ORDER BY that
+// ends query, if one does: the query's own, or that of the last operand of
+// its set operation.
+func (p *Parser) trailingOrderByToken(query *nodes.SelectStmt) (Token, bool) {
 	for query != nil {
 		if query.OrderBy != nil && query.OrderBy.Len() > 0 {
 			// One a row-limiting clause follows is that clause's: Oracle
 			// 23ai runs (SELECT ... ORDER BY d FETCH FIRST 10 ROWS ONLY)
 			// UNION ALL ..., with OFFSET too.
 			if query.FetchFirst != nil {
-				return nil
+				return Token{}, false
 			}
-			return query.OrderBy.Items[0]
+			if tok, ok := p.orderByTok[query]; ok {
+				return tok, true
+			}
+			if item := query.OrderBy.Items[0]; item != nil {
+				loc := nodes.NodeLoc(item)
+				return Token{Loc: loc.Start, End: loc.End}, true
+			}
+			return Token{}, false
 		}
 		if query.Op == nodes.SETOP_NONE {
-			return nil
+			return Token{}, false
 		}
 		query = query.Rarg
 	}
-	return nil
+	return Token{}, false
 }
 
 // parseSelectAfterKeyword parses the rest of a query into sel, from the
@@ -645,7 +652,7 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 // after it for parseSetOperands to parse.
 func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	if p.cur.Type == kwORDER {
-		p.advance()
+		orderTok := p.advance()
 		if p.isIdentLikeStr("SIBLINGS") {
 			// SIBLINGS orders a hierarchical query's rows (ORA-30929).
 			if sel.Hierarchical == nil {
@@ -665,6 +672,10 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 		if sel.OrderBy.Len() == 0 {
 			return false, p.syntaxErrorAtCur()
 		}
+		if p.orderByTok == nil {
+			p.orderByTok = map[*nodes.SelectStmt]Token{}
+		}
+		p.orderByTok[sel] = orderTok
 	}
 
 	if p.cur.Type == kwOFFSET || p.cur.Type == kwFETCH {
@@ -2187,6 +2198,9 @@ func (p *Parser) parseFetchFirstClause() (*nodes.FetchFirstClause, error) {
 
 		// ROW | ROWS
 		if p.cur.Type != kwROW && p.cur.Type != kwROWS {
+			if !fc.Percent && (p.peekNext().Type == kwROW || p.peekNext().Type == kwROWS) {
+				p.advance()
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
