@@ -684,8 +684,8 @@ func (p *Parser) parseDeclareConditionStatement() error {
 	if err != nil {
 		return err
 	}
-	if isQualifiedIdent(name) {
-		return p.errorf("condition name %q cannot be qualified", name)
+	if !isValidSparkConditionName(name) {
+		return p.errorf("invalid condition name %q; must match [A-Za-z0-9_]+", name)
 	}
 	if _, err := p.expect(kwCONDITION); err != nil {
 		return err

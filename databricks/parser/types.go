@@ -973,39 +973,47 @@ func (p *Parser) parseExpressionProperty() error {
 }
 
 func (p *Parser) parsePartitionSpec(requireValues bool) error {
+	_, err := p.parsePartitionSpecDynamic(requireValues)
+	return err
+}
+
+func (p *Parser) parsePartitionSpecDynamic(requireValues bool) (hasDynamic bool, err error) {
 	if _, err := p.expect(kwPARTITION); err != nil {
-		return err
+		return false, err
 	}
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return false, err
 	}
 	seen := make(map[string]struct{})
 	for {
 		key, err := p.parseIdentifier()
 		if err != nil {
-			return err
+			return false, err
 		}
 		norm := normalizeIdentName(key)
 		if _, dup := seen[norm]; dup {
-			return p.errorf("duplicate partition key %q in PARTITION specification", key)
+			return false, p.errorf("duplicate partition key %q in PARTITION specification", key)
 		}
 		seen[norm] = struct{}{}
 		if p.match(tokEq) {
 			if p.cur().Kind == kwDEFAULT {
-				return p.errorf("DEFAULT is not allowed in PARTITION specification")
+				return false, p.errorf("DEFAULT is not allowed in PARTITION specification")
 			}
 			if err := p.parseConstant(); err != nil {
-				return err
+				return false, err
 			}
-		} else if requireValues {
-			return p.errorf("partition key %q must specify a value", key)
+		} else {
+			if requireValues {
+				return false, p.errorf("partition key %q must specify a value", key)
+			}
+			hasDynamic = true
 		}
 		if !p.match(tokComma) {
 			break
 		}
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	_, err = p.expect(tokRParen)
+	return hasDynamic, err
 }
 
 func (p *Parser) parsePartitionSpecLocation() error {

@@ -207,10 +207,14 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 			}
 		}
 		if p.cur().Kind == kwPARTITION {
-			if err := p.parsePartitionSpec(false); err != nil {
+			hasDynamic, err := p.parsePartitionSpecDynamic(false)
+			if err != nil {
 				return "", err
 			}
 			if p.cur().Kind == kwIF {
+				if hasDynamic {
+					return "", p.errorf("INSERT OVERWRITE with IF NOT EXISTS is not allowed for dynamic partitions")
+				}
 				p.advance()
 				if _, err := p.expect(kwNOT); err != nil {
 					return "", err

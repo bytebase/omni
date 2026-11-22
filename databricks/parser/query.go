@@ -769,17 +769,25 @@ func (p *Parser) parseFromClause() error {
 			return err
 		}
 	}
+	hasLateralView := false
 	for p.cur().Kind == kwLATERAL && p.peek(1).Kind == kwVIEW {
+		hasLateralView = true
 		if err := p.parseLateralView(); err != nil {
 			return err
 		}
 	}
 	if p.cur().Kind == kwPIVOT {
+		if hasLateralView {
+			return p.errorf("LATERAL VIEW together with PIVOT is not allowed in FROM clause")
+		}
 		if err := p.parsePivotClause(); err != nil {
 			return err
 		}
 	}
 	if p.cur().Kind == kwUNPIVOT {
+		if hasLateralView {
+			return p.errorf("LATERAL VIEW together with UNPIVOT is not allowed in FROM clause")
+		}
 		if err := p.parseUnpivotClause(); err != nil {
 			return err
 		}

@@ -92,8 +92,8 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtSet,
 		},
 		{
-			name: "select lateral view and pivot",
-			sql:  `SELECT * FROM sales LATERAL VIEW EXPLODE(items) t AS item PIVOT (SUM(amount) FOR quarter IN ('Q1', 'Q2'))`,
+			name: "select lateral view and pivot via subquery",
+			sql:  `SELECT * FROM (SELECT * FROM sales LATERAL VIEW EXPLODE(items) t AS item) s PIVOT (SUM(amount) FOR quarter IN ('Q1', 'Q2'))`,
 			kind: StmtQuery,
 		},
 		{
@@ -716,6 +716,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtCreateTable,
 		},
 		{
+			name: "special datetime values in typed literals",
+			sql:  `SELECT DATE 'today', DATE 'yesterday', DATE 'tomorrow', DATE 'epoch', DATE 'now', TIMESTAMP 'now', TIMESTAMP 'epoch', TIMESTAMP_NTZ 'today', TIMESTAMP_LTZ 'now'`,
+			kind: StmtQuery,
+		},
+		{
+			name: "valid backticked scripting condition name",
+			sql:  "BEGIN DECLARE `ok_123` CONDITION; SELECT 1; END",
+			kind: StmtCompound,
+		},
+		{
+			name: "lateral view in subquery followed by pivot",
+			sql:  `SELECT * FROM (SELECT * FROM t LATERAL VIEW explode(a) e AS x) s PIVOT (sum(x) FOR k IN (1))`,
+			kind: StmtQuery,
+		},
+		{
 			name: "500 nested parentheses succeed within 10000 nesting limit",
 			sql:  "SELECT " + strings.Repeat("(", 500) + "1" + strings.Repeat(")", 500),
 			kind: StmtQuery,
@@ -1133,6 +1148,15 @@ func TestParseErrors(t *testing.T) {
 		{"stored as parquet row format delimited", "CREATE TABLE t (x INT) STORED AS PARQUET ROW FORMAT DELIMITED FIELDS TERMINATED BY ','"},
 		{"row format serde stored as parquet", "CREATE TABLE t (x INT) ROW FORMAT SERDE 'org.example.SerDe' STORED AS PARQUET"},
 		{"create table like row format delimited stored as parquet", "CREATE TABLE t LIKE s ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS PARQUET"},
+		{"insert overwrite dynamic partition with if not exists", "INSERT OVERWRITE t PARTITION (p) IF NOT EXISTS SELECT 1"},
+		{"insert overwrite mixed dynamic partition with if not exists", "INSERT OVERWRITE t PARTITION (p = 1, q) IF NOT EXISTS SELECT 1"},
+		{"scripting condition name with hyphen", "BEGIN DECLARE `bad-name` CONDITION; SELECT 1; END"},
+		{"scripting condition name with dot", "BEGIN DECLARE `a.b` CONDITION; SELECT 1; END"},
+		{"from lateral view followed by pivot", "SELECT * FROM t LATERAL VIEW explode(a) e AS x PIVOT (sum(x) FOR k IN (1))"},
+		{"from lateral view followed by unpivot", "SELECT * FROM t LATERAL VIEW explode(a) e AS x UNPIVOT (v FOR k IN (b, c))"},
+		{"create temp view with tblproperties", "CREATE TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1"},
+		{"create global temp view with tblproperties", "CREATE GLOBAL TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1"},
+		{"create temp view with schema binding", "CREATE TEMP VIEW v WITH SCHEMA BINDING AS SELECT 1"},
 		{"create table tblproperties missing value", "CREATE TABLE t (x INT) TBLPROPERTIES ('k')"},
 		{"alter table set tblproperties missing value", "ALTER TABLE t SET TBLPROPERTIES ('k')"},
 		{"alter table unset tblproperties with value", "ALTER TABLE t UNSET TBLPROPERTIES ('k' = 'v')"},

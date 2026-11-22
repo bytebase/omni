@@ -505,6 +505,9 @@ func (p *Parser) parseCreateView() (Statement, error) {
 				return nil, err
 			}
 		case kwWITH:
+			if isTemp {
+				return nil, p.errorf("WITH SCHEMA clause is not supported on TEMPORARY VIEW")
+			}
 			if seenBinding {
 				return nil, p.errorf("duplicate WITH SCHEMA clause in CREATE VIEW")
 			}
@@ -523,6 +526,9 @@ func (p *Parser) parseCreateView() (Statement, error) {
 		case kwPARTITIONED:
 			return nil, p.errorf("CREATE VIEW ... PARTITIONED ON is not valid")
 		case kwTBLPROPERTIES:
+			if isTemp {
+				return nil, p.errorf("TBLPROPERTIES is not allowed on CREATE TEMPORARY VIEW")
+			}
 			if seenTblProps {
 				return nil, p.errorf("duplicate TBLPROPERTIES clause in CREATE VIEW")
 			}

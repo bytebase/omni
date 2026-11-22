@@ -397,15 +397,50 @@ func validateTypedLiteral(kind TokenKind, rawLit string) bool {
 	return false
 }
 
+// isValidSparkConditionName checks Spark v4.0.5 AstBuilder.assertConditionName:
+// decoded condition name must be non-empty ASCII [A-Za-z0-9_]+ regardless of quoting.
+func isValidSparkConditionName(raw string) bool {
+	if isQualifiedIdent(raw) {
+		return false
+	}
+	decoded := exactIdentName(raw)
+	if decoded == "" {
+		return false
+	}
+	for i := 0; i < len(decoded); i++ {
+		c := decoded[i]
+		ok := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func isSpecialSparkDateTime(s string) bool {
+	switch strings.ToLower(s) {
+	case "epoch", "now", "today", "tomorrow", "yesterday":
+		return true
+	}
+	return false
+}
+
 func isValidSparkDate(s string) bool {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return false
 	}
+	if isSpecialSparkDateTime(s) {
+		return true
+	}
 	// Strip optional time suffix starting with ' ' or 'T'.
 	if idx := strings.IndexAny(s, " Tt"); idx >= 0 {
 		s = s[:idx]
 	}
+	return isValidSparkNumericDate(s)
+}
+
+func isValidSparkNumericDate(s string) bool {
 	// Optional leading sign for +/-YYYY.
 	if strings.HasPrefix(s, "+") || strings.HasPrefix(s, "-") {
 		s = s[1:]
@@ -440,13 +475,16 @@ func isValidSparkTimestamp(s string) bool {
 	if s == "" {
 		return false
 	}
+	if isSpecialSparkDateTime(s) {
+		return true
+	}
 	datePart := s
 	timePart := ""
 	if idx := strings.IndexAny(s, " Tt"); idx >= 0 {
 		datePart = s[:idx]
 		timePart = strings.TrimSpace(s[idx+1:])
 	}
-	if !isValidSparkDate(datePart) {
+	if !isValidSparkNumericDate(datePart) {
 		return false
 	}
 	if timePart == "" {

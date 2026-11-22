@@ -6619,3 +6619,18 @@ reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT DE
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) STORED AS PARQUET ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
 accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (x INT) ROW FORMAT SERDE 'org.example.SerDe' STORED AS PARQUET
+accept	accept	engine	suite:spark-astbuilder	SELECT DATE 'today'
+accept	accept	engine	suite:spark-astbuilder	SELECT DATE 'epoch'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP 'now'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP_NTZ 'today'
+reject	reject	engine	suite:spark-astbuilder	INSERT OVERWRITE t PARTITION (p) IF NOT EXISTS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	INSERT OVERWRITE t PARTITION (p = 1, q) IF NOT EXISTS SELECT 1
+accept	accept	engine	suite:spark-astbuilder	INSERT OVERWRITE t PARTITION (p = 1, q = 2) IF NOT EXISTS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE `bad-name` CONDITION; SELECT 1; END
+reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE `a.b` CONDITION; SELECT 1; END
+accept	accept	engine	suite:spark-astbuilder	BEGIN DECLARE `ok_123` CONDITION; SELECT 1; END
+reject	reject	engine	suite:spark-astbuilder	SELECT * FROM t LATERAL VIEW explode(a) e AS x PIVOT (sum(x) FOR k IN (1))
+reject	reject	engine	suite:spark-astbuilder	SELECT * FROM t LATERAL VIEW explode(a) e AS x UNPIVOT (v FOR k IN (b, c))
+reject	reject	engine	suite:spark-astbuilder	CREATE TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	CREATE GLOBAL TEMP VIEW v TBLPROPERTIES ('k'='v') AS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	CREATE TEMP VIEW v WITH SCHEMA BINDING AS SELECT 1
