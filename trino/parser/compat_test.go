@@ -19,7 +19,8 @@ import (
 
 // TestCompatibility holds omni to testdata/compat.tsv: a statement for each
 // alternative of Trino's SqlBase.g4 and its near-misses, with omni's verdict
-// and Trino's. A rejection carries the byte it is reported at. The test
+// and Trino's (coarse accept/reject at parser pin judge revision 2; exact
+// ParseError.Position byte offsets are pinned in TestErrorPositions). The test
 // reads the file and starts no server. OMNI_RECORD=1 judges the rows that
 // have no verdict yet on the pinned Trino.
 //
@@ -29,6 +30,7 @@ func TestCompatibility(t *testing.T) {
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
 		Pins:    filepath.Join(td, "pins.tsv"),
+		PinRole: "parser",
 		Grammar: filepath.Join(td, "SqlBase.g4"),
 		Tokens:  filepath.Join(td, "tokens.tsv"),
 		Omni:    omniVerdict,
@@ -105,35 +107,12 @@ func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
 }
 
 // omniVerdict reads the row as Trino's statement endpoint does: one
-// statement, with nothing after it. Parse's error is a rejection at its
-// byte. Parse reads a script, so a ';' ends the statement where Trino's
-// grammar has no place for it, and a text with no statement is refused at
-// its end, where Trino finds no statement.
+// statement, with nothing after it, returning a coarse accept/reject verdict
+// for judge revision 2. Parse reads a script, so a ';' ends the statement
+// where Trino's grammar has no place for it, and a text with no statement is
+// refused where Trino finds none. Exact ParseError.Position byte offsets are
+// pinned separately in TestErrorPositions.
 func omniVerdict(sql string) string {
-	segs := Split(sql)
-	if _, err := Parse(sql); err != nil {
-		if errs := AllErrors(err); len(errs) > 0 && errs[0].Position >= 0 {
-			pos := errs[0].Position
-			if len(segs) > 0 && segs[0].ByteEnd < len(sql) && segs[0].ByteEnd < pos {
-				return compat.RejectAt(segs[0].ByteEnd)
-			}
-			return compat.RejectAt(pos)
-		}
-		return compat.Reject
-	}
-	switch {
-	case len(segs) == 0:
-		return compat.RejectAt(len(sql))
-	case segs[0].ByteEnd < len(sql):
-		return compat.RejectAt(segs[0].ByteEnd)
-	}
-	return compat.Accept
-}
-
-// omniVerdictOnly reads the row as Trino's statement endpoint does (one
-// statement, no trailing ';', non-empty) and returns a coarse accept/reject
-// verdict for judge revision 2.
-func omniVerdictOnly(sql string) string {
 	segs := Split(sql)
 	if _, err := Parse(sql); err != nil {
 		return compat.Reject
@@ -179,10 +158,10 @@ func trinoVerdictOnly(statement string, err error, read func(error) (compat.Trin
 }
 
 // compatJudge asks the pinned Trino whether its parser accepts each
-// statement, by running it and reading the answer with compat.TrinoVerdict
-// (or trinoVerdictOnly at judge revision 2). A statement that parses may run,
-// on the memory catalog the session defaults to; nothing it leaves changes
-// whether a later one parses. It runs only in a recording, outside any tape.
+// statement, by running it and reading the answer with trinoVerdictOnly. A
+// statement that parses may run, on the memory catalog the session defaults
+// to; nothing it leaves changes whether a later one parses. It runs only in a
+// recording, outside any tape.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
 	if err := verifySharedServerPin(testcontainer.Pins, pin); err != nil {
@@ -192,11 +171,7 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	return func(sql string) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		err := o.Run(ctx, sql)
-		if pin.Judge == "2" {
-			return trinoVerdictOnly(sql, err, trinoError)
-		}
-		return compat.TrinoVerdict(sql, err, trinoError)
+		return trinoVerdictOnly(sql, o.Run(ctx, sql), trinoError)
 	}
 }
 
@@ -253,7 +228,7 @@ func TestTrinoVerdictOnly(t *testing.T) {
 	}
 }
 
-func TestOmniVerdictOnly(t *testing.T) {
+func TestOmniVerdict(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		sql  string
@@ -268,8 +243,8 @@ func TestOmniVerdictOnly(t *testing.T) {
 		{"two_statements", "SELECT 1; SELECT 2", compat.Reject},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := omniVerdictOnly(tc.sql); got != tc.want {
-				t.Errorf("omniVerdictOnly(%q) = %q, want %q", tc.sql, got, tc.want)
+			if got := omniVerdict(tc.sql); got != tc.want {
+				t.Errorf("omniVerdict(%q) = %q, want %q", tc.sql, got, tc.want)
 			}
 		})
 	}

@@ -1,6 +1,14 @@
-# The server this engine's committed answers come from. default judges
-# compat.tsv and records the tapes: Trino 482, the release SqlBase.g4 is read
-# from (core/trino-grammar/src/main/antlr4/io/trino/grammar/sql/SqlBase.g4 at
-# the source tag, beside this file byte for byte, Apache-2.0).
-# columns: role, image, digest, source tag
+# The server this engine's committed answers come from. default records the
+# tapes; parser judges trino/parser/testdata/compat.tsv at the same
+# trinodb/trino:482 release (the release SqlBase.g4 is read from,
+# core/trino-grammar/src/main/antlr4/io/trino/grammar/sql/SqlBase.g4 at the
+# source tag, beside this file byte for byte, Apache-2.0) so a judge revision
+# bump rejudges compat.tsv without touching the default-pinned tapes.
+#
+# parser judge revision 2 records coarse accept/reject verdicts (matching the
+# other engine compat suites), while exact ParseError.Position byte offsets
+# (including the 29 cases where omni is sharper than Trino) are pinned in
+# trino/parser's TestErrorPositions.
+# columns: role, image, digest, source tag, judge revision
 default	trinodb/trino:482	sha256:90b35b7c603eaa1f889bf03981a62b75f998ee6c0f851d9f4e341b49a57022b6	482
+parser	trinodb/trino:482	sha256:90b35b7c603eaa1f889bf03981a62b75f998ee6c0f851d9f4e341b49a57022b6	482	2
