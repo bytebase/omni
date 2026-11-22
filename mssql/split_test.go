@@ -87,6 +87,61 @@ func TestSplitValidScripts(t *testing.T) {
 				{Text: "\n\n  SELECT 2;", ByteStart: 9, ByteEnd: 22, Start: Position{1, 10}, End: Position{3, 12}, Empty: false},
 			},
 		},
+		{
+			name:  "lone semicolon preserved as empty segment",
+			input: ";",
+			want: []Segment{
+				{Text: ";", ByteStart: 0, ByteEnd: 1, Start: Position{1, 1}, End: Position{1, 2}, Empty: true},
+			},
+		},
+		{
+			name:  "double semicolon between statements preserved as empty segment",
+			input: "SELECT 1;;SELECT 2;",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: ";", ByteStart: 9, ByteEnd: 10, Start: Position{1, 10}, End: Position{1, 11}, Empty: true},
+				{Text: "SELECT 2;", ByteStart: 10, ByteEnd: 19, Start: Position{1, 11}, End: Position{1, 20}, Empty: false},
+			},
+		},
+		{
+			name:  "leading semicolon before WITH CTE preserved as empty segment",
+			input: ";WITH cte AS (SELECT 1 AS a) SELECT a FROM cte;",
+			want: []Segment{
+				{Text: ";", ByteStart: 0, ByteEnd: 1, Start: Position{1, 1}, End: Position{1, 2}, Empty: true},
+				{Text: "WITH cte AS (SELECT 1 AS a) SELECT a FROM cte;", ByteStart: 1, ByteEnd: 47, Start: Position{1, 2}, End: Position{1, 48}, Empty: false},
+			},
+		},
+		{
+			name:  "comment-only script preserved as empty segment",
+			input: "-- just a comment",
+			want: []Segment{
+				{Text: "-- just a comment", ByteStart: 0, ByteEnd: 17, Start: Position{1, 1}, End: Position{1, 18}, Empty: true},
+			},
+		},
+		{
+			name:  "trailing comment after valid statement preserved as empty segment",
+			input: "SELECT 1; -- trailing",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: " -- trailing", ByteStart: 9, ByteEnd: 21, Start: Position{1, 10}, End: Position{1, 22}, Empty: true},
+			},
+		},
+		{
+			name:  "semicolon inside block comment between statements is not split",
+			input: "SELECT 1; /* ; */ SELECT 2;",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: " /* ; */ SELECT 2;", ByteStart: 9, ByteEnd: 27, Start: Position{1, 10}, End: Position{1, 28}, Empty: false},
+			},
+		},
+		{
+			name:  "unterminated trailing block comment after valid statement stays non-empty",
+			input: "SELECT 1; /* unterminated",
+			want: []Segment{
+				{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
+				{Text: " /* unterminated", ByteStart: 9, ByteEnd: 25, Start: Position{1, 10}, End: Position{1, 26}, Empty: false},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +216,16 @@ func TestSplitFallbackUnparseableScripts(t *testing.T) {
 				{Text: "\n-- sep\nGO", ByteStart: 8, ByteEnd: 18, Start: Position{1, 9}, End: Position{3, 3}, Empty: true},
 				{Text: "\nGO 2", ByteStart: 18, ByteEnd: 23, Start: Position{3, 3}, End: Position{4, 5}, Empty: true},
 				{Text: "\nSELECT FROM", ByteStart: 23, ByteEnd: 35, Start: Position{4, 5}, End: Position{5, 12}, Empty: false},
+			},
+		},
+		{
+			name:  "GO immediately followed by line comment without whitespace",
+			input: "SELECT 1\nGO-- comment\nGO 2-- count comment\nSELECT FROM",
+			want: []Segment{
+				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+				{Text: "\nGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{2, 3}, Empty: true},
+				{Text: "-- comment\nGO 2", ByteStart: 11, ByteEnd: 26, Start: Position{2, 3}, End: Position{3, 5}, Empty: true},
+				{Text: "-- count comment\nSELECT FROM", ByteStart: 26, ByteEnd: 54, Start: Position{3, 5}, End: Position{4, 12}, Empty: false},
 			},
 		},
 		{

@@ -24,44 +24,33 @@ type Segment struct {
 //
 // When Parse succeeds, Split derives statement boundaries from the parsed AST so
 // semicolon-less T-SQL statements and compound bodies (such as CREATE PROCEDURE
-// with internal semicolons) stay intact while GO batch separators become Empty
-// segments. When Parse fails on incomplete or invalid SQL, Split falls back to
+// with internal semicolons) stay intact while GO batch separators, lone
+// semicolons, and trailing comment-only segments become Empty segments. When
+// Parse fails on incomplete or invalid SQL, Split falls back to
 // SplitBySemicolon.
 //
 // Returned segments maintain byte contiguity (seg[0].ByteStart == 0,
 // seg[i].ByteStart == seg[i-1].ByteEnd) and position adjacency
 // (seg[0].Start == {1, 1}, seg[i].Start == seg[i-1].End).
 func Split(sql string) []Segment {
+	if len(sql) == 0 {
+		return nil
+	}
 	stmts, err := Parse(sql)
 	if err != nil {
 		return SplitBySemicolon(sql)
-	}
-	if len(stmts) == 0 {
-		return nil
 	}
 
 	idx := review.Index(sql)
 	result := make([]Segment, 0, len(stmts))
 	prevByte := 0
 	prevEnd := Position{Line: 1, Column: 1}
-	for _, os := range stmts {
-		startByte := prevByte
-		endByte := os.ByteEnd
-		if endByte < startByte {
-			endByte = startByte
-		}
-		if endByte > len(sql) {
-			endByte = len(sql)
-		}
-		text := sql[startByte:endByte]
+
+	emit := func(endByte int, empty bool) {
 		endPos := positionAt(idx, endByte)
-
-		_, isGo := os.AST.(*ast.GoStmt)
-		empty := isGo || os.Empty() || strings.TrimSpace(text) == ""
-
 		result = append(result, Segment{
-			Text:      text,
-			ByteStart: startByte,
+			Text:      sql[prevByte:endByte],
+			ByteStart: prevByte,
 			ByteEnd:   endByte,
 			Start:     prevEnd,
 			End:       endPos,
@@ -69,6 +58,78 @@ func Split(sql string) []Segment {
 		})
 		prevByte = endByte
 		prevEnd = endPos
+	}
+
+	// scanGap emits an Empty segment for each top-level semicolon in
+	// sql[prevByte:limit] (skipping comments) and reports whether an
+	// unterminated block comment was encountered.
+	scanGap := func(limit int) bool {
+		unterminatedComment := false
+		i := prevByte
+		for i < limit {
+			switch sql[i] {
+			case '-':
+				if i+1 < limit && sql[i+1] == '-' {
+					i += 2
+					for i < limit && sql[i] != '\n' {
+						i++
+					}
+					if i < limit && sql[i] == '\n' {
+						i++
+					}
+				} else {
+					i++
+				}
+			case '/':
+				if i+1 < limit && sql[i+1] == '*' {
+					end, closed := skipTSQLBlockComment(sql[:limit], i)
+					i = end
+					if !closed {
+						unterminatedComment = true
+					}
+				} else {
+					i++
+				}
+			case ';':
+				i++
+				emit(i, true)
+			default:
+				i++
+			}
+		}
+		return unterminatedComment
+	}
+
+	for _, os := range stmts {
+		endByte := os.ByteEnd
+		if endByte < prevByte {
+			endByte = prevByte
+		}
+		if endByte > len(sql) {
+			endByte = len(sql)
+		}
+
+		// Preserve any lone semicolons before the AST node's start token as
+		// Empty segments so parsed and fallback paths agree on separator counts.
+		contentStart := nodeLoc(os.AST).Start
+		if contentStart > prevByte && contentStart <= endByte {
+			scanGap(contentStart)
+		}
+
+		text := sql[prevByte:endByte]
+		_, isGo := os.AST.(*ast.GoStmt)
+		empty := isGo || os.Empty() || strings.TrimSpace(text) == ""
+		emit(endByte, empty)
+	}
+
+	if prevByte < len(sql) {
+		unterminatedComment := scanGap(len(sql))
+		if prevByte < len(sql) && !isOnlyTSQLSpace(sql[prevByte:]) {
+			emit(len(sql), !unterminatedComment)
+		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }
@@ -201,7 +262,7 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 		return 0, false
 	}
 	j += 2
-	if j < len(sql) && sql[j] != ' ' && sql[j] != '\t' && sql[j] != '\r' && sql[j] != '\n' {
+	if !isGoBoundary(sql, j) {
 		return 0, false
 	}
 	goEnd := j
@@ -220,7 +281,7 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 			}
 			j++
 		}
-		if !nonZero || (j < len(sql) && sql[j] != ' ' && sql[j] != '\t' && sql[j] != '\r' && sql[j] != '\n') {
+		if !nonZero || !isGoBoundary(sql, j) {
 			return 0, false
 		}
 		if j > numStart {
@@ -235,6 +296,20 @@ func matchStandaloneGoLine(sql string, lineStart int) (int, bool) {
 		return goEnd, true
 	}
 	return 0, false
+}
+
+func isGoBoundary(sql string, pos int) bool {
+	if pos >= len(sql) {
+		return true
+	}
+	switch sql[pos] {
+	case ' ', '\t', '\r', '\n':
+		return true
+	case '-':
+		return pos+1 < len(sql) && sql[pos+1] == '-'
+	default:
+		return false
+	}
 }
 
 // skipTSQLBlockComment skips a T-SQL block comment starting at "/*", honoring
