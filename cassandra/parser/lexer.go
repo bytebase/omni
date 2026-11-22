@@ -85,16 +85,21 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			continue
 		}
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			start := l.pos
 			l.pos += 2
+			closed := false
 			for l.pos+1 < len(l.input) {
 				if l.input[l.pos] == '*' && l.input[l.pos+1] == '/' {
 					l.pos += 2
+					closed = true
 					break
 				}
 				l.pos++
 			}
-			if l.pos >= len(l.input) {
-				// Unterminated block comment — just stop skipping
+			if !closed {
+				l.pos = len(l.input)
+				l.Err = l.makeError("unterminated block comment", start, l.pos)
+				return
 			}
 			continue
 		}

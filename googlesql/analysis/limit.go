@@ -132,7 +132,7 @@ func rewritePipeResultLimit(statement string, pipe *ast.Subpipeline, limitCount 
 }
 
 func RewriteResultLimit(statement string, limitCount int) string {
-	file, err := parser.Parse(statement)
+	file, err := parseFile(statement, DialectSpanner)
 	if err != nil || len(file.Stmts) != 1 {
 		return statement
 	}
