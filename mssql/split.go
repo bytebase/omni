@@ -302,9 +302,12 @@ func matchGoAt(sql string, pos int) (int, bool) {
 	}
 	goEnd := j
 
-	j, ok := skipGoInlineTrivia(sql, j)
+	j, sawNewline, ok := skipGoInlineTrivia(sql, j)
 	if !ok {
 		return 0, false
+	}
+	if sawNewline {
+		return goEnd, true
 	}
 	if j > goEnd && j < len(sql) && sql[j] >= '0' && sql[j] <= '9' {
 		numStart := j
@@ -321,9 +324,12 @@ func matchGoAt(sql string, pos int) (int, bool) {
 		if j > numStart {
 			goEnd = j
 		}
-		j, ok = skipGoInlineTrivia(sql, j)
+		j, sawNewline, ok = skipGoInlineTrivia(sql, j)
 		if !ok {
 			return 0, false
+		}
+		if sawNewline {
+			return goEnd, true
 		}
 	}
 
@@ -333,7 +339,11 @@ func matchGoAt(sql string, pos int) (int, bool) {
 	return 0, false
 }
 
-func skipGoInlineTrivia(sql string, j int) (int, bool) {
+// skipGoInlineTrivia skips horizontal whitespace and closed block comments on
+// a GO line. If a closed block comment contains a line break (\r or \n), the
+// GO line has ended and sawNewline is returned true so tokens on the comment's
+// closing line are not validated against the GO line.
+func skipGoInlineTrivia(sql string, j int) (pos int, sawNewline bool, ok bool) {
 	for j < len(sql) {
 		if sql[j] == ' ' || sql[j] == '\t' || sql[j] == '\f' || sql[j] == '\v' {
 			j++
@@ -342,14 +352,17 @@ func skipGoInlineTrivia(sql string, j int) (int, bool) {
 		if sql[j] == '/' && j+1 < len(sql) && sql[j+1] == '*' {
 			end, closed := skipTSQLBlockComment(sql, j)
 			if !closed {
-				return 0, false
+				return 0, false, false
+			}
+			if strings.ContainsAny(sql[j:end], "\r\n") {
+				return end, true, true
 			}
 			j = end
 			continue
 		}
 		break
 	}
-	return j, true
+	return j, false, true
 }
 
 func isGoBoundary(sql string, pos int) bool {

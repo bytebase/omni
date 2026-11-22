@@ -259,6 +259,15 @@ func TestSplitFallbackUnparseableScripts(t *testing.T) {
 			},
 		},
 		{
+			name:  "GO followed by multiline trailing block comment before SQL on closing line",
+			input: "SELECT 1\nGO /*\n*/ SELECT FROM",
+			want: []Segment{
+				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+				{Text: "\nGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{2, 3}, Empty: true},
+				{Text: " /*\n*/ SELECT FROM", ByteStart: 11, ByteEnd: 29, Start: Position{2, 3}, End: Position{3, 15}, Empty: false},
+			},
+		},
+		{
 			name:  "GO followed by closed block comment with or without whitespace",
 			input: "SELECT 1\nGO /* comment */\nGO/* tight */\nGO 2/* count */\nSELECT FROM",
 			want: []Segment{
