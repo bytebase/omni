@@ -3,9 +3,14 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/clickhouse/parser"
 )
+
+// QueryType is the permission class of a statement.
+type QueryType = analysis.QueryType
 
 // ValidateQuery reports whether statement is a single read-only ClickHouse
 // query that returns rows.
@@ -13,11 +18,12 @@ import (
 // Classification uses clickhouse/parser's lexer and AST: SELECT (including
 // parenthesized, FROM-first, WITH/CTE, UNION/INTERSECT/EXCEPT, FORMAT, and
 // SETTINGS queries, excluding INTO OUTFILE), SHOW, DESCRIBE/DESC, EXISTS,
-// CHECK, and non-executing EXPLAIN statements are allowed. Empty/comment-only
-// inputs and multi-statement batches return (false, false, nil). EXPLAIN
-// ANALYZE (which executes what it plans) and all DDL/DML/admin statements
-// return (false, false, nil). Lexical and syntax errors from clickhouse/parser
-// are propagated with statement-relative byte offsets.
+// CHECK, and non-executing EXPLAIN statements (including EXPLAIN TABLE OVERRIDE
+// and EXPLAIN CURRENT TRANSACTION) are allowed. Empty/comment-only inputs and
+// multi-statement batches return (false, false, nil). EXPLAIN ANALYZE (which
+// executes what it plans) and all DDL/DML/admin statements return
+// (false, false, nil). Lexical and syntax errors from clickhouse/parser are
+// propagated with statement-relative byte offsets.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
 	seg, ok := singleNonEmptySegment(statement)
 	if !ok {
@@ -31,6 +37,32 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 		return false, false, nil
 	}
 	return true, true, nil
+}
+
+// Classify parses a single ClickHouse SQL statement and returns its QueryType.
+// Empty or comment-only input returns QueryTypeUnknown with a nil error;
+// multi-statement input or invalid syntax returns an error.
+func Classify(statement string) (QueryType, error) {
+	var nonEmpty []parser.Segment
+	for _, seg := range parser.Split(statement) {
+		if !seg.Empty() {
+			nonEmpty = append(nonEmpty, seg)
+		}
+	}
+	if len(nonEmpty) == 0 {
+		return analysis.QueryTypeUnknown, nil
+	}
+	if len(nonEmpty) > 1 {
+		return analysis.QueryTypeUnknown, errors.New("expected a single ClickHouse statement")
+	}
+	stmts, err := parser.Parse(nonEmpty[0].Text)
+	if err != nil {
+		return analysis.QueryTypeUnknown, wrapLexError(offsetParseError(err, nonEmpty[0].ByteStart))
+	}
+	if len(stmts) != 1 {
+		return analysis.QueryTypeUnknown, errors.New("expected a single ClickHouse statement")
+	}
+	return classifyParsedStatement(stmts[0]), nil
 }
 
 // StatementReadsRows reports whether the server answers statement with rows.
@@ -78,9 +110,14 @@ func singleNonEmptySegment(script string) (parser.Segment, bool) {
 }
 
 func isReadOnlyAST(stmt parser.Statement) bool {
+	if stmt == nil {
+		return false
+	}
 	switch s := stmt.(type) {
 	case *parser.SelectUnionStmt:
 		return !hasOutfile(s.Output)
+	case *parser.SelectStmt:
+		return true
 	case *parser.ShowStmt:
 		return !hasOutfile(s.Output)
 	case *parser.DescribeStmt:
@@ -90,10 +127,10 @@ func isReadOnlyAST(stmt parser.Statement) bool {
 	case *parser.CheckStmt:
 		return !hasOutfile(s.Output)
 	case *parser.ExplainStmt:
-		if hasOutfile(s.Output) {
+		if hasOutfile(s.Output) || strings.EqualFold(s.Kind, "ANALYZE") {
 			return false
 		}
-		return s.Kind != "ANALYZE"
+		return true
 	default:
 		return false
 	}
@@ -102,9 +139,57 @@ func isReadOnlyAST(stmt parser.Statement) bool {
 func astReadsRows(stmt parser.Statement) bool {
 	switch s := stmt.(type) {
 	case *parser.ExplainStmt:
-		return !hasOutfile(s.Output)
+		return !hasOutfile(s.Output) && (s.Inner == nil || !statementHasOutfile(s.Inner))
 	default:
 		return isReadOnlyAST(stmt)
+	}
+}
+
+func classifyParsedStatement(stmt parser.Statement) QueryType {
+	if stmt == nil {
+		return analysis.QueryTypeUnknown
+	}
+	switch stmt.(type) {
+	case *parser.SelectUnionStmt, *parser.SelectStmt:
+		if statementHasOutfile(stmt) {
+			return analysis.DML
+		}
+		return analysis.Select
+	case *parser.ExplainStmt:
+		return analysis.Explain
+	case *parser.ShowStmt, *parser.DescribeStmt, *parser.ExistsStmt, *parser.CheckStmt:
+		if statementHasOutfile(stmt) {
+			return analysis.DML
+		}
+		return analysis.SelectInfoSchema
+	case *parser.InsertStmt, *parser.UpdateStmt, *parser.DeleteStmt:
+		return analysis.DML
+	case *parser.CreateDatabaseStmt, *parser.CreateTableStmt, *parser.CreateViewStmt,
+		*parser.CreateDictionaryStmt, *parser.CreateFunctionStmt, *parser.AlterTableStmt,
+		*parser.DropStmt, *parser.AttachStmt, *parser.RenameStmt, *parser.ExchangeStmt,
+		*parser.TruncateStmt, *parser.UndropStmt, *parser.OptimizeStmt:
+		return analysis.DDL
+	default:
+		return analysis.QueryTypeUnknown
+	}
+}
+
+func statementHasOutfile(stmt parser.Statement) bool {
+	switch s := stmt.(type) {
+	case *parser.SelectUnionStmt:
+		return hasOutfile(s.Output)
+	case *parser.ShowStmt:
+		return hasOutfile(s.Output)
+	case *parser.DescribeStmt:
+		return hasOutfile(s.Output)
+	case *parser.ExplainStmt:
+		return hasOutfile(s.Output)
+	case *parser.ExistsStmt:
+		return hasOutfile(s.Output)
+	case *parser.CheckStmt:
+		return hasOutfile(s.Output)
+	default:
+		return false
 	}
 }
 

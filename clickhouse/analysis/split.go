@@ -4,6 +4,9 @@
 package analysis
 
 import (
+	"strings"
+	"unicode"
+
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/clickhouse/parser"
 )
@@ -33,4 +36,12 @@ func Split(script string) ([]Statement, error) {
 		})
 	}
 	return statements, nil
+}
+
+// TrimStatement drops surrounding whitespace and trailing semicolons from
+// statement.
+func TrimStatement(statement string) string {
+	return strings.TrimLeftFunc(strings.TrimRightFunc(statement, func(r rune) bool {
+		return unicode.IsSpace(r) || r == ';'
+	}), unicode.IsSpace)
 }

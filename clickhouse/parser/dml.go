@@ -78,6 +78,7 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 		// imposing SQL lexing errors on non-SQL inline data.
 		savePos := p.pos
 		saveLexPos := p.lex.pos
+		saveLexErrObj := p.lex.err
 		saveTokLen := len(p.tokens)
 		saveEOF := p.eof
 		saveLexErr := p.lexErr
@@ -127,6 +128,7 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 		} else {
 			p.pos = savePos
 			p.lex.pos = saveLexPos
+			p.lex.err = saveLexErrObj
 			p.tokens = p.tokens[:saveTokLen]
 			p.eof = saveEOF
 			p.lexErr = saveLexErr

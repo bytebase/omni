@@ -284,7 +284,14 @@ func (p *parser) parseCreateMaterializedViewStmt(start int, action string) (*Cre
 		return nil, err
 	}
 	stmt.Subquery = sub
-	stmt.End = sub.End
+	if p.match(KwComment) {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = lit.Val
+	}
+	stmt.End = p.peek(-1).End
 	return stmt, nil
 }
 
@@ -328,7 +335,14 @@ func (p *parser) parseCreateViewStmt(start int, action string, orReplace bool) (
 		return nil, err
 	}
 	stmt.Subquery = sub
-	stmt.End = sub.End
+	if p.match(KwComment) {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = lit.Val
+	}
+	stmt.End = p.peek(-1).End
 	return stmt, nil
 }
 
@@ -1338,7 +1352,7 @@ func (p *parser) parseEngineClause() (*EngineClause, error) {
 			seen["order"] = true
 			p.advance()
 			p.advance()
-			items, err := p.parseOrderExprList()
+			items, err := p.parseEngineOrderExprList()
 			if err != nil {
 				return nil, err
 			}

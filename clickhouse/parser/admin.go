@@ -364,6 +364,14 @@ func (p *parser) parseExplainStmt() (*ExplainStmt, error) {
 			p.advance()
 			stmt.Kind = "TABLE OVERRIDE"
 		}
+	case KwCurrent:
+		if p.peek(1).Type == TokIdent && strings.EqualFold(p.peek(1).Val, "TRANSACTION") {
+			p.advance()
+			p.advance()
+			stmt.Kind = "CURRENT TRANSACTION"
+			stmt.End = p.peek(-1).End
+			return stmt, nil
+		}
 	default:
 		if p.cur().Type == TokIdent && strings.EqualFold(p.cur().Val, "ANALYZE") && p.peek(1).Type != TokEq {
 			p.advance()

@@ -27,6 +27,16 @@ func StartsWithExplain(statement string) bool {
 	return parser.NewLexer(statement).NextToken().Type == parser.KwExplain
 }
 
+// PlanFormat reports the plan format ("JSON" or "TEXT") of a statement that
+// already starts with EXPLAIN.
+func PlanFormat(statement string) (string, bool) {
+	info := inspectExplain(statement)
+	if !info.isExplain {
+		return "", false
+	}
+	return info.format, true
+}
+
 // DescribeExplain returns the plan format ("JSON" or "TEXT") and whether
 // statement executes what it plans (EXPLAIN ANALYZE). ok is false when
 // statement does not start with EXPLAIN.
@@ -112,6 +122,10 @@ func inspectExplainHeaderLex(l *parser.Lexer) explainHeader {
 			if next.Type == parser.KwOverride {
 				advance()
 				advance()
+			}
+		case parser.KwCurrent:
+			if next.Type == parser.TokIdent && strings.EqualFold(next.Val, "TRANSACTION") {
+				return info
 			}
 		case parser.TokIdent:
 			switch {

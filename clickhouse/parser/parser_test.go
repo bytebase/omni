@@ -1086,3 +1086,46 @@ func TestParseOrderByAliasEngineLessTableNestedDictOptionalGranularityAndSelectA
 		t.Errorf("SELECT ALL 1 All = false, want true")
 	}
 }
+
+func TestParseMaterializedViewEngineOrderByAndViewComment(t *testing.T) {
+	mvSQL := "CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src COMMENT 'mv note'"
+	stmts, err := Parse(mvSQL)
+	if err != nil {
+		t.Fatalf("Parse materialized view failed: %v", err)
+	}
+	mv := stmts[0].(*CreateViewStmt)
+	if !mv.Materialized || mv.Name != "mv_own" || mv.Engine == nil || len(mv.Engine.OrderBy) != 1 || mv.Subquery == nil || mv.Comment != "mv note" {
+		t.Errorf("CreateViewStmt = %+v", mv)
+	}
+
+	vSQL := "CREATE VIEW v AS SELECT id FROM src COMMENT 'view note'"
+	vStmts, err := Parse(vSQL)
+	if err != nil {
+		t.Fatalf("Parse view with COMMENT failed: %v", err)
+	}
+	v := vStmts[0].(*CreateViewStmt)
+	if v.Materialized || v.Name != "v" || v.Subquery == nil || v.Comment != "view note" {
+		t.Errorf("CreateViewStmt = %+v", v)
+	}
+
+	v2SQL := "CREATE VIEW v2 AS SELECT 1 COMMENT 'lit note'"
+	v2Stmts, err := Parse(v2SQL)
+	if err != nil {
+		t.Fatalf("Parse projection view with COMMENT failed: %v", err)
+	}
+	v2 := v2Stmts[0].(*CreateViewStmt)
+	if v2.Comment != "lit note" {
+		t.Errorf("v2.Comment = %q, want %q", v2.Comment, "lit note")
+	}
+}
+
+func TestParseExplainCurrentTransaction(t *testing.T) {
+	stmts, err := Parse("EXPLAIN CURRENT TRANSACTION FORMAT JSON")
+	if err != nil {
+		t.Fatalf("Parse EXPLAIN CURRENT TRANSACTION failed: %v", err)
+	}
+	ex := stmts[0].(*ExplainStmt)
+	if ex.Kind != "CURRENT TRANSACTION" || ex.Inner != nil || ex.Output == nil || ex.Output.Format != "JSON" {
+		t.Errorf("EXPLAIN CURRENT TRANSACTION = %+v", ex)
+	}
+}

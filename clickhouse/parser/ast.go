@@ -297,6 +297,7 @@ type CreateViewStmt struct {
 	Engine       *EngineClause
 	Populate     bool
 	Subquery     *SelectUnionStmt
+	Comment      string
 	Output       *OutputClause
 }
 
@@ -557,7 +558,7 @@ func (*DescribeStmt) stmtNode() {}
 
 type ExplainStmt struct {
 	span
-	Kind     string // "", "AST", "SYNTAX", "QUERY TREE", "PLAN", "PIPELINE", "ESTIMATE", "TABLE OVERRIDE", "ANALYZE"
+	Kind     string // "", "AST", "SYNTAX", "QUERY TREE", "PLAN", "PIPELINE", "ESTIMATE", "TABLE OVERRIDE", "CURRENT TRANSACTION", "ANALYZE"
 	Settings []*SettingExpr
 	Table    string // target table for EXPLAIN TABLE OVERRIDE
 	Inner    Statement
