@@ -313,7 +313,7 @@ It restores, from a synced snapshot:
   visibility differ from the query's output columns, `WITH READ ONLY` and
   `WITH CHECK OPTION`, their comments and triggers, ordered after the relations
   they read and the functions they call; and materialized views, with their
-  `BUILD`/`REFRESH` policy (`BUILD DEFERRED`, `ON PREBUILT TABLE`, `REFRESH
+  `BUILD`/`REFRESH` policy (`BUILD DEFERRED`, `REFRESH
   COMPLETE`/`FAST`/`FORCE` `ON DEMAND`/`COMMIT`/`STATEMENT`, `NEVER REFRESH`,
   and schedules), their comments and their own indexes. Oracle's `SYS_C_SNAP$`
   container index is not written: the view makes Oracle create it again, and its

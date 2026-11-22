@@ -1746,16 +1746,39 @@ func partitionTypeKeyword(t metadatapb.TablePartitionMetadata_Type) string {
 }
 
 func formatPartitionKeyExpression(expr string) string {
-	parts := strings.Split(expr, ",")
+	parts := splitPartitionKeyExpressions(expr)
 	quoted := make([]string, 0, len(parts))
 	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		quoted = append(quoted, keyColumn(trimmed))
+		quoted = append(quoted, keyColumn(part))
 	}
 	return strings.Join(quoted, ", ")
+}
+
+func splitPartitionKeyExpressions(expr string) []string {
+	var parts []string
+	inQuote := false
+	start := 0
+	for i := 0; i < len(expr); i++ {
+		switch expr[i] {
+		case '"':
+			if inQuote && i+1 < len(expr) && expr[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		case ',':
+			if !inQuote {
+				if part := strings.TrimSpace(expr[start:i]); part != "" {
+					parts = append(parts, part)
+				}
+				start = i + 1
+			}
+		}
+	}
+	if part := strings.TrimSpace(expr[start:]); part != "" {
+		parts = append(parts, part)
+	}
+	return parts
 }
 
 func writeTablePartitions(buf *strings.Builder, partitions []*metadatapb.TablePartitionMetadata) error {

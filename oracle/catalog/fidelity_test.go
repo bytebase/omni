@@ -99,6 +99,41 @@ END PKG;
 		_, err = c1.Exec(dropPlan.SQL(), nil)
 		require.NoError(t, err)
 		require.Empty(t, c1.Metadata().Schemas[0].Packages)
+
+		// Removing package body while keeping specification emits DROP PACKAGE BODY and converges
+		cSpecAndBody, err := LoadSQL(src)
+		require.NoError(t, err)
+		cSpecOnly, err := LoadSQL(`
+CREATE OR REPLACE PACKAGE PKG AS
+  PROCEDURE P;
+END PKG;
+/
+`)
+		require.NoError(t, err)
+		dropBodyPlan := GenerateMigration(cSpecAndBody, cSpecOnly, nil)
+		require.Contains(t, dropBodyPlan.SQL(), `DROP PACKAGE BODY "PKG";`)
+		require.NotContains(t, dropBodyPlan.SQL(), `CREATE OR REPLACE PACKAGE PKG`)
+		_, err = cSpecAndBody.Exec(dropBodyPlan.SQL(), nil)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(cSpecAndBody, cSpecOnly, nil).SQL())
+
+		// Removing package body AND changing specification drops body and replaces spec
+		cSpecAndBody2, err := LoadSQL(src)
+		require.NoError(t, err)
+		cSpecChanged, err := LoadSQL(`
+CREATE OR REPLACE PACKAGE PKG AS
+  PROCEDURE P;
+  PROCEDURE Q;
+END PKG;
+/
+`)
+		require.NoError(t, err)
+		dropBodyAndAlterSpec := GenerateMigration(cSpecAndBody2, cSpecChanged, nil)
+		require.Contains(t, dropBodyAndAlterSpec.SQL(), `DROP PACKAGE BODY "PKG";`)
+		require.Contains(t, dropBodyAndAlterSpec.SQL(), `CREATE OR REPLACE PACKAGE PKG`)
+		_, err = cSpecAndBody2.Exec(dropBodyAndAlterSpec.SQL(), nil)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(cSpecAndBody2, cSpecChanged, nil).SQL())
 	})
 
 	t.Run("synonym and public synonym definition, filtering, round trip, and migration", func(t *testing.T) {
@@ -187,6 +222,23 @@ END PKG;
 		invDef2, err := DatabaseDefinition(c2.Metadata())
 		require.NoError(t, err)
 		require.Equal(t, invDef, invDef2)
+
+		// Quoted column alias named "INVISIBLE" must not be marked invisible
+		cQuotedInv, err := LoadSQL(`CREATE VIEW V_QUOTED_INV ("INVISIBLE", X) AS SELECT ID, NAME FROM T;`)
+		require.NoError(t, err)
+		require.Len(t, cQuotedInv.Metadata().Schemas[0].Views[0].Columns, 2)
+		require.False(t, cQuotedInv.Metadata().Schemas[0].Views[0].Columns[0].GetIsInvisible())
+		quotedInvDef, err := DatabaseDefinition(cQuotedInv.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, "CREATE VIEW \"V_QUOTED_INV\" (\"INVISIBLE\", \"X\") AS SELECT ID, NAME FROM T;\n\n", quotedInvDef)
+
+		// Quoted column alias named "INVISIBLE" that ALSO has the INVISIBLE modifier
+		cQuotedInvHidden, err := LoadSQL(`CREATE VIEW V_QUOTED_INV_H ("INVISIBLE" INVISIBLE, X) AS SELECT ID, NAME FROM T;`)
+		require.NoError(t, err)
+		require.True(t, cQuotedInvHidden.Metadata().Schemas[0].Views[0].Columns[0].GetIsInvisible())
+		quotedInvHiddenDef, err := DatabaseDefinition(cQuotedInvHidden.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, "CREATE VIEW \"V_QUOTED_INV_H\" (\"INVISIBLE\" INVISIBLE, \"X\") AS SELECT ID, NAME FROM T;\n\n", quotedInvHiddenDef)
 	})
 
 	t.Run("identity sequence options definition, round trip, and migration", func(t *testing.T) {
@@ -309,6 +361,40 @@ END PKG;
 		require.NoError(t, err)
 		require.True(t, strings.Contains(def, `PARTITION BY RANGE ("Y") SUBPARTITION BY LIST ("R")`), def)
 		require.True(t, strings.Contains(def, `SUBPARTITION "P2025_US" VALUES ('US')`), def)
+
+		// Quoted partition and subpartition key column containing a comma
+		cComma, err := LoadSQL(`CREATE TABLE p_comma ("A,B" NUMBER) PARTITION BY RANGE ("A,B") (PARTITION p1 VALUES LESS THAN (10))`)
+		require.NoError(t, err)
+		defComma, err := DatabaseDefinition(cComma.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, defComma, `PARTITION BY RANGE ("A,B")`)
+		cComma2, err := LoadSQL(defComma)
+		require.NoError(t, err)
+		defComma2, err := DatabaseDefinition(cComma2.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, defComma, defComma2)
+
+		defSubComma, err := DatabaseDefinition(schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "COMP_COMMA",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "A,B", Type: "NUMBER", Nullable: true},
+					{Name: "C,D", Type: "VARCHAR2(10 BYTE)", Nullable: true},
+				},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:       "P1",
+					Type:       metadatapb.TablePartitionMetadata_RANGE,
+					Expression: `"A,B"`,
+					Value:      "10",
+					Subpartitions: []*metadatapb.TablePartitionMetadata{
+						{Name: "P1_S1", Type: metadatapb.TablePartitionMetadata_LIST, Expression: `"C,D"`, Value: "'X'"},
+					},
+				}},
+			}},
+		}))
+		require.NoError(t, err)
+		require.Contains(t, defSubComma, `PARTITION BY RANGE ("A,B") SUBPARTITION BY LIST ("C,D")`)
 	})
 
 	t.Run("materialized view refresh policy clauses", func(t *testing.T) {

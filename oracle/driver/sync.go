@@ -2091,6 +2091,31 @@ func oraclePartitionType(name string) metadatapb.TablePartitionMetadata_Type {
 	}
 }
 
+func formatOraclePartitionKeyColumn(name string) string {
+	if isSimpleOracleIdentifier(name) {
+		return name
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func isSimpleOracleIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isLetter := 'A' <= c && c <= 'Z'
+		isDigit := '0' <= c && c <= '9'
+		if i == 0 && !isLetter {
+			return false
+		}
+		if !isLetter && !isDigit && c != '_' && c != '$' && c != '#' {
+			return false
+		}
+	}
+	return true
+}
+
 func getTablePartitions(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.TablePartitionMetadata, error) {
 	result := make(map[tableKey][]*metadatapb.TablePartitionMetadata)
 
@@ -2159,7 +2184,7 @@ func getTablePartitions(txn *sql.Tx, schemaName string) (map[tableKey][]*metadat
 		if err := keyRows.Scan(&tableName, &colName); err != nil {
 			return nil, err
 		}
-		partKeys[tableName] = append(partKeys[tableName], strings.TrimSpace(colName))
+		partKeys[tableName] = append(partKeys[tableName], formatOraclePartitionKeyColumn(colName))
 	}
 	if err := keyRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", queryKeys, err)
@@ -2190,7 +2215,7 @@ func getTablePartitions(txn *sql.Tx, schemaName string) (map[tableKey][]*metadat
 			if err := subKeyRows.Scan(&tableName, &colName); err != nil {
 				return nil, err
 			}
-			subpartKeys[tableName] = append(subpartKeys[tableName], strings.TrimSpace(colName))
+			subpartKeys[tableName] = append(subpartKeys[tableName], formatOraclePartitionKeyColumn(colName))
 		}
 		if err := subKeyRows.Err(); err != nil {
 			return nil, fmt.Errorf("failed to execute query %q: %w", querySubKeys, err)

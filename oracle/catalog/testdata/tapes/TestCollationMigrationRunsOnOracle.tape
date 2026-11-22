@@ -1,0 +1,186 @@
+-- pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0
+
+== TestCollationMigrationRunsOnOracle default#1
+> exec
+| CREATE USER "OMNI_COLLATE" IDENTIFIED BY "omni_test" QUOTA UNLIMITED ON USERS
+< ok 0 0
+> exec
+| GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE TO "OMNI_COLLATE"
+< ok 0 0
+> exec
+| ALTER SESSION SET CURRENT_SCHEMA = "OMNI_COLLATE"
+< ok 0 0
+> exec
+|
+| CREATE TABLE OMNI_COLLATE.T (
+|   ID NUMBER NOT NULL,
+|   CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+|   CONSTRAINT T_CK CHECK (CODE <> 'x')
+| )
+< ok 0 0
+> exec
+|
+| CREATE INDEX OMNI_COLLATE.T_CODE_IDX ON OMNI_COLLATE.T (CODE)
+< ok 0 0
+> exec
+|
+|
+| CREATE TABLE OMNI_COLLATE.PARENT (
+|   CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+|   CONSTRAINT PARENT_PK PRIMARY KEY (CODE)
+| )
+< ok 0 0
+> exec
+|
+| CREATE TABLE OMNI_COLLATE.CHILD (
+|   ID NUMBER NOT NULL,
+|   PARENT_CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+|   CONSTRAINT CHILD_FK FOREIGN KEY (PARENT_CODE) REFERENCES OMNI_COLLATE.PARENT (CODE)
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE TABLE OMNI_COLLATE.T2 (
+|   CODE VARCHAR2(20 BYTE) COLLATE BINARY
+| )
+< ok 0 0
+> exec
+|
+| CREATE INDEX OMNI_COLLATE.T2_UPPER_IDX ON OMNI_COLLATE.T2 (UPPER(CODE))
+< ok 0 0
+> exec
+| ALTER TABLE "OMNI_COLLATE"."CHILD" DROP CONSTRAINT "CHILD_FK"
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE "OMNI_COLLATE"."CHILD" MODIFY ("PARENT_CODE" VARCHAR2(20 BYTE) COLLATE BINARY_CI)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."PARENT" DROP CONSTRAINT "PARENT_PK"
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."PARENT" MODIFY ("CODE" VARCHAR2(20 BYTE) COLLATE BINARY_CI)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."PARENT" ADD CONSTRAINT "PARENT_PK" PRIMARY KEY (CODE)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."T" DROP CONSTRAINT "T_CK"
+< ok 0 0
+> exec
+|
+| DROP INDEX "OMNI_COLLATE"."T_CODE_IDX"
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."T" MODIFY ("CODE" VARCHAR2(20 BYTE) COLLATE BINARY_CI)
+< ok 0 0
+> exec
+|
+| CREATE INDEX "OMNI_COLLATE"."T_CODE_IDX" ON "OMNI_COLLATE"."T" ("CODE" ASC)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."T" ADD CONSTRAINT "T_CK" CHECK (CODE <> 'x')
+< ok 0 0
+> exec
+|
+| DROP INDEX "OMNI_COLLATE"."T2_UPPER_IDX"
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."T2" MODIFY "CODE" VARCHAR2(40 BYTE)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."T2" MODIFY ("CODE" VARCHAR2(40 BYTE) COLLATE BINARY_CI)
+< ok 0 0
+> exec
+|
+| CREATE INDEX "OMNI_COLLATE"."T2_UPPER_IDX" ON "OMNI_COLLATE"."T2" (UPPER(CODE) ASC)
+< ok 0 0
+> exec
+|
+| ALTER TABLE "OMNI_COLLATE"."CHILD" ADD CONSTRAINT "CHILD_FK" FOREIGN KEY ("PARENT_CODE") REFERENCES "PARENT" ("CODE")
+< ok 0 0
+> query
+|
+| 		SELECT table_name, column_name, data_length, collation
+| 		FROM all_tab_cols
+| 		WHERE owner = 'OMNI_COLLATE'
+| 		  AND column_name IN ('CODE', 'PARENT_CODE')
+| 		ORDER BY table_name, column_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_LENGTH" "NUMBER" "float64" precision 38 scale 255
+< column "COLLATION" "NCHAR" "string"
+< row
+: string
+| CHILD
+: string
+| PARENT_CODE
+: string
+| 20
+: string
+| BINARY_CI
+< row
+: string
+| PARENT
+: string
+| CODE
+: string
+| 20
+: string
+| BINARY_CI
+< row
+: string
+| T
+: string
+| CODE
+: string
+| 20
+: string
+| BINARY_CI
+< row
+: string
+| T2
+: string
+| CODE
+: string
+| 40
+: string
+| BINARY_CI
+> query
+| SELECT object_type || '/' || object_name FROM all_objects
+| 		WHERE owner = 'OMNI_COLLATE' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
+| 		ORDER BY object_type, object_name
+< result
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
+< row
+: string
+| INDEX/PARENT_PK
+< row
+: string
+| INDEX/T2_UPPER_IDX
+< row
+: string
+| INDEX/T_CODE_IDX
+< row
+: string
+| TABLE/CHILD
+< row
+: string
+| TABLE/PARENT
+< row
+: string
+| TABLE/T
+< row
+: string
+| TABLE/T2

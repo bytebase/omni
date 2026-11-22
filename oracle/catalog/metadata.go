@@ -1389,8 +1389,17 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			delete(e.functions, name)
 		case ast.OBJECT_PROCEDURE:
 			delete(e.procedures, name)
-		case ast.OBJECT_PACKAGE, ast.OBJECT_PACKAGE_BODY:
+		case ast.OBJECT_PACKAGE:
 			delete(e.packages, name)
+		case ast.OBJECT_PACKAGE_BODY:
+			if pkg := e.packages[name]; pkg != nil {
+				spec, _ := splitPackageUnits(pkg.Definition)
+				if spec == "" {
+					delete(e.packages, name)
+				} else {
+					pkg.Definition = spec
+				}
+			}
 		case ast.OBJECT_SYNONYM:
 			if isDropPublicSynonym(e.nodeText(n)) {
 				delete(e.publicSynonyms, name)
@@ -1987,19 +1996,7 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 		e.packages[name] = &metadatapb.PackageMetadata{Name: name, Definition: definition}
 		return
 	}
-	existing := normalizePLSQLPackageDefinition(pkg.Definition)
-	var spec, body string
-	for _, seg := range oracleparser.Split(existing) {
-		if seg.Empty() {
-			continue
-		}
-		text := strings.TrimSpace(seg.Text)
-		if isPackageBodyUnit(text) {
-			body = text
-		} else {
-			spec = text
-		}
-	}
+	spec, body := splitPackageUnits(pkg.Definition)
 	if n.IsBody {
 		body = definition
 	} else {
@@ -2013,6 +2010,25 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 	default:
 		pkg.Definition = body
 	}
+}
+
+func splitPackageUnits(definition string) (spec, body string) {
+	existing := normalizePLSQLPackageDefinition(definition)
+	if existing == "" {
+		return "", ""
+	}
+	for _, seg := range oracleparser.Split(existing) {
+		if seg.Empty() {
+			continue
+		}
+		text := strings.TrimSpace(seg.Text)
+		if isPackageBodyUnit(text) {
+			body = text
+		} else {
+			spec = text
+		}
+	}
+	return spec, body
 }
 
 func normalizePLSQLPackageDefinition(definition string) string {
@@ -2604,9 +2620,12 @@ func viewInvisibleAliasPositions(schemaText string, n *ast.CreateViewStmt) map[i
 	if openIdx < 0 {
 		return out
 	}
-	lexer := oracleparser.NewLexer(header[openIdx:])
+	aliasHeader := header[openIdx:]
+	lexer := oracleparser.NewLexer(aliasHeader)
 	depth := 0
 	itemIdx := 0
+	itemTokIdx := 0
+	prevWasConstraint := false
 	started := false
 	for {
 		tok := lexer.NextToken()
@@ -2628,14 +2647,26 @@ func viewInvisibleAliasPositions(schemaText string, n *ast.CreateViewStmt) map[i
 		if depth == 1 {
 			if tok.Type == ',' {
 				itemIdx++
+				itemTokIdx = 0
+				prevWasConstraint = false
 				continue
 			}
-			if strings.EqualFold(tok.Str, "INVISIBLE") {
+			isQuoted := tok.Loc >= 0 && tok.Loc < len(aliasHeader) && aliasHeader[tok.Loc] == '"'
+			if itemTokIdx == 1 && !isQuoted && !prevWasConstraint && strings.EqualFold(tok.Str, "INVISIBLE") {
 				out[itemIdx] = true
 			}
+			prevWasConstraint = !isQuoted && strings.EqualFold(tok.Str, "CONSTRAINT")
+			itemTokIdx++
 		}
 	}
 	return out
+}
+
+func formatPartitionKeyIdentifier(name string) string {
+	if isSimpleIdentifier(name) {
+		return name
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionClause) []*metadatapb.TablePartitionMetadata {
@@ -2656,7 +2687,7 @@ func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionCl
 	var keyCols []string
 	for _, item := range listItems(clause.Columns) {
 		if colRef, ok := item.(*ast.ColumnRef); ok && colRef.Column != "" {
-			keyCols = append(keyCols, colRef.Column)
+			keyCols = append(keyCols, formatPartitionKeyIdentifier(colRef.Column))
 		} else if txt := strings.TrimSpace(e.nodeText(item)); txt != "" {
 			keyCols = append(keyCols, txt)
 		}

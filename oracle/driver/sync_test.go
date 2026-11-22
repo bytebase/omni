@@ -987,3 +987,21 @@ func TestMaterializedViewRefreshPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatOraclePartitionKeyColumn(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{in: "A", want: "A"},
+		{in: "ORDER_DATE", want: "ORDER_DATE"},
+		{in: "A,B", want: `"A,B"`},
+		{in: "Mixed Case", want: `"Mixed Case"`},
+		{in: " A ", want: `" A "`},
+	}
+	for _, tc := range cases {
+		if got := formatOraclePartitionKeyColumn(tc.in); got != tc.want {
+			t.Errorf("formatOraclePartitionKeyColumn(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

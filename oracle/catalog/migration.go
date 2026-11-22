@@ -2622,6 +2622,14 @@ func writeDropPackage(out *strings.Builder, schema, pkg string) {
 	_, _ = out.WriteString(`"` + pkg + `";` + "\n")
 }
 
+func writeDropPackageBody(out *strings.Builder, schema, pkg string) {
+	_, _ = out.WriteString(`DROP PACKAGE BODY `)
+	if schema != "" {
+		_, _ = out.WriteString(`"` + schema + `".`)
+	}
+	_, _ = out.WriteString(`"` + pkg + `";` + "\n")
+}
+
 func writePackageDiff(out *strings.Builder, pkgDiff *PackageDiff) {
 	if pkgDiff.NewPackage == nil {
 		return
@@ -2631,23 +2639,28 @@ func writePackageDiff(out *strings.Builder, pkgDiff *PackageDiff) {
 		return
 	}
 	if pkgDiff.Action == DiffActionAlter {
-		if !strings.HasPrefix(strings.ToUpper(definition), "CREATE") {
-			definition = "CREATE OR REPLACE " + definition
-		} else {
-			var parts []string
-			for _, seg := range oracleparser.Split(definition) {
-				if seg.Empty() {
-					continue
-				}
-				unit := alterRoutineDefinition(strings.TrimSpace(seg.Text))
-				if !strings.HasSuffix(unit, ";") {
-					unit += ";"
-				}
-				parts = append(parts, unit)
+		oldSpec, oldBody := splitPackageUnits(pkgDiff.OldPackage.GetDefinition())
+		newSpec, newBody := splitPackageUnits(definition)
+		if oldBody != "" && newBody == "" {
+			writeDropPackageBody(out, pkgDiff.SchemaName, pkgDiff.PackageName)
+			if newSpec == "" || newSpec == oldSpec {
+				return
 			}
-			if len(parts) > 0 {
-				definition = strings.Join(parts, "\n\n")
+			definition = newSpec
+		}
+		var parts []string
+		for _, seg := range oracleparser.Split(normalizePLSQLPackageDefinition(definition)) {
+			if seg.Empty() {
+				continue
 			}
+			unit := alterRoutineDefinition(strings.TrimSpace(seg.Text))
+			if !strings.HasSuffix(unit, ";") {
+				unit += ";"
+			}
+			parts = append(parts, unit)
+		}
+		if len(parts) > 0 {
+			definition = strings.Join(parts, "\n\n")
 		}
 	}
 	_ = writePackage(out, &metadatapb.PackageMetadata{
