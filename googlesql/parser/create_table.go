@@ -1362,6 +1362,15 @@ func (p *Parser) parseInterleaveInParent() (*ast.InterleaveClause, error) {
 // When false it follows index_order_by_and_options (each element is a general
 // `expression collate_clause? asc_or_desc? null_order? opt_options_list?`).
 func (p *Parser) parseKeyPartList(pkElement bool) ([]*ast.KeyPart, error) {
+	return p.parseKeyPartListWithOptions(pkElement, false)
+}
+
+// parseKeyPartListWithOptions parses a parenthesized key-part list. When
+// pkElement is true it follows primary_key_element_list; otherwise it follows
+// index_order_by_and_options, where allowSpannerParenExpr controls whether
+// DialectSpanner admits parenthesized `( expression )` keys (ordinary CREATE
+// INDEX) versus identifier-only keys (SEARCH/VECTOR indexes).
+func (p *Parser) parseKeyPartListWithOptions(pkElement, allowSpannerParenExpr bool) ([]*ast.KeyPart, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
@@ -1383,7 +1392,7 @@ func (p *Parser) parseKeyPartList(pkElement bool) ([]*ast.KeyPart, error) {
 		if pkElement {
 			part, err = p.parsePrimaryKeyElement()
 		} else {
-			part, err = p.parseIndexKeyElement()
+			part, err = p.parseIndexKeyElement(allowSpannerParenExpr)
 		}
 		if err != nil {
 			return nil, err

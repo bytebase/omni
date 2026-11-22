@@ -149,7 +149,7 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 			return nil, err
 		}
 	} else {
-		keys, err := p.parseKeyPartList(false /*index element*/)
+		keys, err := p.parseKeyPartListWithOptions(false /*index element*/, true /*allowSpannerParenExpr*/)
 		if err != nil {
 			return nil, err
 		}
@@ -221,23 +221,41 @@ func (p *Parser) parseStoringIdentList() ([]ast.Node, error) {
 // collate_clause? asc_or_desc? null_order? opt_options_list?`. The common case
 // is a bare column reference; the expression is kept in Expr (and Name set when
 // it is a single identifier) so the query-span walker can descend.
-func (p *Parser) parseIndexKeyElement() (*ast.KeyPart, error) {
+// In DialectSpanner, ordinary CREATE INDEX allows `{ column_name | ( expression ) }`
+// (allowSpannerParenExpr=true), while SEARCH/VECTOR indexes require column identifiers.
+func (p *Parser) parseIndexKeyElement(allowSpannerParenExpr bool) (*ast.KeyPart, error) {
 	start := p.cur.Loc
 	var part *ast.KeyPart
 	if p.isSpanner() {
-		// Spanner index keys are column names, not arbitrary expressions.
-		tok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		name, err := p.identifierText(tok)
-		if err != nil {
-			return nil, err
-		}
-		part = &ast.KeyPart{
-			Name: name,
-			Expr: &ast.Identifier{Name: name, Loc: tok.Loc},
-			Loc:  ast.Loc{Start: start.Start},
+		if allowSpannerParenExpr && p.cur.Type == int('(') {
+			openTok := p.advance() // '('
+			inner, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			closeTok, err := p.expect(int(')'))
+			if err != nil {
+				return nil, err
+			}
+			part = &ast.KeyPart{
+				Expr: &ast.ParenExpr{Expr: inner, Loc: ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}},
+				Loc:  ast.Loc{Start: start.Start},
+			}
+		} else {
+			// Spanner index keys are column names (or parenthesized expressions for ordinary indexes).
+			tok, err := p.expectIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			name, err := p.identifierText(tok)
+			if err != nil {
+				return nil, err
+			}
+			part = &ast.KeyPart{
+				Name: name,
+				Expr: &ast.Identifier{Name: name, Loc: tok.Loc},
+				Loc:  ast.Loc{Start: start.Start},
+			}
 		}
 	} else {
 		expr, err := p.parseExpr()

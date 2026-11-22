@@ -127,7 +127,33 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 		// scalar / aggregate FUNCTION tail:
 		//   opt_determinism_level? opt_language_or_remote_with_connection?
 		//     unordered_options_body?
-		if !p.isSpanner() {
+		if p.isSpanner() {
+			// Spanner remote functions allow `[NOT DETERMINISTIC] LANGUAGE REMOTE OPTIONS (...)`.
+			if p.cur.Type == kwNOT && p.peekNext().Type == kwDETERMINISTIC {
+				p.advance() // NOT
+				p.advance() // DETERMINISTIC
+				stmt.Determinism = "NOT DETERMINISTIC"
+			}
+			isSpannerRemote := false
+			if p.cur.Type == kwLANGUAGE && p.peekNext().Type == kwREMOTE {
+				p.advance() // LANGUAGE
+				langTok := p.advance() // REMOTE
+				stmt.Language = p.tokenSource(langTok)
+				isSpannerRemote = true
+			}
+			if err := p.parseUnorderedOptionsBody(stmt); err != nil {
+				return nil, err
+			}
+			if isSpannerRemote {
+				if len(stmt.Options) == 0 || stmt.Body != nil || stmt.HasBodyString {
+					return nil, p.syntaxErrorAtCur()
+				}
+			} else {
+				if stmt.Determinism != "" || stmt.Body == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+		} else {
 			stmt.Determinism = p.matchDeterminismLevel()
 
 			// opt_language_or_remote_with_connection?:
@@ -136,16 +162,13 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 			if err := p.parseLanguageOrRemoteWithConnection(stmt); err != nil {
 				return nil, err
 			}
-		}
 
-		// unordered_options_body?:
-		//   opt_options_list as_sql_function_body_or_string?
-		//   | as_sql_function_body_or_string opt_options_list?
-		if err := p.parseUnorderedOptionsBody(stmt); err != nil {
-			return nil, err
-		}
-		if p.isSpanner() && stmt.Body == nil {
-			return nil, p.syntaxErrorAtCur()
+			// unordered_options_body?:
+			//   opt_options_list as_sql_function_body_or_string?
+			//   | as_sql_function_body_or_string opt_options_list?
+			if err := p.parseUnorderedOptionsBody(stmt); err != nil {
+				return nil, err
+			}
 		}
 	}
 

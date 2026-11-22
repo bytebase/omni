@@ -140,8 +140,10 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 	//   partition_by_clause_prefix_no_hint opt_options_list?
 	//   | opt_options_list? spanner_index_interleave_clause   (not valid for search/vector — left unhandled)
 	//   | opt_options_list
+	// Spanner CREATE SEARCH INDEX supports `PARTITION BY column_name [, ...]`,
+	// whereas CREATE VECTOR INDEX does not.
 	if p.cur.Type == kwPARTITION {
-		if p.isSpanner() {
+		if p.isSpanner() && isVector {
 			return nil, p.syntaxErrorAtCur()
 		}
 		exprs, err := p.parsePartitionByNoHint()
