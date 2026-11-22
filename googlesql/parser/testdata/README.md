@@ -19,10 +19,10 @@ verified end-to-end with `OMNI_RECORD=verify` with zero differences.
 
 | Rows | Total | Agree | Only union accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,442 | 154 | 18 | 93.42% |
-| Near-misses | 6,223 | 6,180 | 41 | 2 | 99.31% |
-| Suites (`suite:*`) | 626 | 618 | 8 | 0 | 98.72% |
-| **All** | **9,463** | **9,240** | **203** | **20** | **97.64%** |
+| One per alternative | 2,614 | 2,614 | 0 | 0 | 100.00% |
+| Near-misses | 6,223 | 6,223 | 0 | 0 | 100.00% |
+| Suites (`suite:*`) | 626 | 626 | 0 | 0 | 100.00% |
+| **All** | **9,463** | **9,463** | **0** | **0** | **100.00%** |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -40,14 +40,30 @@ BigQuery dry-run (`bytebase-dev:US`, matching `bigquery/parser/compat_test.go`)
 accepts it, moving **709** rows from `reject` to `accept`:
 
 - **506** previously `Only omni accepts` rows (457 generated + all 49 `suite:`
-  BigQuery rows) now agree (`accept` / `accept`), leaving only **20** rows
-  rejected by both Spanner and BigQuery (`DESCRIBE a |> ...` (2),
-  `ANALYZE OPTIONS(zzz)` (1), and 17 Spanner-only DDL clauses attached to
-  columnless `CREATE TABLE` or non-identifier `CREATE INDEX` keys).
-- **203** BigQuery-accepted forms (195 generated rows currently gated on
-  `DialectBigQuery` plus 8 `suite:` rows) are now surfaced as
-  `Only union accepts`, bringing agreement to **9,240 / 9,463 (97.64%)** ahead
-  of closing the remaining union-mode parser gaps.
+  BigQuery rows) agreed immediately (`accept` / `accept`), bringing the rev-4
+  baseline to **9,240 / 9,463 (97.64%)** with **203 `Only union accepts`** and
+  **20 `Only omni accepts`**.
+- All **223** remaining union-mode gaps were then closed in `DialectDefault`
+  (**9,240 → 9,463 / 9,463 = 100.00%**) while keeping both `bigquery/parser`
+  (**8,837 / 8,837 = 100.00%**) and `spanner/parser`
+  (**8,837 / 8,837 = 100.00%**) at 100.00%:
+  - **203 `Only union accepts` closed:** Enabled full BigQuery syntax in union
+    mode (`!p.isSpanner()`) — `FROM`-first pipe queries, `MATCH_RECOGNIZE` table
+    clauses, `CREATE MODEL` BigQuery ML clauses, `CREATE/DROP EXTERNAL
+    TABLE/SCHEMA`, `CREATE/DROP CONNECTION`, `CREATE/DROP CONSTANT`,
+    `CREATE/ALTER/DROP PRIVILEGE RESTRICTION`, `ALTER SEARCH|VECTOR INDEX`
+    (preserving Spanner DDL-049 `{ADD|DROP} STORED COLUMN`), `ALTER [ALL] ROW
+    ACCESS POLICY/POLICIES`, untyped `CREATE TABLE` columns, `COPY`/`CLONE`
+    time-travel clauses, `CREATE INDEX` table aliases, adjacent string literal
+    concatenation in `GRANT`, `DROP INDEX ... ON <table>`, `CREATE OR REPLACE
+    SEQUENCE`, and BigQuery `CREATE PROPERTY GRAPH` modifiers/optional `NODE
+    TABLES`.
+  - **20 `Only omni accepts` closed:** Rejected forms refused by both Spanner
+    and BigQuery — pipe operators on `DESCRIBE` (2 rows), non-assignment
+    `ANALYZE OPTIONS(...)` (1 row), trailing Spanner `PRIMARY KEY(...)` or
+    `ROW DELETION POLICY(...)` on columnless `CREATE TABLE` (13 rows), and
+    non-identifier/non-parenthesized index keys on Spanner-only
+    `NULL_FILTERED` / `, INTERLEAVE IN` indexes (4 rows).
 
 ### Judge revision 3 (`PinRole: "parser"`)
 
@@ -303,23 +319,20 @@ files that compared `Parse` of a statement with the emulator's verdict on it.
 
 | Suite | Rows | Agree | Only union accepts | Only omni accepts |
 | --- | ---: | ---: | ---: | ---: |
-| `suite:select` | 95 | 94 | 1 | 0 |
+| `suite:select` | 95 | 95 | 0 | 0 |
 | `suite:pivot-unpivot` | 49 | 49 | 0 | 0 |
 | `suite:dml` | 68 | 68 | 0 | 0 |
-| `suite:ddl` | 91 | 89 | 2 | 0 |
-| `suite:spanner-ddl` | 81 | 80 | 1 | 0 |
+| `suite:ddl` | 91 | 91 | 0 | 0 |
+| `suite:spanner-ddl` | 81 | 81 | 0 | 0 |
 | `suite:utility` | 67 | 67 | 0 | 0 |
 | `suite:scripting` | 47 | 47 | 0 | 0 |
-| `suite:graph-query` | 86 | 82 | 4 | 0 |
+| `suite:graph-query` | 86 | 86 | 0 | 0 |
 | `suite:bq-ddl` | 24 | 24 | 0 | 0 |
 | `suite:export-load-clone` | 18 | 18 | 0 | 0 |
 
-All 49 previously disagreeing BigQuery `suite:` rows now agree under the union
-judge; the 8 `Only union accepts` suite rows are BigQuery-accepted forms
-(`FROM t`, `CREATE TABLE T (x)`, `DROP INDEX idx ON T`,
-`CREATE OR REPLACE SEQUENCE s_or`, and 4 BigQuery `CREATE PROPERTY GRAPH`
-variants). A statement added to a suite is a row with `?` in both verdict
-cells, judged by a recording:
+All 626 `suite:` rows agree (**626 / 626 = 100.00%**) under the union judge. A
+statement added to a suite is a row with `?` in both verdict cells, judged by a
+recording:
 
 ```text
 ?	?	-	suite:select	<statement>

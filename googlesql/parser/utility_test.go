@@ -244,22 +244,14 @@ func TestAnalyze(t *testing.T) {
 		}
 	})
 
-	// The OPTIONS-vs-table-name ambiguity (corpus analyze.sql). `OPTIONS(` is an
-	// options-list ONLY when followed by `key <assign-op>` entries (or an empty
-	// `()`); otherwise OPTIONS is a table-name target with a column_list.
-	t.Run("OPTIONS as a table target (column list)", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE OPTIONS(a, b, c)")
-		if a.Options != nil {
-			t.Errorf("Options = %v, want nil (OPTIONS here is a table name)", a.Options)
-		}
-		if len(a.Targets) != 1 {
-			t.Fatalf("Targets = %d, want 1", len(a.Targets))
-		}
-		if pathString(a.Targets[0].Path) != "OPTIONS" {
-			t.Errorf("Targets[0].Path = %q, want OPTIONS", pathString(a.Targets[0].Path))
-		}
-		if len(a.Targets[0].Columns) != 3 {
-			t.Errorf("Columns = %v, want [a b c]", a.Targets[0].Columns)
+	// Both BigQuery and Spanner shift `ANALYZE OPTIONS(...)` into opt_options_list
+	// unconditionally, rejecting non-assignment entries like `ANALYZE OPTIONS(a, b, c)`
+	// and `ANALYZE OPTIONS(zzz)`.
+	t.Run("OPTIONS(...) requires assignment entries", func(t *testing.T) {
+		for _, sql := range []string{"ANALYZE OPTIONS(a, b, c)", "ANALYZE OPTIONS(zzz)"} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want error, got nil", sql)
+			}
 		}
 	})
 

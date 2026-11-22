@@ -533,7 +533,7 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 
 	switch p.cur.Type {
 	case tokString:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			lit, err := p.parseStringLiteral()
 			if err != nil {
 				return nil, err

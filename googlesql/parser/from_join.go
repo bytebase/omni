@@ -138,7 +138,7 @@ func (p *Parser) tryParseJoinSuffix(cur ast.Node, open *[]*ast.JoinExpr) (ast.No
 			*open = (*open)[:top]
 			target.Right = cur
 		} else {
-			if p.isBigQuery() {
+			if p.isBigQuery() || p.inFromFirstQuery {
 				break
 			}
 			j, ok := cur.(*ast.JoinExpr)
@@ -316,7 +316,7 @@ func (p *Parser) parseTablePrimary() (ast.Node, error) {
 			}
 			continue
 		}
-		if p.isBigQuery() && p.cur.Type == kwMATCH_RECOGNIZE {
+		if !p.isSpanner() && p.cur.Type == kwMATCH_RECOGNIZE {
 			mr, merr := p.parseMatchRecognizeClause()
 			if merr != nil {
 				return nil, merr
@@ -570,9 +570,10 @@ func (p *Parser) parseParenTableSource() (ast.Node, error) {
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
 	}
-	// table_primary: '(' join ')' requires an actual JOIN inside the parens in
-	// BigQuery (`FROM (a a)` without a JOIN is a syntax error).
-	if p.isBigQuery() {
+	// table_primary: '(' join ')' requires an actual JOIN inside the parens
+	// in BigQuery and BigQuery FROM-first queries (`FROM (a a)` without a JOIN
+	// is a syntax error in both BigQuery and Spanner).
+	if p.isBigQuery() || p.inFromFirstQuery {
 		if _, ok := inner.(*ast.JoinExpr); !ok {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -785,8 +786,8 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 
 	// FOR SYSTEM_TIME AS OF expr (opt_at_system_time). In GoogleSQL's grammar
 	// (`table_path_expression`), `as_alias` precedes `at_system_time`; BigQuery
-	// rejects a table alias after `FOR SYSTEM_TIME AS OF ...`.
-	if !p.isBigQuery() && p.atForSystemTime() {
+	// and union mode reject a table alias after `FOR SYSTEM_TIME AS OF ...`.
+	if p.isSpanner() && p.atForSystemTime() {
 		if err := p.parseForSystemTime(te); err != nil {
 			return err
 		}
@@ -899,7 +900,7 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 	// clause can follow (EOF, ';', ')', ',', or a following clause/join
 	// keyword), while `FROM t QUALIFY <expr>` keeps the QUALIFY clause reading.
 	// BigQuery reserves QUALIFY, so DialectBigQuery disables bare QUALIFY aliases.
-	isBareQualifyAlias := p.cur.Type == kwQUALIFY && (p.isSpanner() || (!p.isBigQuery() && p.atTableQualifyImplicitAlias()))
+	isBareQualifyAlias := p.cur.Type == kwQUALIFY && (p.isSpanner() || (!p.isBigQuery() && !p.inFromFirstQuery && p.atTableQualifyImplicitAlias()))
 	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || isBareQualifyAlias) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)

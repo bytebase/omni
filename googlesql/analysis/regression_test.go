@@ -59,19 +59,21 @@ func TestRegression_Spanner3PartDatabase(t *testing.T) {
 // produce fake AccessTables entries.
 func TestRegression_DDLNonTableObjects(t *testing.T) {
 	tests := []struct {
-		sql  string
-		want int // expected AccessTables count
+		sql     string
+		dialect Dialect
+		want    int // expected AccessTables count
 	}{
-		{"DROP SCHEMA s", 0},
-		{"DROP DATABASE d", 0},
-		{"DROP INDEX idx", 0},
-		{"ALTER SCHEMA s SET OPTIONS ()", 0},
-		{"DROP TABLE realtbl", 1},  // a real table IS recorded
-		{"DROP VIEW realview", 1},  // a view IS recorded
+		{"DROP SCHEMA s", DialectSpanner, 0},
+		{"DROP DATABASE d", DialectBigQuery, 0},
+		{"DROP INDEX idx", DialectSpanner, 0},
+		{"ALTER SCHEMA s SET OPTIONS ()", DialectBigQuery, 0},
+		{"ALTER SCHEMA s SET OPTIONS (default_leader = 'us')", DialectSpanner, 0},
+		{"DROP TABLE realtbl", DialectSpanner, 1}, // a real table IS recorded
+		{"DROP VIEW realview", DialectSpanner, 1}, // a view IS recorded
 	}
 	for _, tc := range tests {
 		t.Run(tc.sql, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, DialectSpanner)
+			span, err := GetQuerySpan(tc.sql, tc.dialect)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}

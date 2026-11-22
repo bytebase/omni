@@ -164,13 +164,7 @@ func TestLegacyCorpusParses(t *testing.T) {
 // auditable and the self-prune check stays meaningful.
 var legacyCorpusParseSkips = map[string]string{
 	// --- OUT-OF-SCOPE: pure-ZetaSQL statements, no migration node ---
-	"zetasql/parser/testdata/create_constant.sql":         "OUT-OF-SCOPE: CREATE CONSTANT (ZetaSQL) — no migration node",
-	"zetasql/parser/testdata/create_model.sql":            "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT/TRANSFORM (ZetaSQL ML) — no migration node",
-	"zetasql/parser/testdata/create_external_table.sql":   "OUT-OF-SCOPE: CREATE [PRIVATE] EXTERNAL TABLE (ZetaSQL) — no migration node",
-	"zetasql/parser/testdata/create_external_schema.sql":  "OUT-OF-SCOPE: CREATE EXTERNAL SCHEMA (ZetaSQL) — no migration node",
-	"zetasql/parser/testdata/drop.sql":                    "OUT-OF-SCOPE: DROP EXTERNAL TABLE / DROP CONNECTION (ZetaSQL long-tail) defeat the file; the plain DROP TABLE/MATERIALIZED VIEW/SNAPSHOT TABLE statements parse",
-	"zetasql/parser/testdata/alter_row_access_policy.sql": "OUT-OF-SCOPE: ALTER [ALL] ROW ACCESS POLICY/POLICIES (only CREATE ROW ACCESS POLICY is in scope) — no migration node for the ALTER actions",
-	"zetasql/parser/testdata/alter_set_options.sql":       "OUT-OF-SCOPE: ALTER MATERIALIZED VIEW / APPROX VIEW / MODEL … SET OPTIONS (multi-action, BigQuery long-tail) — no migration node",
+	"zetasql/parser/testdata/alter_set_options.sql": "OUT-OF-SCOPE: ALTER MATERIALIZED VIEW / APPROX VIEW / MODEL … SET OPTIONS (multi-action, BigQuery long-tail) — no migration node",
 
 	// --- RESIDUAL GAP: mostly in-scope, one form trips a grammar gap ---
 	"zetasql/parser/testdata/create_index.sql":      "RESIDUAL GAP: ZetaSQL CREATE INDEX … AS foo UNNEST(...) (search-index expression syntax) and CREATE [SEARCH|VECTOR] INDEX OPTIONS forms defeat the file; the plain CREATE [UNIQUE] INDEX … [STORING] statements parse",

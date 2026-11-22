@@ -389,9 +389,11 @@ func TestDrop_DropModeAndOn(t *testing.T) {
 	assertReject(t, "DROP TABLE T CASCADE")
 	assertReject(t, "DROP TABLE T RESTRICT")
 
-	// Plain DROP INDEX has no `ON <table>` → it must reject (SEARCH/VECTOR INDEX,
-	// the only alt with on_path_expression, routes to the dialect stub earlier).
-	assertReject(t, "DROP INDEX idx ON T")
+	// Plain DROP INDEX with `ON <table>` is accepted in BigQuery/union mode
+	// and rejected in DialectSpanner.
+	if _, err := ParseWithDialect("DROP INDEX idx ON T", DialectSpanner); err == nil {
+		t.Errorf("ParseWithDialect(DROP INDEX idx ON T, DialectSpanner): want error, got nil")
+	}
 
 	// schema_object_kind objects DO carry opt_drop_mode (CASCADE/RESTRICT). These
 	// are valid GoogleSQL per the .g4; the Spanner emulator rejects them as a

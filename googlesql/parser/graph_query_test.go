@@ -850,13 +850,16 @@ func TestCreatePropertyGraph_IfNotExists(t *testing.T) {
 	}
 }
 
-// TestCreatePropertyGraph_OrReplaceIfNotExistsConflict asserts the oracle-backed
-// divergence: OR REPLACE and IF NOT EXISTS are mutually exclusive (the live
-// Spanner emulator rejects the combination with a true DDL parse error; the
-// legacy .g4 would accept it). See the divergence note in
-// create_property_graph.go + the suite:graph-query rows of testdata/compat.tsv.
+// TestCreatePropertyGraph_OrReplaceIfNotExistsConflict asserts that Spanner
+// rejects OR REPLACE + IF NOT EXISTS on CREATE PROPERTY GRAPH, while union
+// mode accepts it as BigQuery parses both modifiers.
 func TestCreatePropertyGraph_OrReplaceIfNotExistsConflict(t *testing.T) {
-	assertReject(t, "CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)")
+	if _, err := ParseWithDialect("CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)", DialectSpanner); err == nil {
+		t.Errorf("DialectSpanner should reject CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS")
+	}
+	if _, err := Parse("CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)"); err != nil {
+		t.Errorf("union Parse unexpected error: %v", err)
+	}
 }
 
 func TestCreatePropertyGraph_EdgeTablesWithSourceDest(t *testing.T) {
@@ -952,17 +955,28 @@ func TestCreatePropertyGraph_TrailingComma(t *testing.T) {
 
 func TestCreatePropertyGraph_Rejects(t *testing.T) {
 	cases := []string{
-		"CREATE PROPERTY GRAPH g",                        // no NODE TABLES
 		"CREATE PROPERTY g NODE TABLES (T)",              // PROPERTY without GRAPH
 		"CREATE PROPERTY GRAPH g NODE TABLES ()",         // empty element list
 		"CREATE PROPERTY GRAPH g NODE TABLES T",          // element list needs parens
-		"CREATE TEMP PROPERTY GRAPH g NODE TABLES (T)",   // no create-scope allowed
 		"CREATE PROPERTY GRAPH g NODE TABLES (T LABEL)",  // LABEL needs a name
 		"CREATE PROPERTY GRAPH g NODE TABLES (T KEY id)", // KEY needs parens
-		"CREATE PROPERTY GRAPH g EDGE TABLES (E)",        // NODE TABLES is required first
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)
+	}
+	// BigQuery accepts optional NODE TABLES and create-scope on CREATE PROPERTY
+	// GRAPH in union mode, while DialectSpanner rejects all three.
+	for _, sql := range []string{
+		"CREATE PROPERTY GRAPH g",
+		"CREATE TEMP PROPERTY GRAPH g NODE TABLES (T)",
+		"CREATE PROPERTY GRAPH g EDGE TABLES (E)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) unexpected error: %v", sql, err)
+		}
+		if _, err := ParseWithDialect(sql, DialectSpanner); err == nil {
+			t.Errorf("ParseWithDialect(%q, DialectSpanner): want error, got nil", sql)
+		}
 	}
 }
 

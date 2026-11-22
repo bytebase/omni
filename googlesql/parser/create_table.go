@@ -109,11 +109,11 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE SEARCH|VECTOR INDEX — BigQuery-only (bq_search_vector_index.go).
 		return p.parseCreateSearchVectorIndex(create, orReplace, scope)
 	case kwPROPERTY:
-		// CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] … NODE TABLES (…)
+		// CREATE [OR REPLACE] [scope] PROPERTY GRAPH [IF NOT EXISTS] …
 		// (create_property_graph_statement, parser-gql node →
-		// create_property_graph.go). PROPERTY GRAPH has NO opt_create_scope, so a
-		// leading TEMP/TEMPORARY/PUBLIC/PRIVATE is a syntax error.
-		if scope != "" {
+		// create_property_graph.go). Spanner rejects a leading create scope,
+		// while BigQuery accepts TEMP/TEMPORARY/PUBLIC/PRIVATE.
+		if scope != "" && p.isSpanner() {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreatePropertyGraph(create, orReplace)
@@ -166,22 +166,22 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwMODEL:
 		return p.parseCreateModel(create, orReplace, scope)
 	case kwEXTERNAL:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseCreateExternal(create, orReplace, scope)
 		}
 		return p.unsupported("CREATE EXTERNAL")
 	case kwCONNECTION:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseCreateConnection(create, orReplace, scope)
 		}
 		return p.unsupported("CREATE CONNECTION")
 	case kwCONSTANT:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseCreateConstant(create, orReplace, scope)
 		}
 		return p.unsupported("CREATE CONSTANT")
 	case kwPRIVILEGE:
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			return p.parseCreatePrivilegeRestriction(create, orReplace, scope)
 		}
 		return p.unsupported("CREATE PRIVILEGE")
@@ -328,9 +328,12 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 
 	// opt_spanner_table_options? — trailing `PRIMARY KEY ( … )` plus optional
 	// comma-led `, INTERLEAVE IN PARENT …` and/or `, ROW DELETION POLICY ( … )`.
+	// Trailing PRIMARY KEY is Spanner-only and requires a preceding column
+	// element list `(...)` (both Spanner and BigQuery reject columnless
+	// `CREATE TABLE a PRIMARY KEY(...)`).
 	hasSpannerPK := false
 	if p.cur.Type == kwPRIMARY {
-		if p.isBigQuery() {
+		if p.isBigQuery() || !hasElementList {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "syntax error: PRIMARY KEY must be defined in the table element list",
@@ -389,7 +392,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 			return nil, err
 		}
 		stmt.Clone = path
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			if p.atForSystemTime() {
 				ts, err := p.parseForSystemTimeExpr()
 				if err != nil {
@@ -419,7 +422,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 			return nil, err
 		}
 		stmt.Copy = path
-		if p.isBigQuery() {
+		if !p.isSpanner() {
 			if p.atForSystemTime() {
 				ts, err := p.parseForSystemTimeExpr()
 				if err != nil {
@@ -483,7 +486,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 	// trailing Spanner PK (it leaves a bare ROW after a Spanner PK unconsumed,
 	// which the outer EOF check then reports as the syntax error it is).
 	if p.cur.Type == kwROW && !hasSpannerPK {
-		if p.isBigQuery() {
+		if p.isBigQuery() || !hasElementList {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "syntax error: ROW DELETION POLICY clause is not supported",
@@ -628,7 +631,7 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 		if err := p.parseGeneratedColumnInfo(col); err != nil {
 			return nil, err
 		}
-	} else if p.isBigQuery() && (p.cur.Type == int(',') || p.cur.Type == int(')')) {
+	} else if !p.isSpanner() && (p.cur.Type == int(',') || p.cur.Type == int(')')) {
 		// BigQuery allows untyped column entries in CREATE TABLE element lists.
 		col.Loc.End = p.prev.Loc.End
 		return col, nil

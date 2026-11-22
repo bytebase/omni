@@ -164,15 +164,11 @@ var officialCorpusSkips = map[string]string{
 	"spanner/datatypes.md#14": "FRAGMENT: DT-015 bare INTERVAL literal example, not a statement",
 	"spanner/datatypes.md#15": "FRAGMENT: DT-016 bare proto-enum `col1` column-def snippet, not a statement",
 
-	// ========================== OUT-OF-SCOPE (8) ==========================
+	// ========================== OUT-OF-SCOPE (2) ==========================
 	// Pure-ZetaSQL / dialect-extension forms the legacy bytebase ANTLR grammar
 	// never implemented and no migration node owns. omni's reject preserves
 	// legacy parity.
 	"bigquery/datatypes.md#0": "OUT-OF-SCOPE: DT-001 BigQuery-extended typed literals (INT64 '42', BOOL 'TRUE', STRING 'hello', BYTES, FLOAT64) — legacy .g4 only has DATE/TIME/DATETIME/TIMESTAMP/NUMERIC/JSON typed literals; live Spanner oracle also REJECTS `SELECT INT64 '42'` (Syntax error). NUMERIC/DATE/TIMESTAMP literals in the same block parse; the INT64/BOOL/STRING ones do not.",
-	"bigquery/ddl.md#12":      "OUT-OF-SCOPE: DDL-013 CREATE EXTERNAL SCHEMA — no migration node (legacy create_external_schema_statement is a ZetaSQL long-tail form not in the P0/P1 DAG)",
-	"bigquery/ddl.md#13":      "OUT-OF-SCOPE: DDL-014 CREATE [OR REPLACE] EXTERNAL TABLE — no migration node (legacy create_external_table_statement, ZetaSQL long-tail)",
-	"bigquery/ddl.md#45":      "OUT-OF-SCOPE: DROP EXTERNAL TABLE — no migration node (DROP external-object variant, ZetaSQL long-tail)",
-	"spanner/ddl.md#37":       "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT — ML model DDL, no migration node",
 	"spanner/ddl.md#38":       "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",
 
 	// ========================== DOC-REJECTED (6) ==========================
@@ -216,13 +212,9 @@ var officialCorpusSkips = map[string]string{
 	// same block parses fine.
 	"spanner/expressions.md#6": "DOC-REJECTED: `SELECT ARRAY<FLOAT32>(vector_length => 128)` — the live Spanner oracle REJECTS a typed-ARRAY value constructor (\"Expected '[' but got '('\"); omni's reject (\"syntax error at or near =>\") matches. vector_length is a column-schema parameter, not an expression form. (The first statement, TOKENIZE_NGRAMS named args, parses.)",
 
-	// ===== RESIDUAL GAP / pipe & FROM-first & MATCH_RECOGNIZE (BigQuery) (6) =====
+	// ===== RESIDUAL GAP / pipe & FROM-first (BigQuery) (5) =====
 	// BigQuery-only query forms; the Spanner oracle is non-authoritative, so
-	// these are triangulated against the legacy .g4 + truth1. The legacy grammar
-	// leaves pipe `|>` lexed-but-unparsed (documented TODO gap) and only
-	// error-marks FROM-first queries; MATCH_RECOGNIZE is in the .g4 but owned by
-	// no migration node. All are P1 long-tail, not consumed by bytebase today.
-	"bigquery/query.md#15": "RESIDUAL GAP: QUERY-… MATCH_RECOGNIZE clause — present in legacy .g4 (match_recognize_clause) but no migration node implements it; P1 long-tail. omni rejects (\"syntax error at or near MATCH_RECOGNIZE\").",
+	// these are triangulated against the legacy .g4 + truth1.
 	"bigquery/query.md#16": "RESIDUAL GAP: QUERY-… FROM-first query (`FROM A JOIN B …` with no leading SELECT) — legacy .g4 only error-marks this (query_without_pipe_operators / bad_keyword_after_from_query); omni rejects (\"a query must begin with SELECT\"). FROM-first / pipe syntax not implemented (P1).",
 	"bigquery/query.md#17": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A CROSS JOIN B …) — same pipe/FROM-first gap as #16.",
 	"bigquery/query.md#18": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A FULL OUTER JOIN B …) — same pipe/FROM-first gap as #16.",

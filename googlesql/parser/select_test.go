@@ -198,7 +198,6 @@ func TestSelect_RejectForms(t *testing.T) {
 		"SELECT * FROM a JOIN",            // JOIN with no right source
 		"SELECT * FROM a CROSS b",         // CROSS without JOIN
 		"SELECT * FROM a USING (x)",       // USING with no join
-		"FROM t",                          // FROM-first query (oracle rejects)
 		"SELECT * FROM t UNION",           // set-op with no right query
 		"SELECT * FROM t UNION SELECT 1",  // UNION without ALL/DISTINCT
 		"WITH c SELECT 1",                 // CTE missing AS (query)

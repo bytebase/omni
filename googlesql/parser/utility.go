@@ -70,12 +70,8 @@ func (p *Parser) parseAssertStmt() (ast.Node, error) {
 // parseAnalyzeStmt parses `ANALYZE opt_options_list? table_and_column_info_list?`.
 // ANALYZE is the current token.
 //
-// The leading `OPTIONS(` is ambiguous: it is the opt_options_list ONLY when the
-// parentheses hold `key <assign-op> value` entries (or are empty, `OPTIONS()`);
-// otherwise `OPTIONS` is a table-name target carrying a column_list
-// (table_and_column_info — corpus analyze.sql: `ANALYZE OPTIONS(a, b, c)` and
-// `ANALYZE OPTIONS(a = b) Options(a, b, c)`). analyzeLeadingIsOptionsList does
-// the multi-token lookahead to decide.
+// In GoogleSQL's grammar, a leading `OPTIONS(` always shifts into
+// opt_options_list (rejecting non-assignment lists such as `ANALYZE OPTIONS(zzz)`).
 func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 	analyze := p.advance() // ANALYZE
 	stmt := &ast.AnalyzeStmt{Loc: analyze.Loc}
@@ -87,9 +83,10 @@ func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 	}
 
 	// opt_options_list?
-	// In BigQuery, `ANALYZE OPTIONS(...)` always parses as an options_list
-	// rather than falling back to a table named OPTIONS with a column list.
-	if p.cur.Type == kwOPTIONS && ((p.isBigQuery() && p.peekNext().Type == int('(')) || p.analyzeLeadingIsOptionsList()) {
+	// In GoogleSQL's grammar, `ANALYZE OPTIONS(...)` always shifts into
+	// opt_options_list rather than falling back to a table named OPTIONS with a
+	// column list (both BigQuery and Spanner reject `ANALYZE OPTIONS(zzz)`).
+	if p.cur.Type == kwOPTIONS && p.peekNext().Type == int('(') {
 		opts, err := p.parseOptionsList()
 		if err != nil {
 			return nil, err
@@ -113,35 +110,6 @@ func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 		stmt.Loc.End = targets[len(targets)-1].Loc.End
 	}
 	return stmt, nil
-}
-
-// analyzeLeadingIsOptionsList reports whether the leading `OPTIONS` token starts
-// an opt_options_list (vs a table named OPTIONS). The current token is OPTIONS.
-// It scans a fresh lexer from OPTIONS: it is an options-list iff `OPTIONS` is
-// followed by `(` and then either `)` (empty list) or `identifier <assign-op>`
-// (a real options_entry). Anything else (`OPTIONS(a, b)`, `OPTIONS a`, bare
-// `OPTIONS` at end) makes OPTIONS a table target.
-func (p *Parser) analyzeLeadingIsOptionsList() bool {
-	startIdx := absIndex(p, p.cur.Loc.Start)
-	lx := NewLexerWithOffset(p.input[startIdx:], 0)
-	if lx.NextToken().Type != kwOPTIONS {
-		return false
-	}
-	if lx.NextToken().Type != int('(') {
-		return false // bare OPTIONS (no parens) is a table name
-	}
-	first := lx.NextToken()
-	if first.Type == int(')') {
-		return true // OPTIONS() — empty options-list
-	}
-	if !isIdentifierInHints(first.Type) {
-		return false
-	}
-	switch lx.NextToken().Type {
-	case int('='), tokPlusEqual, tokMinusEqual:
-		return true // identifier <assign-op> => options_entry
-	}
-	return false // identifier not followed by an assign-op => column_list
 }
 
 // parseTableAndColumnInfoList parses table_and_column_info_list:

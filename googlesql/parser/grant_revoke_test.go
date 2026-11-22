@@ -306,10 +306,14 @@ func TestGrantRevoke_Rejects(t *testing.T) {
 func TestGrantRevoke_RejectsTrailingTokens(t *testing.T) {
 	cases := []string{
 		"GRANT `select` ON foo TO 'x' garbage",     // bare trailing identifier
-		"GRANT `select` ON foo TO 'x' 'y'",         // trailing string literal (no comma)
 		"GRANT `select` ON foo TO 'x' ON bar",      // trailing keyword run
 		"REVOKE `select` ON foo FROM 'x' garbage",  // REVOKE trailing junk
 		"REVOKE ALL PRIVILEGES ON foo FROM 'x' 99", // trailing integer literal
+	}
+	// Adjacent string literal concatenation in GRANT TO is valid BigQuery/union
+	// syntax, rejected in DialectSpanner.
+	if _, err := ParseWithDialect("GRANT `select` ON foo TO 'x' 'y'", DialectSpanner); err == nil {
+		t.Errorf("ParseWithDialect(GRANT ... TO 'x' 'y', DialectSpanner): want error, got nil")
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

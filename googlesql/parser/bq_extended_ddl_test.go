@@ -230,3 +230,88 @@ func TestUnionModeRev3Rejections(t *testing.T) {
 		}
 	}
 }
+
+func TestUnionModeRev4Closure(t *testing.T) {
+	// BigQuery syntax now accepted in union mode (DialectDefault) while still
+	// rejected in DialectSpanner.
+	unionAcceptSpannerReject := []string{
+		"FROM a",
+		"FROM a |> WHERE x > 1",
+		"WITH c AS (SELECT 1) FROM c",
+		"FROM a MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)",
+		"CREATE EXTERNAL TABLE a OPTIONS()",
+		"CREATE EXTERNAL SCHEMA a OPTIONS()",
+		"CREATE CONNECTION a",
+		"CREATE CONSTANT a = NULL",
+		"CREATE PRIVILEGE RESTRICTION ON a ON a a RESTRICT TO('user:x')",
+		"ALTER PRIVILEGE RESTRICTION ON a ON a a ADD()",
+		"DROP PRIVILEGE RESTRICTION ON a ON a a",
+		"ALTER SEARCH INDEX a REBUILD, SET OPTIONS()",
+		"ALTER VECTOR INDEX a REBUILD",
+		"ALTER ROW ACCESS POLICY a ON t GRANT TO('a')",
+		"ALTER ALL ROW ACCESS POLICIES ON t REVOKE FROM ALL",
+		"CREATE TABLE a(a, b INT64,)",
+		"CREATE TABLE a COPY b FOR SYSTEM_TIME AS OF NULL",
+		"CREATE TABLE a CLONE b FOR SYSTEM_TIME AS OF NULL",
+		"CREATE INDEX a ON a alias_a(NULL)",
+		"GRANT ALL ON a TO 'a' 'a'",
+		"DROP INDEX idx ON T",
+		"CREATE OR REPLACE SEQUENCE s_or",
+		"CREATE TEMP PROPERTY GRAPH g NODE TABLES (T)",
+		"CREATE PROPERTY GRAPH g",
+		"CREATE PROPERTY GRAPH g EDGE TABLES (E)",
+		"CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)",
+	}
+	for _, sql := range unionAcceptSpannerReject {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) unexpected error: %v", sql, err)
+		}
+		if _, err := ParseWithDialect(sql, DialectSpanner); err == nil {
+			t.Errorf("ParseWithDialect(%q, DialectSpanner) expected error, got nil", sql)
+		}
+	}
+
+	// Forms rejected by BOTH Spanner and BigQuery must be rejected in union mode.
+	unionReject := []string{
+		"DESCRIBE a |> AGGREGATE",
+		"DESCRIBE a |> AGGREGATE zzz",
+		"ANALYZE OPTIONS(zzz)",
+		"CREATE TABLE a PRIMARY KEY(a)",
+		"CREATE TABLE a PRIMARY KEY()",
+		"CREATE TABLE a PRIMARY KEY(), INTERLEAVE IN PARENT a",
+		"CREATE TABLE a ROW DELETION POLICY(NULL)",
+		"CREATE NULL_FILTERED INDEX a ON a(NULL)",
+		"CREATE INDEX a ON a(NULL), INTERLEAVE IN a",
+		"CREATE EXTERNAL TABLE a() OPTIONS()",
+		"FROM a QUALIFY",
+		"FROM (SELECT NULL) QUALIFY",
+		"FROM a() QUALIFY",
+		"FROM (a a)",
+		"FROM a FOR SYSTEM_TIME AS OF NULL zzz",
+		"FROM UNNEST()",
+	}
+	for _, sql := range unionReject {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) expected error, got nil", sql)
+		}
+	}
+
+	// Valid Spanner DDL forms must remain accepted in union mode.
+	spannerValid := []string{
+		"CREATE TABLE a (id INT64) PRIMARY KEY (id)",
+		"CREATE TABLE a () PRIMARY KEY ()",
+		"CREATE TABLE a (id INT64) PRIMARY KEY (id), INTERLEAVE IN PARENT p ON DELETE CASCADE",
+		"CREATE TABLE a (id INT64, ts TIMESTAMP) PRIMARY KEY (id), ROW DELETION POLICY (OLDER_THAN(ts, INTERVAL 1 DAY))",
+		"CREATE NULL_FILTERED INDEX idx ON t(c)",
+		"CREATE INDEX idx ON t(c), INTERLEAVE IN p",
+		"CREATE INDEX idx ON t((a + b)), INTERLEAVE IN p",
+		"TABLE a() QUALIFY",
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN c",
+		"ALTER SEARCH INDEX idx DROP STORED COLUMN c",
+	}
+	for _, sql := range spannerValid {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) unexpected error: %v", sql, err)
+		}
+	}
+}

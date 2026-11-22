@@ -207,65 +207,6 @@ func (p *Parser) parseIndexAllColumns(stmt *ast.SearchVectorIndexStmt) error {
 	return nil
 }
 
-// parseBQAlterVectorIndex parses an `ALTER VECTOR INDEX [IF EXISTS] index_name ON
-// table_name REBUILD [OPTIONS(…)]` statement (DDL-041). The ALTER keyword has been
-// consumed by parseAlterStmt; cur is at VECTOR.
-//
-// This form is NOT in the legacy GoogleSQLParser.g4 (see the file header
-// divergence note); it is implemented from the BigQuery docs as an additive union
-// form.
-func (p *Parser) parseBQAlterVectorIndex(alter Token) (ast.Node, error) {
-	p.advance() // VECTOR
-	if _, err := p.expect(kwINDEX); err != nil {
-		return nil, err
-	}
-
-	stmt := &ast.BQAlterStmt{Object: ast.BQAlterVectorIndex}
-	stmt.Loc.Start = alter.Loc.Start
-
-	ifExists, err := p.parseIfExists()
-	if err != nil {
-		return nil, err
-	}
-	stmt.IfExists = ifExists
-
-	name, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// ON table_name.
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-	table, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	stmt.OnTable = table
-
-	// REBUILD (the keyword lexes as an identifier; match it case-insensitively by
-	// source spelling via curIsWord).
-	if !p.curIsWord("REBUILD") {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // REBUILD
-	stmt.Rebuild = true
-
-	// opt OPTIONS(…) (index_rebuild_option_list).
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.SetOptions = opts
-	}
-
-	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
-}
-
 // parseBQDropSearchVectorIndex parses a `DROP {SEARCH|VECTOR} INDEX [IF EXISTS]
 // path ON table` statement. The DROP keyword has been consumed by parseDropStmt;
 // cur is at SEARCH or VECTOR. Grammar (drop_statement index_type alt):
