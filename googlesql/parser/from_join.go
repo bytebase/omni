@@ -913,15 +913,18 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 
 // atTableQualifyImplicitAlias reports whether a bare QUALIFY following a table
 // source is an implicit table alias because the next token cannot begin a
-// QUALIFY <expr> clause.
+// QUALIFY <expr> clause. Only delimiters and reserved clause/join keywords that
+// can never start an expression qualify; non-reserved words (PIVOT, UNPIVOT,
+// QUALIFY, MATCH_RECOGNIZE) and expression-starting keywords (such as WITH in
+// `WITH(x AS 1, x > 0)`) are intentionally excluded so `FROM t QUALIFY <expr>`
+// keeps its QUALIFY clause reading.
 func (p *Parser) atTableQualifyImplicitAlias() bool {
 	switch p.peekNext().Type {
-	case tokEOF, int(';'), int(')'), int(','),
-		kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwWINDOW,
-		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT,
-		kwFOR, tokPipe,
+	case tokEOF, int(';'), int(')'), int(','), tokPipe,
+		kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
+		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT, kwFOR,
 		kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL,
-		kwON, kwUSING, kwPIVOT, kwUNPIVOT, kwTABLESAMPLE, kwWITH, kwMATCH_RECOGNIZE:
+		kwON, kwUSING, kwTABLESAMPLE:
 		return true
 	}
 	return false

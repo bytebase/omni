@@ -1500,11 +1500,18 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 			t.Fatalf("TABLE a() QUALIFY: got %#v, want TableClause with Alias=QUALIFY", qs.Body)
 		}
 	}
-	// The clause reading survives in both select-list and FROM contexts.
+	// The clause reading survives in both select-list and FROM contexts,
+	// including when the QUALIFY predicate starts with a non-reserved keyword
+	// or an inline WITH(...) expression.
 	for _, sql := range []string{
 		"SELECT a QUALIFY b",
 		"SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1",
 		"SELECT a FROM t QUALIFY b",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY pivot",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY unpivot",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY qualify",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY match_recognize",
+		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY WITH(x AS 1, x > 0)",
 	} {
 		f, err := Parse(sql)
 		if err != nil {
