@@ -7,22 +7,22 @@
 GoogleSQL `2026.01.1` by `googlesql/parser/cmd/tm2g4`), followed by its
 near-misses, with omni's verdict (`spanner/parser.Parse`, delegating to
 `googlesql/parser.ParseWithDialect(..., DialectSpanner)`) and the pinned Cloud
-Spanner emulator's verdict (`../../testdata/pins.tsv`, `default` role:
-`gcr.io/cloud-spanner-emulator/emulator:1.5.54`).
+Spanner emulator's verdict (`../../testdata/pins.tsv`, `parser` role, judge
+revision 2: `gcr.io/cloud-spanner-emulator/emulator:1.5.54`).
 
 `TestCompatibility` (`../compat_test.go`) reads the committed file through
 `enginetest/compat` and requires **no Docker and no network access** in offline
 replay. Recorded against the pinned Spanner emulator `1.5.54` through
-`googlesql/spanner-oracle` (~47 seconds for all 8,837 rows) and verified
+`googlesql/spanner-oracle` (~39 seconds for all 8,837 rows) and verified
 end-to-end with `OMNI_RECORD=verify` with zero differences.
 
 ### Current counts
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,576 | 38 | 0 | 98.55% |
-| Near-misses | 6,223 | 5,169 | 1,054 | 0 | 83.06% |
-| **All** | **8,837** | **7,745** | **1,092** | **0** | **87.64%** |
+| One per alternative | 2,614 | 2,556 | 0 | 58 | 97.78% |
+| Near-misses | 6,223 | 6,205 | 0 | 18 | 99.71% |
+| **All** | **8,837** | **8,761** | **0** | **76** | **99.14%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
 refuses every input (`../../../googlesql/testdata/tokens.tsv`).
@@ -54,29 +54,47 @@ lifting generated-row agreement from **7,335 / 8,837 (83.00%)** to
 | Query clauses (`QUALIFY`, `IS [NOT] DISTINCT FROM`, `(SELECT ...) AS a`) | 13 | Rejects `QUALIFY` clause, `IS [NOT] DISTINCT FROM`, and parenthesized outer query aliases while preserving `QUALIFY` as a non-reserved identifier (`SELECT QUALIFY`, `SELECT NULL QUALIFY`, `TABLE a() QUALIFY`). |
 | `TRUNCATE`, non-`TABLE` `RENAME`, empty DDL `OPTIONS()` | 6 | Rejects `TRUNCATE TABLE`, `RENAME` of non-`TABLE` objects, and empty `OPTIONS()` in Spanner DDL (preserving non-DDL `OPTIONS()` in `MODULE`, `LOAD DATA`, and `SELECT WITH`). |
 
-### Why 1,092 rows remain in `Only Spanner accepts`
+### Judge revision 2 (`PinRole: "parser"`)
 
-Every remaining `Only Spanner accepts` row (38 alternatives, 1,054 near-misses)
-is a statement the Spanner emulator `1.5.54` refuses **before parsing** with
-`Statement not supported` (or an analysis error after shallow dispatch), which
-the oracle harness records as `accept` for valid and broken text alike (see
-`../../../googlesql/parser/testdata/README.md` for the full measurement):
+At judge revision 1 (`default` pin), `compat.tsv` had **7,745 / 8,837 (87.64%)**
+agreement with **1,092 `Only Spanner accepts`** and **0 `Only omni accepts`**.
+Judge revision 2 eliminates all 1,092 judge false-accepts (**1,092 → 0**):
 
-- Pipe syntax (`|>`, 750 rows: all 33 pipe-only alternatives are GoogleSQL's
-  explicit error-recovery productions such as `|> LOG(SELECT`, `|> GROUP`,
-  `|> SET a.`, `|> ELSEIF`, `|> EXPORT DATA AS`, plus 717 malformed pipe
-  near-misses)
-- Pre-parse `Statement not supported` dispatch families: `MERGE` (80),
-  `LOAD DATA` (71), `BEGIN ... END` (42), `EXECUTE IMMEDIATE` (21), `EXPORT`
-  (18), `IMPORT` (16), `UNDROP` (13, including 4 `UNDROP CONNECTION`
-  alternatives), `SHOW` (12), `CLONE DATA` (10), `SET TRANSACTION` / `SET @@...`
-  (10), `MODULE` (7), `ASSERT` (6), `DESCRIBE` (5), `DEFINE` (4), `COMMIT` /
-  `ROLLBACK` (6), `EXPLAIN` (2)
-- Non-syntax post-dispatch errors: `CREATE PROPERTY GRAPH` duplicate
-  `DYNAMIC LABEL` / stray `)` (4) and `SELECT EXCEPT` / shallow query errors (6)
+- **Parse-error fallback (`Statement not supported: <Kind>Stmt`, 1,080 rows):**
+  When GoogleSQL's `ParseStatement` succeeds on an unsupported statement kind,
+  it reports the AST node name ending in `Statement` or `Assignment`
+  (`SubpipelineStatement`, `MergeStatement`, `BeginStatement`,
+  `SingleAssignment`, etc. — all 533 remain `accept`). When `ParseStatement`
+  fails on an unsupported statement kind, GoogleSQL's fallback path
+  (`GetNextStatementKind`) replaces the syntax error with the `ResolvedNodeKind`
+  name ending in `Stmt` (`SubpipelineStmt`, `MergeStmt`, `AuxLoadDataStmt`,
+  `BeginStmt`, `UndropStmt`, etc.). Judge rev 2 classifies `...Stmt` as `reject`.
+- **Lookahead tokenizer and dynamic grammar-action refusals (10 rows):**
+  Rejects `EXCEPT must be followed by ALL, DISTINCT, or "("` (7 rows) and
+  `DYNAMIC LABEL|PROPERTIES cannot be used more than once in a single element
+  table` (3 rows, `MakeSyntaxError` in `googlesql.tm:2862`).
+- **`CREATE VIEW` missing `SQL SECURITY` (2 rows):** Re-asks with a
+  `SQL SECURITY INVOKER` stand-in before `AS` so broken view bodies
+  (`CREATE VIEW a AS NULL`, `CREATE VIEW a AS SELECT`) reject on syntax while
+  valid view bodies (`CREATE VIEW a AS SELECT NULL`) stay accepted.
 
-Matching those cells would mean accepting invalid SQL that GoogleSQL's own
-grammar refuses.
+### Remaining 76 `Only omni accepts` rows exposed by judge revision 2
+
+Judge rev 2 revealed 76 rows where the Spanner emulator `1.5.54` genuinely
+rejects parsing via the `...Stmt` parse-error fallback while `DialectSpanner`
+currently accepts them (tracked for a dedicated `DialectSpanner` parser
+follow-up):
+
+- `|> MATCH_RECOGNIZE(...)` pipe operator (47 rows: `MATCH_RECOGNIZE` is
+  non-reserved in Spanner emulator `1.5.54`)
+- `BEGIN ... END` / `a : BEGIN END` scripting blocks (13 rows: `BeginStmt`;
+  SQL transaction `BEGIN` remains accepted as `BeginStatement`)
+- `LOAD DATA` with `PARTITIONS(...)`, `TEMP[ORARY] TABLE`, or empty `()` column
+  list (7 rows: `AuxLoadDataStmt`)
+- Bare `|> INSERT REPLACE` / `|> INSERT UPDATE` without `OR` (4 rows)
+- Truncated `|> EXPORT` / `|> EXPORT AS` without `DATA` (2 rows)
+- `DESCRIBE ... |> ...` pipe suffix on `DESCRIBE` (2 rows: `DescribeStmt`)
+- `|> AGGREGATE GROUP AND ORDER BY ...` (1 row)
 
 ## Recording and verification commands
 
