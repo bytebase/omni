@@ -178,3 +178,124 @@ func TestLoadMetadataInstallsSequences(t *testing.T) {
 		t.Errorf("missing %v, want sequence:bad", report.Missing)
 	}
 }
+
+func TestSequenceWrongObjectAndRename(t *testing.T) {
+	execCode := func(t *testing.T, c *Catalog, sql string) int {
+		t.Helper()
+		res, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("%s: parse error: %v", sql, err)
+		}
+		if len(res) == 0 {
+			return 0
+		}
+		return int(mysqlErrorCode(res[0].Error))
+	}
+
+	t.Run("ALTER and DROP SEQUENCE on table, view, and temporary table", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE DATABASE d;
+			USE d;
+			CREATE TABLE tbl (a INT PRIMARY KEY);
+			CREATE VIEW vw AS SELECT a FROM tbl;
+			CREATE TEMPORARY TABLE tmp (a INT);
+			CREATE SEQUENCE seq;
+		`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cases := []struct {
+			stmt string
+			want int
+		}{
+			{"ALTER SEQUENCE tbl INCREMENT 2", ErrWrongObject},
+			{"ALTER SEQUENCE IF EXISTS tbl INCREMENT 2", ErrWrongObject},
+			{"ALTER SEQUENCE vw NOMINVALUE", ErrWrongObject},
+			{"ALTER SEQUENCE tmp INCREMENT 2", ErrNoSuchTable},
+			{"DROP SEQUENCE tbl", ErrWrongObject},
+			{"DROP SEQUENCE vw", ErrWrongObject},
+			{"DROP SEQUENCE tmp", ErrUnknownSequence},
+			{"DROP SEQUENCE IF EXISTS tbl", 0},
+			{"DROP SEQUENCE IF EXISTS vw", 0},
+			{"DROP SEQUENCE IF EXISTS tmp", 0},
+			{"CREATE SEQUENCE tmp", 0},
+			{"DROP SEQUENCE seq, tbl", ErrWrongObject},
+		}
+		for _, tc := range cases {
+			if got := execCode(t, c, tc.stmt); got != tc.want {
+				t.Errorf("%s: got %d, want %d", tc.stmt, got, tc.want)
+			}
+		}
+		// DROP SEQUENCE seq, tbl drops seq before returning 1347 for tbl.
+		if c.GetDatabase("d").Sequences["seq"] != nil {
+			t.Errorf("expected seq to be dropped before tbl failed")
+		}
+		if c.GetDatabase("d").Tables["tbl"] == nil {
+			t.Errorf("expected tbl to remain after DROP SEQUENCE")
+		}
+	})
+
+	t.Run("DROP VIEW and CREATE OR REPLACE VIEW on sequence", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE DATABASE d;
+			USE d;
+			CREATE TABLE tbl (a INT PRIMARY KEY);
+			CREATE SEQUENCE seq;
+		`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, stmt := range []string{
+			"DROP VIEW seq",
+			"DROP VIEW IF EXISTS seq",
+			"CREATE OR REPLACE VIEW seq AS SELECT 1 AS a",
+			"CREATE OR REPLACE VIEW tbl AS SELECT 1 AS a",
+		} {
+			if got := execCode(t, c, stmt); got != ErrWrongObject {
+				t.Errorf("%s: got %d, want %d", stmt, got, ErrWrongObject)
+			}
+		}
+		if c.GetDatabase("d").Sequences["seq"] == nil {
+			t.Errorf("expected seq to remain after refused view statements")
+		}
+	})
+
+	t.Run("RENAME TABLE moves sequences within and across databases", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE DATABASE a;
+			CREATE DATABASE b;
+			USE a;
+			CREATE SEQUENCE s1 START WITH 10 INCREMENT BY 2;
+			CREATE TABLE t1 (x INT);
+		`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := execCode(t, c, "RENAME TABLE s1 TO s2"); got != 0 {
+			t.Fatalf("RENAME TABLE s1 TO s2: got %d, want 0", got)
+		}
+		if c.GetDatabase("a").Sequences["s1"] != nil || c.GetDatabase("a").Sequences["s2"] == nil {
+			t.Fatalf("expected s1 renamed to s2 in a")
+		}
+		if got, want := c.ShowCreateSequence("a", "s2"), "CREATE SEQUENCE `s2` start with 10 minvalue 1 maxvalue 9223372036854775806 increment by 2 cache 1000 nocycle ENGINE=InnoDB"; got != want {
+			t.Errorf("ShowCreateSequence(a, s2) =\n  %s\nwant\n  %s", got, want)
+		}
+		// Cross-database rename of a sequence succeeds.
+		if got := execCode(t, c, "RENAME TABLE s2 TO b.s3"); got != 0 {
+			t.Fatalf("RENAME TABLE s2 TO b.s3: got %d, want 0", got)
+		}
+		if c.GetDatabase("a").Sequences["s2"] != nil || c.GetDatabase("b").Sequences["s3"] == nil {
+			t.Fatalf("expected s2 moved to b.s3")
+		}
+		if c.GetDatabase("b").Sequences["s3"].Database != c.GetDatabase("b") {
+			t.Errorf("expected renamed sequence Database pointer updated to b")
+		}
+		// Atomic rollback when a second pair collides with a table.
+		if got := execCode(t, c, "RENAME TABLE b.s3 TO b.s4, b.s4 TO a.t1"); got != ErrDupTable {
+			t.Fatalf("RENAME TABLE collision: got %d, want %d", got, ErrDupTable)
+		}
+		if c.GetDatabase("b").Sequences["s3"] == nil || c.GetDatabase("b").Sequences["s4"] != nil {
+			t.Errorf("expected failed multi-pair RENAME TABLE to leave b.s3 intact")
+		}
+	})
+}
