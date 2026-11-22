@@ -79,6 +79,12 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 	}
 
 	if p.cur.Type != kwTO {
+		if privs.all && !privs.privileges {
+			ahead := p.peekAhead(2)
+			if len(ahead) == 2 && ahead[0].Type == kwON && ahead[1].Type != tokQIDENT && ahead[1].Str == "SCHEMA" {
+				return nil, p.syntaxErrorAtTok(privs.allStart)
+			}
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
@@ -360,6 +366,12 @@ func (p *Parser) parseGrantPrivileges() (*grantPrivileges, error) {
 		switch p.cur.Type {
 		case ',', kwON, kwTO, kwFROM:
 		default:
+			if len(g.items) > 0 && !grantObjectPrivileges.names[g.items[0].name] {
+				ahead := p.peekAhead(2)
+				if len(ahead) == 2 && ahead[0].Type == kwON && !(ahead[1].Type != tokQIDENT && ahead[1].Str == "SCHEMA") {
+					return nil, p.syntaxErrorAtTok(g.items[0].start)
+				}
+			}
 			return nil, p.syntaxErrorAtTok(item.start)
 		}
 		g.items = append(g.items, item)
@@ -447,7 +459,9 @@ func (p *Parser) parseGrantOnClause(g *grantPrivileges) (grantOnKind, nodes.Obje
 
 	// The privileges first: Oracle 23ai fails at a wrong one before it
 	// reads the object.
-	for _, item := range g.items {
+	var lastInvalidSchemaPriv *grantPrivilege
+	for i := range g.items {
+		item := g.items[i]
 		var ok bool
 		switch kind {
 		case grantOnSchema:
@@ -455,6 +469,10 @@ func (p *Parser) parseGrantOnClause(g *grantPrivileges) (grantOnKind, nodes.Obje
 				return 0, 0, nil, p.syntaxErrorAtTok(onTok)
 			}
 			ok = auditSystemPrivileges.names[item.name]
+			if !ok {
+				lastInvalidSchemaPriv = &g.items[i]
+				continue
+			}
 		case grantOnUser:
 			ok = grantUserPrivileges.names[item.name]
 		default:
@@ -466,6 +484,9 @@ func (p *Parser) parseGrantOnClause(g *grantPrivileges) (grantOnKind, nodes.Obje
 		if item.hasCols && kind != grantOnObject {
 			return 0, 0, nil, p.syntaxErrorAtTok(item.columns)
 		}
+	}
+	if lastInvalidSchemaPriv != nil {
+		return 0, 0, nil, p.syntaxErrorAtTok(lastInvalidSchemaPriv.start)
 	}
 	if kind == grantOnSchema && g.all && !g.privileges {
 		return 0, 0, nil, p.syntaxErrorAtTok(g.allStart)

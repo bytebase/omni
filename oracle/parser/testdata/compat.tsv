@@ -10776,7 +10776,7 @@ accept	accept	engine	alterMaterializedView_index_compression(alterMaterializedVi
 reject@40	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/alterMaterializedView_advanced_index_compression!truncate	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION COMPRESS
 reject@40	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/alterMaterializedView_advanced_index_compression!insert	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION COMPRESS ADVANCED zzz))
 reject@40	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/alterMaterializedView_advanced_index_compression!swap	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION COMPUTATION ADVANCED))
-accept	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/NOCOMPRESS	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION NOCOMPRESS))
+reject@40	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/NOCOMPRESS	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION NOCOMPRESS))
 reject@40	reject@40	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/NOCOMPRESS!insert	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION NOCOMPRESS zzz))
 accept	accept	engine	alterMaterializedView_index_compression(alterMaterializedView_prefix_compres~61b9830e)/NOCOMPRESS!swap	ALTER MATERIALIZED VIEW a ADD PARTITION UPDATE INDEXES(a(PARTITION NOCOPY))
 accept	accept	engine	alterMaterializedView_ilm_compression_policy/(alterMaterializedView_table_compress~e720f613)_(SEGMEN~8604fe6d	ALTER MATERIALIZED VIEW a ADD PARTITION ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -14901,7 +14901,7 @@ accept	accept	engine	alterTable_modify_table_subpartition(CASCADE)?/%empty	ALTER
 accept	accept	engine	alterTable_modify_table_subpartition(CASCADE)?/CASCADE	ALTER TABLE a MODIFY SUBPARTITION a SHRINK SPACE CASCADE
 reject@57	reject@57	engine	alterTable_modify_table_subpartition(CASCADE)?/CASCADE!insert	ALTER TABLE a MODIFY SUBPARTITION a SHRINK SPACE CASCADE zzz
 reject@49	reject@49	engine	alterTable_modify_table_subpartition(CASCADE)?/CASCADE!swap	ALTER TABLE a MODIFY SUBPARTITION a SHRINK SPACE CASE
-accept	reject@43	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)	ALTER TABLE a MODIFY SUBPARTITION a LOB(a)(RETENTION)
+reject@43	reject@43	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)	ALTER TABLE a MODIFY SUBPARTITION a LOB(a)(RETENTION)
 reject@35	reject@35	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!drop-1	ALTER TABLE a MODIFY SUBPARTITION a(a)(RETENTION)
 reject@40	reject@40	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!drop-2	ALTER TABLE a MODIFY SUBPARTITION a LOB a)(RETENTION)
 reject@40	reject@40	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!drop-3	ALTER TABLE a MODIFY SUBPARTITION a LOB()(RETENTION)
@@ -16099,7 +16099,7 @@ accept	accept	engine	alterTable_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SO
 accept	accept	engine	alterTable_column_definition(COLLATE_ID)?/%empty	ALTER TABLE a ADD(a NUMBER)
 accept	reject@0	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 reject@27	reject@27	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!drop-1	ALTER TABLE a ADD(a NUMBER a)
-accept	reject@0	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a ADD(a NUMBER COLLATE)
+reject@34	reject@0	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a ADD(a NUMBER COLLATE)
 reject@34	reject@0	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a ADD(a NUMBER COLLATE
 reject@37	reject@0	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a ADD(a NUMBER COLLATE a zzz)
 reject@27	reject@27	engine	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID!swap	ALTER TABLE a ADD(a NUMBER COLLATION a)
@@ -19509,8 +19509,8 @@ reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GRO
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
 reject@61	reject@61	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS GROUP zzz AFTER 1 DAY OF CREATION
 reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS GROUPING AFTER 1 DAY OF CREATION
-accept	reject@0	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
-reject@59	reject@0	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
+reject@55	reject@0	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
+reject@55	reject@0	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
 reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS ROWDEPENDENCIES AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF NO ACCESS
 reject@78	reject@78	engine	alterTablespaceSet_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS!drop-1	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF ACCESS
@@ -20248,8 +20248,8 @@ reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|
 accept	accept	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
 reject@57	reject@57	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP zzz AFTER 1 DAY OF CREATION
 reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUPING AFTER 1 DAY OF CREATION
-accept	reject@0	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
-reject@55	reject@0	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
+reject@51	reject@0	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
+reject@51	reject@0	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
 reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROWDEPENDENCIES AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF NO ACCESS
 reject@74	reject@74	engine	alterTablespace_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS!drop-1	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF ACCESS
@@ -21574,7 +21574,7 @@ reject@12	reject@12	engine	call(call_routine_clause|call_object_acce~73bee1f4)/c
 accept	accept	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/%empty	CALL a()
 accept	accept	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?	CALL a() INTO : a
 reject@9	reject@9	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!drop-1	CALL a() : a
-reject@14	reject@15	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!drop-2	CALL a() INTO a
+reject@15	reject@15	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!drop-2	CALL a() INTO a
 reject@15	reject@15	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!drop-3	CALL a() INTO :
 reject@18	reject@18	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!insert	CALL a() INTO : a zzz
 reject@9	reject@9	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!swap	CALL a() INVALIDATE : a
@@ -28694,7 +28694,7 @@ accept	accept	engine	createMaterializedView_xmltype_storage(SECUREFILE|BASICFILE
 reject@56	reject@56	engine	createMaterializedView_xmltype_storage(SECUREFILE|BASICFILE)?/BASICFILE!insert	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BASICFILE zzz CLOB AS SELECT 1 FROM dual
 reject@46	reject@46	engine	createMaterializedView_xmltype_storage(SECUREFILE|BASICFILE)?/BASICFILE!swap	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BATCH CLOB AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/CLOB	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS CLOB AS SELECT 1 FROM dual
-accept	reject@57	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/BINARY_XML	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BINARY XML AS SELECT 1 FROM dual
+reject@57	reject@57	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/BINARY_XML	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BINARY XML AS SELECT 1 FROM dual
 reject@46	reject@46	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/BINARY_XML!drop-1	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS XML AS SELECT 1 FROM dual
 reject@53	reject@53	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/BINARY_XML!drop-2	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BINARY AS SELECT 1 FROM dual
 reject@52	reject@52	engine	createMaterializedView_xmltype_storage(CLOB|BINARY_XML)/BINARY_XML!truncate	CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS BINARY
@@ -31682,7 +31682,7 @@ reject@25	reject@25	engine	createSynonym(@_ID)?/@_ID!insert	CREATE SYNONYM a FOR
 reject@14	reject@14	engine	createTable/CREATE_((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?~1e4d5176	CREATE TABLE a
 reject@14	reject@14	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/%empty	CREATE TABLE a
 reject@7	reject@7	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/%empty!insert	CREATE zzz TABLE a
-reject@22	reject@21	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)	CREATE SHARDED TABLE a
+reject@21	reject@21	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)	CREATE SHARDED TABLE a
 reject@15	reject@15	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)!insert	CREATE SHARDED zzz TABLE a
 reject@7	reject@7	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)!swap	CREATE SHARDS TABLE a
 reject@31	reject@31	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/GLOBAL_TEMPORARY	CREATE GLOBAL TEMPORARY TABLE a
@@ -31696,7 +31696,7 @@ reject@7	reject@7	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~095323
 reject@7	reject@7	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/PRIVATE_TEMPORARY!truncate	CREATE PRIVATE
 reject@25	reject@25	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/PRIVATE_TEMPORARY!insert	CREATE PRIVATE TEMPORARY zzz TABLE a
 reject@7	reject@7	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/PRIVATE_TEMPORARY!swap	CREATE PRIVATE_SGA TEMPORARY TABLE a
-reject@22	reject@21	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/SHARDED	CREATE SHARDED TABLE a
+reject@21	reject@21	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/SHARDED	CREATE SHARDED TABLE a
 reject@25	reject@0	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/DUPLICATED	CREATE DUPLICATED TABLE a
 reject@18	reject@18	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/DUPLICATED!insert	CREATE DUPLICATED zzz TABLE a
 reject@7	reject@7	engine	createTable(GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|S~0953230f)/DUPLICATED!swap	CREATE DV TABLE a
@@ -31756,9 +31756,9 @@ reject@27	reject@27	engine	createTable(MEMOPTIMIZE_FOR_WRITE)?/MEMOPTIMIZE_FOR_W
 reject@37	reject@37	engine	createTable(MEMOPTIMIZE_FOR_WRITE)?/MEMOPTIMIZE_FOR_WRITE!insert	CREATE TABLE a MEMOPTIMIZE FOR WRITE zzz
 reject@15	reject@15	engine	createTable(MEMOPTIMIZE_FOR_WRITE)?/MEMOPTIMIZE_FOR_WRITE!swap	CREATE TABLE a MEMORY FOR WRITE
 reject@14	reject@14	engine	createTable(PARENT_(ID_.)?_ID)?/%empty	CREATE TABLE a
-accept	reject@22	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID	CREATE TABLE a PARENT a
+reject@22	reject@22	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID	CREATE TABLE a PARENT a
 accept	accept	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID!drop-2	CREATE TABLE a PARENT
-reject@24	reject@22	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID!insert	CREATE TABLE a PARENT a zzz
+reject@22	reject@22	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID!insert	CREATE TABLE a PARENT a zzz
 reject@15	reject@15	engine	createTable(PARENT_(ID_.)?_ID)?/PARENT_(ID_.)?_ID!swap	CREATE TABLE a PARENT_LEVEL_NAME a
 reject@14	reject@14	engine	createTable_relational_table/((_createTable_relational_properties_))?_(createTable_i~534f41a1	CREATE TABLE a
 reject@14	reject@14	engine	createTable_relational_table((_createTable_relational_properties_))?/%empty	CREATE TABLE a
@@ -32107,11 +32107,11 @@ reject@29	reject@29	engine	createTable_table_properties(createTable_enable_disab
 reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause_cr~fd48306f)*/createTable_enable_disable_clause_(createTable_enable_d~0251b98f!insert	CREATE TABLE a ENABLE PRIMARY KEY zzz
 reject@15	reject@15	engine	createTable_table_properties(createTable_enable_disable_clause_cr~fd48306f)*/createTable_enable_disable_clause_(createTable_enable_d~0251b98f!swap	CREATE TABLE a ENABLE_ALL PRIMARY KEY
 accept	accept	engine	createTable_table_properties(createTable_enable_disable_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY
-accept	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY KEY
+reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY KEY
 reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY PRIMARY KEY
-reject@41	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY ENABLE KEY
-reject@48	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY
-reject@53	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY KEY zzz
+reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY ENABLE KEY
+reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY
+reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY ENABLE PRIMARY KEY zzz
 reject@34	reject@34	engine	createTable_table_properties(createTable_enable_disable_clause)?/createTable_enable_disable_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY ENABLE_ALL PRIMARY KEY
 reject@14	reject@14	engine	createTable_table_properties(createTable_row_movement_clause)?/%empty	CREATE TABLE a
 reject@15	reject@15	engine	createTable_table_properties(createTable_row_movement_clause)?/createTable_row_movement_clause	CREATE TABLE a ENABLE ROW MOVEMENT
@@ -33154,7 +33154,7 @@ reject@32	reject@32	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*
 reject@22	reject@22	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/UNIQUE_(_ID_(,_ID)*_)!swap	CREATE TABLE a ENABLE UNITE(a)
 accept	accept	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/PRIMARY_KEY	CREATE TABLE a ENABLE PRIMARY KEY
 reject@22	reject@22	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/PRIMARY_KEY!swap	CREATE TABLE a ENABLE PRIORITY KEY
-accept	reject@34	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID	CREATE TABLE a ENABLE CONSTRAINT a
+reject@34	reject@34	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID	CREATE TABLE a ENABLE CONSTRAINT a
 reject@22	reject@22	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!drop-1	CREATE TABLE a ENABLE a
 reject@32	reject@32	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!drop-2	CREATE TABLE a ENABLE CONSTRAINT
 reject@35	reject@35	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!insert	CREATE TABLE a ENABLE CONSTRAINT a zzz
@@ -33167,31 +33167,31 @@ reject@31	reject@31	engine	createTable_enable_disable_clause(,_ID)*/,_ID_(,_ID)*
 reject@31	reject@31	engine	createTable_enable_disable_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a ENABLE UNIQUE(a,
 reject@32	reject@32	engine	createTable_enable_disable_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a ENABLE UNIQUE(a, a zzz)
 accept	accept	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY
-accept	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
 reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY INDEX
-accept	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING
-accept	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX zzz
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX zzz
 reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_using_index_clause)?/createTable_using_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY VALIDATE INDEX
 accept	accept	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY
-accept	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
 reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY INTO a
-reject@45	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS a
-accept	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO
-reject@52	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a zzz
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS a
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO
+reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a zzz
 reject@34	reject@34	engine	createTable_enable_disable_clause(createTable_exceptions_clause)?/createTable_exceptions_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY EXCHANGE INTO a
 accept	accept	engine	createTable_enable_disable_clause(CASCADE)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY
-accept	reject@34	engine	createTable_enable_disable_clause(CASCADE)?/CASCADE	CREATE TABLE a ENABLE PRIMARY KEY CASCADE
-reject@42	reject@34	engine	createTable_enable_disable_clause(CASCADE)?/CASCADE!insert	CREATE TABLE a ENABLE PRIMARY KEY CASCADE zzz
+reject@34	reject@34	engine	createTable_enable_disable_clause(CASCADE)?/CASCADE	CREATE TABLE a ENABLE PRIMARY KEY CASCADE
+reject@34	reject@34	engine	createTable_enable_disable_clause(CASCADE)?/CASCADE!insert	CREATE TABLE a ENABLE PRIMARY KEY CASCADE zzz
 reject@34	reject@34	engine	createTable_enable_disable_clause(CASCADE)?/CASCADE!swap	CREATE TABLE a ENABLE PRIMARY KEY CASE
 accept	accept	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY
-accept	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX
-accept	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX!drop-2	CREATE TABLE a ENABLE PRIMARY KEY KEEP
-reject@45	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX!insert	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX zzz
+reject@34	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX!drop-2	CREATE TABLE a ENABLE PRIMARY KEY KEEP
+reject@34	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX!insert	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX zzz
 reject@34	reject@34	engine	createTable_enable_disable_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX!swap	CREATE TABLE a ENABLE PRIMARY KEY KEEP_DUPLICATES INDEX
-accept	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/KEEP	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX
-reject@39	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/KEEP!insert	CREATE TABLE a ENABLE PRIMARY KEY KEEP zzz INDEX
-accept	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/DROP	CREATE TABLE a ENABLE PRIMARY KEY DROP INDEX
-reject@39	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/DROP!insert	CREATE TABLE a ENABLE PRIMARY KEY DROP zzz INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/KEEP	CREATE TABLE a ENABLE PRIMARY KEY KEEP INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/KEEP!insert	CREATE TABLE a ENABLE PRIMARY KEY KEEP zzz INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/DROP	CREATE TABLE a ENABLE PRIMARY KEY DROP INDEX
+reject@34	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/DROP!insert	CREATE TABLE a ENABLE PRIMARY KEY DROP zzz INDEX
 reject@34	reject@34	engine	createTable_enable_disable_clause(KEEP|DROP)/DROP!swap	CREATE TABLE a ENABLE PRIMARY KEY DUALITY INDEX
 reject@15	reject@15	engine	createTable_row_movement_clause/(ENABLE|DISABLE)_ROW_MOVEMENT	CREATE TABLE a ENABLE ROW MOVEMENT
 reject@15	reject@15	engine	createTable_row_movement_clause(ENABLE|DISABLE)/ENABLE	CREATE TABLE a ENABLE ROW MOVEMENT
@@ -34494,23 +34494,23 @@ reject@33	reject@33	engine	createTable_zonemap_clause(,_ID)*/,_ID_(,_ID)*!drop-1
 reject@33	reject@33	engine	createTable_zonemap_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a CLUSTERING JOIN a ON(a = a) BY(a) WITH MATERIALIZED ZONEMAP(a,)
 reject@33	reject@33	engine	createTable_zonemap_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a CLUSTERING JOIN a ON(a = a) BY(a) WITH MATERIALIZED ZONEMAP(a,
 reject@33	reject@33	engine	createTable_zonemap_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a CLUSTERING JOIN a ON(a = a) BY(a) WITH MATERIALIZED ZONEMAP(a, a zzz)
-accept	reject@34	engine	createTable_using_index_clause/USING_INDEX_((ID_.)?_ID|createTable_index_properties)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/(ID_.)?_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a
-reject@48	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/(ID_.)?_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a zzz
-accept	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/createTable_index_properties	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_using_index_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a
-reject@50	reject@34	engine	createTable_using_index_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX zzz a
-reject@47	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a.a
-reject@45	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX.a
-reject@48	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a a
-reject@47	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a.zzz a
-accept	reject@34	engine	createTable_exceptions_clause/EXCEPTIONS_INTO_(ID_.)?_ID	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
-accept	reject@34	engine	createTable_exceptions_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
-reject@54	reject@34	engine	createTable_exceptions_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO zzz a
-accept	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a.a
-reject@49	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO.a
-reject@52	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a a
-reject@56	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a.zzz a
+reject@34	reject@34	engine	createTable_using_index_clause/USING_INDEX_((ID_.)?_ID|createTable_index_properties)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/(ID_.)?_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a
+reject@34	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/(ID_.)?_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a zzz
+reject@34	reject@34	engine	createTable_using_index_clause((ID_.)?_ID|createTable_index_properties)/createTable_index_properties	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX zzz a
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a.a
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX.a
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a a
+reject@34	reject@34	engine	createTable_using_index_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX a.zzz a
+reject@34	reject@34	engine	createTable_exceptions_clause/EXCEPTIONS_INTO_(ID_.)?_ID	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO zzz a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a.a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO.a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a a
+reject@34	reject@34	engine	createTable_exceptions_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY EXCEPTIONS INTO a.zzz a
 reject@15	reject@15	engine	createTable_lob_retention_clause/RETENTION_((MAX|MIN_NUMBER|AUTO|NONE))?	CREATE TABLE a VARRAY a STORE AS LOB(RETENTION)
 reject@15	reject@15	engine	createTable_lob_retention_clause((MAX|MIN_NUMBER|AUTO|NONE))?/%empty	CREATE TABLE a VARRAY a STORE AS LOB(RETENTION)
 reject@15	reject@15	engine	createTable_lob_retention_clause((MAX|MIN_NUMBER|AUTO|NONE))?/(MAX|MIN_NUMBER|AUTO|NONE)	CREATE TABLE a VARRAY a STORE AS LOB(RETENTION MAX)
@@ -35204,40 +35204,40 @@ reject@81	reject@81	engine	createTable_hash_subparts_by_quantity(,_ID)*/,_ID_(,_
 reject@81	reject@81	engine	createTable_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1) SUBPARTITIONS 1 STORE IN(a,))
 reject@81	reject@81	engine	createTable_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1) SUBPARTITIONS 1 STORE IN(a,
 reject@81	reject@81	engine	createTable_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES(1) SUBPARTITIONS 1 STORE IN(a, a zzz))
-accept	reject@34	engine	createTable_index_properties/(createTable_global_partitioned_index~62459ff9)?_(creat~b19de97d	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
-reject@56	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX PARTITION BY HASH(a) PARTITIONS 1
-reject@53	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL BY HASH(a) PARTITIONS 1
-reject@63	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION HASH(a) PARTITIONS 1
-reject@65	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY(a) PARTITIONS 1
-reject@71	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH a) PARTITIONS 1
-reject@71	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH() PARTITIONS 1
-reject@73	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a PARTITIONS 1
-reject@74	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) 1
-reject@84	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS
-reject@87	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1 zzz
-accept	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBALLY PARTITION BY HASH(a) PARTITIONS 1
-accept	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-reject@52	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL zzz
-accept	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCATION
-accept	reject@34	engine	createTable_index_properties(createTable_index_attributes)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_properties(createTable_index_attributes)?/createTable_index_attributes	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@49	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX IS a
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE a
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a zzz
-reject@57	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPES IS a
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
-reject@49	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX IS XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS.XMLINDEX
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB XMLINDEX
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.
-reject@56	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX zzz
-reject@57	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPES IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties/(createTable_global_partitioned_index~62459ff9)?_(creat~b19de97d	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH() PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!drop-9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1 zzz
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_global_partitioned_index!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBALLY PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL zzz
+reject@34	reject@34	engine	createTable_index_properties(createTable_global_partitioned_index~62459ff9)?/createTable_local_partitioned_index!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCATION
+reject@34	reject@34	engine	createTable_index_properties(createTable_index_attributes)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_index_attributes)?/createTable_index_attributes	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX IS a
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE a
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a zzz
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_domain_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPES IS a
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS.XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB XMLINDEX
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX zzz
+reject@34	reject@34	engine	createTable_index_properties(createTable_domain_index_clause|crea~091d8ee4)?/createTable_xmlindex_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPES IS XDB.XMLINDEX
 reject@30	reject@30	engine	createTable_ilm_time_period/NUMBER_(DAY|DAYS|MONTH|MONTHS|YEAR|YEARS)	CREATE TABLE a ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@30	reject@30	engine	createTable_ilm_time_period/NUMBER_(DAY|DAYS|MONTH|MONTHS|YEAR|YEARS)!truncate	CREATE TABLE a ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1
 reject@30	reject@30	engine	createTable_ilm_time_period/NUMBER_(DAY|DAYS|MONTH|MONTHS|YEAR|YEARS)!insert	CREATE TABLE a ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY zzz OF CREATION
@@ -35374,123 +35374,123 @@ reject@95	reject@95	engine	createTable_subpartition_template(,_(createTable_rang
 reject@95	reject@95	engine	createTable_subpartition_template(,_(createTable_range_subpartition_de~ce94adbb)*/,_(createTable_range_subpartition_desc|~60759e99)_(,_(c~07197d6b!truncate	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION,
 reject@95	reject@95	engine	createTable_subpartition_template(,_(createTable_range_subpartition_de~ce94adbb)*/,_(createTable_range_subpartition_desc|~60759e99)_(,_(c~07197d6b!insert	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITION zzz) PARTITIONS 1
 reject@95	reject@95	engine	createTable_subpartition_template(,_(createTable_range_subpartition_de~ce94adbb)*/,_(createTable_range_subpartition_desc|~60759e99)_(,_(c~07197d6b!swap	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITIONS) PARTITIONS 1
-accept	reject@34	engine	createTable_global_partitioned_index/GLOBAL_PARTITION_BY_(RANGE_(_ID_)_(_createTable_index_p~fc7406b4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
-reject@103	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@65	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY(a)(PARTITION VALUES LESS THAN(a))
-reject@72	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE a)(PARTITION VALUES LESS THAN(a))
-reject@72	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE()(PARTITION VALUES LESS THAN(a))
-reject@84	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(a))
-reject@75	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a) PARTITION VALUES LESS THAN(a))
-reject@75	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(VALUES LESS THAN(a))
-reject@90	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION LESS THAN(a))
-reject@92	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES THAN(a))
-reject@96	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS(a))
-reject@102	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-10	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN a))
-reject@102	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-11	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN())
-reject@103	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-12	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a)
-reject@103	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a)) zzz
-reject@66	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY READ(a)(PARTITION VALUES LESS THAN(a))
-accept	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/HASH_(_ID_)_(createTable_individual_hash_partitio~b3f7b654)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
-reject@66	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/HASH_(_ID_)_(createTable_individual_hash_partitio~b3f7b654)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASHING(a) PARTITIONS 1
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a) zzz)
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a) PARTITION VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION LESS THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES THAN(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS(a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN a))
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN())
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a)
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a) zzz)
-reject@103	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITIONING VALUES LESS THAN(a))
-accept	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION)
-reject@74	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITION)
-reject@74	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)()
-reject@83	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION
-reject@85	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION) zzz
-reject@74	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITIONING)
-accept	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
-reject@74	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONSET 1
-accept	reject@34	engine	createTable_local_partitioned_index/LOCAL_(createTable_on_range_partitioned_tab~b662b0dc)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-accept	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@61	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL PARTITION)
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL()
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION) zzz
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITIONING)
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_list_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-accept	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_hash_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-reject@51	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_comp_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-accept	reject@34	engine	createTable_index_attributes/(createTable_physical_attributes_clau~50207790)+	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)+/(createTable_physical_attributes_clau~50207790)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)+/(createTable_physical_attributes_clau~50207790)_(create~48cbb388	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_physical_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
-reject@57	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE
-reject@57	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a zzz
-reject@50	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TAG a
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGGING
-reject@54	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGGING zzz
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGICAL
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPRESS
-reject@55	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPRESS zzz
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPUTATION
-reject@55	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX FULL
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING
-reject@55	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL zzz
-reject@56	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE FULL
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NOPARALLEL
-reject@57	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NOPARALLEL zzz
-accept	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NORELOCATE
-reject@57	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a
-reject@57	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT
-reject@57	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT zzz
-reject@57	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT_COLLATION
-reject@56	reject@34	engine	createTable_domain_index_clause/INDEXTYPE_IS_(ID_.)?_ID_(createTable_local_domain_index~16b5b233	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS zzz a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a.a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS.a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a a
-reject@56	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a.zzz a
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL zzz
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCATION
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NOPARALLEL
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NOPARALLEL zzz
-reject@56	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NORELOCATE
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s')
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a('s')
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS 's')
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS()
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s'
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s') zzz
-reject@56	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARENT('s')
-reject@56	reject@34	engine	createTable_xmlindex_clause/INDEXTYPE_IS_XDB_._XMLINDEX_(createTable_local_xmlindex~bda17f2e	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL zzz
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCATION
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NOPARALLEL zzz
-reject@56	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NORELOCATE
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s')
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX('s')
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS 's')
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS()
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s'
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s') zzz
-reject@56	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARENT('s')
+reject@34	reject@34	engine	createTable_global_partitioned_index/GLOBAL_PARTITION_BY_(RANGE_(_ID_)_(_createTable_index_p~fc7406b4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE()(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a) PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-10	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-11	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN())
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!drop-12	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a)
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a)) zzz
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/RANGE_(_ID_)_(_createTable_index_partitioning_clause_(,~9d887c31!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY READ(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/HASH_(_ID_)_(createTable_individual_hash_partitio~b3f7b654)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_global_partitioned_index(RANGE_(_ID_)_(_createTable_index_par~f7bef418)/HASH_(_ID_)_(createTable_individual_hash_partitio~b3f7b654)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASHING(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a) zzz)
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a) PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN())
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!drop-8	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a)
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITION VALUES LESS THAN(a) zzz)
+reject@34	reject@34	engine	createTable_global_partitioned_index(,_createTable_index_partitioning_clause)*/,_createTable_index_partitioning_clause_(,_createTable_~3d54de1b!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a), PARTITIONING VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION)
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITION)
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)()
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITION) zzz
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a)(PARTITIONING)
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONS 1
+reject@34	reject@34	engine	createTable_global_partitioned_index(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY HASH(a) PARTITIONSET 1
+reject@34	reject@34	engine	createTable_local_partitioned_index/LOCAL_(createTable_on_range_partitioned_tab~b662b0dc)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL PARTITION)
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL()
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION) zzz
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_range_partitioned_table!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITIONING)
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_list_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_hash_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_local_partitioned_index(createTable_on_range_partitioned_tab~b662b0dc)?/createTable_on_comp_partitioned_table	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_index_attributes/(createTable_physical_attributes_clau~50207790)+	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)+/(createTable_physical_attributes_clau~50207790)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)+/(createTable_physical_attributes_clau~50207790)_(create~48cbb388	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_physical_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a zzz
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/TABLESPACE_(ID|DEFAULT)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TAG a
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGGING
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGGING zzz
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_logging_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOGICAL
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPRESS
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPRESS zzz
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX COMPUTATION
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX FULL
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL zzz
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_partial_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE FULL
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NOPARALLEL
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NOPARALLEL zzz
+reject@34	reject@34	engine	createTable_index_attributes(createTable_physical_attributes_clau~50207790)/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX NORELOCATE
+reject@34	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE a
+reject@34	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT
+reject@34	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT zzz
+reject@34	reject@34	engine	createTable_index_attributes(ID|DEFAULT)/DEFAULT!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX TABLESPACE DEFAULT_COLLATION
+reject@34	reject@34	engine	createTable_domain_index_clause/INDEXTYPE_IS_(ID_.)?_ID_(createTable_local_domain_index~16b5b233	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS zzz a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a.a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS.a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a a
+reject@34	reject@34	engine	createTable_domain_index_clause(ID_.)?/ID_.!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a.zzz a
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL zzz
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_local_domain_index_clause)?/createTable_local_domain_index_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCATION
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NOPARALLEL
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NOPARALLEL zzz
+reject@34	reject@34	engine	createTable_domain_index_clause(createTable_parallel_clause)?/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a NORELOCATE
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s')
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a('s')
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS 's')
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS()
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s'
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARAMETERS('s') zzz
+reject@34	reject@34	engine	createTable_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a PARENT('s')
+reject@34	reject@34	engine	createTable_xmlindex_clause/INDEXTYPE_IS_XDB_._XMLINDEX_(createTable_local_xmlindex~bda17f2e	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL zzz
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_local_xmlindex_clause)?/createTable_local_xmlindex_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCATION
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NOPARALLEL zzz
+reject@34	reject@34	engine	createTable_xmlindex_clause(createTable_parallel_clause)?/createTable_parallel_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX NORELOCATE
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s')
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX('s')
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS 's')
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS()
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s'
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARAMETERS('s') zzz
+reject@34	reject@34	engine	createTable_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX PARENT('s')
 reject@25	reject@25	engine	createTable_prefix_compression/COMPRESS_(NUMBER)?	CREATE TABLE a(PARTITION COMPRESS)
 reject@25	reject@25	engine	createTable_prefix_compression(NUMBER)?/%empty	CREATE TABLE a(PARTITION COMPRESS)
 reject@25	reject@25	engine	createTable_prefix_compression(NUMBER)?/NUMBER	CREATE TABLE a(PARTITION COMPRESS 1)
@@ -35536,219 +35536,219 @@ reject@64	reject@64	engine	createTable_lob_partitioning_storage((_TABLESPACE_ID_
 reject@15	reject@15	engine	createTable_lob_partitioning_storage())+/)	CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a))
 reject@76	reject@76	engine	createTable_lob_partitioning_storage())+/)_())+	CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a)))
 reject@77	reject@77	engine	createTable_lob_partitioning_storage())+/)_())+!insert	CREATE TABLE a PARTITION BY HASH(a)(PARTITION LOB(a) STORE AS(TABLESPACE a)) zzz)
-reject@103	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a
-reject@75	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITIONING VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_index_partitioning_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@107	reject@34	engine	createTable_index_partitioning_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION zzz VALUES LESS THAN(a))
-reject@105	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(a))
-reject@84	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION
-reject@87	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION a zzz VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_index_partitioning_clause(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@103	reject@34	engine	createTable_index_partitioning_clause(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
-reject@51	reject@34	engine	createTable_on_range_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~7971fe32	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPUTATION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USAGE)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSED)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION PARTITION)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION,)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION,
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION zzz)
-reject@51	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITIONING)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~7971fe32	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_list_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
-accept	reject@34	engine	createTable_on_hash_partitioned_table/((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?_(STORE~830a82ba	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-accept	reject@34	engine	createTable_on_hash_partitioned_table((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?/(_PARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_index_c~356c8acc	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE a)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE a zzz)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TAG a)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(,_PARTITION_ID?_(TABLESPACE_ID)?_cre~0849ba75)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_hash_partitioned_table(,_PARTITION_ID?_(TABLESPACE_ID)?_cre~0849ba75)*/,_PARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_index_c~b934b4aa	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
-accept	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL IN(a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE(a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN()
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a) zzz
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STRICT IN(a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a zzz)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a, a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a a)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a,)
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a,
-reject@52	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a, a zzz)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~af441c94	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION SUBPARTITION))
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION())
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION) zzz)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITIONS))
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(,_PARTITION_ID?_createTable_segment_~76438821)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
-reject@51	reject@34	engine	createTable_on_comp_partitioned_table(,_PARTITION_ID?_createTable_segment_~76438821)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~f3afaf80	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
-reject@55	reject@34	engine	createTable_partial_index_clause/INDEXING_(FULL|PARTIAL)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
-reject@55	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/FULL	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
-reject@55	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/FULL!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FUNCTION
-reject@55	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTIAL
-reject@55	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTIAL zzz
-reject@64	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTITION
-reject@56	reject@34	engine	createTable_local_domain_index_clause/LOCAL_((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL()
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION) zzz
-reject@56	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITIONING)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION zzz)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION a)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION a zzz)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s'))
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION('s'))
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS 's'))
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS())
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s')
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s'
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s') zzz)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARENT('s'))
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARTITION)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION,)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION,
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITION zzz)
-reject@56	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITIONING)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause/LOCAL_((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL()
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION) zzz
-reject@56	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITIONING)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION zzz)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION a)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION a zzz)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s'))
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION('s'))
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS 's'))
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS())
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s')
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s'
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s') zzz)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARENT('s'))
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARTITION)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION,)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION,
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITION zzz)
-reject@56	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITIONING)
-reject@51	reject@34	engine	createTable_index_subpartition_clause/(_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~353cf4c9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION IN(a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE(a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN())
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a)
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a) zzz)
-reject@51	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STRICT IN(a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION a zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE a zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TAG a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPRESS))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPRESS zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPUTATION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE))
-reject@51	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USAGE))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSABLE))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSABLE zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSED))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION SUBPARTITION))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION,))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION,
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITION zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITIONS))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a zzz))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a, a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a a))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a,))
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a,
-reject@51	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a, a zzz))
+reject@34	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a
+reject@34	reject@34	engine	createTable_index_partitioning_clause/PARTITION_(ID)?_VALUES_LESS_THAN_(_ID_)_(createTable_se~1067472e!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITIONING VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION zzz VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION
+reject@34	reject@34	engine	createTable_index_partitioning_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION a zzz VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_index_partitioning_clause(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX GLOBAL PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(a))
+reject@34	reject@34	engine	createTable_on_range_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~7971fe32	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(createTable_index_compression)?/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPUTATION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USAGE)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(USABLE|UNUSABLE)/UNUSABLE!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSED)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION PARTITION)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION,)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION,
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION zzz)
+reject@34	reject@34	engine	createTable_on_range_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITIONING)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~7971fe32	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_list_partitioned_table(,_PARTITION_ID?_createTable_segment_~71549573)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~ccf23243	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table/((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?_(STORE~830a82ba	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table((_PARTITION_ID?_(TABLESPACE_ID)?_cre~066ea5a8)?/(_PARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_index_c~356c8acc	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TABLESPACE a zzz)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION TAG a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_PARTITION_ID?_(TABLESPACE_ID)?_cre~0849ba75)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_PARTITION_ID?_(TABLESPACE_ID)?_cre~0849ba75)*/,_PARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_index_c~b934b4aa	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL IN(a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE(a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN()
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a) zzz
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STRICT IN(a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a zzz)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a, a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a a)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a,)
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a,
+reject@34	reject@34	engine	createTable_on_hash_partitioned_table(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL STORE IN(a, a zzz)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table/(_PARTITION_(ID)?_(createTable_segment_attributes_claus~af441c94	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_segment_attributes_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_segment_attributes_clause)?/createTable_segment_attributes_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION COMPRESS)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION SUBPARTITION))
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION())
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION) zzz)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(createTable_index_subpartition_clause)?/createTable_index_subpartition_clause!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITIONS))
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION USABLE)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION UNUSABLE)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(,_PARTITION_ID?_createTable_segment_~76438821)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_on_comp_partitioned_table(,_PARTITION_ID?_createTable_segment_~76438821)*/,_PARTITION_(ID)?_(createTable_segment_attributes_claus~f3afaf80	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_partial_index_clause/INDEXING_(FULL|PARTIAL)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
+reject@34	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/FULL	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FULL
+reject@34	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/FULL!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING FUNCTION
+reject@34	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTIAL
+reject@34	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTIAL zzz
+reject@34	reject@34	engine	createTable_partial_index_clause(FULL|PARTIAL)/PARTIAL!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXING PARTITION
+reject@34	reject@34	engine	createTable_local_domain_index_clause/LOCAL_((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL()
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION) zzz
+reject@34	reject@34	engine	createTable_local_domain_index_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITIONING)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION zzz)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION a zzz)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s'))
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION('s'))
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS 's'))
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS())
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s')
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s'
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARAMETERS('s') zzz)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARENT('s'))
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION PARTITION)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION,)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION,
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITION zzz)
+reject@34	reject@34	engine	createTable_local_domain_index_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS a LOCAL(PARTITION, PARTITIONING)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause/LOCAL_((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL()
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION) zzz
+reject@34	reject@34	engine	createTable_local_xmlindex_clause((_PARTITION_ID?_(PARAMETERS_(_STRING~f4bb5c92)?/(_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~ef559db7!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITIONING)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION zzz)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION a)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION a zzz)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s'))
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION('s'))
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS 's'))
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS())
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s')
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s'
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARAMETERS('s') zzz)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(PARAMETERS_(_STRING_))?/PARAMETERS_(_STRING_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARENT('s'))
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION PARTITION)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION,)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION,
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITION zzz)
+reject@34	reject@34	engine	createTable_local_xmlindex_clause(,_PARTITION_ID?_(PARAMETERS_(_STRING_))?)*/,_PARTITION_(ID)?_(PARAMETERS_(_STRING_))?_(,_PARTITION~6842a0c6!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX INDEXTYPE IS XDB.XMLINDEX LOCAL(PARTITION, PARTITIONING)
+reject@34	reject@34	engine	createTable_index_subpartition_clause/(_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~353cf4c9	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION IN(a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE(a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN())
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a)
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a) zzz)
+reject@34	reject@34	engine	createTable_index_subpartition_clause/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STRICT IN(a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(ID)?/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(ID)?/ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(ID)?/ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION a zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TABLESPACE a zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(TABLESPACE_ID)?/TABLESPACE_ID!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION TAG a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPRESS))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPRESS zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(createTable_index_compression)?/createTable_index_compression!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION COMPUTATION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE))
+reject@34	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause((USABLE|UNUSABLE))?/(USABLE|UNUSABLE)!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USAGE))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/USABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION USABLE))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSABLE))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSABLE zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(USABLE|UNUSABLE)/UNUSABLE!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION UNUSED))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION SUBPARTITION))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION,))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION,
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITION zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_SUBPARTITION_ID?_(TABLESPACE_ID)?_~c4723a06)*/,_SUBPARTITION_(ID)?_(TABLESPACE_ID)?_(createTable_inde~47f6b08d!swap	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION(SUBPARTITION, SUBPARTITIONS))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/%empty	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/%empty!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a zzz))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a, a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a a))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a,))
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a,
+reject@34	reject@34	engine	createTable_index_subpartition_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a ENABLE PRIMARY KEY USING INDEX LOCAL(PARTITION STORE IN(a, a zzz))
 accept	accept	engine	createTablespaceSet/CREATE_TABLESPACE_SET_ID_(IN_SHARDSPACE_ID)?_(USING_TEM~881912e6	CREATE TABLESPACE SET a
 accept	accept	engine	createTablespaceSet(IN_SHARDSPACE_ID)?/%empty	CREATE TABLESPACE SET a
 accept	accept	engine	createTablespaceSet(IN_SHARDSPACE_ID)?/IN_SHARDSPACE_ID	CREATE TABLESPACE SET a IN SHARDSPACE a
@@ -36983,8 +36983,8 @@ reject@52	reject@52	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP
 accept	accept	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
 reject@58	reject@58	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP zzz AFTER 1 DAY OF CREATION
 reject@52	reject@52	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUPING AFTER 1 DAY OF CREATION
-accept	reject@0	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
-reject@56	reject@0	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
+reject@52	reject@0	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW AFTER 1 DAY OF CREATION
+reject@52	reject@0	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROW zzz AFTER 1 DAY OF CREATION
 reject@52	reject@52	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/ROW!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS ROWDEPENDENCIES AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF NO ACCESS
 reject@75	reject@75	engine	createTablespace_ilm_compression_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/NO_ACCESS!drop-1	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF ACCESS
@@ -40254,10 +40254,10 @@ reject@6	reject@6	engine	grant_grant_schema_privileges/GRANT_(ID_(,_ID)*|ALL_PRI
 reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*	GRANT a ON SCHEMA a TO a
 reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ID_(,_ID)*!insert	GRANT a zzz ON SCHEMA a TO a
 reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON SCHEMA a TO a
-reject@10	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON SCHEMA a TO a
+reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON SCHEMA a TO a
 reject@6	reject@6	engine	grant_grant_schema_privileges(ID_(,_ID)*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOCATE ON SCHEMA a TO a
 reject@6	reject@6	engine	grant_grant_schema_privileges(,_ID)*/%empty	GRANT a ON SCHEMA a TO a
-reject@6	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*	GRANT a, a ON SCHEMA a TO a
+reject@9	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*	GRANT a, a ON SCHEMA a TO a
 reject@6	reject@6	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-1	GRANT a a ON SCHEMA a TO a
 reject@9	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT a, ON SCHEMA a TO a
 reject@9	reject@9	engine	grant_grant_schema_privileges(,_ID)*/,_ID_(,_ID)*!insert	GRANT a, a zzz ON SCHEMA a TO a
@@ -40313,7 +40313,7 @@ reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/
 reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*	GRANT a, a ON a TO a
 reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-1	GRANT a a ON a TO a
 reject@9	reject@9	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!drop-2	GRANT a, ON a TO a
-reject@9	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a, a zzz ON a TO a
+reject@6	reject@6	engine	grant_grant_object_privileges(,_ID_((_ID_(,_ID)*_))?)*/,_ID_((_ID_(,_ID)*_))?_(,_ID_((_ID_(,_ID)*_))?)*!insert	GRANT a, a zzz ON a TO a
 accept	accept	engine	grant_grant_object_privileges(PRIVILEGES)?/%empty	GRANT ALL ON a TO a
 accept	accept	engine	grant_grant_object_privileges(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES ON a TO a
 reject@21	reject@21	engine	grant_grant_object_privileges(PRIVILEGES)?/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON a TO a
@@ -45947,7 +45947,7 @@ reject@34	reject@34	engine	suite:reference	CREATE TABLE omni_bad_R1 (a NUMBER
 accept	accept	engine	suite:reference	CREATE INDEX omni_idx_R1 ON t(a)
 reject@19	reject@19	engine	suite:reference	CREATE INDEX idx ON
 accept	accept	engine	suite:reference	BEGIN NULL; END;
-reject@11	reject@10	engine	suite:reference	BEGIN NULL;
+reject@10	reject@10	engine	suite:reference	BEGIN NULL;
 reject@13	reject@13	engine	suite:reference	CREATE TABLE SELECT (a NUMBER)
 accept	accept	engine	suite:reference	CREATE USER omni_user_R1 IDENTIFIED BY "Temp#12345"
 reject@12	reject@12	engine	suite:reference	CREATE USER IDENTIFIED BY "Temp#12345"
@@ -46066,7 +46066,7 @@ reject@34	reject@34	engine	suite:reference	BEGIN NULL; EXCEPTION WHEN OTHERS NUL
 accept	accept	engine	suite:reference	DECLARE x NUMBER; BEGIN <<l>> CASE WHEN 1 = 1 THEN NULL; x := 1; ELSE x := 2; END CASE l; <<m>> IF x = 1 THEN NULL; END IF m; END;
 reject@11	reject@11	engine	suite:reference	BEGIN LOCK t IN EXCLUSIVE MODE; END;
 reject@5	reject@5	engine	suite:reference	LOCK t IN EXCLUSIVE MODE
-reject@36	reject@35	engine	suite:reference	DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;
+reject@35	reject@35	engine	suite:reference	DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;
 reject@44	reject@44	engine	suite:reference	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. ; BEGIN NULL; END;
 reject@20	reject@20	engine	suite:reference	LOCK TABLE t IN FOO MODE
 reject@22	reject@22	engine	suite:reference	LOCK TABLE t IN SHARE EXCLUSIVE MODE
@@ -46613,15 +46613,15 @@ accept	accept	engine	suite:manifest	CREATE FUNCTION compat_f_R1 RETURN NUMBER IS
 accept	accept	engine	suite:manifest	CREATE PACKAGE compat_pkg_R1 IS PROCEDURE p; END;
 accept	accept	engine	suite:manifest	CREATE TRIGGER compat_tr_R1 BEFORE INSERT ON t BEGIN NULL; END;
 accept	accept	engine	suite:manifest	CREATE TYPE compat_obj_R1 AS OBJECT (a NUMBER)
-reject@47	reject	engine	suite:manifest	CREATE PROCEDURE compat_bad_p_R1 IS BEGIN NULL;
-reject@62	reject	engine	suite:manifest	CREATE FUNCTION compat_bad_f_R1 RETURN NUMBER IS BEGIN RETURN;
+reject@46	reject	engine	suite:manifest	CREATE PROCEDURE compat_bad_p_R1 IS BEGIN NULL;
+reject@61	reject	engine	suite:manifest	CREATE FUNCTION compat_bad_f_R1 RETURN NUMBER IS BEGIN RETURN;
 reject@47	reject	engine	suite:manifest	CREATE PACKAGE compat_bad_pkg_R1 IS PROCEDURE p
 reject@56	reject	engine	suite:manifest	CREATE TRIGGER compat_bad_tr_R1 BEFORE INSERT ON t BEGIN
 reject@39	reject	engine	suite:manifest	CREATE TYPE compat_bad_obj_R1 AS OBJECT
 accept	accept	engine	suite:manifest	DECLARE x NUMBER; BEGIN x := 1; END;
 accept	accept	engine	suite:manifest	BEGIN IF 1 = 1 THEN NULL; END IF; END;
 accept	accept	engine	suite:manifest	BEGIN LOOP EXIT; END LOOP; END;
-reject@17	reject@16	engine	suite:manifest	DECLARE x NUMBER;
+reject@16	reject@16	engine	suite:manifest	DECLARE x NUMBER;
 accept	accept	engine	suite:manifest	CREATE OR REPLACE PROCEDURE compat_p_or_R1 IS BEGIN NULL; END;
 accept	accept	engine	suite:manifest	CREATE PROCEDURE compat_p_param_R1 (p_id IN NUMBER) IS BEGIN NULL; END;
 accept	accept	engine	suite:manifest	CREATE PROCEDURE compat_p_out_R1 (p_id IN OUT NUMBER, p_name OUT VARCHAR2) IS BEGIN p_id := NVL(p_id, 0); END;

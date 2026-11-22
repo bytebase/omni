@@ -1043,7 +1043,7 @@ func (p *Parser) parseTablespaceILMPolicy() error {
 			return err
 		}
 		switch {
-		case p.isKeywordStr("SEGMENT"), p.cur.Type == kwGROUP, p.cur.Type == kwROW:
+		case p.isKeywordStr("SEGMENT"), p.cur.Type == kwGROUP:
 			p.advance()
 		default:
 			return p.syntaxErrorAtCur()

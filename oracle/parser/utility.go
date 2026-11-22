@@ -404,6 +404,9 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 			if stmt.Into == nil {
 				return nil, p.syntaxErrorAtCur()
 			}
+			if _, isCol := stmt.Into.(*nodes.ColumnRef); isCol && p.isStatementEnd() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			return nil, p.syntaxErrorAtNode(stmt.Into)
 		}
 		// [ [ INDICATOR ] :indicator_variable ]

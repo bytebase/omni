@@ -1051,6 +1051,9 @@ func (p *Parser) parseATModifyLobParameters() error {
 			p.advance()
 			err = p.atExpectWord("FREEPOOLS")
 		case p.atWord("RETENTION"):
+			if p.alterSubpartition {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
 			err = p.parseATLobRetention()
 		case p.atWord("DEDUPLICATE"), p.atWord("KEEP_DUPLICATES"), p.atWord("DECRYPT"), p.cur.Type == kwNOCOMPRESS:
@@ -2304,6 +2307,9 @@ func (p *Parser) parseATIndexPartitionDescription() error {
 	}
 	afterNamePos := p.pos()
 	firstAttrTok := p.cur
+	if !hasName && p.cur.Type == kwNOCOMPRESS {
+		return p.syntaxErrorAtCur()
+	}
 	for {
 		switch {
 		case p.isATSegmentAttrStart():

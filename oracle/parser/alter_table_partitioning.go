@@ -356,6 +356,8 @@ func (p *Parser) parseATUnusableLocalIndexes() error {
 //	    | { ADD | DROP } VALUES ( value [, value ]... )
 //	    | read_only_clause | indexing_clause }
 func (p *Parser) parseATModifySubpartition(cmd *nodes.AlterTableCmd) error {
+	defer func(saved bool) { p.alterSubpartition = saved }(p.alterSubpartition)
+	p.alterSubpartition = true
 	cmd.Action = nodes.AT_MODIFY_SUBPARTITION
 	p.advance() // SUBPARTITION
 	name, err := p.parseATPartitionName()

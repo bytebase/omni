@@ -14,18 +14,22 @@ are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
 Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings),
 Wave 4 (inline external table driver types and remaining grammar readings),
 Wave 5 (intra-statement duplicate checks, lexer/ORDER BY offsets, and remaining
-grammar readings), and Wave 6 (hash-cluster partitioning, IOT primary key, TDE
+grammar readings), Wave 6 (hash-cluster partitioning, IOT primary key, TDE
 algorithms, extent/cluster size units, OMF tablespace-set datafiles, index/cluster
 INITRANS, XMLTYPE OBJECT RELATIONAL, zonemap SCALE, MV system partitioning,
 multi-table INSERT duplicates, 3-part ASSOCIATE STATISTICS columns, and
-`suite:lexer`/`suite:reference` exact byte offsets):
+`suite:lexer`/`suite:reference` exact byte offsets), and Wave 7 (`CREATE TABLE`
+`ENABLE`/`DISABLE` primary-key & constraint checks, self-referencing `PARENT`,
+bare `CREATE SHARDED TABLE`, `COLLATE` missing name, MV `XMLTYPE BINARY XML`,
+subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
+`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,898 | 302 | 3 | 331 |
-| Near-misses | 31,318 | 29,851 | 1,333 | 100 | 34 |
-| Hand rows | 1,010 | 918 | 73 | 17 | 2 |
+| One per alternative | 14,534 | 14,072 | 174 | 3 | 285 |
+| Near-misses | 31,318 | 30,090 | 1,107 | 100 | 21 |
+| Hand rows | 1,010 | 921 | 70 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -68,8 +72,8 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
 | `suite:lexer` | 77 | 77 | 0 | 0 | 0 |
-| `suite:reference` | 321 | 247 | 58 | 16 | 0 |
-| `suite:manifest` | 612 | 594 | 15 | 1 | 2 |
+| `suite:reference` | 321 | 249 | 56 | 16 | 0 |
+| `suite:manifest` | 612 | 595 | 14 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -516,26 +520,44 @@ to 77 / 77 (100%)):
 | `CREATE MATERIALIZED VIEW ... PARTITION BY SYSTEM` | 1 | `AS` (47): `ORA-32362`, system partitioning is not supported on materialized views |
 | `INSERT ALL INTO a(a, a)` duplicate column list | 1 | the first repeated column name (`ORA-00957`) |
 
-The remaining 2,195 disagreeing rows are non-grammar causes (92 `suite:*` corpus
+Wave 7 moved 416 more rows to Oracle's exact cell (2 fewer `omni_first`, 359
+fewer `oracle_first`, 59 fewer only-omni-accepts including 4 rows closed onto
+Oracle's `reject@0`, bringing exact byte match from 95.32% (`44,667 / 46,862`)
+to 96.20% (`45,083 / 46,862`) and verdict agreement from 98.96% (`46,375 / 46,862`)
+to 99.09% (`46,434 / 46,862`)):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE ... ENABLE/DISABLE PRIMARY KEY ...` (trailing clause without a `PRIMARY KEY` on the table, `ORA-02432`) and `ENABLE/DISABLE CONSTRAINT <name>` (constraint not defined on the table, `ORA-02250`) | 402 | the token immediately after `PRIMARY KEY` or `<name>` (34) |
+| `GRANT` exact byte offsets (`GRANT ALL zzz ON SCHEMA`, `GRANT a, a ON SCHEMA`, `GRANT a, a zzz ON a`) | 3 | `ALL` (6), second `a` (9), or first `a` (6) |
+| `suite:reference` (`BEGIN NULL;`, `DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); ...`) & `suite:manifest` (`DECLARE x NUMBER;`) exact byte offsets | 3 | `;` (10, 16) at EOF or `(` (35) |
+| `CREATE TABLE ... PARENT` self-reference (`CREATE TABLE a PARENT a [zzz]`) | 2 | parent table name `a` (22, `ORA-02523`) |
+| `CREATE SHARDED TABLE a` without columns | 2 | table name `a` (21) |
+| `CREATE MATERIALIZED VIEW ... XMLTYPE ... STORE AS BINARY XML` without `XMLSCHEMA`/`ELEMENT` | 1 | `AS` (57, `ORA-19001`) |
+| `ALTER TABLE ... MODIFY SUBPARTITION ... LOB (...) (RETENTION)` | 1 | `RETENTION` (43, `ORA-14160`) |
+| `ALTER MATERIALIZED VIEW ... ADD PARTITION UPDATE INDEXES (idx (PARTITION NOCOMPRESS))` | 1 | `UPDATE` (40, `ORA-14006`) |
+| `CALL a() INTO a` bare identifier target | 1 | EOF (15) |
+| `CREATE`/`ALTER TABLESPACE [SET] ... DEFAULT ILM ADD POLICY COMPRESS ROW ...` (`ORA-38336`) and `ALTER TABLE ... ADD (... COLLATE)` missing collation name | 4 verdict rows | `ROW` / `)` (closed from `only_omni` to reject; Oracle reports `reject@0`) |
+
+The remaining 1,779 disagreeing rows are non-grammar causes (89 `suite:*` corpus
 rows, 337 bare `reject` without position, 563 `reject@0` lookups/sub-parsers,
-120 measured `only_oracle` lookups/checks, 367 measured `only_omni`
-engine/setup/value/duplicate checks including `CREATE TABLE`/`ALTER TABLE ADD`/`DROP`
-and `CREATE INDEX` duplicates intentionally left to semantic review, and ~716
+120 measured `only_oracle` lookups/checks, 308 measured `only_omni`
+engine/setup/lookup/duplicate checks including `CREATE TABLE`/`ALTER TABLE ADD`/`DROP`
+and `CREATE INDEX` duplicates intentionally left to semantic review, and ~362
 `another_byte` rows from the documented engine checks below). These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |
 | `DELETE ... MATCH_RECOGNIZE (...)` | 235 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
-| rows whose cell is `reject@0` | 440 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| rows whose cell is `reject@0` | 444 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 111 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
-| `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
+| `suite:reference` | 72 | these statements are the corpus's, so their cells move only with the corpus |
 | `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 62 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
 | `CREATE VIEW a OF XMLTYPE ...` | 34 | `'s'` (35) on the 31 `XMLSCHEMA 's'` rows (`ORA-19002`, the schema URL looked up before `WITH OBJECT IDENTIFIER` or `AS subquery` is read, so even the page's valid forms carry `reject@35`), and 25 or 43 on the 3 near-misses without `'s'` (`CREATE VIEW a OF XMLTYPE WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual`, with no `XMLSCHEMA`, parses to `ORA-22980`) |
 | `ALTER DIMENSION ...` | 70 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 70 `ALTER DIMENSION` rows here, 30 carry `reject@0` (a clause word Oracle has no form for) |
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 6 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see above) |
-| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | the token after the `enable_disable_clause` (34), which is `USING` here: `ORA-02432`, "cannot enable primary key - primary key not defined for table". Not a token the grammar cannot take: the check is of the table's element list, and where that token is the end of the statement the recording reads the check as an accept (`CREATE TABLE a ENABLE PRIMARY KEY` answers `ORA-02432` at 33 and agrees today). With a primary key defined the clause is read — `... (b NUMBER, PRIMARY KEY(b)) ENABLE PRIMARY KEY USING INDEX` parses — and a bare index name after `USING INDEX` is `ORA-03049` at the name. omni leaves the check to the engine, as `parser.go`'s `createTableEngineCheck` says and names ORA-02432 for, so the rows stay |
 | `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 59 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
 
 What is left of those is near-misses whose own token is Oracle's answer
