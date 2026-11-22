@@ -911,8 +911,10 @@ func (p *Parser) isBareDoColumnRef(exprStart int, expr nodes.ExprNode) bool {
 	if !ok {
 		return false
 	}
-	if exprStart >= 0 && col.Loc.Start > exprStart && col.Loc.Start <= len(p.lexer.input) {
-		lex := NewLexer(p.lexer.input[exprStart:col.Loc.Start])
+	start := exprStart - p.lexer.baseOffset
+	end := col.Loc.Start - p.lexer.baseOffset
+	if start >= 0 && end > start && end <= len(p.lexer.input) {
+		lex := NewLexer(p.lexer.input[start:end])
 		for {
 			tok := lex.NextToken()
 			if tok.Type == tokEOF {
