@@ -356,11 +356,10 @@ func unsupportedTable(v *ast.CreateTableStmt) bool {
 }
 
 // createTable follows CREATE TABLE. One object: every check holds against
-// the state before the statement.
+// the state before the statement. An unsupported table kind (graph, file,
+// system-versioned, ledger, or memory-optimized) still checks schema
+// existence and object-name availability before ending the walk.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
-	if unsupportedTable(v) {
-		return false
-	}
 	r, ok := b.ref(v.Name, true)
 	if !ok {
 		return false
@@ -370,6 +369,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	if b.refTooLong(v.Name, r) {
+		return true
+	}
+	if unsupportedTable(v) {
+		b.schemaNeeds(r)
+		b.lacksObject(r, kindTable)
+		b.Last = true
 		return true
 	}
 	d := &tableDef{}
@@ -452,7 +457,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	for _, a := range actions {
 		b.Next()
 		if !b.alterAction(r, path, known, a) {
-			return false
+			b.Last = true
+			return true
 		}
 	}
 	return true
@@ -587,7 +593,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 			return false
 		}
 		return b.dropConstraint(r, path, known, cn, a.IfExists, rng)
-	case ast.ATAlterColumn:
+	case ast.ATAlterColumn, ast.ATAlterColumnAddDrop:
 		cn, ok := keyed(a.ColName)
 		if !ok {
 			return false
@@ -617,7 +623,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		}
 	case ast.ATEnableTrigger:
 		b.Session(func() { b.w.triggers = true })
-	case ast.ATDisableTrigger, ast.ATRebuild, ast.ATEnableChangeTracking, ast.ATDisableChangeTracking, ast.ATAlterColumnAddDrop:
+	case ast.ATDisableTrigger, ast.ATRebuild, ast.ATEnableChangeTracking, ast.ATDisableChangeTracking:
 	case ast.ATSet:
 		if a.Options != nil {
 			for _, item := range a.Options.Items {
@@ -882,6 +888,48 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(v.Name), r.written))))
 	b.arrive(spaceIndex, path, in, kindIndex)
+	return true
+}
+
+// createSpecializedIndex follows CREATE [PRIMARY|SELECTIVE] XML INDEX and
+// CREATE SPATIAL INDEX: unlike ordinary indexes, these can only be created
+// on a user table (1088 missing, 6334 non-table), and their index name must
+// be free on the table (1913) or exist when DROP_EXISTING = ON (7999).
+func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, opts *ast.List, kind string) bool {
+	in, ok := keyed(name)
+	if !ok {
+		return false
+	}
+	rebuild, ok := dropExisting(opts)
+	if !ok {
+		return false
+	}
+	r, ok := b.ref(table, false)
+	if !ok {
+		return false
+	}
+	if r.where == unplaced {
+		b.forgetTable(r)
+	}
+	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), notKind(r.written, "table", kindTable))
+	if b.refTooLong(table, r) || b.tooLong(name, false, b.anchor()) {
+		return true
+	}
+	known := b.knownTable(r)
+	if !known {
+		if r.where == placed {
+			b.forgetMeant(r, spaceIndex)
+		}
+		return true
+	}
+	path := r.tablePath()
+	rng := b.anchor()
+	if rebuild {
+		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(name), r.written), nil))
+		return true
+	}
+	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(name), r.written))))
+	b.arrive(spaceIndex, path, in, kind)
 	return true
 }
 

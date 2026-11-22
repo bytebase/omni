@@ -1,0 +1,3 @@
+CREATE TABLE dbo.t (b int NOT NULL CONSTRAINT pk_t PRIMARY KEY, c int, d int);
+GO
+CREATE PROCEDURE dbo.a AS SELECT 1;

@@ -430,9 +430,10 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^The name `.*` is longer than "), []string{"103", "193"}},
 	{regexp.MustCompile(" must be the first statement of its batch\\.$"), []string{"111"}},
 	{regexp.MustCompile("^This statement drops .*twice\\.$"), []string{"3701"}},
-	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a table or view\\.$"), []string{"1914", "8197", "3701"}},
+	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a table or view\\.$"), []string{"1914", "8197", "3701", "1088"}},
+	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a table, view, or synonym\\.$"), []string{"208"}},
 	// A wrong kind, or a foreign key's target that is no table.
-	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a (table|view|procedure|function|trigger|synonym|sequence)\\.$"), []string{"3705", "4909", "4708", "2010", "15151", "1768"}},
+	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a (table|view|procedure|function|trigger|synonym|sequence)\\.$"), []string{"3705", "4909", "4708", "2010", "15151", "1768", "6334"}},
 	{regexp.MustCompile("^(Table|View|Procedure|Function|Trigger|Sequence|Synonym|Primary key|Unique constraint|Foreign key|Check constraint|Default constraint) `.*` already exists\\.$"), []string{"2714", "15335"}},
 	{regexp.MustCompile("^The name `.*` is already taken\\.$"), []string{"2714", "15335"}},
 }
