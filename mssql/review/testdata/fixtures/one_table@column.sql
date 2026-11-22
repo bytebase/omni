@@ -1,0 +1,3 @@
+CREATE TYPE dbo.a FROM int;
+CREATE TABLE dbo.a (b int IDENTITY(1,1) NOT NULL CONSTRAINT pk_a PRIMARY KEY NONCLUSTERED, a int NULL, d int NULL);
+CREATE INDEX a_d_idx ON dbo.a (d);

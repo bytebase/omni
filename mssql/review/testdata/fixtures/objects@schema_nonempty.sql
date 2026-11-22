@@ -1,0 +1,3 @@
+CREATE SCHEMA a;
+GO
+CREATE TABLE a.t (b int);

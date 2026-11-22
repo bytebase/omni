@@ -1,0 +1,1 @@
+CREATE TABLE dbo.t (b int NOT NULL CONSTRAINT a PRIMARY KEY, c int);
