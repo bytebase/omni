@@ -1,9 +1,20 @@
 # The server and the docs this engine's committed answers come from.
-# default judges compat.tsv and records the tapes: Oracle Database 23ai Free,
-# release 23.26.3 (product_component_version.version_full). docs is the
-# syntax OracleDocs.g4 is converted from: the statement pages of the SQL
-# Language Reference oracle/parser/bnf/ quotes, the SHA-256 of what
+# default records the tapes: Oracle Database 23ai Free, release 23.26.3
+# (product_component_version.version_full). parser judges
+# oracle/parser/testdata/compat.tsv at the same 23.26.3 release so a judge
+# revision bump rejudges compat.tsv without touching the default-pinned tapes.
+#
+# parser judge revision 4 runs the judge with MAX_STRING_SIZE=EXTENDED, adds
+# TYPE (y/w) and DIMENSION (d/e) fixture objects, adds offset-preserving
+# stand-ins (ALTER TYPE, ALTER DIMENSION, INMEMORY JOIN GROUP, CREATE PLUGGABLE
+# DATABASE USING/SOURCE_FILE_DIRECTORY, SHARING, CREATE PFILE, NO DELETE UNTIL,
+# UNTIL TIME, AUDIT POLICY, missing schema a.), adds end-of-statement checks
+# (65018, 65168), and classifies parser syntax codes (3059, 38107, 46601, 46603).
+#
+# docs is the syntax OracleDocs.g4 is converted from: the statement pages of the
+# SQL Language Reference oracle/parser/bnf/ quotes, the SHA-256 of what
 # oracle/parser/cmd/docsgrammar reads of them, and the date they were quoted.
-# columns: role, image, digest, source tag
+# columns: role, image, digest, source tag, judge revision
 default	gvenzl/oracle-free:23.26.3-slim-faststart	sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093	23.26.3.0.0
+parser	gvenzl/oracle-free:23.26.3-slim-faststart	sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093	23.26.3.0.0	4
 docs	https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/	sha256:78bc1d63fa53eff6bd195d3f87c1b9205c25fdcc948f546adf415235542862b2	2026-11-19

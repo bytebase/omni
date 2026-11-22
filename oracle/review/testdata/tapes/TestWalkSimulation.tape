@@ -5129,11 +5129,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -6214,11 +6209,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7069,6 +7059,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7107,6 +7102,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -7192,6 +7192,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -7500,11 +7505,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -9515,6 +9515,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -9531,6 +9556,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -10276,6 +10376,11 @@
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < ok 0 0
 > exec
@@ -10295,7 +10400,7 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -13221,6 +13326,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < ok 0 0
 > exec
@@ -13366,6 +13476,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -13378,6 +13493,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -13586,6 +13711,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -13622,11 +13752,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -13812,6 +13937,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -14474,7 +14604,7 @@
 | 998 ORA-00998: must name this expression with a column alias
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -15773,11 +15903,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -22150,11 +22275,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -23765,11 +23885,6 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -25030,6 +25145,11 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < ok 0 0
 > exec
@@ -25130,6 +25250,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -25213,6 +25338,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -25543,11 +25673,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -27900,6 +28025,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -27916,6 +28066,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -28685,6 +28910,11 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -28700,7 +28930,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -31410,6 +31640,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -31495,6 +31730,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -31503,6 +31743,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -31645,6 +31895,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -31673,11 +31928,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -31843,6 +32093,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -32495,7 +32750,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -33912,11 +34167,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -41220,11 +41470,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
@@ -42704,11 +42949,6 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -43825,6 +44065,11 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 1430 ORA-01430: column being added already exists in table
@@ -43870,6 +44115,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -43983,6 +44233,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 54026 ORA-54026: Real column cannot have an expression
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -44311,11 +44566,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -46724,6 +46974,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -46740,6 +47015,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -47599,6 +47949,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -47614,7 +47969,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -50315,6 +50670,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -50400,6 +50760,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -50408,6 +50773,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -50547,6 +50922,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -50575,11 +50955,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -50745,6 +51120,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -51388,7 +51768,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -52772,11 +53152,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -59686,11 +60061,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
@@ -61205,11 +61575,6 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -62424,6 +62789,11 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 1430 ORA-01430: column being added already exists in table
@@ -62469,6 +62839,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -62582,6 +62957,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 54026 ORA-54026: Real column cannot have an expression
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -62966,11 +63346,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 904 ORA-00904: "A": invalid identifier
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -65386,6 +65761,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -65402,6 +65802,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -66285,6 +66760,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -66300,7 +66780,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -69001,6 +69481,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -69086,6 +69571,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -69094,6 +69584,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -69233,6 +69733,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -69261,11 +69766,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -69431,6 +69931,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -70074,7 +70579,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -71460,11 +71965,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 947 ORA-00947: not enough values
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -78617,11 +79117,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79702,11 +80197,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -80557,6 +81047,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -80595,6 +81090,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -80680,6 +81180,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -81000,11 +81505,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -83087,6 +83587,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -83103,6 +83628,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -83902,6 +84502,11 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < ok 0 0
 > exec
@@ -83927,7 +84532,7 @@
 | 902 ORA-00902: invalid datatype
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -87219,6 +87824,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < ok 0 0
 > exec
@@ -87454,6 +88064,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < ok 0 0
 > exec
@@ -87472,6 +88087,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -87794,6 +88419,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -87842,11 +88472,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -88062,6 +88687,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -88764,7 +89394,7 @@
 | 998 ORA-00998: must name this expression with a column alias
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -90177,11 +90807,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -97322,11 +97947,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98407,11 +99027,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -99262,6 +99877,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -99300,6 +99920,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -99385,6 +100010,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -99699,11 +100329,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -101720,6 +102345,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -101736,6 +102386,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -102508,6 +103233,11 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -102523,7 +103253,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -105224,6 +105954,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -105309,6 +106044,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -105317,6 +106057,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -105456,6 +106206,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -105484,11 +106239,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -105654,6 +106404,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -106298,7 +107053,7 @@
 | 998 ORA-00998: must name this expression with a column alias
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -107668,11 +108423,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 14109 ORA-14109: partition-extended object names may only be used with tables and editioning views
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -115163,11 +115913,6 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
@@ -116938,11 +117683,6 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -118113,6 +118853,11 @@
 | 1430 ORA-01430: column being added already exists in table
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 1430 ORA-01430: column being added already exists in table
@@ -118161,6 +118906,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 22858 ORA-22858: invalid alteration of datatype
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -118286,6 +119036,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 54026 ORA-54026: Real column cannot have an expression
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -118616,11 +119371,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -120943,6 +121693,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -120959,6 +121734,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -121871,6 +122721,11 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -121886,7 +122741,7 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -124596,6 +125451,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -124681,6 +125541,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -124689,6 +125554,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -124831,6 +125706,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -124859,11 +125739,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -125029,6 +125904,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -125681,7 +126561,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -127044,11 +127924,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -134317,11 +135192,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135402,11 +136272,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -136257,6 +137122,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -136295,6 +137165,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -136380,6 +137255,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -136694,11 +137574,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -138715,6 +139590,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -138731,6 +139631,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -139461,6 +140436,11 @@
 | CREATE SEQUENCE a
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -139476,7 +140456,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -142177,6 +143157,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -142262,6 +143247,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -142270,6 +143260,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -142409,6 +143409,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -142437,11 +143442,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -142607,6 +143607,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -143250,7 +144255,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -144577,11 +145582,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 2201 ORA-02201: sequence not allowed here
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -151138,11 +152138,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152265,11 +153260,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -153176,6 +154166,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -153214,6 +154209,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -153299,6 +154299,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -153613,11 +154618,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -155830,6 +156830,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -155846,6 +156871,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -156705,6 +157805,11 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -156720,7 +157825,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -159421,6 +160526,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -159506,6 +160616,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -159514,6 +160629,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -159653,6 +160778,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -159681,11 +160811,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -159851,6 +160976,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -160494,7 +161624,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -161864,11 +162994,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 14501 ORA-14501: object is not partitioned
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -168484,11 +169609,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -169569,11 +170689,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170424,6 +171539,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170462,6 +171582,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -170547,6 +171672,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -170861,11 +171991,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -172882,6 +174007,31 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < error
 | 4043 ORA-04043: Object A does not exist.
@@ -172898,6 +174048,81 @@
 |
 > exec
 | ALTER TYPE a COMPILE REUSE SETTINGS
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 4043 ORA-04043: Object A does not exist.
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
 < error
 | 4043 ORA-04043: Object A does not exist.
 |
@@ -173635,6 +174860,11 @@
 | CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -173650,7 +174880,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -176351,6 +177581,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -176436,6 +177671,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -176444,6 +177684,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -176583,6 +177833,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -176611,11 +177866,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -176781,6 +178031,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -177424,7 +178679,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -178751,11 +180006,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1
@@ -185281,11 +186531,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY VARRAY a(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -186366,11 +187611,6 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
-| ALTER TABLE a MODIFY SUBPARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
-|
-> exec
 | ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187221,6 +188461,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
+|
+> exec
 | ALTER TABLE a ADD(a VISIBLE AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187259,6 +188504,11 @@
 | ALTER TABLE a MODIFY(a OBJECT)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a)
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -187344,6 +188594,11 @@
 | ALTER TABLE a MODIFY(a NUMBER AS(1))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a COLLATE a AS(1))
+< error
+| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -187658,11 +188913,6 @@
 | ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
-|
-> exec
-| ALTER TABLE a MODIFY PARTITION a LOB(a(RETENTION)
-< error
-| 3059 ORA-03059: The expression  is invalid.
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
@@ -189679,6 +190929,56 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a NUMBER
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00410: duplicate fields in RECORD,TABLE or argument list are not permitted
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a MODIFY LIMIT 1
+< error
+| 6545 ORA-06545: PL/SQL: compilation error - compilation aborted
+| ORA-06550: line 2, column 22:
+| PLS-00103: Encountered the symbol "LIMIT" when expecting one of the following:
+|
+|    attribute
+| ORA-06550: line 0, column 0:
+| PLS-00565: A must be completed as a potential REF target (object type)
+|
+> exec
+| ALTER TYPE a INSTANTIABLE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE a AS OBJECT (a NUMBER)
+< ok 0 0
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
 | ALTER TYPE a COMPILE DEBUG
 < ok 0 0
 > exec
@@ -189719,6 +191019,136 @@
 > exec
 | CREATE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
+> exec
+| ALTER TYPE a DROP MAP MEMBER FUNCTION a RETURN NUMBER
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00717: method 'A' does not have matching signature among existing methods
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD MEMBER PROCEDURE a
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a MODIFY ATTRIBUTE a NUMBER
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00719: only widening of attribute 'A' constraints is allowed
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE a OBJECT
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00201: identifier 'OBJECT' must be declared
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER)
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00410: duplicate fields in RECORD,TABLE or argument list are not permitted
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a OBJECT)
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00201: identifier 'OBJECT' must be declared
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a NUMBER)
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00716: Attribute/method 'A' can occur only once in an ALTER TYPE statement
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD ATTRIBUTE(a NUMBER, a OBJECT)
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00716: Attribute/method 'A' can occur only once in an ALTER TYPE statement
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a MODIFY ELEMENT TYPE NUMBER
+< error
+| 6545 ORA-06545: PL/SQL: compilation error - compilation aborted
+| ORA-06550: line 2, column 22:
+| PLS-00103: Encountered the symbol "ELEMENT" when expecting one of the following:
+|
+|    attribute
+| ORA-06550: line 0, column 0:
+| PLS-00565: A must be completed as a potential REF target (object type)
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
+< error
+| 22324 ORA-22324: altered type has compilation errors
+| ORA-22332: a dependent object in schema "SIMSHOP" has errors.
+| PLS-00305: previous use of 'A' (at line 1) conflicts with this use
+| ORA-06550: line 0, column 0:
+| PL/SQL: Compilation unit analysis terminated
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
+< error
+| 22322 ORA-22322: error table "SIMSHOP"."A" has incorrect structure
+| ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a.a
+< error
+| 22323 ORA-22323: error table "A"."A" does not exist
+|
 > exec
 | ALTER VIEW IF EXISTS a COMPILE
 < ok 0 0
@@ -190446,6 +191876,11 @@
 | CREATE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW a.a AS SELECT 1 FROM dual
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
 | CREATE MATERIALIZED VIEW a(a) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -190461,7 +191896,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+| CREATE MATERIALIZED VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -193162,6 +194597,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PACKAGE a SHARING = METADATA IS END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PACKAGE a SHARING = NONE IS END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -193247,6 +194687,11 @@
 | 1435 ORA-01435: user does not exist
 |
 > exec
+| CREATE PROCEDURE a SHARING = METADATA IS BEGIN NULL; END;
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE PROCEDURE a SHARING = NONE IS BEGIN NULL; END;
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -193255,6 +194700,16 @@
 | CREATE SEQUENCE a.a
 < error
 | 1917 ORA-01917: user or role '' does not exist
+|
+> exec
+| CREATE SEQUENCE a SHARING = METADATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
+| CREATE SEQUENCE a SHARING = DATA
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
 |
 > exec
 | CREATE SEQUENCE a SHARING = NONE
@@ -193394,6 +194849,11 @@
 | 1917 ORA-01917: user or role '' does not exist
 |
 > exec
+| CREATE SYNONYM a SHARING = METADATA FOR a
+< error
+| 65021 ORA-65021: illegal use of SHARING clause
+|
+> exec
 | CREATE SYNONYM a SHARING = NONE FOR a
 < error
 | 1471 ORA-01471: cannot create a synonym with same name as object
@@ -193422,11 +194882,6 @@
 | CREATE TABLE a(a)
 < error
 | 2263 ORA-02263: need to specify the data type for this column
-|
-> exec
-| CREATE TABLE a DEFAULT COLLATION
-< error
-| 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
 > exec
 | CREATE TABLE a OF a.a
@@ -193592,6 +195047,11 @@
 | CREATE TABLE a(a DOMAIN a)
 < error
 | 11504 ORA-11504: The domain specified does not exist or the user does not have privileges on the domain for the operation.
+|
+> exec
+| CREATE TABLE a(a DOMAIN a.a)
+< error
+| 1917 ORA-01917: user or role 'A' does not exist
 |
 > exec
 | CREATE TABLE a(a SORT)
@@ -194242,7 +195702,7 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
-| CREATE VIEW a DEFAULT COLLATION
+| CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 < error
 | 43929 ORA-43929: Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set.
 |
@@ -195583,11 +197043,6 @@
 | INSERT INTO a PARTITION FOR(1, 1) SELECT 1 FROM dual
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
-|
-> exec
-| MERGE INTO a
-< error
-| 38107 ORA-38107: Invalid syntax with MERGE without USING clause.
 |
 > exec
 | MERGE INTO a USING a ON(1 = 1) WHEN MATCHED THEN UPDATE SET a = 1

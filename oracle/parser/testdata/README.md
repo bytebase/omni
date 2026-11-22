@@ -9,7 +9,8 @@ the pinned Oracle's (`../../testdata/pins.tsv`). `TestCompatibility`
 server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
-are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
+are the file as it stands at judge revision 4 (`PinRole: "parser"` in
+`../../testdata/pins.tsv`, `judge:4`), after #1473, #1475, #1480, #1483,
 #1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings),
 Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings),
 Wave 4 (inline external table driver types and remaining grammar readings),
@@ -22,16 +23,18 @@ multi-table INSERT duplicates, 3-part ASSOCIATE STATISTICS columns, and
 `ENABLE`/`DISABLE` primary-key & constraint checks, self-referencing `PARENT`,
 bare `CREATE SHARDED TABLE`, `COLLATE` missing name, MV `XMLTYPE BINARY XML`,
 subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
-`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets), and Wave 8
+`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets), Wave 8
 (`DELETE ... FROM ... MATCH_RECOGNIZE` syntax-error parsing, `CREATE VIEW ... OF
 XMLTYPE` per `CREATE-VIEW.bnf`, `CREATE TABLE ENABLE CONSTRAINTS`, and
-`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal):
+`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal), and
+judge revision 4 (`MAX_STRING_SIZE=EXTENDED`, `TYPE`/`DIMENSION` fixtures, and
+offset-preserving stand-ins):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 14,098 | 148 | 3 | 285 |
-| Near-misses | 31,318 | 30,265 | 934 | 100 | 19 |
+| One per alternative | 14,534 | 14,297 | 133 | 9 | 95 |
+| Near-misses | 31,318 | 30,440 | 761 | 100 | 17 |
 | Hand rows | 1,010 | 921 | 70 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -88,22 +91,37 @@ category word (byte 11), as `COMMENT.bnf` says.
 
 ## What the judge needs
 
-- **`DBMS_SQL.PARSE`, as a user of its own.** The judge runs
-  `compat.OracleParse` for each statement as `OMNI_JUDGE`, which may create
-  tables, views, sequences, synonyms, materialized views, types, triggers and
-  procedures, and nothing else: a statement on the server or on another user
-  answers `ORA-01031` after the parse. `PARSE` runs DDL, so after a statement
-  that ran the block drops everything the user owns and builds the fixture
-  again: the table `t` a trigger's header stands on and the materialized view
-  `v` on it, named apart from the `a` every other row writes. It enables table
-  locks before it drops a table, since `ALTER TABLE ... DISABLE TABLE LOCK`
-  leaves one that cannot be dropped.
-- **Lookups before the parse are asked again.** Oracle looks up the object of
-  `ALTER TABLE a` (ORA-00942) and `ALTER MATERIALIZED VIEW a` (ORA-12003)
-  before it reads the rest, so the judge asks again with `t` or `v` in `a`'s
-  place. On a real table `ORA-01735` at byte 0 is an option the table's kind
-  does not take (`OVERFLOW` on a heap table): Oracle reads no further, so it is
-  an acceptance, as a lookup is.
+- **`DBMS_SQL.PARSE`, as a user of its own, with `MAX_STRING_SIZE=EXTENDED`.**
+  The judge runs `compat.OracleParse` for each statement as `OMNI_JUDGE`, which
+  may create tables, views, sequences, synonyms, materialized views, types,
+  triggers, procedures, and dimensions, and nothing else: a statement on the
+  server or on another user answers `ORA-01031` after the parse. Since judge
+  revision 4 (`PinRole: "parser"`), the judge container boots with
+  `MAX_STRING_SIZE=EXTENDED` so `COLLATE` and `DEFAULT COLLATION` clauses are
+  parsed rather than rejected with `ORA-43929`, leaving the standard-mode
+  `default` server used by tapes untouched. `PARSE` runs DDL, so after a
+  statement that ran the block drops everything the user owns and builds the
+  fixture again: the table `t` a trigger's header stands on, the materialized
+  view `v` on it, the object type `y` and varray type `w`, and the dimensions
+  `d` (for `ADD LEVEL`/`ADD HIERARCHY`) and `e` (with unreferenced level `a`
+  and hierarchy `a`), all named apart from the `a` every other row writes. It
+  enables table locks before it drops a table, since `ALTER TABLE ... DISABLE
+  TABLE LOCK` leaves one that cannot be dropped.
+- **Lookups and pre-parse literal checks are asked again with offset-preserving
+  stand-ins.** Oracle looks up the object of `ALTER TABLE a` (`ORA-00942`),
+  `ALTER MATERIALIZED VIEW a` (`ORA-12003`), `ALTER TYPE a` (`ORA-04043`),
+  `ALTER DIMENSION a` (`ORA-30333`), `INMEMORY JOIN GROUP ... (a(a))`
+  (`ORA-00903`), and missing schema `a.` (`ORA-01435`, `ORA-01917`, `ORA-00987`)
+  or validates server/literal preconditions (`CREATE PLUGGABLE DATABASE ... USING
+  's'` `ORA-65125` / `SOURCE_FILE_DIRECTORY = 's'` `ORA-65155`, `SHARING =
+  METADATA|DATA|EXTENDED DATA` `ORA-65021`, `CREATE PFILE FROM` `ORA-65168`,
+  `NO DELETE UNTIL 1 DAY` `ORA-05741`, `UNTIL TIME 'YYYY-MM-DD:HH24:MI:SS'`
+  `ORA-01841`, `AUDIT POLICY` `ORA-46368`/`ORA-46373`) before reading the rest,
+  so the judge re-asks with fixture objects or server-accepted stand-ins and
+  remaps any returned byte offset back to the original statement. On a real
+  table `ORA-01735` at byte 0 is an option the table's kind does not take
+  (`OVERFLOW` on a heap table): Oracle reads no further, so it is an
+  acceptance, as a lookup is.
 - **A probe tells syntax from the rest** (`compat.OracleVerdict`): the
   statement again with `\n ~` after it. Oracle reads all of a statement before
   it resolves a name or checks a privilege, so a parser error comes back at the
@@ -580,6 +598,47 @@ What is left of those is near-misses whose own token is Oracle's answer
 (`ALTER MATERIALIZED VIEW a TRUNCATE a`, `ALTER SESSION SET a = 1`, a LOB
 storage option, an external table's directory): each needs a reading omni does
 not have, which is an accept gap rather than a position.
+
+### Judge revision 4 (`PinRole: "parser"`, `judge:4`)
+
+Rejudging `compat.tsv` at `parser` pin revision 4 (`OMNI_RECORD=1` followed by
+full `OMNI_RECORD=verify` on a fresh container, zero non-test Go edits) moved
+374 net rows to Oracle's exact cell: `45,284 / 46,862` (96.63% exact, 99.09%
+verdict) -> `45,658 / 46,862` (**97.43% exact**, **99.49% verdict**):
+
+- `only_omni`: 306 -> **114** (-192 rows)
+- `both reject, another byte`: 1,152 -> **964** (-188 rows: 404 bare `reject`
+  with no byte offset, 388 `reject@0` sub-parser/lookup checks, and 172
+  `reject@N` rows including 59 `FLASHBACK ARCHIVE` token-end rows)
+- `only_oracle`: 120 -> **126** (+6 rows: exposing real parser gaps where
+  omni previously accepted truncated `DEFAULT COLLATION` or rejected valid
+  `CREATE SYNONYM ... SHARING = METADATA` and `ALTER TABLE ADD/MODIFY (...
+  COLLATE ...)` due to rev 3's `STANDARD` / non-app-root answers)
+
+| Cause | Net exact-match gain |
+| --- | --- |
+| `CREATE PLUGGABLE DATABASE ... USING 's'` (`'s.xml'` / `'/s'` stand-ins + `ORA-65018` at end) | +185 |
+| `ALTER TYPE a` (`TYPE y` / varray `TYPE w` fixture stand-ins) | +39 |
+| `SHARING = METADATA\|DATA\|EXTENDED DATA` (`SHARING = NONE` stand-in) | +37 |
+| `ALTER DIMENSION a` (`DIMENSION d`/`e` fixture stand-ins) | +23 |
+| `CREATE`/`ALTER AUDIT POLICY` (`ORA-46368`/`ORA-46373` stand-ins) | +25 |
+| `MAX_STRING_SIZE=EXTENDED` (`COLLATE` / `DEFAULT COLLATION`) | +18 |
+| `CREATE PFILE`/`SPFILE` (`= 's'` stand-in + `ORA-65168` at end) | +15 |
+| `CREATE`/`ALTER INMEMORY JOIN GROUP` (`t(a)` stand-in) | +10 |
+| Missing schema `a.` (`SYSTEM.` stand-in for `ORA-01435`/`01917`/`00987`) | +15 |
+| `ALTER TABLE ... NO DELETE UNTIL 1 DAY`, `UNTIL TIME`, and `ORA-03059`/`38107`/`46601`/`46603` | +7 |
+
+The remaining 1,204 disagreeing rows are dominated by the irreducible engine
+floor: 404 bare `reject` rows (stored PL/SQL compilation units, 69 `DELETE ...
+MATCH_RECOGNIZE` server crashes, and 133 `ALTER MATERIALIZED VIEW LOG` server
+hangs/crashes with no byte offset), 388 `reject@0` sub-parser/environment
+refusals (`ALTER DATABASE RECOVER`, `ALTER TYPE`, `ALTER PLUGGABLE DATABASE`
+snapshots, `IDENTIFIED GLOBALLY` without EUS, etc.), 59 `FLASHBACK ARCHIVE`
+token-end rows, 89 `suite:*` corpus rows, non-sharded/non-standby server checks
+(`DROP TABLESPACE SET`, `ALTER SEQUENCE SHARD`), and a small set of newly
+exposed parser gaps (`DEFAULT COLLATION`, `CREATE SYNONYM SHARING`, `ALTER
+TABLE COLLATE`, `AUDIT`, `ALTER MATERIALIZED VIEW USING ROLLBACK`) addressed in
+the follow-up parser wave.
 
 ## Tapes
 
