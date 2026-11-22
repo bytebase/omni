@@ -1,6 +1,7 @@
 package mssql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -248,6 +249,16 @@ func TestSplitFallbackUnparseableScripts(t *testing.T) {
 			},
 		},
 		{
+			name:  "CR-only line endings recognize GO separators",
+			input: "SELECT 1\rGO\rGO 2\rSELECT FROM",
+			want: []Segment{
+				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+				{Text: "\rGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{1, 12}, Empty: true},
+				{Text: "\rGO 2", ByteStart: 11, ByteEnd: 16, Start: Position{1, 12}, End: Position{1, 17}, Empty: true},
+				{Text: "\rSELECT FROM", ByteStart: 16, ByteEnd: 28, Start: Position{1, 17}, End: Position{1, 29}, Empty: false},
+			},
+		},
+		{
 			name:  "GO followed by closed block comment with or without whitespace",
 			input: "SELECT 1\nGO /* comment */\nGO/* tight */\nGO 2/* count */\nSELECT FROM",
 			want: []Segment{
@@ -364,4 +375,22 @@ func TestSplitBySemicolonDirect(t *testing.T) {
 		{Text: "SELECT 1;", ByteStart: 0, ByteEnd: 9, Start: Position{1, 1}, End: Position{1, 10}, Empty: false},
 		{Text: " /* unterminated", ByteStart: 9, ByteEnd: 25, Start: Position{1, 10}, End: Position{1, 26}, Empty: false},
 	}, gotComment)
+
+	// CR-only line endings after line comments also restore GO eligibility.
+	crComment := "SELECT 1\rGO\r-- sep\rGO 2\rSELECT FROM"
+	gotCR := SplitBySemicolon(crComment)
+	assertSplitInvariants(t, crComment, gotCR)
+	require.Equal(t, []Segment{
+		{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8, Start: Position{1, 1}, End: Position{1, 9}, Empty: false},
+		{Text: "\rGO", ByteStart: 8, ByteEnd: 11, Start: Position{1, 9}, End: Position{1, 12}, Empty: true},
+		{Text: "\r-- sep\rGO 2", ByteStart: 11, ByteEnd: 23, Start: Position{1, 12}, End: Position{1, 24}, Empty: true},
+		{Text: "\rSELECT FROM", ByteStart: 23, ByteEnd: 35, Start: Position{1, 24}, End: Position{1, 36}, Empty: false},
+	}, gotCR)
+
+	// Repeated multiline block comments stay linear-time without rescanning.
+	manyComments := strings.Repeat("/*\n*/", 16000) + "SELECT FROM"
+	gotMany := SplitBySemicolon(manyComments)
+	assertSplitInvariants(t, manyComments, gotMany)
+	require.Len(t, gotMany, 1)
+	require.False(t, gotMany[0].Empty)
 }
