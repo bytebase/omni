@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 func (p *Parser) parseDMLWithCTEs() (Statement, error) {
 	start := p.cur().Start
 	if err := p.parseCTEs(); err != nil {
@@ -130,10 +132,21 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 			if p.match(kwDIRECTORY) {
 				if p.cur().Kind == kwUSING {
 					if err := p.parseTableProvider(); err == nil {
+						hasPathOpt := false
 						if p.match(kwOPTIONS) {
-							if err := p.parsePropertyList(); err != nil {
+							keys, err := p.parsePropertyListWithKeys()
+							if err != nil {
 								return "", err
 							}
+							for k := range keys {
+								if strings.EqualFold(k, "path") {
+									hasPathOpt = true
+									break
+								}
+							}
+						}
+						if !hasPathOpt {
+							return "", p.errorf("INSERT OVERWRITE DIRECTORY USING requires either a directory path or 'path' in OPTIONS")
 						}
 						return "", nil
 					}
@@ -144,8 +157,14 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 							return "", err
 						}
 						if p.match(kwOPTIONS) {
-							if err := p.parsePropertyList(); err != nil {
+							keys, err := p.parsePropertyListWithKeys()
+							if err != nil {
 								return "", err
+							}
+							for k := range keys {
+								if strings.EqualFold(k, "path") {
+									return "", p.errorf("INSERT OVERWRITE DIRECTORY cannot specify both a directory path and 'path' in OPTIONS")
+								}
 							}
 						}
 						return "", nil
@@ -156,7 +175,7 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 						}
 					}
 					if p.cur().Kind == kwSTORED {
-						if err := p.parseCreateFileFormat(); err != nil {
+						if err := p.parseCreateFileFormat(true); err != nil {
 							return "", err
 						}
 					}
@@ -179,13 +198,13 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 			}
 		}
 		if p.cur().Kind == kwPARTITION {
-			if err := p.parsePartitionSpec(); err != nil {
+			if err := p.parsePartitionSpec(false); err != nil {
 				return "", err
 			}
 			if p.cur().Kind == kwIF {
 				p.advance()
-				if !p.matchNot() {
-					return "", p.errorf("expected NOT after IF")
+				if _, err := p.expect(kwNOT); err != nil {
+					return "", err
 				}
 				if _, err := p.expect(kwEXISTS); err != nil {
 					return "", err
@@ -228,7 +247,7 @@ func (p *Parser) parseInsertIntoWithTable(allowOptionalTable bool) (string, erro
 		return target, nil
 	}
 	if p.cur().Kind == kwPARTITION {
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(false); err != nil {
 			return "", err
 		}
 	}
@@ -395,7 +414,9 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 		return nil, err
 	}
 	// matchedClause* notMatchedClause* notMatchedBySourceClause*
-	// Every non-final clause of each kind must specify an AND condition.
+	// Every non-final clause of each kind must specify an AND condition,
+	// and at least one WHEN clause is required (Spark MERGE_WITHOUT_WHEN).
+	whenCount := 0
 	prevUnconditional := false
 	for p.cur().Kind == kwWHEN && p.peek(1).Kind == kwMATCHED {
 		if prevUnconditional {
@@ -417,6 +438,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 			return nil, err
 		}
 		prevUnconditional = !hasCond
+		whenCount++
 	}
 	prevUnconditional = false
 	for p.cur().Kind == kwWHEN && p.isNotAt(1) && p.peek(2).Kind == kwMATCHED &&
@@ -445,6 +467,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 			return nil, err
 		}
 		prevUnconditional = !hasCond
+		whenCount++
 	}
 	prevUnconditional = false
 	for p.cur().Kind == kwWHEN && p.isNotAt(1) && p.peek(2).Kind == kwMATCHED &&
@@ -471,6 +494,10 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 			return nil, err
 		}
 		prevUnconditional = !hasCond
+		whenCount++
+	}
+	if whenCount == 0 {
+		return nil, p.errorf("MERGE statement requires at least one WHEN clause")
 	}
 	return &ParsedStmt{Kind: StmtMerge, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
@@ -506,8 +533,16 @@ func (p *Parser) parseNotMatchedAction() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
-	if err := p.parseMultipartIdentifierList(); err != nil {
+	colCount := 0
+	if _, err := p.parseMultipartIdentifier(); err != nil {
 		return err
+	}
+	colCount++
+	for p.match(tokComma) {
+		if _, err := p.parseMultipartIdentifier(); err != nil {
+			return err
+		}
+		colCount++
 	}
 	if _, err := p.expect(tokRParen); err != nil {
 		return err
@@ -518,11 +553,24 @@ func (p *Parser) parseNotMatchedAction() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
-	if err := p.parseExpressionSeq(); err != nil {
+	valCount := 0
+	if err := p.parseExpression(); err != nil {
 		return err
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	valCount++
+	for p.match(tokComma) {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+		valCount++
+	}
+	if _, err := p.expect(tokRParen); err != nil {
+		return err
+	}
+	if colCount != valCount {
+		return p.errorf("MERGE INSERT column count (%d) does not match value count (%d)", colCount, valCount)
+	}
+	return nil
 }
 
 func (p *Parser) parseNotMatchedBySourceAction() error {
@@ -565,7 +613,7 @@ func (p *Parser) parseLoadData() (Statement, error) {
 		return nil, err
 	}
 	if p.cur().Kind == kwPARTITION {
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(true); err != nil {
 			return nil, err
 		}
 	}
@@ -585,7 +633,7 @@ func (p *Parser) parseTruncateTable() (Statement, error) {
 		return nil, err
 	}
 	if p.cur().Kind == kwPARTITION {
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(true); err != nil {
 			return nil, err
 		}
 	}

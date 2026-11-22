@@ -27,21 +27,34 @@ type openCaseRun struct {
 	count      int
 }
 
+type scriptScope struct {
+	label      string              // normalized label name (empty for unlabeled compound block)
+	isLoop     bool                // true for WHILE/REPEAT/LOOP/FOR; false for BEGIN..END
+	forVar     string              // normalized FOR cursor variable name, if any
+	conditions map[string]struct{} // declared condition names in this compound block
+}
+
 type Parser struct {
-	src                   string
-	toks                  []Token
-	pos                   int
-	gtPending             int
-	gtStart               int
-	gtEnd                 int
-	depth                 int
-	parenDepth            int
-	openCaseRuns          []openCaseRun
-	caseScanCache         []caseScanEntry
-	caseScanConfirmedOpen map[int]int
-	matchingClose         []int
-	lparenRunStart        int
-	lparenRunEnd          int
+	src                    string
+	toks                   []Token
+	pos                    int
+	gtPending              int
+	gtStart                int
+	gtEnd                  int
+	depth                  int
+	parenDepth             int
+	openCaseRuns           []openCaseRun
+	caseScanCache          []caseScanEntry
+	caseScanConfirmedOpen  map[int]int
+	matchingClose          []int
+	lparenRunStart         int
+	lparenRunEnd           int
+	inCompound             bool
+	inFromStatement        bool
+	disallowParamMarkers   bool
+	disallowColumnRefs     bool
+	relaxFunctionDataTypes bool
+	scriptScopes           []scriptScope
 }
 
 // Parse parses a Databricks / Spark SQL input string (one or more
@@ -315,8 +328,15 @@ func (p *Parser) parseSingleCompoundStatement() (Statement, error) {
 		p.advance()
 		p.advance()
 	}
-	if p.cur().Kind != kwEND {
-		if err := p.parseCompoundBody(); err != nil {
+	prevCompound := p.inCompound
+	p.inCompound = true
+	p.scriptScopes = append(p.scriptScopes, scriptScope{conditions: make(map[string]struct{})})
+	defer func() {
+		p.inCompound = prevCompound
+		p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1]
+	}()
+	if p.cur().Kind != kwEND || p.peek(1).Kind == tokColon {
+		if err := p.parseCompoundBody(true); err != nil {
 			return nil, err
 		}
 	}
@@ -337,7 +357,10 @@ func (p *Parser) parseBeginEndCompoundBlock() error {
 		return err
 	}
 	defer p.leaveNesting()
-	p.tryParseBeginLabel()
+	beginLabel, err := p.parseOptionalBeginLabel()
+	if err != nil {
+		return err
+	}
 	if _, err := p.expect(kwBEGIN); err != nil {
 		return err
 	}
@@ -345,18 +368,102 @@ func (p *Parser) parseBeginEndCompoundBlock() error {
 		p.advance()
 		p.advance()
 	}
-	if p.cur().Kind != kwEND {
-		if err := p.parseCompoundBody(); err != nil {
+	prevCompound := p.inCompound
+	p.inCompound = true
+	p.scriptScopes = append(p.scriptScopes, scriptScope{
+		label:      beginLabel,
+		isLoop:     false,
+		conditions: make(map[string]struct{}),
+	})
+	defer func() {
+		p.inCompound = prevCompound
+		p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1]
+	}()
+	if p.cur().Kind != kwEND || p.peek(1).Kind == tokColon {
+		if err := p.parseCompoundBody(true); err != nil {
 			return err
 		}
 	}
 	if _, err := p.expect(kwEND); err != nil {
 		return err
 	}
-	if p.cur().Kind != tokSemicolon && p.cur().Kind != tokEOF && p.cur().Kind.isIdentifier() {
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return err
+	return p.parseOptionalEndLabel(beginLabel)
+}
+
+func (p *Parser) hasActiveLabelOrForVar(norm string) bool {
+	for _, sc := range p.scriptScopes {
+		if sc.label == norm || sc.forVar == norm {
+			return true
 		}
+	}
+	return false
+}
+
+func (p *Parser) findActiveLabel(norm string) (found bool, isLoop bool) {
+	for i := len(p.scriptScopes) - 1; i >= 0; i-- {
+		if p.scriptScopes[i].label == norm {
+			return true, p.scriptScopes[i].isLoop
+		}
+	}
+	return false, false
+}
+
+func (p *Parser) hasConditionInScope(norm string) bool {
+	for i := len(p.scriptScopes) - 1; i >= 0; i-- {
+		if _, ok := p.scriptScopes[i].conditions[norm]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) hasBeginLabelAhead() bool {
+	cp := p.save()
+	defer p.restore(cp)
+	if _, err := p.parseMultipartIdentifier(); err != nil {
+		return false
+	}
+	return p.cur().Kind == tokColon
+}
+
+func (p *Parser) parseOptionalBeginLabel() (string, error) {
+	cp := p.save()
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		p.restore(cp)
+		return "", nil
+	}
+	if p.cur().Kind != tokColon {
+		p.restore(cp)
+		return "", nil
+	}
+	p.advance()
+	if strings.ContainsRune(name, '.') {
+		return "", p.errorf("qualified label name %q is not allowed", name)
+	}
+	norm := normalizeIdentName(name)
+	if p.hasActiveLabelOrForVar(norm) {
+		return "", p.errorf("label %q already exists in enclosing scope", name)
+	}
+	return norm, nil
+}
+
+func (p *Parser) parseOptionalEndLabel(beginLabel string) error {
+	if p.cur().Kind == tokSemicolon || p.cur().Kind == tokEOF || !p.cur().Kind.isIdentifier() {
+		return nil
+	}
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return err
+	}
+	if strings.ContainsRune(name, '.') {
+		return p.errorf("qualified end label %q is not allowed", name)
+	}
+	if beginLabel == "" {
+		return p.errorf("end label %q cannot exist without begin label", name)
+	}
+	if normalizeIdentName(name) != beginLabel {
+		return p.errorf("end label %q does not match begin label %q", name, beginLabel)
 	}
 	return nil
 }
@@ -378,14 +485,25 @@ func (p *Parser) tryParseBeginLabel() bool {
 // parseCompoundBody implements:
 //
 //	compoundBody : (compoundStatements+=compoundStatement SEMICOLON)+ ;
-func (p *Parser) parseCompoundBody() error {
+//
+// When allowDecls is true (direct body of BEGIN ... END), DECLARE variable/condition
+// statements must precede DECLARE HANDLER statements, which must precede executable
+// statements, matching Spark v4.0.5 AstBuilder.visitCompoundBody. When allowDecls is
+// false (body of IF/CASE/WHILE/REPEAT/LOOP/FOR), DECLARE statements are rejected.
+func (p *Parser) parseCompoundBody(allowDecls bool) error {
 	count := 0
+	// phase: 0 = variable/condition declarations, 1 = handler declarations, 2 = statements
+	phase := 0
 	for {
 		if p.isCompoundBodyEnd() {
 			break
 		}
-		if err := p.parseCompoundStatement(); err != nil {
+		stmtPhase, err := p.parseCompoundStatement(allowDecls, phase)
+		if err != nil {
 			return err
+		}
+		if stmtPhase > phase {
+			phase = stmtPhase
 		}
 		if _, err := p.expect(tokSemicolon); err != nil {
 			return err
@@ -399,16 +517,20 @@ func (p *Parser) parseCompoundBody() error {
 }
 
 func (p *Parser) isCompoundBodyEnd() bool {
+	// A compound-body terminator keyword followed by ':' is a beginLabel
+	// (e.g. `BEGIN ELSE: BEGIN END ELSE; END`), not the end of the body.
 	switch p.cur().Kind {
-	case kwEND, kwELSE, kwELSEIF, kwUNTIL, kwWHEN, tokEOF:
+	case kwEND, kwELSE, kwELSEIF, kwUNTIL, kwWHEN:
+		return p.peek(1).Kind != tokColon
+	case tokEOF:
 		return true
 	}
 	return false
 }
 
-func (p *Parser) parseCompoundStatement() error {
+func (p *Parser) parseCompoundStatement(allowDecls bool, phase int) (int, error) {
 	if err := p.enterNesting(); err != nil {
-		return err
+		return 2, err
 	}
 	defer p.leaveNesting()
 
@@ -419,61 +541,112 @@ func (p *Parser) parseCompoundStatement() error {
 		p.restore(cpLabel)
 		switch k {
 		case kwBEGIN:
-			return p.parseBeginEndCompoundBlock()
+			return 2, p.parseBeginEndCompoundBlock()
 		case kwWHILE:
-			return p.parseWhileStatement()
+			return 2, p.parseWhileStatement()
 		case kwREPEAT:
-			return p.parseRepeatStatement()
+			return 2, p.parseRepeatStatement()
 		case kwLOOP:
-			return p.parseLoopStatement()
+			return 2, p.parseLoopStatement()
 		case kwFOR:
-			return p.parseForStatement()
+			return 2, p.parseForStatement()
 		}
 	}
 
 	switch p.cur().Kind {
 	case kwBEGIN:
-		return p.parseBeginEndCompoundBlock()
+		return 2, p.parseBeginEndCompoundBlock()
 	case kwIF:
-		return p.parseIfElseStatement()
+		return 2, p.parseIfElseStatement()
 	case kwCASE:
-		return p.parseCaseStatement()
+		return 2, p.parseCaseStatement()
 	case kwWHILE:
-		return p.parseWhileStatement()
+		return 2, p.parseWhileStatement()
 	case kwREPEAT:
-		return p.parseRepeatStatement()
+		return 2, p.parseRepeatStatement()
 	case kwLEAVE:
 		p.advance()
-		_, err := p.parseMultipartIdentifier()
-		return err
+		name, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return 2, err
+		}
+		if strings.ContainsRune(name, '.') {
+			return 2, p.errorf("qualified label %q is not allowed in LEAVE", name)
+		}
+		if found, _ := p.findActiveLabel(normalizeIdentName(name)); !found {
+			return 2, p.errorf("label %q does not belong to any surrounding block", name)
+		}
+		return 2, nil
 	case kwITERATE:
 		p.advance()
-		_, err := p.parseMultipartIdentifier()
-		return err
+		name, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return 2, err
+		}
+		if strings.ContainsRune(name, '.') {
+			return 2, p.errorf("qualified label %q is not allowed in ITERATE", name)
+		}
+		found, isLoop := p.findActiveLabel(normalizeIdentName(name))
+		if !found {
+			return 2, p.errorf("label %q does not belong to any surrounding block", name)
+		}
+		if !isLoop {
+			return 2, p.errorf("ITERATE cannot reference compound block label %q", name)
+		}
+		return 2, nil
 	case kwLOOP:
-		return p.parseLoopStatement()
+		return 2, p.parseLoopStatement()
 	case kwFOR:
-		return p.parseForStatement()
+		return 2, p.parseForStatement()
 	case kwDECLARE:
-		cp := p.save()
-		if err := p.parseDeclareConditionStatement(); err == nil && p.cur().Kind == tokSemicolon {
-			return nil
+		if !allowDecls {
+			return 0, p.errorf("DECLARE is only allowed at the beginning of a BEGIN ... END compound block")
 		}
-		p.restore(cp)
-		if err := p.parseDeclareHandlerStatement(); err == nil && p.cur().Kind == tokSemicolon {
-			return nil
+		// Distinguish DECLARE CONDITION, DECLARE HANDLER, and DECLARE variable.
+		if p.isDeclareHandlerAhead() {
+			if phase > 1 {
+				return 1, p.errorf("DECLARE HANDLER must appear before executable statements")
+			}
+			return 1, p.parseDeclareHandlerStatement()
 		}
-		p.restore(cp)
+		if p.isDeclareConditionAhead() {
+			if phase > 0 {
+				return 0, p.errorf("DECLARE CONDITION must appear at the beginning of a compound block")
+			}
+			return 0, p.parseDeclareConditionStatement()
+		}
+		if phase > 0 {
+			return 0, p.errorf("DECLARE variable must appear at the beginning of a compound block")
+		}
+		_, err := p.parseCreateVariable()
+		return 0, err
 	case kwSET:
 		cp := p.save()
 		if err := p.parseSetStatementInsideSqlScript(); err == nil && p.cur().Kind == tokSemicolon {
-			return nil
+			return 2, nil
 		}
 		p.restore(cp)
 	}
 
 	_, err := p.parseStatement()
-	return err
+	return 2, err
+}
+
+func (p *Parser) isDeclareHandlerAhead() bool {
+	k := p.peek(1).Kind
+	return (k == kwCONTINUE || k == kwEXIT) && p.peek(2).Kind == kwHANDLER
+}
+
+func (p *Parser) isDeclareConditionAhead() bool {
+	cp := p.save()
+	defer p.restore(cp)
+	if !p.match(kwDECLARE) {
+		return false
+	}
+	if _, err := p.parseMultipartIdentifier(); err != nil {
+		return false
+	}
+	return p.cur().Kind == kwCONDITION
 }
 
 func (p *Parser) parseSetStatementInsideSqlScript() error {
@@ -507,8 +680,12 @@ func (p *Parser) parseDeclareConditionStatement() error {
 	if _, err := p.expect(kwDECLARE); err != nil {
 		return err
 	}
-	if _, err := p.parseMultipartIdentifier(); err != nil {
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
 		return err
+	}
+	if strings.ContainsRune(name, '.') {
+		return p.errorf("condition name %q cannot be qualified", name)
 	}
 	if _, err := p.expect(kwCONDITION); err != nil {
 		return err
@@ -518,9 +695,21 @@ func (p *Parser) parseDeclareConditionStatement() error {
 			return err
 		}
 		p.match(kwVALUE)
-		if err := p.parseStringLit(); err != nil {
-			return err
+		if !p.isStringLit() {
+			return p.errorf("expected SQLSTATE string literal, got %q", p.cur().Text)
 		}
+		tok := p.advance()
+		if !validateSQLState(unquoteStringLit(tok.Text)) {
+			return p.errorf("invalid SQLSTATE value %s", tok.Text)
+		}
+	}
+	norm := normalizeIdentName(name)
+	if len(p.scriptScopes) > 0 {
+		conds := p.scriptScopes[len(p.scriptScopes)-1].conditions
+		if _, dup := conds[norm]; dup {
+			return p.errorf("duplicate condition %q in scope", name)
+		}
+		conds[norm] = struct{}{}
 	}
 	return nil
 }
@@ -529,8 +718,11 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 	if _, err := p.expect(kwDECLARE); err != nil {
 		return err
 	}
-	if !p.match(kwCONTINUE, kwEXIT) {
-		return p.errorf("expected CONTINUE or EXIT")
+	if p.match(kwCONTINUE) {
+		return p.errorf("CONTINUE exception handler is not supported; use EXIT handler")
+	}
+	if _, err := p.expect(kwEXIT); err != nil {
+		return err
 	}
 	if _, err := p.expect(kwHANDLER); err != nil {
 		return err
@@ -538,27 +730,75 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 	if _, err := p.expect(kwFOR); err != nil {
 		return err
 	}
-	// conditionValues
+	// conditionValues: Spark forbids mixing general conditions (SQLEXCEPTION / NOT FOUND)
+	// with specific conditions (named condition / SQLSTATE) and forbids duplicate entries.
+	var seenSQLException, seenNotFound, hasGeneral, hasSpecific bool
+	seenStates := make(map[string]struct{})
+	seenConds := make(map[string]struct{})
 	for {
 		switch {
 		case p.cur().Kind == kwSQLSTATE:
 			cp := p.save()
 			p.advance()
 			p.match(kwVALUE)
-			if err := p.parseStringLit(); err != nil {
+			if p.isStringLit() {
+				tok := p.advance()
+				val := unquoteStringLit(tok.Text)
+				if !validateSQLState(val) {
+					return p.errorf("invalid SQLSTATE value %s", tok.Text)
+				}
+				if _, dup := seenStates[val]; dup {
+					return p.errorf("duplicate SQLSTATE %s in handler declaration", tok.Text)
+				}
+				seenStates[val] = struct{}{}
+				hasSpecific = true
+			} else {
 				p.restore(cp)
-				if _, err := p.parseMultipartIdentifier(); err != nil {
+				name, err := p.parseMultipartIdentifier()
+				if err != nil {
 					return err
 				}
+				norm := normalizeIdentName(name)
+				if !p.hasConditionInScope(norm) {
+					return p.errorf("condition %q is not declared", name)
+				}
+				if _, dup := seenConds[norm]; dup {
+					return p.errorf("duplicate condition %q in handler declaration", name)
+				}
+				seenConds[norm] = struct{}{}
+				hasSpecific = true
 			}
 		case p.match(kwSQLEXCEPTION):
+			if seenSQLException {
+				return p.errorf("duplicate SQLEXCEPTION in handler declaration")
+			}
+			seenSQLException = true
+			hasGeneral = true
 		case p.cur().Kind == kwNOT && p.peek(1).Kind == kwFOUND:
 			p.advance()
 			p.advance()
+			if seenNotFound {
+				return p.errorf("duplicate NOT FOUND in handler declaration")
+			}
+			seenNotFound = true
+			hasGeneral = true
 		default:
-			if _, err := p.parseMultipartIdentifier(); err != nil {
+			name, err := p.parseMultipartIdentifier()
+			if err != nil {
 				return err
 			}
+			norm := normalizeIdentName(name)
+			if !p.hasConditionInScope(norm) {
+				return p.errorf("condition %q is not declared", name)
+			}
+			if _, dup := seenConds[norm]; dup {
+				return p.errorf("duplicate condition %q in handler declaration", name)
+			}
+			seenConds[norm] = struct{}{}
+			hasSpecific = true
+		}
+		if hasGeneral && hasSpecific {
+			return p.errorf("cannot mix SQLEXCEPTION/NOT FOUND with specific conditions or SQLSTATE in handler declaration")
 		}
 		if !p.match(tokComma) {
 			break
@@ -566,10 +806,12 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 	}
 	// Handler action: beginEndCompoundBlock | statement | setStatementInsideSqlScript
 	cp := p.save()
-	if err := p.parseBeginEndCompoundBlock(); err == nil && p.cur().Kind == tokSemicolon {
-		return nil
+	if p.cur().Kind == kwBEGIN || p.hasBeginLabelAhead() {
+		if err := p.parseBeginEndCompoundBlock(); err == nil && p.cur().Kind == tokSemicolon {
+			return nil
+		}
+		p.restore(cp)
 	}
-	p.restore(cp)
 	if p.cur().Kind == kwSET {
 		if err := p.parseSetStatementInsideSqlScript(); err == nil && p.cur().Kind == tokSemicolon {
 			return nil
@@ -581,7 +823,10 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 }
 
 func (p *Parser) parseWhileStatement() error {
-	p.tryParseBeginLabel()
+	beginLabel, err := p.parseOptionalBeginLabel()
+	if err != nil {
+		return err
+	}
 	if _, err := p.expect(kwWHILE); err != nil {
 		return err
 	}
@@ -591,7 +836,9 @@ func (p *Parser) parseWhileStatement() error {
 	if _, err := p.expect(kwDO); err != nil {
 		return err
 	}
-	if err := p.parseCompoundBody(); err != nil {
+	p.scriptScopes = append(p.scriptScopes, scriptScope{label: beginLabel, isLoop: true})
+	defer func() { p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1] }()
+	if err := p.parseCompoundBody(false); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwEND); err != nil {
@@ -600,12 +847,7 @@ func (p *Parser) parseWhileStatement() error {
 	if _, err := p.expect(kwWHILE); err != nil {
 		return err
 	}
-	if p.cur().Kind != tokSemicolon && p.cur().Kind != tokEOF && p.cur().Kind.isIdentifier() {
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.parseOptionalEndLabel(beginLabel)
 }
 
 func (p *Parser) parseIfElseStatement() error {
@@ -618,7 +860,7 @@ func (p *Parser) parseIfElseStatement() error {
 	if _, err := p.expect(kwTHEN); err != nil {
 		return err
 	}
-	if err := p.parseCompoundBody(); err != nil {
+	if err := p.parseCompoundBody(false); err != nil {
 		return err
 	}
 	for p.match(kwELSEIF) {
@@ -628,12 +870,12 @@ func (p *Parser) parseIfElseStatement() error {
 		if _, err := p.expect(kwTHEN); err != nil {
 			return err
 		}
-		if err := p.parseCompoundBody(); err != nil {
+		if err := p.parseCompoundBody(false); err != nil {
 			return err
 		}
 	}
 	if p.match(kwELSE) {
-		if err := p.parseCompoundBody(); err != nil {
+		if err := p.parseCompoundBody(false); err != nil {
 			return err
 		}
 	}
@@ -645,11 +887,16 @@ func (p *Parser) parseIfElseStatement() error {
 }
 
 func (p *Parser) parseRepeatStatement() error {
-	p.tryParseBeginLabel()
+	beginLabel, err := p.parseOptionalBeginLabel()
+	if err != nil {
+		return err
+	}
 	if _, err := p.expect(kwREPEAT); err != nil {
 		return err
 	}
-	if err := p.parseCompoundBody(); err != nil {
+	p.scriptScopes = append(p.scriptScopes, scriptScope{label: beginLabel, isLoop: true})
+	defer func() { p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1] }()
+	if err := p.parseCompoundBody(false); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwUNTIL); err != nil {
@@ -664,12 +911,7 @@ func (p *Parser) parseRepeatStatement() error {
 	if _, err := p.expect(kwREPEAT); err != nil {
 		return err
 	}
-	if p.cur().Kind != tokSemicolon && p.cur().Kind != tokEOF && p.cur().Kind.isIdentifier() {
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.parseOptionalEndLabel(beginLabel)
 }
 
 func (p *Parser) parseCaseStatement() error {
@@ -689,7 +931,7 @@ func (p *Parser) parseCaseStatement() error {
 		if _, err := p.expect(kwTHEN); err != nil {
 			return err
 		}
-		if err := p.parseCompoundBody(); err != nil {
+		if err := p.parseCompoundBody(false); err != nil {
 			return err
 		}
 		whenCount++
@@ -698,7 +940,7 @@ func (p *Parser) parseCaseStatement() error {
 		return p.errorf("expected WHEN in CASE statement")
 	}
 	if p.match(kwELSE) {
-		if err := p.parseCompoundBody(); err != nil {
+		if err := p.parseCompoundBody(false); err != nil {
 			return err
 		}
 	}
@@ -710,11 +952,16 @@ func (p *Parser) parseCaseStatement() error {
 }
 
 func (p *Parser) parseLoopStatement() error {
-	p.tryParseBeginLabel()
+	beginLabel, err := p.parseOptionalBeginLabel()
+	if err != nil {
+		return err
+	}
 	if _, err := p.expect(kwLOOP); err != nil {
 		return err
 	}
-	if err := p.parseCompoundBody(); err != nil {
+	p.scriptScopes = append(p.scriptScopes, scriptScope{label: beginLabel, isLoop: true})
+	defer func() { p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1] }()
+	if err := p.parseCompoundBody(false); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwEND); err != nil {
@@ -723,23 +970,28 @@ func (p *Parser) parseLoopStatement() error {
 	if _, err := p.expect(kwLOOP); err != nil {
 		return err
 	}
-	if p.cur().Kind != tokSemicolon && p.cur().Kind != tokEOF && p.cur().Kind.isIdentifier() {
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.parseOptionalEndLabel(beginLabel)
 }
 
 func (p *Parser) parseForStatement() error {
-	p.tryParseBeginLabel()
+	beginLabel, err := p.parseOptionalBeginLabel()
+	if err != nil {
+		return err
+	}
 	if _, err := p.expect(kwFOR); err != nil {
 		return err
 	}
 	// Optional (multipartIdentifier AS)? before query.
+	forVar := ""
 	cp := p.save()
-	if _, err := p.parseMultipartIdentifier(); err == nil && p.match(kwAS) {
-		// consumed label AS
+	if name, err := p.parseMultipartIdentifier(); err == nil && p.match(kwAS) {
+		if !strings.ContainsRune(name, '.') {
+			norm := normalizeIdentName(name)
+			if norm == beginLabel || p.hasActiveLabelOrForVar(norm) {
+				return p.errorf("FOR variable %q already exists in scope", name)
+			}
+			forVar = norm
+		}
 	} else {
 		p.restore(cp)
 	}
@@ -749,7 +1001,9 @@ func (p *Parser) parseForStatement() error {
 	if _, err := p.expect(kwDO); err != nil {
 		return err
 	}
-	if err := p.parseCompoundBody(); err != nil {
+	p.scriptScopes = append(p.scriptScopes, scriptScope{label: beginLabel, isLoop: true, forVar: forVar})
+	defer func() { p.scriptScopes = p.scriptScopes[:len(p.scriptScopes)-1] }()
+	if err := p.parseCompoundBody(false); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwEND); err != nil {
@@ -758,17 +1012,12 @@ func (p *Parser) parseForStatement() error {
 	if _, err := p.expect(kwFOR); err != nil {
 		return err
 	}
-	if p.cur().Kind != tokSemicolon && p.cur().Kind != tokEOF && p.cur().Kind.isIdentifier() {
-		if _, err := p.parseMultipartIdentifier(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.parseOptionalEndLabel(beginLabel)
 }
 
 func (p *Parser) parseStatementOrSetReset() (Statement, error) {
 	if p.cur().Kind == kwSET {
-		if p.peek(1).Kind == kwCATALOG {
+		if p.peek(1).Kind == kwCATALOG && !p.isStatementEndAt(2) {
 			return p.parseSetCatalog()
 		}
 		return p.parseSetResetStatement()
@@ -831,7 +1080,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return p.parseUse()
 
 	case kwSET:
-		if p.peek(1).Kind == kwCATALOG {
+		if p.peek(1).Kind == kwCATALOG && !p.isStatementEndAt(2) {
 			return p.parseSetCatalog()
 		}
 		return nil, p.errorf("unexpected SET")
@@ -893,8 +1142,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 	case kwCALL:
 		return p.parseCall()
 
-	case kwGRANT, kwREVOKE, kwEXPORT, kwIMPORT, kwLOCK, kwUNLOCK, kwSTART, kwCOMMIT, kwROLLBACK, kwDFS:
-		return p.parseUnsupportedHiveNativeCommand()
+	case kwGRANT, kwREVOKE:
+		return p.parseGrantRevoke()
 	}
 
 	return nil, p.errorf("unexpected token %q at start of statement", p.cur().Text)

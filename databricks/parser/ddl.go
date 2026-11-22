@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 func (p *Parser) parseCreateStatement() (Statement, error) {
 	start := p.cur().Start
 	cp := p.save()
@@ -10,17 +12,12 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 	case kwNAMESPACE, kwDATABASE, kwSCHEMA:
 		return p.parseCreateNamespace()
 	case kwROLE:
-		return p.parseUnsupportedHiveNativeCommand()
+		return nil, p.errorf("CREATE ROLE is not valid")
 	case kwINDEX:
-		// Bare `CREATE INDEX` is in Spark's unsupportedHiveNativeCommands; any arguments
-		// must follow Spark's full CREATE INDEX grammar cleanly.
-		if p.isStatementEndAt(2) {
-			return p.parseUnsupportedHiveNativeCommand()
-		}
 		return p.parseCreateIndex()
 	case kwTEMPORARY:
 		if p.peek(2).Kind == kwMACRO {
-			return p.parseUnsupportedHiveNativeCommand()
+			return nil, p.errorf("CREATE TEMPORARY MACRO is not valid")
 		}
 	}
 
@@ -69,7 +66,7 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 }
 
 func (p *Parser) matchIfNotExists() bool {
-	if p.cur().Kind == kwIF && p.isNotAt(1) && p.peek(2).Kind == kwEXISTS {
+	if p.cur().Kind == kwIF && p.peek(1).Kind == kwNOT && p.peek(2).Kind == kwEXISTS {
 		p.advance()
 		p.advance()
 		p.advance()
@@ -100,17 +97,30 @@ func (p *Parser) parseCreateNamespace() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
+	var seenComment, seenLocation, seenProps bool
 	for {
 		switch p.cur().Kind {
 		case kwCOMMENT:
+			if seenComment {
+				return nil, p.errorf("duplicate COMMENT clause in CREATE NAMESPACE")
+			}
+			seenComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return nil, err
 			}
 		case kwLOCATION:
+			if seenLocation {
+				return nil, p.errorf("duplicate LOCATION clause in CREATE NAMESPACE")
+			}
+			seenLocation = true
 			if err := p.parseLocationSpec(); err != nil {
 				return nil, err
 			}
 		case kwWITH:
+			if seenProps {
+				return nil, p.errorf("duplicate PROPERTIES clause in CREATE NAMESPACE")
+			}
+			seenProps = true
 			p.advance()
 			if !p.match(kwDBPROPERTIES, kwPROPERTIES) {
 				return nil, p.errorf("expected DBPROPERTIES or PROPERTIES after WITH")
@@ -129,7 +139,7 @@ func (p *Parser) parseCreateTable() (Statement, error) {
 	if _, err := p.expect(kwCREATE); err != nil {
 		return nil, err
 	}
-	p.match(kwTEMPORARY)
+	isTemporary := p.match(kwTEMPORARY)
 	p.match(kwEXTERNAL)
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
@@ -139,7 +149,7 @@ func (p *Parser) parseCreateTable() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.parseCreateOrReplaceTableBody(); err != nil {
+	if err := p.parseCreateOrReplaceTableBody(isTemporary); err != nil {
 		return nil, err
 	}
 	return &ParsedStmt{Kind: StmtCreateTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -162,13 +172,13 @@ func (p *Parser) parseReplaceTable() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.parseCreateOrReplaceTableBody(); err != nil {
+	if err := p.parseCreateOrReplaceTableBody(false); err != nil {
 		return nil, err
 	}
 	return &ParsedStmt{Kind: StmtReplaceTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
-func (p *Parser) parseCreateOrReplaceTableBody() error {
+func (p *Parser) parseCreateOrReplaceTableBody(isTemporary bool) error {
 	// Optional (colDefinitionList), careful not to mistake (query) for colDefinitionList!
 	hasColDefs := false
 	if p.cur().Kind == tokLParen {
@@ -180,40 +190,74 @@ func (p *Parser) parseCreateOrReplaceTableBody() error {
 			p.restore(cp)
 		}
 	}
+	hasUsing := false
 	if p.cur().Kind == kwUSING {
+		hasUsing = true
 		if err := p.parseTableProvider(); err != nil {
 			return err
 		}
 	}
-	if err := p.parseCreateTableClauses(); err != nil {
+	if err := p.parseCreateTableClauses(hasUsing); err != nil {
 		return err
 	}
+	hasQuery := false
 	if p.match(kwAS) {
+		hasQuery = true
 		if hasColDefs {
 			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
 		}
-		return p.parseQuery()
+		if isTemporary {
+			return p.errorf("CREATE TEMPORARY TABLE AS SELECT is not supported")
+		}
+		if err := p.parseQuery(); err != nil {
+			return err
+		}
+	} else if p.looksLikeQueryStart() {
+		hasQuery = true
+		if hasColDefs {
+			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
+		}
+		if isTemporary {
+			return p.errorf("CREATE TEMPORARY TABLE AS SELECT is not supported")
+		}
+		if err := p.parseQuery(); err != nil {
+			return err
+		}
 	}
-	if p.looksLikeQueryStart() {
-		if hasColDefs {
-			return p.errorf("CREATE/REPLACE TABLE AS SELECT cannot specify a column list")
-		}
-		return p.parseQuery()
+	if isTemporary && !hasUsing && !hasQuery {
+		return p.errorf("CREATE TEMPORARY TABLE requires a USING provider")
 	}
 	return nil
 }
 
-func (p *Parser) parseCreateTableClauses() error {
-	hasPartitionedBy := false
-	hasClusterBy := false
+func (p *Parser) parseCreateTableClauses(hasUsing bool) error {
+	var (
+		hasOptions       bool
+		hasPartitionedBy bool
+		hasClusterBy     bool
+		hasClusteredBy   bool
+		hasRowFormat     bool
+		hasStoredAs      bool
+		hasLocation      bool
+		hasComment       bool
+		hasCollation     bool
+		hasTblProps      bool
+	)
 	for {
 		switch p.cur().Kind {
 		case kwOPTIONS:
+			if hasOptions {
+				return p.errorf("duplicate OPTIONS clause in CREATE TABLE")
+			}
+			hasOptions = true
 			p.advance()
 			if err := p.parseExpressionPropertyList(); err != nil {
 				return err
 			}
 		case kwPARTITIONED:
+			if hasPartitionedBy {
+				return p.errorf("duplicate PARTITIONED BY clause in CREATE TABLE")
+			}
 			if hasClusterBy {
 				return p.errorf("PARTITIONED BY cannot be combined with CLUSTER BY")
 			}
@@ -226,10 +270,11 @@ func (p *Parser) parseCreateTableClauses() error {
 				return err
 			}
 		case kwSKEWED:
-			if err := p.parseSkewSpec(); err != nil {
-				return err
-			}
+			return p.errorf("CREATE TABLE ... SKEWED BY is not valid")
 		case kwCLUSTER:
+			if hasClusterBy {
+				return p.errorf("duplicate CLUSTER BY clause in CREATE TABLE")
+			}
 			if hasPartitionedBy {
 				return p.errorf("CLUSTER BY cannot be combined with PARTITIONED BY")
 			}
@@ -238,30 +283,64 @@ func (p *Parser) parseCreateTableClauses() error {
 				return err
 			}
 		case kwCLUSTERED:
+			if hasClusteredBy {
+				return p.errorf("duplicate CLUSTERED BY clause in CREATE TABLE")
+			}
+			hasClusteredBy = true
 			if err := p.parseBucketSpec(); err != nil {
 				return err
 			}
 		case kwROW:
+			if hasUsing {
+				return p.errorf("ROW FORMAT cannot be combined with USING")
+			}
+			if hasRowFormat {
+				return p.errorf("duplicate ROW FORMAT clause in CREATE TABLE")
+			}
+			hasRowFormat = true
 			if err := p.parseRowFormat(); err != nil {
 				return err
 			}
 		case kwSTORED:
-			if err := p.parseCreateFileFormat(); err != nil {
+			if hasUsing {
+				return p.errorf("STORED AS cannot be combined with USING")
+			}
+			if hasStoredAs {
+				return p.errorf("duplicate STORED AS clause in CREATE TABLE")
+			}
+			hasStoredAs = true
+			if err := p.parseCreateFileFormat(false); err != nil {
 				return err
 			}
 		case kwLOCATION:
+			if hasLocation {
+				return p.errorf("duplicate LOCATION clause in CREATE TABLE")
+			}
+			hasLocation = true
 			if err := p.parseLocationSpec(); err != nil {
 				return err
 			}
 		case kwCOMMENT:
+			if hasComment {
+				return p.errorf("duplicate COMMENT clause in CREATE TABLE")
+			}
+			hasComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return err
 			}
 		case kwDEFAULT:
+			if hasCollation {
+				return p.errorf("duplicate DEFAULT COLLATION clause in CREATE TABLE")
+			}
+			hasCollation = true
 			if err := p.parseCollationSpec(); err != nil {
 				return err
 			}
 		case kwTBLPROPERTIES:
+			if hasTblProps {
+				return p.errorf("duplicate TBLPROPERTIES clause in CREATE TABLE")
+			}
+			hasTblProps = true
 			p.advance()
 			if err := p.parsePropertyList(); err != nil {
 				return err
@@ -291,25 +370,46 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 	if _, err := p.parseTableIdentifier(); err != nil {
 		return nil, err
 	}
+	var hasUsing, hasRowFormat, hasStoredAs, hasLocation, hasTblProps bool
 	for {
 		switch p.cur().Kind {
 		case kwUSING:
+			if hasUsing {
+				return nil, p.errorf("duplicate USING clause in CREATE TABLE LIKE")
+			}
+			hasUsing = true
 			if err := p.parseTableProvider(); err != nil {
 				return nil, err
 			}
 		case kwROW:
+			if hasRowFormat {
+				return nil, p.errorf("duplicate ROW FORMAT clause in CREATE TABLE LIKE")
+			}
+			hasRowFormat = true
 			if err := p.parseRowFormat(); err != nil {
 				return nil, err
 			}
 		case kwSTORED:
-			if err := p.parseCreateFileFormat(); err != nil {
+			if hasStoredAs {
+				return nil, p.errorf("duplicate STORED AS clause in CREATE TABLE LIKE")
+			}
+			hasStoredAs = true
+			if err := p.parseCreateFileFormat(true); err != nil {
 				return nil, err
 			}
 		case kwLOCATION:
+			if hasLocation {
+				return nil, p.errorf("duplicate LOCATION clause in CREATE TABLE LIKE")
+			}
+			hasLocation = true
 			if err := p.parseLocationSpec(); err != nil {
 				return nil, err
 			}
 		case kwTBLPROPERTIES:
+			if hasTblProps {
+				return nil, p.errorf("duplicate TBLPROPERTIES clause in CREATE TABLE LIKE")
+			}
+			hasTblProps = true
 			p.advance()
 			if err := p.parsePropertyList(); err != nil {
 				return nil, err
@@ -325,54 +425,78 @@ func (p *Parser) parseCreateView() (Statement, error) {
 	if _, err := p.expect(kwCREATE); err != nil {
 		return nil, err
 	}
+	isReplace := false
 	if p.match(kwOR) {
 		if _, err := p.expect(kwREPLACE); err != nil {
 			return nil, err
 		}
+		isReplace = true
 	}
+	isTemp := false
 	if p.match(kwGLOBAL) {
 		if _, err := p.expect(kwTEMPORARY); err != nil {
 			return nil, err
 		}
-	} else {
-		p.match(kwTEMPORARY)
+		isTemp = true
+	} else if p.match(kwTEMPORARY) {
+		isTemp = true
 	}
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-	p.matchIfNotExists()
+	ifNotExists := p.matchIfNotExists()
+	if isReplace && ifNotExists {
+		return nil, p.errorf("CREATE OR REPLACE VIEW cannot specify IF NOT EXISTS")
+	}
+	if isTemp && ifNotExists {
+		return nil, p.errorf("CREATE TEMPORARY VIEW cannot specify IF NOT EXISTS")
+	}
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
+	}
+	if isTemp && strings.ContainsRune(target, '.') {
+		return nil, p.errorf("temporary view name %q cannot be qualified", target)
 	}
 	if p.cur().Kind == tokLParen {
 		if err := p.parseIdentifierCommentList(); err != nil {
 			return nil, err
 		}
 	}
+	var seenComment, seenBinding, seenCollation, seenTblProps bool
 	for {
 		switch p.cur().Kind {
 		case kwCOMMENT:
+			if seenComment {
+				return nil, p.errorf("duplicate COMMENT clause in CREATE VIEW")
+			}
+			seenComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return nil, err
 			}
 		case kwWITH:
+			if seenBinding {
+				return nil, p.errorf("duplicate WITH SCHEMA clause in CREATE VIEW")
+			}
+			seenBinding = true
 			if err := p.parseSchemaBinding(); err != nil {
 				return nil, err
 			}
 		case kwDEFAULT:
+			if seenCollation {
+				return nil, p.errorf("duplicate DEFAULT COLLATION clause in CREATE VIEW")
+			}
+			seenCollation = true
 			if err := p.parseCollationSpec(); err != nil {
 				return nil, err
 			}
 		case kwPARTITIONED:
-			p.advance()
-			if _, err := p.expect(kwON); err != nil {
-				return nil, err
-			}
-			if err := p.parseIdentifierList(); err != nil {
-				return nil, err
-			}
+			return nil, p.errorf("CREATE VIEW ... PARTITIONED ON is not valid")
 		case kwTBLPROPERTIES:
+			if seenTblProps {
+				return nil, p.errorf("duplicate TBLPROPERTIES clause in CREATE VIEW")
+			}
+			seenTblProps = true
 			p.advance()
 			if err := p.parsePropertyList(); err != nil {
 				return nil, err
@@ -385,7 +509,11 @@ expectAs:
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	if err := p.parseQuery(); err != nil {
+	prevDisallow := p.disallowParamMarkers
+	p.disallowParamMarkers = true
+	err = p.parseQuery()
+	p.disallowParamMarkers = prevDisallow
+	if err != nil {
 		return nil, err
 	}
 	return &ParsedStmt{Kind: StmtCreateView, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -412,6 +540,9 @@ func (p *Parser) parseCreateTempViewUsing() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
+	if strings.ContainsRune(target, '.') {
+		return nil, p.errorf("temporary view name %q cannot be qualified", target)
+	}
 	if p.match(tokLParen) {
 		if err := p.parseColTypeList(); err != nil {
 			return nil, err
@@ -436,28 +567,45 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	if _, err := p.expect(kwCREATE); err != nil {
 		return nil, err
 	}
+	isReplace := false
 	if p.match(kwOR) {
 		if _, err := p.expect(kwREPLACE); err != nil {
 			return nil, err
 		}
+		isReplace = true
 	}
-	p.match(kwTEMPORARY)
+	isTemp := p.match(kwTEMPORARY)
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-	p.matchIfNotExists()
+	ifNotExists := p.matchIfNotExists()
+	if isReplace && ifNotExists {
+		return nil, p.errorf("CREATE OR REPLACE FUNCTION cannot specify IF NOT EXISTS")
+	}
+	if isTemp && ifNotExists {
+		return nil, p.errorf("CREATE TEMPORARY FUNCTION cannot specify IF NOT EXISTS")
+	}
 	target, err := p.parseIdentifierReference()
 	if err != nil {
 		return nil, err
 	}
+	if isTemp && strings.ContainsRune(target, '.') {
+		return nil, p.errorf("temporary function name %q cannot be qualified", target)
+	}
 
 	// SQL UDF: (colDefinitionList?) (RETURNS (dataType | TABLE (colTypeList)))? routineCharacteristics RETURN (query | expression)
 	if p.match(tokLParen) {
+		// Spark v4.0.5 AstBuilder defers SQL UDF parameter/return dataType
+		// validation to catalog analysis rather than parsePlan.
+		prevRelax := p.relaxFunctionDataTypes
+		p.relaxFunctionDataTypes = true
 		if !p.match(tokRParen) {
 			if err := p.parseColDefinitionList(); err != nil {
+				p.relaxFunctionDataTypes = prevRelax
 				return nil, err
 			}
 			if _, err := p.expect(tokRParen); err != nil {
+				p.relaxFunctionDataTypes = prevRelax
 				return nil, err
 			}
 		}
@@ -467,17 +615,21 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 				p.advance()
 				p.advance()
 				if err := p.parseColTypeList(); err != nil {
+					p.relaxFunctionDataTypes = prevRelax
 					return nil, err
 				}
 				if _, err := p.expect(tokRParen); err != nil {
+					p.relaxFunctionDataTypes = prevRelax
 					return nil, err
 				}
 			} else {
 				if err := p.parseDataType(); err != nil {
+					p.relaxFunctionDataTypes = prevRelax
 					return nil, err
 				}
 			}
 		}
+		p.relaxFunctionDataTypes = prevRelax
 		if err := p.parseRoutineCharacteristics(); err != nil {
 			return nil, err
 		}
@@ -504,8 +656,12 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	}
 	if p.match(kwUSING) {
 		for {
-			if _, err := p.parseIdentifier(); err != nil {
+			resType, err := p.parseIdentifier()
+			if err != nil {
 				return nil, err
+			}
+			if !isValidFunctionResourceType(resType) {
+				return nil, p.errorf("unsupported function resource type %q; expected JAR, FILE, or ARCHIVE", resType)
 			}
 			if err := p.parseStringLit(); err != nil {
 				return nil, err
@@ -589,8 +745,6 @@ func (p *Parser) parseAlterStatement() (Statement, error) {
 		return p.parseAlterTable()
 	case kwVIEW:
 		return p.parseAlterView()
-	case kwINDEX:
-		return p.parseUnsupportedHiveNativeCommand()
 	default:
 		return nil, p.errorf("unexpected token %q after ALTER", p.peek(1).Text)
 	}
@@ -702,11 +856,11 @@ func (p *Parser) parseAlterView() (Statement, error) {
 				return nil, err
 			}
 		}
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(true); err != nil {
 			return nil, err
 		}
 		for p.match(tokComma) {
-			if err := p.parsePartitionSpec(); err != nil {
+			if err := p.parsePartitionSpec(true); err != nil {
 				return nil, err
 			}
 		}
@@ -736,7 +890,6 @@ func (p *Parser) parseAlterView() (Statement, error) {
 
 func (p *Parser) parseAlterTable() (Statement, error) {
 	start := p.cur().Start
-	cpAll := p.save()
 
 	if _, err := p.expect(kwALTER); err != nil {
 		return nil, err
@@ -750,9 +903,9 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 	}
 
 	// Optional leading partitionSpec (used by hiveChangeColumn, hiveReplaceColumns,
-	// setTableSerDe, renameTablePartition, setTableLocation, and unsupportedHiveNativeCommands).
+	// setTableSerDe, renameTablePartition, setTableLocation).
 	if p.cur().Kind == kwPARTITION {
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(true); err != nil {
 			return nil, err
 		}
 		switch p.cur().Kind {
@@ -761,7 +914,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 			if _, err := p.expect(kwTO); err != nil {
 				return nil, err
 			}
-			if err := p.parsePartitionSpec(); err != nil {
+			if err := p.parsePartitionSpec(true); err != nil {
 				return nil, err
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -771,22 +924,15 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		case kwREPLACE:
-			if p.peek(1).Kind == kwCOLUMNS && p.isStatementEndAt(2) {
-				p.restore(cpAll)
-				return p.parseUnsupportedHiveNativeCommand()
-			}
 			if err := p.parseHiveReplaceColumnsTail(); err != nil {
 				return nil, err
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		case kwSET:
-			if err := p.parseAlterTableSetWithOptionalPart(cpAll, true); err != nil {
+			if err := p.parseAlterTableSetWithOptionalPart(true); err != nil {
 				return nil, err
 			}
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
-		case kwCOMPACT, kwCONCATENATE:
-			p.restore(cpAll)
-			return p.parseUnsupportedHiveNativeCommand()
 		default:
 			return nil, p.errorf("unexpected token %q after PARTITION in ALTER TABLE", p.cur().Text)
 		}
@@ -811,8 +957,8 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 			return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
 		if p.match(kwIF) {
-			if !p.matchNot() {
-				return nil, p.errorf("expected NOT after IF")
+			if _, err := p.expect(kwNOT); err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(kwEXISTS); err != nil {
 				return nil, err
@@ -871,18 +1017,18 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 				return nil, err
 			}
 		}
-		if err := p.parsePartitionSpec(); err != nil {
+		if err := p.parsePartitionSpec(true); err != nil {
 			return nil, err
 		}
 		for p.match(tokComma) {
-			if err := p.parsePartitionSpec(); err != nil {
+			if err := p.parsePartitionSpec(true); err != nil {
 				return nil, err
 			}
 		}
 		p.match(kwPURGE)
 
 	case kwSET:
-		if err := p.parseAlterTableSetWithOptionalPart(cpAll, false); err != nil {
+		if err := p.parseAlterTableSetWithOptionalPart(false); err != nil {
 			return nil, err
 		}
 
@@ -916,10 +1062,6 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 		return nil, p.errorf("invalid ALTER TABLE ALTER COLUMN clause")
 
 	case kwREPLACE:
-		if p.peek(1).Kind == kwCOLUMNS && p.isStatementEndAt(2) {
-			p.restore(cpAll)
-			return p.parseUnsupportedHiveNativeCommand()
-		}
 		if err := p.parseHiveReplaceColumnsTail(); err != nil {
 			return nil, err
 		}
@@ -947,10 +1089,6 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 			return nil, err
 		}
 
-	case kwNOT, kwCLUSTERED, kwSKEWED, kwEXCHANGE, kwARCHIVE, kwUNARCHIVE, kwTOUCH, kwCOMPACT, kwCONCATENATE:
-		p.restore(cpAll)
-		return p.parseUnsupportedHiveNativeCommand()
-
 	default:
 		return nil, p.errorf("unexpected token %q in ALTER TABLE", p.cur().Text)
 	}
@@ -958,7 +1096,7 @@ func (p *Parser) parseAlterTable() (Statement, error) {
 	return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
-func (p *Parser) parseAlterTableSetWithOptionalPart(cpAll checkpoint, hasPartition bool) error {
+func (p *Parser) parseAlterTableSetWithOptionalPart(hasPartition bool) error {
 	if _, err := p.expect(kwSET); err != nil {
 		return err
 	}
@@ -986,10 +1124,6 @@ func (p *Parser) parseAlterTableSetWithOptionalPart(cpAll checkpoint, hasPartiti
 		return p.parsePropertyList()
 	case kwLOCATION:
 		return p.parseLocationSpec()
-	case kwSKEWED, kwFILEFORMAT:
-		p.restore(cpAll)
-		_, err := p.parseUnsupportedHiveNativeCommand()
-		return err
 	default:
 		return p.errorf("unexpected token %q after ALTER TABLE ... SET", p.cur().Text)
 	}
@@ -1074,11 +1208,34 @@ func (p *Parser) parseHiveChangeColumnTail() error {
 }
 
 func (p *Parser) parseHiveChangeColumnBody() error {
-	if _, err := p.parseMultipartIdentifier(); err != nil {
+	oldCol, err := p.parseMultipartIdentifier()
+	if err != nil {
 		return err
 	}
-	if err := p.parseColType(); err != nil {
+	newCol, err := p.parseErrorCapturingIdentifier()
+	if err != nil {
 		return err
+	}
+	// Spark v4.0.5 AstBuilder.visitHiveChangeColumn rejects column renaming
+	// (newCol must match the leaf name of oldCol).
+	leaf := oldCol
+	if idx := strings.LastIndexByte(oldCol, '.'); idx >= 0 {
+		leaf = oldCol[idx+1:]
+	}
+	if exactIdentName(leaf) != exactIdentName(newCol) {
+		return p.errorf("ALTER TABLE CHANGE COLUMN cannot rename column %q to %q", oldCol, newCol)
+	}
+	if err := p.parseDataType(); err != nil {
+		return err
+	}
+	if p.cur().Kind == kwNOT && p.peek(1).Kind == kwNULL {
+		p.advance()
+		p.advance()
+	}
+	if p.cur().Kind == kwCOMMENT {
+		if err := p.parseCommentSpec(); err != nil {
+			return err
+		}
 	}
 	if p.cur().Kind == kwFIRST || p.cur().Kind == kwAFTER {
 		return p.parseColPosition()
@@ -1105,7 +1262,6 @@ func (p *Parser) parseHiveReplaceColumnsTail() error {
 
 func (p *Parser) parseDropStatement() (Statement, error) {
 	start := p.cur().Start
-	cp := p.save()
 	if _, err := p.expect(kwDROP); err != nil {
 		return nil, err
 	}
@@ -1148,8 +1304,7 @@ func (p *Parser) parseDropStatement() (Statement, error) {
 	case kwTEMPORARY:
 		p.advance()
 		if p.cur().Kind == kwMACRO {
-			p.restore(cp)
-			return p.parseUnsupportedHiveNativeCommand()
+			return nil, p.errorf("DROP TEMPORARY MACRO is not valid")
 		}
 		if p.matchVariable() {
 			matchIfExists()
@@ -1179,10 +1334,6 @@ func (p *Parser) parseDropStatement() (Statement, error) {
 		return &ParsedStmt{Kind: StmtDropFunction, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 
 	case kwINDEX:
-		if p.isStatementEndAt(1) {
-			p.restore(cp)
-			return p.parseUnsupportedHiveNativeCommand()
-		}
 		p.advance()
 		matchIfExists()
 		target, err := p.parseIdentifier()
@@ -1200,10 +1351,6 @@ func (p *Parser) parseDropStatement() (Statement, error) {
 		}
 		return &ParsedStmt{Kind: StmtDropIndex, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 
-	case kwROLE:
-		p.restore(cp)
-		return p.parseUnsupportedHiveNativeCommand()
-
 	default:
 		return nil, p.errorf("unexpected token %q after DROP", p.cur().Text)
 	}
@@ -1218,15 +1365,19 @@ func (p *Parser) parseCreateVariable() (Statement, error) {
 		p.advance()
 		p.advance()
 	}
-	if (p.cur().Kind == kwVARIABLE || p.cur().Kind == kwVAR) &&
-		!p.isStatementEndAt(1) && p.peek(1).Kind != tokDot && p.peek(1).Kind != tokEq &&
-		!(p.peek(1).Kind == kwDEFAULT && p.peek(2).Kind != tokEq && p.peek(2).Kind != kwDEFAULT && p.peek(2).Kind != tokDot && !p.isStatementEndAt(2)) {
-		cp := p.save()
-		p.advance()
-		if target, err := p.parseCreateVariableBody(); err == nil && p.isStatementEnd() {
-			return &ParsedStmt{Kind: StmtDeclare, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	if p.cur().Kind == kwVARIABLE || p.cur().Kind == kwVAR {
+		// Match Spark ANTLR's greedy `variable?` consumption: VAR/VARIABLE acts
+		// as the variable name only when the next token forces it (e.g. `=`,
+		// `.`, `DEFAULT <literal/expr not starting with ident or '('>`, or a
+		// parameterized/complex dataType like `VARCHAR(10)` or `ARRAY<INT>`).
+		next := p.peek(1).Kind
+		after := p.peek(2).Kind
+		isVarAsName := next == tokEq || next == tokDot ||
+			(next == kwDEFAULT && !p.isStatementEndAt(2) && !after.isIdentifier() && after != tokLParen && after != tokEq && after != tokDot) ||
+			(next.isIdentifier() && (after == tokLParen || after == tokLT))
+		if !isVarAsName {
+			p.advance()
 		}
-		p.restore(cp)
 	}
 	target, err := p.parseCreateVariableBody()
 	if err != nil {
@@ -1240,27 +1391,30 @@ func (p *Parser) parseCreateVariableBody() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Optional dataType followed by optional (DEFAULT | =) expression.
-	if !p.isStatementEnd() {
-		if p.cur().Kind == tokEq {
-			p.advance()
-			if err := p.parseExpression(); err != nil {
-				return "", err
-			}
-		} else if p.cur().Kind == kwDEFAULT && !p.isStatementEndAt(1) {
-			p.advance()
-			if err := p.parseExpression(); err != nil {
-				return "", err
-			}
-		} else {
-			if err := p.parseDataType(); err != nil {
-				return "", err
-			}
-			if p.match(kwDEFAULT, tokEq) {
-				if err := p.parseExpression(); err != nil {
-					return "", err
-				}
-			}
+	// Spark requires either a dataType or a DEFAULT/= initializer (or both).
+	if p.isStatementEnd() {
+		return "", p.errorf("variable %q requires a data type or DEFAULT expression", target)
+	}
+	if p.cur().Kind == tokEq {
+		p.advance()
+		if err := p.parseExpression(); err != nil {
+			return "", err
+		}
+		return target, nil
+	}
+	if p.cur().Kind == kwDEFAULT && !p.isStatementEndAt(1) {
+		p.advance()
+		if err := p.parseExpression(); err != nil {
+			return "", err
+		}
+		return target, nil
+	}
+	if err := p.parseDataType(); err != nil {
+		return "", err
+	}
+	if p.match(kwDEFAULT, tokEq) {
+		if err := p.parseExpression(); err != nil {
+			return "", err
 		}
 	}
 	return target, nil

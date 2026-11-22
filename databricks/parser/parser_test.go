@@ -292,7 +292,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "lateral as relation or schema name",
-			sql:  `SELECT * FROM lateral JOIN lateral.t ON lateral.id = t.id JOIN lateral AS l2 USING (id)`,
+			sql:  `SELECT * FROM lateral JOIN lateral.t ON lateral.id = t.id JOIN lateral ON lateral.id = t.id`,
 			kind: StmtQuery,
 		},
 		{
@@ -467,7 +467,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "describe relation named table with partition and as json",
-			sql:  `DESCRIBE table PARTITION (p = 1) AS JSON`,
+			sql:  `DESCRIBE EXTENDED table PARTITION (p = 1) AS JSON`,
 			kind: StmtDescribe,
 		},
 		{
@@ -502,7 +502,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "alter table change column named column",
-			sql:  `ALTER TABLE t CHANGE column c2 INT`,
+			sql:  `ALTER TABLE t CHANGE column column INT`,
 			kind: StmtAlterTable,
 		},
 		{
@@ -516,13 +516,13 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
-			name: "tablesample bucket on identifier, backtick dotted identifier, and qualified function",
-			sql:  "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a) JOIN t2 TABLESAMPLE (BUCKET 1 OUT OF 2 ON `a.b`) JOIN t3 TABLESAMPLE (BUCKET 1 OUT OF 2 ON a.b())",
+			name: "tablesample bucket without on clause",
+			sql:  "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2)",
 			kind: StmtQuery,
 		},
 		{
-			name: "table function named lateral vs lateral modifier before subquery or relation",
-			sql:  `SELECT * FROM lateral(1) JOIN lateral(1, 2) JOIN lateral() JOIN lateral(k => 1) JOIN lateral(TABLE(t) PARTITION BY a) JOIN LATERAL (SELECT 1) AS s JOIN LATERAL (t1 JOIN t2 ON t1.a = t2.a) AS j JOIN LATERAL (t3 AS u) JOIN LATERAL (t4 u2) JOIN LATERAL (t5) TABLESAMPLE (10 PERCENT) JOIN LATERAL lateral(1) AS l`,
+			name: "table function named lateral vs lateral modifier before subquery or tvf",
+			sql:  `SELECT * FROM lateral(1) JOIN lateral(1, 2) JOIN lateral() JOIN lateral(k => 1) JOIN lateral(TABLE(t) PARTITION BY a) JOIN LATERAL (SELECT 1) AS s JOIN LATERAL lateral(1) AS l`,
 			kind: StmtQuery,
 		},
 		{
@@ -542,7 +542,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "non-reserved keywords as implicit table aliases before clauses",
-			sql:  `SELECT * FROM t window WHERE x = 1 UNION ALL SELECT * FROM t order WHERE x = 1 UNION ALL SELECT * FROM t group WHERE x = 1 UNION ALL SELECT * FROM t pivot WHERE x = 1 UNION ALL SELECT * FROM t unpivot WHERE x = 1 UNION ALL SELECT * FROM t tablesample WHERE x = 1 UNION ALL SELECT * FROM t semi WHERE x = 1 UNION ALL SELECT * FROM t limit ORDER BY 1`,
+			sql:  `SELECT * FROM t window WHERE x = 1 UNION ALL SELECT * FROM t order WHERE x = 1 UNION ALL SELECT * FROM t group WHERE x = 1 UNION ALL SELECT * FROM t pivot WHERE x = 1 UNION ALL SELECT * FROM t unpivot WHERE x = 1 UNION ALL SELECT * FROM t tablesample WHERE x = 1 UNION ALL SELECT * FROM t limit ORDER BY 1`,
 			kind: StmtQuery,
 		},
 		{
@@ -601,9 +601,44 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtHiveNative,
 		},
 		{
-			name: "set role all",
-			sql:  `SET ROLE ALL`,
+			name: "set catalog as bare config key",
+			sql:  `SET CATALOG`,
 			kind: StmtSet,
+		},
+		{
+			name: "case-sensitive CTE names in WITH INSERT",
+			sql:  `WITH c AS (SELECT 1), C AS (SELECT 2) INSERT INTO t SELECT * FROM c`,
+			kind: StmtInsert,
+		},
+		{
+			name: "case-sensitive tblproperties keys",
+			sql:  `CREATE TABLE t (x INT) TBLPROPERTIES ('k' = 'a', 'K' = 'b')`,
+			kind: StmtCreateTable,
+		},
+		{
+			name: "create function with valid resource types",
+			sql:  `CREATE FUNCTION f AS 'com.example.F' USING JAR 's3://b/f.jar', FILE 's3://b/a.txt', ARCHIVE 's3://b/a.zip'`,
+			kind: StmtCreateFunction,
+		},
+		{
+			name: "create view with literal question mark string",
+			sql:  `CREATE VIEW v AS SELECT '?' AS x`,
+			kind: StmtCreateView,
+		},
+		{
+			name: "scripting labels using ELSE, WHEN, END, UNTIL",
+			sql:  `BEGIN END: LOOP SELECT 1; END LOOP; END`,
+			kind: StmtCompound,
+		},
+		{
+			name: "from query followed by select having column",
+			sql:  `FROM a SELECT HAVING a`,
+			kind: StmtQuery,
+		},
+		{
+			name: "keyword-as-identifier edge cases matching Spark 4.0.5",
+			sql:  `(SELECT 1 AS FROM) UNION ALL (SELECT ALL()) UNION ALL (SELECT NOT()) UNION ALL (SELECT DISTINCT()) UNION ALL (SELECT FALSE.*) UNION ALL (SELECT INTERVAL + zzz a) UNION ALL (SELECT ~ zzz ELSE) UNION ALL (SELECT ~ zzz WHEN) UNION ALL (SELECT ~ zzz END) UNION ALL (SELECT ~ zzz UNTIL)`,
+			kind: StmtQuery,
 		},
 		{
 			name: "500 nested parentheses succeed within 10000 nesting limit",
@@ -677,27 +712,17 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "rollup with subquery and nested parenthesized row constructor",
-			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
-			kind: StmtQuery,
-		},
-		{
-			name: "group by rollup function call with keyword implicit alias",
-			sql:  `SELECT 1 FROM t GROUP BY ROLLUP(a) limit`,
+			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), a), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
 		},
 		{
 			name: "group by expression with grouping sets",
-			sql:  `SELECT a FROM t GROUP BY a, GROUPING SETS ((b))`,
+			sql:  `SELECT a FROM t GROUP BY a, GROUPING SETS ((b), ())`,
 			kind: StmtQuery,
 		},
 		{
 			name: "group by grouping sets with expression",
 			sql:  `SELECT a FROM t GROUP BY GROUPING SETS ((b)), a`,
-			kind: StmtQuery,
-		},
-		{
-			name: "group by aliased expression with rollup function call",
-			sql:  `SELECT a FROM t GROUP BY a AS x, ROLLUP(b)`,
 			kind: StmtQuery,
 		},
 		{
@@ -934,7 +959,7 @@ func TestParseErrors(t *testing.T) {
 		{"trailing garbage", "SELECT 1 FROM t )"},
 		{"incomplete select", "SELECT"},
 		{"incomplete create index", "CREATE INDEX idx ON tbl("},
-		{"incomplete set catalog", "SET CATALOG"},
+		{"set role all rejected by spark", "SET ROLE ALL"},
 		{"incomplete set variable", "SET VARIABLE (a = (SELECT 1)"},
 		{"dangling comma in partition by", "FROM f(TABLE t PARTITION BY a,)"},
 		{"unquoted hyphenated create table", "CREATE TABLE my-table (a INT)"},
@@ -972,7 +997,34 @@ func TestParseErrors(t *testing.T) {
 		{"unsupported primitive type in create table", "CREATE TABLE t (x foobar)"},
 		{"unsupported primitive type in cast", "SELECT CAST(1 AS foo)"},
 		{"duplicate CTE name in same WITH clause", "WITH c AS (SELECT 1), c AS (SELECT 2) SELECT * FROM c"},
-		{"duplicate CTE name case-insensitive in WITH INSERT", "WITH c AS (SELECT 1), C AS (SELECT 2) INSERT INTO t SELECT * FROM c"},
+		{"duplicate tblproperties key", "CREATE TABLE t (x INT) TBLPROPERTIES ('k'='a','k'='b')"},
+		{"duplicate unset tblproperties key", "ALTER TABLE t UNSET TBLPROPERTIES ('k','k')"},
+		{"lateral join using", "SELECT * FROM t JOIN LATERAL (SELECT 1 AS id) s USING (id)"},
+		{"right join lateral", "SELECT * FROM t RIGHT JOIN LATERAL (SELECT 1 AS id) s ON t.id = s.id"},
+		{"full join lateral", "SELECT * FROM t FULL OUTER JOIN LATERAL (SELECT 1 AS id) s ON t.id = s.id"},
+		{"left semi join lateral", "SELECT * FROM t LEFT SEMI JOIN LATERAL (SELECT 1 AS id) s ON t.id = s.id"},
+		{"join lateral bare table", "SELECT * FROM t JOIN LATERAL x"},
+		{"comma lateral bare table", "SELECT * FROM t, LATERAL x"},
+		{"qualified tvf lateral.f", "SELECT * FROM lateral.f(1)"},
+		{"invalid sqlstate short", "BEGIN DECLARE bad CONDITION FOR SQLSTATE 'abc'; SELECT 1; END"},
+		{"invalid sqlstate 00000", "BEGIN DECLARE bad CONDITION FOR SQLSTATE '00000'; SELECT 1; END"},
+		{"invalid sqlstate in handler", "BEGIN DECLARE CONTINUE HANDLER FOR SQLSTATE '01000' SELECT 1; SELECT 1; END"},
+		{"invalid function resource type", "CREATE FUNCTION f AS 'com.example.F' USING garbage 's3://bucket/f.jar'"},
+		{"describe table as json without extended", "DESCRIBE TABLE t AS JSON"},
+		{"describe table partition without value", "DESC SELECT PARTITION(a)"},
+		{"create view positional parameter marker", "CREATE VIEW v AS SELECT ? AS x"},
+		{"create view named parameter marker", "CREATE OR REPLACE TEMP VIEW v AS SELECT :param AS x"},
+		{"declare var boolean missing default", "DECLARE VAR BOOLEAN"},
+		{"declare var default unsupported type", "DECLARE VAR DEFAULT a"},
+		{"declare var interval unsupported type", "DECLARE VAR INTERVAL YEAR"},
+		{"alter table change column rename", "ALTER TABLE t CHANGE column c2 INT"},
+		{"tablesample bucket on column", "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a)"},
+		{"group by alias", "SELECT a FROM t GROUP BY a AS x"},
+		{"group by rollup empty set", "SELECT 1 FROM t GROUP BY ROLLUP(())"},
+		{"semi as table alias", "SELECT * FROM t semi WHERE x = 1"},
+		{"anti as table alias", "SELECT * FROM t AS anti"},
+		{"collate trim unsupported", "SELECT a COLLATE TRIM"},
+		{"pipe aggregate group by all", "SELECT a |> AGGREGATE SUM(a) GROUP BY ALL"},
 		{"create table tblproperties missing value", "CREATE TABLE t (x INT) TBLPROPERTIES ('k')"},
 		{"alter table set tblproperties missing value", "ALTER TABLE t SET TBLPROPERTIES ('k')"},
 		{"alter table unset tblproperties with value", "ALTER TABLE t UNSET TBLPROPERTIES ('k' = 'v')"},
@@ -1158,6 +1210,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested case function",
 			sql:  "SELECT " + strings.Repeat("CASE(", depth) + "x" + strings.Repeat(")", depth),
+		},
+		{
+			name: "deeply nested case function calls linear time",
+			sql:  "SELECT " + strings.Repeat("CASE(", 4000) + "1" + strings.Repeat(")", 4000),
 		},
 		{
 			name: "nested select transform subquery",

@@ -1,17 +1,17 @@
 # The two sources this engine's committed answers come from.
 #
-# default is Apache Spark's official ANTLR 4 SQL grammar (SqlBaseParser.g4 and
-# SqlBaseLexer.g4 under sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser
-# in apache/spark), which Databricks SQL is built on. There is no image: the
-# digest is the SHA-256 of testdata/SqlBaseParser.g4 followed by
-# testdata/SqlBaseLexer.g4, committed byte for byte at the release tag in
-# source tag.
+# default judges databricks/parser/testdata/compat.tsv through Apache Spark
+# 4.0.5's SQL parser (spark.sessionState.sqlParser.parsePlan with
+# spark.sql.scripting.enabled=true) inside the pinned apache/spark:4.0.5
+# container image. SqlBaseParser.g4 and SqlBaseLexer.g4 beside this file are
+# Apache Spark's official ANTLR 4 SQL grammar from the same release tag v4.0.5
+# (commit b472a3aa3c4b71b5a6ff068ef396f757bd662e59, Apache-2.0).
 #
 # driver is the workspace this engine's driver tapes come from. Databricks is
 # an account service: there is no image and no container, so image names the
 # workspace host, digest is the SHA-256 of what SELECT VERSION() answered, and
 # the source tag names the SQL release, the SQL warehouse and the catalog the
 # tests record against. The token is never part of a pin.
-# columns: role, image, digest, source tag
-default	github.com/apache/spark@b472a3aa3c4b71b5a6ff068ef396f757bd662e59	sha256:eb529fa85a418de13147662ef807a140b15d51fd73837a8a860b5900688d380f	v4.0.5
+# columns: role, image, digest, source tag, judge revision
+default	apache/spark:4.0.5	sha256:45eb1b8261a89bc7692be05aa4664676856f1c886cecc7b97b4e10f635b45b3c	v4.0.5	1
 driver	dbc-3c689f3f-f754.cloud.databricks.com	sha256:21c3596967a931ba19b528877357d45cb7c2ea34abc68315d0c4ca7907d9f408	4.2.0 warehouse_id=45847ad2fbd0b316 catalog=workspace

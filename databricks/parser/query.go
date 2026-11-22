@@ -1,5 +1,7 @@
 package parser
 
+import "strconv"
+
 // parseQuery parses:
 //
 //	query : ctes? queryTerm queryOrganization ;
@@ -17,11 +19,11 @@ func (p *Parser) parseQuery() error {
 	if err := p.parseQueryTerm(); err != nil {
 		return err
 	}
-	return p.parseQueryOrganization()
+	return p.parseQueryOrganization(false)
 }
 
 func (p *Parser) looksLikeQueryStart() bool {
-	return p.startsWithQueryKeywordAfterParens()
+	return p.startsWithQueryKeywordAt(0, false)
 }
 
 // startsWithQueryKeywordAfterParens scans iteratively past any leading '('
@@ -29,7 +31,7 @@ func (p *Parser) looksLikeQueryStart() bool {
 // iteratively avoids exponential backtracking on deeply nested parenthesized
 // expressions or parenthesized table relations.
 func (p *Parser) startsWithQueryKeywordAfterParens() bool {
-	return p.startsWithQueryKeywordAt(0)
+	return p.startsWithQueryKeywordAt(0, true)
 }
 
 // startsWithCompleteParenQuery reports whether the tokens starting at p.cur()
@@ -87,8 +89,12 @@ func (p *Parser) isValuesQueryAt(i int, inParens bool) bool {
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
 		tokArrow, tokFatArrow, kwAS:
+		return false
+	case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+		if !inParens {
+			return true
+		}
 		return false
 	case tokLParen:
 		inner := p.peek(i + 2).Kind
@@ -207,13 +213,13 @@ func (p *Parser) parseCTEs() error {
 	if err != nil {
 		return err
 	}
-	seen[normalizeIdentName(name)] = struct{}{}
+	seen[exactIdentName(name)] = struct{}{}
 	for p.match(tokComma) {
 		name, err := p.parseNamedQuery()
 		if err != nil {
 			return err
 		}
-		key := normalizeIdentName(name)
+		key := exactIdentName(name)
 		if _, dup := seen[key]; dup {
 			return p.errorf("duplicate CTE name %q in WITH clause", name)
 		}
@@ -350,31 +356,36 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 		return p.parseQueryPrimary()
 	case kwAGGREGATE:
 		p.advance()
-		// Try optional namedExpressionSeq followed by optional aggregationClause.
-		// If `GROUP BY ...` is immediately present, parse it directly as aggregationClause;
-		// otherwise try namedExpressionSeq first (so `AGGREGATE GROUP a` / `AGGREGATE GROUP BY` work).
+		// Spark v4.0.5 requires at least one aggregate expression or a GROUP BY
+		// clause after |> AGGREGATE.
 		if p.cur().Kind == kwGROUP && p.peek(1).Kind == kwBY {
 			cpAgg := p.save()
-			if err := p.parseAggregationClause(); err == nil && (p.isStatementEnd() || p.cur().Kind == tokRParen || p.cur().Kind == tokOperatorPipe || p.isQueryOrgStart()) {
+			if err := p.parseAggregationClause(true); err == nil && (p.isStatementEnd() || p.cur().Kind == tokRParen || p.cur().Kind == tokOperatorPipe || p.isQueryOrgStart()) {
 				return nil
 			}
 			p.restore(cpAgg)
 		}
+		hasAggExprs := false
 		if p.cur().Kind != tokEOF && p.cur().Kind != tokSemicolon &&
 			p.cur().Kind != tokRParen && p.cur().Kind != tokOperatorPipe && !p.isQueryOrgStart() {
 			if err := p.parseNamedExpressionSeq(); err != nil {
 				return err
 			}
+			hasAggExprs = true
 		}
 		if p.cur().Kind == kwGROUP {
-			return p.parseAggregationClause()
+			return p.parseAggregationClause(true)
+		}
+		if !hasAggExprs {
+			return p.errorf("AGGREGATE pipe operator requires aggregate expressions or a GROUP BY clause")
 		}
 		return nil
 	case kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL:
 		return p.parseJoinRelation()
 	default:
-		// queryOrganization (may be empty if followed by EOF/;/etc., or non-empty)
-		return p.parseQueryOrganization()
+		// queryOrganization in a pipe operator forbids WINDOW and combining
+		// ORDER/CLUSTER/DISTRIBUTE/SORT BY with LIMIT/OFFSET in one pipe stage.
+		return p.parseQueryOrganization(true)
 	}
 }
 
@@ -428,7 +439,11 @@ func (p *Parser) parseQueryPrimary() error {
 }
 
 func (p *Parser) parseFromStatement() error {
-	if err := p.parseFromClause(); err != nil {
+	prev := p.inFromStatement
+	p.inFromStatement = true
+	err := p.parseFromClause()
+	p.inFromStatement = prev
+	if err != nil {
 		return err
 	}
 	for p.cur().Kind == kwSELECT || p.cur().Kind == kwMAP || p.cur().Kind == kwREDUCE {
@@ -449,7 +464,7 @@ func (p *Parser) parseFromStatementBody() error {
 				return err
 			}
 		}
-		return p.parseQueryOrganization()
+		return p.parseQueryOrganization(false)
 	}
 	if err := p.parseSelectClause(); err != nil {
 		return err
@@ -465,7 +480,7 @@ func (p *Parser) parseFromStatementBody() error {
 		}
 	}
 	if p.cur().Kind == kwGROUP {
-		if err := p.parseAggregationClause(); err != nil {
+		if err := p.parseAggregationClause(false); err != nil {
 			return err
 		}
 	}
@@ -479,7 +494,7 @@ func (p *Parser) parseFromStatementBody() error {
 			return err
 		}
 	}
-	return p.parseQueryOrganization()
+	return p.parseQueryOrganization(false)
 }
 
 func (p *Parser) parseQuerySpecification() error {
@@ -508,7 +523,7 @@ func (p *Parser) parseQuerySpecification() error {
 		}
 	}
 	if p.cur().Kind == kwGROUP {
-		if err := p.parseAggregationClause(); err != nil {
+		if err := p.parseAggregationClause(false); err != nil {
 			return err
 		}
 	}
@@ -569,7 +584,9 @@ func (p *Parser) parseTransformClause() error {
 		if _, err := p.expect(tokLParen); err != nil {
 			return err
 		}
-		p.matchSetQuantifierIfFollowedByExpr()
+		if p.matchSetQuantifierIfFollowedByExpr() {
+			return p.errorf("TRANSFORM with DISTINCT/ALL is not supported")
+		}
 		if err := p.parseExpressionSeq(); err != nil {
 			return err
 		}
@@ -577,7 +594,9 @@ func (p *Parser) parseTransformClause() error {
 			return err
 		}
 	} else if p.match(kwMAP, kwREDUCE) {
-		p.matchSetQuantifierIfFollowedByExpr()
+		if p.matchSetQuantifierIfFollowedByExpr() {
+			return p.errorf("TRANSFORM with DISTINCT/ALL is not supported")
+		}
 		if err := p.parseExpressionSeq(); err != nil {
 			return err
 		}
@@ -590,10 +609,8 @@ func (p *Parser) parseTransformClause() error {
 			return err
 		}
 	}
-	if p.match(kwRECORDWRITER) {
-		if err := p.parseStringLit(); err != nil {
-			return err
-		}
+	if p.cur().Kind == kwRECORDWRITER {
+		return p.errorf("custom RECORDWRITER is not supported in TRANSFORM")
 	}
 	if _, err := p.expect(kwUSING); err != nil {
 		return err
@@ -630,17 +647,15 @@ func (p *Parser) parseTransformClause() error {
 			return err
 		}
 	}
-	if p.match(kwRECORDREADER) {
-		if err := p.parseStringLit(); err != nil {
-			return err
-		}
+	if p.cur().Kind == kwRECORDREADER {
+		return p.errorf("custom RECORDREADER is not supported in TRANSFORM")
 	}
 	return nil
 }
 
-func (p *Parser) matchSetQuantifierIfFollowedByExpr() {
+func (p *Parser) matchSetQuantifierIfFollowedByExpr() bool {
 	if p.cur().Kind != kwDISTINCT && p.cur().Kind != kwALL {
-		return
+		return false
 	}
 	next := p.peek(1).Kind
 	switch next {
@@ -656,13 +671,23 @@ func (p *Parser) matchSetQuantifierIfFollowedByExpr() {
 			kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
 			kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
 			p.advance()
+			return true
 		case tokIdent:
 			if isWord(p.peek(2), "QUALIFY") && p.peek(3).Kind != tokEOF && p.peek(3).Kind != tokSemicolon && p.peek(3).Kind != tokRParen {
 				p.advance()
+				return true
 			}
 		}
-		return
-	case tokEOF, tokSemicolon, tokComma, tokRParen,
+		return false
+	case tokLParen:
+		if p.peek(2).Kind == tokRParen {
+			return false
+		}
+	case kwLATERAL:
+		if p.peek(2).Kind == kwVIEW {
+			return false
+		}
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
 		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
 		tokSlash, tokPercent, kwDIV,
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
@@ -673,9 +698,10 @@ func (p *Parser) matchSetQuantifierIfFollowedByExpr() {
 		kwFROM, kwWHERE, kwUSING, kwROW, kwRECORDWRITER,
 		kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
 		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-		return
+		return false
 	}
 	p.advance()
+	return true
 }
 
 func (p *Parser) parseSelectClause() error {
@@ -735,11 +761,11 @@ func (p *Parser) parseFromClause() error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	if err := p.parseRelation(); err != nil {
+	if err := p.parseRelation(false); err != nil {
 		return err
 	}
 	for p.match(tokComma) {
-		if err := p.parseRelation(); err != nil {
+		if err := p.parseRelation(true); err != nil {
 			return err
 		}
 	}
@@ -761,17 +787,25 @@ func (p *Parser) parseFromClause() error {
 	return nil
 }
 
-func (p *Parser) parseRelation() error {
+func (p *Parser) parseRelation(isJoinedOrComma bool) error {
 	if err := p.enterNesting(); err != nil {
 		return err
 	}
 	defer p.leaveNesting()
 
-	if p.isLateralRelationModifier() {
+	isLateral := false
+	if p.isLateralRelationModifier(isJoinedOrComma) {
+		isLateral = true
 		p.advance()
 	}
-	if err := p.parseRelationPrimary(); err != nil {
+	isSubqueryOrTVF, err := p.parseRelationPrimary()
+	if err != nil {
 		return err
+	}
+	// Spark v4.0.5 AstBuilder only enforces LATERAL_WITHOUT_SUBQUERY_OR_TABLE_VALUED_FUNC
+	// when LATERAL joins onto a preceding relation (via `, LATERAL ...` or `JOIN LATERAL ...`).
+	if isJoinedOrComma && isLateral && !isSubqueryOrTVF {
+		return p.errorf("LATERAL can only be used with subqueries and table-valued functions")
 	}
 	for {
 		switch {
@@ -794,27 +828,43 @@ func (p *Parser) parseRelation() error {
 }
 
 // isLateralRelationModifier reports whether a leading LATERAL keyword before a
-// relationPrimary acts as the LATERAL modifier (e.g. `FROM LATERAL (SELECT ...)`,
-// `FROM LATERAL explode(arr)`) rather than a table or schema named `lateral`
-// (e.g. `FROM lateral`, `FROM lateral.t`, `JOIN lateral ON ...`).
-func (p *Parser) isLateralRelationModifier() bool {
+// relationPrimary acts as the LATERAL modifier (e.g. `FROM t, LATERAL (SELECT ...)`,
+// `JOIN LATERAL explode(arr)`, `JOIN LATERAL x`) rather than a table or schema
+// named `lateral` (e.g. `JOIN lateral ON ...`, `JOIN lateral.t ON ...`).
+func (p *Parser) isLateralRelationModifier(inJoinOrComma bool) bool {
 	if p.cur().Kind != kwLATERAL {
 		return false
 	}
 	next := p.peek(1).Kind
 	switch next {
 	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
-		tokDot, kwAS, kwVIEW,
+		tokDot, kwVIEW,
 		kwON, kwUSING,
-		kwTABLESAMPLE, kwPIVOT, kwUNPIVOT,
+		kwPIVOT, kwUNPIVOT,
 		kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
 		kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
 		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
-		kwSELECT, kwMAP, kwREDUCE, kwSET, kwINTO:
+		kwSELECT, kwINSERT, kwMAP, kwREDUCE, kwSET, kwINTO:
 		return false
+	case kwTABLESAMPLE:
+		// `FROM LATERAL TABLESAMPLE(10 PERCENT)` parses LATERAL as table + TABLESAMPLE clause,
+		// whereas `FROM LATERAL TABLESAMPLE(expr)` (non-sample args) parses LATERAL + TVF `tablesample(expr)`.
+		if p.peek(2).Kind != tokLParen {
+			return false
+		}
+		cpSample := p.save()
+		p.advance() // LATERAL
+		err := p.parseSample()
+		p.restore(cpSample)
+		return err != nil
+	case kwAS:
+		// In Spark's joinRelation/comma relation, ANTLR parses `JOIN lateral AS l`
+		// as LATERAL + table `AS` + alias `l` (which AstBuilder then rejects as
+		// LATERAL_WITHOUT_SUBQUERY_OR_TABLE_VALUED_FUNC).
+		return inJoinOrComma && p.peek(2).Kind.isStrictIdentifier()
 	case kwFOR:
 		return p.peek(2).Kind != kwSYSTEM_TIME && p.peek(2).Kind != kwSYSTEM_VERSION && p.peek(2).Kind != kwVERSION
-	case kwTIMESTAMP, kwVERSION:
+	case kwTIMESTAMP, kwVERSION, kwSYSTEM_TIME, kwSYSTEM_VERSION:
 		return !(p.peek(2).Kind == kwAS && p.peek(3).Kind == kwOF)
 	case kwWITH:
 		return p.peek(2).Kind != tokLParen
@@ -945,72 +995,110 @@ func (p *Parser) isJoinStart() bool {
 	return false
 }
 
+type joinKind int
+
+const (
+	joinInner joinKind = iota
+	joinCross
+	joinLeftOuter
+	joinRightOuter
+	joinFullOuter
+	joinSemi
+	joinAnti
+)
+
 func (p *Parser) parseJoinRelation() error {
 	natural := p.match(kwNATURAL)
-	isCross, err := p.parseJoinType()
+	jt, err := p.parseJoinType()
 	if err != nil {
 		return err
 	}
-	if natural && isCross {
+	if natural && jt == joinCross {
 		return p.errorf("NATURAL cannot be combined with CROSS JOIN")
 	}
 	if _, err := p.expect(kwJOIN); err != nil {
 		return err
 	}
 	isLateral := false
-	if p.isLateralRelationModifier() {
+	if p.isLateralRelationModifier(true) {
 		isLateral = true
 		p.advance()
 	}
 	if natural && isLateral {
 		return p.errorf("NATURAL JOIN cannot be combined with LATERAL")
 	}
-	if err := p.parseRelationPrimary(); err != nil {
+	if isLateral && jt != joinInner && jt != joinCross && jt != joinLeftOuter {
+		return p.errorf("LATERAL join is only supported for INNER, CROSS, and LEFT OUTER joins")
+	}
+	isSubqueryOrTVF, err := p.parseRelationPrimary()
+	if err != nil {
 		return err
+	}
+	if isLateral && !isSubqueryOrTVF {
+		return p.errorf("LATERAL can only be used with subqueries and table-valued functions")
 	}
 	if !natural {
 		if p.match(kwON) {
 			return p.parseBooleanExpression()
 		}
 		if p.match(kwUSING) {
+			if isLateral {
+				return p.errorf("LATERAL join with USING criteria is not supported")
+			}
 			return p.parseIdentifierList()
 		}
 	}
 	return nil
 }
 
-func (p *Parser) parseJoinType() (bool, error) {
+func (p *Parser) parseJoinType() (joinKind, error) {
 	switch p.cur().Kind {
 	case kwINNER:
 		p.advance()
+		return joinInner, nil
 	case kwCROSS:
 		p.advance()
-		return true, nil
+		return joinCross, nil
 	case kwLEFT:
 		p.advance()
-		p.match(kwOUTER, kwSEMI, kwANTI)
+		if p.match(kwSEMI) {
+			return joinSemi, nil
+		}
+		if p.match(kwANTI) {
+			return joinAnti, nil
+		}
+		p.match(kwOUTER)
+		return joinLeftOuter, nil
 	case kwRIGHT:
 		p.advance()
 		p.match(kwOUTER)
+		return joinRightOuter, nil
 	case kwFULL:
 		p.advance()
 		p.match(kwOUTER)
-	case kwSEMI, kwANTI:
+		return joinFullOuter, nil
+	case kwSEMI:
 		p.advance()
+		return joinSemi, nil
+	case kwANTI:
+		p.advance()
+		return joinAnti, nil
 	}
-	return false, nil
+	return joinInner, nil
 }
 
-func (p *Parser) parseRelationPrimary() error {
+// parseRelationPrimary parses a relationPrimary and reports whether it is a
+// subquery or table-valued function (the only forms Spark v4.0.5 allows after LATERAL).
+func (p *Parser) parseRelationPrimary() (bool, error) {
 	switch p.cur().Kind {
 	case kwVALUES:
 		if !p.isValuesFollowedByRelationClause() && p.isValuesQueryAt(0, false) {
 			if p.peek(1).Kind == tokLParen {
-				return p.parseInlineTable()
+				return false, p.parseInlineTable()
 			}
 			cp := p.save()
 			if err := p.parseInlineTable(); err == nil && p.isValidRelationPrimaryEnd() {
-				return nil
+				return false, nil
 			}
 			p.restore(cp)
 		}
@@ -1021,30 +1109,30 @@ func (p *Parser) parseRelationPrimary() error {
 		// so nested malformed subqueries in FROM never reparse exponentially.
 		if p.startsWithCompleteParenQuery() {
 			if err := p.parseQuery(); err != nil {
-				return err
+				return false, err
 			}
 			if _, err := p.expect(tokRParen); err != nil {
-				return err
+				return false, err
 			}
 			if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 				if err := p.parseSample(); err != nil {
-					return err
+					return false, err
 				}
 			}
-			return p.parseTableAlias()
+			return true, p.parseTableAlias()
 		}
-		if err := p.parseRelation(); err != nil {
-			return err
+		if err := p.parseRelation(true); err != nil {
+			return false, err
 		}
 		if _, err := p.expect(tokRParen); err != nil {
-			return err
+			return false, err
 		}
 		if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 			if err := p.parseSample(); err != nil {
-				return err
+				return false, err
 			}
 		}
-		return p.parseTableAlias()
+		return false, p.parseTableAlias()
 	}
 
 	// functionTable (`funcName(...)` or `IDENTIFIER(expr)(...)`) or dynamic tableName (`IDENTIFIER(expr) ...`).
@@ -1055,24 +1143,24 @@ func (p *Parser) parseRelationPrimary() error {
 
 	// tableName: identifierReference temporalClause? optionsClause? sample? tableAlias
 	if _, err := p.parseIdentifierReference(); err != nil {
-		return err
+		return false, err
 	}
 	if p.isTemporalClauseStart() {
 		if err := p.parseTemporalClause(); err != nil {
-			return err
+			return false, err
 		}
 	}
 	if p.cur().Kind == kwWITH && p.peek(1).Kind == tokLParen {
 		if err := p.parseOptionsClause(); err != nil {
-			return err
+			return false, err
 		}
 	}
 	if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 		if err := p.parseSample(); err != nil {
-			return err
+			return false, err
 		}
 	}
-	return p.parseTableAlias()
+	return false, p.parseTableAlias()
 }
 
 func (p *Parser) isValuesFollowedByRelationClause() bool {
@@ -1155,7 +1243,11 @@ func (p *Parser) parseTemporalClause() error {
 		if _, err := p.expect(kwOF); err != nil {
 			return err
 		}
-		return p.parseValueExpression()
+		prevDisallow := p.disallowColumnRefs
+		p.disallowColumnRefs = true
+		err := p.parseValueExpression()
+		p.disallowColumnRefs = prevDisallow
+		return err
 	}
 	return p.errorf("expected temporal clause")
 }
@@ -1182,90 +1274,98 @@ func (p *Parser) parseInlineTable() error {
 	return p.parseTableAlias()
 }
 
-func (p *Parser) parseFunctionTable() error {
+func (p *Parser) parseFunctionTable() (bool, error) {
 	// Single-pass handling for IDENTIFIER(expr)(tableArgs) vs IDENTIFIER(tableArgs)
 	// without reparsing nested IDENTIFIER(...) arguments.
+	// Spark v4.0.5 rejects empty `IDENTIFIER()` with PARSE_SYNTAX_ERROR.
 	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
 		p.advance()
 		p.advance()
-		singlePlainArg := false
-		if !p.match(tokRParen) {
-			isTableOrNamed := p.isTableSubqueryArgAt(0) ||
-				(p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow)
-			if err := p.parseFunctionTableArgument(); err != nil {
-				return err
-			}
-			argCount := 1
-			for p.match(tokComma) {
-				if err := p.parseFunctionTableArgument(); err != nil {
-					return err
-				}
-				argCount++
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			singlePlainArg = !isTableOrNamed && argCount == 1
+		if p.cur().Kind == tokRParen {
+			return false, p.errorf("IDENTIFIER() requires an expression argument")
 		}
+		isTableOrNamed := p.isTableSubqueryArgAt(0) ||
+			(p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow)
+		if err := p.parseFunctionTableArgument(); err != nil {
+			return false, err
+		}
+		argCount := 1
+		for p.match(tokComma) {
+			if err := p.parseFunctionTableArgument(); err != nil {
+				return false, err
+			}
+			argCount++
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return false, err
+		}
+		singlePlainArg := !isTableOrNamed && argCount == 1
 		if singlePlainArg && p.cur().Kind == tokLParen {
 			p.advance()
 			if !p.match(tokRParen) {
 				for {
 					if err := p.parseFunctionTableArgument(); err != nil {
-						return err
+						return false, err
 					}
 					if !p.match(tokComma) {
 						break
 					}
 				}
 				if _, err := p.expect(tokRParen); err != nil {
-					return err
+					return false, err
 				}
 			}
-			return p.parseTableAlias()
+			return true, p.parseTableAlias()
 		}
 		if singlePlainArg {
 			// IDENTIFIER(expr) without a second `(...)` is an identifierReference
 			// tableName, which accepts temporalClause?, optionsClause?, sample?, tableAlias.
 			if p.isTemporalClauseStart() {
 				if err := p.parseTemporalClause(); err != nil {
-					return err
+					return false, err
 				}
 			}
 			if p.cur().Kind == kwWITH && p.peek(1).Kind == tokLParen {
 				if err := p.parseOptionsClause(); err != nil {
-					return err
+					return false, err
 				}
 			}
 			if p.cur().Kind == kwTABLESAMPLE && p.peek(1).Kind == tokLParen {
 				if err := p.parseSample(); err != nil {
-					return err
+					return false, err
 				}
 			}
+			return false, p.parseTableAlias()
 		}
-		return p.parseTableAlias()
+		return true, p.parseTableAlias()
 	}
 
-	if _, err := p.parseQualifiedName(); err != nil {
-		return err
+	// Spark v4.0.5 AstBuilder.visitTableValuedFunction rejects qualified TVF names
+	// (e.g. `FROM lateral.f(1)`, `FROM db.f(1)`): only an unqualified function name
+	// is valid here.
+	if _, err := p.parseIdentifier(); err != nil {
+		return false, err
+	}
+	if p.cur().Kind == tokDot {
+		return false, p.errorf("table-valued function name cannot be qualified")
 	}
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return false, err
 	}
 	if !p.match(tokRParen) {
 		for {
 			if err := p.parseFunctionTableArgument(); err != nil {
-				return err
+				return false, err
 			}
 			if !p.match(tokComma) {
 				break
 			}
 		}
 		if _, err := p.expect(tokRParen); err != nil {
-			return err
+			return false, err
 		}
 	}
-	return p.parseTableAlias()
+	return true, p.parseTableAlias()
 }
 
 func (p *Parser) parseFunctionTableArgument() error {
@@ -1332,17 +1432,17 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 		}
 		if innerClose+1 == outerClose {
 			// `TABLE((...))`: confirm inner '(' starts a query.
-			return p.startsWithQueryKeywordAt(innerOff)
+			return p.startsWithQueryKeywordAt(innerOff, true)
 		}
 		switch p.peek(innerClose + 1).Kind {
 		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, tokOperatorPipe,
 			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
-			return p.startsWithQueryKeywordAt(innerOff)
+			return p.startsWithQueryKeywordAt(innerOff, true)
 		default:
 			return false
 		}
 	case kwSELECT, kwFROM, kwWITH, kwTABLE, kwVALUES, kwMAP, kwREDUCE:
-		if p.startsWithQueryKeywordAt(innerOff) {
+		if p.startsWithQueryKeywordAt(innerOff, true) {
 			return true
 		}
 		// Could still be a table named `values`/`table`/`map`/`reduce` as `TABLE(values)` or `TABLE(values.t)`.
@@ -1358,15 +1458,18 @@ func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 	}
 }
 
-func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
+func (p *Parser) startsWithQueryKeywordAt(startOffset int, inParens bool) bool {
 	i := p.skipLParensOffset(startOffset)
+	if i > startOffset {
+		inParens = true
+	}
 	switch p.peek(i).Kind {
 	case kwSELECT:
-		return p.isSelectQueryAt(i)
+		return p.isSelectQueryAt(i, inParens)
 	case kwFROM:
 		return p.isFromQueryAt(i)
 	case kwVALUES:
-		return p.isValuesQueryAt(i, true)
+		return p.isValuesQueryAt(i, inParens)
 	case kwWITH:
 		pos := i + 1
 		if p.peek(pos).Kind == kwRECURSIVE && p.peek(pos+1).Kind != kwAS && p.peek(pos+1).Kind != tokLParen {
@@ -1388,7 +1491,7 @@ func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
 	return false
 }
 
-func (p *Parser) isSelectQueryAt(selectOffset int) bool {
+func (p *Parser) isSelectQueryAt(selectOffset int, inParens bool) bool {
 	next := p.peek(selectOffset + 1).Kind
 	switch next {
 	case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
@@ -1412,6 +1515,9 @@ func (p *Parser) isSelectQueryAt(selectOffset int) bool {
 		}
 		return false
 	case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+		if !inParens {
+			return true
+		}
 		switch p.peek(selectOffset + 2).Kind {
 		case tokEOF, tokSemicolon, tokRParen, tokComma, tokOperatorPipe,
 			kwAS, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
@@ -1659,7 +1765,19 @@ func (p *Parser) isParenthesizedPartitionList(allowOrderBy bool) bool {
 
 // parseTableAlias parses: (AS? strictIdentifier identifierList?)?
 func (p *Parser) parseTableAlias() error {
-	if p.match(kwAS) {
+	if p.cur().Kind == kwAS {
+		next := p.peek(1).Kind
+		switch next {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+			kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
+			kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+			kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
+			kwON, kwUSING, kwLATERAL, kwPIVOT, kwUNPIVOT:
+			// `AS` itself as an implicit table alias (e.g. `FROM t AS`, `FROM t AS WHERE a = 1`).
+			p.advance()
+			return nil
+		}
+		p.advance()
 		if _, err := p.parseStrictIdentifier(); err != nil {
 			return err
 		}
@@ -1744,6 +1862,9 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 		kwSELECT, kwINSERT, kwMAP, kwREDUCE, kwWHEN, kwTHEN, kwELSE, kwEND,
 		kwVALUES, kwFROM, kwDO, kwUNTIL, kwINTO, kwAS, kwBY:
 		if k == kwAS {
+			return false
+		}
+		if p.inFromStatement && (k == kwSELECT || k == kwMAP || k == kwREDUCE) {
 			return false
 		}
 		// Allow as implicit alias when followed by an unmistakable clause boundary.
@@ -1845,58 +1966,53 @@ func (p *Parser) parseSample() error {
 }
 
 func (p *Parser) parseSampleMethod() error {
-	// BUCKET int OUT OF int (ON (ident | qualName()))?
+	// BUCKET int OUT OF int (Spark v4.0.5 rejects ON col/func, y <= 0, and x > y)
 	if p.cur().Kind == kwBUCKET && p.peek(1).Kind == tokInt {
 		p.advance()
-		p.advance()
+		numTok := p.advance()
 		if _, err := p.expect(kwOUT); err != nil {
 			return err
 		}
 		if _, err := p.expect(kwOF); err != nil {
 			return err
 		}
-		if _, err := p.expect(tokInt); err != nil {
+		denTok, err := p.expect(tokInt)
+		if err != nil {
 			return err
 		}
-		if p.match(kwON) {
-			if _, err := p.parseIdentifier(); err != nil {
-				return err
-			}
-			qualified := false
-			for p.match(tokDot) {
-				qualified = true
-				if _, err := p.parseIdentifier(); err != nil {
-					return err
-				}
-			}
-			if qualified {
-				if _, err := p.expect(tokLParen); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-			} else if p.match(tokLParen) {
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-			}
+		num, err1 := strconv.ParseInt(numTok.Text, 10, 64)
+		den, err2 := strconv.ParseInt(denTok.Text, 10, 64)
+		if err1 != nil || err2 != nil || den <= 0 || num < 0 || num > den {
+			return p.errorf("invalid TABLESAMPLE BUCKET %s OUT OF %s", numTok.Text, denTok.Text)
+		}
+		if p.cur().Kind == kwON {
+			return p.errorf("TABLESAMPLE BUCKET ... ON is not supported")
 		}
 		return nil
 	}
-	// MINUS? (INT | DECIMAL) PERCENT
+	// MINUS? (INT | DECIMAL) PERCENT (Spark requires percentage in [0, 100])
 	cp := p.save()
-	p.match(tokMinus)
+	neg := p.match(tokMinus)
+	numTok := p.cur()
 	if p.match(tokInt, tokDecimal) && p.match(kwPERCENT) {
+		val, err := strconv.ParseFloat(numTok.Text, 64)
+		if neg {
+			val = -val
+		}
+		if err != nil || val < 0 || val > 100 {
+			return p.errorf("TABLESAMPLE percentage %v must be in [0, 100]", val)
+		}
 		return nil
 	}
 	p.restore(cp)
 
-	// expression ROWS | expression
+	// expression ROWS (Spark v4.0.5 rejects bare byte-length / unannotated expressions)
 	if err := p.parseExpression(); err != nil {
 		return err
 	}
-	p.match(kwROWS)
+	if _, err := p.expect(kwROWS); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -2137,61 +2253,59 @@ func (p *Parser) parseHavingClause() error {
 	return p.parseBooleanExpression()
 }
 
-func (p *Parser) parseAggregationClause() error {
+func (p *Parser) parseAggregationClause(inPipeAggregate bool) error {
 	if _, err := p.expect(kwGROUP); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwBY); err != nil {
 		return err
 	}
-	// First item could be groupingAnalytics or namedExpression / expression.
-	// Once isGroupingAnalyticsStart identifies a grouping analytics clause
-	// (GROUPING SETS(...) or ROLLUP/CUBE(...) without function-call-only args
-	// or expression/alias continuations), commit directly without restoring
-	// and retrying through parseNamedExpression so malformed nested queries
-	// fail in linear time.
-	hasGroupingAnalyticsOnly := false
-	hasAlias := false
+	if inPipeAggregate && p.cur().Kind == kwALL {
+		next := p.peek(1).Kind
+		if next == tokEOF || next == tokSemicolon || next == tokRParen || next == tokOperatorPipe || p.isQueryOrgStart() {
+			return p.errorf("GROUP BY ALL is not supported in AGGREGATE pipe operator")
+		}
+	}
+	// Spark v4.0.5 parses regular GROUP BY via groupByClause (no aliases allowed),
+	// whereas pipe `|> AGGREGATE ... GROUP BY` allows named expressions (aliases)
+	// while forbidding GROUP BY ALL, ROLLUP, CUBE, and GROUPING SETS.
+	hasGroupingAnalytics := false
 	for {
 		if p.isGroupingAnalyticsStart() {
-			if p.cur().Kind == kwGROUPING && hasAlias {
-				return p.errorf("GROUPING SETS cannot be mixed with aliased GROUP BY expressions")
+			if inPipeAggregate {
+				return p.errorf("ROLLUP, CUBE, and GROUPING SETS are not supported in AGGREGATE pipe operator")
 			}
-			analyticsOnly, err := p.parseGroupingAnalytics()
-			if err != nil {
+			if _, err := p.parseGroupingAnalytics(); err != nil {
 				return err
 			}
-			if analyticsOnly {
-				if hasAlias {
-					return p.errorf("grouping analytics cannot be mixed with aliased GROUP BY expressions")
-				}
-				hasGroupingAnalyticsOnly = true
-			}
-		} else if hasGroupingAnalyticsOnly {
-			if err := p.parseExpression(); err != nil {
+			hasGroupingAnalytics = true
+		} else if inPipeAggregate {
+			if err := p.parseNamedExpression(); err != nil {
 				return err
 			}
 		} else {
-			aliased, err := p.parseNamedExpressionWithAliasFlag()
-			if err != nil {
+			if err := p.parseExpression(); err != nil {
 				return err
-			}
-			if aliased {
-				hasAlias = true
 			}
 		}
 		if !p.match(tokComma) {
 			break
 		}
 	}
-	if hasGroupingAnalyticsOnly {
+	if hasGroupingAnalytics {
 		return nil
 	}
-	// Optional WITH ROLLUP | WITH CUBE | GROUPING SETS (...) (only on the namedExpression alternative).
+	// Optional WITH ROLLUP | WITH CUBE | GROUPING SETS (...).
 	if p.cur().Kind == kwWITH && (p.peek(1).Kind == kwROLLUP || p.peek(1).Kind == kwCUBE) {
+		if inPipeAggregate {
+			return p.errorf("WITH ROLLUP/CUBE is not supported in AGGREGATE pipe operator")
+		}
 		p.advance()
 		p.advance()
 	} else if p.cur().Kind == kwGROUPING && p.peek(1).Kind == kwSETS {
+		if inPipeAggregate {
+			return p.errorf("GROUPING SETS is not supported in AGGREGATE pipe operator")
+		}
 		p.advance()
 		p.advance()
 		if _, err := p.expect(tokLParen); err != nil {
@@ -2280,17 +2394,20 @@ func (p *Parser) parseGroupingAnalytics() (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		if hasEmpty {
+			return true, p.errorf("empty set () in ROLLUP/CUBE is not supported")
+		}
 		for p.match(tokComma) {
 			empty, err := p.parseGroupingSet()
 			if err != nil {
 				return false, err
 			}
 			if empty {
-				hasEmpty = true
+				return true, p.errorf("empty set () in ROLLUP/CUBE is not supported")
 			}
 		}
 		_, err = p.expect(tokRParen)
-		return hasEmpty, err
+		return false, err
 	}
 	if _, err := p.expect(kwGROUPING); err != nil {
 		return true, err
@@ -2491,36 +2608,63 @@ func (p *Parser) parseWindowClause() error {
 	if _, err := p.expect(kwWINDOW); err != nil {
 		return err
 	}
+	defined := make(map[string]struct{})
+	var refs []string
 	for {
-		if _, err := p.parseErrorCapturingIdentifier(); err != nil {
+		name, err := p.parseErrorCapturingIdentifier()
+		if err != nil {
 			return err
 		}
+		norm := normalizeIdentName(name)
+		if _, dup := defined[norm]; dup {
+			return p.errorf("repetitive window definition %q", name)
+		}
+		defined[norm] = struct{}{}
 		if _, err := p.expect(kwAS); err != nil {
 			return err
 		}
-		if err := p.parseWindowSpec(); err != nil {
+		// Spark v4.0.5 AstBuilder.withWindows requires parenthesized windowSpec
+		// (`WINDOW w AS (...)`) and rejects bare window references (`WINDOW w AS w2`).
+		if p.cur().Kind != tokLParen {
+			return p.errorf("window specification in WINDOW clause must be parenthesized")
+		}
+		ref, err := p.parseWindowSpecRef()
+		if err != nil {
 			return err
+		}
+		if ref != "" {
+			refs = append(refs, ref)
 		}
 		if !p.match(tokComma) {
 			break
+		}
+	}
+	for _, ref := range refs {
+		if _, ok := defined[normalizeIdentName(ref)]; !ok {
+			return p.errorf("unresolved window reference %q", ref)
 		}
 	}
 	return nil
 }
 
 func (p *Parser) parseWindowSpec() error {
+	_, err := p.parseWindowSpecRef()
+	return err
+}
+
+func (p *Parser) parseWindowSpecRef() (string, error) {
 	if !p.match(tokLParen) {
 		_, err := p.parseErrorCapturingIdentifier()
-		return err
+		return "", err
 	}
 	if p.match(tokRParen) {
-		return nil
+		return "", nil
 	}
 	// Could be windowRef: (name) or windowDef: (CLUSTER BY ... | (PARTITION|DISTRIBUTE BY ...)? (ORDER|SORT BY ...)? windowFrame?)
 	cp := p.save()
-	if _, err := p.parseErrorCapturingIdentifier(); err == nil && p.cur().Kind == tokRParen {
+	if ref, err := p.parseErrorCapturingIdentifier(); err == nil && p.cur().Kind == tokRParen {
 		p.advance()
-		return nil
+		return ref, nil
 	}
 	p.restore(cp)
 
@@ -2528,31 +2672,31 @@ func (p *Parser) parseWindowSpec() error {
 		p.advance()
 		p.advance()
 		if err := p.parseExpressionSeq(); err != nil {
-			return err
+			return "", err
 		}
 	} else {
 		if (p.cur().Kind == kwPARTITION || p.cur().Kind == kwDISTRIBUTE) && p.peek(1).Kind == kwBY {
 			p.advance()
 			p.advance()
 			if err := p.parseExpressionSeq(); err != nil {
-				return err
+				return "", err
 			}
 		}
 		if (p.cur().Kind == kwORDER || p.cur().Kind == kwSORT) && p.peek(1).Kind == kwBY {
 			p.advance()
 			p.advance()
 			if err := p.parseSortItemList(); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
 	if p.cur().Kind == kwRANGE || p.cur().Kind == kwROWS {
 		if err := p.parseWindowFrame(); err != nil {
-			return err
+			return "", err
 		}
 	}
 	_, err := p.expect(tokRParen)
-	return err
+	return "", err
 }
 
 func (p *Parser) parseWindowFrame() error {
@@ -2617,9 +2761,10 @@ func (p *Parser) parseSortItem() error {
 	return nil
 }
 
-func (p *Parser) parseQueryOrganization() error {
+func (p *Parser) parseQueryOrganization(inPipe bool) error {
 	hasOrder := false
 	hasCluster := false
+	hasDistributeOrSort := false
 	if p.cur().Kind == kwORDER && p.peek(1).Kind == kwBY {
 		hasOrder = true
 		p.advance()
@@ -2643,6 +2788,7 @@ func (p *Parser) parseQueryOrganization() error {
 		if hasOrder || hasCluster {
 			return p.errorf("DISTRIBUTE BY cannot be combined with ORDER BY or CLUSTER BY")
 		}
+		hasDistributeOrSort = true
 		p.advance()
 		p.advance()
 		if err := p.parseExpressionSeq(); err != nil {
@@ -2653,6 +2799,7 @@ func (p *Parser) parseQueryOrganization() error {
 		if hasOrder || hasCluster {
 			return p.errorf("SORT BY cannot be combined with ORDER BY or CLUSTER BY")
 		}
+		hasDistributeOrSort = true
 		p.advance()
 		p.advance()
 		if err := p.parseSortItemList(); err != nil {
@@ -2660,11 +2807,18 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.cur().Kind == kwWINDOW {
+		if inPipe {
+			return p.errorf("WINDOW clause is not supported directly after pipe operator")
+		}
 		if err := p.parseWindowClause(); err != nil {
 			return err
 		}
 	}
+	hasOrdering := hasOrder || hasCluster || hasDistributeOrSort
 	if p.match(kwLIMIT) {
+		if inPipe && hasOrdering {
+			return p.errorf("cannot combine ORDER/CLUSTER/DISTRIBUTE/SORT BY with LIMIT in the same pipe operator")
+		}
 		if p.isStandaloneLimitAll() {
 			p.advance()
 		} else {
@@ -2674,6 +2828,9 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.match(kwOFFSET) {
+		if inPipe && hasOrdering {
+			return p.errorf("cannot combine ORDER/CLUSTER/DISTRIBUTE/SORT BY with OFFSET in the same pipe operator")
+		}
 		if err := p.parseExpression(); err != nil {
 			return err
 		}

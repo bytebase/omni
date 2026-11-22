@@ -1,5 +1,10 @@
 package parser
 
+import (
+	"strconv"
+	"strings"
+)
+
 func (p *Parser) parseExpression() error {
 	return p.parseBooleanExpression()
 }
@@ -37,7 +42,25 @@ func (p *Parser) parseOptionalNamedExprAlias() error {
 }
 
 func (p *Parser) parseOptionalNamedExprAliasFlag() (bool, error) {
-	if p.match(kwAS) {
+	if p.cur().Kind == kwAS {
+		next := p.peek(1).Kind
+		// In Spark default mode, `AS` is non-reserved, so `SELECT 1 AS`,
+		// `SELECT a AS FROM t`, and `SELECT a AS, b FROM t` use `AS` itself as
+		// an implicit alias when a clause or delimiter immediately follows.
+		switch next {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
+			kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER,
+			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			p.advance()
+			return true, nil
+		case kwFROM:
+			if p.isFromQueryAt(1) {
+				p.advance()
+				return true, nil
+			}
+		}
+		p.advance()
 		if p.cur().Kind == tokLParen {
 			return true, p.parseIdentifierList()
 		}
@@ -79,7 +102,9 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 	next := p.peek(1).Kind
 	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen || next == tokOperatorPipe {
 		switch k {
-		case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO:
+		case kwEND:
+			return p.openCasesAtCurrentParenDepth() == 0
+		case kwELSEIF, kwTHEN, kwDO:
 			return false
 		}
 		return true
@@ -319,6 +344,10 @@ func (p *Parser) isNotIdentifierContinuation() bool {
 		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
 		tokArrow, tokFatArrow:
 		return true
+	case tokLParen:
+		return p.peek(2).Kind == tokRParen
+	case kwLATERAL:
+		return p.peek(2).Kind == kwVIEW
 	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
 		return p.peek(2).Kind == kwBY
 	case kwWINDOW:
@@ -357,7 +386,7 @@ func (p *Parser) isNotIdentifierContinuation() bool {
 			return false
 		}
 		return !isNotOperandClauseEnd(after)
-	case kwFROM, kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwTHEN, kwELSE, kwWHEN, kwON, kwINTO:
+	case kwFROM, kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwTHEN, kwELSE, kwWHEN, kwON, kwINTO, kwFOR:
 		return !isNotOperandFollow(p.peek(2).Kind)
 	case kwCOLLATE:
 		// `not COLLATE utf8_binary` is a postfix COLLATE on column `not`,
@@ -397,11 +426,12 @@ func isNotOperandFollow(k TokenKind) bool {
 }
 
 func (p *Parser) parseOptionalPredicate() error {
-	// IS [NOT|!] (NULL | TRUE | FALSE | UNKNOWN | DISTINCT FROM valueExpression)
+	// IS [NOT] (NULL | TRUE | FALSE | UNKNOWN | DISTINCT FROM valueExpression)
+	// Spark v4.0.5 discontinues `!` in place of NOT here (SYNTAX_DISCONTINUED.BANG_EQUALS_NOT).
 	if p.cur().Kind == kwIS {
 		cp := p.save()
 		p.advance()
-		p.matchNot()
+		p.match(kwNOT)
 		if p.match(kwNULL, kwTRUE, kwFALSE, kwUNKNOWN) {
 			return nil
 		}
@@ -415,9 +445,10 @@ func (p *Parser) parseOptionalPredicate() error {
 		return nil
 	}
 
-	// [NOT|!] (BETWEEN | IN | RLIKE | LIKE | ILIKE)
+	// [NOT] (BETWEEN | IN | RLIKE | LIKE | ILIKE)
+	// Spark v4.0.5 discontinues `!` in place of NOT here (SYNTAX_DISCONTINUED.BANG_EQUALS_NOT).
 	cp := p.save()
-	hasNot := p.matchNot()
+	hasNot := p.match(kwNOT)
 	switch p.cur().Kind {
 	case kwBETWEEN:
 		p.advance()
@@ -475,20 +506,19 @@ func (p *Parser) parseOptionalPredicate() error {
 			if p.peek(1).Kind == tokLParen {
 				p.advance()
 				p.advance()
-				if !p.match(tokRParen) {
+				if p.cur().Kind == tokRParen {
+					return p.errorf("expected at least one pattern inside LIKE ANY/SOME/ALL (...)")
+				}
+				if err := p.parseExpression(); err != nil {
+					return err
+				}
+				for p.match(tokComma) {
 					if err := p.parseExpression(); err != nil {
 						return err
 					}
-					for p.match(tokComma) {
-						if err := p.parseExpression(); err != nil {
-							return err
-						}
-					}
-					if _, err := p.expect(tokRParen); err != nil {
-						return err
-					}
 				}
-				return nil
+				_, err := p.expect(tokRParen)
+				return err
 			}
 		}
 		if err := p.parseValueExpression(); err != nil {
@@ -612,24 +642,31 @@ func (p *Parser) parseMulExpression() error {
 
 func (p *Parser) parseUnaryExpression() error {
 	ops := 0
-	for p.match(tokMinus, tokPlus, tokTilde) {
+	negated := false
+	for p.cur().Kind == tokMinus || p.cur().Kind == tokPlus || p.cur().Kind == tokTilde {
+		k := p.advance().Kind
 		ops++
 		if p.depth+ops > maxNestingDepth {
 			return p.errorf("maximum nesting depth exceeded")
 		}
+		negated = k == tokMinus && ops == 1
 	}
-	return p.parsePrimaryExpression()
+	return p.parsePrimaryExpressionNeg(negated)
 }
 
 // parsePrimaryExpression parses Spark's primaryExpression + postfix operators
 // (COLLATE, :: dataType, [index], .field).
 func (p *Parser) parsePrimaryExpression() error {
+	return p.parsePrimaryExpressionNeg(false)
+}
+
+func (p *Parser) parsePrimaryExpressionNeg(negated bool) error {
 	if err := p.enterNesting(); err != nil {
 		return err
 	}
 	defer p.leaveNesting()
 
-	isQualifiedIdent, err := p.parsePrimaryAtom()
+	isQualifiedIdent, err := p.parsePrimaryAtom(negated)
 	if err != nil {
 		return err
 	}
@@ -638,10 +675,11 @@ func (p *Parser) parsePrimaryExpression() error {
 	for {
 		switch p.cur().Kind {
 		case kwCOLLATE:
-			cp := p.save()
-			if err := p.parseCollateClause(); err != nil {
-				p.restore(cp)
+			if !p.peek(1).Kind.isIdentifier() {
 				return nil
+			}
+			if err := p.parseCollateClause(false); err != nil {
+				return err
 			}
 			isQualifiedIdent = false
 		case tokDoubleColon:
@@ -697,7 +735,7 @@ func (p *Parser) parseExceptClause() error {
 	return err
 }
 
-func (p *Parser) parsePrimaryAtom() (bool, error) {
+func (p *Parser) parsePrimaryAtom(negated bool) (bool, error) {
 	k := p.cur().Kind
 
 	// Lambda: identifier -> expression
@@ -731,8 +769,18 @@ func (p *Parser) parsePrimaryAtom() (bool, error) {
 			return false, p.parseCaseExpression()
 		}
 		if p.peek(1).Kind == tokLParen {
-			if p.hasCaseWhenAndEndAhead() {
-				return false, p.parseCaseExpression()
+			// O(1) fast check: if the matching ')' is absent or immediately
+			// followed by a delimiter/EOF, `CASE(...)` cannot be `CASE (x) WHEN ... END`.
+			closeOff := p.matchingCloseOffset(1)
+			if closeOff > 0 {
+				afterClose := p.peek(closeOff + 1).Kind
+				if afterClose != tokEOF && afterClose != tokSemicolon &&
+					afterClose != tokRParen && afterClose != tokRBracket &&
+					afterClose != tokComma && afterClose != tokOperatorPipe {
+					if p.hasCaseWhenAndEndAhead() {
+						return false, p.parseCaseExpression()
+					}
+				}
 			}
 			return false, p.parseCaseOrCaseFuncCall()
 		}
@@ -756,22 +804,52 @@ func (p *Parser) parsePrimaryAtom() (bool, error) {
 	}
 
 	// Constants (NULL, ?, :ident, INTERVAL ..., literalType '...', number, TRUE/FALSE, stringLit+).
-	if p.canStartConstant() {
-		cp := p.save()
-		if err := p.parseConstant(); err == nil {
+	// In Spark default mode, TRUE/FALSE/NULL followed by '.' are qualified
+	// identifiers (e.g. `SELECT FALSE.*`, `SELECT TRUE.x`), not constants.
+	// Bare `INTERVAL` without a following numeric/string/signed literal (e.g.
+	// `SELECT INTERVAL`, `SELECT INTERVAL zzz`, `SELECT INTERVAL NANOSECOND`)
+	// falls back to a column reference, while malformed interval literals
+	// (e.g. `INTERVAL 'abc' DAY`) fail immediately.
+	if p.canStartConstant() && !((k == kwTRUE || k == kwFALSE || k == kwNULL) && p.peek(1).Kind == tokDot) {
+		if k == kwINTERVAL {
+			cp := p.save()
+			next := p.peek(1).Kind
+			if err := p.parseConstantWithNeg(negated); err != nil {
+				isLitTok := func(tk TokenKind) bool {
+					return tk == tokString || tk == tokInt || tk == tokDecimal ||
+						tk == tokFloat || tk == tokDouble || tk == tokBigInt || tk == tokSmallInt ||
+						tk == tokTinyInt || tk == tokBigDecimal || tk == tokExponent
+				}
+				isLiteralStart := isLitTok(next) || ((next == tokPlus || next == tokMinus) && isLitTok(p.peek(2).Kind))
+				if isLiteralStart {
+					return false, err
+				}
+				p.restore(cp)
+			} else {
+				return false, nil
+			}
+		} else {
+			if err := p.parseConstantWithNeg(negated); err != nil {
+				return false, err
+			}
 			return false, nil
 		}
-		p.restore(cp)
 	}
 
 	// currentLike keywords: CURRENT_DATE | CURRENT_TIMESTAMP | CURRENT_USER | USER | SESSION_USER
 	if k == kwCURRENT_DATE || k == kwCURRENT_TIMESTAMP || k == kwCURRENT_USER || k == kwUSER || k == kwSESSION_USER {
+		if p.disallowColumnRefs {
+			return false, p.errorf("column reference %q is not allowed in time travel expression", p.cur().Text)
+		}
 		p.advance()
 		return k.isIdentifier() && p.cur().Kind == tokDot, nil
 	}
 
 	// Column reference (identifier).
 	if k.isIdentifier() {
+		if p.disallowColumnRefs {
+			return false, p.errorf("column reference %q is not allowed in time travel expression", p.cur().Text)
+		}
 		p.advance()
 		return true, nil
 	}
@@ -1194,24 +1272,33 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 	case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
 		// Single-pass parsing for both 3-arg SQL TIMESTAMPADD/DATEDIFF(unit, a, b)
 		// and 2-arg function calls DATE_ADD(d, n) / DATEDIFF(d1, d2) without reparsing.
+		// Spark v4.0.5 rejects quoted string literals as the datetime unit in 3-arg forms
+		// (INVALID_PARAMETER_VALUE.DATETIME_UNIT).
 		p.advance()
 		p.advance()
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		if p.isFunctionSetQuantifier() {
+		hasQuant := p.isFunctionSetQuantifier()
+		if hasQuant {
 			p.advance()
 		}
+		firstIsStringLit := !hasQuant && p.isStringLit() && p.peek(1).Kind == tokComma
 		if err := p.parseFunctionArgument(); err != nil {
 			return err
 		}
+		argCount := 1
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
+			argCount++
 		}
 		if _, err := p.expect(tokRParen); err != nil {
 			return err
+		}
+		if argCount == 3 && firstIsStringLit {
+			return p.errorf("datetime unit parameter must be an unquoted unit keyword, not a string literal")
 		}
 		return p.parseFunctionCallSuffixes()
 	}
@@ -1420,7 +1507,14 @@ func (p *Parser) hasCaseWhenAndEndAhead() bool {
 				endPos = firstEndPos
 			}
 			if p.parenDepth >= len(p.caseScanCache) {
-				grown := make([]caseScanEntry, p.parenDepth+1)
+				newCap := cap(p.caseScanCache) * 2
+				if newCap <= p.parenDepth {
+					newCap = p.parenDepth + 1
+				}
+				if newCap < 16 {
+					newCap = 16
+				}
+				grown := make([]caseScanEntry, p.parenDepth+1, newCap)
 				copy(grown, p.caseScanCache)
 				p.caseScanCache = grown
 			}
@@ -1720,7 +1814,7 @@ func (p *Parser) startsTrimFromSeparator(hasOption bool) bool {
 		return true
 	}
 	if next == tokLParen {
-		return p.startsWithQueryKeywordAt(2)
+		return p.startsWithQueryKeywordAt(2, true)
 	}
 	switch next {
 	case tokRParen, tokComma, tokEOF, tokSemicolon,
@@ -1729,9 +1823,10 @@ func (p *Parser) startsTrimFromSeparator(hasOption bool) bool {
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwNOT,
 		tokArrow, tokFatArrow:
 		return false
+	case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwNOT:
+		return p.peek(2).Kind == tokRParen
 	}
 	return true
 }
@@ -1739,38 +1834,40 @@ func (p *Parser) startsTrimFromSeparator(hasOption bool) bool {
 func (p *Parser) parseFunctionCall() error {
 	// Single-pass handling for IDENTIFIER(expr) vs IDENTIFIER(expr)(args) so
 	// deeply nested IDENTIFIER(IDENTIFIER(...)) never reparses its argument.
+	// Spark v4.0.5 rejects empty `IDENTIFIER()` with PARSE_SYNTAX_ERROR.
 	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
 		p.advance()
 		p.advance()
+		if p.cur().Kind == tokRParen {
+			return p.errorf("IDENTIFIER() requires an expression argument")
+		}
 		singlePlainArg := false
-		if !p.match(tokRParen) {
-			if p.isFunctionSetQuantifier() {
-				p.advance()
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-				for p.match(tokComma) {
-					if err := p.parseFunctionArgument(); err != nil {
-						return err
-					}
-				}
-			} else {
-				isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-				argCount := 1
-				for p.match(tokComma) {
-					if err := p.parseFunctionArgument(); err != nil {
-						return err
-					}
-					argCount++
-				}
-				singlePlainArg = !isNamed && argCount == 1
-			}
-			if _, err := p.expect(tokRParen); err != nil {
+		if p.isFunctionSetQuantifier() {
+			p.advance()
+			if err := p.parseFunctionArgument(); err != nil {
 				return err
 			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+			}
+		} else {
+			isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			argCount := 1
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+				argCount++
+			}
+			singlePlainArg = !isNamed && argCount == 1
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
 		}
 		if singlePlainArg && p.cur().Kind == tokLParen {
 			// It was `IDENTIFIER(expr)` as functionName; now parse the actual call argument list.
@@ -1838,10 +1935,11 @@ func (p *Parser) isFunctionSetQuantifierAt(offset int) bool {
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
-		kwFROM, kwAS,
 		tokArrow, tokFatArrow:
 		return false
+	case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwFROM, kwAS:
+		after := p.peek(offset + 2).Kind
+		return after == tokRParen || after == tokComma
 	}
 	return true
 }
@@ -2035,11 +2133,24 @@ func (p *Parser) canStartConstant() bool {
 }
 
 func (p *Parser) parseConstant() error {
+	return p.parseConstantWithNeg(false)
+}
+
+func (p *Parser) parseConstantWithNeg(negated bool) error {
 	switch p.cur().Kind {
-	case kwNULL, tokQuestion, kwTRUE, kwFALSE:
+	case kwNULL, kwTRUE, kwFALSE:
+		p.advance()
+		return nil
+	case tokQuestion:
+		if p.disallowParamMarkers {
+			return p.errorf("parameter markers are not allowed in this statement")
+		}
 		p.advance()
 		return nil
 	case tokColon:
+		if p.disallowParamMarkers {
+			return p.errorf("parameter markers are not allowed in this statement")
+		}
 		p.advance()
 		_, err := p.parseIdentifier()
 		return err
@@ -2052,7 +2163,10 @@ func (p *Parser) parseConstant() error {
 		p.restore(cp)
 		if p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted {
 			p.advance()
-			p.advance()
+			litTok := p.advance()
+			if !validateTypedLiteral(kwINTERVAL, litTok.Text) {
+				return p.errorf("invalid INTERVAL typed literal %s", litTok.Text)
+			}
 			return nil
 		}
 		return p.errorf("invalid INTERVAL literal")
@@ -2064,24 +2178,37 @@ func (p *Parser) parseConstant() error {
 		return nil
 	case tokMinus, tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
 		tokFloat, tokDouble, tokBigDecimal:
-		return p.parseNumber()
+		return p.parseNumberWithNeg(negated)
 	}
 
 	// literalType stringLit (DATE '...', TIMESTAMP '...', TIMESTAMP_LTZ '...', TIMESTAMP_NTZ '...', X '...')
 	if isSupportedLiteralType(p.cur()) && (p.peek(1).Kind == tokString || p.peek(1).Kind == tokDoubleQuoted) {
-		p.advance()
-		p.advance()
+		typeTok := p.advance()
+		litTok := p.advance()
+		if !validateTypedLiteral(typeTok.Kind, litTok.Text) {
+			return p.errorf("invalid %s typed literal %s", typeTok.Text, litTok.Text)
+		}
 		return nil
 	}
 	return p.errorf("expected constant, got %q", p.cur().Text)
 }
 
 func (p *Parser) parseNumber() error {
+	return p.parseNumberWithNeg(false)
+}
+
+func (p *Parser) parseNumberWithNeg(negated bool) error {
 	cp := p.save()
-	p.match(tokMinus)
-	switch p.cur().Kind {
+	if p.match(tokMinus) {
+		negated = true
+	}
+	tok := p.cur()
+	switch tok.Kind {
 	case tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
 		tokFloat, tokDouble, tokBigDecimal:
+		if !validateNumericLiteral(tok.Kind, tok.Text, negated) {
+			return p.errorf("numeric literal %q out of range", tok.Text)
+		}
 		p.advance()
 		return nil
 	}
@@ -2097,23 +2224,30 @@ func (p *Parser) parseNumber() error {
 // grammar rules exist only so AstBuilder can throw tailored diagnostics for
 // mixed/repeated interval continuations; strict Parse rejects them directly.
 func (p *Parser) parseInterval() error {
+	_, err := p.parseIntervalWithSeconds()
+	return err
+}
+
+func (p *Parser) parseIntervalWithSeconds() (int64, error) {
 	if _, err := p.expect(kwINTERVAL); err != nil {
-		return err
+		return 0, err
 	}
 	// Try unitToUnitInterval first if we see: intervalValue unitInUnitToUnit TO unitInUnitToUnit
 	cp := p.save()
-	if err := p.parseUnitToUnitInterval(); err == nil {
-		return nil
+	if secs, err := p.parseUnitToUnitInterval(); err == nil {
+		return secs, nil
 	}
 	p.restore(cp)
 	return p.parseMultiUnitsInterval()
 }
 
-func (p *Parser) parseMultiUnitsInterval() error {
+func (p *Parser) parseMultiUnitsInterval() (int64, error) {
 	count := 0
+	var totalSecs int64
 	for {
 		cp := p.save()
-		if err := p.parseIntervalValue(); err != nil {
+		sign, rawVal, isStr, err := p.parseIntervalValueToken()
+		if err != nil {
 			p.restore(cp)
 			break
 		}
@@ -2121,18 +2255,66 @@ func (p *Parser) parseMultiUnitsInterval() error {
 			p.restore(cp)
 			break
 		}
-		p.advance()
+		unitTok := p.advance()
 		// Don't steal the start of a unitToUnitInterval (value unit TO unit) if we already have >=1 unit.
 		if count > 0 && p.cur().Kind == kwTO && p.isUnitInUnitToUnitAt(1) {
 			p.restore(cp)
 			break
 		}
+		// Spark v4.0.5 rejects NANOSECOND/NANOSECONDS in multi-unit intervals
+		// (INVALID_INTERVAL_FORMAT.INVALID_UNIT).
+		if !isSupportedMultiUnit(unitTok.Kind) {
+			return 0, p.errorf("unsupported interval unit %q", unitTok.Text)
+		}
+		numStr := rawVal
+		if isStr {
+			numStr = strings.TrimSpace(unquoteStringLit(rawVal))
+		}
+		if !isValidMultiUnitNumber(numStr, unitTok.Kind) {
+			return 0, p.errorf("invalid interval value %q for unit %q", rawVal, unitTok.Text)
+		}
+		totalSecs += intervalUnitSeconds(sign, numStr, unitTok.Kind)
 		count++
 	}
 	if count == 0 {
-		return p.errorf("expected interval value and unit")
+		return 0, p.errorf("expected interval value and unit")
 	}
-	return nil
+	return totalSecs, nil
+}
+
+func intervalUnitSeconds(sign int64, numStr string, unit TokenKind) int64 {
+	s := numStr
+	if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	} else if strings.HasPrefix(s, "-") {
+		sign = -sign
+		s = s[1:]
+	}
+	intPart, _, _ := strings.Cut(s, ".")
+	v, err := strconv.ParseInt(intPart, 10, 64)
+	if err != nil {
+		return sign * 1_000_000_000 // overflow sentinel (outside +/-18h)
+	}
+	var mult int64
+	switch unit {
+	case kwMICROSECOND, kwMICROSECONDS, kwMILLISECOND, kwMILLISECONDS:
+		return 0
+	case kwSECOND, kwSECONDS:
+		mult = 1
+	case kwMINUTE, kwMINUTES:
+		mult = 60
+	case kwHOUR, kwHOURS:
+		mult = 3600
+	case kwDAY, kwDAYS:
+		mult = 86400
+	case kwWEEK, kwWEEKS:
+		mult = 7 * 86400
+	case kwMONTH, kwMONTHS:
+		mult = 30 * 86400
+	case kwYEAR, kwYEARS:
+		mult = 365 * 86400
+	}
+	return sign * v * mult
 }
 
 func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
@@ -2143,32 +2325,51 @@ func (p *Parser) isUnitInUnitToUnitAt(offset int) bool {
 	return false
 }
 
-func (p *Parser) parseUnitToUnitInterval() error {
-	if err := p.parseIntervalValue(); err != nil {
-		return err
+func (p *Parser) parseUnitToUnitInterval() (int64, error) {
+	sign, rawVal, isStr, err := p.parseIntervalValueToken()
+	if err != nil {
+		return 0, err
 	}
 	if !p.isUnitInUnitToUnit() {
-		return p.errorf("expected interval unit")
+		return 0, p.errorf("expected interval unit")
 	}
-	p.advance()
+	fromUnit := p.advance().Kind
 	if _, err := p.expect(kwTO); err != nil {
-		return err
+		return 0, err
 	}
 	if !p.isUnitInUnitToUnit() {
-		return p.errorf("expected interval unit after TO")
+		return 0, p.errorf("expected interval unit after TO")
 	}
-	p.advance()
-	return nil
+	toUnit := p.advance().Kind
+	// Spark v4.0.5 requires a string literal for from-to intervals and validates
+	// both the unit pair and the literal format.
+	if !isStr {
+		return 0, p.errorf("from-to interval value must be a string literal")
+	}
+	secs, ok := parseUnitToUnitIntervalValue(unquoteStringLit(rawVal), fromUnit, toUnit, sign)
+	if !ok {
+		return 0, p.errorf("invalid from-to interval %s", rawVal)
+	}
+	return secs, nil
 }
 
-func (p *Parser) parseIntervalValue() error {
-	p.match(tokPlus, tokMinus)
-	switch p.cur().Kind {
-	case tokInt, tokDecimal, tokString, tokDoubleQuoted:
+func (p *Parser) parseIntervalValueToken() (sign int64, raw string, isStr bool, err error) {
+	sign = 1
+	if p.match(tokPlus) {
+		sign = 1
+	} else if p.match(tokMinus) {
+		sign = -1
+	}
+	tok := p.cur()
+	switch tok.Kind {
+	case tokInt, tokDecimal:
 		p.advance()
-		return nil
+		return sign, tok.Text, false, nil
+	case tokString, tokDoubleQuoted:
+		p.advance()
+		return sign, tok.Text, true, nil
 	default:
-		return p.errorf("expected interval value")
+		return 0, "", false, p.errorf("expected interval value")
 	}
 }
 

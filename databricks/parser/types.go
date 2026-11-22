@@ -1,6 +1,9 @@
 package parser
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // normalizeIdentName unquotes a backtick-quoted identifier (unescaping “) and
 // lowercases it for case-insensitive duplicate checks (e.g. CTE names).
@@ -290,16 +293,31 @@ func (p *Parser) parseCollationSpec() error {
 	if _, err := p.expect(kwCOLLATION); err != nil {
 		return err
 	}
-	_, err := p.parseIdentifier()
-	return err
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return err
+	}
+	if !isValidSparkCollation(name) {
+		return p.errorf("invalid collation name %q", name)
+	}
+	return nil
 }
 
-func (p *Parser) parseCollateClause() error {
+func (p *Parser) parseCollateClause(strictName bool) error {
 	if _, err := p.expect(kwCOLLATE); err != nil {
 		return err
 	}
-	_, err := p.parseMultipartIdentifier()
-	return err
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return err
+	}
+	if isTrimSparkCollation(name) {
+		return p.errorf("TRIM specifier in collation %q is not supported", name)
+	}
+	if strictName && !isValidSparkCollation(name) {
+		return p.errorf("invalid collation name %q", name)
+	}
+	return nil
 }
 
 func (p *Parser) parseSchemaBinding() error {
@@ -330,8 +348,13 @@ func (p *Parser) parseSchemaBinding() error {
 //	    | type ( ( INTEGER_VALUE (, INTEGER_VALUE)* ) )?
 //	    ;
 func (p *Parser) parseDataType() error {
+	_, err := p.parseDataTypeWithKind()
+	return err
+}
+
+func (p *Parser) parseDataTypeWithKind() (TokenKind, error) {
 	if err := p.enterNesting(); err != nil {
-		return err
+		return tokEOF, err
 	}
 	defer p.leaveNesting()
 
@@ -341,127 +364,158 @@ func (p *Parser) parseDataType() error {
 			p.advance()
 			p.advance()
 			if err := p.parseDataType(); err != nil {
-				return err
+				return tokEOF, err
 			}
-			return p.expectGT()
+			return kwARRAY, p.expectGT()
+		}
+		if !p.relaxFunctionDataTypes {
+			return tokEOF, p.errorf("incomplete ARRAY type definition; expected ARRAY<elementType>")
 		}
 	case kwMAP:
 		if p.peek(1).Kind == tokLT {
 			p.advance()
 			p.advance()
 			if err := p.parseDataType(); err != nil {
-				return err
+				return tokEOF, err
 			}
 			if _, err := p.expect(tokComma); err != nil {
-				return err
+				return tokEOF, err
 			}
 			if err := p.parseDataType(); err != nil {
-				return err
+				return tokEOF, err
 			}
-			return p.expectGT()
+			return kwMAP, p.expectGT()
+		}
+		if !p.relaxFunctionDataTypes {
+			return tokEOF, p.errorf("incomplete MAP type definition; expected MAP<keyType, valueType>")
 		}
 	case kwSTRUCT:
 		if p.peek(1).Kind == tokNeq {
 			p.advance()
 			p.advance()
-			return nil
+			return kwSTRUCT, nil
 		}
 		if p.peek(1).Kind == tokLT {
 			p.advance()
 			p.advance()
 			if p.cur().Kind != tokGT && p.cur().Kind != tokShiftRight && p.cur().Kind != tokShiftRightU {
 				if err := p.parseComplexColTypeList(); err != nil {
-					return err
+					return tokEOF, err
 				}
 			}
-			return p.expectGT()
+			return kwSTRUCT, p.expectGT()
+		}
+		if !p.relaxFunctionDataTypes {
+			return tokEOF, p.errorf("incomplete STRUCT type definition; expected STRUCT<...>")
 		}
 	case kwINTERVAL:
 		p.advance()
 		if p.match(kwYEAR, kwMONTH) {
 			if p.match(kwTO) {
 				if _, err := p.expect(kwMONTH); err != nil {
-					return err
+					return tokEOF, err
 				}
 			}
-			return nil
+			return kwINTERVAL, nil
 		}
 		if p.match(kwDAY, kwHOUR, kwMINUTE, kwSECOND) {
 			if p.match(kwTO) {
 				if !p.match(kwHOUR, kwMINUTE, kwSECOND) {
-					return p.errorf("expected HOUR, MINUTE, or SECOND after TO")
+					return tokEOF, p.errorf("expected HOUR, MINUTE, or SECOND after TO")
 				}
 			}
-			return nil
+			return kwINTERVAL, nil
 		}
 		// Plain INTERVAL primitive type (no parameters).
-		return p.parseOptionalTypeParams(0, "INTERVAL")
+		return kwINTERVAL, p.parseOptionalTypeParams(kwINTERVAL, 0, false, "INTERVAL")
 	}
 
 	// Primitive / named type.
-	maxParams, typeName, err := p.parsePrimitiveTypeName()
+	kind, maxParams, requireParams, typeName, err := p.parsePrimitiveTypeName()
 	if err != nil {
-		return err
+		return tokEOF, err
 	}
-	return p.parseOptionalTypeParams(maxParams, typeName)
+	return kind, p.parseOptionalTypeParams(kind, maxParams, requireParams, typeName)
 }
 
-func (p *Parser) parsePrimitiveTypeName() (int, string, error) {
+func (p *Parser) parsePrimitiveTypeName() (TokenKind, int, bool, string, error) {
 	tok := p.cur()
 	switch tok.Kind {
 	case kwSTRING:
 		p.advance()
 		if p.cur().Kind == kwCOLLATE {
-			if err := p.parseCollateClause(); err != nil {
-				return 0, "", err
+			if err := p.parseCollateClause(true); err != nil {
+				return tokEOF, 0, false, "", err
 			}
 		}
-		return 0, tok.Text, nil
+		return kwSTRING, 0, false, tok.Text, nil
 	case kwCHARACTER, kwCHAR, kwVARCHAR:
 		p.advance()
-		return 1, tok.Text, nil
+		return tok.Kind, 1, !p.relaxFunctionDataTypes, tok.Text, nil
 	case kwDECIMAL, kwDEC, kwNUMERIC:
 		p.advance()
-		return 2, tok.Text, nil
+		return tok.Kind, 2, false, tok.Text, nil
 	case kwBOOLEAN, kwTINYINT, kwBYTE, kwSMALLINT, kwSHORT,
 		kwINT, kwINTEGER, kwBIGINT, kwLONG, kwFLOAT, kwREAL, kwDOUBLE,
 		kwDATE, kwTIMESTAMP, kwTIMESTAMP_NTZ, kwTIMESTAMP_LTZ,
-		kwBINARY, kwVOID, kwINTERVAL, kwVARIANT,
-		kwARRAY, kwSTRUCT, kwMAP:
+		kwBINARY, kwVOID, kwINTERVAL, kwVARIANT:
 		p.advance()
-		return 0, tok.Text, nil
+		return tok.Kind, 0, false, tok.Text, nil
 	default:
-		return 0, "", p.errorf("unsupported data type %q", tok.Text)
+		if p.relaxFunctionDataTypes && tok.Kind.isIdentifier() {
+			p.advance()
+			return tok.Kind, 2, false, tok.Text, nil
+		}
+		return tokEOF, 0, false, "", p.errorf("unsupported data type %q", tok.Text)
 	}
 }
 
-func (p *Parser) parseOptionalTypeParams(maxParams int, typeName string) error {
+func (p *Parser) parseOptionalTypeParams(kind TokenKind, maxParams int, requireParams bool, typeName string) error {
 	if p.cur().Kind != tokLParen {
+		if requireParams {
+			return p.errorf("data type %q requires a length parameter", typeName)
+		}
 		return nil
 	}
 	cp := p.save()
 	p.advance()
 	if p.cur().Kind != tokInt {
 		p.restore(cp)
+		if requireParams {
+			return p.errorf("data type %q requires a length parameter", typeName)
+		}
 		return nil
 	}
-	if maxParams == 0 {
+	if !p.relaxFunctionDataTypes && maxParams == 0 {
 		return p.errorf("data type %q does not accept parameters", typeName)
 	}
-	p.advance()
-	count := 1
+	firstTok := p.advance()
+	params := []string{firstTok.Text}
 	for p.match(tokComma) {
-		if _, err := p.expect(tokInt); err != nil {
+		tok, err := p.expect(tokInt)
+		if err != nil {
 			p.restore(cp)
 			return err
 		}
-		count++
-		if count > maxParams {
+		params = append(params, tok.Text)
+		if !p.relaxFunctionDataTypes && len(params) > maxParams {
 			return p.errorf("data type %q accepts at most %d parameter(s)", typeName, maxParams)
 		}
 	}
 	if _, err := p.expect(tokRParen); err != nil {
 		return err
+	}
+	if !p.relaxFunctionDataTypes && (kind == kwDECIMAL || kind == kwDEC || kind == kwNUMERIC) {
+		prec, err := strconv.Atoi(params[0])
+		if err != nil || prec > 38 {
+			return p.errorf("DECIMAL precision %s exceeds maximum precision 38", params[0])
+		}
+		if len(params) == 2 {
+			scale, err := strconv.Atoi(params[1])
+			if err != nil || scale > prec {
+				return p.errorf("DECIMAL scale %s cannot exceed precision %d", params[1], prec)
+			}
+		}
 	}
 	return nil
 }
@@ -545,13 +599,14 @@ func (p *Parser) parseColDefinition() error {
 	if _, err := p.parseErrorCapturingIdentifier(); err != nil {
 		return err
 	}
-	if err := p.parseDataType(); err != nil {
+	typeKind, err := p.parseDataTypeWithKind()
+	if err != nil {
 		return err
 	}
 	var seenNotNull, seenDefault, seenGenerated, seenComment bool
 	for {
 		switch {
-		case p.isNot() && p.peek(1).Kind == kwNULL:
+		case p.cur().Kind == kwNOT && p.peek(1).Kind == kwNULL:
 			if seenNotNull {
 				return p.errorf("duplicate NOT NULL descriptor in column definition")
 			}
@@ -571,7 +626,7 @@ func (p *Parser) parseColDefinition() error {
 				return p.errorf("duplicate GENERATED descriptor in column definition")
 			}
 			seenGenerated = true
-			if err := p.parseGenerationExpression(); err != nil {
+			if err := p.parseGenerationExpression(typeKind); err != nil {
 				return err
 			}
 		case p.cur().Kind == kwCOMMENT:
@@ -595,7 +650,15 @@ func (p *Parser) parseDefaultExpression() error {
 	return p.parseExpression()
 }
 
-func (p *Parser) parseGenerationExpression() error {
+func isIdentityColumnType(k TokenKind) bool {
+	switch k {
+	case kwINT, kwINTEGER, kwBIGINT, kwLONG:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseGenerationExpression(colType TokenKind) error {
 	if _, err := p.expect(kwGENERATED); err != nil {
 		return err
 	}
@@ -604,6 +667,9 @@ func (p *Parser) parseGenerationExpression() error {
 			return err
 		}
 		if p.match(kwIDENTITY) {
+			if !isIdentityColumnType(colType) {
+				return p.errorf("IDENTITY column requires INT or BIGINT data type")
+			}
 			return p.parseOptionalIdentityColSpec()
 		}
 		if _, err := p.expect(tokLParen); err != nil {
@@ -627,6 +693,9 @@ func (p *Parser) parseGenerationExpression() error {
 	if _, err := p.expect(kwIDENTITY); err != nil {
 		return err
 	}
+	if !isIdentityColumnType(colType) {
+		return p.errorf("IDENTITY column requires INT or BIGINT data type")
+	}
 	return p.parseOptionalIdentityColSpec()
 }
 
@@ -634,22 +703,46 @@ func (p *Parser) parseOptionalIdentityColSpec() error {
 	if !p.match(tokLParen) {
 		return nil
 	}
+	var seenStart, seenIncrement bool
 	for p.cur().Kind != tokRParen && p.cur().Kind != tokEOF {
 		if p.match(kwSTART) {
+			if seenStart {
+				return p.errorf("duplicate START WITH option in IDENTITY column")
+			}
+			seenStart = true
 			if _, err := p.expect(kwWITH); err != nil {
 				return err
 			}
-			p.match(tokMinus)
+			neg := p.match(tokMinus)
+			tok := p.cur()
 			if !p.match(tokInt, tokBigInt) {
 				return p.errorf("expected integer or bigint for START WITH")
 			}
+			if !validateNumericLiteral(tok.Kind, tok.Text, neg) {
+				return p.errorf("START WITH value %q out of range", tok.Text)
+			}
 		} else if p.match(kwINCREMENT) {
+			if seenIncrement {
+				return p.errorf("duplicate INCREMENT BY option in IDENTITY column")
+			}
+			seenIncrement = true
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			p.match(tokMinus)
+			neg := p.match(tokMinus)
+			tok := p.cur()
 			if !p.match(tokInt, tokBigInt) {
 				return p.errorf("expected integer or bigint for INCREMENT BY")
+			}
+			if !validateNumericLiteral(tok.Kind, tok.Text, neg) {
+				return p.errorf("INCREMENT BY value %q out of range", tok.Text)
+			}
+			numStr := tok.Text
+			if tok.Kind == tokBigInt {
+				numStr = numStr[:len(numStr)-1]
+			}
+			if strings.TrimLeft(numStr, "0") == "" {
+				return p.errorf("IDENTITY column INCREMENT BY step cannot be 0")
 			}
 		} else {
 			return p.errorf("expected START WITH or INCREMENT BY, got %q", p.cur().Text)
@@ -731,61 +824,92 @@ func (p *Parser) parseColPosition() error {
 
 // parsePropertyList parses setter key-value property lists
 // (`TBLPROPERTIES`, `DBPROPERTIES`, `SERDEPROPERTIES`, `OPTIONS`, `WITH (...)`),
-// requiring a value for every property just as Spark v4.0.5 visitPropertyKeyValues does.
+// requiring a value for every property and rejecting duplicate keys just as
+// Spark v4.0.5 visitPropertyList / visitPropertyKeyValues does.
 func (p *Parser) parsePropertyList() error {
+	_, err := p.parsePropertyListWithKeys()
+	return err
+}
+
+func (p *Parser) parsePropertyListWithKeys() (map[string]struct{}, error) {
 	if _, err := p.expect(tokLParen); err != nil {
-		return err
+		return nil, err
 	}
-	if err := p.parseProperty(); err != nil {
-		return err
-	}
-	for p.match(tokComma) {
-		if err := p.parseProperty(); err != nil {
-			return err
+	seen := make(map[string]struct{})
+	for {
+		key, err := p.parseProperty()
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := seen[key]; dup {
+			return nil, p.errorf("duplicate property key %q", key)
+		}
+		seen[key] = struct{}{}
+		if !p.match(tokComma) {
+			break
 		}
 	}
-	_, err := p.expect(tokRParen)
-	return err
+	if _, err := p.expect(tokRParen); err != nil {
+		return nil, err
+	}
+	return seen, nil
 }
 
 // parsePropertyKeyList parses unsetter key-only property lists
 // (`UNSET TBLPROPERTIES`, `UNSET DBPROPERTIES/PROPERTIES`), forbidding values
-// just as Spark v4.0.5 visitPropertyKeys does.
+// and duplicate keys just as Spark v4.0.5 visitPropertyKeys does.
 func (p *Parser) parsePropertyKeyList() error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
-	if err := p.parsePropertyKey(); err != nil {
-		return err
-	}
-	for p.match(tokComma) {
-		if err := p.parsePropertyKey(); err != nil {
+	seen := make(map[string]struct{})
+	for {
+		key, err := p.parsePropertyKey()
+		if err != nil {
 			return err
+		}
+		if _, dup := seen[key]; dup {
+			return p.errorf("duplicate property key %q", key)
+		}
+		seen[key] = struct{}{}
+		if !p.match(tokComma) {
+			break
 		}
 	}
 	_, err := p.expect(tokRParen)
 	return err
 }
 
-func (p *Parser) parseProperty() error {
-	if err := p.parsePropertyKey(); err != nil {
-		return err
+func (p *Parser) parseProperty() (string, error) {
+	key, err := p.parsePropertyKey()
+	if err != nil {
+		return "", err
 	}
 	p.match(tokEq)
-	return p.parsePropertyValue()
+	if err := p.parsePropertyValue(); err != nil {
+		return "", err
+	}
+	return key, nil
 }
 
-func (p *Parser) parsePropertyKey() error {
+func (p *Parser) parsePropertyKey() (string, error) {
 	if p.cur().Kind == tokString {
-		p.advance()
-		return nil
+		tok := p.advance()
+		return decodePropertyKey(tok.Text, true), nil
 	}
 	if p.cur().Kind == tokDoubleQuoted && p.peek(1).Kind != tokDot {
-		p.advance()
-		return nil
+		tok := p.advance()
+		return decodePropertyKey(tok.Text, true), nil
 	}
-	_, err := p.parseMultipartIdentifier()
-	return err
+	raw, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(raw, ".")
+	for i := range parts {
+		parts[i] = exactIdentName(parts[i])
+	}
+	return strings.Join(parts, "."), nil
 }
 
 func (p *Parser) parsePropertyValue() error {
@@ -815,19 +939,19 @@ func (p *Parser) parseExpressionPropertyList() error {
 }
 
 func (p *Parser) parseExpressionProperty() error {
-	if err := p.parsePropertyKey(); err != nil {
+	if _, err := p.parsePropertyKey(); err != nil {
 		return err
 	}
 	if p.match(tokEq) {
 		return p.parseExpression()
 	}
-	if p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
-		return p.parseExpression()
+	if p.cur().Kind == tokComma || p.cur().Kind == tokRParen {
+		return p.errorf("a value must be specified for OPTIONS property key")
 	}
-	return nil
+	return p.parseExpression()
 }
 
-func (p *Parser) parsePartitionSpec() error {
+func (p *Parser) parsePartitionSpec(requireValues bool) error {
 	if _, err := p.expect(kwPARTITION); err != nil {
 		return err
 	}
@@ -846,11 +970,14 @@ func (p *Parser) parsePartitionSpec() error {
 		}
 		seen[norm] = struct{}{}
 		if p.match(tokEq) {
-			if !p.match(kwDEFAULT) {
-				if err := p.parseConstant(); err != nil {
-					return err
-				}
+			if p.cur().Kind == kwDEFAULT {
+				return p.errorf("DEFAULT is not allowed in PARTITION specification")
 			}
+			if err := p.parseConstant(); err != nil {
+				return err
+			}
+		} else if requireValues {
+			return p.errorf("partition key %q must specify a value", key)
 		}
 		if !p.match(tokComma) {
 			break
@@ -861,7 +988,7 @@ func (p *Parser) parsePartitionSpec() error {
 }
 
 func (p *Parser) parsePartitionSpecLocation() error {
-	if err := p.parsePartitionSpec(); err != nil {
+	if err := p.parsePartitionSpec(true); err != nil {
 		return err
 	}
 	if p.cur().Kind == kwLOCATION {
@@ -909,17 +1036,42 @@ func (p *Parser) parseBucketSpec() error {
 		if _, err := p.expect(kwBY); err != nil {
 			return err
 		}
-		if err := p.parseOrderedIdentifierList(); err != nil {
+		if err := p.parseBucketOrderedIdentifierList(); err != nil {
 			return err
 		}
 	}
 	if _, err := p.expect(kwINTO); err != nil {
 		return err
 	}
-	if _, err := p.expect(tokInt); err != nil {
+	numTok, err := p.expect(tokInt)
+	if err != nil {
 		return err
 	}
-	_, err := p.expect(kwBUCKETS)
+	n, convErr := strconv.Atoi(numTok.Text)
+	if convErr != nil || n <= 0 {
+		return p.errorf("number of buckets must be positive, got %q", numTok.Text)
+	}
+	_, err = p.expect(kwBUCKETS)
+	return err
+}
+
+func (p *Parser) parseBucketOrderedIdentifierList() error {
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	for {
+		if _, err := p.parseErrorCapturingIdentifier(); err != nil {
+			return err
+		}
+		if p.match(kwDESC) {
+			return p.errorf("bucket sort column ordering must be ASC")
+		}
+		p.match(kwASC)
+		if !p.match(tokComma) {
+			break
+		}
+	}
+	_, err := p.expect(tokRParen)
 	return err
 }
 
@@ -1064,8 +1216,12 @@ func (p *Parser) parseRowFormat() error {
 		if _, err := p.expect(kwBY); err != nil {
 			return err
 		}
-		if err := p.parseStringLit(); err != nil {
-			return err
+		if !p.isStringLit() {
+			return p.errorf("expected string literal after LINES TERMINATED BY")
+		}
+		tok := p.advance()
+		if unquoteStringLit(tok.Text) != "\n" {
+			return p.errorf("LINES TERMINATED BY only supports newline '\\n'")
 		}
 	}
 	if p.match(kwNULL) {
@@ -1082,7 +1238,7 @@ func (p *Parser) parseRowFormat() error {
 	return nil
 }
 
-func (p *Parser) parseCreateFileFormat() error {
+func (p *Parser) parseCreateFileFormat(validateHiveSerDe bool) error {
 	if _, err := p.expect(kwSTORED); err != nil {
 		return err
 	}
@@ -1096,22 +1252,16 @@ func (p *Parser) parseCreateFileFormat() error {
 			}
 			return p.parseStringLit()
 		}
-		_, err := p.parseIdentifier()
-		return err
-	}
-	if _, err := p.expect(kwBY); err != nil {
-		return err
-	}
-	if err := p.parseStringLit(); err != nil {
-		return err
-	}
-	if p.match(kwWITH) {
-		if _, err := p.expect(kwSERDEPROPERTIES); err != nil {
+		name, err := p.parseIdentifier()
+		if err != nil {
 			return err
 		}
-		return p.parsePropertyList()
+		if validateHiveSerDe && !isValidHiveSerDeFormat(name) {
+			return p.errorf("unsupported STORED AS file format %q", name)
+		}
+		return nil
 	}
-	return nil
+	return p.errorf("STORED BY is not valid")
 }
 
 func (p *Parser) parsePartitionFieldList() error {
@@ -1167,48 +1317,61 @@ func (p *Parser) parseTransform() error {
 }
 
 func (p *Parser) parseRoutineCharacteristics() error {
+	var seenLanguage, seenDet, seenDataAccess, seenNullCall, seenComment, seenSecurity bool
 	for {
 		switch {
 		case p.match(kwLANGUAGE):
-			if !p.match(kwSQL, tokIdent) {
-				return p.errorf("expected SQL or language identifier")
+			if seenLanguage {
+				return p.errorf("duplicate LANGUAGE clause in CREATE FUNCTION")
 			}
-		case p.match(kwSPECIFIC):
-			if _, err := p.parseErrorCapturingIdentifier(); err != nil {
-				return err
+			seenLanguage = true
+			if !p.match(kwSQL) {
+				return p.errorf("unsupported language for SQL user-defined function: %q", p.cur().Text)
 			}
+		case p.cur().Kind == kwSPECIFIC:
+			return p.errorf("SQL function with SPECIFIC name is not supported")
 		case p.match(kwDETERMINISTIC):
-		case p.isNot() && p.peek(1).Kind == kwDETERMINISTIC:
-			p.advance()
-			p.advance()
-		case p.match(kwNO):
-			if _, err := p.expect(kwSQL); err != nil {
-				return err
+			if seenDet {
+				return p.errorf("duplicate DETERMINISTIC clause in CREATE FUNCTION")
 			}
+			seenDet = true
+		case p.cur().Kind == kwNOT && p.peek(1).Kind == kwDETERMINISTIC:
+			if seenDet {
+				return p.errorf("duplicate DETERMINISTIC clause in CREATE FUNCTION")
+			}
+			seenDet = true
+			p.advance()
+			p.advance()
+		case p.cur().Kind == kwNO:
+			return p.errorf("SQL function with NO SQL is not supported")
 		case p.match(kwCONTAINS):
+			if seenDataAccess {
+				return p.errorf("duplicate SQL data access clause in CREATE FUNCTION")
+			}
+			seenDataAccess = true
 			if _, err := p.expect(kwSQL); err != nil {
 				return err
 			}
-		case p.match(kwREADS, kwMODIFIES):
+		case p.match(kwREADS):
+			if seenDataAccess {
+				return p.errorf("duplicate SQL data access clause in CREATE FUNCTION")
+			}
+			seenDataAccess = true
 			if _, err := p.expect(kwSQL); err != nil {
 				return err
 			}
 			if _, err := p.expect(kwDATA); err != nil {
 				return err
 			}
+		case p.cur().Kind == kwMODIFIES:
+			return p.errorf("SQL function with MODIFIES SQL DATA is not supported")
 		case p.cur().Kind == kwRETURNS && p.peek(1).Kind == kwNULL:
-			p.advance()
-			p.advance()
-			if _, err := p.expect(kwON); err != nil {
-				return err
-			}
-			if _, err := p.expect(kwNULL); err != nil {
-				return err
-			}
-			if _, err := p.expect(kwINPUT); err != nil {
-				return err
-			}
+			return p.errorf("SQL function with RETURNS NULL ON NULL INPUT is not supported")
 		case p.match(kwCALLED):
+			if seenNullCall {
+				return p.errorf("duplicate CALLED ON NULL INPUT clause in CREATE FUNCTION")
+			}
+			seenNullCall = true
 			if _, err := p.expect(kwON); err != nil {
 				return err
 			}
@@ -1219,15 +1382,22 @@ func (p *Parser) parseRoutineCharacteristics() error {
 				return err
 			}
 		case p.cur().Kind == kwCOMMENT:
+			if seenComment {
+				return p.errorf("duplicate COMMENT clause in CREATE FUNCTION")
+			}
+			seenComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return err
 			}
-		case p.match(kwSQL):
-			if _, err := p.expect(kwSECURITY); err != nil {
-				return err
+		case p.cur().Kind == kwSQL && p.peek(1).Kind == kwSECURITY:
+			if seenSecurity {
+				return p.errorf("duplicate SQL SECURITY clause in CREATE FUNCTION")
 			}
-			if !p.match(kwINVOKER, kwDEFINER) {
-				return p.errorf("expected INVOKER or DEFINER")
+			seenSecurity = true
+			p.advance()
+			p.advance()
+			if !p.match(kwDEFINER) {
+				return p.errorf("SQL function with SQL SECURITY %q is not supported", p.cur().Text)
 			}
 		default:
 			return nil

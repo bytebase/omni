@@ -460,15 +460,13 @@ func (k TokenKind) isKeyword() bool {
 	return k > kwStart && k < kwEnd
 }
 
-// isStrictNonReserved reports whether k is in Spark's strictNonReserved list
-// and NOT in ansiNonReserved, meaning it cannot be used as a strictIdentifier
-// (e.g. a bare table alias). Note: ANTI and SEMI appear in ansiNonReserved in
-// SqlBaseParser.g4, so only the remaining 14 cannot be strictIdentifier in the
-// grammar without semantic predicates.
+// isStrictNonReservedOnly reports whether k is in Spark's strictNonReserved
+// list, meaning it cannot be used as a strictIdentifier (e.g. a table alias)
+// in Spark's default mode (SQL_standard_keyword_behavior=false).
 func (k TokenKind) isStrictNonReservedOnly() bool {
 	switch k {
-	case kwCROSS, kwEXCEPT, kwFULL, kwINNER, kwINTERSECT, kwJOIN,
-		kwLATERAL, kwLEFT, kwNATURAL, kwON, kwRIGHT, kwMINUS, kwUNION, kwUSING:
+	case kwANTI, kwCROSS, kwEXCEPT, kwFULL, kwINNER, kwINTERSECT, kwJOIN,
+		kwLATERAL, kwLEFT, kwMINUS, kwNATURAL, kwON, kwRIGHT, kwSEMI, kwUNION, kwUSING:
 		return true
 	}
 	return false
