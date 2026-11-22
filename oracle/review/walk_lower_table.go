@@ -96,13 +96,21 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if fails {
 		return true
 	}
+	addedCols := make(map[string]bool)
+	for _, c := range cmds {
+		if c.Action == ast.AT_ADD_COLUMN {
+			for _, col := range alterColumns(c) {
+				addedCols[col.Name] = true
+			}
+		}
+	}
 	b.Last = b.domain(r)
 	for _, c := range cmds {
 		b.Next()
 		if c.Action == ast.AT_RENAME && kind == kindMView {
 			return false
 		}
-		if !b.alterCmd(r, c, declared) {
+		if !b.alterCmd(r, kind, c, declared, addedCols) {
 			return false
 		}
 	}
@@ -127,7 +135,8 @@ func hasModifyVarrayShrink(sql string, actions *ast.List) bool {
 				inParen = true
 				continue
 			}
-			if inParen && tok.Type == tokenShrink && i+1 < len(toks) && toks[i+1].Type == tokenSpace {
+			if inParen && tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "SHRINK") &&
+				i+1 < len(toks) && toks[i+1].Type != tokenQuoted && strings.EqualFold(toks[i+1].Str, "SPACE") {
 				return true
 			}
 		}
@@ -163,6 +172,7 @@ var alterProperties = map[string]bool{
 	"SEGMENT CREATION IMMEDIATE": true, "SEGMENT CREATION DEFERRED": true, "MEMOPTIMIZE FOR READ": true,
 	"NO MEMOPTIMIZE FOR READ": true, "MEMOPTIMIZE FOR WRITE": true, "NO MEMOPTIMIZE FOR WRITE": true,
 	"ILM": true, "UPGRADE": true, "DEFAULT COLLATION": true, "CLUSTERING": true, "NO CLUSTERING": true,
+	"MODIFY COLUMN SUBSTITUTABLE": true,
 }
 
 // alterFollowed reports whether the walk follows a clause of ALTER TABLE.
@@ -287,7 +297,7 @@ func (b *builder) cascadesConstraints(c *ast.AlterTableCmd) bool {
 	return cascades(b.w.sql, c.Loc)
 }
 
-func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bool {
+func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared []string, addedCols map[string]bool) bool {
 	rng := rangeOf(c.Loc)
 	switch c.Action {
 	case ast.AT_ADD_COLUMN:
@@ -297,6 +307,10 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		}
 		var d tableDecl
 		for _, col := range alterColumns(c) {
+			if columnMissingDatatype(col) {
+				b.fail(rangeOf(col.Loc), review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" must specify a datatype.")
+				return true
+			}
 			ck := r.childKey(spaceColumn, col.Name)
 			b.need(ck, walk.Absent, nil, rangeOf(col.Loc), "", takenColumn(col.Name, r.written))
 			b.Set(ck, walk.Present, "")
@@ -346,6 +360,13 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		if c.Constraint == nil {
 			return false
 		}
+		if c.Constraint.Columns != nil {
+			for _, item := range c.Constraint.Columns.Items {
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !addedCols[s.Str] {
+					b.columnNeeds(r, s.Str, rng)
+				}
+			}
+		}
 		var d tableDecl
 		b.declareConstraint(&d, c.Constraint)
 		b.declChecks(&d, r)
@@ -376,19 +397,108 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 	case ast.AT_DROP_UNUSED_COLUMNS:
 		// An unused nested table column's storage table goes now.
 		b.forgetStorage(r)
+	case ast.AT_MODIFY_NESTED_TABLE:
+		if c.ColumnName != "" && !strings.EqualFold(c.ColumnName, "COLUMN_VALUE") {
+			b.columnNeeds(r, c.ColumnName, rng)
+		}
+	case ast.AT_MODIFY_LOB:
+		if col := b.modifyLobColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
+			b.columnNeeds(r, col, rng)
+		}
+	case ast.AT_MODIFY_VARRAY:
+		if col := b.modifyVarrayColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
+			b.columnNeeds(r, col, rng)
+		}
+	case ast.AT_ALTER_PROPERTY:
+		if c.Subtype == "MODIFY COLUMN SUBSTITUTABLE" && c.ColumnName != "" {
+			b.columnNeeds(r, c.ColumnName, rng)
+		}
+	case ast.AT_MODIFY_TO_PARTITIONED:
+		if kind == kindMView {
+			// ORA-14427: cannot modify a materialized view to partitioned.
+			b.need(r.key(spaceTable), walk.Present, []string{kindTable}, r.rng, "", wrongKind(r.written, kindMView, kindWord(kindTable)))
+			return true
+		}
+		if kind == kindTable {
+			for _, col := range b.partitionByColumns(c.Loc) {
+				b.columnNeeds(r, col, rng)
+			}
+		}
 	case ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK, ast.AT_MOVE,
-		ast.AT_SHRINK_SPACE, ast.AT_ALTER_PROPERTY, ast.AT_MODIFY_LOB, ast.AT_MODIFY_VARRAY, ast.AT_MODIFY_NESTED_TABLE,
-		ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
+		ast.AT_SHRINK_SPACE, ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
 		ast.AT_ADD_PARTITION, ast.AT_DROP_PARTITION, ast.AT_TRUNCATE_PARTITION, ast.AT_SPLIT_PARTITION,
 		ast.AT_SPLIT_SUBPARTITION, ast.AT_MERGE_PARTITIONS, ast.AT_MERGE_SUBPARTITIONS, ast.AT_EXCHANGE_PARTITION,
 		ast.AT_COALESCE_PARTITION, ast.AT_COALESCE_SUBPARTITION, ast.AT_MODIFY_PARTITION, ast.AT_MODIFY_SUBPARTITION,
 		ast.AT_MODIFY_DEFAULT_ATTRS, ast.AT_DROP_SUBPARTITION, ast.AT_RENAME_PARTITION, ast.AT_SET_INTERVAL,
-		ast.AT_SET_PARTITIONING, ast.AT_SET_SUBPARTITION_TEMPLATE, ast.AT_MODIFY_TO_PARTITIONED, ast.AT_MODIFY_PARTITIONSET:
+		ast.AT_SET_PARTITIONING, ast.AT_SET_SUBPARTITION_TEMPLATE, ast.AT_MODIFY_PARTITIONSET:
 		// Storage, partitions, and properties: no name the walk keeps.
 	default:
 		return false
 	}
 	return true
+}
+
+// modifyLobColumn extracts the top-level column name from MODIFY LOB ( col ... ).
+func (b *builder) modifyLobColumn(loc ast.Loc) string {
+	toks := tokens(b.w.sql, loc)
+	for i, tok := range toks {
+		if tok.Type == tokenOpenParen && i+1 < len(toks) {
+			if name, ok := tokenName(toks[i+1]); ok {
+				return name
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// modifyVarrayColumn extracts the top-level column name from MODIFY VARRAY col (...).
+func (b *builder) modifyVarrayColumn(loc ast.Loc) string {
+	toks := tokens(b.w.sql, loc)
+	for i, tok := range toks {
+		if tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "VARRAY") && i+1 < len(toks) {
+			if name, ok := tokenName(toks[i+1]); ok {
+				return name
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// partitionByColumns extracts the partitioning key columns from
+// MODIFY PARTITION BY {RANGE|LIST|HASH} (col1, col2, ...).
+// PARTITION BY REFERENCE names a constraint, not a column, and returns nil.
+func (b *builder) partitionByColumns(loc ast.Loc) []string {
+	toks := tokens(b.w.sql, loc)
+	isWord := func(i int, w string) bool {
+		return i < len(toks) && toks[i].Type != tokenQuoted && strings.EqualFold(toks[i].Str, w)
+	}
+	for i := 0; i+3 < len(toks); i++ {
+		if !isWord(i, "PARTITION") || !isWord(i+1, "BY") {
+			continue
+		}
+		if !isWord(i+2, "RANGE") && !isWord(i+2, "LIST") && !isWord(i+2, "HASH") {
+			return nil
+		}
+		j := i + 3
+		if toks[j].Type != tokenOpenParen {
+			return nil
+		}
+		var out []string
+		for j++; j < len(toks) && toks[j].Type != tokenCloseParen; j++ {
+			if toks[j].Type == tokenComma {
+				continue
+			}
+			if name, ok := tokenName(toks[j]); ok {
+				out = append(out, name)
+			} else {
+				return nil
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // constraintNeeds checks that a constraint the clause names is the
@@ -441,6 +551,13 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 		b.Set(pk, walk.Absent, "")
 		b.dropsConstraints(r)
 	case c.Subtype == "UNIQUE":
+		if c.Constraint != nil && c.Constraint.Columns != nil {
+			for _, item := range c.Constraint.Columns.Items {
+				if s, ok := item.(*ast.String); ok && s.Str != "" {
+					b.columnNeeds(r, s.Str, rng)
+				}
+			}
+		}
 		b.dropsConstraints(r)
 	case c.Constraint != nil && c.Constraint.Name != "":
 		name := c.Constraint.Name
@@ -482,6 +599,11 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})
 		}
 	case strings.HasSuffix(c.Subtype, "PRIMARY KEY"), strings.HasSuffix(c.Subtype, "UNIQUE"):
+		if strings.HasSuffix(c.Subtype, "UNIQUE") {
+			for _, col := range b.uniqueClauseColumns(c) {
+				b.columnNeeds(r, col, rng)
+			}
+		}
 		// The constraint's name, and so its index's, is not in the text.
 		b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})
 	default:
@@ -489,4 +611,36 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 	}
 	b.dropIndexes(r)
 	return true
+}
+
+// uniqueClauseColumns returns the column names listed in an ENABLE/DISABLE/MODIFY
+// UNIQUE (col1, col2, ...) clause.
+func (b *builder) uniqueClauseColumns(c *ast.AlterTableCmd) []string {
+	if c.Constraint != nil && c.Constraint.Columns != nil {
+		var out []string
+		for _, item := range c.Constraint.Columns.Items {
+			if s, ok := item.(*ast.String); ok && s.Str != "" {
+				out = append(out, s.Str)
+			}
+		}
+		return out
+	}
+	toks := tokens(b.w.sql, c.Loc)
+	for i, tok := range toks {
+		if tok.Type != tokenQuoted && strings.EqualFold(tok.Str, "UNIQUE") && i+1 < len(toks) && toks[i+1].Type == tokenOpenParen {
+			var out []string
+			for j := i + 2; j < len(toks) && toks[j].Type != tokenCloseParen; j++ {
+				if toks[j].Type == tokenComma {
+					continue
+				}
+				if name, ok := tokenName(toks[j]); ok {
+					out = append(out, name)
+				} else {
+					return nil
+				}
+			}
+			return out
+		}
+	}
+	return nil
 }
