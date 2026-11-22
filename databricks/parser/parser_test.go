@@ -437,7 +437,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "function table partition and order clauses followed by named and table args",
-			sql:  `SELECT * FROM f(TABLE(t) PARTITION BY a, b ORDER BY c DESC, k => 1, TABLE(t2) PARTITION BY d)`,
+			sql:  `SELECT * FROM f(TABLE(t) PARTITION BY (a, b) ORDER BY c DESC, k => 1, TABLE(t2) PARTITION BY d)`,
 			kind: StmtQuery,
 		},
 		{
@@ -522,7 +522,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "table function named lateral vs lateral modifier before subquery or relation",
-			sql:  `SELECT * FROM lateral(1) JOIN lateral(1, 2) JOIN lateral() JOIN lateral(k => 1) JOIN lateral(TABLE t PARTITION BY a) JOIN LATERAL (SELECT 1) AS s JOIN LATERAL (t1 JOIN t2 ON t1.a = t2.a) AS j JOIN LATERAL (t3 AS u) JOIN LATERAL (t4 u2) JOIN LATERAL (t5) TABLESAMPLE (10 PERCENT) JOIN LATERAL lateral(1) AS l`,
+			sql:  `SELECT * FROM lateral(1) JOIN lateral(1, 2) JOIN lateral() JOIN lateral(k => 1) JOIN lateral(TABLE(t) PARTITION BY a) JOIN LATERAL (SELECT 1) AS s JOIN LATERAL (t1 JOIN t2 ON t1.a = t2.a) AS j JOIN LATERAL (t3 AS u) JOIN LATERAL (t4 u2) JOIN LATERAL (t5) TABLESAMPLE (10 PERCENT) JOIN LATERAL lateral(1) AS l`,
 			kind: StmtQuery,
 		},
 		{
@@ -721,6 +721,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "table function argument with parenthesized partitioning and subsequent args",
+			sql:  `SELECT * FROM f(TABLE(t) PARTITION BY (a, b) ORDER BY (a DESC, b ASC), c, k => 1, TABLE(u) PARTITION BY x, TABLE(SELECT 1))`,
+			kind: StmtQuery,
+		},
+		{
+			name: "merge with conditional non-final clauses and unconditional final clauses",
+			sql:  `MERGE INTO t AS dst USING s AS src ON dst.id = src.id WHEN MATCHED AND src.del THEN DELETE WHEN MATCHED THEN UPDATE SET dst.v = src.v WHEN NOT MATCHED AND src.ok THEN INSERT * WHEN NOT MATCHED THEN INSERT (id) VALUES (src.id) WHEN NOT MATCHED BY SOURCE AND dst.old THEN DELETE WHEN NOT MATCHED BY SOURCE THEN UPDATE SET dst.v = 0`,
+			kind: StmtMerge,
+		},
+		{
 			name: "double parenthesized row constructor with subquery",
 			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,
@@ -800,6 +810,23 @@ func TestParseErrors(t *testing.T) {
 		{"group by alias then rollup with empty set", "SELECT a FROM t GROUP BY a AS x, ROLLUP(())"},
 		{"group by rollup with empty set then alias", "SELECT a FROM t GROUP BY ROLLUP(()), a AS x"},
 		{"group by rollup with empty set then with rollup", "SELECT a FROM t GROUP BY ROLLUP(()) WITH ROLLUP"},
+		{"table function argument missing parentheses", "SELECT * FROM f(TABLE t)"},
+		{"table function argument unparenthesized multi partition by", "SELECT * FROM f(TABLE(t) PARTITION BY a, b)"},
+		{"table function argument unparenthesized multi order by", "SELECT * FROM f(TABLE(t) WITH SINGLE PARTITION ORDER BY a, b)"},
+		{"merge non-final unconditional matched clause", "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE WHEN MATCHED THEN UPDATE SET x = 1"},
+		{"merge non-final unconditional not matched clause", "MERGE INTO t USING s ON t.id = s.id WHEN NOT MATCHED THEN INSERT * WHEN NOT MATCHED AND s.x > 0 THEN INSERT *"},
+		{"merge non-final unconditional not matched by source clause", "MERGE INTO t USING s ON t.id = s.id WHEN NOT MATCHED BY SOURCE THEN DELETE WHEN NOT MATCHED BY SOURCE THEN UPDATE SET x = 1"},
+		{"update table alias with column list", "UPDATE t AS x(a) SET a = 1"},
+		{"update implicit table alias with column list", "UPDATE t x(a) SET a = 1"},
+		{"delete table alias with column list", "DELETE FROM t AS x(a) WHERE a = 1"},
+		{"merge target alias with column list", "MERGE INTO t AS x(a) USING s ON x.a = s.a WHEN MATCHED THEN DELETE"},
+		{"merge source alias with column list", "MERGE INTO t USING s AS y(a) ON t.a = y.a WHEN MATCHED THEN DELETE"},
+		{"duplicate default column descriptor", "CREATE TABLE t (a INT DEFAULT 1 DEFAULT 2)"},
+		{"duplicate not null column descriptor", "CREATE TABLE t (a INT NOT NULL NOT NULL)"},
+		{"duplicate comment column descriptor", "CREATE TABLE t (a INT COMMENT 'a' COMMENT 'b')"},
+		{"duplicate generated column descriptor", "CREATE TABLE t (a INT GENERATED ALWAYS AS (1) GENERATED ALWAYS AS (2))"},
+		{"alter table add columns duplicate default", "ALTER TABLE t ADD COLUMNS (a INT DEFAULT 1 DEFAULT 2)"},
+		{"alter table add columns duplicate position", "ALTER TABLE t ADD COLUMNS (a INT FIRST AFTER b)"},
 		{"pipe set dotted target", "FROM t |> SET a.b = 1"},
 		{"qualified star on parenthesized expression", "SELECT (a + b).* FROM t"},
 		{"qualified star on star", "SELECT *.* FROM t"},

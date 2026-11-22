@@ -12,9 +12,9 @@ recognizer again on every run with no server, credentials, or network.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,229 | 2,220 | 9 | 0 |
-| Near-misses | 4,209 | 4,176 | 29 | 4 |
-| **All** | **6,438** | **6,396** | **38** | **4** |
+| One per alternative | 2,229 | 2,190 | 39 | 0 |
+| Near-misses | 4,209 | 4,174 | 31 | 4 |
+| **All** | **6,438** | **6,364** | **70** | **4** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,22 +70,37 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,396 / 6,438 (99.35%), with 2,220 / 2,229 (99.60%) on
-  generated grammar alternatives (the only 9 excluded alternatives are Spark's
-  error-capturing rules for unquoted hyphens, invalid pipe-operator forms, and
-  mixed/repeated interval continuations), 38 `judge-only` rows, and 4
-  `omni-only` near-miss rows.**
+- **Agreement: 6,364 / 6,438 (98.85%), with 2,190 / 2,229 (98.25%) on
+  generated grammar alternatives (all 39 excluded alternatives are Spark's
+  error-capturing rules for unparenthesized `TABLE` TVF arguments and
+  unparenthesized multi-expression partitioning/ordering, unquoted hyphens,
+  invalid pipe-operator forms, and mixed/repeated interval continuations), 70
+  `judge-only` rows, and 4 `omni-only` near-miss rows.**
 
-## Remaining tail (38 `judge-only`, 4 `omni-only` rows)
+## Remaining tail (70 `judge-only`, 4 `omni-only` rows)
 
-All 38 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
+All 70 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
 intentionally rejects while the grammar recognizer accepts them due to known
 properties of the offline recognizer and upstream error-capturing rules, and
 the 4 `omni-only` near-misses are `.*?` wildcard statements (`REFRESH .*?` and
 `SET .*?`) accepted by Spark's ANTLR grammar that the offline recognizer's `.`
 wildcard does not match:
 
-1. **9 malformed optimizer hint near-misses** (`SELECT /*+ */ a`,
+1. **32 error-capturing `TABLE` TVF argument rows** (30 alternatives and 2
+   near-misses using `FROM IDENTIFIER(TABLE a ...)` and unparenthesized
+   `PARTITION BY a, a` / `ORDER BY a, a`): `SqlBaseParser.g4:986-1002` keeps
+   `TABLE identifierReference`, `invalidMultiPartitionExpression`, and
+   `invalidMultiSortItem` solely so Spark v4.0.5's
+   `AstBuilder.visitFunctionTableSubqueryArgument` can raise targeted errors
+   (`invalidTableFunctionIdentifierArgumentMissingParentheses`,
+   `MULTI_TABLE_ARGUMENT_PARTITIONING_EXPRESSIONS`,
+   `MULTI_TABLE_ARGUMENT_ORDERING_EXPRESSIONS`). Because the grammar generator
+   selects the shortest alternative (`TABLE a`) as the witness wrapper for
+   `tableArgumentPartitioning`, rejecting unparenthesized `TABLE ident` and
+   unparenthesized multi-item partition/order lists excludes all 32 rows;
+   parenthesized `TABLE(t)` and `PARTITION BY (a, b)` / `ORDER BY (a, b)` are
+   tested directly in `../parser_test.go`.
+2. **9 malformed optimizer hint near-misses** (`SELECT /*+ */ a`,
    `SELECT /*+(a) */ a`, `SELECT /*+ a a) */ a`, `SELECT /*+ a() */ a`,
    `SELECT /*+ a(a */ a`, `SELECT /*+ a(a zzz) */ a`, `SELECT /*+ a(a a) */ a`,
    `SELECT /*+ a(a,) */ a`, `SELECT /*+ a(a, a zzz) */ a`):
@@ -93,7 +108,7 @@ wildcard does not match:
    block comment (`enginetest/grammar/recognize.go`), so the recognizer sees
    `SELECT a` and accepts all 9. `databricks/parser` properly lexes `/*+` / `*/`
    and enforces `hintStatement` syntax, rejecting all 9.
-2. **9 `.*?` wildcard near-misses** (`SHOW CREATE TABLE a zzz`,
+3. **9 `.*?` wildcard near-misses** (`SHOW CREATE TABLE a zzz`,
    `DROP INDEX a a`, ``SET `a` `a` ``, ``SET `a` = `a` zzz``, ``SET `a` zzz``,
    ``RESET `a` zzz``, `CREATE INDEX zzz`, `DROP INDEX zzz`,
    `ALTER TABLE a REPLACE COLUMNS zzz`): `SqlBaseParser.g4` contains fallback
@@ -102,26 +117,26 @@ wildcard does not match:
    recognizer, whereas `databricks/parser` parses `SHOW CREATE TABLE`,
    `CREATE INDEX`, `DROP INDEX`, `ALTER TABLE ... REPLACE COLUMNS`, `SET`, and
    `RESET` strictly and rejects these malformed near-misses.
-3. **9 error-capturing interval continuation rows** (`errorCapturingMultiUnitsInterval`
+4. **9 error-capturing interval continuation rows** (`errorCapturingMultiUnitsInterval`
    and `errorCapturingUnitToUnitInterval`: 3 alternatives and 6 near-misses for
    mixed or repeated interval continuations like `INTERVAL 1 NANOSECOND 1 SECOND TO SECOND`
    and `INTERVAL 1 SECOND TO SECOND 1 NANOSECOND`): Spark v4.0.5's
    `AstBuilder.parseIntervalLiteral` explicitly rejects these continuations as
    syntax errors; strict `databricks/parser` rejects them directly.
-4. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
+5. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
    (3 alternatives `FROM a - a`, `FROM a - a - a` and 4 near-misses including
    `DESC FUNCTION - zzz`): `SqlBaseParser.g4:1479` parses `(MINUS identifier)+`
    solely so Spark's `AstBuilder` can reject unquoted hyphenated names like
    `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
    rejects these directly with a positioned `ParseError` while accepting
    backtick-quoted identifiers.
-5. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
+6. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
    `operatorPipeSetAssignmentSeq`) rows** (3 alternatives and 1 near-miss for
    combined `|> PIVOT ... UNPIVOT ...`, `|> UNPIVOT ... PIVOT ...`, and dotted
    `|> SET a.a = a`): `SqlBaseParser.g4:1561-1584` explicitly comments that
    these productions (along with `|> WHERE ... WINDOW ...`) are captured solely
    for diagnostic error messages; strict `databricks/parser` rejects them.
-6. **4 `omni-only` `.*?` wildcard near-misses**
+7. **4 `omni-only` `.*?` wildcard near-misses**
    (`SET a = a`, `BEGIN REFRESH REFRESH; END`,
    `BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`,
    `BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`):

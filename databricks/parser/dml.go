@@ -297,7 +297,7 @@ func (p *Parser) parseDeleteFromTable() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.parseTableAlias(); err != nil {
+	if err := p.parseDMLTableAlias(); err != nil {
 		return nil, err
 	}
 	if p.cur().Kind == kwWHERE {
@@ -317,7 +317,7 @@ func (p *Parser) parseUpdateTable() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.parseTableAlias(); err != nil {
+	if err := p.parseDMLTableAlias(); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwSET); err != nil {
@@ -376,7 +376,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.parseTableAlias(); err != nil {
+	if err := p.parseDMLTableAlias(); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwUSING); err != nil {
@@ -394,7 +394,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 			return nil, err
 		}
 	}
-	if err := p.parseTableAlias(); err != nil {
+	if err := p.parseDMLTableAlias(); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwON); err != nil {
@@ -404,10 +404,17 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 		return nil, err
 	}
 	// matchedClause* notMatchedClause* notMatchedBySourceClause*
+	// Every non-final clause of each kind must specify an AND condition.
+	prevUnconditional := false
 	for p.cur().Kind == kwWHEN && p.peek(1).Kind == kwMATCHED {
+		if prevUnconditional {
+			return nil, p.errorf("non-final WHEN MATCHED clause must have an AND condition")
+		}
 		p.advance()
 		p.advance()
+		hasCond := false
 		if p.match(kwAND) {
+			hasCond = true
 			if err := p.parseBooleanExpression(); err != nil {
 				return nil, err
 			}
@@ -418,9 +425,14 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 		if err := p.parseMatchedAction(); err != nil {
 			return nil, err
 		}
+		prevUnconditional = !hasCond
 	}
+	prevUnconditional = false
 	for p.cur().Kind == kwWHEN && p.isNotAt(1) && p.peek(2).Kind == kwMATCHED &&
 		!(p.peek(3).Kind == kwBY && p.peek(4).Kind == kwSOURCE) {
+		if prevUnconditional {
+			return nil, p.errorf("non-final WHEN NOT MATCHED clause must have an AND condition")
+		}
 		p.advance()
 		p.advance()
 		p.advance()
@@ -428,7 +440,9 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 			p.advance()
 			p.advance()
 		}
+		hasCond := false
 		if p.match(kwAND) {
+			hasCond = true
 			if err := p.parseBooleanExpression(); err != nil {
 				return nil, err
 			}
@@ -439,15 +453,22 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 		if err := p.parseNotMatchedAction(); err != nil {
 			return nil, err
 		}
+		prevUnconditional = !hasCond
 	}
+	prevUnconditional = false
 	for p.cur().Kind == kwWHEN && p.isNotAt(1) && p.peek(2).Kind == kwMATCHED &&
 		p.peek(3).Kind == kwBY && p.peek(4).Kind == kwSOURCE {
+		if prevUnconditional {
+			return nil, p.errorf("non-final WHEN NOT MATCHED BY SOURCE clause must have an AND condition")
+		}
 		p.advance()
 		p.advance()
 		p.advance()
 		p.advance()
 		p.advance()
+		hasCond := false
 		if p.match(kwAND) {
+			hasCond = true
 			if err := p.parseBooleanExpression(); err != nil {
 				return nil, err
 			}
@@ -458,6 +479,7 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 		if err := p.parseNotMatchedBySourceAction(); err != nil {
 			return nil, err
 		}
+		prevUnconditional = !hasCond
 	}
 	return &ParsedStmt{Kind: StmtMerge, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

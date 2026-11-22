@@ -1261,27 +1261,16 @@ func (p *Parser) parseFunctionTableArgument() error {
 }
 
 // isTableSubqueryArgAt reports whether `TABLE` at offset tOff starts a
-// functionTableSubqueryArgument (`TABLE identRef`, `TABLE(identRef)`, or
-// `TABLE(query)`, with optional partitioning) rather than a bare column `table`
-// or an ordinary `TABLE(...)` function call (e.g. `TABLE((query), k => 1)` or
-// `TABLE(x) + 1`). Avoiding speculative parsing prevents exponential reparsing
-// of nested `f(TABLE((<query>), k => 1))` calls.
+// functionTableSubqueryArgument (`TABLE(identRef)` or `TABLE(query)`, with
+// optional partitioning) rather than a bare column `table` or an ordinary
+// `TABLE(...)` function call (e.g. `TABLE((query), k => 1)` or `TABLE(x) + 1`).
+// Spark v4.0.5 rejects unparenthesized `TABLE identRef` in AstBuilder.
 func (p *Parser) isTableSubqueryArgAt(tOff int) bool {
 	if p.peek(tOff).Kind != kwTABLE {
 		return false
 	}
-	next := p.peek(tOff + 1).Kind
-	if next != tokLParen {
-		// `TABLE identRef`: must be followed by an identifier or IDENTIFIER(...),
-		// not `,`, `)`, postfix/binary operators, or statement end.
-		if !next.isIdentifier() && next != kwIDENTIFIER {
-			return false
-		}
-		switch next {
-		case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwDIV, kwCOLLATE:
-			return false
-		}
-		return true
+	if p.peek(tOff+1).Kind != tokLParen {
+		return false
 	}
 
 	// `TABLE ( ... )`: find matching ')' of TABLE(...).
@@ -1526,28 +1515,25 @@ func (p *Parser) parseFunctionTableSubqueryArgument() error {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return err
 	}
-	if p.match(tokLParen) {
-		if p.startsWithQueryKeywordAfterParens() {
-			cp := p.save()
-			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-				p.advance()
-				if p.isTableArgPartitioningStart() {
-					return p.parseTableArgumentPartitioning()
-				}
-				return nil
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if p.startsWithQueryKeywordAfterParens() {
+		cp := p.save()
+		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+			p.advance()
+			if p.isTableArgPartitioningStart() {
+				return p.parseTableArgumentPartitioning()
 			}
-			p.restore(cp)
+			return nil
 		}
-		if _, err := p.parseIdentifierReference(); err != nil {
-			return err
-		}
-		if _, err := p.expect(tokRParen); err != nil {
-			return err
-		}
-	} else {
-		if _, err := p.parseIdentifierReference(); err != nil {
-			return err
-		}
+		p.restore(cp)
+	}
+	if _, err := p.parseIdentifierReference(); err != nil {
+		return err
+	}
+	if _, err := p.expect(tokRParen); err != nil {
+		return err
 	}
 	if p.isTableArgPartitioningStart() {
 		return p.parseTableArgumentPartitioning()
@@ -1588,11 +1574,11 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 			if err := p.parseExpression(); err != nil {
 				return err
 			}
-			for p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
-				p.advance()
-				if err := p.parseExpression(); err != nil {
-					return err
-				}
+			// Spark v4.0.5 rejects unparenthesized multi-expression PARTITION BY lists
+			// (invalidMultiPartitionExpression); only a subsequent named or TABLE(...)
+			// argument may follow a comma after an unparenthesized partition expression.
+			if p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
+				return p.errorf("multiple PARTITION BY expressions in TABLE argument must be parenthesized")
 			}
 		}
 	}
@@ -1607,11 +1593,11 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 			if err := p.parseSortItem(); err != nil {
 				return err
 			}
-			for p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
-				p.advance()
-				if err := p.parseSortItem(); err != nil {
-					return err
-				}
+			// Spark v4.0.5 rejects unparenthesized multi-item ORDER/SORT BY lists
+			// (invalidMultiSortItem); only a subsequent named or TABLE(...) argument
+			// may follow a comma after an unparenthesized sort item.
+			if p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
+				return p.errorf("multiple ORDER BY items in TABLE argument must be parenthesized")
 			}
 		}
 	}
@@ -1673,6 +1659,31 @@ func (p *Parser) parseTableAlias() error {
 		if err := p.parseIdentifierList(); err != nil {
 			p.restore(cp)
 		}
+	}
+	return nil
+}
+
+// parseDMLTableAlias parses: (AS? strictIdentifier)?
+// Spark v4.0.5 getTableAliasWithoutColumnAlias (used by DELETE, UPDATE, and
+// MERGE) forbids column alias lists on DML table aliases.
+func (p *Parser) parseDMLTableAlias() error {
+	if p.match(kwAS) {
+		if _, err := p.parseStrictIdentifier(); err != nil {
+			return err
+		}
+		if p.cur().Kind == tokLParen {
+			return p.errorf("column aliases are not allowed in DML table alias")
+		}
+		return nil
+	}
+	if !p.canBeImplicitTableAlias() {
+		return nil
+	}
+	if _, err := p.parseStrictIdentifier(); err != nil {
+		return err
+	}
+	if p.cur().Kind == tokLParen {
+		return p.errorf("column aliases are not allowed in DML table alias")
 	}
 	return nil
 }

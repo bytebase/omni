@@ -520,20 +520,37 @@ func (p *Parser) parseColDefinition() error {
 	if err := p.parseDataType(); err != nil {
 		return err
 	}
+	var seenNotNull, seenDefault, seenGenerated, seenComment bool
 	for {
 		switch {
 		case p.isNot() && p.peek(1).Kind == kwNULL:
+			if seenNotNull {
+				return p.errorf("duplicate NOT NULL descriptor in column definition")
+			}
+			seenNotNull = true
 			p.advance()
 			p.advance()
 		case p.cur().Kind == kwDEFAULT:
+			if seenDefault {
+				return p.errorf("duplicate DEFAULT descriptor in column definition")
+			}
+			seenDefault = true
 			if err := p.parseDefaultExpression(); err != nil {
 				return err
 			}
 		case p.cur().Kind == kwGENERATED:
+			if seenGenerated {
+				return p.errorf("duplicate GENERATED descriptor in column definition")
+			}
+			seenGenerated = true
 			if err := p.parseGenerationExpression(); err != nil {
 				return err
 			}
 		case p.cur().Kind == kwCOMMENT:
+			if seenComment {
+				return p.errorf("duplicate COMMENT descriptor in column definition")
+			}
+			seenComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return err
 			}
@@ -633,20 +650,37 @@ func (p *Parser) parseQualifiedColTypeWithPosition() error {
 	if err := p.parseDataType(); err != nil {
 		return err
 	}
+	var seenNotNull, seenDefault, seenComment, seenPosition bool
 	for {
 		switch {
 		case p.isNot() && p.peek(1).Kind == kwNULL:
+			if seenNotNull {
+				return p.errorf("duplicate NOT NULL descriptor in column definition")
+			}
+			seenNotNull = true
 			p.advance()
 			p.advance()
 		case p.cur().Kind == kwDEFAULT:
+			if seenDefault {
+				return p.errorf("duplicate DEFAULT descriptor in column definition")
+			}
+			seenDefault = true
 			if err := p.parseDefaultExpression(); err != nil {
 				return err
 			}
 		case p.cur().Kind == kwCOMMENT:
+			if seenComment {
+				return p.errorf("duplicate COMMENT descriptor in column definition")
+			}
+			seenComment = true
 			if err := p.parseCommentSpec(); err != nil {
 				return err
 			}
 		case p.cur().Kind == kwFIRST || p.cur().Kind == kwAFTER:
+			if seenPosition {
+				return p.errorf("duplicate column position descriptor in column definition")
+			}
+			seenPosition = true
 			if err := p.parseColPosition(); err != nil {
 				return err
 			}
