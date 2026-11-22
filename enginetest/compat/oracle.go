@@ -240,7 +240,14 @@ var (
 	reStandInCreateSchemaGrant        = regexp.MustCompile(`(?i)\bGRANT\s+SELECT\s+ON\s+a\s+TO\s+a\b`)
 	reStandInGrantIdentifiedBy        = regexp.MustCompile(`(?i)^\s*GRANT\s+.+?\s+TO\s+(a)\s+IDENTIFIED\s+BY\b`)
 	reStandInDropTablespaceSet        = regexp.MustCompile(`(?i)^\s*DROP\s+TABLESPACE\s+(SET\s+)`)
-	reStandInSeqShard                 = regexp.MustCompile(`(?i)^\s*(?:CREATE|ALTER)\s+SEQUENCE\s+\S+.*?\b((?:NO)?SHARD)\b`)
+	reStandInSeqPrefix                = regexp.MustCompile(`(?i)^\s*(?:CREATE|ALTER)\s+SEQUENCE\s+(?:\S+\s*\.\s*)?\S+(?:\s+|$)`)
+	reStandInSeqShard                 = regexp.MustCompile(`(?i)\b(?:NO)?SHARD\b`)
+	reStandInSeqShardClause           = regexp.MustCompile(`(?i)\b(?:SHARD(?:\s+(?:NO)?EXTEND)?|NOSHARD)\b`)
+	reStandInSeqScale                 = regexp.MustCompile(`(?i)\b(?:NO)?SCALE\b`)
+	reStandInSeqOrder                 = regexp.MustCompile(`(?i)\b(?:NO)?ORDER\b`)
+	reStandInSeqCycle                 = regexp.MustCompile(`(?i)\b(?:NO)?CYCLE\b`)
+	reStandInSeqKeep                  = regexp.MustCompile(`(?i)\b(?:NO)?KEEP\b`)
+	reStandInSeqExtend                = regexp.MustCompile(`(?i)^\s*(?:NO)?EXTEND\b`)
 	reStandInIdentifiedGlobally       = regexp.MustCompile(`(?i)^\s*(CREATE|ALTER)\s+(ROLE|USER)\s+(\S+)\s+IDENTIFIED\s+(GLOBALLY)\b`)
 	reStandInPDBSnapshot              = regexp.MustCompile(`(?i)^\s*ALTER\s+PLUGGABLE\s+DATABASE\s+(SNAPSHOT)\b`)
 	reStandInNumberCollate            = regexp.MustCompile(`(?i)\b(NUMBER)\s+COLLATE\b`)
@@ -486,12 +493,7 @@ func oracleStandInRev5(statement, schema string, e oracleError) (string, func(in
 			return rewritten, mapPos, true
 		}
 	case 2511:
-		if m := reStandInSeqShard.FindStringSubmatchIndex(statement); m != nil {
-			rep := "SCALE"
-			if strings.HasPrefix(strings.ToUpper(statement[m[2]:m[3]]), "NO") {
-				rep = "NOSCALE"
-			}
-			rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{m[2], m[3], rep}})
+		if rewritten, mapPos, ok := rewriteSeqShardStandIn(statement); ok {
 			return rewritten, mapPos, true
 		}
 	case 439:
@@ -605,6 +607,73 @@ func oracleStandInRev5(statement, schema string, e oracleError) (string, func(in
 		}
 	}
 	return oracleStandIn(statement, e)
+}
+
+// rewriteSeqShardStandIn rewrites SHARD/NOSHARD on CREATE/ALTER SEQUENCE when
+// Oracle reports ORA-02511 in a non-sharded database. When SCALE/NOSCALE is
+// not already present, SHARD/NOSHARD maps directly to SCALE/NOSCALE so Oracle
+// checks EXTEND/NOEXTEND natively. When SCALE/NOSCALE is already present,
+// every SHARD [EXTEND|NOEXTEND] / NOSHARD maps in one pass to an unused
+// mutually-exclusive sequence option pair (ORDER/NOORDER, CYCLE/NOCYCLE,
+// KEEP/NOKEEP) so independent SCALE options are preserved while duplicates and
+// invalid NOSHARD EXTEND remain rejected by Oracle.
+func rewriteSeqShardStandIn(statement string) (string, func(int) int, bool) {
+	prefix := reStandInSeqPrefix.FindStringIndex(statement)
+	if prefix == nil {
+		return "", nil, false
+	}
+	base := prefix[1]
+	rest := statement[base:]
+	if !reStandInSeqShard.MatchString(rest) {
+		return "", nil, false
+	}
+	if !reStandInSeqScale.MatchString(rest) {
+		matches := reStandInSeqShard.FindAllStringIndex(rest, -1)
+		edits := make([]standInEdit, 0, len(matches))
+		for _, m := range matches {
+			rep := "SCALE"
+			if strings.HasPrefix(strings.ToUpper(rest[m[0]:m[1]]), "NO") {
+				rep = "NOSCALE"
+			}
+			edits = append(edits, standInEdit{base + m[0], base + m[1], rep})
+		}
+		rewritten, mapPos := applyStandInEdits(statement, edits)
+		return rewritten, mapPos, true
+	}
+
+	matches := reStandInSeqShardClause.FindAllStringIndex(rest, -1)
+	if len(matches) == 0 {
+		return "", nil, false
+	}
+	posRep, negRep := "", ""
+	switch {
+	case !reStandInSeqOrder.MatchString(rest):
+		posRep, negRep = "ORDER", "NOORDER"
+	case !reStandInSeqCycle.MatchString(rest):
+		posRep, negRep = "CYCLE", "NOCYCLE"
+	case !reStandInSeqKeep.MatchString(rest):
+		posRep, negRep = "KEEP", "NOKEEP"
+	}
+	if posRep == "" && len(matches) == 1 && !reStandInSeqExtend.MatchString(rest[matches[0][1]:]) {
+		rewritten, mapPos := applyStandInEdits(statement, []standInEdit{{base + matches[0][0], base + matches[0][1], ""}})
+		return rewritten, mapPos, true
+	}
+	if posRep == "" {
+		// All fallback boolean pairs are already present and the statement
+		// either repeats SHARD/NOSHARD or has an invalid trailing EXTEND.
+		// Map to an already-used pair so Oracle still rejects it.
+		posRep, negRep = "ORDER", "NOORDER"
+	}
+	edits := make([]standInEdit, 0, len(matches))
+	for _, m := range matches {
+		rep := posRep
+		if strings.HasPrefix(strings.ToUpper(rest[m[0]:m[1]]), "NO") {
+			rep = negRep
+		}
+		edits = append(edits, standInEdit{base + m[0], base + m[1], rep})
+	}
+	rewritten, mapPos := applyStandInEdits(statement, edits)
+	return rewritten, mapPos, true
 }
 
 // oracleFailureStandInRev5 rewrites a statement that crashes Oracle 23ai's own

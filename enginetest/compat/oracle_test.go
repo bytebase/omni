@@ -444,6 +444,33 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"ALTER TABLE t FLASHBACK ARCHIVE fa1":                   {55605, 0, "", nil},
 			"ALTER TABLE t FLASHBACK ARCHIVE fa1" + OracleProbeTail: {911, 37, "", nil},
 		}, Accept},
+		{"CREATE SEQUENCE SHARD stand-in accepts valid", "CREATE SEQUENCE a SHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE a SHARD EXTEND": {2511, 0, "", nil},
+			"CREATE SEQUENCE a SCALE EXTEND": parsed,
+		}, Accept},
+		{"CREATE SEQUENCE SCALE SHARD EXTEND preserves existing SCALE", "CREATE SEQUENCE s SCALE SHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE SHARD EXTEND": {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER":        parsed,
+		}, Accept},
+		{"CREATE SEQUENCE SCALE NOSHARD EXTEND rejects invalid suboption", "CREATE SEQUENCE s SCALE NOSHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE NOSHARD EXTEND":                   {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE NOORDER EXTEND":                   {933, 32, "", nil},
+			"CREATE SEQUENCE s SCALE NOORDER EXTEND" + OracleProbeTail: {933, 32, "", nil},
+		}, Reject},
+		{"CREATE SEQUENCE SCALE SHARD SHARD rejects duplicate SHARD", "CREATE SEQUENCE s SCALE SHARD SHARD", map[string]*answer{
+			"CREATE SEQUENCE s SCALE SHARD SHARD":                   {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER ORDER":                   {2273, 30, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER ORDER" + OracleProbeTail: {2273, 30, "", nil},
+		}, Reject},
+		{"CREATE SEQUENCE SCALE ORDER CYCLE KEEP SHARD EXTEND accepts valid", "CREATE SEQUENCE s SCALE ORDER CYCLE KEEP SHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE ORDER CYCLE KEEP SHARD EXTEND": {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER CYCLE KEEP ":             parsed,
+		}, Accept},
+		{"CREATE SEQUENCE SCALE ORDER CYCLE KEEP NOSHARD EXTEND rejects", "CREATE SEQUENCE s SCALE ORDER CYCLE KEEP NOSHARD EXTEND", map[string]*answer{
+			"CREATE SEQUENCE s SCALE ORDER CYCLE KEEP NOSHARD EXTEND":                   {2511, 0, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER CYCLE KEEP NOORDER EXTEND":                   {2273, 41, "", nil},
+			"CREATE SEQUENCE s SCALE ORDER CYCLE KEEP NOORDER EXTEND" + OracleProbeTail: {2273, 41, "", nil},
+		}, Reject},
 		{"CREATE MANDATORY PROFILE stand-in accepts valid", "CREATE MANDATORY PROFILE a LIMIT SESSIONS_PER_USER 1", map[string]*answer{
 			"CREATE MANDATORY PROFILE a LIMIT SESSIONS_PER_USER 1": {2387, 51, "", nil},
 			"CREATE PROFILE a LIMIT SESSIONS_PER_USER 1":           {1031, 0, "", nil},
