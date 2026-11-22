@@ -248,6 +248,8 @@ func dropStatementType(kind ast.DropObjectKind) StatementType {
 		return DropSchema
 	case ast.DropDatabase:
 		return DropDatabase
+	case ast.DropTableFunction:
+		return DropFunction
 	default:
 		return StatementTypeUnspecified
 	}

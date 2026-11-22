@@ -798,6 +798,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Left)
 		Walk(v, n.Right)
 		Walk(v, n.On)
+		if n.MatchRecognize != nil {
+			Walk(v, n.MatchRecognize)
+		}
 	case *KeyPart:
 		Walk(v, n.Expr)
 		for _, c := range n.Options {
@@ -1282,6 +1285,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Unpivot != nil {
 			Walk(v, n.Unpivot)
+		}
+		if n.MatchRecognize != nil {
+			Walk(v, n.MatchRecognize)
 		}
 		if n.Sample != nil {
 			Walk(v, n.Sample)

@@ -118,6 +118,22 @@ func TestStatementTypeOfMultiStatement(t *testing.T) {
 	require.Equal(t, []StatementType{AlterTable, Insert}, got)
 }
 
+func TestStatementTypeOfBigQueryExternalDrops(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want StatementType
+	}{
+		{"DROP EXTERNAL TABLE ds.ext;", DropTable},
+		{"DROP EXTERNAL TABLE FUNCTION ds.tf;", DropFunction},
+		{"DROP TABLE FUNCTION ds.tf;", DropFunction},
+	} {
+		file, err := parser.ParseWithDialect(tc.sql, parser.DialectBigQuery)
+		require.NoError(t, err, tc.sql)
+		require.Len(t, file.Stmts, 1)
+		require.Equal(t, tc.want, StatementTypeOf(file.Stmts[0]), tc.sql)
+	}
+}
+
 func TestStatementTypeOfSpannerCall(t *testing.T) {
 	got := statementTypesOf(t, "CALL cancel_query('12345');")
 	require.Equal(t, []StatementType{Execute}, got)

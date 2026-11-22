@@ -315,9 +315,8 @@ func (p *Parser) parseTablePrimary() (ast.Node, error) {
 			if merr != nil {
 				return nil, merr
 			}
-			if te, ok := src.(*ast.TableExpr); ok {
-				te.MatchRecognize = mr
-				te.Loc.End = mr.Loc.End
+			if !attachMatchRecognize(src, mr) {
+				return nil, p.syntaxErrorAtCur()
 			}
 			continue
 		}
@@ -483,6 +482,36 @@ func attachSample(src ast.Node, sc *ast.SampleClause) bool {
 	case *ast.UnnestExpr:
 		s.Sample = sc
 		s.Loc.End = sc.Loc.End
+	default:
+		return false
+	}
+	return true
+}
+
+// attachMatchRecognize stores a parsed MATCH_RECOGNIZE clause on a table
+// source (TableExpr, UnnestExpr, or parenthesized JoinExpr), updating its end
+// Loc. Returns false if the source shape is unsupported or already carries a
+// MATCH_RECOGNIZE clause so the caller never silently drops it.
+func attachMatchRecognize(src ast.Node, mr *ast.MatchRecognizeClause) bool {
+	switch s := src.(type) {
+	case *ast.TableExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
+	case *ast.UnnestExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
+	case *ast.JoinExpr:
+		if s.MatchRecognize != nil {
+			return false
+		}
+		s.MatchRecognize = mr
+		s.Loc.End = mr.Loc.End
 	default:
 		return false
 	}

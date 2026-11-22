@@ -156,8 +156,8 @@ func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*r
 	// no SELECT item list; its implicit projection is every FROM relation's
 	// columns (`SELECT * FROM ...`).
 	if len(stmt.Items) == 0 && len(stmt.From) > 0 {
-		if len(fromRels) == 0 {
-			w.failClosed(fmt.Errorf("a FROM-first query over an unresolvable source has no resolvable output columns (fail closed)"))
+		if w.fromUnresolved || len(fromRels) == 0 {
+			w.failClosed(fmt.Errorf("a FROM-first query with an unresolvable source has no resolvable output columns (fail closed)"))
 			return nil
 		}
 		return w.starProjColumns(allColumns(fromRels), nil)

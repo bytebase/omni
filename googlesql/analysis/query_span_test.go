@@ -1031,11 +1031,27 @@ func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
 	for _, sql := range []string{
 		"FROM sensitive |> SELECT secret",
 		"FROM tvf()",
+		"FROM (SELECT 1 AS public) CROSS JOIN tvf()",
+		"FROM (SELECT 1 AS public), tvf()",
 		"SELECT * FROM sensitive MATCH_RECOGNIZE (MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS x > 0)",
+		"SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
+		"SELECT * FROM (a JOIN b ON a.id = b.id) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
 	} {
 		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
 			t.Errorf("GetQuerySpan(%q, BigQuery) succeeded, want fail-closed error", sql)
 		}
+	}
+
+	// Subqueries inside MATCH_RECOGNIZE on non-TableExpr sources are still
+	// discovered by ClassifySQL (tablesOnly pass).
+	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM INFORMATION_SCHEMA.TABLES) > 0)", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with info_schema subquery) = %v, want SelectInfoSchema", got)
+	}
+	if got := ClassifySQL("SELECT * FROM (INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.COLUMNS ON true) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(Join MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
 	}
 }
 

@@ -338,9 +338,14 @@ type spanWalker struct {
 	// here (mirroring the legacy tableSourceFrom, which held each table AND the join
 	// anchor), so `x.id` over `t x JOIN t y` resolves against leaf `x`. Saved and
 	// restored around each SELECT so nested blocks do not leak relations.
-	leaves   *leafSet
-	accessed map[tableKey]bool
-	predSeen map[ColumnRef]bool
+	leaves *leafSet
+	// fromUnresolved records whether any FROM operand in the current SELECT
+	// resolved to no relation (such as a TVF or GRAPH_TABLE). Saved and restored
+	// per SELECT so a FROM-first query with a mix of resolvable and unresolvable
+	// operands fails closed instead of returning an incomplete projection.
+	fromUnresolved bool
+	accessed       map[tableKey]bool
+	predSeen       map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
 	// parses but cannot resolve to correct lineage without catalog metadata
 	// (NATURAL JOIN; JOIN USING over a deferred set-op projection). GetQuerySpan
@@ -1189,7 +1194,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.fromAliases = map[string]bool{}
 	prevLeaves := w.leaves
 	w.leaves = &leafSet{}
-	defer func() { w.fromAliases = prevFrom; w.leaves = prevLeaves }()
+	prevUnresolved := w.fromUnresolved
+	w.fromUnresolved = false
+	defer func() {
+		w.fromAliases = prevFrom
+		w.leaves = prevLeaves
+		w.fromUnresolved = prevUnresolved
+	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
 	// one combined relation, used for a bare `*`); building them also populates
@@ -1294,6 +1305,10 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 		w.walkPredicate(n.Array)
 		w.walkPivotExpressions(n.Pivot)
 		w.walkUnpivotExpressions(n.Unpivot)
+		if n.MatchRecognize != nil {
+			w.walkMatchRecognize(n.MatchRecognize)
+			w.failClosed(fmt.Errorf("MATCH_RECOGNIZE changes a FROM source's output columns, which this walker does not resolve (fail closed)"))
+		}
 		w.walkSampleExpressions(n.Sample)
 		return w.finishUnnestRelation(w.unnestElementColumns(n.Array), n.Alias, n.WithOffset, n.WithOffsetAlias)
 	}
@@ -1358,6 +1373,10 @@ func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
 			if col != "" {
 				w.addPredicateColumn(ColumnRef{Column: col})
 			}
+		}
+		if join.MatchRecognize != nil {
+			w.walkMatchRecognize(join.MatchRecognize)
+			w.failClosed(fmt.Errorf("MATCH_RECOGNIZE changes a FROM source's output columns, which this walker does not resolve (fail closed)"))
 		}
 		acc = w.joinParts(b, acc, right, join)
 	}
@@ -1492,6 +1511,7 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		// info.
 		w.walkPredicate(n.Func)
 		w.registerFromAlias(n.Alias)
+		w.fromUnresolved = true
 		rel = nil
 	case n.GraphTable != nil:
 		// A GRAPH_TABLE(graph MATCH ... [COLUMNS (...)]) source reads from a
@@ -1504,6 +1524,7 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		ew := &exprWalk{w: w, followSub: true}
 		ew.walkGraphNode(n.GraphTable)
 		w.registerFromAlias(n.Alias)
+		w.fromUnresolved = true
 		w.failClosed(fmt.Errorf("GRAPH_TABLE source cannot be resolved to table/column lineage without graph catalog metadata (fail closed)"))
 		rel = nil
 	case n.Path != nil:
@@ -1525,6 +1546,11 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		} else {
 			rel = w.buildPathRelation(n.Path, n.Alias)
 		}
+		if rel == nil {
+			w.fromUnresolved = true
+		}
+	default:
+		w.fromUnresolved = true
 	}
 	w.walkPredicate(n.SystemTime)
 	w.walkPivotExpressions(n.Pivot)

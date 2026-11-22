@@ -1451,13 +1451,14 @@ func (n *TableExpr) Tag() NodeTag { return T_TableExpr }
 // scans"), but the union grammar PARSES them, so they are retained for parse
 // parity. At most one of {Pivot, Unpivot, Sample} is set.
 type UnnestExpr struct {
-	Array           Node           // the UNNEST(...) call (*FuncCall); the array argument(s)
-	Alias           string         // [AS] alias; "" if absent
-	WithOffset      bool           // trailing WITH OFFSET
-	WithOffsetAlias string         // alias for WITH OFFSET; "" if absent or unaliased
-	Pivot           *PivotClause   // PIVOT(...); nil if absent
-	Unpivot         *UnpivotClause // UNPIVOT(...); nil if absent
-	Sample          *SampleClause  // TABLESAMPLE …; nil if absent
+	Array           Node                  // the UNNEST(...) call (*FuncCall); the array argument(s)
+	Alias           string                // [AS] alias; "" if absent
+	WithOffset      bool                  // trailing WITH OFFSET
+	WithOffsetAlias string                // alias for WITH OFFSET; "" if absent or unaliased
+	Pivot           *PivotClause          // PIVOT(...); nil if absent
+	Unpivot         *UnpivotClause        // UNPIVOT(...); nil if absent
+	MatchRecognize  *MatchRecognizeClause // MATCH_RECOGNIZE(...); nil if absent
+	Sample          *SampleClause         // TABLESAMPLE …; nil if absent
 	Loc             Loc
 }
 
@@ -1503,14 +1504,15 @@ func (t JoinType) String() string {
 // none). On is the ON condition (nil if USING/NATURAL/CROSS/comma). Using is the
 // USING column list (nil if ON/NATURAL/CROSS/comma).
 type JoinExpr struct {
-	Type     JoinType
-	Natural  bool
-	JoinHint string // "HASH" | "LOOKUP"; "" if none
-	Left     Node
-	Right    Node
-	On       Node     // ON expr; nil otherwise
-	Using    []string // USING (col, …); nil otherwise
-	Loc      Loc
+	Type           JoinType
+	Natural        bool
+	JoinHint       string // "HASH" | "LOOKUP"; "" if none
+	Left           Node
+	Right          Node
+	On             Node                  // ON expr; nil otherwise
+	Using          []string              // USING (col, …); nil otherwise
+	MatchRecognize *MatchRecognizeClause // MATCH_RECOGNIZE(...) on parenthesized join; nil if absent
+	Loc            Loc
 }
 
 // Tag implements Node.
