@@ -732,7 +732,10 @@ func isCreateProcedureHeader(sql string, stmtStart, procPos int) bool {
 		case '%':
 			return i + 1, true
 		default:
-			end := skipToEndOfWord(sql, i)
+			end := i
+			for end < procPos && (isIdentByte(sql[end]) || sql[end] == '$' || sql[end] == '.' || sql[end] == '-' || sql[end] >= 0x80) {
+				end++
+			}
 			return end, end > i
 		}
 	}

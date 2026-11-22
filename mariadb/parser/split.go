@@ -228,11 +228,17 @@ func Split(sql string) []Segment {
 	// routineHeaderParen tracks the parameter list of a CREATE PROCEDURE so its
 	// body position is known: -1 outside a header, 0 after "PROCEDURE" before
 	// the '(' opens, then the open-paren depth. When it returns to 0 the body
-	// begins at a statement-start position, so a bare IF body (IF ... END IF)
-	// reads as a compound opener rather than the IF() function or IF EXISTS.
+	// (or optional routine characteristics before it) begins at a
+	// statement-start position, so a bare IF body (IF ... END IF) reads as a
+	// compound opener rather than the IF() function or IF EXISTS.
 	// WHILE/CASE/LOOP/REPEAT bodies already open unconditionally; only IF needs
 	// this.
 	routineHeaderParen := -1
+	// inRoutineChars is true right after a CREATE PROCEDURE's parameter list ')'
+	// while scanning optional routine characteristics (DETERMINISTIC, COMMENT
+	// '...', SQL SECURITY ..., etc.) before the body begins.
+	inRoutineChars := false
+	expectCharString := false
 	// setTarget is where the statement SET STATEMENT ... FOR wraps starts, the innermost one
 	// when they nest, -1 before one.
 	setTarget := -1
@@ -266,11 +272,39 @@ func Split(sql string) []Segment {
 				stmtStart = i
 				setTarget = -1
 				atStmtStart = true
+				routineHeaderParen = -1
+				inRoutineChars = false
+				expectCharString = false
 				continue
 			}
 		}
 
 		b := sql[i]
+
+		// While scanning optional CREATE PROCEDURE characteristics between ')'
+		// and the routine body, keep atStmtStart=true across characteristic
+		// keywords and COMMENT string literals so a bare IF body opens cleanly.
+		if inRoutineChars && b != ' ' && b != '\t' && b != '\r' && b != '\n' &&
+			!(b == '/' && i+1 < len(sql) && sql[i+1] == '*') && !isDashComment(sql, i) && b != '#' {
+			if expectCharString && (b == '\'' || b == '"') {
+				if b == '\'' {
+					i = skipSingleQuoteMySQL(sql, i)
+				} else {
+					i = skipDoubleQuoteMySQL(sql, i)
+				}
+				expectCharString = false
+				atStmtStart = true
+				continue
+			}
+			expectCharString = false
+			if end, isComment, ok := matchRoutineCharWord(sql, i); ok {
+				expectCharString = isComment
+				atStmtStart = true
+				i = end
+				continue
+			}
+			inRoutineChars = false
+		}
 
 		switch {
 		// Single-quoted string — non-stmt-start after.
@@ -346,12 +380,18 @@ func Split(sql string) []Segment {
 			}
 			i = skipToEndOfWord(sql, i)
 
-		// PROCEDURE after CREATE — enter the routine header so the body position
-		// after the parameter list is known. ALTER/DROP/SHOW PROCEDURE have no
-		// body and are excluded by requiring CREATE immediately before.
+		// PROCEDURE in a CREATE [OR REPLACE] [DEFINER = ...] PROCEDURE header —
+		// enter the routine header so the body position after the parameter
+		// list is known (including SHOW CREATE PROCEDURE output and SET
+		// STATEMENT ... FOR). Non-CREATE statements and identifiers named
+		// "procedure" elsewhere are excluded by createsPackage(head).
 		case (b == 'p' || b == 'P') && matchWord(sql, i, "PROCEDURE"):
 			endOfWord := skipToEndOfWord(sql, i)
-			if prevWord(sql, i) == "CREATE" {
+			head := sql[stmtStart:i]
+			if setTarget > stmtStart && startsWithWord(sql[stmtStart:setTarget], "SET") {
+				head = sql[setTarget:i]
+			}
+			if depth == 0 && routineHeaderParen < 0 && !packageInLongerToken(sql, i, endOfWord) && createsPackage(head) {
 				routineHeaderParen = 0
 			}
 			atStmtStart = false
@@ -479,11 +519,15 @@ func Split(sql string) []Segment {
 				stmtStart = i
 				setTarget = -1
 				atStmtStart = true
+				routineHeaderParen = -1
+				inRoutineChars = false
+				expectCharString = false
 				continue
 			}
 			// Track the CREATE PROCEDURE parameter list. Nested type parens
 			// (DECIMAL(10,2)) balance out; when the header's own '(' closes, the
-			// body follows at a statement-start position.
+			// body (or optional routine characteristics) follows at a
+			// statement-start position.
 			if routineHeaderParen >= 0 {
 				switch b {
 				case '(':
@@ -493,6 +537,7 @@ func Split(sql string) []Segment {
 						routineHeaderParen--
 						if routineHeaderParen == 0 {
 							routineHeaderParen = -1
+							inRoutineChars = true
 							atStmtStart = true
 							i++
 							continue
@@ -928,4 +973,21 @@ func skipExecutableComment(sql string, i int) (int, bool) {
 		}
 	}
 	return i, false
+}
+
+// matchRoutineCharWord reports whether sql[i:] begins with a keyword that can
+// appear in a CREATE PROCEDURE characteristic clause between the parameter list
+// and the routine body (COMMENT '...', LANGUAGE SQL, [NOT] DETERMINISTIC,
+// {CONTAINS|NO|READS|MODIFIES} SQL [DATA], SQL SECURITY {DEFINER|INVOKER}).
+func matchRoutineCharWord(sql string, i int) (end int, isComment bool, ok bool) {
+	for _, kw := range []string{
+		"COMMENT", "LANGUAGE", "DETERMINISTIC", "NOT", "NO",
+		"CONTAINS", "READS", "MODIFIES", "SQL", "DATA",
+		"SECURITY", "DEFINER", "INVOKER",
+	} {
+		if matchWord(sql, i, kw) {
+			return skipToEndOfWord(sql, i), kw == "COMMENT", true
+		}
+	}
+	return i, false, false
 }
