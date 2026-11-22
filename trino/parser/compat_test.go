@@ -3,6 +3,8 @@ package parser
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -128,18 +130,73 @@ func omniVerdict(sql string) string {
 	return compat.Accept
 }
 
+// omniVerdictOnly reads the row as Trino's statement endpoint does (one
+// statement, no trailing ';', non-empty) and returns a coarse accept/reject
+// verdict for judge revision 2.
+func omniVerdictOnly(sql string) string {
+	segs := Split(sql)
+	if _, err := Parse(sql); err != nil {
+		return compat.Reject
+	}
+	if len(segs) == 0 || segs[0].ByteEnd < len(sql) {
+		return compat.Reject
+	}
+	return compat.Accept
+}
+
+// verifySharedServerPin verifies that a dedicated pin role (such as "parser")
+// pins the exact same Trino image, digest, and tag as the default role before
+// reusing testcontainer.Judge's default container.
+func verifySharedServerPin(pinsPath string, pin enginetest.Pin) error {
+	if pin.Role == testcontainer.Default {
+		return nil
+	}
+	serverPin, err := enginetest.LoadPin(pinsPath, testcontainer.Default)
+	if err != nil {
+		return err
+	}
+	if serverPin.Image != pin.Image || serverPin.Digest != pin.Digest || serverPin.Tag != pin.Tag {
+		return fmt.Errorf("%s pin (%s %s %s) differs from %s server pin (%s %s %s)",
+			pin.Role, pin.Image, pin.Digest, pin.Tag,
+			testcontainer.Default, serverPin.Image, serverPin.Digest, serverPin.Tag)
+	}
+	return nil
+}
+
+// trinoVerdictOnly reads a Trino server's answer as a coarse accept/reject
+// verdict for judge revision 2. It delegates validation to compat.TrinoVerdict
+// so non-server errors, empty errorName, and out-of-range error locations
+// still fail the recording, and strips any @<byte> offset from rejections.
+func trinoVerdictOnly(statement string, err error, read func(error) (compat.TrinoError, bool)) (string, error) {
+	v, verr := compat.TrinoVerdict(statement, err, read)
+	if verr != nil {
+		return "", verr
+	}
+	if strings.HasPrefix(v, compat.Reject+"@") {
+		return compat.Reject, nil
+	}
+	return v, nil
+}
+
 // compatJudge asks the pinned Trino whether its parser accepts each
-// statement, by running it and reading the answer with compat.TrinoVerdict.
-// A statement that parses may run, on the memory catalog the session
-// defaults to; nothing it leaves changes whether a later one parses. It
-// runs only in a recording, outside any tape.
-func compatJudge(t testing.TB, _ enginetest.Pin) func(string) (string, error) {
+// statement, by running it and reading the answer with compat.TrinoVerdict
+// (or trinoVerdictOnly at judge revision 2). A statement that parses may run,
+// on the memory catalog the session defaults to; nothing it leaves changes
+// whether a later one parses. It runs only in a recording, outside any tape.
+func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
+	if err := verifySharedServerPin(testcontainer.Pins, pin); err != nil {
+		t.Fatalf("%v", err)
+	}
 	o := testcontainer.Judge(t)
 	return func(sql string) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		return compat.TrinoVerdict(sql, o.Run(ctx, sql), trinoError)
+		err := o.Run(ctx, sql)
+		if pin.Judge == "2" {
+			return trinoVerdictOnly(sql, err, trinoError)
+		}
+		return compat.TrinoVerdict(sql, err, trinoError)
 	}
 }
 
@@ -150,4 +207,99 @@ func trinoError(err error) (compat.TrinoError, bool) {
 		return compat.TrinoError{}, false
 	}
 	return compat.TrinoError{Name: qe.Name, Line: qe.Line, Column: qe.Column}, true
+}
+
+func TestTrinoVerdictOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		sql  string
+		err  error
+		want string
+	}{
+		{"ran", "SELECT 1", nil, compat.Accept},
+		{"semantic_error", "SELECT * FROM missing_tbl", &testcontainer.QueryError{Name: "TABLE_NOT_FOUND", Line: 1, Column: 15}, compat.Accept},
+		{"incompatible_client", "START TRANSACTION", &testcontainer.QueryError{Name: "INCOMPATIBLE_CLIENT"}, compat.Accept},
+		{"syntax_error_with_location", "SELECT 1 FROM FROM", &testcontainer.QueryError{Name: "SYNTAX_ERROR", Line: 1, Column: 15}, compat.Reject},
+		{"syntax_error_multiline_utf8", "SELECT '😀'\nFROM FROM", &testcontainer.QueryError{Name: "SYNTAX_ERROR", Line: 2, Column: 6}, compat.Reject},
+		{"syntax_error_no_location", "DROP TABLE a.b.c.d", &testcontainer.QueryError{Name: "SYNTAX_ERROR"}, compat.Reject},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := trinoVerdictOnly(tc.sql, tc.err, trinoError)
+			if err != nil {
+				t.Fatalf("trinoVerdictOnly(%q) unexpected error: %v", tc.sql, err)
+			}
+			if got != tc.want {
+				t.Errorf("trinoVerdictOnly(%q) = %q, want %q", tc.sql, got, tc.want)
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		sql     string
+		err     error
+		wantErr string
+	}{
+		{"non_server_error", "SELECT 1", errors.New("connection refused"), "connection refused"},
+		{"empty_error_name", "SELECT 1", &testcontainer.QueryError{Line: 1, Column: 1}, "no errorName"},
+		{"out_of_range_location", "SELECT (1", &testcontainer.QueryError{Name: "SYNTAX_ERROR", Line: 1, Column: 11}, "outside the statement"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := trinoVerdictOnly(tc.sql, tc.err, trinoError)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("trinoVerdictOnly(%q) = (%q, %v), want error containing %q", tc.sql, got, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestOmniVerdictOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"valid_single_stmt", "SELECT 1.5", compat.Accept},
+		{"syntax_error", "SELECT 1.5 IN(1.5 zzz)", compat.Reject},
+		{"too_many_dots", "DROP TABLE a.b.c.d", compat.Reject},
+		{"empty_input", "", compat.Reject},
+		{"comment_only", "-- just a comment", compat.Reject},
+		{"trailing_semicolon", "SELECT 1;", compat.Reject},
+		{"two_statements", "SELECT 1; SELECT 2", compat.Reject},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := omniVerdictOnly(tc.sql); got != tc.want {
+				t.Errorf("omniVerdictOnly(%q) = %q, want %q", tc.sql, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVerifySharedServerPin(t *testing.T) {
+	pinsPath := filepath.Join(t.TempDir(), "pins.tsv")
+	content := "default\ttrinodb/trino:482\tsha256:aaa\t482\nparser\ttrinodb/trino:482\tsha256:aaa\t482\t2\n"
+	if err := os.WriteFile(pinsPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := verifySharedServerPin(pinsPath, enginetest.Pin{Role: "default", Image: "other", Digest: "sha256:zzz", Tag: "999"}); err != nil {
+		t.Errorf("default role should skip check, got %v", err)
+	}
+	if err := verifySharedServerPin(pinsPath, enginetest.Pin{Role: "parser", Image: "trinodb/trino:482", Digest: "sha256:aaa", Tag: "482", Judge: "2"}); err != nil {
+		t.Errorf("matching parser pin returned error: %v", err)
+	}
+	for _, bad := range []struct {
+		name string
+		pin  enginetest.Pin
+	}{
+		{"image_mismatch", enginetest.Pin{Role: "parser", Image: "trinodb/trino:483", Digest: "sha256:aaa", Tag: "482", Judge: "2"}},
+		{"digest_mismatch", enginetest.Pin{Role: "parser", Image: "trinodb/trino:482", Digest: "sha256:bbb", Tag: "482", Judge: "2"}},
+		{"tag_mismatch", enginetest.Pin{Role: "parser", Image: "trinodb/trino:482", Digest: "sha256:aaa", Tag: "483", Judge: "2"}},
+	} {
+		t.Run(bad.name, func(t *testing.T) {
+			if err := verifySharedServerPin(pinsPath, bad.pin); err == nil {
+				t.Errorf("verifySharedServerPin(%+v) = nil, want mismatch error", bad.pin)
+			}
+		})
+	}
 }

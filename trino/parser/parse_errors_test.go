@@ -180,3 +180,95 @@ func TestParse_AlignedErrorPositionsAndForms(t *testing.T) {
 		}
 	}
 }
+
+// TestErrorPositions pins omni's exact ParseError.Position byte offsets on:
+//   - all 29 compat.tsv rejections where omni pinpoints the offending token
+//     more sharply than Trino (Trino reports no location, byte 0, or an
+//     ANTLR-backtracked alternative start), so switching compat.tsv to coarse
+//     accept/reject verdicts never degrades diagnostic byte offsets; and
+//   - representative core SQL syntax, multi-line, multi-byte UTF-8, and lexer
+//     errors.
+func TestErrorPositions(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		pos  int
+	}{
+		// 1. selectAll missing AS before columnAliases (Trino backtracks to '*' at 11).
+		{"selectAll_missing_AS", "SELECT 1.5.*(a)", 12},
+
+		// 2. Non-reserved <ident>(SELECT ...) calls (Trino stops before '(').
+		{"table_arg_nonreserved_TABLES_subquery", "SELECT 1.5 FROM TABLE(a(TABLES(SELECT 1.5)))", 31},
+		{"comparison_nonreserved_STALE_subquery", "SELECT 1.5 = STALE(SELECT 1.5)", 19},
+		{"comparison_nonreserved_ARRAY_subquery", "SELECT 1.5 = ARRAY(SELECT 1.5)", 19},
+
+		// 3. Quantified comparison = ALL(...) (Trino abandons predicate at '(' at 16).
+		{"quantified_ALL_empty_select", "SELECT 1.5 = ALL(SELECT)", 23},
+		{"quantified_ALL_unclosed_paren", "SELECT 1.5 = ALL(SELECT 1.5", 27},
+
+		// 4. IN (...) predicate alternatives (Trino abandons predicate at 'IN' at 11).
+		{"in_missing_lparen_expr", "SELECT 1.5 IN 1.5)", 14},
+		{"in_empty_list", "SELECT 1.5 IN()", 14},
+		{"in_unclosed_expr", "SELECT 1.5 IN(1.5", 17},
+		{"in_missing_lparen_query", "SELECT 1.5 IN SELECT 1.5)", 14},
+		{"in_empty_select", "SELECT 1.5 IN(SELECT)", 20},
+		{"in_unclosed_query", "SELECT 1.5 IN(SELECT 1.5", 24},
+		{"in_trailing_ident", "SELECT 1.5 IN(1.5 zzz)", 18},
+		{"in_missing_comma", "SELECT 1.5 IN(1.5 1.5)", 18},
+		{"in_trailing_comma_rparen", "SELECT 1.5 IN(1.5,)", 18},
+		{"in_trailing_comma_eof", "SELECT 1.5 IN(1.5,", 18},
+		{"in_second_item_trailing_ident", "SELECT 1.5 IN(1.5, 1.5 zzz)", 23},
+
+		// 5. Statement-level checks Trino reports at byte 0.
+		{"create_schema_too_many_parts", "CREATE SCHEMA a.b.c", 14},
+		{"drop_schema_too_many_parts", "DROP SCHEMA a.b.c", 12},
+		{"create_or_replace_if_not_exists", "CREATE OR REPLACE TABLE IF NOT EXISTS t (a bigint)", 24},
+
+		// 6. Post-parse qualified-name checks Trino reports with no location.
+		{"create_table_too_many_parts", "CREATE TABLE a.b.c.d (a bigint)", 13},
+		{"drop_table_too_many_parts", "DROP TABLE a.b.c.d", 11},
+		{"alter_table_too_many_parts", "ALTER TABLE a.b.c.d RENAME TO x", 12},
+		{"comment_on_table_too_many_parts", "COMMENT ON TABLE a.b.c.d IS 'x'", 17},
+		{"analyze_too_many_parts", "ANALYZE a.b.c.d", 8},
+		{"insert_too_many_parts", "INSERT INTO a.b.c.d VALUES (1)", 12},
+		{"truncate_table_too_many_parts", "TRUNCATE TABLE a.b.c.d", 15},
+		{"delete_too_many_parts", "DELETE FROM a.b.c.d", 12},
+		{"merge_too_many_parts", "MERGE INTO a.b.c.d t USING s ON t.c = s.c WHEN MATCHED THEN DELETE", 11},
+
+		// 7. Core SQL syntax, multi-line, multi-byte UTF-8, and lexer errors.
+		{"unexpected_from", "SELECT 1 FROM FROM", 14},
+		{"eof_unclosed_paren", "SELECT (1", 9},
+		{"trailing_token_after_commit", "COMMIT zzz", 7},
+		{"bad_statement_start", "COMMITTED", 0},
+		{"multiline_error", "SELECT 1\n  FROM FROM", 16},
+		{"multibyte_2byte_utf8", "SELECT 'é' FROM FROM", 17},
+		{"multibyte_4byte_utf8", "SELECT '😀' FROM FROM", 19},
+		{"lexer_digit_prefixed_ident", "SELECT 1a", 7},
+		{"lexer_unterminated_string", "SELECT 'abc", 7},
+		{"lexer_unterminated_quoted_ident", `SELECT "abc`, 7},
+		{"lexer_unterminated_binary_literal", "SELECT X'ab", 7},
+		{"lexer_backquoted_ident", "SELECT `a`", 7},
+		{"lexer_unterminated_dollar_string", "SELECT $$open", 7},
+		{"lexer_invalid_uescape", "SELECT U&'a' UESCAPE 'a'", 7},
+		{"lexer_unexpected_char", "SELECT @", 7},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatalf("Parse(%q) = nil, want ParseError at byte %d", tc.sql, tc.pos)
+			}
+			var pe *ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("Parse(%q) error type %T does not unwrap to *ParseError", tc.sql, err)
+			}
+			if pe.Position != tc.pos {
+				t.Errorf("Parse(%q) Position = %d, want %d (message=%q)", tc.sql, pe.Position, tc.pos, pe.Message)
+			}
+			if pe.Message == "" {
+				t.Errorf("Parse(%q) returned empty ParseError.Message", tc.sql)
+			}
+		})
+	}
+}
