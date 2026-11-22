@@ -524,7 +524,15 @@ func (p *Parser) expectStringLiteral(context string) (Token, error) {
 	if p.cur.Kind != tokString && p.cur.Kind != tokUnicodeString {
 		return Token{}, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected string literal for " + context}
 	}
-	return p.advance(), nil
+	tok := p.advance()
+	if tok.Kind == tokUnicodeString {
+		if _, end, err := p.parseOptionalUEscape(tok.Loc); err != nil {
+			return Token{}, err
+		} else if end > 0 {
+			tok.Loc.End = end
+		}
+	}
+	return tok, nil
 }
 
 // parseBoundedQualifiedName parses a qualifiedName and rejects it with a

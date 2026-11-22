@@ -960,25 +960,18 @@ func (p *Parser) parseFrameExtent(start int) (*WindowFrame, error) {
 // parseFrameBound parses one `UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING |
 // CURRENT ROW | expr (PRECEDING|FOLLOWING)` (frameBound).
 func (p *Parser) parseFrameBound() (WindowBound, error) {
-	switch p.cur.Kind {
-	case kwUNBOUNDED:
+	switch {
+	case p.cur.Kind == kwUNBOUNDED && (p.peekNext().Kind == kwPRECEDING || p.peekNext().Kind == kwFOLLOWING):
 		unbTok := p.advance() // consume UNBOUNDED
-		switch p.cur.Kind {
-		case kwPRECEDING:
+		if p.cur.Kind == kwPRECEDING {
 			tok := p.advance()
 			return WindowBound{Kind: BoundUnboundedPreceding, Loc: ast.Loc{Start: unbTok.Loc.Start, End: tok.Loc.End}}, nil
-		case kwFOLLOWING:
-			tok := p.advance()
-			return WindowBound{Kind: BoundUnboundedFollowing, Loc: ast.Loc{Start: unbTok.Loc.Start, End: tok.Loc.End}}, nil
-		default:
-			return WindowBound{}, p.exprErrorAt("expected PRECEDING or FOLLOWING after UNBOUNDED")
 		}
-	case kwCURRENT:
+		tok := p.advance()
+		return WindowBound{Kind: BoundUnboundedFollowing, Loc: ast.Loc{Start: unbTok.Loc.Start, End: tok.Loc.End}}, nil
+	case p.cur.Kind == kwCURRENT && p.peekNext().Kind == kwROW:
 		curTok := p.advance() // consume CURRENT
-		rowTok, err := p.expect(kwROW)
-		if err != nil {
-			return WindowBound{}, err
-		}
+		rowTok := p.advance() // consume ROW
 		return WindowBound{Kind: BoundCurrentRow, Loc: ast.Loc{Start: curTok.Loc.Start, End: rowTok.Loc.End}}, nil
 	default:
 		expr, err := p.parseExpr()
@@ -1217,11 +1210,7 @@ func (p *Parser) parseExtract() (Expr, error) {
 		return nil, err
 	}
 	if !validExtractField(field.Value) {
-		return nil, &ParseError{
-			Position: field.Loc.Start,
-			End:      field.Loc.End,
-			Message:  "invalid EXTRACT field " + field.Value,
-		}
+		p.deferCheck(ast.Loc{Start: extractTok.Loc.Start, End: closeTok.Loc.End}, "invalid EXTRACT field "+field.Value)
 	}
 	return &ExtractExpr{
 		Field:  field.String(),

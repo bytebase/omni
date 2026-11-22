@@ -110,6 +110,8 @@ func (l *Lexer) nextTokenInner() Token {
 		return l.scanQuotedIdent()
 	case ch == '`':
 		return l.scanBackquotedIdent()
+	case ch == '$' && l.peek(1) == '$':
+		return l.scanDollarString()
 	case (ch == 'U' || ch == 'u') && l.peek(1) == '&' && l.peek(2) == '\'':
 		return l.scanUnicodeString()
 	case (ch == 'X' || ch == 'x') && l.peek(1) == '\'':
@@ -257,6 +259,26 @@ func (l *Lexer) scanUnicodeString() Token {
 		l.pos++
 	}
 	l.addError(errUnterminatedString, start, l.pos)
+	return Token{Kind: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
+}
+
+// scanDollarString reads a $$...$$ dollar-quoted string literal (DOLLAR_STRING
+// in SqlBase.g4: '$$' .*? '$$'), used for non-SQL function definitions such as
+// LANGUAGE PYTHON. Scanning is non-greedy and may span newlines.
+func (l *Lexer) scanDollarString() Token {
+	start := l.start
+	l.pos += 2 // consume opening $$
+	contentStart := l.pos
+	for l.pos+1 < len(l.input) {
+		if l.input[l.pos] == '$' && l.input[l.pos+1] == '$' {
+			content := l.input[contentStart:l.pos]
+			l.pos += 2 // consume closing $$
+			return Token{Kind: tokDollarString, Str: content, Loc: ast.Loc{Start: start, End: l.pos}}
+		}
+		l.pos++
+	}
+	l.pos = len(l.input)
+	l.addError(errUnterminatedDollarString, start, l.pos)
 	return Token{Kind: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
 }
 
