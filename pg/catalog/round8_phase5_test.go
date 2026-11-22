@@ -217,7 +217,7 @@ func TestInheritanceChildRowTransitionTablesError(t *testing.T) {
 	// Create AFTER ROW trigger with transition tables on child — should fail.
 	stmt := makeCreateTrigStmt("", "child", "trig1", TriggerAfter, TriggerEventInsert, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeFeatureNotSupported)
@@ -238,7 +238,7 @@ func TestNonInheritanceTableRowTransitionTablesOK(t *testing.T) {
 	// Regular table (no inheritance) with ROW trigger + transition tables — should succeed.
 	stmt := makeCreateTrigStmt("", "t", "trig1", TriggerAfter, TriggerEventInsert, true, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {
@@ -277,7 +277,7 @@ func TestInheritanceChildStatementTransitionTablesOK(t *testing.T) {
 	// (The inheritance child check only applies to FOR EACH ROW triggers.)
 	stmt := makeCreateTrigStmt("", "child2", "trig1", TriggerAfter, TriggerEventInsert, false, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true},
+		&nodes.TriggerTransition{Name: "new_tbl", IsNew: true, IsTable: true},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {

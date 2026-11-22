@@ -2824,8 +2824,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatal("DROP SCHEMA CASCADE left the external class or its index")
 		}
 
-		// #216: policy roles are observed, so CREATE ROLE reports the duplicate.
+		// #216: snapshot dump policy roles are observed, so CREATE ROLE reports the duplicate.
 		c77 := New()
+		c77.snapshot = true
 		for _, stmt := range []string{
 			"CREATE TABLE pol_t (a int, owner text)",
 			"CREATE POLICY pol_ghost ON pol_t TO ghost_role USING (true)",

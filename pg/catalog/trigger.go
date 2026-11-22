@@ -109,13 +109,13 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	// Relkind-specific validations.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (relkind switch)
 	switch rel.RelKind {
-	case 'r', 'm': // tables, matviews
+	case 'r': // regular tables
 		if timing == TriggerInsteadOf {
-			return errInvalidObjectDefinition("INSTEAD OF triggers can only be defined on views")
+			return errWrongObjectType(rel.Name, "a view")
 		}
 	case 'p': // partitioned tables
 		if timing == TriggerInsteadOf {
-			return errInvalidObjectDefinition("INSTEAD OF triggers can only be defined on views")
+			return errWrongObjectType(rel.Name, "a view")
 		}
 		// Partitioned tables: ROW triggers with transition tables not supported.
 		// pg: src/backend/commands/trigger.c — CreateTrigger (line 257-262)
@@ -125,14 +125,23 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		}
 	case 'v': // views
 		// Views can have INSTEAD OF (ROW) triggers and STATEMENT triggers.
-		// ROW triggers with BEFORE/AFTER are not allowed on views.
-		if timing != TriggerInsteadOf && forEachRow {
-			return errInvalidObjectDefinition("ROW triggers with data manipulation statements are not supported for views")
+		// ROW triggers with BEFORE/AFTER or CONSTRAINT triggers are not allowed on views.
+		if timing != TriggerInsteadOf && (forEachRow || isConstraint) {
+			return errWrongObjectType(rel.Name, "a table")
 		}
 	case 'f': // foreign tables
 		if timing == TriggerInsteadOf {
-			return errInvalidObjectDefinition("INSTEAD OF triggers can only be defined on views")
+			return errWrongObjectType(rel.Name, "a view")
 		}
+	case 'm': // materialized views cannot have triggers in PG
+		if !c.snapshot {
+			return errWrongObjectType(rel.Name, "a table or view")
+		}
+		if timing == TriggerInsteadOf {
+			return errWrongObjectType(rel.Name, "a view")
+		}
+	default: // composite types ('c'), etc. cannot have triggers
+		return errWrongObjectType(rel.Name, "a table or view")
 	}
 
 	// Disallow ROW-level TRUNCATE triggers.
@@ -144,21 +153,39 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	// TRUNCATE triggers on views and foreign tables are not supported.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (line 359-362)
 	if events&TriggerEventTruncate != 0 && (rel.RelKind == 'v' || rel.RelKind == 'f') {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"\"%s\" is not a table or materialized view", rel.Name))
+		return errWrongObjectType(rel.Name, "a table")
 	}
 
 	// INSTEAD OF triggers must be row-level, can't have WHEN or columns.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (line 383-397)
 	if timing == TriggerInsteadOf {
 		if !forEachRow {
-			return errInvalidObjectDefinition("INSTEAD OF triggers must be FOR EACH ROW")
+			return &Error{Code: CodeFeatureNotSupported, Message: "INSTEAD OF triggers must be FOR EACH ROW"}
 		}
 		if stmt.WhenClause != nil {
 			return errInvalidObjectDefinition("INSTEAD OF triggers cannot have WHEN conditions")
 		}
 		if len(columnNames) > 0 {
 			return errInvalidObjectDefinition("INSTEAD OF triggers cannot have column lists")
+		}
+	}
+
+	// Transition table validations (ROW transition variables are rejected before relkind/WHEN/timing).
+	// pg: src/backend/commands/trigger.c — CreateTrigger (line 414-506)
+	if stmt.TransitionRels != nil && len(stmt.TransitionRels.Items) > 0 {
+		for _, item := range stmt.TransitionRels.Items {
+			if tr, ok := item.(*nodes.TriggerTransition); ok && !tr.IsTable {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "ROW variable naming in the REFERENCING clause is not supported",
+				}
+			}
+		}
+		if rel.RelKind == 'f' {
+			return errWrongObjectType(rel.Name, "a table")
+		}
+		if rel.RelKind == 'v' {
+			return errWrongObjectType(rel.Name, "a table")
 		}
 	}
 
@@ -181,15 +208,8 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		}
 	}
 
-	// Transition table validations.
-	// pg: src/backend/commands/trigger.c — CreateTrigger (line 414-506)
+	// Remaining transition table validations.
 	if stmt.TransitionRels != nil && len(stmt.TransitionRels.Items) > 0 {
-		if rel.RelKind == 'f' {
-			return errInvalidObjectDefinition("triggers on foreign tables cannot have transition tables")
-		}
-		if rel.RelKind == 'v' {
-			return errInvalidObjectDefinition("triggers on views cannot have transition tables")
-		}
 		// Inheritance children (non-partition) with ROW triggers + transition tables.
 		// pg: src/backend/commands/trigger.c — CreateTrigger (line ~270)
 		if rel.PartitionOf == 0 && rel.InhCount > 0 && forEachRow {

@@ -392,6 +392,11 @@ func (c *Catalog) alterSchemaOwner(stmt *nodes.AlterOwnerStmt) error {
 }
 
 func (c *Catalog) alterTypeOwner(stmt *nodes.AlterOwnerStmt) error {
+	if stmt.Newowner != nil {
+		if err := c.checkRole(c.ownerRoleName(stmt.Newowner)); err != nil {
+			return err
+		}
+	}
 	schemaName, typeName := extractObjectName(stmt.Object)
 	var bt *BuiltinType
 	if schemaName == "" {
@@ -464,6 +469,11 @@ func (c *Catalog) alterTypeOwner(stmt *nodes.AlterOwnerStmt) error {
 }
 
 func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
+	if stmt.Newowner != nil {
+		if err := c.checkRole(c.ownerRoleName(stmt.Newowner)); err != nil {
+			return err
+		}
+	}
 	owa, ok := stmt.Object.(*nodes.ObjectWithArgs)
 	if !ok {
 		return nil

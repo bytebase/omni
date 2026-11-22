@@ -72,9 +72,8 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.TruncateStmt:
 		return c.ExecuteTruncate(s)
 	case *nodes.AlterTypeStmt:
-		// ALTER TYPE ... SET (...) / DROP ATTRIBUTE: no-op for pgddl
 		// pg: src/backend/commands/typecmds.c — AlterType
-		return nil
+		return c.AlterTypeStmt(s)
 	case *nodes.DefineStmt:
 		// pg: src/backend/tcop/utility.c — ProcessUtilitySlow (DefineStmt cases)
 		switch s.Kind {

@@ -245,7 +245,7 @@ func TestTriggerInsteadOfMustBeRow(t *testing.T) {
 
 	// INSTEAD OF with forEachRow=false should fail.
 	err := c.CreateTriggerStmt(makeCreateTrigStmt("", "v", "my_trig", TriggerInsteadOf, TriggerEventInsert, false, "", "trig_fn"))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeFeatureNotSupported)
 }
 
 func TestTriggerInsteadOfNoWhen(t *testing.T) {
@@ -291,7 +291,7 @@ func TestTriggerTransitionTableAfterOnly(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "my_trig", TriggerBefore, TriggerEventInsert, false, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{IsNew: true, Name: "new_t"},
+		&nodes.TriggerTransition{IsNew: true, IsTable: true, Name: "new_t"},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeInvalidObjectDefinition)
@@ -304,7 +304,7 @@ func TestTriggerTransitionTableMultiEventError(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "my_trig", TriggerAfter, TriggerEventInsert|TriggerEventUpdate, false, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{IsNew: true, Name: "new_t"},
+		&nodes.TriggerTransition{IsNew: true, IsTable: true, Name: "new_t"},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	assertCode(t, err, CodeInvalidObjectDefinition)
@@ -317,7 +317,7 @@ func TestTriggerTransitionTableOK(t *testing.T) {
 
 	stmt := makeCreateTrigStmt("", "t", "my_trig", TriggerAfter, TriggerEventInsert, false, "", "trig_fn")
 	stmt.TransitionRels = &nodes.List{Items: []nodes.Node{
-		&nodes.TriggerTransition{IsNew: true, Name: "new_t"},
+		&nodes.TriggerTransition{IsNew: true, IsTable: true, Name: "new_t"},
 	}}
 	err := c.CreateTriggerStmt(stmt)
 	if err != nil {

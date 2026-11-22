@@ -28,6 +28,19 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 		return errInvalidParameterValue("CREATE POLICY requires a table name")
 	}
 
+	// Validate roles before opening the target relation, matching PostgreSQL's
+	// policy_role_list_to_array in CreatePolicy.
+	roles := c.extractPolicyRoles(stmt.Roles)
+	if !c.snapshot {
+		for _, r := range roles {
+			if r != "" && r != "public" {
+				if err := c.checkRole(r); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	_, rel, err := c.findRelation(stmt.Table.Schemaname, stmt.Table.Relname)
 	if err != nil {
 		return err
@@ -83,8 +96,9 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 		}
 	}
 
-	roles := c.extractPolicyRoles(stmt.Roles)
-	c.recordPolicyRoles(roles)
+	if c.snapshot {
+		c.recordPolicyRoles(roles)
+	}
 
 	policy := &Policy{
 		OID:           c.oidGen.Next(),
@@ -120,9 +134,47 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 		return errInvalidParameterValue("ALTER POLICY requires a table name")
 	}
 
+	// Validate roles before opening the target relation, matching PostgreSQL's
+	// policy_role_list_to_array in AlterPolicy.
+	var newRoles []string
+	if stmt.Roles != nil {
+		newRoles = c.extractPolicyRoles(stmt.Roles)
+		if !c.snapshot {
+			for _, r := range newRoles {
+				if r != "" && r != "public" {
+					if err := c.checkRole(r); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
 	_, rel, err := c.findRelation(stmt.Table.Schemaname, stmt.Table.Relname)
 	if err != nil {
 		return err
+	}
+	if rel.RelKind != 'r' && rel.RelKind != 'p' {
+		return errWrongObjectType(rel.Name, "a table")
+	}
+
+	// Stage and validate USING/WITH CHECK expressions before policy lookup,
+	// matching PostgreSQL's AlterPolicy (parse/coerce expressions on rel first).
+	var newUsingAnalyzed, newCheckAnalyzed AnalyzedExpr
+	var newUsingExpr, newCheckExpr string
+	if stmt.Qual != nil {
+		var err error
+		newUsingAnalyzed, newUsingExpr, err = c.analyzePolicyExpr(stmt.Qual, rel)
+		if err != nil {
+			return err
+		}
+	}
+	if stmt.WithCheck != nil {
+		var err error
+		newCheckAnalyzed, newCheckExpr, err = c.analyzePolicyExpr(stmt.WithCheck, rel)
+		if err != nil {
+			return err
+		}
 	}
 
 	var policy *Policy
@@ -150,27 +202,11 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 			Message: "only WITH CHECK expression allowed for INSERT"}
 	}
 
-	// Stage and validate USING/WITH CHECK expressions before mutating the policy.
-	var newUsingAnalyzed, newCheckAnalyzed AnalyzedExpr
-	var newUsingExpr, newCheckExpr string
-	if stmt.Qual != nil {
-		var err error
-		newUsingAnalyzed, newUsingExpr, err = c.analyzePolicyExpr(stmt.Qual, rel)
-		if err != nil {
-			return err
-		}
-	}
-	if stmt.WithCheck != nil {
-		var err error
-		newCheckAnalyzed, newCheckExpr, err = c.analyzePolicyExpr(stmt.WithCheck, rel)
-		if err != nil {
-			return err
-		}
-	}
-
 	if stmt.Roles != nil {
-		policy.Roles = c.extractPolicyRoles(stmt.Roles)
-		c.recordPolicyRoles(policy.Roles)
+		policy.Roles = newRoles
+		if c.snapshot {
+			c.recordPolicyRoles(policy.Roles)
+		}
 	}
 	if stmt.Qual != nil {
 		policy.UsingAnalyzed = newUsingAnalyzed

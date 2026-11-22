@@ -1421,8 +1421,13 @@ func TestRenameAttributeOnNonComposite(t *testing.T) {
 		{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}},
 	}, nil, false), 'r')
 
-	err := c.ExecRenameStmt(makeRenameAttributeStmt("", "t", "id", "new_id"))
-	assertErrorCode(t, err, CodeWrongObjectType)
+	// PostgreSQL allows ALTER TYPE ... RENAME ATTRIBUTE on table/view row types.
+	if err := c.ExecRenameStmt(makeRenameAttributeStmt("", "t", "id", "new_id")); err != nil {
+		t.Fatalf("unexpected error renaming table attribute: %v", err)
+	}
+	if _, ok := c.GetRelation("", "t").colByName["new_id"]; !ok {
+		t.Error("expected column to be renamed to new_id")
+	}
 }
 
 func TestRenameAttributeNonexistent(t *testing.T) {

@@ -35,15 +35,8 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	var execPrep *preparedStmt
 	selStmt, ok := stmt.Query.(*nodes.SelectStmt)
 	if !ok {
-		// A prepared statement is run only after the target name is checked.
+		// A prepared statement is run only after the target relation name is checked.
 		if _, exists := schema.Relations[mvName]; exists {
-			if stmt.IfNotExists {
-				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-				return nil
-			}
-			return errDuplicateTable(mvName)
-		}
-		if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
 			if stmt.IfNotExists {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
 				return nil
@@ -110,13 +103,6 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	// then is a name another relation holds a duplicate (42P07), whether that
 	// relation is a table or an index.
 	if _, exists := schema.Relations[mvName]; exists {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-			return nil
-		}
-		return errDuplicateTable(mvName)
-	}
-	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
 		if stmt.IfNotExists {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
 			return nil
@@ -221,6 +207,12 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 
 	if err := c.validateRelOptions(into.Options, relkind, ""); err != nil {
 		return err
+	}
+
+	// A non-relation type (e.g. enum or domain) with the same name conflicts
+	// with the table/matview's implicit row type (42710), even with IF NOT EXISTS.
+	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
+		return errDuplicateObject("type", mvName)
 	}
 
 	// Allocate OIDs.

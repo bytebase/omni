@@ -82,10 +82,14 @@ func (c *Catalog) DefineEnum(stmt *nodes.CreateEnumStmt) error {
 	}
 
 	// Check for duplicate labels.
+	// pg: src/backend/catalog/pg_enum.c — EnumValuesCreate (pg_enum_typid_label_index)
 	seen := make(map[string]bool, len(values))
 	for _, v := range values {
 		if seen[v] {
-			return errInvalidParameterValue(fmt.Sprintf("enum label %q specified more than once", v))
+			return &Error{
+				Code:    CodeUniqueViolation,
+				Message: fmt.Sprintf("duplicate key value violates unique constraint \"pg_enum_typid_label_index\" (enum label %q already exists)", v),
+			}
 		}
 		seen[v] = true
 	}
@@ -356,6 +360,34 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	schemaName, name := qualifiedName(stmt.Domainname)
 	baseType := convertTypeNameToInternal(stmt.Typname)
 
+	schema, err := c.resolveTargetSchema(schemaName)
+	if err != nil {
+		return err
+	}
+
+	// Check name conflicts before resolving base type or validating constraints.
+	// pg: src/backend/commands/typecmds.c — DefineDomain
+	if c.typeByName[typeKey{ns: schema.OID, name: name}] != nil {
+		return errDuplicateObject("type", name)
+	}
+
+	// Resolve base type.
+	baseOID, baseMod, err := c.ResolveType(baseType)
+	if err != nil {
+		return err
+	}
+
+	// Validate base type kind — reject pseudo-types.
+	// pg: src/backend/commands/typecmds.c — DefineDomain (typtype check, line 777-786)
+	if bt := c.typeByOID[baseOID]; bt != nil {
+		switch bt.Type {
+		case 'b', 'c', 'd', 'e', 'r', 'm':
+			// OK: base, composite, domain, enum, range, multirange
+		default:
+			return errDatatypeMismatch(fmt.Sprintf("%q is not a valid base type for a domain", baseType.Name))
+		}
+	}
+
 	// Process constraints.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (constraint processing)
 	var nullDefined bool
@@ -441,33 +473,6 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		}
 	}
 	notNull := typNotNull
-
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return err
-	}
-
-	// Check name conflicts.
-	if c.typeByName[typeKey{ns: schema.OID, name: name}] != nil {
-		return errDuplicateObject("type", name)
-	}
-
-	// Resolve base type.
-	baseOID, baseMod, err := c.ResolveType(baseType)
-	if err != nil {
-		return err
-	}
-
-	// Validate base type kind — reject pseudo-types.
-	// pg: src/backend/commands/typecmds.c — DefineDomain (typtype check, line 777-786)
-	if bt := c.typeByOID[baseOID]; bt != nil {
-		switch bt.Type {
-		case 'b', 'c', 'd', 'e', 'r', 'm':
-			// OK: base, composite, domain, enum, range, multirange
-		default:
-			return errDatatypeMismatch(fmt.Sprintf("%q is not a valid base type for a domain", baseType.Name))
-		}
-	}
 
 	// Validate COLLATE clause — collation must exist and base type must be collatable.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (collation check)
@@ -641,7 +646,11 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 			if con, ok := stmt.Def.(*nodes.Constraint); ok && con.CookedExpr != "" {
 				setDefault = con.CookedExpr
 			} else {
-				if analyzed, err := c.AnalyzeDomainExpr(stmt.Def, dt.BaseTypeOID, dt.BaseTypMod); err == nil && analyzed != nil {
+				analyzed, err := c.AnalyzeDomainDefaultExpr(stmt.Def)
+				if err != nil {
+					return err
+				}
+				if analyzed != nil {
 					setDefault = c.DeparseExpr(analyzed, nil, false)
 				}
 			}
@@ -649,18 +658,27 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 		} else {
 			dt.Default = ""
 		}
-	case 'N': // SET NOT NULL
-		dt.NotNull = true
-		bt.NotNull = true
-	case 'O': // DROP NOT NULL
+	case 'N': // DROP NOT NULL (pg: AlterDomainNotNull(..., false))
 		dt.NotNull = false
 		bt.NotNull = false
+	case 'O': // SET NOT NULL (pg: AlterDomainNotNull(..., true))
+		dt.NotNull = true
+		bt.NotNull = true
 	case 'C': // ADD CONSTRAINT
 		// pg: src/backend/commands/typecmds.c — AlterDomainAddConstraint
 		if con, ok := stmt.Def.(*nodes.Constraint); ok {
 			switch con.Contype {
 			case nodes.CONSTR_CHECK:
-				// OK — only CHECK is allowed on domains
+				// OK — CHECK constraint on domain
+			case nodes.CONSTR_NOTNULL:
+				// PG 17: ALTER DOMAIN ... ADD [CONSTRAINT name] NOT NULL
+				if con.Deferrable || con.Initdeferred {
+					return &Error{Code: CodeFeatureNotSupported,
+						Message: "specifying constraint deferrability not supported for domains"}
+				}
+				dt.NotNull = true
+				bt.NotNull = true
+				return nil
 			default:
 				return &Error{Code: CodeSyntaxError,
 					Message: "only CHECK constraints can be added to domains"}
@@ -685,7 +703,11 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 				ConValidated: !con.SkipValidation, // pg: default true unless NOT VALID
 			}
 			if con.RawExpr != nil {
-				if analyzed, err := c.AnalyzeDomainExpr(con.RawExpr, dt.BaseTypeOID, dt.BaseTypMod); err == nil && analyzed != nil {
+				analyzed, err := c.AnalyzeDomainExpr(con.RawExpr, dt.BaseTypeOID, dt.BaseTypMod)
+				if err != nil {
+					return err
+				}
+				if analyzed != nil {
 					dc.CheckAnalyzed = analyzed
 					dc.CheckExpr = c.DeparseExpr(analyzed, nil, true)
 					// pg: src/backend/catalog/pg_constraint.c:370-380
@@ -740,11 +762,33 @@ func (c *Catalog) DomainInfo(typeOID uint32) *DomainType {
 //
 // pg: src/backend/commands/typecmds.c — DefineCompositeType
 func (c *Catalog) DefineCompositeType(stmt *nodes.CompositeTypeStmt) error {
-	// PG: DefineCompositeType converts CompositeTypeStmt to a CreateStmt
-	// and calls DefineRelation with relkind='c'.
+	// PG: DefineCompositeType checks existing type name (42710), then validates
+	// attributes and calls DefineRelation with relkind='c'.
 	rv := stmt.Typevar
 	if rv == nil {
 		return errInvalidParameterValue("composite type requires a name")
+	}
+
+	schema, err := c.resolveTargetSchema(rv.Schemaname)
+	if err != nil {
+		return err
+	}
+	if c.typeByName[typeKey{ns: schema.OID, name: rv.Relname}] != nil {
+		return errDuplicateObject("type", rv.Relname)
+	}
+
+	// Check duplicate attribute names before resolving attribute types, matching
+	// PostgreSQL's MergeAttributes check order.
+	if stmt.Coldeflist != nil {
+		seen := make(map[string]bool, len(stmt.Coldeflist.Items))
+		for _, item := range stmt.Coldeflist.Items {
+			if cd, ok := item.(*nodes.ColumnDef); ok {
+				if seen[cd.Colname] {
+					return errDuplicateColumn(cd.Colname)
+				}
+				seen[cd.Colname] = true
+			}
+		}
 	}
 
 	createStmt := &nodes.CreateStmt{
@@ -862,6 +906,11 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 			case "multirange_type_name":
 				multirangeTypeName = formatCatalogOptionName(def)
 				multirangeTypeNameDef = def
+			default:
+				return &Error{
+					Code:    CodeSyntaxError,
+					Message: fmt.Sprintf("type attribute %q not recognized", def.Defname),
+				}
 			}
 		}
 	}
@@ -1231,6 +1280,16 @@ func (c *Catalog) resolveDefaultBtreeOpClass(subtypeOID uint32) (uint32, bool) {
 //
 // pg: src/backend/commands/typecmds.c — DefineType
 func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
+	if stmt.Defnames != nil && len(stmt.Defnames.Items) > 2 {
+		parts := make([]string, len(stmt.Defnames.Items))
+		for i, item := range stmt.Defnames.Items {
+			parts[i] = stringVal(item)
+		}
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: fmt.Sprintf("cross-database references are not implemented: %s", strings.Join(parts, ".")),
+		}
+	}
 	schemaName, name := qualifiedName(stmt.Defnames)
 
 	schema, err := c.resolveTargetSchema(schemaName)
@@ -1282,9 +1341,10 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 
 	// Full definition: must already have a shell type.
 	// pg: src/backend/commands/typecmds.c — DefineType (line 275-279)
+	// PostgreSQL reports ERRCODE_DUPLICATE_OBJECT (42710) with "type ... does not exist".
 	if existing == nil {
 		return &Error{
-			Code:    CodeUndefinedObject,
+			Code:    CodeDuplicateObject,
 			Message: fmt.Sprintf("type \"%s\" does not exist", name),
 		}
 	}
@@ -1557,6 +1617,49 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	_ = defaultValue // Default value is stored on the type but not tracked further in pgddl.
 	_ = preferred    // Already set on the type above.
 
+	return nil
+}
+
+// AlterTypeStmt validates ALTER TYPE ... SET (...).
+//
+// pg: src/backend/commands/typecmds.c — AlterType
+func (c *Catalog) AlterTypeStmt(stmt *nodes.AlterTypeStmt) error {
+	schemaName, name := qualifiedName(stmt.TypeName)
+	var bt *BuiltinType
+	if schemaName != "" {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+		bt = c.typeByName[typeKey{ns: schema.OID, name: name}]
+	} else {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := c.typeByName[typeKey{ns: nsOID, name: name}]; found != nil {
+				bt = found
+				break
+			}
+		}
+	}
+	if bt == nil {
+		return errUndefinedType(name)
+	}
+	if stmt.Options != nil {
+		for _, item := range stmt.Options.Items {
+			def, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(def.Defname) {
+			case "receive", "send", "typmod_in", "typmod_out", "analyze", "analyse", "subscript", "storage":
+				// Valid ALTER TYPE ... SET (...) attribute.
+			default:
+				return &Error{
+					Code:    CodeSyntaxError,
+					Message: fmt.Sprintf("type attribute %q not recognized", def.Defname),
+				}
+			}
+		}
+	}
 	return nil
 }
 
