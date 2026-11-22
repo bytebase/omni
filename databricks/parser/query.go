@@ -2579,7 +2579,9 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	if p.match(kwLIMIT) {
-		if !p.match(kwALL) {
+		if p.isStandaloneLimitAll() {
+			p.advance()
+		} else {
 			if err := p.parseExpression(); err != nil {
 				return err
 			}
@@ -2591,4 +2593,20 @@ func (p *Parser) parseQueryOrganization() error {
 		}
 	}
 	return nil
+}
+
+// isStandaloneLimitAll reports whether `ALL` after `LIMIT` is the standalone
+// `LIMIT ALL` form rather than the start of an expression (such as `all + 1`,
+// `all.x`, or `all(1)`).
+func (p *Parser) isStandaloneLimitAll() bool {
+	if p.cur().Kind != kwALL {
+		return false
+	}
+	switch p.peek(1).Kind {
+	case tokEOF, tokSemicolon, tokRParen, tokComma, tokOperatorPipe,
+		kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwINSERT, kwEND, kwELSE, kwELSEIF, kwWHEN, kwTHEN:
+		return true
+	}
+	return false
 }

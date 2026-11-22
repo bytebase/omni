@@ -73,29 +73,80 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 		}
 		return true
 	}
-	// If the next token ends the current expression list / statement / paren,
-	// a keyword can safely be an implicit alias (e.g. SELECT a FROM, SELECT a ALL,
-	// SELECT x asc, SELECT x rows).
+	// If the next token ends the current expression list / statement / paren / pipe,
+	// a non-reserved keyword can safely be an implicit alias (e.g. SELECT a FROM,
+	// SELECT a ALL, SELECT x asc, SELECT x rows, SELECT x limit |> SELECT *).
 	next := p.peek(1).Kind
-	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen {
+	if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen || next == tokOperatorPipe {
 		switch k {
 		case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO:
 			return false
 		}
 		return true
 	}
-	// Allow a keyword as implicit column alias right before FROM/WHERE/GROUP/HAVING/WINDOW/ORDER/LIMIT
-	// when the keyword itself doesn't start a clause (e.g. `SELECT a IS FROM a`,
-	// `SELECT x filter FROM t`, `SELECT x over FROM t`, `SELECT x rows FROM t`,
-	// `SELECT x nulls FROM t`, `SELECT x asc FROM t`).
-	if k == kwIS && next == kwFROM {
+	// Never treat CASE/control-flow terminators as implicit aliases.
+	switch k {
+	case kwEND, kwELSE, kwELSEIF, kwTHEN, kwWHEN, kwUNTIL, kwDO, kwAS:
+		return false
+	}
+	// Clauses that require a specific second keyword can serve as implicit aliases
+	// whenever that second keyword does not follow.
+	switch k {
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return next != kwBY
+	case kwGROUPING:
+		return !(next == kwSETS && p.peek(2).Kind == tokLParen)
+	case kwWINDOW:
+		return !(next.isIdentifier() && p.peek(2).Kind == kwAS)
+	case kwWITH:
+		return next != kwROLLUP && next != kwCUBE
+	case kwLATERAL:
+		return next != kwVIEW
+	case kwLIMIT, kwOFFSET, kwWHERE, kwHAVING, kwFROM:
+		if next == kwFROM {
+			return p.isFromQueryAt(1)
+		}
+		if (next == kwORDER || next == kwGROUP || next == kwCLUSTER || next == kwDISTRIBUTE || next == kwSORT) && p.peek(2).Kind == kwBY {
+			return true
+		}
+		if next == kwWINDOW && p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS {
+			return true
+		}
+		if next == kwWITH && (p.peek(2).Kind == kwROLLUP || p.peek(2).Kind == kwCUBE) {
+			return true
+		}
+		if next == kwGROUPING && p.peek(2).Kind == kwSETS && p.peek(3).Kind == tokLParen {
+			return true
+		}
+		if next == kwLATERAL && p.peek(2).Kind == kwVIEW {
+			return true
+		}
+		if next == kwLIMIT || next == kwOFFSET || next == kwWHERE || next == kwHAVING {
+			after := p.peek(2).Kind
+			if after != tokEOF && after != tokSemicolon && after != tokRParen && after != tokComma && !isExprContinuationOp(after) {
+				return true
+			}
+		}
+		if next == tokIdent && isWord(p.peek(1), "QUALIFY") && p.peek(2).Kind != tokEOF && p.peek(2).Kind != tokSemicolon && p.peek(2).Kind != tokRParen {
+			return true
+		}
+		return false
+	}
+	// Allow a non-reserved keyword as implicit column alias right before a FROM
+	// clause (e.g. `SELECT a IS FROM a`, `SELECT x pivot FROM t`, `SELECT x join FROM t`),
+	// except set-operator keywords which can precede a `FROM ...` query term.
+	if next == kwFROM && p.isFromQueryAt(1) {
+		switch k {
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			return false
+		}
 		return true
 	}
 	switch k {
 	case kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT,
 		kwASC, kwDESC, kwNULLS, kwFIRST, kwLAST, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING:
 		switch next {
-		case tokOperatorPipe, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
+		case kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
 			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
 			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL, kwFOR:
 			return true
@@ -108,18 +159,30 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 	}
 	// Otherwise disallow clause-introducing keywords as implicit aliases.
 	switch k {
-	case kwFROM, kwWHERE, kwGROUP, kwGROUPING, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
-		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
-		kwLATERAL, kwPIVOT, kwUNPIVOT, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwPIVOT, kwUNPIVOT, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
 		kwCROSS, kwNATURAL, kwSEMI, kwANTI, kwON, kwUSING, kwINTO, kwSET, kwVALUES,
-		kwSELECT, kwINSERT, kwWHEN, kwTHEN, kwELSE, kwELSEIF, kwEND, kwWITH, kwFOR, kwAS,
-		kwDO, kwUNTIL, kwBY, kwIN, kwIS, kwAND, kwOR, kwNOT, kwBETWEEN, kwLIKE,
-		kwILIKE, kwRLIKE, kwESCAPE, kwOVER, kwFILTER, kwWITHIN, kwIGNORE, kwRESPECT,
-		kwASC, kwDESC, kwNULLS, kwROWS, kwRANGE, kwPRECEDING, kwFOLLOWING,
+		kwSELECT, kwINSERT, kwFOR,
+		kwBY, kwIN, kwIS, kwAND, kwOR, kwNOT, kwBETWEEN, kwLIKE,
+		kwILIKE, kwRLIKE, kwESCAPE,
 		kwRECORDWRITER, kwRECORDREADER, kwROW, kwPLACING, kwRETURNS, kwRETURN:
 		return false
 	}
 	return true
+}
+
+func isExprContinuationOp(k TokenKind) bool {
+	switch k {
+	case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow:
+		return true
+	}
+	return false
 }
 
 func (p *Parser) parseNamedExpressionSeq() error {

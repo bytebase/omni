@@ -731,6 +731,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtMerge,
 		},
 		{
+			name: "non-reserved clause keywords as implicit column aliases before FROM and clauses",
+			sql:  `SELECT x window FROM t UNION ALL SELECT x order FROM t UNION ALL SELECT x group FROM t UNION ALL SELECT x limit FROM t UNION ALL SELECT x offset FROM t UNION ALL SELECT x where FROM t UNION ALL SELECT x having FROM t UNION ALL SELECT x from FROM t UNION ALL (SELECT x limit LIMIT 1) UNION ALL (SELECT x order ORDER BY 1) UNION ALL (SELECT x window WINDOW w AS ()) UNION ALL (SELECT x LIMIT from)`,
+			kind: StmtQuery,
+		},
+		{
+			name: "limit all vs limit expressions starting with all",
+			sql:  `(SELECT 1 LIMIT ALL) UNION ALL (SELECT 1 LIMIT ALL OFFSET 2) UNION ALL (SELECT 1 LIMIT all + 1) UNION ALL (SELECT 1 LIMIT all.x) UNION ALL (SELECT 1 LIMIT all(1)) UNION ALL (SELECT 1 LIMIT all * 2 OFFSET 1)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "double parenthesized row constructor with subquery",
 			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,
