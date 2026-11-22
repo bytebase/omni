@@ -698,7 +698,9 @@ func (p *Parser) ixGlobalPartitioned() error {
 }
 
 // ixPartitionColumnList reads ( column [, column ]... ) for GLOBAL PARTITION BY
-// RANGE/HASH using parseExpr so a missing ')' before (PARTITION ...) stops inside.
+// RANGE/HASH. When a name is followed by '(' (e.g. a missing ')' before
+// "(PARTITION VALUES ...)"), parseExpr enters the group to match Oracle's error
+// token while rejecting completed function-call expressions.
 func (p *Parser) ixPartitionColumnList() error {
 	if p.cur.Type != '(' {
 		return p.syntaxErrorAtCur()
@@ -708,12 +710,18 @@ func (p *Parser) ixPartitionColumnList() error {
 		if !p.isIxName() {
 			return p.syntaxErrorAtCur()
 		}
-		col, err := p.parseExpr()
-		if err != nil {
-			return err
-		}
-		if _, ok := col.(*nodes.ColumnRef); !ok {
+		if p.peekNext().Type == '(' {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr != nil {
+				return p.syntaxErrorAtCur()
+			}
 			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.ixName(); err != nil {
+			return err
 		}
 		if p.cur.Type != ',' {
 			break

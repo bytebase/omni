@@ -256,6 +256,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				p.advance() // consume CONTROLFILE
 				return p.parseCreateControlfileStmt(start)
 			case "SNAPSHOT":
+				if p.cur.Type == tokQIDENT {
+					return nil, p.syntaxErrorAtCur()
+				}
 				// Oracle treats CREATE [OR REPLACE] SNAPSHOT as a legacy synonym
 				// for CREATE [OR REPLACE] MATERIALIZED VIEW (and SNAPSHOT LOG).
 				p.advance() // consume SNAPSHOT

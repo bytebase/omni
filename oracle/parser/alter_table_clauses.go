@@ -2698,8 +2698,9 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 }
 
 // parseATPartitionColumnList reads ( column [, column ]... ) of a PARTITION BY
-// or SUBPARTITION BY clause using parseExpr (matching parseCreateTablePartitionColumns),
-// so a missing ')' like BY RANGE(a(PARTITION VALUES ...)) enters a(...) and stops at VALUES.
+// or SUBPARTITION BY clause. When a name is followed by '(' (e.g. a missing ')'
+// before "(PARTITION VALUES ...)"), parseExpr enters the parenthesized group to
+// match Oracle's error token while rejecting completed function-call expressions.
 func (p *Parser) parseATPartitionColumnList() error {
 	if err := p.atExpect('('); err != nil {
 		return err
@@ -2708,12 +2709,18 @@ func (p *Parser) parseATPartitionColumnList() error {
 		if !p.isATNameStart() {
 			return p.syntaxErrorAtCur()
 		}
-		col, err := p.parseExpr()
-		if err != nil {
-			return err
-		}
-		if _, ok := col.(*nodes.ColumnRef); !ok {
+		if p.peekNext().Type == '(' {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr != nil {
+				return p.syntaxErrorAtCur()
+			}
 			return p.syntaxErrorAtCur()
+		}
+		if err := p.parseATName(); err != nil {
+			return err
 		}
 		if p.cur.Type != ',' {
 			break
