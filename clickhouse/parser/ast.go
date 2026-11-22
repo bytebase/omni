@@ -329,8 +329,18 @@ type EngineClause struct {
 	PartitionBy Expr
 	PrimaryKey  Expr
 	SampleBy    Expr
-	TTL         []Expr
+	TTL         []*TTLExpr
 	Settings    []*SettingExpr
+}
+
+type TTLExpr struct {
+	span
+	Expr        Expr              // expiration expression
+	Action      string            // "", "DELETE", "TO DISK", "TO VOLUME", "GROUP BY"
+	Where       Expr              // optional DELETE WHERE predicate
+	Destination string            // target disk or volume name for TO DISK / TO VOLUME
+	GroupBy     *GroupByClause    // GROUP BY clause for rollup TTL
+	Set         []*AssignmentExpr // SET assignments for GROUP BY rollup TTL
 }
 
 type CodecExpr struct {
@@ -385,7 +395,7 @@ type AlterClause struct {
 	Codec       *CodecExpr        // for MODIFY COLUMN ... CODEC(...)
 	RemoveProp  string            // for MODIFY COLUMN REMOVE <prop>
 	OrderBy     Expr              // for MODIFY ORDER BY
-	TTL         []Expr            // for MODIFY TTL
+	TTL         []*TTLExpr        // for MODIFY TTL
 	Settings    []*SettingExpr    // for MODIFY SETTING
 }
 

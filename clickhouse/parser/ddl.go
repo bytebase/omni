@@ -1190,7 +1190,7 @@ func (p *parser) parseEngineClause() (*EngineClause, error) {
 				return nil, p.errAt(p.cur(), "duplicate TTL clause")
 			}
 			seen["ttl"] = true
-			ttls, err := p.parseTTLClause()
+			ttls, err := p.parseTTLClause(false)
 			if err != nil {
 				return nil, err
 			}
@@ -1212,111 +1212,171 @@ func (p *parser) parseEngineClause() (*EngineClause, error) {
 	}
 }
 
-func (p *parser) parseTTLClause() ([]Expr, error) {
+func (p *parser) parseTTLClause(inAlter bool) ([]*TTLExpr, error) {
 	if _, err := p.expect(KwTtl); err != nil {
 		return nil, err
 	}
-	var exprs []Expr
+	var ttls []*TTLExpr
 	for {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
+		ttl := &TTLExpr{
+			span: span{Pos: expr.StartPos(), End: expr.EndPos()},
+			Expr: expr,
+		}
 		switch {
 		case p.match(KwDelete):
+			ttl.Action = "DELETE"
 			if p.match(KwWhere) {
-				if _, err := p.parseExpr(); err != nil {
+				where, err := p.parseExpr()
+				if err != nil {
 					return nil, err
 				}
+				ttl.Where = where
 			}
 		case p.cur().Type == KwTo && (p.peek(1).Type == KwDisk || p.peek(1).Type == KwVolume):
-			p.advance()
-			p.advance()
-			if _, err := p.parseStringLiteral(); err != nil {
+			p.advance() // TO
+			destKind := strings.ToUpper(p.advance().Val)
+			lit, err := p.parseStringLiteral()
+			if err != nil {
 				return nil, err
 			}
+			ttl.Action = "TO " + destKind
+			ttl.Destination = lit.Val
 		case p.cur().Type == KwGroup && p.peek(1).Type == KwBy:
-			p.advance() // GROUP
-			p.advance() // BY
-			if err := p.parseTTLGroupByKeys(); err != nil {
+			ttl.Action = "GROUP BY"
+			gbStart := p.advance().Pos // GROUP
+			p.advance()                // BY
+			gb, err := p.parseTTLGroupByKeys(gbStart)
+			if err != nil {
 				return nil, err
 			}
+			ttl.GroupBy = gb
 			if _, err := p.expect(KwSet); err != nil {
 				return nil, err
 			}
 			for {
+				aStart := p.cur().Pos
 				// ClickHouse requires a column identifier on the LHS of TTL SET assignments.
-				if _, err := p.parseNestedIdentifier(); err != nil {
+				col, err := p.parseNestedIdentifier()
+				if err != nil {
 					return nil, err
 				}
 				if _, err := p.expect(TokEq); err != nil {
 					return nil, err
 				}
-				if _, err := p.parseExpr(); err != nil {
+				val, err := p.parseExpr()
+				if err != nil {
 					return nil, err
 				}
-				if !p.match(TokComma) {
-					break
+				ttl.Set = append(ttl.Set, &AssignmentExpr{
+					span:   span{Pos: aStart, End: val.EndPos()},
+					Column: col,
+					Value:  val,
+				})
+				if p.cur().Type == TokComma && p.looksLikeTTLSetAssignment(1) {
+					p.advance()
+					continue
 				}
+				break
 			}
 		}
-		exprs = append(exprs, expr)
-		if p.cur().Type == TokComma && !isAlterClauseStart(p.peek(1).Type) {
+		ttl.End = p.peek(-1).End
+		ttls = append(ttls, ttl)
+		if p.cur().Type == TokComma && (!inAlter || !isAlterClauseStart(p.peek(1).Type)) {
 			p.advance()
 			continue
 		}
 		break
 	}
-	return exprs, nil
+	return ttls, nil
 }
 
-func (p *parser) parseTTLGroupByKeys() error {
+// looksLikeTTLSetAssignment reports whether tokens starting at p.peek(offset)
+// match the `<nestedIdentifier> =` prefix of a TTL SET assignment.
+func (p *parser) looksLikeTTLSetAssignment(offset int) bool {
+	if !isIdentifier(p.peek(offset)) {
+		return false
+	}
+	i := offset + 1
+	for p.peek(i).Type == TokDot {
+		if !isIdentifier(p.peek(i + 1)) {
+			return false
+		}
+		i += 2
+	}
+	return p.peek(i).Type == TokEq
+}
+
+func (p *parser) parseTTLGroupByKeys(start int) (*GroupByClause, error) {
+	gb := &GroupByClause{span: span{Pos: start}}
 	if p.cur().Type == KwAll && p.peek(1).Type != TokLParen {
-		p.advance()
-		return nil
+		gb.All = true
+		gb.End = p.advance().End
+		return gb, nil
 	}
 	if (p.cur().Type == KwCube || p.cur().Type == KwRollup) && p.peek(1).Type == TokLParen {
-		p.advance()
+		gb.Modifier = strings.ToUpper(p.advance().Val)
 		p.advance()
 		for {
-			if _, err := p.parseExpr(); err != nil {
-				return err
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			gb.Exprs = append(gb.Exprs, expr)
 			if !p.match(TokComma) {
 				break
 			}
 		}
-		_, err := p.expect(TokRParen)
-		return err
+		rp, err := p.expect(TokRParen)
+		if err != nil {
+			return nil, err
+		}
+		gb.End = rp.End
+		return gb, nil
 	}
 	if p.cur().Type == KwGrouping && p.peek(1).Type == KwSets && p.peek(2).Type == TokLParen {
+		gb.Modifier = "GROUPING SETS"
 		p.advance()
 		p.advance()
 		p.advance()
 		for {
-			if _, err := p.parseExpr(); err != nil {
-				return err
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			gb.Exprs = append(gb.Exprs, expr)
 			if !p.match(TokComma) {
 				break
 			}
 		}
-		_, err := p.expect(TokRParen)
-		return err
+		rp, err := p.expect(TokRParen)
+		if err != nil {
+			return nil, err
+		}
+		gb.End = rp.End
+		return gb, nil
 	}
 	for {
+		var expr Expr
+		var err error
 		if p.cur().Type == TokStar {
-			if _, err := p.parseStarExpr(nil, p.cur().Pos); err != nil {
-				return err
-			}
-		} else if _, err := p.parseExpr(); err != nil {
-			return err
+			expr, err = p.parseStarExpr(nil, p.cur().Pos)
+		} else {
+			expr, err = p.parseExpr()
 		}
+		if err != nil {
+			return nil, err
+		}
+		gb.Exprs = append(gb.Exprs, expr)
 		if !p.match(TokComma) {
 			break
 		}
 	}
-	return nil
+	gb.End = p.peek(-1).End
+	return gb, nil
 }
 
 func isAlterClauseStart(tt TokenType) bool {
@@ -1646,7 +1706,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			}
 			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY ORDER BY", OrderBy: orderBy}, nil
 		case KwTtl:
-			ttls, err := p.parseTTLClause()
+			ttls, err := p.parseTTLClause(true)
 			if err != nil {
 				return nil, err
 			}

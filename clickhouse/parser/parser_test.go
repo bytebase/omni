@@ -432,3 +432,89 @@ func TestParseParenSpansAndCodecAST(t *testing.T) {
 		t.Errorf("alter Codec = %+v, want ZSTD(3)", acodec)
 	}
 }
+
+func TestParseTTLASTAndCommaDisambiguation(t *testing.T) {
+	// Structured TTL actions on ALTER TABLE: TO DISK vs TO VOLUME vs DELETE WHERE.
+	s1, err := Parse("ALTER TABLE t MODIFY TTL ts TO DISK 'hot'")
+	if err != nil {
+		t.Fatalf("Parse TO DISK failed: %v", err)
+	}
+	ttl1 := s1[0].(*AlterTableStmt).Clauses[0].TTL[0]
+	if ttl1.Action != "TO DISK" || ttl1.Destination != "hot" {
+		t.Errorf("ttl1 = %+v, want Action=\"TO DISK\" Destination=\"hot\"", ttl1)
+	}
+
+	s2, err := Parse("ALTER TABLE t MODIFY TTL ts TO VOLUME 'ice'")
+	if err != nil {
+		t.Fatalf("Parse TO VOLUME failed: %v", err)
+	}
+	ttl2 := s2[0].(*AlterTableStmt).Clauses[0].TTL[0]
+	if ttl2.Action != "TO VOLUME" || ttl2.Destination != "ice" {
+		t.Errorf("ttl2 = %+v, want Action=\"TO VOLUME\" Destination=\"ice\"", ttl2)
+	}
+
+	// Rollup TTL followed by another ALTER clause (comma is ALTER separator, not SET separator).
+	s3, err := Parse("ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), DELETE WHERE k = 1")
+	if err != nil {
+		t.Fatalf("Parse rollup TTL + DELETE ALTER clause failed: %v", err)
+	}
+	at3 := s3[0].(*AlterTableStmt)
+	if len(at3.Clauses) != 2 {
+		t.Fatalf("got %d ALTER clauses, want 2", len(at3.Clauses))
+	}
+	r3 := at3.Clauses[0].TTL[0]
+	if r3.Action != "GROUP BY" || r3.GroupBy == nil || len(r3.GroupBy.Exprs) != 1 || len(r3.Set) != 1 || r3.Set[0].Column != "v" {
+		t.Errorf("rollup TTL = %+v", r3)
+	}
+	if at3.Clauses[1].Action != "DELETE" || at3.Clauses[1].Where == nil {
+		t.Errorf("second ALTER clause = %+v, want DELETE with Where", at3.Clauses[1])
+	}
+
+	// Rollup TTL with multiple SET assignments followed by another TTL rule.
+	s4, err := Parse("ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), w = max(w), ts + INTERVAL 1 MONTH DELETE WHERE k > 0")
+	if err != nil {
+		t.Fatalf("Parse rollup TTL + second TTL rule failed: %v", err)
+	}
+	ttls4 := s4[0].(*AlterTableStmt).Clauses[0].TTL
+	if len(ttls4) != 2 {
+		t.Fatalf("got %d TTL rules, want 2", len(ttls4))
+	}
+	if len(ttls4[0].Set) != 2 || ttls4[0].Set[0].Column != "v" || ttls4[0].Set[1].Column != "w" {
+		t.Errorf("first TTL rule Set = %+v, want v and w", ttls4[0].Set)
+	}
+	if ttls4[1].Action != "DELETE" || ttls4[1].Where == nil {
+		t.Errorf("second TTL rule = %+v, want DELETE with Where", ttls4[1])
+	}
+
+	// CREATE TABLE engine TTL clause with multiple rules.
+	s5, err := Parse("CREATE TABLE t (ts DateTime, k UInt64, v UInt64) ENGINE = MergeTree ORDER BY k TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), ts + INTERVAL 1 MONTH TO DISK 'cold'")
+	if err != nil {
+		t.Fatalf("Parse CREATE TABLE TTL failed: %v", err)
+	}
+	ttls5 := s5[0].(*CreateTableStmt).Engine.TTL
+	if len(ttls5) != 2 || ttls5[0].Action != "GROUP BY" || ttls5[1].Action != "TO DISK" || ttls5[1].Destination != "cold" {
+		t.Errorf("CREATE TABLE TTL = %+v", ttls5)
+	}
+}
+
+func TestParseInsertValuesSpan(t *testing.T) {
+	sql1 := "INSERT INTO t VALUES (1);  -- end"
+	stmts1, err := Parse(sql1)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql1, err)
+	}
+	ins1 := stmts1[0].(*InsertStmt)
+	if got := sql1[ins1.StartPos():ins1.EndPos()]; got != "INSERT INTO t VALUES (1)" {
+		t.Errorf("VALUES span text = %q, want %q", got, "INSERT INTO t VALUES (1)")
+	}
+
+	sql2 := "INSERT INTO t VALUES (1), (2)   "
+	stmts2, err := Parse(sql2)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql2, err)
+	}
+	ins2 := stmts2[0].(*InsertStmt)
+	if got := sql2[ins2.StartPos():ins2.EndPos()]; got != "INSERT INTO t VALUES (1), (2)" {
+		t.Errorf("VALUES span text = %q, want %q", got, "INSERT INTO t VALUES (1), (2)")
+	}
+}

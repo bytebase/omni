@@ -83,6 +83,7 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 		saveLexErr := p.lexErr
 
 		parsedTuples := false
+		lastTupleEnd := 0
 		if p.cur().Type == TokLParen {
 			var rows [][]Expr
 			ok := true
@@ -106,8 +107,13 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 					ok = false
 					break
 				}
+				lastTupleEnd = p.peek(-1).End
 				rows = append(rows, row)
 				if !p.match(TokComma) {
+					break
+				}
+				if p.cur().Type != TokLParen {
+					ok = false
 					break
 				}
 			}
@@ -116,15 +122,17 @@ func (p *parser) parseInsertStmt() (*InsertStmt, error) {
 				parsedTuples = true
 			}
 		}
-		if !parsedTuples {
+		if parsedTuples {
+			stmt.End = lastTupleEnd
+		} else {
 			p.pos = savePos
 			p.lex.pos = saveLexPos
 			p.tokens = p.tokens[:saveTokLen]
 			p.eof = saveEOF
 			p.lexErr = saveLexErr
 			stmt.Data = p.consumeRawTail(valTok.End)
+			stmt.End = len(p.src)
 		}
-		stmt.End = len(p.src)
 		return stmt, nil
 
 	case KwSelect, KwWith, TokLParen:
