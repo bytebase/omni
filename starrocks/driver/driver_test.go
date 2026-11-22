@@ -261,3 +261,19 @@ func TestSystemDatabaseExclusion(t *testing.T) {
 		}
 	}
 }
+
+func TestExecuteEmptyScript(t *testing.T) {
+	for _, script := range []string{"", "   \n\t ", "-- only a comment\n;"} {
+		log := &stepLogger{}
+		affected, err := (&Driver{}).Execute(context.Background(), script, driver.ExecuteOptions{Log: log})
+		if err != nil {
+			t.Fatalf("Execute(%q) err = %v", script, err)
+		}
+		if affected != 0 {
+			t.Errorf("Execute(%q) affected = %d, want 0", script, affected)
+		}
+		if len(log.steps) != 0 {
+			t.Errorf("Execute(%q) logged %v, want no log entries", script, log.steps)
+		}
+	}
+}
