@@ -613,6 +613,8 @@ func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, st
 			return errCantDropKey("CONSTRAINT", cmd.Name)
 		case nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible, nodes.ATRenameIndex:
 			return errKeyDoesNotExist(cmd.Name, next.Name)
+		case nodes.ATAlterCheckEnforced:
+			return c.alterCheckEnforced(synth, cmd)
 		case nodes.ATAddPartition, nodes.ATDropPartition, nodes.ATTruncatePartition,
 			nodes.ATCoalescePartition, nodes.ATReorganizePartition, nodes.ATExchangePartition,
 			nodes.ATConvertPartitionToTable, nodes.ATConvertTableToPartition,

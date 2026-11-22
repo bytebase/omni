@@ -54,17 +54,27 @@ CREATE DEFINER='a@b'@'localhost' EVENT ev1 ON SCHEDULE EVERY 1 DAY STARTS '2026-
 			}
 		}
 		for in, want := range map[string]string{
-			"'a@b'@'localhost'":   "`a@b`@`localhost`",
-			"`a@b`@`localhost`":   "`a@b`@`localhost`",
-			"'a''b'@'localhost'":  "`a'b`@`localhost`",
-			"`a``b`@`localhost`":  "`a``b`@`localhost`",
-			"root@%":              "`root`@`%`",
-			"CURRENT_USER":        "CURRENT_USER",
-			"CURRENT_USER()":      "CURRENT_USER()",
+			"'a@b'@'localhost'":  "`a@b`@`localhost`",
+			"`a@b`@`localhost`":  "`a@b`@`localhost`",
+			"'a\\b'@'localhost'": "`a\\b`@`localhost`",
+			"'a'b'@'localhost'":  "`a'b`@`localhost`",
+			"`a``b`@`localhost`": "`a``b`@`localhost`",
+			"root@%":             "`root`@`%`",
+			"CURRENT_USER":       "CURRENT_USER",
+			"CURRENT_USER()":     "CURRENT_USER()",
 		} {
 			if got := formatDefiner(in); got != want {
 				t.Errorf("formatDefiner(%q) = %q, want %q", in, got, want)
 			}
+		}
+
+		// Parser-decoded backslash in DEFINER must not be unescaped a second time.
+		cEsc, err := LoadSQL("CREATE DATABASE d; USE d; CREATE DEFINER='a\\\\b'@'localhost' VIEW v AS SELECT 1;")
+		if err != nil {
+			t.Fatalf("LoadSQL backslash definer: %v", err)
+		}
+		if got := cEsc.ShowCreateView("d", "v"); !strings.Contains(got, "DEFINER=`a\\b`@`localhost`") {
+			t.Errorf("ShowCreateView double-decoded backslash in DEFINER: %s", got)
 		}
 	})
 
@@ -252,6 +262,7 @@ CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 			{"ALTER TABLE a ENGINE = Aria", 0},
 			{"ALTER TABLE a ROW_FORMAT FIXED", 0},
 			{"ALTER TABLE a RENAME TO b", 0},
+			{"ALTER TABLE a COMMENT 'changed', ALTER CHECK c ENFORCED", 3940},
 		}
 		for _, tc := range cases {
 			c := newCat(t)
@@ -261,6 +272,11 @@ CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 			}
 			if got := errorCode(res[0].Error); got != tc.want {
 				t.Errorf("%s: got code %d (%v), want %d", tc.stmt, got, res[0].Error, tc.want)
+			}
+			if tc.stmt == "ALTER TABLE a COMMENT 'changed', ALTER CHECK c ENFORCED" {
+				if c.GetDatabase("d").Sequences["a"].Comment != "" {
+					t.Errorf("failed ALTER CHECK committed comment change on sequence")
+				}
 			}
 		}
 

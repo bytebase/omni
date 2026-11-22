@@ -1174,7 +1174,8 @@ func splitDefinerAccount(s string) (user, host string, hasAt bool) {
 	if s == "" {
 		return "", "", false
 	}
-	if s[0] == '`' || s[0] == '\'' || s[0] == '"' {
+	switch q := s[0]; q {
+	case '`':
 		if end, ok := scanAccountPart(s, 0); ok {
 			if end == len(s) {
 				return s, "", false
@@ -1183,13 +1184,18 @@ func splitDefinerAccount(s string) (user, host string, hasAt bool) {
 				return s[:end], s[end+1:], true
 			}
 		}
-		// Fallback for parser-produced single-quoted strings that contain an
-		// unescaped inner quote (parseDefinerValue wraps token Str in '...').
-		q := s[0]
+	case '\'', '"':
+		// parseDefinerValue wraps already-decoded string literal values in
+		// single quotes without re-escaping inner quotes or backslashes.
+		// Hostnames cannot contain '@', so the last '@' preceded by q marks
+		// the user/host boundary even when the user contains '@', '\', or q.
 		for i := len(s) - 1; i > 0; i-- {
 			if s[i] == '@' && s[i-1] == q {
 				return s[:i], s[i+1:], true
 			}
+		}
+		if len(s) >= 2 && s[len(s)-1] == q {
+			return s, "", false
 		}
 	}
 	// Hostnames cannot contain '@', so splitting on the last '@' handles both
@@ -1201,8 +1207,9 @@ func splitDefinerAccount(s string) (user, host string, hasAt bool) {
 }
 
 // unquoteDefinerPart removes matching outer quotes (`, ', ") from a definer
-// user or host component and unescapes doubled quotes (and backslash escapes
-// inside single/double quotes).
+// user or host component. Backtick-quoted components unescape doubled
+// backticks; single/double-quoted components come from parseDefinerValue with
+// lexer escapes already decoded, so only their outer quote pair is stripped.
 func unquoteDefinerPart(s string) string {
 	if len(s) < 2 {
 		return s
@@ -1212,20 +1219,10 @@ func unquoteDefinerPart(s string) string {
 		return s
 	}
 	inner := s[1 : len(s)-1]
-	var b strings.Builder
-	b.Grow(len(inner))
-	for i := 0; i < len(inner); i++ {
-		if q != '`' && inner[i] == '\\' && i+1 < len(inner) {
-			i++
-			b.WriteByte(inner[i])
-			continue
-		}
-		if inner[i] == q && i+1 < len(inner) && inner[i+1] == q {
-			i++
-		}
-		b.WriteByte(inner[i])
+	if q == '`' {
+		return strings.ReplaceAll(inner, "``", "`")
 	}
-	return b.String()
+	return inner
 }
 
 // showCreateView produces the SHOW CREATE VIEW output for a view.
