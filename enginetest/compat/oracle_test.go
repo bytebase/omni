@@ -589,6 +589,10 @@ func TestOracleVerdictOnly(t *testing.T) {
 			"CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;":          {1031, 0, "", nil},
 			"CREATE FUNCTION OMNI_JUDGE.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;": {24344, 0, "PLS-00103", nil},
 		}, Reject},
+		{"CREATE LIBRARY a.zzz stand-in to OMNI_JUDGE rejects PLS-00103", "CREATE LIBRARY a.zzz a IS 's'", map[string]*answer{
+			"CREATE LIBRARY a.zzz a IS 's'":          {1031, 0, "", nil},
+			"CREATE LIBRARY OMNI_JUDGE.zzz a IS 's'": {24344, 0, "PLS-00103", nil},
+		}, Reject},
 		{"CREATE AUDIT POLICY a ONLY rejected on ORA-46373 without rewrite", "CREATE AUDIT POLICY a ONLY", map[string]*answer{
 			"CREATE AUDIT POLICY a ONLY":                   {46373, 0, "", nil},
 			"CREATE AUDIT POLICY a ONLY" + OracleProbeTail: {911, 28, "", nil},

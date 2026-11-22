@@ -234,7 +234,7 @@ var (
 	reStandInCreateMVLogTablespaceSet = regexp.MustCompile(`(?i)^\s*CREATE\s+MATERIALIZED\s+VIEW\s+LOG\s+ON\s+(a)\b.*\bTABLESPACE\s+SET\b`)
 	reStandInUpgradeNestedTable       = regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+t\s+UPGRADE\s+(?:NOT\s+)?INCLUDING\s+DATA\s+(NESTED\s+TABLE\s+a\b.*)$`)
 	reStandInCreateMVNestedTable      = regexp.MustCompile(`(?i)^\s*CREATE\s+MATERIALIZED\s+VIEW\s+\S+\s+(NESTED\s+TABLE\s+a\s+.*?)\s+AS\s+SELECT\b`)
-	reStandInCreatePLSQLSchema        = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:EDITIONABLE\s+|NONEDITIONABLE\s+)?(?:FUNCTION|PROCEDURE|PACKAGE(?:\s+BODY)?|TYPE\s+BODY)\s+(a)\.`)
+	reStandInCreatePLSQLSchema        = regexp.MustCompile(`(?i)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:EDITIONABLE\s+|NONEDITIONABLE\s+)?(?:FUNCTION|PROCEDURE|PACKAGE(?:\s+BODY)?|TYPE\s+BODY|LIBRARY)\s+(a)\.`)
 	reStandInCreateSchemaAuth         = regexp.MustCompile(`(?i)^\s*CREATE\s+SCHEMA\s+AUTHORIZATION\s+(a)(?:\s|$)`)
 	reStandInCreateSchemaDupTable     = regexp.MustCompile(`(?i)(CREATE\s+TABLE\s+a\b.*?CREATE\s+TABLE\s+)(a)(\b)`)
 	reStandInCreateSchemaGrant        = regexp.MustCompile(`(?i)\bGRANT\s+SELECT\s+ON\s+a\s+TO\s+a\b`)
