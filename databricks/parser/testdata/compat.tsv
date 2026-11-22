@@ -4426,12 +4426,12 @@ accept	accept	grammar	interval(errorCapturingMultiUnitsInterval|err~1959551c)/er
 reject	reject	grammar	interval(errorCapturingMultiUnitsInterval|err~1959551c)/errorCapturingUnitToUnitInterval!swap	SELECT INTERVAL 1 SECONDS TO SECOND
 accept	accept	grammar	errorCapturingMultiUnitsInterval/multiUnitsInterval_(unitToUnitInterval)?	SELECT INTERVAL 1 NANOSECOND
 accept	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/%empty	SELECT INTERVAL 1 NANOSECOND
-accept	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval	SELECT INTERVAL 1 NANOSECOND 1 SECOND TO SECOND
+reject	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval	SELECT INTERVAL 1 NANOSECOND 1 SECOND TO SECOND
 reject	reject	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!drop-1	SELECT INTERVAL 1 NANOSECOND SECOND TO SECOND
 reject	reject	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!drop-2	SELECT INTERVAL 1 NANOSECOND 1 TO SECOND
 accept	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!drop-3	SELECT INTERVAL 1 NANOSECOND 1 SECOND SECOND
 accept	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!drop-4	SELECT INTERVAL 1 NANOSECOND 1 SECOND TO
-accept	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!insert	SELECT INTERVAL 1 NANOSECOND 1 SECOND TO SECOND zzz
+reject	accept	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!insert	SELECT INTERVAL 1 NANOSECOND 1 SECOND TO SECOND zzz
 reject	reject	grammar	errorCapturingMultiUnitsInterval(unitToUnitInterval)?/unitToUnitInterval!swap	SELECT INTERVAL 1 NANOSECOND 1 SECONDS TO SECOND
 accept	accept	grammar	multiUnitsInterval/(intervalValue_unitInMultiUnits)+	SELECT INTERVAL 1 NANOSECOND
 accept	accept	grammar	multiUnitsInterval(intervalValue_unitInMultiUnits)+/intervalValue_unitInMultiUnits	SELECT INTERVAL 1 NANOSECOND
@@ -4444,17 +4444,17 @@ accept	accept	grammar	multiUnitsInterval(intervalValue_unitInMultiUnits)+/interv
 accept	accept	grammar	multiUnitsInterval(intervalValue_unitInMultiUnits)+/intervalValue_unitInMultiUnits_(intervalValue_unitInMultiUnits)+!swap	SELECT INTERVAL 1 NANOSECONDS 1 NANOSECOND
 accept	accept	grammar	errorCapturingUnitToUnitInterval/unitToUnitInterval_(multiUnitsInterval|unitToUnitInterval)?	SELECT INTERVAL 1 SECOND TO SECOND
 accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/%empty	SELECT INTERVAL 1 SECOND TO SECOND
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECOND
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECOND
 accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!drop-1	SELECT INTERVAL 1 SECOND TO SECOND NANOSECOND
 reject	reject	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!drop-2	SELECT INTERVAL 1 SECOND TO SECOND 1
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!insert	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECOND zzz
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!swap	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECONDS
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO SECOND
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!insert	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECOND zzz
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/multiUnitsInterval!swap	SELECT INTERVAL 1 SECOND TO SECOND 1 NANOSECONDS
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO SECOND
 reject	reject	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-1	SELECT INTERVAL 1 SECOND TO SECOND SECOND TO SECOND
 reject	reject	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-2	SELECT INTERVAL 1 SECOND TO SECOND 1 TO SECOND
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-3	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND SECOND
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-4	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO
-accept	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!insert	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO SECOND zzz
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-3	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND SECOND
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!drop-4	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO
+reject	accept	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!insert	SELECT INTERVAL 1 SECOND TO SECOND 1 SECOND TO SECOND zzz
 reject	reject	grammar	errorCapturingUnitToUnitInterval(multiUnitsInterval|unitToUnitInterval)?/unitToUnitInterval!swap	SELECT INTERVAL 1 SECOND TO SECOND 1 SECONDS TO SECOND
 accept	accept	grammar	unitToUnitInterval/intervalValue_unitInUnitToUnit_TO_unitInUnitToUnit	SELECT INTERVAL 1 SECOND TO SECOND
 accept	accept	grammar	intervalValue/(PLUS|MINUS)?_(INTEGER_VALUE|DECIMAL_VALUE|stringLit)	SELECT INTERVAL 1 NANOSECOND

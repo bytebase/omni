@@ -4,10 +4,10 @@ package parser
 //
 //	query : ctes? queryTerm queryOrganization ;
 func (p *Parser) parseQuery() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	if p.cur().Kind == kwWITH {
 		if err := p.parseCTEs(); err != nil {
@@ -387,7 +387,24 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 
 func (p *Parser) isQueryOrgStart() bool {
 	switch p.cur().Kind {
-	case kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
+	case kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(1).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(1).Kind.isIdentifier() && p.peek(2).Kind == kwAS
+	case kwLIMIT, kwOFFSET:
+		switch p.peek(1).Kind {
+		case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
+			tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+			kwAS, kwGROUP, tokArrow, tokFatArrow:
+			return false
+		case tokPlus, tokMinus:
+			return !p.hasKeywordAtDepthZero(2, kwGROUP)
+		}
 		return true
 	}
 	return false
@@ -762,10 +779,10 @@ func (p *Parser) parseFromClause() error {
 }
 
 func (p *Parser) parseRelation() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	if p.isLateralRelationModifier() {
 		p.advance()
@@ -1597,7 +1614,7 @@ func (p *Parser) isTableQueryAt(tableOffset int) bool {
 		}
 		return true
 	case kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
-		return p.peek(pos + 1).Kind == kwBY
+		return p.peek(pos+1).Kind == kwBY
 	case kwWINDOW:
 		return p.peek(pos+1).Kind.isIdentifier() && p.peek(pos+2).Kind == kwAS
 	default:
@@ -2269,10 +2286,10 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 }
 
 func (p *Parser) parseGroupingAnalytics() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	if p.match(kwROLLUP, kwCUBE) {
 		if _, err := p.expect(tokLParen); err != nil {

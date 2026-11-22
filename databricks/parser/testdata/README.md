@@ -12,9 +12,9 @@ recognizer again on every run with no server, credentials, or network.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,229 | 2,223 | 6 | 0 |
-| Near-misses | 4,209 | 4,183 | 23 | 3 |
-| **All** | **6,438** | **6,406** | **29** | **3** |
+| One per alternative | 2,229 | 2,220 | 9 | 0 |
+| Near-misses | 4,209 | 4,177 | 29 | 3 |
+| **All** | **6,438** | **6,397** | **38** | **3** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,14 +70,15 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,406 / 6,438 (99.50%), with 2,223 / 2,229 (99.73%) on
-  generated grammar alternatives (the only 6 excluded alternatives are Spark's
-  error-capturing rules for unquoted hyphens and invalid pipe-operator forms),
-  29 `judge-only` rows, and 3 `omni-only` near-miss rows.**
+- **Agreement: 6,397 / 6,438 (99.36%), with 2,220 / 2,229 (99.60%) on
+  generated grammar alternatives (the only 9 excluded alternatives are Spark's
+  error-capturing rules for unquoted hyphens, invalid pipe-operator forms, and
+  mixed/repeated interval continuations), 38 `judge-only` rows, and 3
+  `omni-only` near-miss rows.**
 
-## Remaining tail (29 `judge-only`, 3 `omni-only` rows)
+## Remaining tail (38 `judge-only`, 3 `omni-only` rows)
 
-All 29 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
+All 38 `judge-only` discrepancies are invalid SQL forms that `databricks/parser`
 intentionally rejects while the grammar recognizer accepts them due to known
 properties of the offline recognizer and upstream error-capturing rules, and
 the 3 `omni-only` near-misses are `REFRESH .*?` statements accepted by Spark's
@@ -100,20 +101,26 @@ ANTLR grammar that the offline recognizer's `.` wildcard does not match:
    recognizer, whereas `databricks/parser` parses `SHOW CREATE TABLE`,
    `CREATE INDEX`, `DROP INDEX`, `ALTER TABLE ... REPLACE COLUMNS`, `SET`, and
    `RESET` strictly and rejects these malformed near-misses.
-3. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
+3. **9 error-capturing interval continuation rows** (`errorCapturingMultiUnitsInterval`
+   and `errorCapturingUnitToUnitInterval`: 3 alternatives and 6 near-misses for
+   mixed or repeated interval continuations like `INTERVAL 1 NANOSECOND 1 SECOND TO SECOND`
+   and `INTERVAL 1 SECOND TO SECOND 1 NANOSECOND`): Spark v4.0.5's
+   `AstBuilder.parseIntervalLiteral` explicitly rejects these continuations as
+   syntax errors; strict `databricks/parser` rejects them directly.
+4. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
    (3 alternatives `FROM a - a`, `FROM a - a - a` and 4 near-misses including
    `DESC FUNCTION - zzz`): `SqlBaseParser.g4:1479` parses `(MINUS identifier)+`
    solely so Spark's `AstBuilder` can reject unquoted hyphenated names like
    `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
    rejects these directly with a positioned `ParseError` while accepting
    backtick-quoted identifiers.
-4. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
+5. **4 invalid SQL pipe-operator (`operatorPipeRightSide` /
    `operatorPipeSetAssignmentSeq`) rows** (3 alternatives and 1 near-miss for
    combined `|> PIVOT ... UNPIVOT ...`, `|> UNPIVOT ... PIVOT ...`, and dotted
    `|> SET a.a = a`): `SqlBaseParser.g4:1561-1584` explicitly comments that
    these productions (along with `|> WHERE ... WINDOW ...`) are captured solely
    for diagnostic error messages; strict `databricks/parser` rejects them.
-5. **3 `omni-only` `REFRESH .*?` wildcard near-misses**
+6. **3 `omni-only` `REFRESH .*?` wildcard near-misses**
    (`BEGIN REFRESH REFRESH; END`,
    `BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`,
    `BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END`):

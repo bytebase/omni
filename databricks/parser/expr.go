@@ -150,10 +150,6 @@ func (p *Parser) parseBooleanExpression() error {
 }
 
 func (p *Parser) parseBooleanExpressionWithKind() (bool, error) {
-	if err := p.enter(); err != nil {
-		return false, err
-	}
-	defer p.leave()
 	return p.parseOrExpressionWithKind()
 }
 
@@ -431,10 +427,6 @@ func (p *Parser) parseOptionalPredicate() error {
 // valueExpression precedence (lowest to highest, matching SqlBaseParser.g4):
 // comparison < | < ^ < & < shift (<< >> >>>) < + - || < * / % DIV < unary (+ - ~) < primary
 func (p *Parser) parseValueExpression() error {
-	if err := p.enter(); err != nil {
-		return err
-	}
-	defer p.leave()
 	return p.parseComparisonExpression()
 }
 
@@ -545,10 +537,10 @@ func (p *Parser) parseUnaryExpression() error {
 // parsePrimaryExpression parses Spark's primaryExpression + postfix operators
 // (COLLATE, :: dataType, [index], .field).
 func (p *Parser) parsePrimaryExpression() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	isQualifiedIdent, err := p.parsePrimaryAtom()
 	if err != nil {
@@ -1952,7 +1944,11 @@ func (p *Parser) parseNumber() error {
 
 // parseInterval parses:
 //
-//	interval : INTERVAL (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval) ;
+//	interval : INTERVAL (multiUnitsInterval | unitToUnitInterval) ;
+//
+// Spark's errorCapturingMultiUnitsInterval and errorCapturingUnitToUnitInterval
+// grammar rules exist only so AstBuilder can throw tailored diagnostics for
+// mixed/repeated interval continuations; strict Parse rejects them directly.
 func (p *Parser) parseInterval() error {
 	if _, err := p.expect(kwINTERVAL); err != nil {
 		return err
@@ -1960,27 +1956,10 @@ func (p *Parser) parseInterval() error {
 	// Try unitToUnitInterval first if we see: intervalValue unitInUnitToUnit TO unitInUnitToUnit
 	cp := p.save()
 	if err := p.parseUnitToUnitInterval(); err == nil {
-		// errorCapturingUnitToUnitInterval allows trailing error1=multiUnitsInterval | error2=unitToUnitInterval
-		cpExtra := p.save()
-		if err := p.parseUnitToUnitInterval(); err != nil {
-			p.restore(cpExtra)
-			if err := p.parseMultiUnitsInterval(); err != nil {
-				p.restore(cpExtra)
-			}
-		}
 		return nil
 	}
 	p.restore(cp)
-
-	if err := p.parseMultiUnitsInterval(); err != nil {
-		return err
-	}
-	// errorCapturingMultiUnitsInterval allows optional trailing unitToUnitInterval
-	cpTrail := p.save()
-	if err := p.parseUnitToUnitInterval(); err != nil {
-		p.restore(cpTrail)
-	}
-	return nil
+	return p.parseMultiUnitsInterval()
 }
 
 func (p *Parser) parseMultiUnitsInterval() error {

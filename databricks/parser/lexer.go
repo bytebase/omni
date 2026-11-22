@@ -27,7 +27,7 @@ outer:
 		}
 		if c >= utf8.RuneSelf {
 			r, sz := utf8.DecodeRuneInString(src[i:])
-			if unicode.IsSpace(r) {
+			if isSparkSpace(r) {
 				i += sz
 				continue
 			}
@@ -357,8 +357,10 @@ func scanNumberOrIdent(src string, start int) Token {
 	hasExp := false
 	hasExpSign := false
 
+	dotPos := -1
 	if src[i] == '.' {
 		hasDot = true
+		dotPos = i
 		i++
 		for i < n && isASCIIDigit(src[i]) {
 			i++
@@ -368,16 +370,11 @@ func scanNumberOrIdent(src string, start int) Token {
 			i++
 		}
 		if i < n && src[i] == '.' {
-			// Check Spark isValidDecimal: decimal followed by letter/digit/_ is not valid decimal,
-			// unless followed by digits or exponent or F/D/BD suffix.
-			j := i + 1
-			for j < n && isASCIIDigit(src[j]) {
-				j++
-			}
-			// Accept dot as part of decimal if next is not ident-start (except exponent/suffix) or if digits follow.
-			if j > i+1 || j >= n || !isIdentStartByte(src, j) || isNumericSuffixOrExp(src, j) {
-				hasDot = true
-				i = j
+			dotPos = i
+			hasDot = true
+			i++
+			for i < n && isASCIIDigit(src[i]) {
+				i++
 			}
 		}
 	}
@@ -442,11 +439,14 @@ func scanNumberOrIdent(src string, start int) Token {
 		return Token{Kind: tokIdent, Text: src[start:i], Start: start, End: i}
 	}
 
-	// Spark's isValidDecimal(): a leading-dot decimal/exponent literal cannot
-	// be immediately followed by an identifier character (e.g. `t.123abc`,
-	// `t.123_abc`, `t.1e2data`). Emit DOT so the next token scans as IDENTIFIER.
-	if src[start] == '.' && isIdentPartAt(src, i) {
-		return Token{Kind: tokDot, Text: ".", Start: start, End: start + 1}
+	// Spark's isValidDecimal(): a decimal/exponent literal with a dot cannot be
+	// immediately followed by an identifier character (e.g. `1.0L`, `1.0Y`,
+	// `t.123abc`, `t.1e2data`). Fall back to DOT (leading-dot) or INT (digit-leading).
+	if hasDot && isIdentPartAt(src, i) {
+		if src[start] == '.' {
+			return Token{Kind: tokDot, Text: ".", Start: start, End: start + 1}
+		}
+		return Token{Kind: tokInt, Text: src[start:dotPos], Start: start, End: dotPos}
 	}
 
 	kind := tokInt
@@ -456,27 +456,6 @@ func scanNumberOrIdent(src string, start int) Token {
 		kind = tokDecimal
 	}
 	return Token{Kind: kind, Text: src[start:i], Start: start, End: i}
-}
-
-func isNumericSuffixOrExp(src string, i int) bool {
-	if i >= len(src) {
-		return false
-	}
-	c := upperASCII(src[i])
-	if c == 'E' {
-		j := i + 1
-		if j < len(src) && (src[j] == '+' || src[j] == '-') {
-			j++
-		}
-		return j < len(src) && isASCIIDigit(src[j])
-	}
-	if c == 'F' || c == 'D' {
-		return !isIdentPartAt(src, i+1)
-	}
-	if c == 'B' && i+1 < len(src) && upperASCII(src[i+1]) == 'D' {
-		return !isIdentPartAt(src, i+2)
-	}
-	return false
 }
 
 func isASCIIDigit(b byte) bool {
@@ -510,8 +489,21 @@ func isIdentPartAt(src string, i int) bool {
 	return isIdentPartRune(r)
 }
 
+// isSparkSpace matches Spark's SqlBaseLexer.g4 WS rule exactly (excluding
+// U+0085 and U+2029, which unicode.IsSpace accepts but Spark rejects).
+func isSparkSpace(r rune) bool {
+	switch r {
+	case ' ', '\t', '\n', '\f', '\r', '\v',
+		'\u00A0', '\u1680',
+		'\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200A',
+		'\u2028', '\u202F', '\u205F', '\u3000':
+		return true
+	}
+	return false
+}
+
 func isIdentPartRune(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '_' || (r >= '0' && r <= '9') || unicode.IsLetter(r)
 }
 
 func isURIPartRune(r rune) bool {

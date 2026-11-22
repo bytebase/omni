@@ -82,7 +82,7 @@ func (p *Parser) parseSetResetStatement() (Statement, error) {
 
 	// SET ROLE ...
 	if p.match(kwROLE) {
-		for p.cur().Kind == tokIdent {
+		for !p.isStatementEnd() {
 			p.advance()
 		}
 		return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
@@ -857,6 +857,7 @@ func (p *Parser) parseExecuteImmediate() (Statement, error) {
 func (p *Parser) parseUnsupportedHiveNativeCommand() (Statement, error) {
 	start := p.cur().Start
 	ok := false
+	consumeAnyTail := false
 	switch p.cur().Kind {
 	case kwCREATE:
 		p.advance()
@@ -872,10 +873,19 @@ func (p *Parser) parseUnsupportedHiveNativeCommand() (Statement, error) {
 		} else if p.match(kwTEMPORARY) && p.match(kwMACRO) {
 			ok = true
 		}
-	case kwGRANT, kwREVOKE:
+	case kwGRANT:
+		p.advance()
+		hasRole := p.match(kwROLE)
+		if !hasRole && p.cur().Kind == kwROLES && p.isStatementEndAt(1) {
+			return nil, p.errorf("unexpected token %q after GRANT", p.cur().Text)
+		}
+		ok = true
+		consumeAnyTail = true
+	case kwREVOKE:
 		p.advance()
 		p.match(kwROLE)
 		ok = true
+		consumeAnyTail = true
 	case kwSHOW:
 		p.advance()
 		switch p.cur().Kind {
@@ -955,8 +965,14 @@ func (p *Parser) parseUnsupportedHiveNativeCommand() (Statement, error) {
 	if !ok {
 		return nil, p.errorf("unexpected Hive command")
 	}
-	for p.cur().Kind == tokIdent {
-		p.advance()
+	if consumeAnyTail {
+		for !p.isStatementEnd() {
+			p.advance()
+		}
+	} else {
+		for p.cur().Kind == tokIdent {
+			p.advance()
+		}
 	}
 	return &ParsedStmt{Kind: StmtHiveNative, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

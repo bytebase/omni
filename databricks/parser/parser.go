@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-const maxNestingDepth = 1000
-
 // checkpoint stores parser cursor state for LL(k) backtracking.
 type checkpoint struct {
 	pos        int
@@ -38,8 +36,9 @@ type Parser struct {
 	caseScanConfirmedOpen map[int]int
 }
 
-// Parse parses a Databricks / Spark SQL input string (single statement or
-// compound BEGIN ... END script block) and returns a ParseResult.
+// Parse parses a Databricks / Spark SQL input string (one or more
+// semicolon-separated statements and/or compound BEGIN ... END script blocks)
+// and returns a ParseResult with byte offsets relative to sql.
 func Parse(sql string) (*ParseResult, error) {
 	toks, err := lex(sql)
 	if err != nil {
@@ -49,14 +48,30 @@ func Parse(sql string) (*ParseResult, error) {
 		src:  sql,
 		toks: toks,
 	}
-	stmt, err := p.parseCompoundOrSingleStatement()
-	if err != nil {
-		return nil, err
+	if p.cur().Kind == tokEOF {
+		return nil, p.errorf("empty SQL input")
 	}
-	if p.cur().Kind != tokEOF {
-		return nil, p.errorf("unexpected token %q", p.cur().Text)
+	var stmts []Statement
+	for p.cur().Kind != tokEOF {
+		stmt, err := p.parseTopLevelStatement()
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, stmt)
+		if p.cur().Kind == tokEOF {
+			break
+		}
+		if !p.match(tokSemicolon) {
+			return nil, p.errorf("unexpected trailing token %q", p.cur().Text)
+		}
+		// Spark's singleStatement permits SEMICOLON* whereas
+		// singleCompoundStatement permits at most one trailing ';'.
+		if ps, ok := stmt.(*ParsedStmt); !ok || ps.Kind != StmtCompound {
+			for p.match(tokSemicolon) {
+			}
+		}
 	}
-	return &ParseResult{Statements: []Statement{stmt}}, nil
+	return &ParseResult{Statements: stmts}, nil
 }
 
 func (p *Parser) save() checkpoint {
@@ -75,18 +90,6 @@ func (p *Parser) restore(cp checkpoint) {
 	p.gtStart = cp.gtStart
 	p.gtEnd = cp.gtEnd
 	p.parenDepth = cp.parenDepth
-}
-
-func (p *Parser) enter() error {
-	p.depth++
-	if p.depth > maxNestingDepth {
-		return p.errorf("maximum nesting depth exceeded")
-	}
-	return nil
-}
-
-func (p *Parser) leave() {
-	p.depth--
 }
 
 func (p *Parser) cur() Token {
@@ -200,22 +203,13 @@ func (p *Parser) errorf(format string, args ...any) error {
 	}
 }
 
-// parseCompoundOrSingleStatement implements:
-//
-//	compoundOrSingleStatement
-//	    : singleStatement
-//	    | singleCompoundStatement
-//	    ;
-func (p *Parser) parseCompoundOrSingleStatement() (Statement, error) {
+// parseTopLevelStatement parses one top-level singleStatement or
+// singleCompoundStatement without consuming its trailing semicolon(s).
+func (p *Parser) parseTopLevelStatement() (Statement, error) {
 	if p.cur().Kind == kwBEGIN {
-		cp := p.save()
-		stmt, err := p.parseSingleCompoundStatement()
-		if err == nil && p.cur().Kind == tokEOF {
-			return stmt, nil
-		}
-		p.restore(cp)
+		return p.parseSingleCompoundStatement()
 	}
-	return p.parseSingleStatement()
+	return p.parseStatementOrSetReset()
 }
 
 // parseSingleCompoundStatement implements:
@@ -224,10 +218,10 @@ func (p *Parser) parseCompoundOrSingleStatement() (Statement, error) {
 //	    : BEGIN (NOT ATOMIC)? compoundBody? END SEMICOLON? EOF
 //	    ;
 func (p *Parser) parseSingleCompoundStatement() (Statement, error) {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 	start := p.cur().Start
 	if _, err := p.expect(kwBEGIN); err != nil {
 		return nil, err
@@ -244,11 +238,8 @@ func (p *Parser) parseSingleCompoundStatement() (Statement, error) {
 	if _, err := p.expect(kwEND); err != nil {
 		return nil, err
 	}
-	p.match(tokSemicolon)
-	if p.cur().Kind != tokEOF {
-		return nil, p.errorf("unexpected token %q after END", p.cur().Text)
-	}
-	return &ParsedStmt{Kind: StmtCompound, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	end := p.prevEnd()
+	return &ParsedStmt{Kind: StmtCompound, Loc: Loc{Start: start, End: end}}, nil
 }
 
 // parseBeginEndCompoundBlock implements:
@@ -257,10 +248,10 @@ func (p *Parser) parseSingleCompoundStatement() (Statement, error) {
 //	    : beginLabel? BEGIN (NOT ATOMIC)? compoundBody? END endLabel?
 //	    ;
 func (p *Parser) parseBeginEndCompoundBlock() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 	p.tryParseBeginLabel()
 	if _, err := p.expect(kwBEGIN); err != nil {
 		return err
@@ -331,10 +322,10 @@ func (p *Parser) isCompoundBodyEnd() bool {
 }
 
 func (p *Parser) parseCompoundStatement() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	// Try labeled compound statements first: beginLabel followed by BEGIN/WHILE/REPEAT/LOOP/FOR.
 	cpLabel := p.save()
@@ -690,25 +681,6 @@ func (p *Parser) parseForStatement() error {
 	return nil
 }
 
-// parseSingleStatement implements:
-//
-//	singleStatement : (statement | setResetStatement) SEMICOLON* EOF ;
-func (p *Parser) parseSingleStatement() (Statement, error) {
-	if p.cur().Kind == tokEOF {
-		return nil, p.errorf("empty SQL input")
-	}
-	stmt, err := p.parseStatementOrSetReset()
-	if err != nil {
-		return nil, err
-	}
-	for p.match(tokSemicolon) {
-	}
-	if p.cur().Kind != tokEOF {
-		return nil, p.errorf("unexpected trailing token %q", p.cur().Text)
-	}
-	return stmt, nil
-}
-
 func (p *Parser) parseStatementOrSetReset() (Statement, error) {
 	if p.cur().Kind == kwSET {
 		if p.peek(1).Kind == kwCATALOG {
@@ -727,10 +699,10 @@ func (p *Parser) isStatementEnd() bool {
 }
 
 func (p *Parser) parseStatement() (Statement, error) {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	start := p.cur().Start
 	switch p.cur().Kind {

@@ -591,6 +591,36 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "grant with keyword tail",
+			sql:  `GRANT SELECT ON TABLE t TO u`,
+			kind: StmtHiveNative,
+		},
+		{
+			name: "revoke all privileges with keyword tail",
+			sql:  `REVOKE ALL PRIVILEGES ON SCHEMA s FROM u`,
+			kind: StmtHiveNative,
+		},
+		{
+			name: "set role all",
+			sql:  `SET ROLE ALL`,
+			kind: StmtSet,
+		},
+		{
+			name: "500 nested parentheses succeed within 10000 nesting limit",
+			sql:  "SELECT " + strings.Repeat("(", 500) + "1" + strings.Repeat(")", 500),
+			kind: StmtQuery,
+		},
+		{
+			name: "pipe aggregate with keyword-led expressions",
+			sql:  `FROM t |> AGGREGATE order + sum(x), window, limit + 1 GROUP BY order, window, limit`,
+			kind: StmtQuery,
+		},
+		{
+			name: "pipe aggregate followed by query organization",
+			sql:  `FROM t |> AGGREGATE sum(x) ORDER BY 1 LIMIT 10`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
@@ -715,6 +745,15 @@ func TestParseErrors(t *testing.T) {
 		{"struct mixing named arg then implicit alias", "SELECT STRUCT(k => 1, x a)"},
 		{"tablesample bucket qualified name without parens", "SELECT * FROM t TABLESAMPLE (BUCKET 1 OUT OF 2 ON a.b)"},
 		{"alter table partition set tblproperties", "ALTER TABLE t PARTITION (p = 1) SET TBLPROPERTIES ('x' = 'y')"},
+		{"arabic-indic digit in unquoted identifier", "SELECT a\u0663 FROM t"},
+		{"nel whitespace rejected by spark", "SELECT\u00851"},
+		{"paragraph separator rejected by spark", "SELECT\u20291"},
+		{"interval from-to followed by multi-unit", "SELECT INTERVAL '1-2' YEAR TO MONTH 3 DAY"},
+		{"interval from-to followed by from-to", "SELECT INTERVAL '1-2' YEAR TO MONTH '2-3' YEAR TO MONTH"},
+		{"interval multi-unit followed by from-to", "SELECT INTERVAL 3 DAY '1-2' YEAR TO MONTH"},
+		{"decimal with invalid L suffix", "SELECT 1.0L"},
+		{"decimal with invalid Y suffix", "SELECT 1.0Y"},
+		{"decimal with invalid S suffix", "SELECT 1.0S"},
 	}
 
 	for _, tc := range bad {
@@ -843,6 +882,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 			sql:  "SELECT CASE y WHEN 1 THEN " + strings.Repeat("CASE x WHEN 1 THEN 2 END + ", 4000) + "1 END",
 		},
 		{
+			name: "repeated sibling simple case expressions in where clause",
+			sql:  "SELECT 1 FROM t WHERE " + strings.Repeat("CASE a WHEN 1 THEN true END AND ", 4000) + "true",
+		},
+		{
 			name: "nested parenthesized map calls",
 			sql:  "SELECT " + strings.Repeat("(MAP(1, ", 40) + "1" + strings.Repeat("))", 40),
 		},
@@ -903,6 +946,114 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := Parse(tc.sql); err != nil {
 				t.Fatalf("Parse %s failed: %v", tc.name, err)
+			}
+		})
+	}
+}
+
+func TestBeginBlockErrorPositions(t *testing.T) {
+	cases := []struct {
+		name   string
+		sql    string
+		minPos int
+	}{
+		{"bad select inside begin", "BEGIN SELECT (; END", 13},
+		{"trailing token after end", "BEGIN SELECT 1; END zzz", 20},
+		{"incomplete declare inside begin", "BEGIN DECLARE x INT DEFAULT; END", 27},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatalf("Parse(%q) unexpectedly succeeded", tc.sql)
+			}
+			pe, ok := err.(*ParseError)
+			if !ok {
+				t.Fatalf("expected *ParseError, got %T: %v", err, err)
+			}
+			if pe.Position < tc.minPos {
+				t.Fatalf("Parse(%q) error position = %d, want >= %d (%v)", tc.sql, pe.Position, tc.minPos, pe)
+			}
+		})
+	}
+}
+
+func TestStatementSpansAndMultiStatement(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		want []struct {
+			kind StmtKind
+			loc  Loc
+		}
+	}{
+		{
+			name: "select with trailing semicolon excludes semicolon",
+			sql:  "SELECT 1;",
+			want: []struct {
+				kind StmtKind
+				loc  Loc
+			}{{StmtQuery, Loc{Start: 0, End: 8}}},
+		},
+		{
+			name: "begin block with trailing semicolon excludes semicolon",
+			sql:  "BEGIN SELECT 1; END;",
+			want: []struct {
+				kind StmtKind
+				loc  Loc
+			}{{StmtCompound, Loc{Start: 0, End: 19}}},
+		},
+		{
+			name: "two selects separated by semicolon",
+			sql:  "SELECT 1; SELECT 2",
+			want: []struct {
+				kind StmtKind
+				loc  Loc
+			}{
+				{StmtQuery, Loc{Start: 0, End: 8}},
+				{StmtQuery, Loc{Start: 10, End: 18}},
+			},
+		},
+		{
+			name: "refresh followed by select",
+			sql:  "REFRESH a; SELECT 1",
+			want: []struct {
+				kind StmtKind
+				loc  Loc
+			}{
+				{StmtRefresh, Loc{Start: 0, End: 9}},
+				{StmtQuery, Loc{Start: 11, End: 19}},
+			},
+		},
+		{
+			name: "begin block followed by select",
+			sql:  "BEGIN SELECT 1; END; SELECT 2",
+			want: []struct {
+				kind StmtKind
+				loc  Loc
+			}{
+				{StmtCompound, Loc{Start: 0, End: 19}},
+				{StmtQuery, Loc{Start: 21, End: 29}},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+			}
+			if len(res.Statements) != len(tc.want) {
+				t.Fatalf("Parse(%q) got %d statements, want %d", tc.sql, len(res.Statements), len(tc.want))
+			}
+			for i, w := range tc.want {
+				ps, ok := res.Statements[i].(*ParsedStmt)
+				if !ok {
+					t.Fatalf("stmt[%d] = %T, want *ParsedStmt", i, res.Statements[i])
+				}
+				if ps.Kind != w.kind || ps.Loc != w.loc {
+					t.Errorf("stmt[%d] = {%s, %+v}, want {%s, %+v}", i, ps.Kind, ps.Loc, w.kind, w.loc)
+				}
 			}
 		})
 	}

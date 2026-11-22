@@ -318,10 +318,10 @@ func (p *Parser) parseSchemaBinding() error {
 //	    | type ( ( INTEGER_VALUE (, INTEGER_VALUE)* ) )?
 //	    ;
 func (p *Parser) parseDataType() error {
-	if err := p.enter(); err != nil {
+	if err := p.enterNesting(); err != nil {
 		return err
 	}
-	defer p.leave()
+	defer p.leaveNesting()
 
 	switch p.cur().Kind {
 	case kwARRAY:
