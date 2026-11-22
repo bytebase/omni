@@ -306,6 +306,9 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 			p.advance() // '('
 			for {
 				start := p.cur
+				if p.cur.Type == kwAS {
+					return p.syntaxErrorAtCur()
+				}
 				expr, err := p.parseExpr()
 				if err != nil {
 					return err

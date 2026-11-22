@@ -22,7 +22,7 @@ func (p *Parser) parseDomainDataType() (*nodes.TypeName, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	switch p.cur.Type {
-	case kwNULL, kwNOT, kwCHECK, kwDEFAULT, kwORDER:
+	case kwNULL, kwNOT, kwCHECK, kwDEFAULT, kwORDER, kwANY:
 		return nil, p.syntaxErrorAtCur()
 	}
 	tn, err := p.parseTypeName()

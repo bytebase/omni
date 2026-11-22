@@ -878,6 +878,9 @@ func (p *Parser) ixDomainLocal() error {
 				return err
 			}
 			if p.cur.Type != ')' {
+				if p.cur.Type == tokEOF {
+					return p.syntaxErrorAtTok(str)
+				}
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
@@ -1821,10 +1824,16 @@ func (p *Parser) parseAlterIndexAddPartition(stmt *nodes.AlterIndexStmt) error {
 	p.advance()
 	// TABLESPACE not followed by a name is the partition's name: ADD
 	// PARTITION TABLESPACE parses.
+	var nameTok Token
+	hasName := false
 	if p.isIxName() && !p.isIxCompressionStart() && !p.isIxParallelStart() &&
 		(p.cur.Type != kwTABLESPACE || !p.isIxNameTok(p.peekNext())) {
+		nameTok = p.cur
+		hasName = true
 		stmt.AddPartitionName = p.advance().Str
 	}
+	afterNamePos := p.pos()
+	firstAttrTok := p.cur
 	if p.cur.Type == kwTABLESPACE {
 		p.advance()
 		name, err := p.ixTablespaceName(false)
@@ -1838,6 +1847,14 @@ func (p *Parser) parseAlterIndexAddPartition(stmt *nodes.AlterIndexStmt) error {
 	}
 	if p.isIxParallelStart() {
 		p.ixAlterParallel(stmt)
+	}
+	if !p.isStatementEnd() {
+		if hasName && p.pos() == afterNamePos {
+			return p.syntaxErrorAtTok(nameTok)
+		}
+		if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) {
+			return p.syntaxErrorAtTok(firstAttrTok)
+		}
 	}
 	return nil
 }

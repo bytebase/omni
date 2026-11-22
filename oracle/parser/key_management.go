@@ -373,7 +373,11 @@ func (k *keyManagementClauses) isMigrateStart(reverse bool) bool {
 // [ WITH BACKUP [ USING backup_identifier ] ].
 func (k *keyManagementClauses) migrate(reverse bool) error {
 	p := k.p
+	forceTok := p.cur
 	if _, err := k.forceKeystore(); err != nil {
+		if forceTok.Type == kwFORCE && p.isStatementEnd() {
+			return p.syntaxErrorAtTok(forceTok)
+		}
 		return err
 	}
 	optStart := p.pos()
@@ -942,7 +946,11 @@ func (k *keyManagementClauses) withIdentifier(deferred bool) (bool, error) {
 			if p.cur.Type != tokSCONST && !k.isName() {
 				return false, p.syntaxErrorAtCur()
 			}
-			items.Items = append(items.Items, &nodes.String{Str: p.advance().Str})
+			tok := p.advance()
+			if tok.Type != tokSCONST && p.cur.Type == ')' {
+				return false, p.syntaxErrorAtTok(tok)
+			}
+			items.Items = append(items.Items, &nodes.String{Str: tok.Str})
 			if p.cur.Type != ',' {
 				break
 			}

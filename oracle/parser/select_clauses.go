@@ -857,12 +857,16 @@ func (p *Parser) parseSampleClause() (*nodes.SampleClause, error) {
 	p.advance() // consume SAMPLE
 
 	sc := &nodes.SampleClause{Loc: nodes.Loc{Start: start}}
+	var blockTok Token
 	if p.cur.Type == kwBLOCK {
 		sc.Block = true
-		p.advance()
+		blockTok = p.advance()
 	}
 	var err error
 	if sc.Percent, err = p.parseSelectSampleValue(true); err != nil {
+		if sc.Block && p.cur.Type != '(' && p.prev.Loc == blockTok.Loc {
+			return nil, p.syntaxErrorAtTok(blockTok)
+		}
 		return nil, err
 	}
 	if p.cur.Type == kwSEED {

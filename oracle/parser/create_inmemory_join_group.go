@@ -94,7 +94,11 @@ func (p *Parser) parseJoinGroupMembers() ([]*nodes.JoinGroupMember, error) {
 		return nil, err
 	}
 	var members []*nodes.JoinGroupMember
+	var firstTableTok Token
 	for {
+		if len(members) == 0 {
+			firstTableTok = p.cur
+		}
 		m := &nodes.JoinGroupMember{Loc: nodes.Loc{Start: p.pos()}}
 		table, err := p.parsePlainObjectName()
 		if err != nil {
@@ -125,8 +129,12 @@ func (p *Parser) parseJoinGroupMembers() ([]*nodes.JoinGroupMember, error) {
 		}
 		p.advance() // consume ,
 	}
-	if err := p.expectCreateTableToken(')'); err != nil {
-		return nil, err
+	if p.cur.Type != ')' {
+		if p.cur.Type == tokEOF || (p.isCreateTableNameStart() && p.peekNext().Type == '(') {
+			return nil, p.syntaxErrorAtTok(firstTableTok)
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume )
 	return members, nil
 }

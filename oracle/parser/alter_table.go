@@ -231,9 +231,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	}
 
 	if p.atWord("SUPPLEMENTAL") {
-		p.advance() // consume SUPPLEMENTAL
+		suppTok := p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options, suppTok); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -545,13 +545,16 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 			Action: action,
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	case p.atWord("OPAQUE") && p.atNextWord("TYPE"):
+	case p.atWord("OPAQUE") && (p.atNextWord("TYPE") || isCreateTableWordTok(p.peekAhead(2)[1], "STORE")):
 		return p.parseAlterTableModifyOpaqueType(start)
 	case p.atWord("CLUSTERING"):
 		p.advance() // consume CLUSTERING
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "MODIFY CLUSTERING", Options: &nodes.List{}}
 		if err := p.parseATClusteringWhen(cmd.Options); err != nil {
 			return nil, err
+		}
+		if cmd.Options.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
 		return withAlterTableOptions(cmd, cmd.Options), nil
@@ -763,7 +766,9 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 // ORA-00906); the clause above is the one of its MODIFY OPAQUE TYPE.
 func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCmd, error) {
 	p.advance() // OPAQUE
-	p.advance() // TYPE
+	if err := p.atExpectWord("TYPE"); err != nil {
+		return nil, err
+	}
 	name, err := p.parseATNameString()
 	if err != nil {
 		return nil, err
@@ -774,8 +779,17 @@ func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCm
 	}
 	optStart := p.pos()
 	if p.cur.Type == kwAS {
-		// Oracle refuses what follows the page's STORE AS.
+		// Oracle reads LOB [ segname ] ( before refusing what follows the page's STORE AS.
 		p.advance()
+		if p.atWord("LOB") {
+			p.advance()
+			if p.cur.Type != '(' && p.isATNameStart() {
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+			}
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	if err := p.atExpect('('); err != nil {
@@ -931,6 +945,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		// DROP ( PERIOD FOR valid_time_column )
 		if p.atWord("PERIOD") {
 			p.advance() // consume PERIOD
+			forTok := p.cur
 			if err := p.atExpect(kwFOR); err != nil {
 				return nil, err
 			}
@@ -939,6 +954,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			if err := p.atExpect(')'); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(forTok)
+				}
 				return nil, err
 			}
 			return &nodes.AlterTableCmd{
@@ -1003,9 +1021,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		}, nil
 
 	case p.atWord("SUPPLEMENTAL"):
-		p.advance() // consume SUPPLEMENTAL
+		suppTok := p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options, suppTok); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -1136,15 +1154,20 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if err := p.atExpect(')'); err != nil {
 			return nil, err
 		}
+		oldName, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
+		}
 		newName, err := renameTo()
 		if err != nil {
 			return nil, err
 		}
 		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "RENAME LOB",
-			NewName: newName,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Action:     nodes.AT_ALTER_PROPERTY,
+			Subtype:    "RENAME LOB",
+			ColumnName: oldName,
+			NewName:    newName,
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 	}
 	return nil, p.syntaxErrorAtCur()
@@ -1220,8 +1243,11 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 		optStart := p.pos()
 		switch {
 		case p.cur.Type == kwALL:
-			p.advance()
+			allTok := p.advance()
 			if err := p.atExpectWord("KEYS"); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(allTok)
+				}
 				return nil, err
 			}
 		case p.atWord("ALLOW"):
@@ -1229,7 +1255,11 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("NOVALIDATE"); err != nil {
 				return nil, err
 			}
+			novalTok := p.prev
 			if err := p.atExpectWord("KEYS"); err != nil {
+				if p.cur.Type == tokEOF {
+					return nil, p.syntaxErrorAtTok(novalTok)
+				}
 				return nil, err
 			}
 		}
@@ -2036,8 +2066,14 @@ func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 
 // skipParenthesized skips a parenthesized group if present.
 func (p *Parser) skipParenthesized() {
+	p.skipParenthesizedBalanced()
+}
+
+// skipParenthesizedBalanced skips a parenthesized group if present and reports
+// whether all opening parentheses were closed before EOF.
+func (p *Parser) skipParenthesizedBalanced() bool {
 	if p.cur.Type != '(' {
-		return
+		return true
 	}
 	depth := 1
 	p.advance() // consume '('
@@ -2049,6 +2085,7 @@ func (p *Parser) skipParenthesized() {
 		}
 		p.advance()
 	}
+	return depth == 0
 }
 
 func withAlterTableOptions(cmd *nodes.AlterTableCmd, options *nodes.List) *nodes.AlterTableCmd {

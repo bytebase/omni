@@ -43,16 +43,21 @@ import (
 // ORA-03048); and USING INDEX, FOR UPDATE and the unusable editions clause,
 // left out of the page, stand where the 19c page has them.
 func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		// Oracle answers IF NOT without EXISTS at the IF (ORA-11543).
-		ifTok := p.cur
-		p.advance() // consume IF
-		p.advance() // consume NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // consume EXISTS
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			// Oracle answers IF NOT without EXISTS at the IF (ORA-11543).
+			ifTok := p.cur
+			p.advance() // consume IF
+			p.advance() // consume NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error
@@ -525,7 +530,10 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 				}
 				return p.syntaxErrorAtTok(nameTok)
 			}
+			savedMviewPart := p.createTablePartitionsOfMview
+			p.createTablePartitionsOfMview = true
 			partition, err := p.parsePartitionClause(table, true)
+			p.createTablePartitionsOfMview = savedMviewPart
 			if err != nil {
 				return err
 			}
@@ -582,6 +590,9 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 	p.advance() // consume XMLTYPE
 	if p.cur.Type == kwCOLUMN {
 		p.advance()
+	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return err
 	}
 	if err := p.parseCreateTableItem(); err != nil {
 		return err
@@ -648,9 +659,9 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 		return err
 	}
 	if p.isKeywordStr("STORE") {
-		p.advance() // consume STORE
+		storeTok := p.advance() // consume STORE
 		if err := p.expectCreateTableToken(kwALL); err != nil {
-			return err
+			return p.syntaxErrorAtTok(storeTok)
 		}
 		if err := p.expectCreateTableWord("VARRAYS"); err != nil {
 			return err
@@ -911,6 +922,9 @@ func (p *Parser) parseMviewRollbackSegment() error {
 
 // parseMviewDateExpr reads the date expression of START WITH or NEXT.
 func (p *Parser) parseMviewDateExpr() (nodes.ExprNode, error) {
+	if p.cur.Type == kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err

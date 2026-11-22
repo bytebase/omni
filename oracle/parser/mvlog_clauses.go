@@ -1099,6 +1099,7 @@ func (p *Parser) parseMVLogPartitionValues() error {
 // at what follows. update_index_clauses are read and refused (ORA-30566).
 func (p *Parser) parseMVLogAddSubpartitions() error {
 	values := false
+	named := false
 	for first := true; ; first = false {
 		if err := p.atExpect(kwSUBPARTITION); err != nil {
 			return err
@@ -1106,6 +1107,7 @@ func (p *Parser) parseMVLogAddSubpartitions() error {
 		if p.isATNameStart() && !p.isMVLogParallelStart() {
 			name := p.cur
 			p.advance()
+			named = true
 			if first && !p.isMVLogAddSubpartitionFollow() {
 				return p.syntaxErrorAtTok(name)
 			}
@@ -1122,6 +1124,9 @@ func (p *Parser) parseMVLogAddSubpartitions() error {
 		p.advance()
 	}
 	if p.isMVLogIndexMaintenanceStart() {
+		if !values && !named {
+			return p.syntaxErrorAtCur()
+		}
 		return p.refuseMVLogIndexMaintenance()
 	}
 	if !values && p.isMVLogParallelStart() {

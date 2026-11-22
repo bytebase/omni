@@ -54,10 +54,11 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		p.advance()
 	}
 
-	// INTO
-	if p.cur.Type == kwINTO {
-		p.advance()
+	// INTO (required in Oracle MERGE INTO)
+	if p.cur.Type != kwINTO {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr801 error
 
 	// Target table

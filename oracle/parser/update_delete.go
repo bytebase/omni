@@ -233,8 +233,21 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			p.advance()
 			return nil, p.syntaxErrorAtCur()
 		}
-		if sc.Value, err = p.parseExpr(); err != nil {
-			return nil, err
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
+			selTok := p.peekNext()
+			if sc.Value, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+			if p.prev.Type != ')' {
+				return nil, p.syntaxErrorAtTok(selTok)
+			}
+		} else {
+			if sc.Value, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -281,10 +294,24 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			p.advance()
 			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1140 error
-		sc.Value, parseErr1140 = p.parseExpr()
-		if parseErr1140 != nil {
-			return nil, parseErr1140
+		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
+			selTok := p.peekNext()
+			sc.Value, parseErr1140 = p.parseExpr()
+			if parseErr1140 != nil {
+				return nil, parseErr1140
+			}
+			if p.prev.Type != ')' {
+				return nil, p.syntaxErrorAtTok(selTok)
+			}
+		} else {
+			sc.Value, parseErr1140 = p.parseExpr()
+			if parseErr1140 != nil {
+				return nil, parseErr1140
+			}
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -296,6 +323,9 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	// Single column: col = expr
 	if !p.isIdentLike() {
 		return nil, nil
+	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
 	}
 
 	col, parseErr1141 := p.parseColumnRef()
@@ -325,10 +355,24 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 		}
 		p.advance()
 	} else {
+		if p.cur.Type == kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1142 error
-		sc.Value, parseErr1142 = p.parseExpr()
-		if parseErr1142 != nil {
-			return nil, parseErr1142
+		if p.cur.Type == '(' && p.peekNext().Type == kwSELECT {
+			selTok := p.peekNext()
+			sc.Value, parseErr1142 = p.parseExpr()
+			if parseErr1142 != nil {
+				return nil, parseErr1142
+			}
+			if p.prev.Type != ')' {
+				return nil, p.syntaxErrorAtTok(selTok)
+			}
+		} else {
+			sc.Value, parseErr1142 = p.parseExpr()
+			if parseErr1142 != nil {
+				return nil, parseErr1142
+			}
 		}
 		if sc.Value == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -356,7 +400,7 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 	}
 	target := &nodes.TableRef{Loc: nodes.Loc{Start: start}}
 	var parseErr1151 error
-	target.Name, parseErr1151 = p.parseObjectName()
+	target.Name, parseErr1151 = p.parseReservedCheckedObjectName()
 	if parseErr1151 != nil {
 		return nil, parseErr1151
 	}

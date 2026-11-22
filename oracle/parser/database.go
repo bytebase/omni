@@ -1187,7 +1187,7 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) (nodes.StmtNode, erro
 	var parseErr669 error
 
 	// PDB name
-	stmt.Name, parseErr669 = p.parseObjectName()
+	stmt.Name, parseErr669 = p.parseReservedCheckedObjectName()
 	if parseErr669 != nil {
 		return nil,
 

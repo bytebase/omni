@@ -322,6 +322,8 @@ func (p *Parser) parseGrantPrivileges() (*grantPrivileges, error) {
 		if p.cur.Type == kwPRIVILEGES {
 			g.privileges = true
 			p.advance()
+		} else if p.isStatementEnd() || p.cur.Type == kwPROCEDURE {
+			return nil, p.syntaxErrorAtTok(g.allStart)
 		}
 		return g, nil
 	}
@@ -344,6 +346,9 @@ func (p *Parser) parseGrantPrivileges() (*grantPrivileges, error) {
 		}
 		if p.cur.Type == '(' {
 			if !grantColumnPrivileges[item.name] {
+				if !grantObjectPrivileges.names[item.name] && !auditSystemPrivileges.names[item.name] {
+					return nil, p.syntaxErrorAtTok(item.start)
+				}
 				return nil, p.syntaxErrorAtCur()
 			}
 			item.columns, item.hasCols = p.cur, true

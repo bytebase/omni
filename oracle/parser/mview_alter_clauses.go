@@ -50,7 +50,7 @@ func (p *Parser) parseAlterMviewStmt(start int) (*nodes.AlterMaterializedViewStm
 		stmt.IfExists = true
 	}
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
 	}

@@ -10,14 +10,15 @@ server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
 are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483,
-#1486, #1530, and Wave 2 (unclosed-`(` deferral and follow-up grammar readings):
+#1486, #1530, Wave 2 (unclosed-`(` deferral and follow-up grammar readings), and
+Wave 3 (partition/nested-table/column-datatype/DML/DDL grammar readings):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,533 | 376 | 4 | 621 |
-| Near-misses | 31,318 | 28,647 | 2,491 | 107 | 73 |
-| Hand rows | 1,010 | 889 | 102 | 17 | 2 |
+| One per alternative | 14,534 | 13,550 | 370 | 4 | 610 |
+| Near-misses | 31,318 | 29,140 | 2,009 | 102 | 67 |
+| Hand rows | 1,010 | 893 | 98 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
 (2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
@@ -60,8 +61,8 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
 | `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
-| `suite:reference` | 321 | 229 | 76 | 16 | 0 |
-| `suite:manifest` | 612 | 590 | 19 | 1 | 2 |
+| `suite:reference` | 321 | 230 | 75 | 16 | 0 |
+| `suite:manifest` | 612 | 593 | 16 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -430,6 +431,26 @@ to 91.91%):
 | `ALTER TABLE a MODIFY(a <type>(...))` (`LOB(a)`, `LOBS(a)`, `CHECKPOINT(...)`) | 9 | the user-defined type name (`ORA-03060`: parenthesized modifiers belong to built-in parameterized types) |
 | `ALTER MATERIALIZED VIEW` `TRUNCATE` / `MODIFY LOB(a, ...)` and `ALTER TABLE UPGRADE` repeated `LOB_partition_storage` | 14 | `TRUNCATE` (26), after `,` in `MODIFY LOB(a, ...)` (39, 40), or inside/at `)` of the second `VARRAY` storage clause |
 | `ALTER TABLE a NO ...`, `CONTAINER_MAP UPDATE`, `SUPPLEMENTAL LOG DATA` / `ANNOTATIONS` duplicates, `MODIFY PARTITION ADD VALUES LESS THAN`, hash `TABLESPACE SET`, `ENCRYPT NO zzz SALT`, `CREATE TABLE (PARTITION READ ...)`, and `SELECT ... VERSIONS FOR` | 29 | `NO` (14), `VALUES` / EOF in `CONTAINER_MAP UPDATE`, the token after duplicate `ALL`/`a`, `LESS` (44, 56), `SET` (47, 72), `zzz` (40), `ONLY` (30), or `a` (29) |
+
+Wave 3 moved 514 more rows to Oracle's exact cell (57 fewer `omni_first`, 435 net
+fewer `oracle_first`, 5 fewer only-Oracle-accepts, and 17 fewer only-omni-accepts,
+bringing exact byte match from 91.91% to 93.00% and verdict agreement from 98.24%
+to 98.29%):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` `NESTED TABLE ... STORE AS storage ( ...` | 101 | the nested item name when the storage table's parenthesized group is unclosed (`skipParenthesizedBalanced`) |
+| `CREATE`/`ALTER TABLE` & `CREATE VIEW` column datatypes, constraints, and properties (non-reserved keyword UDT datatypes, user-defined type `(`, `GENERATED AS(`, `DEFAULT ON NULL INSERT`, duplicate identity options, `SUPPLEMENTAL LOG GROUP(`, `RENAME LOB`, `DROP(PERIOD`, `ENABLE LOGICAL REPLICATION`, `MODIFY CLUSTERING`, `INMEMORY NO ...`, `ILM ENABLE/DISABLE`, `CONSTRAINT` missing body, `GLOBAL`/`PRIVATE` table modifiers) | 96 | the column datatype/clause keyword or missing `old_lob_name` / `KEYS` / `POLICY` / constraint keyword |
+| Query & DML clauses (`SELECT`, `WITH`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`: required `INTO`, reserved target/CTE/SET names, `RETURNING INTO`, `AS SCN`/`TIMESTAMP`/`PERIOD`, `START WITH` without `CONNECT BY`, `SAMPLE BLOCK`, unclosed `PARTITION(`/`SUBPARTITION(`/`TABLE()(`/`(SELECT`) | 70 | the missing keyword, reserved word, or opening `(` / clause word |
+| Partition & subpartition clauses (`ALTER TABLE`/`MVIEW`/`MVLOG`/`INDEX` `ADD`/`MODIFY`/`MERGE` partition/subpartition bare name & `COMPRESS` trailing-token blame, `VALUES` identifier rejection, `OVERFLOW TABLESPACE`, `MVIEW` `SUBPARTITION TEMPLATE ... INDEXING`) | 69 | the partition/subpartition name, `COMPRESS`, `OVERFLOW`, `INDEXING`, `UPDATE`, or `)` after an invalid bound identifier |
+| Reserved object, schema, user, and dblink name checks (`DROP`/`ALTER ... EXISTS`, `CREATE DIRECTORY`/`PACKAGE`/`TYPE BODY`/`SCHEMA`/`JSON DUALITY VIEW`/`USER`/`DATABASE LINK`) | 50 | the reserved keyword in the object/schema/user name position |
+| Utility statements (`LOCK TABLE`, `CALL`, `FLASHBACK TABLE`, `RENAME`, `ANALYZE`, `EXPLAIN`, `COMMENT ON COLUMN`) | 31 | the reserved name, routine start, `PARTITION`/`SUBPARTITION`, `BEFORE`, or missing `(` / `:` |
+| `CREATE TABLE` / `CREATE MATERIALIZED VIEW` / `CREATE MATERIALIZED VIEW LOG` `PARTITION BY HASH` attributes | 21 | the bare hash partition name or `[NO]COMPRESS` when followed by an unexpected non-EOF token, and `LOB` storage start |
+| `GRANT ALL` and non-privilege column-list checks | 15 | `ALL` at EOF / `PROCEDURE`, or the non-privilege name before `(` |
+| `OPAQUE`, `XMLTYPE`, `XMLSCHEMA`, and `MVIEW REFRESH START WITH`/`NEXT` clauses | 10 | the missing `TYPE`/`ALL`, reserved `AS` in `XMLTYPE`/`REFRESH`, or `STORE` |
+| `CREATE ... IF EXISTS` and `IF NOT <non-EXISTS>` | 10 | `IF` across table, procedure, function, package, trigger, type, index, view, materialized view, zonemap, and admin DDL |
+| `ALTER TABLE`/`MVIEW`/`MVLOG` `SPLIT [SUB]PARTITION INTO` and `SPLIT PARTITION ... NESTED TABLE` | 8 | `PARTITION` when `(` is missing after `INTO`, `,` on `SPLIT SUBPARTITION ... INTO`, or the nested table column when `INTO` is missing |
+| Other DDL (`PDB` `AS SEED`/`CONTAINER_MAP`/`CREATE SNAPSHOT`/`SET NOLOGGING`, `CREATE MLE MODULE`, `INMEMORY JOIN GROUP`, `KEY MANAGEMENT`, `DOMAIN`, `INDEX LOCAL(PARTITION PARAMETERS('s'`, `OPERATOR BINDING`, `RESTORE POINT AS OF`, `AUDIT POLICY BY WITH`, `PROPERTY GRAPH`) | 33 | the clause keyword, object/partition name, or `'s'` literal at EOF |
 
 The remaining rows are spread thin. These are the
 largest, and a row may be one of several, so the counts are not disjoint.

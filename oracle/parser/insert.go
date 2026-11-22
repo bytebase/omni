@@ -143,7 +143,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	}
 	if p.isIdentLike() {
 		var parseErr775 error
-		stmt.Table, parseErr775 = p.parseObjectName()
+		stmt.Table, parseErr775 = p.parseReservedCheckedObjectName()
 		if parseErr775 !=
 
 			// Partition extension clause
@@ -424,7 +424,7 @@ func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 	// Table name
 	if p.isIdentLike() {
 		var parseErr792 error
-		clause.Table, parseErr792 = p.parseObjectName()
+		clause.Table, parseErr792 = p.parseReservedCheckedObjectName()
 		if parseErr792 !=
 
 			// Optional column list
@@ -532,6 +532,9 @@ func (p *Parser) parseReturningClause() (*nodes.List, bool, error) {
 			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
 				return nil, false, err
 			}
+		}
+		if p.cur.Type == kwINTO {
+			return nil, false, p.syntaxErrorAtCur()
 		}
 		item, err := p.parseExpr()
 		if err != nil {

@@ -70,6 +70,10 @@ func (p *Parser) parseCreateRestorePointStmt(start int, clean *Token) (nodes.Stm
 		if err != nil {
 			return nil, err
 		}
+		if _, ok := expr.(*nodes.ColumnRef); ok && !p.isStatementEnd() &&
+			!p.isKeywordStr("PRESERVE") && !p.isKeywordStr("GUARANTEE") {
+			return nil, p.syntaxErrorAtNode(expr)
+		}
 		add("AS OF", kind, optStart, &nodes.List{Items: []nodes.Node{expr}})
 	}
 

@@ -771,6 +771,7 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 	if err := p.expectCreateTableToken(kwTABLE); err != nil {
 		return err
 	}
+	itemTok := p.cur
 	if p.cur.Type == kwCOLUMN_VALUE {
 		p.advance()
 	} else if err := p.parseCreateTableNestedItem(); err != nil {
@@ -794,9 +795,8 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 		return err
 	}
 	if p.cur.Type == '(' {
-		p.skipParenthesized()
-		if p.prev.Type != ')' {
-			return p.syntaxErrorAtCur()
+		if !p.skipParenthesizedBalanced() {
+			return p.syntaxErrorAtTok(itemTok)
 		}
 	}
 	if p.cur.Type == kwRETURN {
@@ -946,6 +946,7 @@ func (p *Parser) parseCreateTableSize() error {
 //	    | DELETE_ALL | ENABLE_ALL | DISABLE_ALL
 //	    }
 func (p *Parser) parseCreateTableIlmClause() error {
+	ilmTok := p.cur
 	p.advance() // consume ILM
 	switch {
 	case p.cur.Type == kwADD:
@@ -955,8 +956,11 @@ func (p *Parser) parseCreateTableIlmClause() error {
 		}
 		return p.parseCreateTableIlmPolicy()
 	case p.cur.Type == kwDELETE, p.cur.Type == kwENABLE, p.cur.Type == kwDISABLE:
-		p.advance()
+		actionTok := p.advance()
 		if err := p.expectCreateTableWord("POLICY"); err != nil {
+			if actionTok.Type != kwDELETE {
+				return p.syntaxErrorAtTok(ilmTok)
+			}
 			return err
 		}
 		err := p.parseCreateTableName()
@@ -1587,9 +1591,9 @@ func (p *Parser) parseCreateTableXMLSchemaSpec() error {
 		return err
 	}
 	if p.isKeywordStr("STORE") {
-		p.advance()
+		storeTok := p.advance()
 		if err := p.expectCreateTableToken(kwALL); err != nil {
-			return err
+			return p.syntaxErrorAtTok(storeTok)
 		}
 		if err := p.expectCreateTableWord("VARRAYS"); err != nil {
 			return err
@@ -1749,6 +1753,7 @@ func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) er
 //	supplemental_id_key_clause:
 //	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
 func (p *Parser) parseCreateTableSupplementalLogging() error {
+	suppTok := p.cur
 	p.advance() // consume SUPPLEMENTAL
 	if err := p.expectCreateTableWord("LOG"); err != nil {
 		return err
@@ -1788,6 +1793,9 @@ func (p *Parser) parseCreateTableSupplementalLogging() error {
 	}
 	if err := p.expectCreateTableToken(kwGROUP); err != nil {
 		return err
+	}
+	if p.cur.Type == '(' {
+		return p.syntaxErrorAtTok(suppTok)
 	}
 	if err := p.parseCreateTableName(); err != nil {
 		return err

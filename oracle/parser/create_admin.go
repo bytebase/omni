@@ -95,6 +95,9 @@ func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, erro
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume AUTHORIZATION
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.isIdentLike() {
 		stmt.SchemaName = p.cur.Str
 		p.advance()
@@ -312,7 +315,7 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 			}
 		}
 		var parseErr198 error
-		stmt.Name, parseErr198 = p.parseObjectName()
+		stmt.Name, parseErr198 = p.parseReservedCheckedObjectName()
 		if parseErr198 != nil {
 			return nil, parseErr198
 		}
@@ -680,7 +683,7 @@ func (p *Parser) parseDropClusterStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr281 := p.parseObjectName()
+	name, parseErr281 := p.parseReservedCheckedObjectName()
 	if parseErr281 != nil {
 		return nil, parseErr281
 	}
@@ -896,15 +899,20 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
-	if !ifNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.advance()
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	// IF NOT EXISTS: IF NOT without EXISTS, or IF EXISTS, is ORA-11543 at IF.
+	if !ifNotExists && p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.advance()
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance()
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error
@@ -1402,7 +1410,7 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.Stmt
 	}
 	var parseErr387 error
 
-	stmt.Name, parseErr387 = p.parseObjectName()
+	stmt.Name, parseErr387 = p.parseReservedCheckedObjectName()
 	if parseErr387 != nil {
 		return nil, parseErr387
 	}
@@ -1634,7 +1642,7 @@ func (p *Parser) parseDropEditionStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr401 := p.parseObjectName()
+	name, parseErr401 := p.parseReservedCheckedObjectName()
 	if parseErr401 != nil {
 		return nil, parseErr401
 	}
@@ -1681,7 +1689,7 @@ func (p *Parser) parseDropJavaStmt(start int) (*nodes.DropStmt, error) {
 		}
 	}
 
-	name, parseErr409 := p.parseObjectName()
+	name, parseErr409 := p.parseReservedCheckedObjectName()
 	if parseErr409 != nil {
 		return nil, parseErr409
 	}

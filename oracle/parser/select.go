@@ -1202,6 +1202,9 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
+	if p.cur.Type == kwAS && (p.peekNext().Type == kwSCN || p.peekNext().Type == kwTIMESTAMP || isCreateTableWordTok(p.peekNext(), "PERIOD")) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwVERSIONS || (p.cur.Type == kwAS && p.peekNext().Type == kwOF) {
 		var parseErr974 error
 		tr.Flashback, parseErr974 = p.parseFlashbackClause()
@@ -1357,9 +1360,10 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		return nil, parseErr979
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
 		ref.Loc.End = p.prev.End
@@ -1940,7 +1944,9 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 	}
 
 	// START WITH first, then CONNECT BY
+	var startTok Token
 	if p.cur.Type == kwSTART {
+		startTok = p.cur
 		if err := startWith(); err != nil {
 			return nil, err
 		}
@@ -1963,6 +1969,8 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 		if hc.ConnectBy == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+	} else if hc.StartWith != nil {
+		return nil, p.syntaxErrorAtTok(startTok)
 	}
 
 	// START WITH may come after CONNECT BY
@@ -2251,7 +2259,7 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 	}
 
 	start := p.pos()
-	name, parseErr1019 := p.parseIdentifier()
+	name, parseErr1019 := p.parseObjectNameIdentifier()
 	if parseErr1019 != nil {
 		return nil, parseErr1019
 	}
@@ -2299,7 +2307,7 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 			if !p.isIdentLike() {
 				return nil, p.syntaxErrorAtCur()
 			}
-			col, parseErr1020 := p.parseIdentifier()
+			col, parseErr1020 := p.parseObjectNameIdentifier()
 			if parseErr1020 != nil {
 				return nil, parseErr1020
 			}
@@ -3259,6 +3267,9 @@ func (p *Parser) parsePartitionExtClause(emptyAtOpen bool) (*nodes.PartitionExtC
 		}
 	}
 	if p.cur.Type != ')' {
+		if emptyAtOpen && !pe.IsFor {
+			return nil, p.syntaxErrorAtTok(open)
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
@@ -3310,11 +3321,15 @@ func (p *Parser) parseTableCollectionExpr(start int) (nodes.TableExpr, error) {
 	p.advance()
 
 	// Optional (+)
-	if p.cur.Type == '(' && p.peekNext().Type == '+' {
+	if p.cur.Type == '(' {
+		open := p.cur
+		if p.peekNext().Type != '+' {
+			return nil, p.syntaxErrorAtTok(open)
+		}
 		p.advance() // (
 		p.advance() // +
 		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtTok(open)
 		}
 		p.advance()
 		tc.OuterJoin = true

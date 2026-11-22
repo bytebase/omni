@@ -78,7 +78,8 @@ type Parser struct {
 	// description list is parsed. Oracle reads a description's values
 	// without VALUES, a parenthesized list where a hash subpartition has no
 	// values, and a trailing word there on ALTER MATERIALIZED VIEW.
-	atSubpartitionTemplate bool
+	atSubpartitionTemplate   bool
+	atLastSubpartitionMethod atMethod
 
 	// createTablePartitionsOfLog is set while CREATE MATERIALIZED VIEW LOG's
 	// table_partitioning_clauses are read with CREATE TABLE's reader: a
@@ -87,6 +88,9 @@ type Parser struct {
 	// (ORA-14020, 14160, 14006 at the rest), and it takes neither STORE IN
 	// after AUTOMATIC nor compression after PARTITIONS (ORA-12044).
 	createTablePartitionsOfLog bool
+	// createTablePartitionsOfMview is set while CREATE MATERIALIZED VIEW's
+	// table_partitioning_clauses are read with CREATE TABLE's reader.
+	createTablePartitionsOfMview bool
 
 	// createTableEngineCheck is set while CREATE TABLE is parsed once a
 	// clause Oracle checks against the table before it asks for a missing

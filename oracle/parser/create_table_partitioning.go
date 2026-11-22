@@ -414,13 +414,34 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 	}
 	p.advance() // consume PARTITION
 	def := &nodes.PartitionDef{Values: &nodes.List{}, Loc: nodes.Loc{Start: start}}
+	var nameTok Token
+	hasName := false
 	if p.isCreateTablePartitionName(bound) {
+		nameTok = p.cur
+		hasName = true
 		def.Name = p.cur.Str
 		p.advance()
 	}
+	afterNamePos := p.pos()
+	firstAttrTok := p.cur
 	if bound == createTableHashBound {
 		if err := p.parseCreateTableHashPartitionAttributes(def); err != nil {
+			if hasName && p.pos() == afterNamePos && p.cur.Type != tokEOF {
+				return nil, p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) && p.prev.Loc == firstAttrTok.Loc && p.cur.Type != tokEOF {
+				return nil, p.syntaxErrorAtTok(firstAttrTok)
+			}
 			return nil, err
+		}
+		if p.cur.Type != ',' && p.cur.Type != ')' &&
+			!(composite && (p.cur.Type == '(' || (sub == createTableHashBound && p.isKeywordStr("SUBPARTITIONS")))) {
+			if hasName && p.pos() == afterNamePos {
+				return nil, p.syntaxErrorAtTok(nameTok)
+			}
+			if !hasName && (firstAttrTok.Type == kwCOMPRESS || firstAttrTok.Type == kwNOCOMPRESS) {
+				return nil, p.syntaxErrorAtTok(firstAttrTok)
+			}
 		}
 	} else {
 		if err := p.parseCreateTablePartitionBound(bound, def); err != nil {
@@ -496,6 +517,12 @@ func (p *Parser) parseCreateTablePartitionBound(bound createTablePartitionKind, 
 		}
 		if val == nil {
 			return p.syntaxErrorAtCur()
+		}
+		if col, ok := val.(*nodes.ColumnRef); ok && col.Schema == "" && col.Table == "" {
+			if !(bound == createTableRangeBound && col.Column == "MAXVALUE") &&
+				!(bound == createTableListBound && col.Column == "DEFAULT") {
+				return p.syntaxErrorAtCur()
+			}
 		}
 		def.Values.Items = append(def.Values.Items, val)
 		if p.cur.Type != ',' {
@@ -580,7 +607,8 @@ func (p *Parser) isCreateTableHashPartitionAttributeStart() bool {
 	switch {
 	case p.cur.Type == kwREAD, p.cur.Type == kwTABLESPACE, p.isKeywordStr("INDEXING"),
 		p.isKeywordStr("OVERFLOW"), p.isCreateTablePartitionCompressionStart(),
-		p.isCreateTableInmemoryStart(), p.isKeywordStr("ILM"), p.isKeywordStr("VARRAY"):
+		p.isCreateTableInmemoryStart(), p.isKeywordStr("ILM"), p.isKeywordStr("VARRAY"),
+		p.isKeywordStr("LOB"):
 		return true
 	}
 	return p.isCreateTableLobStorageStart()
@@ -623,6 +651,9 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			}
 			p.advance()
 		case p.isKeywordStr("INDEXING"):
+			if p.createTablePartitionsOfMview {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance() // consume INDEXING
 			if p.cur.Type != kwON && !p.isKeywordStr("OFF") {
 				return p.syntaxErrorAtCur()
@@ -640,7 +671,10 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			if p.cur.Type == kwTABLESPACE {
 				p.advance()
 				if err := p.parseCreateTableName(); err != nil {
-					return err
+					return p.syntaxErrorAtTok(overflow)
+				}
+				if p.cur.Type != ',' && p.cur.Type != ')' {
+					return p.syntaxErrorAtTok(overflow)
 				}
 			} else if p.cur.Type != ',' && p.cur.Type != ')' {
 				return p.syntaxErrorAtTok(overflow)
@@ -655,7 +689,7 @@ func (p *Parser) parseCreateTableHashPartitionAttributes(def *nodes.PartitionDef
 			}
 		case p.isKeywordStr("ILM"):
 			return p.syntaxErrorAtCur()
-		case p.isCreateTableLobStorageStart():
+		case p.isCreateTableLobStorageStart(), p.isKeywordStr("LOB"):
 			if err := p.parseCreateTableLobPartitioningStorage(); err != nil {
 				return err
 			}
@@ -807,6 +841,9 @@ func (p *Parser) parseCreateTablePartitionDescription(def *nodes.PartitionDef) e
 			}
 			p.advance()
 		case p.isKeywordStr("INDEXING"):
+			if p.createTablePartitionsOfMview {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance() // consume INDEXING
 			if p.cur.Type != kwON && !p.isKeywordStr("OFF") {
 				return p.syntaxErrorAtCur()

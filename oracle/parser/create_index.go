@@ -44,15 +44,20 @@ func (p *Parser) parseCreateIndexStmt(start int) (*nodes.CreateIndexStmt, error)
 	}
 	p.advance()
 
-	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.advance()
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	// IF NOT EXISTS: IF NOT without EXISTS, or IF EXISTS, is ORA-11543 at IF.
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.advance()
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance()
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error
@@ -290,7 +295,7 @@ func (p *Parser) parseIndexColumn() (*nodes.IndexColumn, error) {
 // NUMBER(1) ORA-29827 at the '(', TIMESTAMP WITH TIME ZONE ORA-00907 at
 // WITH. LONG RAW and DOUBLE PRECISION are the two-word names it takes.
 func (p *Parser) parseOperatorType() (string, error) {
-	if !p.isIdentLike() {
+	if !p.isIdentLike() || p.cur.Type == kwRETURN {
 		return "", p.syntaxErrorAtCur()
 	}
 	name := p.advance().Str
@@ -382,15 +387,20 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 		Loc:       nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
-		ifTok := p.advance()
-		p.advance() // NOT
-		if p.cur.Type != kwEXISTS {
-			return nil, p.syntaxErrorAtTok(ifTok)
+	// IF NOT EXISTS: IF NOT without EXISTS, or IF EXISTS, is ORA-11543 at IF.
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance()
-		stmt.IfNotExists = true
+		if p.peekNext().Type == kwNOT {
+			ifTok := p.advance()
+			p.advance() // NOT
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance()
+			stmt.IfNotExists = true
+		}
 	}
 
 	var err error

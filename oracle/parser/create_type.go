@@ -57,7 +57,7 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 	var parseErr573 error
 
 	// Type name
-	stmt.Name, parseErr573 = p.parseObjectName()
+	stmt.Name, parseErr573 = p.parseReservedCheckedObjectName()
 	if parseErr573 != nil {
 		return nil, parseErr573
 	}

@@ -1597,9 +1597,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		}
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	return p.parseFuncCallPostfix(fc)
 }
@@ -2086,9 +2087,10 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		}, nil
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	return &nodes.ParenExpr{
 		Expr: inner,

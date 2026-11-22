@@ -63,7 +63,7 @@ func (p *Parser) parseCreateUserStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 		stmt.IfNotExists = true
 	}
-	name, err := p.parseObjectName()
+	name, err := p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (p *Parser) parseAlterUserStmt(start int) (nodes.StmtNode, error) {
 	if !p.isIdentLike() {
 		return nil, p.syntaxErrorAtCur()
 	}
-	name, err := p.parseObjectName()
+	name, err := p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
 	}
