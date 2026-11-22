@@ -191,11 +191,11 @@ func (p *Parser) parseNotExpression() error {
 		p.advance()
 		p.advance()
 		if p.startsWithCompleteParenQuery() {
-			if err := p.parseQuery(); err == nil {
-				if _, err := p.expect(tokRParen); err == nil {
-					return nil
-				}
+			if err := p.parseQuery(); err != nil {
+				return err
 			}
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		p.restore(cp)
 	}
@@ -273,12 +273,11 @@ func (p *Parser) parseOptionalPredicate() error {
 		p.advance()
 		// Could be IN (query) or IN (expression (, expression)*)
 		if p.startsWithCompleteParenQuery() {
-			cpIn := p.save()
-			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-				p.advance()
-				return nil
+			if err := p.parseQuery(); err != nil {
+				return err
 			}
-			p.restore(cpIn)
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		if err := p.parseExpression(); err != nil {
 			return err
@@ -647,10 +646,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			if err := p.parseDataType(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
@@ -670,9 +667,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if p.match(tokRParen) {
 			return p.parseFunctionCallSuffixes()
 		}
-		if p.isFunctionSetQuantifier() {
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
 			p.advance()
 		}
+		hasAlias := false
 		for {
 			if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
 				p.advance()
@@ -681,8 +680,17 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 					return err
 				}
 			} else {
-				if err := p.parseNamedExpression(); err != nil {
+				if err := p.parseExpression(); err != nil {
 					return err
+				}
+				if !hasQuantifier && p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
+					before := p.pos
+					if err := p.parseOptionalNamedExprAlias(); err != nil {
+						return err
+					}
+					if p.pos > before {
+						hasAlias = true
+					}
 				}
 			}
 			if !p.match(tokComma) {
@@ -691,6 +699,9 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		}
 		if _, err := p.expect(tokRParen); err != nil {
 			return err
+		}
+		if hasAlias {
+			return nil
 		}
 		return p.parseFunctionCallSuffixes()
 
@@ -715,7 +726,7 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			p.advance()
 			p.advance()
 			p.advance()
-			return p.parseFunctionCallSuffixes()
+			return nil
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
@@ -746,10 +757,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
@@ -774,10 +783,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		if p.isFunctionSetQuantifier() {
 			p.advance()
@@ -820,10 +827,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 					return err
 				}
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		if p.match(tokComma) {
 			isNamed2 := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
@@ -834,10 +839,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
+				_, err := p.expect(tokRParen)
+				return err
 			}
 			for p.match(tokComma) {
 				if err := p.parseFunctionArgument(); err != nil {
@@ -874,20 +877,16 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		hasQuantifier := p.isFunctionSetQuantifier()
 		if hasQuantifier {
@@ -902,10 +901,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
@@ -949,10 +946,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 					return err
 				}
 			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
+			_, err := p.expect(tokRParen)
+			return err
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
@@ -1017,17 +1012,16 @@ func (p *Parser) parseParenthesizedPrimary() error {
 	}
 	p.restore(cp)
 
-	// 2. Subquery: (query) — only attempt when a complete parenthesized query
-	// can reach the matching ')' without hitting a row-constructor comma or
-	// expression operator after an inner parenthesized subquery.
+	// 2. Subquery: (query) — once identified as a complete parenthesized query,
+	// commit directly without restoring/retrying as an expression so nested
+	// malformed queries like `SELECT ((SELECT 1 +))` fail in linear time.
 	p.advance() // '('
 	if p.startsWithCompleteParenQuery() {
-		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-			p.advance()
-			return nil
+		if err := p.parseQuery(); err != nil {
+			return err
 		}
-		p.restore(cp)
-		p.advance() // '('
+		_, err := p.expect(tokRParen)
+		return err
 	}
 
 	// 3. Single-pass parenthesized expression `(expr)` OR row constructor

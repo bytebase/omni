@@ -43,7 +43,7 @@ func TestParseStatements(t *testing.T) {
 		},
 		{
 			name: "first last any_value with window and filter suffixes",
-			sql:  `SELECT first(x) OVER (ORDER BY x), last(x) OVER (), any_value(x) FILTER (WHERE x > 0), first(x IGNORE NULLS) OVER (PARTITION BY k) FROM t`,
+			sql:  `SELECT first(x) OVER (ORDER BY x), last(x) OVER (), any_value(x) FILTER (WHERE x > 0), first(x) IGNORE NULLS OVER (PARTITION BY k), first(x IGNORE NULLS) FROM t`,
 			kind: StmtQuery,
 		},
 		{
@@ -494,6 +494,15 @@ func TestParseErrors(t *testing.T) {
 		{"overlay named arg with PLACING", "SELECT OVERLAY(k => s PLACING x FROM 1)"},
 		{"trim named arg with FROM", "SELECT TRIM(k => ' ' FROM s)"},
 		{"nested malformed dynamic identifier table", strings.Repeat("SELECT * FROM IDENTIFIER((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"nested malformed parenthesized query", strings.Repeat("SELECT ((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"nested malformed from subquery", strings.Repeat("SELECT * FROM ((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"cast AS with OVER suffix", "SELECT CAST(x AS INT) OVER () FROM t"},
+		{"trim FROM with OVER suffix", "SELECT TRIM(x FROM s) OVER () FROM t"},
+		{"extract FROM with OVER suffix", "SELECT EXTRACT(YEAR FROM d) OVER () FROM t"},
+		{"position IN with OVER suffix", "SELECT POSITION('a' IN s) OVER () FROM t"},
+		{"substring FROM with OVER suffix", "SELECT SUBSTRING(s FROM 1) OVER () FROM t"},
+		{"overlay PLACING with OVER suffix", "SELECT OVERLAY(s PLACING 'a' FROM 1) OVER () FROM t"},
+		{"first IGNORE NULLS with OVER suffix", "SELECT FIRST(x IGNORE NULLS) OVER () FROM t"},
 	}
 
 	for _, tc := range bad {

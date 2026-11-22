@@ -891,21 +891,22 @@ func (p *Parser) parseRelationPrimary() error {
 		}
 
 	case tokLParen:
-		cp := p.save()
 		p.advance()
-		// Try (query) only when a complete parenthesized query can match up to ')'.
+		// Commit directly to (query) once identified as a complete parenthesized query
+		// so nested malformed subqueries in FROM never reparse exponentially.
 		if p.startsWithCompleteParenQuery() {
-			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-				p.advance()
-				if p.cur().Kind == kwTABLESAMPLE {
-					if err := p.parseSample(); err != nil {
-						return err
-					}
-				}
-				return p.parseTableAlias()
+			if err := p.parseQuery(); err != nil {
+				return err
 			}
-			p.restore(cp)
-			p.advance()
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			if p.cur().Kind == kwTABLESAMPLE {
+				if err := p.parseSample(); err != nil {
+					return err
+				}
+			}
+			return p.parseTableAlias()
 		}
 		if err := p.parseRelation(); err != nil {
 			return err
@@ -1240,18 +1241,47 @@ func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
 	}
 	switch p.peek(i).Kind {
 	case kwSELECT, kwFROM:
-		return true
+		// Bare `(SELECT)` / `(FROM)` with nothing following is an identifier
+		// (Spark non-ANSI mode includes SELECT/FROM in nonReserved), not a query.
+		next := p.peek(i + 1).Kind
+		return next != tokRParen && next != tokEOF && next != tokSemicolon
 	case kwVALUES:
 		return p.isValuesQueryAt(i, true)
 	case kwWITH:
 		next := p.peek(i + 1).Kind
 		return next == kwRECURSIVE || next.isIdentifier()
 	case kwTABLE:
-		return p.peek(i + 1).Kind.isIdentifier()
+		// `TABLE identRef` query vs row constructor `(table a, b)` or joined relation `(table a JOIN t2)`.
+		if !p.peek(i+1).Kind.isIdentifier() && p.peek(i+1).Kind != kwIDENTIFIER {
+			return false
+		}
+		return !p.hasCommaOrJoinAtDepthZero(i + 2)
 	case kwMAP, kwREDUCE:
 		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
 	return false
+}
+
+func (p *Parser) hasCommaOrJoinAtDepthZero(startOffset int) bool {
+	depth := 0
+	for i := startOffset; ; i++ {
+		k := p.peek(i).Kind
+		switch k {
+		case tokEOF, tokSemicolon:
+			return false
+		case tokLParen, tokLBracket:
+			depth++
+		case tokRParen, tokRBracket:
+			if depth == 0 {
+				return false
+			}
+			depth--
+		case tokComma, kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL, kwPIVOT, kwUNPIVOT:
+			if depth == 0 {
+				return true
+			}
+		}
+	}
 }
 
 func (p *Parser) isIdentRefSpan(startOffset, endOffset int) bool {
