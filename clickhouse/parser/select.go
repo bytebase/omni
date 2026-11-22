@@ -539,70 +539,95 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 		return nil, err
 	}
 	spec := &WindowSpec{span: span{Pos: lp.Pos}}
-	// Optional base window name: OVER (existing_window_name [PARTITION BY ...] ...)
-	if isIdentifier(p.cur()) &&
-		!(p.cur().Type == KwPartition && p.peek(1).Type == KwBy) &&
-		!(p.cur().Type == KwOrder && p.peek(1).Type == KwBy) &&
-		p.cur().Type != KwRows && p.cur().Type != KwRange {
-		spec.BaseWindow = p.advance().Val
-	}
-	if p.cur().Type == KwPartition && p.peek(1).Type == KwBy {
-		p.advance()
-		p.advance()
-		// Parse partition keys without consuming ROWS/RANGE as an implicit alias.
-		var exprs []Expr
-		for {
-			var expr Expr
-			var err error
-			if p.cur().Type == TokStar {
-				expr, err = p.parseStarExpr(nil, p.cur().Pos)
-			} else if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
-				expr, err = p.parseStarExpr(parts, startPos)
+	// ClickHouse's ParserWindowDefinition parses PARTITION BY / ORDER BY / frame
+	// clauses in a loop where an optional parent_window_name may appear either
+	// before or after the clauses (once). If a frame bound fails before
+	// PRECEDING/FOLLOWING, the cursor remains at the offending token so an unset
+	// parent_window_name can still be tried.
+	hasBaseWindow := false
+	for {
+		if p.cur().Type == KwPartition && p.peek(1).Type == KwBy {
+			p.advance()
+			p.advance()
+			// Parse partition keys without consuming ROWS/RANGE/GROUPS or a
+			// trailing parent window name as an implicit alias.
+			var exprs []Expr
+			for {
+				var expr Expr
+				var err error
+				if p.cur().Type == TokStar {
+					expr, err = p.parseStarExpr(nil, p.cur().Pos)
+				} else if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
+					expr, err = p.parseStarExpr(parts, startPos)
+				} else {
+					expr, err = p.parseExpr()
+				}
+				if err != nil {
+					return nil, err
+				}
+				exprs = append(exprs, expr)
+				if !p.match(TokComma) {
+					break
+				}
+			}
+			spec.PartitionBy = exprs
+		}
+		if p.cur().Type == KwOrder && p.peek(1).Type == KwBy {
+			p.advance()
+			p.advance()
+			items, err := p.parseOrderExprList()
+			if err != nil {
+				return nil, err
+			}
+			spec.OrderBy = items
+		}
+		frameFailed := false
+		if p.cur().Type == KwRows || p.cur().Type == KwRange || p.isWord("GROUPS") {
+			units := strings.ToUpper(p.advance().Val)
+			if p.match(KwBetween) {
+				startBound, hardErr, ok := p.parseWindowFrameBound(true)
+				if hardErr != nil {
+					return nil, hardErr
+				}
+				if !ok {
+					frameFailed = true
+				} else if !p.match(KwAnd) {
+					frameFailed = true
+				} else {
+					endBound, hardErr, ok := p.parseWindowFrameBound(false)
+					if hardErr != nil {
+						return nil, hardErr
+					}
+					if !ok {
+						frameFailed = true
+					} else {
+						spec.FrameUnits = units
+						spec.FrameStart = startBound
+						spec.FrameEnd = endBound
+					}
+				}
 			} else {
-				expr, err = p.parseExpr()
-			}
-			if err != nil {
-				return nil, err
-			}
-			exprs = append(exprs, expr)
-			if !p.match(TokComma) {
-				break
+				startBound, hardErr, ok := p.parseWindowFrameBound(true)
+				if hardErr != nil {
+					return nil, hardErr
+				}
+				if !ok {
+					frameFailed = true
+				} else {
+					spec.FrameUnits = units
+					spec.FrameStart = startBound
+				}
 			}
 		}
-		spec.PartitionBy = exprs
-	}
-	if p.cur().Type == KwOrder && p.peek(1).Type == KwBy {
-		p.advance()
-		p.advance()
-		items, err := p.parseOrderExprList()
-		if err != nil {
-			return nil, err
+		if !frameFailed && p.cur().Type == TokRParen {
+			break
 		}
-		spec.OrderBy = items
-	}
-	if p.cur().Type == KwRows || p.cur().Type == KwRange {
-		spec.FrameUnits = strings.ToUpper(p.advance().Val)
-		if p.match(KwBetween) {
-			startBound, err := p.parseWindowFrameBound(true)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(KwAnd); err != nil {
-				return nil, err
-			}
-			endBound, err := p.parseWindowFrameBound(false)
-			if err != nil {
-				return nil, err
-			}
-			spec.FrameStart = startBound
-			spec.FrameEnd = endBound
-		} else {
-			startBound, err := p.parseWindowFrameBound(true)
-			if err != nil {
-				return nil, err
-			}
-			spec.FrameStart = startBound
+		if !hasBaseWindow && isIdentifier(p.cur()) {
+			spec.BaseWindow = p.advance().Val
+			hasBaseWindow = true
+			continue
 		}
+		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in window specification", p.cur().Raw))
 	}
 	rp, err := p.expect(TokRParen)
 	if err != nil {
@@ -612,39 +637,53 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 	return spec, nil
 }
 
-func (p *parser) parseWindowFrameBound(isStart bool) (string, error) {
+// parseWindowFrameBound parses a ClickHouse window frame bound:
+//   - CURRENT ROW
+//   - UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING
+//   - <expr> PRECEDING | <expr> FOLLOWING
+//
+// Parse-time semantic errors (UNBOUNDED FOLLOWING as frame start or UNBOUNDED
+// PRECEDING as frame end) and expression parse failures return hardErr so the
+// caller rejects immediately. Missing PRECEDING/FOLLOWING after UNBOUNDED or
+// after a parsed offset expression returns ok=false leaving the cursor at the
+// unexpected token, matching ClickHouse's ParserWindowDefinition.
+func (p *parser) parseWindowFrameBound(isStart bool) (string, error, bool) {
 	startTok := p.cur()
 	if p.cur().Type == KwCurrent && p.peek(1).Type == KwRow {
 		p.advance()
 		p.advance()
-		return "CURRENT ROW", nil
+		return "CURRENT ROW", nil, true
 	}
 	if p.match(KwUnbounded) {
 		if p.match(KwPreceding) {
 			if !isStart {
-				return "", p.errAt(startTok, "frame end cannot be UNBOUNDED PRECEDING")
+				return "", p.errAt(startTok, "frame end cannot be UNBOUNDED PRECEDING"), false
 			}
-			return "UNBOUNDED PRECEDING", nil
+			return "UNBOUNDED PRECEDING", nil, true
 		}
 		if p.match(KwFollowing) {
 			if isStart {
-				return "", p.errAt(startTok, "frame start cannot be UNBOUNDED FOLLOWING")
+				return "", p.errAt(startTok, "frame start cannot be UNBOUNDED FOLLOWING"), false
 			}
-			return "UNBOUNDED FOLLOWING", nil
+			return "UNBOUNDED FOLLOWING", nil, true
 		}
-		return "", p.errAt(p.cur(), "expected PRECEDING or FOLLOWING after UNBOUNDED")
+		return "", nil, false
 	}
-	num, err := p.parseNumberLiteral()
+	expr, err := p.parseExpr()
 	if err != nil {
-		return "", err
+		return "", err, false
+	}
+	raw := ""
+	if s, e := expr.StartPos(), expr.EndPos(); s >= 0 && e >= s && e <= len(p.src) {
+		raw = strings.TrimSpace(p.src[s:e])
 	}
 	if p.match(KwPreceding) {
-		return num.Raw + " PRECEDING", nil
+		return raw + " PRECEDING", nil, true
 	}
 	if p.match(KwFollowing) {
-		return num.Raw + " FOLLOWING", nil
+		return raw + " FOLLOWING", nil, true
 	}
-	return "", p.errAt(p.cur(), "expected PRECEDING or FOLLOWING in window frame bound")
+	return "", nil, false
 }
 
 func (p *parser) parseGroupByClause() (*GroupByClause, error) {

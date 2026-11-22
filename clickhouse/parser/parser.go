@@ -417,13 +417,14 @@ func (p *parser) parseTableIdentifier() (db, table string, err error) {
 }
 
 // isBareAlias reports whether tok can be used as an implicit alias (without AS).
-// Matches ClickHouse's alias rules: clause-introducing keywords and interval
-// units cannot act as implicit aliases.
+// Matches ClickHouse's alias rules: clause-introducing and infix-operator
+// keywords cannot act as implicit aliases, while interval units, IS, and
+// literal keywords (NULL, TRUE, FALSE, INF, NAN) are accepted as bare aliases.
 func isBareAlias(tok Token) bool {
 	if tok.Type == TokIdent || tok.Type == TokQuotedIdent {
 		return true
 	}
-	if !isIdentifier(tok) {
+	if !tok.IsKeyword() {
 		return false
 	}
 	switch tok.Type {
@@ -433,16 +434,11 @@ func isBareAlias(tok Token) bool {
 		KwElse, KwEnd, KwExcept, KwFinal, KwFor, KwFormat,
 		KwFrom, KwFull, KwGlobal, KwGroup, KwGrouping, KwHaving,
 		KwIlike, KwIn, KwInner, KwInterpolate, KwIntersect, KwInterval,
-		KwInto, KwIs, KwJoin, KwLast, KwLeft, KwLike, KwLimit, KwLocal,
+		KwInto, KwJoin, KwLast, KwLeft, KwLike, KwLimit, KwLocal,
 		KwNot, KwNulls, KwOffset, KwOn, KwOr, KwOrder, KwOuter,
 		KwPrewhere, KwQualify, KwRight, KwSample, KwSelect, KwSemi, KwSettings,
 		KwStep, KwThen, KwTo, KwTop, KwUnion, KwUsing, KwWhen, KwWhere,
-		KwWindow, KwWith,
-		// Interval units (ambiguous with INTERVAL 1 DAY etc.)
-		KwNanosecond, KwMicrosecond, KwMillisecond, KwSecond,
-		KwMinute, KwHour, KwDay, KwWeek, KwMonth, KwQuarter, KwYear,
-		// Literals
-		KwTrue, KwFalse, KwNull, KwInf, KwNan:
+		KwWindow, KwWith:
 		return false
 	default:
 		return true

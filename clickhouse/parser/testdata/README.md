@@ -16,8 +16,8 @@ the SHA-256 of the vendored grammar files against the `grammar` row of
 | Rows | Total | Agree | Only ClickHouse accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
 | One per alternative | 1,207 | 1,207 (100.0%) | 0 | 0 |
-| Near-misses | 2,341 | 2,313 (98.8%) | 28 | 0 |
-| **All** | **3,548** | **3,520 (99.2%)** | **28** | **0** |
+| Near-misses | 2,341 | 2,341 (100.0%) | 0 | 0 |
+| **All** | **3,548** | **3,548 (100.0%)** | **0** | **0** |
 
 To record or verify against the pinned ClickHouse container:
 
@@ -60,28 +60,7 @@ settings between `EXPLAIN AST` and the inner query (such as `graph = 1`),
    - Any transport error, timeout, non-allowlisted server error, or inconsistent
      probe fails the recording rather than guessing.
 
-## Remaining disagreements (28 judge-only near-misses, 0 omni-only)
+## Remaining disagreements
 
-All 1,207 grammar alternatives agree and omni has zero false accepts. The 28
-remaining rows are near-misses that ClickHouse's hand-written C++ parser
-accepts permissively:
-
-1. **Permissive `OVER(...)` window definitions (14 rows):** ClickHouse's
-   `ParserWindowDefinition` accepts trailing tokens inside `OVER(...)` (e.g.
-   `OVER(PARTITION BY * zzz)`, `OVER(ROWS CURRENT ROW zzz)`) and loose frame
-   bounds (`OVER(ROWS UNION PRECEDING)`, `OVER(ROWS 1e1 PREWHERE)`,
-   `OVER(ROWS BETWEEN ROW AND CURRENT ROW)`).
-2. **Permissive expression alias/keyword fallbacks (5 rows):** ClickHouse's
-   expression parser allows `IS`, `NULL`, and interval units as bare aliases or
-   identifiers in degenerate positions (`SELECT 1e1 NANOSECOND`,
-   `SELECT INTERVAL NANOSECOND`, `SELECT IS NULL`, `SELECT 1e1 NULL`,
-   `SELECT 1e1 IS`).
-3. **Generic `SYSTEM START <name>` forms (4 rows):** ClickHouse's
-   `ParserSystemQuery` parses `SYSTEM START <action>` broadly (`SYSTEM START a`,
-   `SYSTEM START SENDS`, `SYSTEM START REPLICATED`, `SYSTEM START DISTRIBUTED`).
-4. **Permissive `SHOW POLICIES` forms (3 rows):** `SHOW POLICIES zzz`,
-   `SHOW POLICIES a`, `SHOW POLICIES ON` are accepted by ClickHouse's access
-   entity show parser.
-5. **Miscellaneous parser quirks (2 rows):** empty `GROUP BY` inside a
-   projection (`ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY)`) and
-   `ORDER BY ... OFFSET FIRST` (`SELECT * ORDER BY 1e1 OFFSET FIRST`).
+None — all 3,548 rows (1,207 grammar alternatives and 2,341 near-misses) agree
+with ClickHouse 26.8.38.9 (`0` ClickHouse-only, `0` omni-only).

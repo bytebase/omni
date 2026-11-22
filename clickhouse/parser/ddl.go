@@ -1210,11 +1210,19 @@ func (p *parser) parseTableProjectionDfnt(start int) (*TableElement, error) {
 	}
 	proj.Columns = cols
 	if p.cur().Type == KwGroup && p.peek(1).Type == KwBy {
-		gb, err := p.parseGroupByClause()
-		if err != nil {
-			return nil, err
+		if p.peek(2).Type == TokRParen {
+			// ClickHouse's ParserProjectionSelectQuery permits an empty GROUP BY
+			// immediately before the closing ')'.
+			gbStart := p.advance().Pos // GROUP
+			byTok := p.advance()       // BY
+			proj.GroupBy = &GroupByClause{span: span{Pos: gbStart, End: byTok.End}}
+		} else {
+			gb, err := p.parseGroupByClause()
+			if err != nil {
+				return nil, err
+			}
+			proj.GroupBy = gb
 		}
-		proj.GroupBy = gb
 	}
 	if p.cur().Type == KwOrder && p.peek(1).Type == KwBy {
 		p.advance()
