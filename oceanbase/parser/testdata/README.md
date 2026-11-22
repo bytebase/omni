@@ -64,22 +64,21 @@ What this cannot tell:
   tail before it runs that reduction's action. The grammar's actions raise
   almost nothing but 1064, which needs no probe.
 
-### Remaining `compat.tsv` disagreements (2 rows: `DO a`)
+### Agreement (`20,407 / 20,407`, `100.00%`)
 
-At judge revision 2 (`20,405 / 20,407` agree, `99.99%`; `15,336 / 15,336`
-near-misses agree), `stmt/pl_expr_stmt!insert` (`DO a zzz`) now agrees as
-`reject`. Only two rows remain:
+At judge revision 2 (`PinRole: "parser"` in `../../testdata/pins.tsv`), all
+`20,407` rows of `compat.tsv` agree (`5,071 / 5,071` alternatives and
+`15,336 / 15,336` near-misses, `0` disagreements):
 
-- **Lines 603 (`stmt/pl_expr_stmt`) and 719 (`pl_expr_stmt/DO_expr`): `DO a`**
-  (`omni=accept`, `expected=reject`). In OceanBase CE `v4.3.5_CE_BP6`,
-  `ob_parser.cpp` routes `DO` statements to the PL parser
-  (`src/pl/parser/pl_parser_mysql_mode.y`, `do_sp_stmt`), whose semantic action
-  explicitly rejects any top-level `T_COLUMN_REF` item in `DO expr_list` with
-  `1064` (`Syntax Error, DO statement cannot reference to a table`), while
+- `stmt/pl_expr_stmt!insert` (`DO a zzz`) is judged `reject` by judge revision
+  2 because its `1149` probe fails with `1064` on line 1 rather than on the
+  probe tail's line.
+- `stmt/pl_expr_stmt` and `pl_expr_stmt/DO_expr` (`DO a`) agree as `reject`
+  because `parseDoStmt` matches OceanBase CE `v4.3.5_CE_BP6`'s PL parser
+  (`src/pl/parser/pl_parser_mysql_mode.y`, `do_sp_stmt`), which rejects any
+  top-level `T_COLUMN_REF` item in `DO expr_list` with `1064` while accepting
   non-column expressions (`DO 1`, `DO 1, 2`, `DO SLEEP(0)`, `DO @x := 1`,
-  `DO @@version`) prepare and execute cleanly. `parseDoStmt` will reject bare
-  column references in a separate parser fix PR (kept separate from this judge
-  revision bump per `compatcheck`).
+  `DO @@version`).
 
 ### Statements that crash the server
 
