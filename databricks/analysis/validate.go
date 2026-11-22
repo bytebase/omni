@@ -409,7 +409,7 @@ func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
 			}
 			return isReadOnlyPipeTail(tokens, pairs, i, end)
 		case tokWord:
-			if isPipelineWriteKeyword(tokens[i].val) {
+			if isInsertClause(tokens, i, end) {
 				return false
 			}
 		}
@@ -417,10 +417,10 @@ func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
 	return false
 }
 
-// isReadOnlyPipeTail validates one or more `|> ...` pipe operators starting at
-// start, rejecting empty pipe stages and any top-level write keywords while
-// allowing Databricks read-only column pipe operators such as `|> DROP col` and
-// `|> SET col = expr`.
+// isReadOnlyPipeTail validates one or more `|> ...` pipe stages starting at
+// start. Each stage must begin with a documented read-only Databricks SQL pipe
+// operator; write operations are rejected by syntactic position rather than
+// blocking scalar function names such as replace(...) in stage expressions.
 func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 	i := start
 	for i < end {
@@ -428,12 +428,10 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 			return false
 		}
 		i++
-		if i >= end || tokens[i].kind == tokPipe {
+		if i >= end || tokens[i].kind != tokWord || !isReadOnlyPipeOperator(tokens[i].val) {
 			return false
 		}
-		if tokens[i].kind == tokWord && (isPipelineWriteKeyword(tokens[i].val) || tokens[i].val == "EXPORT") {
-			return false
-		}
+		i++
 		for i < end && tokens[i].kind != tokPipe {
 			switch tokens[i].kind {
 			case tokLParen:
@@ -446,7 +444,7 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 				}
 				i = closeIdx
 			case tokWord:
-				if isPipelineWriteKeyword(tokens[i].val) {
+				if isInsertClause(tokens, i, end) {
 					return false
 				}
 			}
@@ -458,7 +456,8 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 
 // isReadOnlyParenFragment checks a parenthesized fragment inside a FROM or pipe
 // stage: if it starts a WITH or FROM query it must pass isReadOnlyQuery, and if
-// it starts with a write keyword it is rejected.
+// it starts a write statement (not a scalar function call like replace(...)) it
+// is rejected.
 func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
 	for start < end && tokens[start].kind == tokLParen && pairs[start] == end-1 {
 		start++
@@ -467,10 +466,39 @@ func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
 	if start >= end || tokens[start].kind != tokWord {
 		return true
 	}
+	if start+1 < end && tokens[start+1].kind == tokLParen {
+		return true
+	}
 	if tokens[start].val == "WITH" || tokens[start].val == "FROM" {
 		return isReadOnlyQuery(tokens, pairs, start, end)
 	}
-	return !isPipelineWriteKeyword(tokens[start].val)
+	return !isNonReadOnlyLeadKeyword(tokens[start].val)
+}
+
+func isInsertClause(tokens []token, idx, end int) bool {
+	if tokens[idx].kind != tokWord || tokens[idx].val != "INSERT" || idx+1 >= end || tokens[idx+1].kind != tokWord {
+		return false
+	}
+	switch tokens[idx+1].val {
+	case "INTO", "OVERWRITE", "TABLE":
+		return true
+	default:
+		return false
+	}
+}
+
+func isReadOnlyPipeOperator(word string) bool {
+	switch word {
+	case "SELECT", "EXTEND", "SET", "DROP", "AS",
+		"WHERE", "LIMIT", "OFFSET", "AGGREGATE",
+		"ORDER", "SORT", "CLUSTER", "DISTRIBUTE",
+		"UNION", "INTERSECT", "EXCEPT", "MINUS",
+		"JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "SEMI", "ANTI", "NATURAL", "LATERAL",
+		"TABLESAMPLE", "PIVOT", "UNPIVOT", "WINDOW", "QUALIFY", "HAVING":
+		return true
+	default:
+		return false
+	}
 }
 
 // isReadOnlyWith validates a CTE query:
@@ -531,19 +559,6 @@ func isNonReadOnlyLeadKeyword(word string) bool {
 		"OPTIMIZE", "VACUUM", "RESTORE", "REFRESH", "MSCK",
 		"GRANT", "REVOKE", "DENY",
 		"SET", "USE", "CALL", "EXECUTE":
-		return true
-	default:
-		return false
-	}
-}
-
-func isPipelineWriteKeyword(word string) bool {
-	switch word {
-	case "INSERT", "UPDATE", "DELETE", "MERGE", "COPY",
-		"CREATE", "ALTER", "TRUNCATE", "REPLACE",
-		"OPTIMIZE", "VACUUM", "RESTORE", "REFRESH", "MSCK",
-		"GRANT", "REVOKE", "DENY",
-		"CALL", "EXECUTE":
 		return true
 	default:
 		return false
