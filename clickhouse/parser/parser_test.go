@@ -518,3 +518,55 @@ func TestParseInsertValuesSpan(t *testing.T) {
 		t.Errorf("VALUES span text = %q, want %q", got, "INSERT INTO t VALUES (1), (2)")
 	}
 }
+
+func TestParseCreateDictionaryAST(t *testing.T) {
+	sql := `CREATE DICTIONARY db.dict (
+		id UInt64,
+		name String DEFAULT 'unknown' INJECTIVE,
+		parent_id UInt64 HIERARCHICAL,
+		start_date Date,
+		end_date Date
+	)
+	PRIMARY KEY id
+	SOURCE(CLICKHOUSE(HOST 'localhost' PORT 9000 TABLE 'src'))
+	LAYOUT(RANGE_HASHED())
+	LIFETIME(MIN 30 MAX 60)
+	RANGE(MIN start_date MAX end_date)
+	SETTINGS(max_result_bytes = 1024)`
+
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse CREATE DICTIONARY failed: %v", err)
+	}
+	d := stmts[0].(*CreateDictionaryStmt)
+	if d.Database != "db" || d.Name != "dict" {
+		t.Fatalf("dict identity = %s.%s, want db.dict", d.Database, d.Name)
+	}
+	if len(d.Attributes) != 5 {
+		t.Fatalf("got %d attributes, want 5", len(d.Attributes))
+	}
+	if d.Attributes[1].Name != "name" || d.Attributes[1].Type.Name != "String" || d.Attributes[1].Default == nil || d.Attributes[1].Default.Val != "unknown" || !d.Attributes[1].Injective {
+		t.Errorf("attr[1] = %+v", d.Attributes[1])
+	}
+	if !d.Attributes[2].Hierarchical {
+		t.Errorf("attr[2].Hierarchical = false, want true")
+	}
+	if len(d.PrimaryKey) != 1 {
+		t.Errorf("got %d primary key exprs, want 1", len(d.PrimaryKey))
+	}
+	if d.Source == nil || d.Source.Name != "CLICKHOUSE" || len(d.Source.Params) != 3 {
+		t.Errorf("Source = %+v", d.Source)
+	}
+	if d.Layout == nil || d.Layout.Name != "RANGE_HASHED" {
+		t.Errorf("Layout = %+v", d.Layout)
+	}
+	if d.Lifetime == nil || d.Lifetime.Min != "30" || d.Lifetime.Max != "60" {
+		t.Errorf("Lifetime = %+v", d.Lifetime)
+	}
+	if d.Range == nil || d.Range.Min != "start_date" || d.Range.Max != "end_date" {
+		t.Errorf("Range = %+v", d.Range)
+	}
+	if len(d.Settings) != 1 || d.Settings[0].Name != "max_result_bytes" {
+		t.Errorf("Settings = %+v", d.Settings)
+	}
+}

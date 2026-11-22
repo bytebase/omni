@@ -299,10 +299,46 @@ type CreateDictionaryStmt struct {
 	Name        string
 	UUID        string
 	Cluster     string
+	Attributes  []*DictionaryAttr
+	PrimaryKey  []Expr
+	Source      *DictionaryConfig
+	Layout      *DictionaryConfig
+	Lifetime    *DictionaryLifetime
+	Range       *DictionaryRange
+	Settings    []*SettingExpr
 	Output      *OutputClause
 }
 
 func (*CreateDictionaryStmt) stmtNode() {}
+
+type DictionaryAttr struct {
+	span
+	Name         string
+	Type         *DataType
+	Default      *LiteralExpr
+	Expression   Expr
+	Hierarchical bool
+	Injective    bool
+	IsObjectID   bool
+}
+
+type DictionaryConfig struct {
+	span
+	Name   string
+	Params []*SettingExpr
+}
+
+type DictionaryLifetime struct {
+	span
+	Min string
+	Max string
+}
+
+type DictionaryRange struct {
+	span
+	Min string
+	Max string
+}
 
 type CreateFunctionStmt struct {
 	span
@@ -493,6 +529,7 @@ type ExplainStmt struct {
 	span
 	Kind     string // "", "AST", "SYNTAX", "QUERY TREE", "PLAN", "PIPELINE", "ESTIMATE", "TABLE OVERRIDE"
 	Settings []*SettingExpr
+	Table    string // target table for EXPLAIN TABLE OVERRIDE
 	Inner    Statement
 	Output   *OutputClause
 }
@@ -521,13 +558,14 @@ func (*CheckStmt) stmtNode() {}
 
 type OptimizeStmt struct {
 	span
-	Database    string
-	Table       string
-	Cluster     string
-	Partition   Expr
-	Final       bool
-	Deduplicate bool
-	Output      *OutputClause
+	Database      string
+	Table         string
+	Cluster       string
+	Partition     Expr
+	Final         bool
+	Deduplicate   bool
+	DeduplicateBy []Expr
+	Output        *OutputClause
 }
 
 func (*OptimizeStmt) stmtNode() {}

@@ -211,19 +211,22 @@ func (p *parser) parseOptimizeStmt() (*OptimizeStmt, error) {
 	}
 	final := p.match(KwFinal)
 	dedup := p.match(KwDeduplicate)
+	var dedupBy []Expr
 	if dedup && p.match(KwBy) {
-		if _, err := p.parseColumnExprList(); err != nil {
+		dedupBy, err = p.parseColumnExprList()
+		if err != nil {
 			return nil, err
 		}
 	}
 	return &OptimizeStmt{
-		span:        span{Pos: start, End: p.peek(-1).End},
-		Database:    db,
-		Table:       tbl,
-		Cluster:     cluster,
-		Partition:   part,
-		Final:       final,
-		Deduplicate: dedup,
+		span:          span{Pos: start, End: p.peek(-1).End},
+		Database:      db,
+		Table:         tbl,
+		Cluster:       cluster,
+		Partition:     part,
+		Final:         final,
+		Deduplicate:   dedup,
+		DeduplicateBy: dedupBy,
 	}, nil
 }
 
@@ -347,10 +350,12 @@ func (p *parser) parseExplainStmt() (*ExplainStmt, error) {
 		inner, err = p.parseTopLevel()
 	} else if stmt.Kind == "TABLE OVERRIDE" {
 		// EXPLAIN TABLE OVERRIDE tableIdentifier (optional override clauses)
-		_, _, err = p.parseTableIdentifier()
+		var db, tbl string
+		db, tbl, err = p.parseTableIdentifier()
 		if err != nil {
 			return nil, err
 		}
+		stmt.Table = joinDB(db, tbl)
 		if !p.isStatementEndOrOutput() {
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in EXPLAIN TABLE OVERRIDE", p.cur().Raw))
 		}

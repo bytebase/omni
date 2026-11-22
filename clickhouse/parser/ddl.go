@@ -351,10 +351,13 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 	if _, err := p.expect(TokLParen); err != nil {
 		return nil, err
 	}
+	var attrs []*DictionaryAttr
 	for {
-		if err := p.parseDictionaryAttrDfnt(); err != nil {
+		attr, err := p.parseDictionaryAttrDfnt()
+		if err != nil {
 			return nil, err
 		}
+		attrs = append(attrs, attr)
 		if !p.match(TokComma) {
 			break
 		}
@@ -364,24 +367,34 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 	}
 
 	// dictionaryEngineClause
+	var primaryKey []Expr
 	if p.cur().Type == KwPrimary && p.peek(1).Type == KwKey {
 		p.advance()
 		p.advance()
 		for {
+			var expr Expr
+			var err error
 			if p.cur().Type == TokStar {
-				if _, err := p.parseStarExpr(nil, p.cur().Pos); err != nil {
-					return nil, err
-				}
+				expr, err = p.parseStarExpr(nil, p.cur().Pos)
 			} else {
-				if _, err := p.parseExpr(); err != nil {
-					return nil, err
-				}
+				expr, err = p.parseExpr()
 			}
+			if err != nil {
+				return nil, err
+			}
+			primaryKey = append(primaryKey, expr)
 			if !p.match(TokComma) {
 				break
 			}
 		}
 	}
+	var (
+		source   *DictionaryConfig
+		layout   *DictionaryConfig
+		lifetime *DictionaryLifetime
+		rng      *DictionaryRange
+		settings []*SettingExpr
+	)
 	seen := map[string]bool{}
 	for {
 		switch p.cur().Type {
@@ -390,7 +403,9 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 				return nil, p.errAt(p.cur(), "duplicate SOURCE clause")
 			}
 			seen["source"] = true
-			if err := p.parseDictSourceOrLayout(); err != nil {
+			var err error
+			source, err = p.parseDictSourceOrLayout()
+			if err != nil {
 				return nil, err
 			}
 		case KwLifetime:
@@ -398,7 +413,9 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 				return nil, p.errAt(p.cur(), "duplicate LIFETIME clause")
 			}
 			seen["lifetime"] = true
-			if err := p.parseDictLifetime(); err != nil {
+			var err error
+			lifetime, err = p.parseDictLifetime()
+			if err != nil {
 				return nil, err
 			}
 		case KwLayout:
@@ -406,7 +423,9 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 				return nil, p.errAt(p.cur(), "duplicate LAYOUT clause")
 			}
 			seen["layout"] = true
-			if err := p.parseDictSourceOrLayout(); err != nil {
+			var err error
+			layout, err = p.parseDictSourceOrLayout()
+			if err != nil {
 				return nil, err
 			}
 		case KwRange:
@@ -414,7 +433,9 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 				return nil, p.errAt(p.cur(), "duplicate RANGE clause")
 			}
 			seen["range"] = true
-			if err := p.parseDictRange(); err != nil {
+			var err error
+			rng, err = p.parseDictRange()
+			if err != nil {
 				return nil, err
 			}
 		case KwSettings:
@@ -426,7 +447,9 @@ func (p *parser) parseCreateDictionaryStmt(start int, action string, orReplace b
 			if _, err := p.expect(TokLParen); err != nil {
 				return nil, err
 			}
-			if _, err := p.parseSettingExprList(); err != nil {
+			var err error
+			settings, err = p.parseSettingExprList()
+			if err != nil {
 				return nil, err
 			}
 			if _, err := p.expect(TokRParen); err != nil {
@@ -446,162 +469,233 @@ doneDict:
 		Name:        name,
 		UUID:        uuid,
 		Cluster:     cluster,
+		Attributes:  attrs,
+		PrimaryKey:  primaryKey,
+		Source:      source,
+		Layout:      layout,
+		Lifetime:    lifetime,
+		Range:       rng,
+		Settings:    settings,
 	}, nil
 }
 
-func (p *parser) parseDictionaryAttrDfnt() error {
-	if _, err := p.parseIdentifier(); err != nil {
-		return err
+func (p *parser) parseDictionaryAttrDfnt() (*DictionaryAttr, error) {
+	start := p.cur().Pos
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
 	}
-	if _, err := p.parseDataType(); err != nil {
-		return err
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	attr := &DictionaryAttr{
+		span: span{Pos: start, End: dt.End},
+		Name: name,
+		Type: dt,
 	}
 	seen := map[string]bool{}
 	for {
 		switch p.cur().Type {
 		case KwDefault:
 			if seen["default"] {
-				return p.errAt(p.cur(), "duplicate DEFAULT attribute")
+				return nil, p.errAt(p.cur(), "duplicate DEFAULT attribute")
 			}
 			seen["default"] = true
 			p.advance()
-			if _, err := p.parseLiteral(); err != nil {
-				return err
+			lit, err := p.parseLiteral()
+			if err != nil {
+				return nil, err
 			}
+			attr.Default = lit
 		case KwExpression:
 			if seen["expression"] {
-				return p.errAt(p.cur(), "duplicate EXPRESSION attribute")
+				return nil, p.errAt(p.cur(), "duplicate EXPRESSION attribute")
 			}
 			seen["expression"] = true
 			p.advance()
-			if _, err := p.parseExpr(); err != nil {
-				return err
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			attr.Expression = expr
 		case KwHierarchical:
 			if seen["hierarchical"] {
-				return p.errAt(p.cur(), "duplicate HIERARCHICAL attribute")
+				return nil, p.errAt(p.cur(), "duplicate HIERARCHICAL attribute")
 			}
 			seen["hierarchical"] = true
 			p.advance()
+			attr.Hierarchical = true
 		case KwInjective:
 			if seen["injective"] {
-				return p.errAt(p.cur(), "duplicate INJECTIVE attribute")
+				return nil, p.errAt(p.cur(), "duplicate INJECTIVE attribute")
 			}
 			seen["injective"] = true
 			p.advance()
+			attr.Injective = true
 		case KwIsObjectId:
 			if seen["is_object_id"] {
-				return p.errAt(p.cur(), "duplicate IS_OBJECT_ID attribute")
+				return nil, p.errAt(p.cur(), "duplicate IS_OBJECT_ID attribute")
 			}
 			seen["is_object_id"] = true
 			p.advance()
+			attr.IsObjectID = true
 		default:
-			return nil
+			attr.End = p.peek(-1).End
+			return attr, nil
 		}
 	}
 }
 
-func (p *parser) parseDictSourceOrLayout() error {
-	p.advance() // SOURCE or LAYOUT
+func (p *parser) parseDictSourceOrLayout() (*DictionaryConfig, error) {
+	start := p.advance().Pos // SOURCE or LAYOUT
 	if _, err := p.expect(TokLParen); err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := p.parseIdentifier(); err != nil {
-		return err
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(TokLParen); err != nil {
-		return err
+		return nil, err
 	}
+	var params []*SettingExpr
 	for p.cur().Type != TokRParen && p.cur().Type != TokEOF {
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		kStart := p.cur().Pos
+		key, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		var val Expr
 		if isLiteralStart(p.cur(), p.peek(1)) {
-			if _, err := p.parseLiteral(); err != nil {
-				return err
+			val, err = p.parseLiteral()
+			if err != nil {
+				return nil, err
 			}
 		} else {
-			if _, err := p.parseIdentifier(); err != nil {
-				return err
+			vStart := p.cur().Pos
+			vName, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
 			}
 			if p.match(TokLParen) {
-				if _, err := p.expect(TokRParen); err != nil {
-					return err
+				rp, err := p.expect(TokRParen)
+				if err != nil {
+					return nil, err
 				}
+				val = &FuncCallExpr{span: span{Pos: vStart, End: rp.End}, Name: vName}
+			} else {
+				val = &IdentExpr{span: span{Pos: vStart, End: p.peek(-1).End}, Parts: []string{vName}}
 			}
 		}
+		params = append(params, &SettingExpr{
+			span:  span{Pos: kStart, End: val.EndPos()},
+			Name:  key,
+			Value: val,
+		})
 	}
 	if _, err := p.expect(TokRParen); err != nil {
-		return err
+		return nil, err
 	}
-	_, err := p.expect(TokRParen)
-	return err
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	return &DictionaryConfig{
+		span:   span{Pos: start, End: rp.End},
+		Name:   name,
+		Params: params,
+	}, nil
 }
 
-func (p *parser) parseDictLifetime() error {
-	p.advance() // LIFETIME
+func (p *parser) parseDictLifetime() (*DictionaryLifetime, error) {
+	start := p.advance().Pos // LIFETIME
 	if _, err := p.expect(TokLParen); err != nil {
-		return err
+		return nil, err
 	}
+	lt := &DictionaryLifetime{span: span{Pos: start}}
 	if p.match(KwMin) {
-		if _, err := p.expect(TokInt); err != nil {
-			return err
+		minTok, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(KwMax); err != nil {
-			return err
+			return nil, err
 		}
-		if _, err := p.expect(TokInt); err != nil {
-			return err
+		maxTok, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
 		}
+		lt.Min, lt.Max = minTok.Raw, maxTok.Raw
 	} else if p.match(KwMax) {
-		if _, err := p.expect(TokInt); err != nil {
-			return err
+		maxTok, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(KwMin); err != nil {
-			return err
+			return nil, err
 		}
-		if _, err := p.expect(TokInt); err != nil {
-			return err
+		minTok, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
 		}
+		lt.Min, lt.Max = minTok.Raw, maxTok.Raw
 	} else {
-		if _, err := p.expect(TokInt); err != nil {
-			return err
+		maxTok, err := p.expect(TokInt)
+		if err != nil {
+			return nil, err
 		}
+		lt.Max = maxTok.Raw
 	}
-	_, err := p.expect(TokRParen)
-	return err
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	lt.End = rp.End
+	return lt, nil
 }
 
-func (p *parser) parseDictRange() error {
-	p.advance() // RANGE
+func (p *parser) parseDictRange() (*DictionaryRange, error) {
+	start := p.advance().Pos // RANGE
 	if _, err := p.expect(TokLParen); err != nil {
-		return err
+		return nil, err
 	}
+	rng := &DictionaryRange{span: span{Pos: start}}
 	if p.match(KwMin) {
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		minCol, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(KwMax); err != nil {
-			return err
+			return nil, err
 		}
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		maxCol, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		rng.Min, rng.Max = minCol, maxCol
 	} else if p.match(KwMax) {
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		maxCol, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(KwMin); err != nil {
-			return err
+			return nil, err
 		}
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		minCol, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		rng.Min, rng.Max = minCol, maxCol
 	} else {
-		return p.errAt(p.cur(), "expected MIN or MAX in RANGE clause")
+		return nil, p.errAt(p.cur(), "expected MIN or MAX in RANGE clause")
 	}
-	_, err := p.expect(TokRParen)
-	return err
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	rng.End = rp.End
+	return rng, nil
 }
 
 func (p *parser) parseCreateFunctionStmt(start int, orReplace bool) (*CreateFunctionStmt, error) {
