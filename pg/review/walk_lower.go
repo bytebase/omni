@@ -499,6 +499,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 		if !plain {
 			b.forget(walk.Scope{Space: spaceColumn, Parent: parent})
 			b.forget(walk.Scope{Space: spaceConstraint, Parent: parent})
+			b.forget(walk.Scope{Space: spaceTrigger, Parent: parent})
 			b.set(primaryKeyOf(k), walk.Unknown, "")
 		}
 		for _, col := range cols {
@@ -1213,10 +1214,18 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 		b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
 	}
 	hasSubtype := false
+	var multirangeArg ast.Node
 	if v.Params != nil {
 		for _, item := range v.Params.Items {
-			if de, ok := item.(*ast.DefElem); ok && strings.EqualFold(de.Defname, "subtype") {
+			de, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(de.Defname) {
+			case "subtype":
 				hasSubtype = true
+			case "multirange_type_name":
+				multirangeArg = de.Arg
 			}
 		}
 	}
@@ -1227,6 +1236,43 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 	b.set(tk, walk.Present, typOther)
 	b.session(func() { delete(b.w.shellTypes, tk) })
 	b.made(tk)
+	// PostgreSQL 14+ also creates a companion multirange type alongside the
+	// range type (pg: src/backend/commands/typecmds.c — DefineRange). Weaken
+	// its target scope so a later reference in a newly created schema is not
+	// falsely reported absent.
+	if multirangeArg != nil {
+		var mrParts []string
+		switch arg := multirangeArg.(type) {
+		case *ast.TypeName:
+			mrParts = nameParts(arg.Names)
+		case *ast.List:
+			mrParts = nameParts(arg)
+		case *ast.String:
+			if arg.Str != "" {
+				mrParts = []string{arg.Str}
+			}
+		}
+		switch len(mrParts) {
+		case 1:
+			if mn, ok := walkName(mrParts[0]); ok {
+				b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(c.schema), Prefix: mn})
+			} else {
+				b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(c.schema)})
+			}
+		case 2:
+			ms, ok1 := walkName(mrParts[0])
+			mn, ok2 := walkName(mrParts[1])
+			if ok1 && ok2 {
+				b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ms), Prefix: mn})
+			} else {
+				b.mayAdd(walk.Scope{Space: spaceType, Deep: true})
+			}
+		default:
+			b.mayAdd(walk.Scope{Space: spaceType, Deep: true})
+		}
+	} else {
+		b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(c.schema)})
+	}
 	return true
 }
 
@@ -1366,8 +1412,13 @@ func (b *builder) checkDomain(parts []string, rng review.Range) resolved {
 	return r
 }
 
-// alterDomain follows ALTER DOMAIN.
+// alterDomain follows ALTER DOMAIN. ADD CONSTRAINT ... CHECK and VALIDATE
+// CONSTRAINT validate existing domain values and may execute user functions
+// that change the schema, so the walk ends after them.
 func (b *builder) alterDomain(v *ast.AlterDomainStmt) bool {
+	if v.Subtype == 'V' || b.w.callsUserCode(v) {
+		b.Last = true
+	}
 	parts := nameParts(v.Typname)
 	if len(parts) == 0 {
 		return true
@@ -1624,20 +1675,28 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	return true
 }
 
-// passOrder returns the subcommands with the drops first, each group in
-// the order written. PostgreSQL runs every DROP COLUMN and DROP
-// CONSTRAINT before anything else, so ADD CONSTRAINT c ..., DROP
-// CONSTRAINT c drops the c the table had and leaves the new one (verified
-// on PostgreSQL 17 and 18). Other passes change no name another
-// subcommand of the statement sets.
+// passOrder returns the subcommands in PostgreSQL's pass order: drops first,
+// then column additions, then everything else, preserving textual order within
+// each pass. PostgreSQL runs every DROP COLUMN and DROP CONSTRAINT before
+// anything else, and ADD COLUMN before ADD CONSTRAINT, so ADD CONSTRAINT
+// uq UNIQUE (b), ADD COLUMN b int succeeds (verified on PostgreSQL 17 and 18).
 //
-// pg: src/backend/commands/tablecmds.c — AlterTablePass (AT_PASS_DROP)
+// pg: src/backend/commands/tablecmds.c — AlterTablePass (AT_PASS_DROP, AT_PASS_ADD_COL)
 func passOrder(cmds []*ast.AlterTableCmd) []*ast.AlterTableCmd {
 	out := make([]*ast.AlterTableCmd, 0, len(cmds))
-	for _, drops := range []bool{true, false} {
+	pass := func(cmd *ast.AlterTableCmd) int {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_DropColumn, ast.AT_DropConstraint:
+			return 0
+		case ast.AT_AddColumn:
+			return 1
+		default:
+			return 2
+		}
+	}
+	for p := range 3 {
 		for _, cmd := range cmds {
-			sub := ast.AlterTableType(cmd.Subtype)
-			if (sub == ast.AT_DropColumn || sub == ast.AT_DropConstraint) == drops {
+			if pass(cmd) == p {
 				out = append(out, cmd)
 			}
 		}
@@ -3188,6 +3247,13 @@ func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
 				b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("trigger", ident(v.Trigname), relation(v.Relation))}) // 42710
 			}
 			b.set(tk, walk.Present, "")
+			if b.w.partitioned[r.key] || r.kind == "" {
+				// PostgreSQL clones row/constraint triggers on a partitioned
+				// table onto its partitions (pg: cloneSingleTriggerToPartitions).
+				b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: tn})
+			}
+		} else if b.w.partitioned[r.key] || r.kind == "" {
+			b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true})
 		}
 	} else {
 		if tn, ok := walkName(v.Trigname); ok {
@@ -3240,6 +3306,11 @@ func (b *builder) dropTrigger(parts []string, missingOK bool) {
 			b.need(tk, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("trigger", ident(trigWritten), qualified(table))}) // 42704
 		}
 		b.set(tk, walk.Absent, "")
+		if b.w.partitioned[r.key] || r.kind == "" {
+			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: tn})
+		}
+	} else if b.w.partitioned[r.key] || r.kind == "" {
+		b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true})
 	}
 }
 
@@ -3264,9 +3335,16 @@ func (b *builder) renameTrigger(v *ast.RenameStmt) bool {
 				b.need(nkKey, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExistsIn("trigger", ident(v.Newname), relation(v.Relation))})
 				b.set(okKey, walk.Absent, "")
 				b.set(nkKey, walk.Present, "")
+				if b.w.partitioned[r.key] || r.kind == "" {
+					b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: oldName})
+					b.mayAdd(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: newName})
+				}
 			}
 		} else {
 			b.forget(walk.Scope{Space: spaceTrigger, Parent: tableOf(r.key)})
+			if b.w.partitioned[r.key] || r.kind == "" {
+				b.forget(walk.Scope{Space: spaceTrigger, Deep: true})
+			}
 		}
 	} else {
 		if oldName, ok := walkName(v.Subname); ok {
@@ -3597,6 +3675,9 @@ func (b *builder) checkConstraintColumns(t walk.Key, rv *ast.RangeVar, con *ast.
 			if !ok {
 				continue
 			}
+			if sk, ok := storedKey(s.Str); ok && b.added[sk] {
+				continue
+			}
 			if n, ok := walkName(s.Str); ok && !systemColumns[n] {
 				b.need(columnKey(t, n), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(s.Str), relation(rv))}) // 42703
 			}
@@ -3806,6 +3887,7 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		if rf == walk.Present && rkind == relComposite {
 			b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s), Kinds: []string{relComposite}})
 		}
+		b.session(func() { delete(b.w.shellTypes, r.key) })
 		return true
 	}
 	nk := typeKey(s, newName)
@@ -3819,6 +3901,12 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 	}
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, r.kind)
+	b.session(func() {
+		if b.w.shellTypes[r.key] {
+			delete(b.w.shellTypes, r.key)
+			b.w.shellTypes[nk] = true
+		}
+	})
 	b.made(nk)
 	return true
 }
@@ -3915,6 +4003,12 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 		}
 		b.set(r.key, walk.Absent, "")
 		b.set(nk, walk.Present, r.kind)
+		b.session(func() {
+			if b.w.shellTypes[r.key] {
+				delete(b.w.shellTypes, r.key)
+				b.w.shellTypes[nk] = true
+			}
+		})
 		b.made(nk)
 		return true
 	}
