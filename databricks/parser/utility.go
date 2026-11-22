@@ -874,16 +874,46 @@ func (p *Parser) parseExecuteImmediate() (Statement, error) {
 	if p.match(kwUSING) {
 		cp := p.save()
 		if p.match(tokLParen) {
-			if err := p.parseNamedExpressionSeq(); err == nil && p.match(tokRParen) && p.isStatementEnd() {
+			dupErr, err := p.parseExecuteImmediateArgs()
+			if dupErr != nil {
+				return nil, dupErr
+			}
+			if err == nil && p.match(tokRParen) && p.isStatementEnd() {
 				return &ParsedStmt{Kind: StmtExecuteImmediate, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 			}
 			p.restore(cp)
 		}
-		if err := p.parseNamedExpressionSeq(); err != nil {
+		if dupErr, err := p.parseExecuteImmediateArgs(); dupErr != nil {
+			return nil, dupErr
+		} else if err != nil {
 			return nil, err
 		}
 	}
 	return &ParsedStmt{Kind: StmtExecuteImmediate, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseExecuteImmediateArgs parses a comma-separated list of named expressions
+// for EXECUTE IMMEDIATE ... USING and rejects duplicate argument aliases
+// (case-sensitively), matching Spark v4.0.5 validateExecImmediateArguments.
+func (p *Parser) parseExecuteImmediateArgs() (dupErr error, parseErr error) {
+	seen := make(map[string]struct{})
+	for {
+		alias, err := p.parseNamedExpressionWithAliasName()
+		if err != nil {
+			return nil, err
+		}
+		if alias != "" {
+			key := exactIdentName(alias)
+			if _, dup := seen[key]; dup {
+				return p.errorf("duplicate argument alias %q in EXECUTE IMMEDIATE USING", alias), nil
+			}
+			seen[key] = struct{}{}
+		}
+		if !p.match(tokComma) {
+			break
+		}
+	}
+	return nil, nil
 }
 
 // parseGrantRevoke parses Databricks SQL Unity Catalog / Hive Metastore

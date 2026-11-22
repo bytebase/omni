@@ -759,7 +759,7 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 					return err
 				}
 				norm := normalizeIdentName(name)
-				if !p.hasConditionInScope(norm) {
+				if !p.hasConditionInScope(norm) && !isBuiltinSparkErrorCondition(name) {
 					return p.errorf("condition %q is not declared", name)
 				}
 				if _, dup := seenConds[norm]; dup {
@@ -788,7 +788,7 @@ func (p *Parser) parseDeclareHandlerStatement() error {
 				return err
 			}
 			norm := normalizeIdentName(name)
-			if !p.hasConditionInScope(norm) {
+			if !p.hasConditionInScope(norm) && !isBuiltinSparkErrorCondition(name) {
 				return p.errorf("condition %q is not declared", name)
 			}
 			if _, dup := seenConds[norm]; dup {

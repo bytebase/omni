@@ -6577,3 +6577,23 @@ reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL SECOND TO
 reject	reject	engine	suite:spark-astbuilder	SELECT CAST(NULL AS INTERVAL MINUTE TO HOUR)
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL MONTH TO MONTH)
 accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL HOUR TO SECOND)
+accept	accept	engine	suite:keywords	SELECT 1 AS limit
+accept	accept	engine	suite:keywords	SELECT 1 AS where FROM t
+accept	accept	engine	suite:keywords	SELECT 1 AS limit LIMIT 1
+accept	accept	engine	suite:keywords	SELECT 1 AS WHERE a = 1
+accept	accept	engine	suite:keywords	SELECT * FROM t AS limit
+accept	accept	engine	suite:keywords	SELECT * FROM t AS where WHERE a = 1
+accept	accept	engine	suite:keywords	SELECT * FROM t AS WHERE a = 1
+accept	accept	engine	suite:keywords	SELECT * FROM t AS JOIN s ON t.a = s.a
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 1 YEAR 1 DAY
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL '2' MONTH '3' HOUR
+reject	reject	engine	suite:spark-astbuilder	SELECT INTERVAL 1 YEAR 1 WEEK
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL 1 YEAR 2 MONTH
+accept	accept	engine	suite:spark-astbuilder	SELECT INTERVAL 1 WEEK 2 DAY
+accept	accept	engine	suite:spark-astbuilder	BEGIN DECLARE EXIT HANDLER FOR DIVIDE_BY_ZERO SELECT 0; SELECT 1 / 0; END
+accept	accept	engine	suite:spark-astbuilder	BEGIN DECLARE EXIT HANDLER FOR INVALID_SQL_SYNTAX.LATERAL_WITHOUT_SUBQUERY_OR_TABLE_VALUED_FUNC SELECT 0; SELECT 1; END
+reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE EXIT HANDLER FOR NON_EXISTENT_ERROR_XYZ SELECT 0; SELECT 1; END
+reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 1 AS x, 2 AS x
+reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING (1 AS x, 2 AS x)
+accept	accept	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 1 AS x, 2 AS X
+reject	reject	engine	suite:spark-astbuilder	EXECUTE IMMEDIATE 'SELECT :x' USING 1 x, 2 x

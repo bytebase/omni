@@ -1763,17 +1763,57 @@ func (p *Parser) isParenthesizedPartitionList(allowOrderBy bool) bool {
 	return false
 }
 
+func (p *Parser) isAsImplicitTableAlias() bool {
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe:
+		return true
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(2).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON:
+		after := p.peek(2).Kind
+		return after != tokEOF && after != tokSemicolon && after != tokComma &&
+			after != tokRParen && after != tokOperatorPipe &&
+			!p.isClauseStartAt(2) && !isExprContinuationOp(after)
+	case kwUSING:
+		return p.peek(2).Kind == tokLParen
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch p.peek(2).Kind {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	case kwJOIN:
+		return true
+	case kwINNER, kwCROSS, kwSEMI, kwANTI:
+		return p.peek(2).Kind == kwJOIN
+	case kwLEFT, kwRIGHT, kwFULL:
+		n2 := p.peek(2).Kind
+		return n2 == kwJOIN || ((n2 == kwOUTER || n2 == kwSEMI || n2 == kwANTI) && p.peek(3).Kind == kwJOIN)
+	case kwNATURAL:
+		return p.peek(2).Kind == kwJOIN || p.peek(2).Kind == kwINNER || p.peek(2).Kind == kwLEFT ||
+			p.peek(2).Kind == kwRIGHT || p.peek(2).Kind == kwFULL || p.peek(2).Kind == kwSEMI || p.peek(2).Kind == kwANTI
+	case kwLATERAL:
+		return p.peek(2).Kind == kwVIEW
+	case kwPIVOT, kwTABLESAMPLE:
+		return p.peek(2).Kind == tokLParen
+	case kwUNPIVOT:
+		n2 := p.peek(2).Kind
+		return n2 == tokLParen || n2 == kwINCLUDE || n2 == kwEXCLUDE
+	}
+	return false
+}
+
 // parseTableAlias parses: (AS? strictIdentifier identifierList?)?
 func (p *Parser) parseTableAlias() error {
 	if p.cur().Kind == kwAS {
-		next := p.peek(1).Kind
-		switch next {
-		case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
-			kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
-			kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
-			kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL,
-			kwON, kwUSING, kwLATERAL, kwPIVOT, kwUNPIVOT:
-			// `AS` itself as an implicit table alias (e.g. `FROM t AS`, `FROM t AS WHERE a = 1`).
+		// `AS` itself as an implicit table alias when followed by a delimiter
+		// or actual clause (e.g. `FROM t AS`, `FROM t AS WHERE a = 1`,
+		// `FROM t AS JOIN s ON ...`), while `FROM t AS limit` and
+		// `FROM t AS where WHERE a = 1` use the keyword as an explicit alias.
+		if p.isAsImplicitTableAlias() {
 			p.advance()
 			return nil
 		}

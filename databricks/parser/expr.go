@@ -36,50 +36,86 @@ func (p *Parser) parseNamedExpressionWithAliasFlag() (bool, error) {
 	return p.parseOptionalNamedExprAliasFlag()
 }
 
+func (p *Parser) parseNamedExpressionWithAliasName() (string, error) {
+	if err := p.parseExpression(); err != nil {
+		return "", err
+	}
+	return p.parseOptionalNamedExprAliasName()
+}
+
 func (p *Parser) parseOptionalNamedExprAlias() error {
 	_, err := p.parseOptionalNamedExprAliasFlag()
 	return err
 }
 
 func (p *Parser) parseOptionalNamedExprAliasFlag() (bool, error) {
+	name, hasAlias, err := p.parseOptionalNamedExprAliasDetail()
+	_ = name
+	return hasAlias, err
+}
+
+func (p *Parser) parseOptionalNamedExprAliasName() (string, error) {
+	name, _, err := p.parseOptionalNamedExprAliasDetail()
+	return name, err
+}
+
+func (p *Parser) isAsImplicitExprAlias() bool {
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe:
+		return true
+	case kwFROM:
+		return p.isFromQueryAt(1)
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(2).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET:
+		after := p.peek(2).Kind
+		return after != tokEOF && after != tokSemicolon && after != tokComma &&
+			after != tokRParen && after != tokOperatorPipe &&
+			!p.isClauseStartAt(2) && !isExprContinuationOp(after)
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch p.peek(2).Kind {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+func (p *Parser) parseOptionalNamedExprAliasDetail() (string, bool, error) {
 	if p.cur().Kind == kwAS {
-		next := p.peek(1).Kind
 		// In Spark default mode, `AS` is non-reserved, so `SELECT 1 AS`,
-		// `SELECT a AS FROM t`, and `SELECT a AS, b FROM t` use `AS` itself as
-		// an implicit alias when a clause or delimiter immediately follows.
-		switch next {
-		case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
-			kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER,
-			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
-			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-			p.advance()
-			return true, nil
-		case kwFROM:
-			if p.isFromQueryAt(1) {
-				p.advance()
-				return true, nil
-			}
+		// `SELECT a AS FROM t`, and `SELECT 1 AS LIMIT 1` use `AS` itself as
+		// an implicit alias when a delimiter or actual clause immediately
+		// follows, while `SELECT 1 AS limit` and `SELECT 1 AS where FROM t`
+		// use the keyword as an explicit alias.
+		if p.isAsImplicitExprAlias() {
+			tok := p.advance()
+			return tok.Text, true, nil
 		}
 		p.advance()
 		if p.cur().Kind == tokLParen {
-			return true, p.parseIdentifierList()
+			return "", true, p.parseIdentifierList()
 		}
-		_, err := p.parseErrorCapturingIdentifier()
-		return true, err
+		name, err := p.parseErrorCapturingIdentifier()
+		return name, true, err
 	}
 	if p.cur().Kind == tokLParen {
 		cp := p.save()
 		if err := p.parseIdentifierList(); err == nil {
-			return true, nil
+			return "", true, nil
 		}
 		p.restore(cp)
-		return false, nil
+		return "", false, nil
 	}
 	if p.canBeImplicitExprAlias() {
-		_, err := p.parseErrorCapturingIdentifier()
-		return true, err
+		name, err := p.parseErrorCapturingIdentifier()
+		return name, true, err
 	}
-	return false, nil
+	return "", false, nil
 }
 
 // canBeImplicitExprAlias checks whether the current token can serve as an
@@ -2244,6 +2280,8 @@ func (p *Parser) parseIntervalWithSeconds() (int64, error) {
 func (p *Parser) parseMultiUnitsInterval() (int64, error) {
 	count := 0
 	var totalSecs int64
+	hasYearMonth := false
+	hasDayTime := false
 	for {
 		cp := p.save()
 		sign, rawVal, isStr, err := p.parseIntervalValueToken()
@@ -2265,6 +2303,15 @@ func (p *Parser) parseMultiUnitsInterval() (int64, error) {
 		// (INVALID_INTERVAL_FORMAT.INVALID_UNIT).
 		if !isSupportedMultiUnit(unitTok.Kind) {
 			return 0, p.errorf("unsupported interval unit %q", unitTok.Text)
+		}
+		switch unitTok.Kind {
+		case kwYEAR, kwYEARS, kwMONTH, kwMONTHS:
+			hasYearMonth = true
+		default:
+			hasDayTime = true
+		}
+		if hasYearMonth && hasDayTime {
+			return 0, p.errorf("cannot mix year-month and day-time interval units")
 		}
 		numStr := rawVal
 		if isStr {
