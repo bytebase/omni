@@ -47,6 +47,29 @@ func ScriptDOMShape(ctx context.Context, db *sql.DB, sql string) (string, error)
 	return shape, err
 }
 
+// ScriptDOMJudge returns a function that sends a SQL statement directly to the
+// pinned mssql/scriptdom harness (outside any tape) and returns its raw JSON
+// line. It runs only in a recording or verification (OMNI_RECORD=1 or
+// OMNI_RECORD=verify), matching Judge for SQL Server.
+func ScriptDOMJudge(t testing.TB) func(sql string) (string, error) {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.ScriptDOMJudge outside a recording: a replay reaches no ScriptDOM harness")
+	}
+	pin, err := enginetest.LoadPin(Pins, ScriptDOM)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	harness.once.Do(func() { harness.err = startHarness(pin) })
+	if harness.err != nil {
+		t.Fatalf("start the ScriptDOM harness: %v", harness.err)
+	}
+	if harness.pin != pin {
+		t.Fatalf("this run started ScriptDOM at %s, not %s", harness.pin, pin)
+	}
+	return ask
+}
+
 // harnessDir is mssql/scriptdom.
 var harnessDir = func() string {
 	_, file, _, _ := runtime.Caller(0)
