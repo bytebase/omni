@@ -161,6 +161,12 @@ func TestParse_AlignedErrorPositionsAndForms(t *testing.T) {
 		// NOT negated predicate
 		{"SELECT 1.5 NOT zzz LIKE 1.5", 15},
 		{"MERGE INTO a USING a ON 1.5 NOT MATCHED THEN INSERT VALUES(1.5)", 32},
+		// Deferred checks preserved across memoized speculative replay
+		{"SELECT substring(EXTRACT(foo FROM x), 1)", 17},
+		{"SELECT substring(U&'a' UESCAPE 'a', 1)", 17},
+		{"SELECT substring(TRIM(FROM 1), 1)", 17},
+		{"SELECT position(EXTRACT(foo FROM x), 'a')", 16},
+		{"SELECT TRIM(EXTRACT(foo FROM x), 'a')", 12},
 	}
 	for _, tc := range rejectAt {
 		_, err := Parse(tc.sql)

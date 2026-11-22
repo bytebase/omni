@@ -160,10 +160,11 @@ func (p *Parser) replayTo(c parserCheckpoint) {
 // parsing it again. raws holds the query bodies it captured raw. A failure
 // keeps none, for the reason parenFailure gives.
 type exprReplay struct {
-	expr Expr
-	err  error
-	raws []rawQuery
-	end  parserCheckpoint
+	expr     Expr
+	err      error
+	raws     []rawQuery
+	deferred *ParseError
+	end      parserCheckpoint
 }
 
 // typeReplay is a recorded parseType result. A type holds no expression, so

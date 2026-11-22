@@ -696,12 +696,26 @@ func (p *Parser) parsePrimary() (Expr, error) {
 		if r.raws != nil {
 			p.rawQueries = append(p.rawQueries, rawQuery{group: r.raws})
 		}
+		if r.deferred != nil && p.deferred == nil {
+			p.deferred = r.deferred
+		}
 		return r.expr, r.err
 	}
 	raws := len(p.rawQueries)
+	prevDeferred := p.deferred
+	if p.speculating > 0 {
+		// Isolate deferred checks recorded inside this primary so memoization
+		// captures its own first deferred check even if an earlier sibling
+		// already set p.deferred.
+		p.deferred = nil
+	}
 	expr, err := p.parsePrimaryUnrecorded()
+	ownDeferred := p.deferred
+	if prevDeferred != nil {
+		p.deferred = prevDeferred
+	}
 	if p.speculating > 0 && p.cur.Loc.Start != start {
-		p.recordPrimary(start, raws, expr, err)
+		p.recordPrimary(start, raws, expr, err, ownDeferred)
 	}
 	return expr, err
 }
@@ -718,11 +732,14 @@ func (p *Parser) parsePrimaryUnrecorded() (Expr, error) {
 // parse found raws query bodies already captured. The bodies it captured are
 // folded into one group entry, so an enclosing record copies one entry for
 // this whole primary instead of every body inside it.
-func (p *Parser) recordPrimary(start, raws int, expr Expr, err error) {
+func (p *Parser) recordPrimary(start, raws int, expr Expr, err error, deferred *ParseError) {
 	r := exprReplay{expr: expr, err: err}
-	if err == nil && len(p.rawQueries) > raws {
-		r.raws = append([]rawQuery(nil), p.rawQueries[raws:]...)
-		p.rawQueries = append(p.rawQueries[:raws], rawQuery{group: r.raws})
+	if err == nil {
+		if len(p.rawQueries) > raws {
+			r.raws = append([]rawQuery(nil), p.rawQueries[raws:]...)
+			p.rawQueries = append(p.rawQueries[:raws], rawQuery{group: r.raws})
+		}
+		r.deferred = deferred
 	}
 	r.end = p.checkpoint()
 	if p.primaryMemo == nil {
