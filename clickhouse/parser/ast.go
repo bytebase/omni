@@ -205,11 +205,18 @@ type InsertStmt struct {
 
 func (*InsertStmt) stmtNode() {}
 
+type PartitionClause struct {
+	span
+	ByID bool   // true for PARTITION ID '...', false for PARTITION <expr>
+	ID   string // partition ID string when ByID is true
+	Expr Expr   // partition expression (or string literal when ByID is true)
+}
+
 type DeleteStmt struct {
 	span
 	Table     string
 	Cluster   string
-	Partition Expr
+	Partition *PartitionClause
 	Where     Expr
 	Settings  []*SettingExpr
 }
@@ -221,7 +228,7 @@ type UpdateStmt struct {
 	Table       string
 	Assignments []*AssignmentExpr
 	Cluster     string
-	Partition   Expr
+	Partition   *PartitionClause
 	Where       Expr
 	Settings    []*SettingExpr
 }
@@ -425,7 +432,7 @@ type AlterClause struct {
 	First       bool              // for ADD ... FIRST
 	Assignments []*AssignmentExpr // for UPDATE ... WHERE ...
 	Where       Expr              // for DELETE WHERE ... and UPDATE ... WHERE ...
-	Partition   Expr              // for partition clauses
+	Partition   *PartitionClause  // for partition clauses
 	Target      string            // for MOVE PARTITION TO ..., ATTACH/REPLACE ... FROM ...
 	Comment     string            // for COMMENT COLUMN / MODIFY COLUMN COMMENT
 	Codec       *CodecExpr        // for MODIFY COLUMN ... CODEC(...)
@@ -442,6 +449,8 @@ type DropStmt struct {
 	IfExists    bool
 	Database    string
 	Name        string
+	Names       []string // all entity names for multi-entity DROP USER/ROLE/QUOTA/PROFILE/POLICY
+	Tables      []string // ON table list for DROP ROW POLICY
 	Cluster     string
 	NoDelay     bool
 	Permanently bool
@@ -562,7 +571,7 @@ type CheckStmt struct {
 	span
 	Database  string
 	Table     string
-	Partition Expr
+	Partition *PartitionClause
 	Output    *OutputClause
 }
 
@@ -573,7 +582,7 @@ type OptimizeStmt struct {
 	Database      string
 	Table         string
 	Cluster       string
-	Partition     Expr
+	Partition     *PartitionClause
 	Final         bool
 	Deduplicate   bool
 	DeduplicateBy []Expr

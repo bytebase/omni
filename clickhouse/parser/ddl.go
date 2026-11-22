@@ -1677,7 +1677,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
-		var part Expr
+		var part *PartitionClause
 		if p.match(KwIn) {
 			part, err = p.parsePartitionClause()
 			if err != nil {
@@ -1744,7 +1744,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 
 	case KwFreeze:
 		p.advance()
-		var part Expr
+		var part *PartitionClause
 		if p.cur().Type == KwPartition {
 			var err error
 			part, err = p.parsePartitionClause()
@@ -1768,7 +1768,7 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
-		var part Expr
+		var part *PartitionClause
 		if p.match(KwIn) {
 			part, err = p.parsePartitionClause()
 			if err != nil {
@@ -1943,15 +1943,32 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 	}
 }
 
-func (p *parser) parsePartitionClause() (Expr, error) {
-	if _, err := p.expect(KwPartition); err != nil {
+func (p *parser) parsePartitionClause() (*PartitionClause, error) {
+	partTok, err := p.expect(KwPartition)
+	if err != nil {
 		return nil, err
 	}
 	if p.cur().Type == KwId {
 		p.advance()
-		return p.parseStringLiteral()
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		return &PartitionClause{
+			span: span{Pos: partTok.Pos, End: lit.EndPos()},
+			ByID: true,
+			ID:   lit.Val,
+			Expr: lit,
+		}, nil
 	}
-	return p.parseExpr()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &PartitionClause{
+		span: span{Pos: partTok.Pos, End: expr.EndPos()},
+		Expr: expr,
+	}, nil
 }
 
 // --- DROP / DETACH / TRUNCATE / RENAME / EXCHANGE / UNDROP ---
@@ -2038,21 +2055,19 @@ func (p *parser) parseDropStmt() (*DropStmt, error) {
 			stmt.ObjectType = strings.ToUpper(p.advance().Val)
 		}
 		stmt.IfExists = p.matchIfExists()
-		name, err := p.parseIdentifier()
+		names, err := p.parseIdentList()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Name = name
-		for p.match(TokComma) {
-			if _, err := p.parseIdentifier(); err != nil {
-				return nil, err
-			}
-		}
+		stmt.Names = names
+		stmt.Name = names[0]
 		if (stmt.ObjectType == "ROW POLICY" || stmt.ObjectType == "POLICY") && p.match(KwOn) {
 			for {
-				if _, _, err := p.parseTableIdentifier(); err != nil {
+				db, tbl, err := p.parseTableIdentifier()
+				if err != nil {
 					return nil, err
 				}
+				stmt.Tables = append(stmt.Tables, joinDB(db, tbl))
 				if !p.match(TokComma) {
 					break
 				}

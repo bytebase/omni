@@ -157,22 +157,26 @@ func (p *parser) parseSelectStmt() (*SelectStmt, error) {
 		stmt.GroupBy = gb
 	}
 	if p.cur().Type == KwWith && (p.peek(1).Type == KwCube || p.peek(1).Type == KwRollup) {
-		p.advance()
-		mod := p.advance().Type
+		wTok := p.advance()
+		modTok := p.advance()
 		if stmt.GroupBy == nil {
-			stmt.GroupBy = &GroupByClause{span: span{Pos: p.peek(-2).Pos, End: p.peek(-1).End}}
+			stmt.GroupBy = &GroupByClause{span: span{Pos: wTok.Pos, End: modTok.End}}
+		} else {
+			stmt.GroupBy.End = modTok.End
 		}
-		if mod == KwCube {
+		if modTok.Type == KwCube {
 			stmt.GroupBy.WithCube = true
 		} else {
 			stmt.GroupBy.WithRollup = true
 		}
 	}
 	if p.cur().Type == KwWith && p.peek(1).Type == KwTotals {
-		p.advance()
-		p.advance()
+		wTok := p.advance()
+		tTok := p.advance()
 		if stmt.GroupBy == nil {
-			stmt.GroupBy = &GroupByClause{span: span{Pos: p.peek(-2).Pos, End: p.peek(-1).End}}
+			stmt.GroupBy = &GroupByClause{span: span{Pos: wTok.Pos, End: tTok.End}}
+		} else {
+			stmt.GroupBy.End = tTok.End
 		}
 		stmt.GroupBy.WithTotals = true
 	}

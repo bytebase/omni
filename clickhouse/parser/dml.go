@@ -162,7 +162,7 @@ func (p *parser) parseDeleteStmt() (*DeleteStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	var part Expr
+	var part *PartitionClause
 	if p.cur().Type == KwIn && p.peek(1).Type == KwPartition {
 		p.advance() // IN
 		part, err = p.parsePartitionClause()
@@ -207,7 +207,7 @@ func (p *parser) parseUpdateStmt() (*UpdateStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	var part Expr
+	var part *PartitionClause
 	if p.cur().Type == KwIn && p.peek(1).Type == KwPartition {
 		p.advance() // IN
 		if p.peek(1).Type == KwWhere {

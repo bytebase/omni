@@ -716,3 +716,51 @@ func TestAllCompatASTSpansValid(t *testing.T) {
 		t.Fatalf("expected to check >1000 parsed statements, checked %d", checked)
 	}
 }
+
+func TestParseDropNamesPartitionModeAndGroupByModifierSpans(t *testing.T) {
+	d1, err := Parse("DROP USER alice, bob")
+	if err != nil {
+		t.Fatalf("Parse DROP USER failed: %v", err)
+	}
+	ds := d1[0].(*DropStmt)
+	if len(ds.Names) != 2 || ds.Names[0] != "alice" || ds.Names[1] != "bob" {
+		t.Errorf("DROP USER Names = %v, want [alice bob]", ds.Names)
+	}
+
+	d2, err := Parse("DROP ROW POLICY p1, p2 ON db.t1, db.t2")
+	if err != nil {
+		t.Fatalf("Parse DROP ROW POLICY failed: %v", err)
+	}
+	ds2 := d2[0].(*DropStmt)
+	if len(ds2.Names) != 2 || ds2.Names[1] != "p2" || len(ds2.Tables) != 2 || ds2.Tables[1] != "db.t2" {
+		t.Errorf("DROP ROW POLICY = %+v", ds2)
+	}
+
+	p1, err := Parse("ALTER TABLE t DROP PARTITION ID '202601'")
+	if err != nil {
+		t.Fatalf("Parse DROP PARTITION ID failed: %v", err)
+	}
+	pc1 := p1[0].(*AlterTableStmt).Clauses[0].Partition
+	if pc1 == nil || !pc1.ByID || pc1.ID != "202601" {
+		t.Errorf("PARTITION ID = %+v, want ByID=true ID=\"202601\"", pc1)
+	}
+
+	p2, err := Parse("ALTER TABLE t DROP PARTITION '202601'")
+	if err != nil {
+		t.Fatalf("Parse DROP PARTITION value failed: %v", err)
+	}
+	pc2 := p2[0].(*AlterTableStmt).Clauses[0].Partition
+	if pc2 == nil || pc2.ByID || pc2.Expr == nil {
+		t.Errorf("PARTITION value = %+v, want ByID=false with non-nil Expr", pc2)
+	}
+
+	gbSQL := "SELECT x FROM t GROUP BY x WITH ROLLUP WITH TOTALS"
+	gbStmts, err := Parse(gbSQL)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", gbSQL, err)
+	}
+	gb := gbStmts[0].(*SelectUnionStmt).Items[0].GroupBy
+	if got := gbSQL[gb.StartPos():gb.EndPos()]; got != "GROUP BY x WITH ROLLUP WITH TOTALS" {
+		t.Errorf("GroupBy span text = %q, want %q", got, "GROUP BY x WITH ROLLUP WITH TOTALS")
+	}
+}

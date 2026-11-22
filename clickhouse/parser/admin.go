@@ -174,7 +174,7 @@ func (p *parser) parseCheckStmt() (*CheckStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	var part Expr
+	var part *PartitionClause
 	if p.cur().Type == KwPartition {
 		part, err = p.parsePartitionClause()
 		if err != nil {
@@ -202,7 +202,7 @@ func (p *parser) parseOptimizeStmt() (*OptimizeStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	var part Expr
+	var part *PartitionClause
 	if p.cur().Type == KwPartition {
 		part, err = p.parsePartitionClause()
 		if err != nil {
