@@ -333,6 +333,17 @@ type EngineClause struct {
 	Settings    []*SettingExpr
 }
 
+type CodecExpr struct {
+	span
+	Codecs []*CodecArg
+}
+
+type CodecArg struct {
+	span
+	Name string
+	Args []Expr
+}
+
 type TableElement struct {
 	span
 	Kind        string // "COLUMN", "CONSTRAINT", "INDEX", "PROJECTION"
@@ -340,6 +351,7 @@ type TableElement struct {
 	Type        *DataType
 	DefaultKind string // "", "DEFAULT", "MATERIALIZED", "ALIAS"
 	Expr        Expr
+	Codec       *CodecExpr  // column CODEC(...)
 	TTLExpr     Expr        // column TTL expression
 	Granularity string      // for INDEX definitions
 	Projection  *SelectStmt // for PROJECTION definitions
@@ -370,6 +382,7 @@ type AlterClause struct {
 	Partition   Expr              // for partition clauses
 	Target      string            // for MOVE PARTITION TO ..., ATTACH/REPLACE ... FROM ...
 	Comment     string            // for COMMENT COLUMN / MODIFY COLUMN COMMENT
+	Codec       *CodecExpr        // for MODIFY COLUMN ... CODEC(...)
 	RemoveProp  string            // for MODIFY COLUMN REMOVE <prop>
 	OrderBy     Expr              // for MODIFY ORDER BY
 	TTL         []Expr            // for MODIFY TTL
@@ -709,6 +722,13 @@ type TupleExpr struct {
 }
 
 func (*TupleExpr) exprNode() {}
+
+type ParenExpr struct {
+	span
+	Expr Expr
+}
+
+func (*ParenExpr) exprNode() {}
 
 type IndexExpr struct {
 	span

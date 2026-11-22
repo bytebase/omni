@@ -51,6 +51,7 @@ type parser struct {
 	noLambdaBefore int          // token index bound caching failed unparenthesized lambda lookahead
 	noIntervalAt   map[int]bool // token positions where INTERVAL expr unit lookahead failed
 	noTypeArgAt    map[int]bool // token positions where nested DataType lookahead failed
+	noCaseAt       map[int]bool // token positions where CASE operand WHEN lookahead failed
 }
 
 func (p *parser) ensure(idx int) {

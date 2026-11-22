@@ -945,9 +945,11 @@ func (p *parser) parseTableColumnDfnt() (*TableElement, error) {
 			}
 			elem.Comment = lit.Val
 		case KwCodec:
-			if err := p.parseCodecExpr(); err != nil {
+			codec, err := p.parseCodecExpr()
+			if err != nil {
 				return nil, err
 			}
+			elem.Codec = codec
 		case KwTtl:
 			p.advance()
 			ttlExpr, err := p.parseExpr()
@@ -1058,33 +1060,47 @@ func (p *parser) parseTableProjectionDfnt(start int) (*TableElement, error) {
 	}, nil
 }
 
-func (p *parser) parseCodecExpr() error {
-	if _, err := p.expect(KwCodec); err != nil {
-		return err
+func (p *parser) parseCodecExpr() (*CodecExpr, error) {
+	tok, err := p.expect(KwCodec)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(TokLParen); err != nil {
-		return err
+		return nil, err
 	}
+	ce := &CodecExpr{span: span{Pos: tok.Pos}}
 	for {
-		if _, err := p.parseIdentifier(); err != nil {
-			return err
+		argStart := p.cur().Pos
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		arg := &CodecArg{span: span{Pos: argStart, End: p.peek(-1).End}, Name: name}
 		if p.match(TokLParen) {
 			if p.cur().Type != TokRParen {
-				if _, err := p.parseColumnExprList(); err != nil {
-					return err
+				args, err := p.parseColumnExprList()
+				if err != nil {
+					return nil, err
 				}
+				arg.Args = args
 			}
-			if _, err := p.expect(TokRParen); err != nil {
-				return err
+			rpArg, err := p.expect(TokRParen)
+			if err != nil {
+				return nil, err
 			}
+			arg.End = rpArg.End
 		}
+		ce.Codecs = append(ce.Codecs, arg)
 		if !p.match(TokComma) {
 			break
 		}
 	}
-	_, err := p.expect(TokRParen)
-	return err
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, err
+	}
+	ce.End = rp.End
+	return ce, nil
 }
 
 func (p *parser) parseEngineExpr() (*EngineExpr, error) {
@@ -1589,10 +1605,11 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			}
 			switch p.cur().Type {
 			case KwCodec:
-				if err := p.parseCodecExpr(); err != nil {
+				codec, err := p.parseCodecExpr()
+				if err != nil {
 					return nil, err
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN CODEC", Name: name}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN CODEC", Name: name, Codec: codec}, nil
 			case KwComment:
 				p.advance()
 				lit, err := p.parseStringLiteral()

@@ -518,8 +518,21 @@ func (p *parser) parsePrimaryExpr() (Expr, error) {
 
 	switch tok.Type {
 	case KwCase:
-		if p.peek(1).Type != TokEOF && p.peek(1).Type != TokComma && p.peek(1).Type != TokRParen && p.peek(1).Type != TokSemicolon {
+		if p.peek(1).Type == KwWhen {
 			return p.parseCaseExpr()
+		}
+		if p.canStartCaseOperand(p.peek(1)) && !p.noCaseAt[p.pos] {
+			save := p.pos
+			if c, ok, err := p.tryParseCaseWithOperand(); err != nil {
+				return nil, err
+			} else if ok {
+				return c, nil
+			}
+			if p.noCaseAt == nil {
+				p.noCaseAt = make(map[int]bool)
+			}
+			p.noCaseAt[save] = true
+			p.pos = save
 		}
 	case KwCast:
 		if p.peek(1).Type == TokLParen {
@@ -594,6 +607,62 @@ func (p *parser) parsePrimaryExpr() (Expr, error) {
 	}
 
 	return nil, p.errAt(tok, fmt.Sprintf("unexpected token %q in expression", tok.Raw))
+}
+
+func (p *parser) canStartCaseOperand(tok Token) bool {
+	switch tok.Type {
+	case TokEOF, TokComma, TokRParen, TokRBracket, TokRBrace, TokSemicolon,
+		TokEq, TokEqDouble, TokNotEq, TokLT, TokLE, TokGT, TokGE,
+		TokStar, TokSlash, TokPercent, TokConcat, TokQuestion, TokColon,
+		TokDoubleColon, TokDot,
+		KwAs, KwFrom, KwWhere, KwPrewhere, KwGroup, KwHaving, KwQualify,
+		KwOrder, KwLimit, KwSettings, KwFormat, KwInto, KwUnion,
+		KwIntersect, KwExcept, KwWindow, KwThen, KwElse, KwEnd,
+		KwAnd, KwOr, KwIs, KwIn, KwBetween, KwLike, KwIlike, KwGlobal,
+		KwJoin, KwLeft, KwRight, KwInner, KwFull, KwCross, KwOn, KwUsing:
+		return false
+	default:
+		return true
+	}
+}
+
+func (p *parser) tryParseCaseWithOperand() (Expr, bool, error) {
+	start := p.advance().Pos // CASE
+	op, err := p.parseExprWithAlias()
+	if err != nil {
+		return nil, false, nil
+	}
+	if p.cur().Type != KwWhen {
+		return nil, false, nil
+	}
+	c := &CaseExpr{span: span{Pos: start}, Operand: op}
+	for p.match(KwWhen) {
+		cond, err := p.parseExprWithAlias()
+		if err != nil {
+			return nil, true, err
+		}
+		if _, err := p.expect(KwThen); err != nil {
+			return nil, true, err
+		}
+		then, err := p.parseExprWithAlias()
+		if err != nil {
+			return nil, true, err
+		}
+		c.Whens = append(c.Whens, CaseWhen{Cond: cond, Then: then})
+	}
+	if p.match(KwElse) {
+		el, err := p.parseExprWithAlias()
+		if err != nil {
+			return nil, true, err
+		}
+		c.Else = el
+	}
+	endTok, err := p.expect(KwEnd)
+	if err != nil {
+		return nil, true, err
+	}
+	c.End = endTok.End
+	return c, true, nil
 }
 
 func (p *parser) parseCaseExpr() (Expr, error) {
@@ -919,8 +988,8 @@ func (p *parser) parseParenOrSubqueryOrTuple() (Expr, error) {
 		return nil, err
 	}
 	if p.cur().Type == TokRParen {
-		p.advance()
-		return first, nil
+		rp := p.advance()
+		return &ParenExpr{span: span{Pos: start, End: rp.End}, Expr: first}, nil
 	}
 	items := []Expr{first}
 	for p.match(TokComma) {

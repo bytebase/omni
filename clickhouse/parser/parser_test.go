@@ -77,6 +77,7 @@ func TestParseValidStatements(t *testing.T) {
 		{"window_partition_rows_no_order", "SELECT sum(v) OVER (PARTITION BY k ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"},
 		{"window_partition_range_no_order", "SELECT sum(v) OVER (PARTITION BY k RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"},
 		{"substring_comma_form", "SELECT substring('abcdef', 2, 3)"},
+		{"case_as_column_ident", "SELECT case, case AS c FROM t WHERE case = 1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -389,5 +390,45 @@ func TestParseAlterMutationsAndProjectionAST(t *testing.T) {
 	projElem := ct.Columns[1]
 	if projElem.Projection == nil || len(projElem.Projection.Columns) != 1 || projElem.Projection.GroupBy == nil || len(projElem.Projection.OrderBy) != 1 {
 		t.Errorf("PROJECTION element = %+v, proj = %+v", projElem, projElem.Projection)
+	}
+}
+
+func TestParseParenSpansAndCodecAST(t *testing.T) {
+	sql1 := "SELECT (1 + 2) * 3"
+	stmts1, err := Parse(sql1)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql1, err)
+	}
+	mul1 := stmts1[0].(*SelectUnionStmt).Items[0].Columns[0].(*BinaryExpr)
+	if got := sql1[mul1.StartPos():mul1.EndPos()]; got != "(1 + 2) * 3" {
+		t.Errorf("mul1 span text = %q, want %q", got, "(1 + 2) * 3")
+	}
+
+	sql2 := "SELECT 1 * (2 + 3)"
+	stmts2, err := Parse(sql2)
+	if err != nil {
+		t.Fatalf("Parse(%q) failed: %v", sql2, err)
+	}
+	mul2 := stmts2[0].(*SelectUnionStmt).Items[0].Columns[0].(*BinaryExpr)
+	if got := sql2[mul2.StartPos():mul2.EndPos()]; got != "1 * (2 + 3)" {
+		t.Errorf("mul2 span text = %q, want %q", got, "1 * (2 + 3)")
+	}
+
+	cstmts, err := Parse("CREATE TABLE t (c UInt64 CODEC(Delta, ZSTD(1))) ENGINE = Memory")
+	if err != nil {
+		t.Fatalf("Parse CREATE TABLE CODEC failed: %v", err)
+	}
+	codec := cstmts[0].(*CreateTableStmt).Columns[0].Codec
+	if codec == nil || len(codec.Codecs) != 2 || codec.Codecs[0].Name != "Delta" || codec.Codecs[1].Name != "ZSTD" || len(codec.Codecs[1].Args) != 1 {
+		t.Errorf("column Codec = %+v, want Delta and ZSTD(1)", codec)
+	}
+
+	astmts, err := Parse("ALTER TABLE t MODIFY COLUMN c CODEC(ZSTD(3))")
+	if err != nil {
+		t.Fatalf("Parse ALTER MODIFY COLUMN CODEC failed: %v", err)
+	}
+	acodec := astmts[0].(*AlterTableStmt).Clauses[0].Codec
+	if acodec == nil || len(acodec.Codecs) != 1 || acodec.Codecs[0].Name != "ZSTD" || len(acodec.Codecs[0].Args) != 1 {
+		t.Errorf("alter Codec = %+v, want ZSTD(3)", acodec)
 	}
 }
