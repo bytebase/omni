@@ -59,7 +59,7 @@ func TestStatementTypeOfPipe(t *testing.T) {
 		{"|> IF true THEN (|> INSERT t) ELSEIF false THEN (|> CREATE TABLE u (x INT64)) ELSE (|> INSERT v)", StatementTypeUnspecified},
 	}
 	for _, tc := range tests {
-		file, err := parseFile(tc.sql)
+		file, err := parseFile(tc.sql, DialectBigQuery)
 		if err != nil {
 			t.Fatalf("parse %q: %v", tc.sql, err)
 		}
@@ -136,7 +136,7 @@ func TestGetQuerySpanPipe(t *testing.T) {
 		if got := ClassifySQL("CALL p() |> WHERE true", DialectBigQuery); got != Unknown {
 			t.Errorf("ClassifySQL = %v, want Unknown", got)
 		}
-		file, err := parseFile("CALL p() |> WHERE true")
+		file, err := parseFile("CALL p() |> WHERE true", DialectBigQuery)
 		if err != nil {
 			t.Fatalf("parse: %v", err)
 		}

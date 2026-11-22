@@ -980,3 +980,115 @@ func TestGetQuerySpan_GraphTableFailClosed(t *testing.T) {
 		t.Errorf("ClassifySQL(GRAPH_TABLE with info_schema subquery) = %v, want SelectInfoSchema", got)
 	}
 }
+
+// TestGetQuerySpan_BigQueryDialectPropagation verifies that DialectBigQuery
+// analysis entry points parse BigQuery-specific syntax (such as FROM-first
+// pipe queries, MATCH_RECOGNIZE, and BigQuery DDL) consistently with
+// bigquery/parser.
+func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
+	if got := ClassifySQL("FROM sensitive", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL(FROM sensitive, BigQuery) = %v, want Select", got)
+	}
+	if got := ClassifySQL("FROM INFORMATION_SCHEMA.TABLES", DialectBigQuery); got != SelectInfoSchema {
+		t.Errorf("ClassifySQL(FROM INFORMATION_SCHEMA.TABLES, BigQuery) = %v, want SelectInfoSchema", got)
+	}
+	if got := ClassifySQL("FROM sensitive", DialectSpanner); got != Unknown {
+		t.Errorf("ClassifySQL(FROM sensitive, Spanner) = %v, want Unknown", got)
+	}
+	if got := ClassifySQL("CREATE EXTERNAL TABLE ds.ext OPTIONS(format='CSV', uris=['gs://b/f'])", DialectBigQuery); got != DDL {
+		t.Errorf("ClassifySQL(CREATE EXTERNAL TABLE, BigQuery) = %v, want DDL", got)
+	}
+
+	// FROM sensitive projects the same base-table star as SELECT * FROM sensitive.
+	span, err := GetQuerySpan("FROM sensitive", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(FROM sensitive, BigQuery): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("FROM sensitive tables = %v, want [sensitive]", got)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "*" {
+		t.Errorf("FROM sensitive results = %+v, want single base-table star", span.Results)
+	}
+
+	// WITH CTE + FROM-first preserves CTE column lineage.
+	span, err = GetQuerySpan("WITH c AS (SELECT secret FROM sensitive) FROM c", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(WITH c ... FROM c, BigQuery): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("WITH c ... FROM c tables = %v, want [sensitive]", got)
+	}
+	if got := resultNames(span); !eqStrings(got, []string{"secret"}) {
+		t.Errorf("WITH c ... FROM c results = %v, want [secret]", got)
+	}
+
+	// Row-only pipe suffix on FROM-first keeps the projection; projection-changing
+	// suffix, unresolvable TVF FROM-first, and MATCH_RECOGNIZE fail closed.
+	if _, err := GetQuerySpan("FROM sensitive |> WHERE id > 1", DialectBigQuery); err != nil {
+		t.Errorf("GetQuerySpan(FROM sensitive |> WHERE id > 1, BigQuery): %v", err)
+	}
+	for _, sql := range []string{
+		"FROM sensitive |> SELECT secret",
+		"FROM tvf()",
+		"SELECT * FROM sensitive MATCH_RECOGNIZE (MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS x > 0)",
+	} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q, BigQuery) succeeded, want fail-closed error", sql)
+		}
+	}
+}
+
+// TestGetQuerySpan_ExplainAndExtendedDDL verifies that EXPLAIN traverses its
+// inner statement for AccessTables (keeping Results empty) and that extended
+// DDL statements (CREATE MODEL AS query, ALTER ROW ACCESS POLICY) record
+// referenced tables.
+func TestGetQuerySpan_ExplainAndExtendedDDL(t *testing.T) {
+	for _, dialect := range []Dialect{DialectSpanner, DialectBigQuery} {
+		span, err := GetQuerySpan("EXPLAIN SELECT secret FROM sensitive", dialect)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(EXPLAIN SELECT, %v): %v", dialect, err)
+		}
+		if span.Type != Explain {
+			t.Errorf("EXPLAIN Type = %v, want Explain", span.Type)
+		}
+		if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+			t.Errorf("EXPLAIN AccessTables = %v, want [sensitive]", got)
+		}
+		if len(span.Results) != 0 {
+			t.Errorf("EXPLAIN Results = %+v, want empty", span.Results)
+		}
+
+		span, err = GetQuerySpan("EXPLAIN INSERT INTO dst SELECT * FROM src", dialect)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(EXPLAIN INSERT, %v): %v", dialect, err)
+		}
+		if got := tableNames(span); !eqStrings(got, []string{"dst", "src"}) {
+			t.Errorf("EXPLAIN INSERT AccessTables = %v, want [dst src]", got)
+		}
+
+		if _, err := GetQuerySpan("EXPLAIN SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret))", dialect); err == nil {
+			t.Errorf("GetQuerySpan(EXPLAIN GRAPH_TABLE, %v) succeeded, want fail-closed error", dialect)
+		}
+	}
+
+	// Extended DDL statements referencing source/target tables.
+	span, err := GetQuerySpan("CREATE MODEL m AS SELECT secret FROM sensitive", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(CREATE MODEL AS SELECT): %v", err)
+	}
+	if span.Type != DDL {
+		t.Errorf("CREATE MODEL Type = %v, want DDL", span.Type)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
+		t.Errorf("CREATE MODEL AccessTables = %v, want [sensitive]", got)
+	}
+
+	span, err = GetQuerySpan("ALTER ROW ACCESS POLICY p ON sensitive FILTER USING (id IN (SELECT id FROM acl))", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(ALTER ROW ACCESS POLICY): %v", err)
+	}
+	if got := tableNames(span); !eqStrings(got, []string{"acl", "sensitive"}) {
+		t.Errorf("ALTER ROW ACCESS POLICY AccessTables = %v, want [acl sensitive]", got)
+	}
+}
