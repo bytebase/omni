@@ -764,3 +764,57 @@ func TestParseDropNamesPartitionModeAndGroupByModifierSpans(t *testing.T) {
 		t.Errorf("GroupBy span text = %q, want %q", got, "GROUP BY x WITH ROLLUP WITH TOTALS")
 	}
 }
+
+func TestParseUnsupportedEscapesTableParamsAndColumnAliases(t *testing.T) {
+	// Unsupported backslash escapes must preserve both the backslash and the following char.
+	e1, err := Parse(`SELECT '\d+', '\s\w', '\xZZ', '\n'`)
+	if err != nil {
+		t.Fatalf("Parse escape string failed: %v", err)
+	}
+	cols := e1[0].(*SelectUnionStmt).Items[0].Columns
+	wantVals := []string{`\d+`, `\s\w`, `\xZZ`, "\n"}
+	for i, want := range wantVals {
+		lit := cols[i].(*LiteralExpr)
+		if lit.Val != want {
+			t.Errorf("col[%d].Val = %q, want %q", i, lit.Val, want)
+		}
+	}
+
+	// Identifier query parameters in FROM / DESCRIBE table references.
+	p1, err := Parse("SELECT * FROM {mytablename:Identifier}")
+	if err != nil {
+		t.Fatalf("Parse table query param failed: %v", err)
+	}
+	tbl1 := p1[0].(*SelectUnionStmt).Items[0].From.Table
+	if tbl1.TableParam == nil || tbl1.TableParam.Name != "mytablename" || tbl1.TableParam.Type.Name != "Identifier" {
+		t.Errorf("TableParam = %+v, want mytablename:Identifier", tbl1.TableParam)
+	}
+
+	p2, err := Parse("SELECT * FROM {mydb:Identifier}.{mytbl:Identifier}")
+	if err != nil {
+		t.Fatalf("Parse db.table query params failed: %v", err)
+	}
+	tbl2 := p2[0].(*SelectUnionStmt).Items[0].From.Table
+	if tbl2.DatabaseParam == nil || tbl2.DatabaseParam.Name != "mydb" || tbl2.TableParam == nil || tbl2.TableParam.Name != "mytbl" {
+		t.Errorf("qualified TableParams = db:%+v tbl:%+v", tbl2.DatabaseParam, tbl2.TableParam)
+	}
+
+	// Column-name lists following table aliases (AS and bare forms).
+	a1, err := Parse("SELECT a, b FROM (SELECT 1, 2) AS x(a, b)")
+	if err != nil {
+		t.Fatalf("Parse AS x(a, b) failed: %v", err)
+	}
+	at1 := a1[0].(*SelectUnionStmt).Items[0].From.Table
+	if at1.Alias != "x" || len(at1.ColumnAliases) != 2 || at1.ColumnAliases[0] != "a" || at1.ColumnAliases[1] != "b" {
+		t.Errorf("AS x(a, b) TableExpr = %+v", at1)
+	}
+
+	a2, err := Parse("SELECT a, b FROM (SELECT 1, 2) x(a, b)")
+	if err != nil {
+		t.Fatalf("Parse bare x(a, b) failed: %v", err)
+	}
+	at2 := a2[0].(*SelectUnionStmt).Items[0].From.Table
+	if at2.Alias != "x" || len(at2.ColumnAliases) != 2 || at2.ColumnAliases[0] != "a" || at2.ColumnAliases[1] != "b" {
+		t.Errorf("bare x(a, b) TableExpr = %+v", at2)
+	}
+}

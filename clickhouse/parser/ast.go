@@ -181,11 +181,14 @@ type JoinExpr struct {
 
 type TableExpr struct {
 	span
-	Database string
-	Table    string
-	Func     *FuncCallExpr
-	Subquery *SelectUnionStmt
-	Alias    string
+	Database      string
+	DatabaseParam *ParamExpr // optional {db:Identifier} query parameter
+	Table         string
+	TableParam    *ParamExpr // optional {tbl:Identifier} query parameter
+	Func          *FuncCallExpr
+	Subquery      *SelectUnionStmt
+	Alias         string
+	ColumnAliases []string // optional column alias list: AS alias(c1, c2)
 }
 
 // DML Statements

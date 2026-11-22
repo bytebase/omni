@@ -1003,17 +1003,57 @@ func (p *parser) parseTableExpr() (*TableExpr, error) {
 		}
 		te.Func = fn
 		te.End = fn.End
-	} else {
-		db, tbl, err := p.parseTableIdentifier()
+	} else if p.cur().Type == TokLBrace {
+		firstParam, err := p.parseQueryParamNode()
 		if err != nil {
 			return nil, err
 		}
-		te.Database = db
-		te.Table = tbl
+		if p.match(TokDot) {
+			te.DatabaseParam = firstParam
+			if p.cur().Type == TokLBrace {
+				tblParam, err := p.parseQueryParamNode()
+				if err != nil {
+					return nil, err
+				}
+				te.TableParam = tblParam
+			} else {
+				tbl, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				te.Table = tbl
+			}
+		} else {
+			te.TableParam = firstParam
+		}
+		te.End = p.peek(-1).End
+	} else {
+		first, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if p.match(TokDot) {
+			te.Database = first
+			if p.cur().Type == TokLBrace {
+				tblParam, err := p.parseQueryParamNode()
+				if err != nil {
+					return nil, err
+				}
+				te.TableParam = tblParam
+			} else {
+				tbl, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				te.Table = tbl
+			}
+		} else {
+			te.Table = first
+		}
 		te.End = p.peek(-1).End
 	}
 
-	// Optional alias: AS ident | bare alias (not FINAL / SAMPLE / JOIN keywords)
+	// Optional alias: AS ident [(col1, col2, ...)] | bare alias [(col1, col2, ...)]
 	if p.match(KwAs) {
 		alias, err := p.parseIdentifier()
 		if err != nil {
@@ -1021,12 +1061,43 @@ func (p *parser) parseTableExpr() (*TableExpr, error) {
 		}
 		te.Alias = alias
 		te.End = p.peek(-1).End
+		if p.cur().Type == TokLParen {
+			cols, rpEnd, err := p.parseTableColumnAliasList()
+			if err != nil {
+				return nil, err
+			}
+			te.ColumnAliases = cols
+			te.End = rpEnd
+		}
 	} else if isBareAlias(p.cur()) {
 		tok := p.advance()
 		te.Alias = tok.Val
 		te.End = tok.End
+		if p.cur().Type == TokLParen {
+			cols, rpEnd, err := p.parseTableColumnAliasList()
+			if err != nil {
+				return nil, err
+			}
+			te.ColumnAliases = cols
+			te.End = rpEnd
+		}
 	}
 	return te, nil
+}
+
+func (p *parser) parseTableColumnAliasList() ([]string, int, error) {
+	if _, err := p.expect(TokLParen); err != nil {
+		return nil, 0, err
+	}
+	cols, err := p.parseIdentList()
+	if err != nil {
+		return nil, 0, err
+	}
+	rp, err := p.expect(TokRParen)
+	if err != nil {
+		return nil, 0, err
+	}
+	return cols, rp.End, nil
 }
 
 func (p *parser) parseTableFunctionExpr() (*FuncCallExpr, error) {

@@ -330,6 +330,7 @@ func (l *lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg s
 			b.WriteByte(byte(v))
 			l.pos += 2
 		} else {
+			b.WriteByte('\\')
 			b.WriteByte(c)
 		}
 	case 'u':
@@ -340,9 +341,11 @@ func (l *lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg s
 			b.WriteRune(rune(v))
 			l.pos += 4
 		} else {
+			b.WriteByte('\\')
 			b.WriteByte(c)
 		}
 	default:
+		b.WriteByte('\\')
 		b.WriteByte(c)
 	}
 	return nil

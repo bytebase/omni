@@ -50,6 +50,30 @@ func (p *parser) parseDescribeTableExpr() (*TableExpr, error) {
 		te.Subquery = sub
 		te.End = sub.End
 		return te, nil
+	case p.cur().Type == TokLBrace:
+		firstParam, err := p.parseQueryParamNode()
+		if err != nil {
+			return nil, err
+		}
+		if p.match(TokDot) {
+			te.DatabaseParam = firstParam
+			if p.cur().Type == TokLBrace {
+				tblParam, err := p.parseQueryParamNode()
+				if err != nil {
+					return nil, err
+				}
+				te.TableParam = tblParam
+			} else {
+				second, err := p.parseAnyWordIdent()
+				if err != nil {
+					return nil, err
+				}
+				te.Table = second
+			}
+		} else {
+			te.TableParam = firstParam
+		}
+		te.End = p.peek(-1).End
 	default:
 		// In DESCRIBE, ClickHouse allows INF/NAN/NULL as table identifiers too.
 		first, err := p.parseAnyWordIdent()
@@ -57,12 +81,20 @@ func (p *parser) parseDescribeTableExpr() (*TableExpr, error) {
 			return nil, err
 		}
 		if p.match(TokDot) {
-			second, err := p.parseAnyWordIdent()
-			if err != nil {
-				return nil, err
-			}
 			te.Database = first
-			te.Table = second
+			if p.cur().Type == TokLBrace {
+				tblParam, err := p.parseQueryParamNode()
+				if err != nil {
+					return nil, err
+				}
+				te.TableParam = tblParam
+			} else {
+				second, err := p.parseAnyWordIdent()
+				if err != nil {
+					return nil, err
+				}
+				te.Table = second
+			}
 		} else {
 			te.Table = first
 		}

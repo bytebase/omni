@@ -1002,6 +1002,10 @@ func (p *parser) parseParenOrSubqueryOrTuple() (Expr, error) {
 }
 
 func (p *parser) parseQueryParam() (Expr, error) {
+	return p.parseQueryParamNode()
+}
+
+func (p *parser) parseQueryParamNode() (*ParamExpr, error) {
 	start := p.advance().Pos // {
 	name, err := p.parseIdentifier()
 	if err != nil {
