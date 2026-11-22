@@ -1204,6 +1204,16 @@ func viewNeedsColumnList(view *metadatapb.ViewMetadata) bool {
 }
 
 func inferredViewQueryColumnNames(definition string) ([]string, bool) {
+	return inferredViewQueryColumnNamesForSchema(definition, nil)
+}
+
+type viewFromSource struct {
+	alias  string
+	schema string
+	name   string
+}
+
+func inferredViewQueryColumnNamesForSchema(definition string, schema *metadatapb.SchemaMetadata) ([]string, bool) {
 	query := strings.TrimSpace(definition)
 	if query == "" {
 		return nil, false
@@ -1236,13 +1246,138 @@ func inferredViewQueryColumnNames(definition string) ([]string, bool) {
 			names = append(names, target.Name)
 			continue
 		}
+		if _, isStar := target.Expr.(*ast.Star); isStar {
+			expanded, ok := expandViewWildcardColumns(sel, "", schema)
+			if !ok {
+				return nil, false
+			}
+			names = append(names, expanded...)
+			continue
+		}
 		colRef, ok := target.Expr.(*ast.ColumnRef)
-		if !ok || colRef.Column == "" || colRef.Column == "*" {
+		if !ok || colRef.Column == "" {
 			return nil, false
+		}
+		if colRef.Column == "*" {
+			expanded, ok := expandViewWildcardColumns(sel, colRef.Table, schema)
+			if !ok {
+				return nil, false
+			}
+			names = append(names, expanded...)
+			continue
 		}
 		names = append(names, colRef.Column)
 	}
 	return names, true
+}
+
+func expandViewWildcardColumns(sel *ast.SelectStmt, qualifier string, schema *metadatapb.SchemaMetadata) ([]string, bool) {
+	if schema == nil || sel.FromClause == nil || len(sel.FromClause.Items) == 0 {
+		return nil, false
+	}
+	var sources []viewFromSource
+	if !collectSelectFromSources(sel.FromClause.Items, &sources) || len(sources) == 0 {
+		return nil, false
+	}
+	lookupColumns := func(src viewFromSource) ([]string, bool) {
+		if src.schema != "" && schema.GetName() != "" && src.schema != schema.GetName() {
+			return nil, false
+		}
+		for _, table := range schema.GetTables() {
+			if table.GetName() == src.name {
+				if len(table.GetColumns()) == 0 {
+					return nil, false
+				}
+				var cols []string
+				for _, col := range table.GetColumns() {
+					if !col.GetIsInvisible() {
+						cols = append(cols, col.GetName())
+					}
+				}
+				return cols, len(cols) > 0
+			}
+		}
+		for _, view := range schema.GetViews() {
+			if view.GetName() == src.name {
+				if len(view.GetColumns()) == 0 {
+					return nil, false
+				}
+				var cols []string
+				for _, col := range view.GetColumns() {
+					if !col.GetIsInvisible() {
+						cols = append(cols, col.GetName())
+					}
+				}
+				return cols, len(cols) > 0
+			}
+		}
+		return nil, false
+	}
+	if qualifier != "" {
+		var matched []string
+		found := false
+		for _, src := range sources {
+			if src.alias == qualifier {
+				if found {
+					return nil, false
+				}
+				cols, ok := lookupColumns(src)
+				if !ok {
+					return nil, false
+				}
+				matched = cols
+				found = true
+			}
+		}
+		return matched, found
+	}
+	var out []string
+	for _, src := range sources {
+		cols, ok := lookupColumns(src)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, cols...)
+	}
+	return out, len(out) > 0
+}
+
+func collectSelectFromSources(items []ast.Node, out *[]viewFromSource) bool {
+	for _, item := range items {
+		switch node := item.(type) {
+		case *ast.TableRef:
+			if node.Name == nil || node.Dblink != "" || node.Name.DBLink != "" {
+				return false
+			}
+			name := objectName(node.Name)
+			if name == "" {
+				return false
+			}
+			alias := name
+			if node.Alias != nil && node.Alias.Name != "" {
+				alias = node.Alias.Name
+			}
+			*out = append(*out, viewFromSource{
+				alias:  alias,
+				schema: node.Name.Schema,
+				name:   name,
+			})
+		case *ast.JoinClause:
+			if (node.Using != nil && node.Using.Len() > 0) ||
+				node.Type == ast.JOIN_NATURAL_INNER ||
+				node.Type == ast.JOIN_NATURAL_LEFT ||
+				node.Type == ast.JOIN_NATURAL_RIGHT ||
+				node.Type == ast.JOIN_NATURAL_FULL {
+				return false
+			}
+			if !collectSelectFromSources([]ast.Node{node.Left, node.Right}, out) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func writeViewColumnList(buf *strings.Builder, columns []*metadatapb.ColumnMetadata) error {
@@ -1568,7 +1703,7 @@ func writeSynonym(buf *strings.Builder, synonym *metadatapb.SynonymMetadata, dat
 	if _, err := buf.WriteString(`" FOR `); err != nil {
 		return err
 	}
-	if targetSchema := synonym.GetTargetSchema(); targetSchema != "" && targetSchema != databaseName {
+	if targetSchema := synonym.GetTargetSchema(); targetSchema != "" && (synonym.GetTargetDbLink() != "" || targetSchema != databaseName) {
 		if _, err := buf.WriteString(`"` + targetSchema + `".`); err != nil {
 			return err
 		}

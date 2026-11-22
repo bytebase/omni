@@ -1987,8 +1987,9 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 		e.packages[name] = &metadatapb.PackageMetadata{Name: name, Definition: definition}
 		return
 	}
+	existing := normalizePLSQLPackageDefinition(pkg.Definition)
 	var spec, body string
-	for _, seg := range oracleparser.Split(pkg.Definition) {
+	for _, seg := range oracleparser.Split(existing) {
 		if seg.Empty() {
 			continue
 		}
@@ -2012,6 +2013,20 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 	default:
 		pkg.Definition = body
 	}
+}
+
+func normalizePLSQLPackageDefinition(definition string) string {
+	trimmed := strings.TrimSpace(definition)
+	if trimmed == "" {
+		return ""
+	}
+	if words, _ := leadingWords(trimmed, 1); len(words) == 0 || words[0] != "CREATE" {
+		trimmed = "CREATE OR REPLACE " + trimmed
+	}
+	if !strings.HasSuffix(trimmed, ";") {
+		trimmed += ";"
+	}
+	return trimmed
 }
 
 func isPackageBodyUnit(unit string) bool {
@@ -2542,7 +2557,7 @@ func (e *oracleMetadataExtractor) extractCreateSynonym(n *ast.CreateSynonymStmt)
 		return
 	}
 	targetSchema := n.Target.Schema
-	if targetSchema == "" && e.currentSchema != "" {
+	if targetSchema == "" && n.Target.DBLink == "" && e.currentSchema != "" {
 		targetSchema = e.currentSchema
 	}
 	syn := &metadatapb.SynonymMetadata{

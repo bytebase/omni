@@ -927,3 +927,63 @@ CREATE PUBLIC SYNONYM OMNI_APP_PUB FOR OMNI_APP.T;
 		t.Errorf("public synonym DUAL (-want +got):\n%s", diff)
 	}
 }
+
+func TestMaterializedViewRefreshPrefix(t *testing.T) {
+	cases := []struct {
+		name          string
+		buildMode     string
+		refreshMethod string
+		refreshMode   string
+		want          string
+	}{
+		{
+			name:          "oracle defaults omitted",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "FORCE",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "deferred build with complete refresh",
+			buildMode:     "DEFERRED",
+			refreshMethod: "COMPLETE",
+			refreshMode:   "DEMAND",
+			want:          "BUILD DEFERRED REFRESH COMPLETE ON DEMAND",
+		},
+		{
+			name:          "never refresh",
+			buildMode:     "IMMEDIATE",
+			refreshMethod: "NEVER",
+			refreshMode:   "NEVER",
+			want:          "NEVER REFRESH",
+		},
+		{
+			name:          "prebuilt with default refresh omits ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "FORCE",
+			refreshMode:   "DEMAND",
+			want:          "",
+		},
+		{
+			name:          "prebuilt with non-default refresh preserves refresh policy without ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "COMPLETE",
+			refreshMode:   "DEMAND",
+			want:          "REFRESH COMPLETE ON DEMAND",
+		},
+		{
+			name:          "prebuilt with never refresh preserves NEVER REFRESH without ON PREBUILT TABLE",
+			buildMode:     "PREBUILT",
+			refreshMethod: "NEVER",
+			refreshMode:   "NEVER",
+			want:          "NEVER REFRESH",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := materializedViewRefreshPrefix(tc.buildMode, tc.refreshMethod, tc.refreshMode); got != tc.want {
+				t.Errorf("materializedViewRefreshPrefix(%q, %q, %q) = %q, want %q", tc.buildMode, tc.refreshMethod, tc.refreshMode, got, tc.want)
+			}
+		})
+	}
+}

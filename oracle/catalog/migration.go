@@ -79,7 +79,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Add views to graph
 	for _, viewDiff := range diff.ViewChanges {
-		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 			viewID := getMigrationObjectID(viewDiff.SchemaName, viewDiff.ViewName)
 			graph.AddNode(viewID)
 			viewMap[viewID] = viewDiff
@@ -676,7 +676,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 	earlyAlteredTables := map[string]bool{}
 	for _, viewDiff := range viewMap {
-		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 			for _, dependency := range viewDiff.NewView.GetDependencyColumns() {
 				owner := dependency.GetSchema()
 				if owner == "" {
@@ -843,7 +843,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					// No action needed
 				}
 			} else if viewDiff, ok := viewMap[objID]; ok {
-				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewDiff.needsViewRecreate()) {
 					writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
 				}
 			} else if mvDiff, ok := materializedViewMap[objID]; ok {
@@ -1315,14 +1315,64 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	}
 
 	var oldColumns, newColumns []string
+	var oldCollationColumns, newCollationColumns []string
 	for _, colDiff := range tableDiff.ColumnChanges {
-		if diff.preAltered[colDiff] {
+		if diff.preAltered[colDiff] || colDiff.Action != DiffActionAlter {
 			continue
 		}
-		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
+		if rebuildsColumn(colDiff) {
 			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
 			newColumns = append(newColumns, colDiff.NewColumn.Name)
+		} else if columnCollationChanged(colDiff) {
+			oldCollationColumns = append(oldCollationColumns, colDiff.OldColumn.Name)
+			newCollationColumns = append(newCollationColumns, colDiff.NewColumn.Name)
 		}
+	}
+
+	dropped := diffObjectNames(tableDiff, DiffActionDrop)
+	restoredSkip := make(map[string]bool, len(created))
+	for name := range created {
+		restoredSkip[name] = true
+	}
+	for _, index := range allVirtualDependents.indexes {
+		dropped[index.GetName()] = true
+		restoredSkip[index.GetName()] = true
+	}
+	for _, check := range allVirtualDependents.checks {
+		dropped[check.GetName()] = true
+		restoredSkip[check.GetName()] = true
+	}
+	for _, check := range allVirtualDependents.notNulls {
+		dropped[check.GetName()] = true
+		restoredSkip[check.GetName()] = true
+	}
+	for _, fk := range allVirtualDependents.foreignKeys {
+		dropped[fk.GetName()] = true
+		restoredSkip[fk.GetName()] = true
+	}
+	for _, fk := range tableDiff.OldTable.GetForeignKeys() {
+		if _, ok := detached[incomingForeignKeyKey(tableName, fk.GetName())]; ok {
+			dropped[fk.GetName()] = true
+			restoredSkip[fk.GetName()] = true
+		}
+	}
+
+	oldDeps := findColumnDependents(tableDiff.OldTable, oldColumns, dropped)
+	if len(oldCollationColumns) > 0 {
+		// Oracle prohibits modifying column collation while indexes, unique/PK
+		// constraints, CHECK constraints, or foreign keys reference the column.
+		// Keep named NOT NULL constraints attached because Oracle allows
+		// MODIFY (... COLLATE ...) with NOT NULL and generateAlterColumn only
+		// restores named NOT NULLs for rebuilt columns.
+		collationOldDeps := findColumnDependents(tableDiff.OldTable, oldCollationColumns, dropped)
+		collationOldDeps.notNulls = nil
+		mergeColumnDependents(&oldDeps, collationOldDeps)
+	}
+	newDeps := findColumnDependents(tableDiff.NewTable, newColumns, restoredSkip)
+	if len(newCollationColumns) > 0 {
+		collationNewDeps := findColumnDependents(tableDiff.NewTable, newCollationColumns, restoredSkip)
+		collationNewDeps.notNulls = nil
+		mergeColumnDependents(&newDeps, collationNewDeps)
 	}
 
 	// Oracle refuses a datatype change under a function-based index (ORA-30556)
@@ -1332,6 +1382,12 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		handled := diffObjectNames(tableDiff, DiffActionDrop)
 		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
 			handled[name] = true
+		}
+		for _, index := range allVirtualDependents.indexes {
+			handled[index.GetName()] = true
+		}
+		for _, index := range oldDeps.indexes {
+			handled[index.GetName()] = true
 		}
 		for _, index := range tableDiff.OldTable.GetIndexes() {
 			if index.GetIsConstraint() || handled[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
@@ -1346,15 +1402,22 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 	}
 
-	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
-	// fails (ORA-02273), and come back after it.
-	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldColumns, DiffActionDrop) {
-		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+	// Other tables' foreign keys on a rebuilt or collation-changed key go first,
+	// or dropping the key fails (ORA-02273), and come back after it.
+	droppedIncoming := make(map[string]bool)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, virtualColumns, DiffActionDrop) {
+		droppedIncoming[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = true
+	}
+	oldDetachColumns := append(append([]string(nil), oldColumns...), oldCollationColumns...)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldDetachColumns, DiffActionDrop) {
+		key := incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())
+		if _, handled := detached[key]; handled || droppedIncoming[key] {
 			continue
 		}
+		droppedIncoming[key] = true
 		writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.Name)
 	}
-	findColumnDependents(tableDiff.OldTable, oldColumns, diffObjectNames(tableDiff, DiffActionDrop)).writeDrops(buf, schemaName, tableName)
+	oldDeps.writeDrops(buf, schemaName, tableName)
 	for _, colDiff := range tableDiff.ColumnChanges {
 		if colDiff.Action != DiffActionAlter || diff.preAltered[colDiff] {
 			continue
@@ -1367,7 +1430,7 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 		_, _ = buf.WriteString(generateAlterColumn(schemaName, tableName, colDiff, notNull))
 	}
-	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
+	newDeps.writeCreates(buf, schemaName, tableName)
 	for _, column := range virtualDependents {
 		writeAddColumn(buf, schemaName, tableName, column)
 		if column.GetComment() != "" {
@@ -1384,11 +1447,14 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 		writeMigrationIndex(buf, schemaName, tableName, definition)
 	}
-	restoredColumns := append(append([]string(nil), newColumns...), virtualColumns...)
+	restoredColumns := append(append(append([]string(nil), newColumns...), newCollationColumns...), virtualColumns...)
+	restoredIncoming := make(map[string]bool)
 	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, restoredColumns, DiffActionCreate) {
-		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+		key := incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())
+		if _, handled := detached[key]; handled || restoredIncoming[key] {
 			continue
 		}
+		restoredIncoming[key] = true
 		writeMigrationForeignKey(buf, schemaName, incoming.table, incoming.foreignKey)
 	}
 }
@@ -1401,13 +1467,13 @@ type virtualRebuild struct {
 }
 
 // virtualColumnsRebuiltByTypeChanges lists the virtual columns of tableDiff that
-// read a column whose datatype changes. A virtual column the diff creates needs
-// no detachment, and a virtual one the diff drops is already gone.
+// read a column whose datatype or collation changes. A virtual column the diff
+// creates needs no detachment, and a virtual one the diff drops is already gone.
 func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
 	typeChanged := map[string]bool{}
 	diffs := map[string]*ColumnDiff{}
 	for _, colDiff := range tableDiff.ColumnChanges {
-		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
+		if colDiff.Action == DiffActionAlter && (colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() || columnCollationChanged(colDiff)) {
 			typeChanged[colDiff.OldColumn.GetName()] = true
 		}
 		if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate {
@@ -1534,7 +1600,7 @@ func waitsForRebuild(diff *MetadataDiff, schemaName string, fk *metadatapb.Forei
 			continue
 		}
 		for _, colDiff := range tableDiff.ColumnChanges {
-			if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) &&
+			if colDiff.Action == DiffActionAlter && (rebuildsColumn(colDiff) || columnCollationChanged(colDiff)) &&
 				referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{colDiff.NewColumn.Name}) {
 				return true
 			}
@@ -1570,6 +1636,10 @@ func rebuildsColumn(colDiff *ColumnDiff) bool {
 		return true
 	}
 	return newGeneration != nil && (oldGeneration.Expression != newGeneration.Expression || colDiff.OldColumn.Type != colDiff.NewColumn.Type)
+}
+
+func columnCollationChanged(colDiff *ColumnDiff) bool {
+	return explicitOracleCollation(colDiff.OldColumn.GetCollation()) != explicitOracleCollation(colDiff.NewColumn.GetCollation())
 }
 
 // columnNotNull is how a rebuilt column's NOT NULL is handled: dropped means a
@@ -1680,12 +1750,16 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 		writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
 	}
 
-	if explicitOracleCollation(colDiff.OldColumn.GetCollation()) != explicitOracleCollation(colDiff.NewColumn.GetCollation()) {
+	if columnCollationChanged(colDiff) {
 		collation := explicitOracleCollation(colDiff.NewColumn.GetCollation())
 		if collation == "" {
 			collation = "USING_NLS_COMP"
 		}
-		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "COLLATE "+collation)
+		clause := "COLLATE " + collation
+		if colType := strings.TrimSpace(colDiff.NewColumn.GetType()); colType != "" {
+			clause = colType + " " + clause
+		}
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, clause)
 	}
 
 	if colDiff.OldColumn.IsInvisible != colDiff.NewColumn.IsInvisible {
@@ -2612,7 +2686,7 @@ func writeSynonymDiff(out *strings.Builder, databaseName string, synDiff *Synony
 	if defaultSchema == "" {
 		defaultSchema = databaseName
 	}
-	if targetSchema := syn.GetTargetSchema(); targetSchema != "" && targetSchema != defaultSchema {
+	if targetSchema := syn.GetTargetSchema(); targetSchema != "" && (syn.GetTargetDbLink() != "" || targetSchema != defaultSchema) {
 		_, _ = out.WriteString(`"` + targetSchema + `".`)
 	}
 	_, _ = out.WriteString(`"` + syn.GetTargetName() + `"`)
@@ -2625,7 +2699,7 @@ func writeSynonymDiff(out *strings.Builder, databaseName string, synDiff *Synony
 func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string]*ViewDiff, materializedViews map[string]*MaterializedViewDiff) {
 	graph := newGraph()
 	for key, diff := range views {
-		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView)) {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && diff.needsViewRecreate()) {
 			graph.AddNode("v:" + key)
 		}
 	}
@@ -2678,7 +2752,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 		if strings.HasPrefix(node, "v:") {
 			key := strings.TrimPrefix(node, "v:")
 			if diff := views[key]; diff != nil &&
-				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView))) {
+				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && diff.needsViewRecreate())) {
 				writeMigrationView(out, diff.SchemaName, diff.NewView)
 			}
 			continue
@@ -3276,8 +3350,19 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 				oldConstraintNames[indexDiff.OldIndex.GetName()] = true
 			}
 		}
+		detachedCols := map[string]bool{}
+		for _, colDiff := range tableDiff.ColumnChanges {
+			if colDiff.Action == DiffActionAlter && (rebuildsColumn(colDiff) || columnCollationChanged(colDiff)) {
+				detachedCols[colDiff.OldColumn.GetName()] = true
+			}
+		}
 		for _, drop := range tableDiff.IndexChanges {
 			if drop.Action != DiffActionDrop || !drop.OldIndex.GetIsConstraint() {
+				continue
+			}
+			if len(detachedCols) > 0 && slices.ContainsFunc(drop.OldIndex.GetExpressions(), func(col string) bool {
+				return detachedCols[unquoteIdentifier(col)]
+			}) {
 				continue
 			}
 			for _, create := range tableDiff.IndexChanges {
@@ -3344,6 +3429,17 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 					referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, indexDiff.OldIndex.GetExpressions()) {
 					detached[incomingForeignKeyKey(tableDiff.TableName, fk.GetName())] = incomingForeignKey{schema: tableDiff.SchemaName, table: tableDiff.TableName, foreignKey: fk}
 				}
+			}
+		}
+		var collationCols []string
+		for _, colDiff := range tableDiff.ColumnChanges {
+			if colDiff.Action == DiffActionAlter && columnCollationChanged(colDiff) {
+				collationCols = append(collationCols, colDiff.OldColumn.GetName())
+			}
+		}
+		if len(collationCols) > 0 {
+			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, collationCols, DiffActionDrop) {
+				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
 			}
 		}
 	}

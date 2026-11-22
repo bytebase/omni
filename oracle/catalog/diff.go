@@ -77,6 +77,19 @@ type ViewDiff struct {
 	ViewName   string
 	OldView    *metadatapb.ViewMetadata
 	NewView    *metadatapb.ViewMetadata
+
+	recreateComputed bool
+	needsRecreate    bool
+}
+
+func (d *ViewDiff) needsViewRecreate() bool {
+	if d == nil {
+		return false
+	}
+	if d.recreateComputed {
+		return d.needsRecreate
+	}
+	return viewNeedsRecreate(d.OldView, d.NewView)
 }
 
 type MaterializedViewDiff struct {
@@ -376,8 +389,19 @@ func compareSchemaObjects(diff *MetadataDiff, schemaName string, oldSchema, newS
 		oldView, ok := oldViews[name]
 		if !ok {
 			diff.ViewChanges = append(diff.ViewChanges, &ViewDiff{Action: DiffActionCreate, SchemaName: schemaName, ViewName: name, NewView: newView})
-		} else if !oldView.GetSkipDump() && viewChanged(oldView, newView) {
-			diff.ViewChanges = append(diff.ViewChanges, &ViewDiff{Action: DiffActionAlter, SchemaName: schemaName, ViewName: name, OldView: oldView, NewView: newView})
+		} else if !oldView.GetSkipDump() {
+			recreate := viewNeedsRecreateInSchema(oldView, newView, oldSchema, newSchema)
+			if recreate || oldView.GetComment() != newView.GetComment() {
+				diff.ViewChanges = append(diff.ViewChanges, &ViewDiff{
+					Action:           DiffActionAlter,
+					SchemaName:       schemaName,
+					ViewName:         name,
+					OldView:          oldView,
+					NewView:          newView,
+					recreateComputed: true,
+					needsRecreate:    recreate,
+				})
+			}
 		}
 	}
 
@@ -508,15 +532,21 @@ func comparePublicSynonyms(diff *MetadataDiff, oldMeta, newMeta *metadatapb.Data
 }
 
 func synonymEqual(a, b *metadatapb.SynonymMetadata, defaultSchema string) bool {
+	if a.GetTargetDbLink() != b.GetTargetDbLink() || a.GetTargetName() != b.GetTargetName() {
+		return false
+	}
+	if a.GetTargetDbLink() != "" {
+		// With a database link, an omitted target schema resolves in the
+		// remote link's schema rather than the local default schema.
+		return a.GetTargetSchema() == b.GetTargetSchema()
+	}
 	schemaOf := func(s string) string {
 		if s == "" {
 			return defaultSchema
 		}
 		return s
 	}
-	return schemaOf(a.GetTargetSchema()) == schemaOf(b.GetTargetSchema()) &&
-		a.GetTargetName() == b.GetTargetName() &&
-		a.GetTargetDbLink() == b.GetTargetDbLink()
+	return schemaOf(a.GetTargetSchema()) == schemaOf(b.GetTargetSchema())
 }
 
 func compareTable(schemaName, tableName string, oldTable, newTable *metadatapb.TableMetadata) *TableDiff {
@@ -836,23 +866,74 @@ func viewChanged(a, b *metadatapb.ViewMetadata) bool {
 }
 
 func viewNeedsRecreate(a, b *metadatapb.ViewMetadata) bool {
+	return viewNeedsRecreateInSchema(a, b, nil, nil)
+}
+
+func viewNeedsRecreateInSchema(a, b *metadatapb.ViewMetadata, oldSchema, newSchema *metadatapb.SchemaMetadata) bool {
 	return a.GetDefinition() != b.GetDefinition() ||
-		!viewColumnsEqual(a, b) ||
+		!viewColumnsEqualInSchema(a, b, oldSchema, newSchema) ||
 		normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers())
 }
 
-func viewColumnsEqual(a, b *metadatapb.ViewMetadata) bool {
-	aNeeds := viewNeedsColumnList(a)
-	bNeeds := viewNeedsColumnList(b)
-	if !aNeeds && !bNeeds {
+func viewColumnsEqualInSchema(a, b *metadatapb.ViewMetadata, oldSchema, newSchema *metadatapb.SchemaMetadata) bool {
+	aCols, bCols := a.GetColumns(), b.GetColumns()
+	if len(aCols) == 0 && len(bCols) == 0 {
 		return true
 	}
-	if aNeeds != bNeeds || len(a.GetColumns()) != len(b.GetColumns()) {
+	if len(aCols) > 0 && len(bCols) > 0 {
+		if len(aCols) != len(bCols) {
+			return false
+		}
+		for i, ca := range aCols {
+			cb := bCols[i]
+			if ca.GetName() != cb.GetName() || ca.GetIsInvisible() != cb.GetIsInvisible() {
+				return false
+			}
+		}
+		return true
+	}
+	// Exactly one side carries column metadata and the other has none (for
+	// example, a synced view compared against LoadSQL without an explicit
+	// alias list). Only report a difference when an alias or visibility change
+	// is actually present.
+	populated, primarySchema, fallbackSchema := a, newSchema, oldSchema
+	if len(bCols) > 0 {
+		populated, primarySchema, fallbackSchema = b, oldSchema, newSchema
+	}
+	for _, col := range populated.GetColumns() {
+		if col.GetIsInvisible() {
+			return false
+		}
+	}
+	inferred, ok := inferredViewQueryColumnNamesForSchema(populated.GetDefinition(), primarySchema)
+	if !ok && fallbackSchema != nil && fallbackSchema != primarySchema {
+		inferred, ok = inferredViewQueryColumnNamesForSchema(populated.GetDefinition(), fallbackSchema)
+	}
+	if ok {
+		if len(inferred) != len(populated.GetColumns()) {
+			return false
+		}
+		for i, col := range populated.GetColumns() {
+			if inferred[i] != col.GetName() {
+				return false
+			}
+		}
+		return true
+	}
+	// Query columns cannot be inferred from the SELECT list or schema tables
+	// (such as unaliased expressions or tables outside the schema). Synced
+	// views from ALL_TAB_COLS always carry column types, whereas LoadSQL only
+	// populates ViewMetadata.Columns for explicit alias lists (leaving Type empty).
+	return viewHasSyncedColumnTypes(populated)
+}
+
+func viewHasSyncedColumnTypes(view *metadatapb.ViewMetadata) bool {
+	cols := view.GetColumns()
+	if len(cols) == 0 {
 		return false
 	}
-	for i, ca := range a.GetColumns() {
-		cb := b.GetColumns()[i]
-		if ca.GetName() != cb.GetName() || ca.GetIsInvisible() != cb.GetIsInvisible() {
+	for _, col := range cols {
+		if strings.TrimSpace(col.GetType()) == "" {
 			return false
 		}
 	}

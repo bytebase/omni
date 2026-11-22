@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -18,6 +19,13 @@ func TestDefinitionFidelity(t *testing.T) {
 			Name:    "APP",
 			Schemas: []*metadatapb.SchemaMetadata{schema},
 		}
+	}
+	loadMeta := func(t *testing.T, meta *metadatapb.DatabaseSchemaMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), meta)
+		require.NoError(t, err)
+		return c
 	}
 
 	t.Run("package spec and body definition, round trip, and migration", func(t *testing.T) {
@@ -328,5 +336,272 @@ END PKG;
 				require.Contains(t, def, tc.want)
 			})
 		}
+	})
+
+	t.Run("synced spec-only package preserves spec when Exec adds body", func(t *testing.T) {
+		c := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Packages: []*metadatapb.PackageMetadata{{
+				Name:       "PKG",
+				Definition: "PACKAGE PKG AS PROCEDURE P; END PKG;",
+			}},
+		}))
+		_, err := c.Exec(`
+CREATE OR REPLACE PACKAGE BODY PKG AS
+  PROCEDURE P IS
+  BEGIN
+    NULL;
+  END P;
+END PKG;
+/`, nil)
+		require.NoError(t, err)
+
+		def, err := DatabaseDefinition(c.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, def, "CREATE OR REPLACE PACKAGE PKG AS PROCEDURE P; END PKG;")
+		require.Contains(t, def, "CREATE OR REPLACE PACKAGE BODY PKG AS")
+
+		reloaded, err := LoadSQL(def)
+		require.NoError(t, err)
+		require.Len(t, reloaded.Metadata().Schemas[0].Packages, 1)
+		reloadedDef, err := DatabaseDefinition(reloaded.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, def, reloadedDef)
+
+		// Synced body-only package preserves body when Exec adds spec
+		cBody := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Packages: []*metadatapb.PackageMetadata{{
+				Name:       "PKG",
+				Definition: "PACKAGE BODY PKG AS PROCEDURE P IS BEGIN NULL; END P; END PKG;",
+			}},
+		}))
+		_, err = cBody.Exec(`CREATE OR REPLACE PACKAGE PKG AS PROCEDURE P; END PKG;`, nil)
+		require.NoError(t, err)
+		bodyDef, err := DatabaseDefinition(cBody.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, bodyDef, "CREATE OR REPLACE PACKAGE PKG AS PROCEDURE P; END PKG;")
+		require.Contains(t, bodyDef, "CREATE OR REPLACE PACKAGE BODY PKG AS PROCEDURE P IS BEGIN NULL; END P; END PKG;")
+	})
+
+	t.Run("database-link synonyms preserve explicit target schema matching local schema", func(t *testing.T) {
+		meta := schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Synonyms: []*metadatapb.SynonymMetadata{
+				{Name: "S_SAME_REMOTE", TargetSchema: "APP", TargetName: "T", TargetDbLink: "REMOTE_LINK"},
+				{Name: "S_UNQUAL_REMOTE", TargetSchema: "", TargetName: "T", TargetDbLink: "REMOTE_LINK"},
+			},
+		})
+		def, err := DatabaseDefinition(meta)
+		require.NoError(t, err)
+		require.Contains(t, def, `CREATE OR REPLACE SYNONYM "S_SAME_REMOTE" FOR "APP"."T"@REMOTE_LINK;`)
+		require.Contains(t, def, `CREATE OR REPLACE SYNONYM "S_UNQUAL_REMOTE" FOR "T"@REMOTE_LINK;`)
+
+		// Round-trip through LoadSQL keeps qualified and unqualified remote targets distinct
+		c, err := LoadSQL(`
+CREATE SYNONYM APP.S_SAME_REMOTE FOR APP.T@REMOTE_LINK;
+CREATE SYNONYM APP.S_UNQUAL_REMOTE FOR T@REMOTE_LINK;
+`)
+		require.NoError(t, err)
+		synByName := make(map[string]*metadatapb.SynonymMetadata)
+		for _, syn := range c.Metadata().Schemas[0].Synonyms {
+			synByName[syn.GetName()] = syn
+		}
+		require.Equal(t, "APP", synByName["S_SAME_REMOTE"].GetTargetSchema())
+		require.Equal(t, "", synByName["S_UNQUAL_REMOTE"].GetTargetSchema())
+
+		// Migration preserves APP.T@REMOTE_LINK and detects change between APP.T@REMOTE_LINK and T@REMOTE_LINK
+		empty := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{Name: "APP"}))
+		createPlan := GenerateMigration(empty, c, nil)
+		require.Contains(t, createPlan.SQL(), `CREATE OR REPLACE SYNONYM "APP"."S_SAME_REMOTE" FOR "APP"."T"@REMOTE_LINK;`)
+		require.Contains(t, createPlan.SQL(), `CREATE OR REPLACE SYNONYM "APP"."S_UNQUAL_REMOTE" FOR "T"@REMOTE_LINK;`)
+
+		cChanged, err := LoadSQL(`
+CREATE SYNONYM APP.S_SAME_REMOTE FOR T@REMOTE_LINK;
+CREATE SYNONYM APP.S_UNQUAL_REMOTE FOR APP.T@REMOTE_LINK;
+`)
+		require.NoError(t, err)
+		alterPlan := GenerateMigration(c, cChanged, nil)
+		require.Contains(t, alterPlan.SQL(), `CREATE OR REPLACE SYNONYM "APP"."S_SAME_REMOTE" FOR "T"@REMOTE_LINK;`)
+		require.Contains(t, alterPlan.SQL(), `CREATE OR REPLACE SYNONYM "APP"."S_UNQUAL_REMOTE" FOR "APP"."T"@REMOTE_LINK;`)
+	})
+
+	t.Run("view column diff distinguishes absent LoadSQL columns from alias or visibility changes", func(t *testing.T) {
+		syncedTable := &metadatapb.TableMetadata{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true},
+				{Name: "NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
+			},
+		}
+		syncedStarView := &metadatapb.ViewMetadata{
+			Name:       "V",
+			Definition: "SELECT * FROM T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true},
+				{Name: "NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
+			},
+		}
+		fromWithTable := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name:   "APP",
+			Tables: []*metadatapb.TableMetadata{syncedTable},
+			Views:  []*metadatapb.ViewMetadata{syncedStarView},
+		}))
+		toWithTable, err := LoadSQL(`
+CREATE TABLE APP.T (ID NUMBER, NAME VARCHAR2(20 BYTE));
+CREATE VIEW APP.V AS SELECT * FROM T;
+`)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(fromWithTable, toWithTable, nil).SQL(), "equivalent SELECT * view should not drop/recreate")
+
+		// Even without T in either schema, synced view columns with types vs LoadSQL SELECT * or expression should not spuriously recreate
+		fromExprOnly := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Views: []*metadatapb.ViewMetadata{
+				syncedStarView,
+				{
+					Name:       "V_EXPR",
+					Definition: "SELECT ID + 1 FROM T",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "ID+1", Type: "NUMBER", Position: 1, Nullable: true},
+					},
+				},
+			},
+		}))
+		toExprOnly, err := LoadSQL(`
+CREATE VIEW APP.V AS SELECT * FROM T;
+CREATE VIEW APP.V_EXPR AS SELECT ID + 1 FROM T;
+`)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(fromExprOnly, toExprOnly, nil).SQL())
+
+		// Removing explicit aliases on SELECT * FROM T (when T is in schema) MUST recreate the view
+		fromAliasedStar := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name:   "APP",
+			Tables: []*metadatapb.TableMetadata{syncedTable},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "V",
+				Definition: "SELECT * FROM T",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "RENAMED_ID", Type: "NUMBER", Position: 1, Nullable: true},
+					{Name: "RENAMED_NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
+				},
+			}},
+		}))
+		require.Contains(t, GenerateMigration(fromAliasedStar, toWithTable, nil).SQL(), `DROP VIEW "APP"."V";`)
+
+		// Removing INVISIBLE on SELECT * FROM T MUST recreate the view
+		fromInvisibleStar := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name:   "APP",
+			Tables: []*metadatapb.TableMetadata{syncedTable},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "V",
+				Definition: "SELECT * FROM T",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true, IsInvisible: true},
+					{Name: "NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
+				},
+			}},
+		}))
+		require.Contains(t, GenerateMigration(fromInvisibleStar, toWithTable, nil).SQL(), `DROP VIEW "APP"."V";`)
+
+		// Adding explicit aliases in LoadSQL on SELECT * FROM T MUST recreate the view
+		toAliasedStar, err := LoadSQL(`
+CREATE TABLE APP.T (ID NUMBER, NAME VARCHAR2(20 BYTE));
+CREATE VIEW APP.V (A, B) AS SELECT * FROM T;
+`)
+		require.NoError(t, err)
+		addAliasSQL := GenerateMigration(toWithTable, toAliasedStar, nil).SQL()
+		require.Contains(t, addAliasSQL, `DROP VIEW "APP"."V";`)
+		require.Contains(t, addAliasSQL, `CREATE VIEW "APP"."V" ("A", "B") AS SELECT * FROM T;`)
+	})
+
+	t.Run("column collation change detaches and restores indexes, constraints, and incoming foreign keys", func(t *testing.T) {
+		// Regular index on VARCHAR2 column changing BINARY -> BINARY_CI
+		fromIdx, err := LoadSQL(`
+CREATE TABLE APP.T (
+  ID NUMBER NOT NULL,
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT T_CK CHECK (CODE <> '')
+);
+CREATE INDEX APP.T_CODE_IDX ON APP.T (CODE);
+`)
+		require.NoError(t, err)
+		toIdx, err := LoadSQL(`
+CREATE TABLE APP.T (
+  ID NUMBER NOT NULL,
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT T_CK CHECK (CODE <> '')
+);
+CREATE INDEX APP.T_CODE_IDX ON APP.T (CODE);
+`)
+		require.NoError(t, err)
+		sqlIdx := GenerateMigration(fromIdx, toIdx, nil).SQL()
+		dropIdxPos := strings.Index(sqlIdx, `DROP INDEX "APP"."T_CODE_IDX";`)
+		dropCkPos := strings.Index(sqlIdx, `DROP CONSTRAINT "T_CK";`)
+		modifyPos := strings.Index(sqlIdx, `MODIFY ("CODE" VARCHAR2(20 BYTE) COLLATE BINARY_CI);`)
+		createIdxPos := strings.Index(sqlIdx, `CREATE INDEX "APP"."T_CODE_IDX"`)
+		createCkPos := strings.Index(sqlIdx, `ADD CONSTRAINT "T_CK"`)
+		require.True(t, dropIdxPos >= 0 && dropCkPos >= 0 && modifyPos > dropIdxPos && modifyPos > dropCkPos, "must drop index and check before MODIFY COLLATE:\n%s", sqlIdx)
+		require.True(t, createIdxPos > modifyPos && createCkPos > modifyPos, "must restore index and check after MODIFY COLLATE:\n%s", sqlIdx)
+		_, err = fromIdx.Exec(sqlIdx, nil)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(fromIdx, toIdx, nil).SQL())
+
+		// Primary key / unique constraint referenced by another table's FK
+		fromFK, err := LoadSQL(`
+CREATE TABLE APP.PARENT (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT PARENT_PK PRIMARY KEY (CODE)
+);
+CREATE TABLE APP.CHILD (
+  ID NUMBER NOT NULL,
+  PARENT_CODE VARCHAR2(20 BYTE) COLLATE BINARY NOT NULL,
+  CONSTRAINT CHILD_FK FOREIGN KEY (PARENT_CODE) REFERENCES APP.PARENT (CODE)
+);
+`)
+		require.NoError(t, err)
+		toFK, err := LoadSQL(`
+CREATE TABLE APP.PARENT (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT PARENT_PK PRIMARY KEY (CODE)
+);
+CREATE TABLE APP.CHILD (
+  ID NUMBER NOT NULL,
+  PARENT_CODE VARCHAR2(20 BYTE) COLLATE BINARY_CI NOT NULL,
+  CONSTRAINT CHILD_FK FOREIGN KEY (PARENT_CODE) REFERENCES APP.PARENT (CODE)
+);
+`)
+		require.NoError(t, err)
+		sqlFK := GenerateMigration(fromFK, toFK, nil).SQL()
+		dropChildFKPos := strings.Index(sqlFK, `ALTER TABLE "APP"."CHILD" DROP CONSTRAINT "CHILD_FK";`)
+		dropParentPKPos := strings.Index(sqlFK, `ALTER TABLE "APP"."PARENT" DROP CONSTRAINT "PARENT_PK";`)
+		modifyParentPos := strings.Index(sqlFK, `ALTER TABLE "APP"."PARENT" MODIFY ("CODE" VARCHAR2(20 BYTE) COLLATE BINARY_CI);`)
+		addParentPKPos := strings.Index(sqlFK, `ALTER TABLE "APP"."PARENT" ADD CONSTRAINT "PARENT_PK" PRIMARY KEY (CODE);`)
+		addChildFKPos := strings.LastIndex(sqlFK, `ALTER TABLE "APP"."CHILD" ADD CONSTRAINT "CHILD_FK"`)
+		require.True(t, dropChildFKPos >= 0 && dropParentPKPos > dropChildFKPos && modifyParentPos > dropParentPKPos, "must drop incoming FK and PK before MODIFY COLLATE:\n%s", sqlFK)
+		require.True(t, addParentPKPos > modifyParentPos && addChildFKPos > addParentPKPos, "must restore PK and incoming FK after MODIFY COLLATE:\n%s", sqlFK)
+		_, err = fromFK.Exec(sqlFK, nil)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(fromFK, toFK, nil).SQL())
+
+		// Type + collation change together with a function-based index must only drop and recreate the index once
+		fromBoth, err := LoadSQL(`
+CREATE TABLE APP.T2 (
+  CODE VARCHAR2(20 BYTE) COLLATE BINARY
+);
+CREATE INDEX APP.T2_UPPER_IDX ON APP.T2 (UPPER(CODE));
+`)
+		require.NoError(t, err)
+		toBoth, err := LoadSQL(`
+CREATE TABLE APP.T2 (
+  CODE VARCHAR2(40 BYTE) COLLATE BINARY_CI
+);
+CREATE INDEX APP.T2_UPPER_IDX ON APP.T2 (UPPER(CODE));
+`)
+		require.NoError(t, err)
+		sqlBoth := GenerateMigration(fromBoth, toBoth, nil).SQL()
+		require.Equal(t, 1, strings.Count(sqlBoth, `DROP INDEX "APP"."T2_UPPER_IDX";`), sqlBoth)
+		require.Equal(t, 1, strings.Count(sqlBoth, `CREATE INDEX "APP"."T2_UPPER_IDX"`), sqlBoth)
 	})
 }

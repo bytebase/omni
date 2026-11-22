@@ -2027,17 +2027,18 @@ func materializedViewRefreshPrefix(buildMode, refreshMethod, refreshMode string)
 	method := strings.ToUpper(strings.TrimSpace(refreshMethod))
 	mode := strings.ToUpper(strings.TrimSpace(refreshMode))
 
-	// Omit the prefix when all three match Oracle's default CREATE MATERIALIZED
-	// VIEW AS ... settings (BUILD IMMEDIATE REFRESH FORCE ON DEMAND).
-	if (build == "" || build == "IMMEDIATE") && (method == "" || method == "FORCE") && (mode == "" || mode == "DEMAND") {
+	// Omit the prefix when the effective clauses match Oracle's default
+	// CREATE MATERIALIZED VIEW AS ... settings (BUILD IMMEDIATE REFRESH FORCE
+	// ON DEMAND). BUILD_MODE='PREBUILT' is intentionally not emitted as
+	// ON PREBUILT TABLE because getTables excludes tables listed in ALL_MVIEWS,
+	// so a dump restored into an empty schema does not recreate the prebuilt
+	// backing table first.
+	if build != "DEFERRED" && (method == "" || method == "FORCE") && (mode == "" || mode == "DEMAND") {
 		return ""
 	}
 	var parts []string
-	switch build {
-	case "DEFERRED":
+	if build == "DEFERRED" {
 		parts = append(parts, "BUILD DEFERRED")
-	case "PREBUILT":
-		parts = append(parts, "ON PREBUILT TABLE")
 	}
 	if method == "NEVER" {
 		parts = append(parts, "NEVER REFRESH")
