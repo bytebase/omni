@@ -216,13 +216,21 @@ func (p *Parser) collectParenthesizedBlock() string {
 // parseIndexColumnList parses a comma-separated list of index columns.
 func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	list := &nodes.List{}
+	seenCols := map[string]bool{}
 	for {
+		colTok := p.cur
 		col, parseErr424 := p.parseIndexColumn()
 		if parseErr424 != nil {
 			return nil, parseErr424
 		}
 		if col == nil {
 			break
+		}
+		if ref, ok := col.Expr.(*nodes.ColumnRef); ok && ref.Table == "" && ref.Schema == "" && ref.Column != "" {
+			if seenCols[ref.Column] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
+			seenCols[ref.Column] = true
 		}
 		list.Items = append(list.Items, col)
 		if p.cur.Type != ',' {
@@ -295,7 +303,7 @@ func (p *Parser) parseIndexColumn() (*nodes.IndexColumn, error) {
 // NUMBER(1) ORA-29827 at the '(', TIMESTAMP WITH TIME ZONE ORA-00907 at
 // WITH. LONG RAW and DOUBLE PRECISION are the two-word names it takes.
 func (p *Parser) parseOperatorType() (string, error) {
-	if !p.isIdentLike() || p.cur.Type == kwRETURN {
+	if !p.isIdentLike() || p.cur.Type == kwRETURN || p.isKeywordStr("OBJECT") {
 		return "", p.syntaxErrorAtCur()
 	}
 	name := p.advance().Str

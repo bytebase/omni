@@ -133,6 +133,9 @@ func (p *Parser) parseJoinGroupMembers() ([]*nodes.JoinGroupMember, error) {
 		if p.cur.Type == tokEOF || (p.isCreateTableNameStart() && p.peekNext().Type == '(') {
 			return nil, p.syntaxErrorAtTok(firstTableTok)
 		}
+		if p.peekNext().Type == ')' {
+			p.advance()
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume )

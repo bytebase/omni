@@ -566,6 +566,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
 	periods, supplemental, domains := 0, 0, 0
+	seenCols := map[string]bool{}
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
@@ -573,7 +574,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		}
 		progress = p.pos()
 		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental + domains
-		if p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG") {
+		if p.atWord("SUPPLEMENTAL") && (p.atNextWord("LOG") || p.peekNext().Type == kwGROUP) {
 			start, valueStart := p.pos(), p.peekNext().End
 			if err := p.parseCreateTableSupplementalLogging(); err != nil {
 				return err
@@ -608,11 +609,22 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 			}
 		} else {
 			// Column definition
+			colTok := p.cur
+			if p.isIdentLike() && seenCols[colTok.Str] {
+				ahead := p.peekNext()
+				if ahead.Type == ',' || ahead.Type == ')' || (ahead.Type == tokIDENT && !isOracleBuiltInScalarTypeName(ahead) && !isColumnPropertyKeyword(ahead) && p.peekAhead(2)[1].Type == ')') {
+					return p.syntaxErrorAtTok(colTok)
+				}
+			}
 			col, parseErr496 := p.parseColumnDef()
 			if parseErr496 != nil {
 				return parseErr496
 			}
 			if col != nil {
+				if col.TypeName == nil && col.Domain == nil && seenCols[col.Name] {
+					return p.syntaxErrorAtTok(colTok)
+				}
+				seenCols[col.Name] = true
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
@@ -775,6 +787,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	if err := p.syntaxErrorIfReservedColumnIdentifier(); err != nil {
 		return nil, err
 	}
+	colStartTok := p.cur
 	var parseErr497 error
 	col.Name, parseErr497 = p.parseIdentifier()
 	if parseErr497 != nil {
@@ -784,6 +797,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return nil, nil
 	}
 
+	userDefinedType := false
 	// DOMAIN [ schema. ] domain_name  (instead of datatype)
 	if p.isIdentLikeStr("DOMAIN") {
 		p.advance()
@@ -812,7 +826,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			Loc:      nodes.Loc{Start: p.pos(), End: p.cur.End},
 		}
 		p.advance()
-	} else if p.isTypeName() && !p.isCreateTableColumnClauseStart() {
+	} else if p.isTypeName() && !p.isCreateTableColumnClauseStart() && !isColumnPropertyKeyword(p.cur) {
 		// COLLATE, ENCRYPT, ANNOTATIONS and SCOPE IS start clauses of a
 		// column without a datatype, not a datatype.
 		typeTok := p.cur
@@ -821,6 +835,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		col.TypeName, parseErr499 = p.parseTypeName()
 		if parseErr499 != nil {
 			return nil, parseErr499
+		}
+		if !isOracleTypeToken(typeTok.Type) && typeTok.Type != kwREF && !isOracleBuiltInScalarTypeName(typeTok) {
+			userDefinedType = true
 		}
 		// A user-defined type name (not a built-in parameterized type) cannot
 		// take a parenthesized modifier; Oracle rejects at the type name
@@ -844,6 +861,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		if p.peekNext().Type == '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if !isOracleBuiltInScalarTypeName(p.cur) {
+			userDefinedType = true
+		}
 		col.TypeName = &nodes.TypeName{
 			Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: p.cur.Str}}},
 			TypeMods: &nodes.List{},
@@ -851,9 +871,38 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 		p.advance()
 	}
+	// PARTITION TABLE ... in CREATE TABLE column list: Oracle reads TABLE as
+	// datatype and rejects at the following token.
+	if col.TypeName == nil && p.createTableColumns && col.Name == "PARTITION" && p.cur.Type == kwTABLE {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+	// Bare ALWAYS AS (...) / ALWAYS AS IDENTITY without GENERATED:
+	// Oracle reads ALWAYS as an invalid virtual-column datatype (ORA-54003 at
+	// column name) before AS(...), and past IDENTITY before rejecting ALWAYS AS IDENTITY.
+	if col.TypeName == nil && p.cur.Type == kwALWAYS && p.peekNext().Type == kwAS {
+		ahead := p.peekAhead(2)
+		if len(ahead) == 2 && ahead[1].Type == '(' {
+			return nil, p.syntaxErrorAtTok(colStartTok)
+		}
+		if len(ahead) == 2 && ahead[1].Type == kwIDENTITY {
+			p.advance() // ALWAYS
+			p.advance() // AS
+			p.advance() // IDENTITY
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	parseErr500 := p.parseColumnProperties(col)
 	if parseErr500 != nil {
 		return nil, parseErr500
+	}
+	if p.alterTableAddColumn && col.TypeName != nil && p.isKeywordStr("DEFERRED") {
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+	// A virtual column cannot take a non-built-in/user-defined datatype (ORA-54003 at column name).
+	if col.Virtual != nil && userDefinedType {
+		return nil, p.syntaxErrorAtTok(colStartTok)
 	}
 	// CREATE TABLE's column_definition takes its datatype as optional
 	// (CREATE TABLE t (a, b) AS SELECT ...); a bare column elsewhere is
@@ -892,6 +941,20 @@ func isOracleTypeToken(tokenType int) bool {
 	default:
 		return false
 	}
+}
+
+func isOracleBuiltInScalarTypeName(tok Token) bool {
+	if tok.Type == tokQIDENT {
+		return false
+	}
+	switch tok.Str {
+	case "INT", "DEC", "NUMERIC", "REAL", "DOUBLE",
+		"CHARACTER", "NATIONAL", "BOOLEAN", "BOOL",
+		"BINARY_FLOAT", "BINARY_DOUBLE", "UROWID",
+		"BFILE", "XMLTYPE", "VECTOR", "ANYDATA", "SDO_GEOMETRY":
+		return true
+	}
+	return false
 }
 
 // isColumnPropertyKeyword reports whether tok is a keyword that starts a column
@@ -1506,7 +1569,9 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
 		if err := p.expectCreateTableToken(kwBY); err != nil {
 			return err
 		}
-		if err := p.parseCreateTableName(); err != nil {
+		if p.cur.Type == ')' {
+			p.advance()
+		} else if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
 	}
@@ -1664,6 +1729,10 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 
 	case kwUNIQUE:
 		p.advance() // consume UNIQUE
+		if p.alterTableAddColumn && p.cur.Type == '(' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		cc.Type = nodes.CONSTRAINT_UNIQUE
 
 	case kwCHECK:
@@ -1695,7 +1764,7 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 			p.advance()
 			var // consume '('
 			parseErr527 error
-			cc.RefColumns, parseErr527 = p.parseIdentifierList()
+			cc.RefColumns, parseErr527 = p.parseUniqueIdentifierList()
 			if parseErr527 != nil {
 				return nil, parseErr527
 			}
@@ -1771,6 +1840,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 	}
 
 	// Optional CONSTRAINT name; Oracle takes CONSTRAINTS here too.
+	hasConstraintName := false
 	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
 		p.advance()
 		var // consume CONSTRAINT
@@ -1782,7 +1852,26 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		if tc.Name == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
+		hasConstraintName = true
+		if tc.Name == "FOREIGN" && p.cur.Type == kwKEY && p.peekNext().Type == '(' {
+			p.advance() // KEY
+			return nil, p.syntaxErrorAtCur()
+		}
+		if allowOnDelete && p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur) &&
+			p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE && p.cur.Type != kwCHECK && p.cur.Type != kwFOREIGN {
+			next := p.peekNext()
+			if next.Type == kwUNIQUE {
+				p.advance() // unexpected word
+				return nil, p.syntaxErrorAtCur()
+			}
+			if next.Type == kwFOREIGN {
+				p.advance() // unexpected word
+				p.advance() // FOREIGN
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 	}
+	_ = hasConstraintName
 
 	switch p.cur.Type {
 	case kwPRIMARY:
@@ -1796,7 +1885,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		}
 		p.advance()
 		var parseErr530 error
-		tc.Columns, parseErr530 = p.parseIdentifierListAsStrings()
+		tc.Columns, parseErr530 = p.parseUniqueIdentifierList()
 		if parseErr530 != nil {
 			return nil, parseErr530
 		}
@@ -1813,7 +1902,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		}
 		p.advance()
 		var parseErr531 error
-		tc.Columns, parseErr531 = p.parseIdentifierListAsStrings()
+		tc.Columns, parseErr531 = p.parseUniqueIdentifierList()
 		if parseErr531 != nil {
 			return nil, parseErr531
 		}
@@ -1872,7 +1961,7 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 		if p.cur.Type == '(' {
 			p.advance()
 			var parseErr535 error
-			tc.RefColumns, parseErr535 = p.parseIdentifierListAsStrings()
+			tc.RefColumns, parseErr535 = p.parseUniqueIdentifierList()
 			if parseErr535 != nil {
 				return nil, parseErr535
 			}
@@ -1905,8 +1994,21 @@ func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConst
 // parseIdentifierList parses a comma-separated list of identifiers,
 // returning a *List of *String nodes.
 func (p *Parser) parseIdentifierList() (*nodes.List, error) {
+	return p.parseIdentifierListUnique(false)
+}
+
+func (p *Parser) parseUniqueIdentifierList() (*nodes.List, error) {
+	return p.parseIdentifierListUnique(true)
+}
+
+func (p *Parser) parseIdentifierListUnique(unique bool) (*nodes.List, error) {
 	list := &nodes.List{}
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		name, parseErr537 := p.parseIdentifier()
 		if parseErr537 != nil {
 			return nil, parseErr537
@@ -1917,6 +2019,12 @@ func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if unique {
+			if seen[name] {
+				return nil, p.syntaxErrorAtTok(tok)
+			}
+			seen[name] = true
 		}
 		list.Items = append(list.Items, &nodes.String{Str: name})
 		if p.cur.Type != ',' {
@@ -2413,13 +2521,21 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 					appendCreateTableOption(stmt, "XMLTYPE", p.createTableOptionValue(optStart+len("XMLTYPE")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "VARRAY":
 					optStart := p.pos()
+					kwTok := p.cur
 					if err := p.parseCreateTableVarrayColProperties(hasColumns); err != nil {
+						if !hasColumns && p.cur.Type == tokEOF && p.prev.Type == kwAS {
+							return p.syntaxErrorAtTok(kwTok)
+						}
 						return err
 					}
 					appendCreateTableOption(stmt, "VARRAY", p.createTableOptionValue(optStart+len("VARRAY")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "NESTED":
 					optStart := p.pos()
+					kwTok := p.cur
 					if err := p.parseCreateTableNestedTableColProperties(hasColumns); err != nil {
+						if !hasColumns && p.cur.Type == tokEOF && p.prev.Type == kwAS {
+							return p.syntaxErrorAtTok(kwTok)
+						}
 						return err
 					}
 					appendCreateTableOption(stmt, "NESTED", p.createTableOptionValue(optStart+len("NESTED")), nodes.Loc{Start: optStart, End: p.prev.End})
@@ -2499,6 +2615,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						return err
 					}
 					appendCreateTableOption(stmt, "CLUSTERING", p.createTableOptionValue(valueStart), nodes.Loc{Start: optStart, End: p.prev.End})
+				case "IMMEDIATE", "EXTERNAL":
+					// Oracle advances past bare IMMEDIATE or EXTERNAL in table
+					// options before refusing what follows (ORA-00922).
+					p.advance()
+					return p.syntaxErrorAtCur()
 				case "SUPPLEMENTAL":
 					optStart := p.pos()
 					p.advance() // consume SUPPLEMENTAL

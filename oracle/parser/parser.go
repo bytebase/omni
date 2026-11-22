@@ -42,6 +42,8 @@ type Parser struct {
 	// column definitions with the datatype left to the engine.
 	alterTableAddColumn bool
 
+	alterTableActionCount int
+
 	// alterTableModifyColumn is set while a column of ALTER TABLE MODIFY is
 	// parsed. Oracle leaves a word there to the resolve phase, as it does a
 	// bare ADD column: MODIFY (a KEY), MODIFY (a IDENTITY) and MODIFY (a
@@ -170,6 +172,10 @@ type Parser struct {
 	// shadowedTypes records the datatypes spelled as a predefined type
 	// where a redeclaration of that name is, or may be, in scope.
 	shadowedTypes map[*nodes.TypeName]bool
+
+	// orderByTok records the ORDER keyword token of each SelectStmt's ORDER BY
+	// clause so trailingOrderBy refuses parenthesized ORDER BY at ORDER (ORA-00907).
+	orderByTok map[*nodes.SelectStmt]Token
 
 	// addedConstraints holds the constraints of the ALTER TABLE ADD ( ... )
 	// list just parsed, actions of their own after its columns'.
@@ -1327,7 +1333,9 @@ func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
 // lexerError returns the lexer's error with token context.
 func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
-	if tok.Type == tokEOF && p.prev.Type != 0 {
+	if p.lexer != nil && p.lexer.hasErrLoc {
+		tok = Token{Type: tokEOF, Loc: p.lexer.errLoc, End: p.lexer.pos}
+	} else if tok.Type == tokEOF && p.prev.Type != 0 {
 		tok = p.prev
 	}
 	var directive *directiveError

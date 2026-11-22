@@ -734,6 +734,12 @@ func (p *Parser) parseAlterMviewIOT() error {
 //	SCOPE FOR ( ref_column ) IS [ schema. ] scope_table
 func (p *Parser) parseAlterMviewScopeFor(stmt *nodes.AlterMaterializedViewStmt) error {
 	p.advance() // consume SCOPE
+	if p.cur.Type == '(' {
+		if err := p.parseATNameList(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
+	}
 	if err := p.atExpect(kwFOR); err != nil {
 		return err
 	}
@@ -909,14 +915,14 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 	return p.parseMviewEditionRef(true)
 }
 
-// isAlterMviewBareExtentOption reports ALLOCATE EXTENT ( SIZE ), ( DATAFILE )
+// isAlterMviewBareExtentOption reports ALLOCATE EXTENT ( DATAFILE )
 // or ( INSTANCE ), an option without its value.
 func (p *Parser) isAlterMviewBareExtentOption() bool {
 	toks := p.peekAhead(4)
 	if !isCreateTableWordTok(toks[0], "EXTENT") || toks[1].Type != '(' || toks[3].Type != ')' {
 		return false
 	}
-	return toks[2].Type == kwSIZE || isCreateTableWordTok(toks[2], "DATAFILE") || isCreateTableWordTok(toks[2], "INSTANCE")
+	return isCreateTableWordTok(toks[2], "DATAFILE") || isCreateTableWordTok(toks[2], "INSTANCE")
 }
 
 // isAlterMviewModifyLobStart reports MODIFY LOB ( ... ), matching ALTER TABLE's
@@ -980,6 +986,13 @@ func (p *Parser) parseAlterMviewMergeSubpartitions() error {
 		if p.cur.Type == '(' {
 			return p.parseATExprList()
 		}
+		if p.cur.Type == kwFORCE && p.peekNext().Type == '(' {
+			p.advance()
+			if err := p.parseATExprList(); err != nil {
+				return err
+			}
+			return p.syntaxErrorAtCur()
+		}
 		return p.parseATName()
 	}
 	if err := item(); err != nil {
@@ -992,12 +1005,16 @@ func (p *Parser) parseAlterMviewMergeSubpartitions() error {
 	if err := item(); err != nil {
 		return err
 	}
+	var intoNameTok Token
+	hasIntoName := false
 	if p.cur.Type == kwINTO {
 		p.advance() // consume INTO
 		if err := p.atExpect(kwSUBPARTITION); err != nil {
 			return err
 		}
 		if p.isATNameStart() {
+			intoNameTok = p.cur
+			hasIntoName = true
 			p.advance()
 		}
 	}
@@ -1017,6 +1034,9 @@ func (p *Parser) parseAlterMviewMergeSubpartitions() error {
 	}
 	if p.cur.Type == kwPARALLEL || p.cur.Type == kwNOPARALLEL {
 		return p.parseATParallel()
+	}
+	if hasIntoName && !p.isStatementEnd() {
+		return p.syntaxErrorAtTok(intoNameTok)
 	}
 	return nil
 }
@@ -1042,10 +1062,16 @@ func (p *Parser) isAlterMviewModifyColumnList() bool {
 //	( column [ ENCRYPT encryption_spec | DECRYPT ] [, ...] )
 func (p *Parser) parseAlterMviewModifyColumns() error {
 	p.advance() // consume '('
+	seen := map[string]bool{}
 	for {
+		tok := p.cur
 		if err := p.parseATName(); err != nil {
 			return err
 		}
+		if seen[tok.Str] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[tok.Str] = true
 		switch {
 		case p.atWord("ENCRYPT"):
 			p.advance()

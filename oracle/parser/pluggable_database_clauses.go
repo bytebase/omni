@@ -879,12 +879,16 @@ func (p *Parser) parseAlterPluggableDatabaseStmt(start int) (nodes.StmtNode, err
 		stateOnly = true
 	case p.adbWord("APPLICATION"):
 	case !p.isAlterPDBClauseStart():
+		if (p.cur.Type == tokSCONST && p.peekNext().Type == kwONLINE) || p.cur.Type == tokICONST || p.cur.Type == '(' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != tokQIDENT && isOracleSQLReservedKeyword(p.cur) {
 			// Oracle reads a reserved word here as the PDB name and refuses
 			// it (ORA-65000) when a clause follows; otherwise it fails at
 			// the token after it.
 			tok := p.advance()
-			if p.adbEnd() || p.isAlterPDBClauseStart() {
+			if (p.adbEnd() && tok.Type != kwCLUSTER) || p.isAlterPDBClauseStart() {
 				return nil, p.syntaxErrorAtTok(tok)
 			}
 			return nil, p.syntaxErrorAtCur()
@@ -987,6 +991,11 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 		}
 		err = p.parseAlterDatabaseFile(opt, word)
 	case "TEMPFILE":
+		if p.peekNext().Type == kwDROP {
+			p.advance()
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		err = p.parseAlterDatabaseFile(opt, word)
 	case "CREATE":
 		createTok := p.advance()

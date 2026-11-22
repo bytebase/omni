@@ -944,17 +944,24 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 	p.advance()
 
 	// INCLUDE ( column_name [, column_name ]... )
+	// Oracle rejects repeating the indexed column or any INCLUDE column (ORA-00957).
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
 		if p.cur.Type != '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		seenCols := map[string]bool{stmt.Column: true}
 		for {
+			colTok := p.cur
 			col, err := p.ixName()
 			if err != nil {
 				return nil, err
 			}
+			if seenCols[col] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
+			seenCols[col] = true
 			stmt.IncludeColumns = append(stmt.IncludeColumns, col)
 			if p.cur.Type != ',' {
 				break
@@ -1461,17 +1468,20 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	// [ = 'pfile_name' ] or [ 'pfile_name' ]
 	if p.cur.Type == '=' {
 		p.advance()
-	}
-	if p.cur.Type == tokSCONST {
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
+		p.advance()
+	} else if p.cur.Type == tokSCONST {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
 		p.advance()
 	}
 
-	seenFrom := false
-	if p.cur.Type == kwFROM {
-		seenFrom = true
-		p.advance()
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// { SPFILE [ = 'spfile_name' ] | MEMORY }
 	if p.isIdentLike() && p.cur.Str == "SPFILE" {
@@ -1479,8 +1489,12 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 		val := ""
 		if p.cur.Type == '=' {
 			p.advance()
-		}
-		if p.cur.Type == tokSCONST {
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			val = p.cur.Str
+			p.advance()
+		} else if p.cur.Type == tokSCONST {
 			val = p.cur.Str
 			p.advance()
 		}
@@ -1491,7 +1505,7 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
 		p.advance()
-	} else if seenFrom {
+	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1550,11 +1564,12 @@ func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 		}
 		// [ AS COPY ]
 		if p.cur.Type == kwAS {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "COPY" {
-				p.advance()
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS COPY"})
+			asTok := p.advance()
+			if !p.isIdentLike() || p.cur.Str != "COPY" {
+				return nil, p.syntaxErrorAtTok(asTok)
 			}
+			p.advance()
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS COPY"})
 		}
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})

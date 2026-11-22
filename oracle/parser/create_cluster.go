@@ -225,15 +225,21 @@ func (p *Parser) parseCreateClusterColumns(stmt *nodes.CreateClusterStmt) error 
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	seenCols := map[string]bool{}
 	for {
 		col := &nodes.ClusterColumn{Loc: nodes.Loc{Start: p.pos()}}
 		if !p.isCreateTableNameStart() {
 			return p.syntaxErrorAtCur()
 		}
+		colTok := p.cur
 		var err error
 		if col.Name, err = p.parseIdentifier(); err != nil {
 			return err
 		}
+		if seenCols[col.Name] {
+			return p.syntaxErrorAtTok(colTok)
+		}
+		seenCols[col.Name] = true
 		if col.DataType, err = p.parseTypeName(); err != nil {
 			return err
 		}

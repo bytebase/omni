@@ -41,9 +41,12 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Loc:     nodes.Loc{Start: start},
 	}
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// ALTER TABLE t alone is refused (ORA-02210).
@@ -51,7 +54,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	enableDisable, upgrade := false, false
+	defer func(saved int) { p.alterTableActionCount = saved }(p.alterTableActionCount)
+	p.alterTableActionCount = 0
 	for !p.isStatementEnd() {
+		p.alterTableActionCount = stmt.Actions.Len()
 		tok := p.cur
 		if enableDisable && p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE {
 			return nil, p.syntaxErrorAtCur()
@@ -127,6 +133,12 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case kwADD:
 		return p.parseAlterTableAdd()
+	case kwIMMEDIATE:
+		if p.alterTableActionCount == 0 {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, p.syntaxErrorAtCur()
 	case kwMODIFY:
 		return p.parseAlterTableModify()
 	case kwDROP:
@@ -743,7 +755,7 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 		tc.Type = nodes.CONSTRAINT_PRIMARY
 	default:
 		p.advance() // UNIQUE
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATUniqueNameList(); err != nil {
 			return nil, err
 		}
 		cmd.Subtype = "UNIQUE"
@@ -913,7 +925,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		} else {
 			p.advance()
 			var err error
-			columns, err = p.parseATNameListStrings()
+			columns, err = p.parseATUniqueNameListStrings()
 			if err != nil {
 				return nil, err
 			}
@@ -1296,7 +1308,7 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	case kwUNIQUE:
 		constraintType = "UNIQUE"
 		p.advance()
-		if err := p.parseATNameList(); err != nil {
+		if err := p.parseATUniqueNameList(); err != nil {
 			return nil, err
 		}
 	case kwPRIMARY:
@@ -1709,6 +1721,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			}
 			// Oracle reads no item of a nested table's object_properties
 			// here: parseATObjectProperties takes it as text.
+			if p.cur.Type == '(' {
+				p.advance()
+				return nil, p.syntaxErrorAtCur()
+			}
 			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
 			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {

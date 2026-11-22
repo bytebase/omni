@@ -172,8 +172,12 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	if err := p.expectCreateTableToken('('); err != nil {
 		return nil, err
 	}
+	maxRangeVals := 0
+	if bound == createTableRangeBound {
+		maxRangeVals = clause.Columns.Len()
+	}
 	for {
-		def, err := p.parseCreateTablePartitionDesc(bound, clause.Subpartition != nil, sub)
+		def, err := p.parseCreateTablePartitionDescWithArity(bound, clause.Subpartition != nil, sub, maxRangeVals)
 		if err != nil {
 			return nil, err
 		}
@@ -413,6 +417,10 @@ func (p *Parser) parseCreateTableSubpartitionDescs(bound createTablePartitionKin
 //	PARTITION [ partition ] [ read_only_clause ] [ indexing_clause ]
 //	[ partitioning_storage_clause ]                      -- hash
 func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, composite bool, sub createTablePartitionKind) (*nodes.PartitionDef, error) {
+	return p.parseCreateTablePartitionDescWithArity(bound, composite, sub, 0)
+}
+
+func (p *Parser) parseCreateTablePartitionDescWithArity(bound createTablePartitionKind, composite bool, sub createTablePartitionKind, maxRangeVals int) (*nodes.PartitionDef, error) {
 	start := p.pos()
 	if p.cur.Type != kwPARTITION {
 		return nil, p.syntaxErrorAtCur()
@@ -449,7 +457,7 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 			}
 		}
 	} else {
-		if err := p.parseCreateTablePartitionBound(bound, def); err != nil {
+		if err := p.parseCreateTablePartitionBoundWithArity(bound, def, maxRangeVals); err != nil {
 			return nil, err
 		}
 		if err := p.parseCreateTablePartitionDescription(def); err != nil {
@@ -498,6 +506,10 @@ func (p *Parser) isCreateTablePartitionName(bound createTablePartitionKind) bool
 //	list_values_clause: VALUES ( { list_values | DEFAULT } )
 //	list_values: { literal | NULL } [, { literal | NULL } ] ...
 func (p *Parser) parseCreateTablePartitionBound(bound createTablePartitionKind, def *nodes.PartitionDef) error {
+	return p.parseCreateTablePartitionBoundWithArity(bound, def, 0)
+}
+
+func (p *Parser) parseCreateTablePartitionBoundWithArity(bound createTablePartitionKind, def *nodes.PartitionDef, maxRangeVals int) error {
 	if bound == createTableHashBound {
 		return nil
 	}
@@ -517,6 +529,10 @@ func (p *Parser) parseCreateTablePartitionBound(bound createTablePartitionKind, 
 		return err
 	}
 	for {
+		valTok := p.cur
+		if bound == createTableRangeBound && maxRangeVals > 0 && def.Values.Len() >= maxRangeVals && valTok.Type != tokEOF {
+			return p.syntaxErrorAtTok(valTok)
+		}
 		val, err := p.parseExpr()
 		if err != nil {
 			return err

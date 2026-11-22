@@ -160,15 +160,18 @@ func (p *Parser) parseJavaIfNotExists(stmt *nodes.AdminDDLStmt) error {
 	if p.cur.Type != kwIF {
 		return nil
 	}
-	p.advance() // consume IF
+	ifTok := p.advance() // consume IF
 	if p.cur.Type != kwNOT {
-		return p.syntaxErrorAtCur()
+		return p.syntaxErrorAtTok(ifTok)
 	}
 	p.advance() // consume NOT
-	if p.cur.Type != kwEXISTS || stmt.OrReplace {
-		return p.syntaxErrorAtCur()
+	if p.cur.Type != kwEXISTS {
+		return p.syntaxErrorAtTok(ifTok)
 	}
 	p.advance() // consume EXISTS
+	if stmt.OrReplace {
+		return p.syntaxErrorAtCur()
+	}
 	stmt.IfNotExists = true
 	return nil
 }

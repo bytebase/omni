@@ -154,10 +154,7 @@ func (p *Parser) parseLockPartitionSpec(item *nodes.LockTableItem, partTok Token
 		}
 		item.PartitionName = name
 		if p.cur.Type != ')' {
-			if p.cur.Type != ',' {
-				return p.syntaxErrorAtTok(partTok)
-			}
-			return p.syntaxErrorAtCur()
+			return p.syntaxErrorAtTok(partTok)
 		}
 		p.advance()
 		return nil
@@ -223,6 +220,9 @@ func (p *Parser) parseLockMode() (string, error) {
 		mode = "EXCLUSIVE"
 		p.advance()
 	default:
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
 		return "", p.syntaxErrorAtCur()
 	}
 	if p.cur.Type != kwMODE {
@@ -529,6 +529,9 @@ func (p *Parser) parseTruncateStmt() (nodes.StmtNode, error) {
 		stmt.Cluster = true
 		p.advance()
 	} else {
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 	var parseErr1158 error
@@ -550,6 +553,9 @@ func (p *Parser) parseTruncateStmt() (nodes.StmtNode, error) {
 			// PURGE MATERIALIZED VIEW LOG
 			p.advance()
 			if p.cur.Type != kwMATERIALIZED {
+				if p.cur.Type != tokEOF && p.cur.Type != ';' {
+					p.advance()
+				}
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.PurgeMVLog = true
@@ -580,6 +586,9 @@ func (p *Parser) parseTruncateStmt() (nodes.StmtNode, error) {
 			// PRESERVE MATERIALIZED VIEW LOG
 			p.advance()
 			if p.cur.Type != kwMATERIALIZED {
+				if p.cur.Type != tokEOF && p.cur.Type != ';' {
+					p.advance()
+				}
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
@@ -978,6 +987,9 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	// Oracle reads the same (compat.tsv's FLASHBACK TABLE a TOPLEVEL rows).
 	if p.cur.Type != kwTO {
 		if !(p.atWord("TOPLEVEL") && (p.atNextWord("SCN") || p.atNextWord("TIMESTAMP") || p.atNextWord("RESTORE"))) {
+			if p.cur.Type != tokEOF && p.cur.Type != ';' {
+				p.advance()
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 	}

@@ -238,7 +238,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		returns = true
 		p.advance()
 		var parseErr781 error
-		stmt.SetClauses, parseErr781 = p.parseSetClauses()
+		stmt.SetClauses, parseErr781 = p.parseSetClausesUnique(true)
 		if parseErr781 != nil {
 			return nil, parseErr781
 

@@ -349,11 +349,17 @@ func (p *Parser) parseMVLogColumnList(list *nodes.List) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for {
+		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return err
 		}
+		if seen[name] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[name] = true
 		list.Items = append(list.Items, &nodes.String{Str: name})
 		if p.cur.Type != ',' {
 			break
@@ -1629,6 +1635,13 @@ func (p *Parser) parseMVLogMerge(stmt *nodes.AlterMviewLogStmt) error {
 func (p *Parser) parseMVLogPartitionKey() error {
 	if p.cur.Type == '(' {
 		return p.parseATExprList()
+	}
+	if p.cur.Type == kwFORCE && p.peekNext().Type == '(' {
+		p.advance()
+		if err := p.parseATExprList(); err != nil {
+			return err
+		}
+		return p.syntaxErrorAtCur()
 	}
 	return p.parseATName()
 }

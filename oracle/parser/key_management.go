@@ -319,6 +319,9 @@ func (k *keyManagementClauses) parseKey(start int, name string) error {
 	if err != nil {
 		return err
 	}
+	if !store && p.prev.Type != tokQIDENT && p.prev.Str == "REVERSE" && k.word("MIGRATE") {
+		return p.syntaxErrorAtCur()
+	}
 	if migrate && !store && k.isMigrateStart(true) {
 		return k.migrate(true)
 	}

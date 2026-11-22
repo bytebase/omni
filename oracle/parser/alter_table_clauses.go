@@ -100,12 +100,31 @@ func (p *Parser) parseATInteger() error {
 
 // parseATNameList reads ( name [, name ]... ).
 func (p *Parser) parseATNameList() error {
+	return p.parseATNameListUnique(false)
+}
+
+func (p *Parser) parseATUniqueNameList() error {
+	return p.parseATNameListUnique(true)
+}
+
+func (p *Parser) parseATNameListUnique(unique bool) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		if err := p.parseATName(); err != nil {
 			return err
+		}
+		if unique {
+			if seen[tok.Str] {
+				return p.syntaxErrorAtTok(tok)
+			}
+			seen[tok.Str] = true
 		}
 		if p.cur.Type != ',' {
 			break
@@ -117,14 +136,33 @@ func (p *Parser) parseATNameList() error {
 
 // parseATNameListStrings reads ( name [, name ]... ) and returns the names.
 func (p *Parser) parseATNameListStrings() ([]string, error) {
+	return p.parseATNameListStringsUnique(false)
+}
+
+func (p *Parser) parseATUniqueNameListStrings() ([]string, error) {
+	return p.parseATNameListStringsUnique(true)
+}
+
+func (p *Parser) parseATNameListStringsUnique(unique bool) ([]string, error) {
 	if err := p.atExpect('('); err != nil {
 		return nil, err
 	}
 	var names []string
+	var seen map[string]bool
+	if unique {
+		seen = map[string]bool{}
+	}
 	for {
+		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return nil, err
+		}
+		if unique {
+			if seen[name] {
+				return nil, p.syntaxErrorAtTok(tok)
+			}
+			seen[name] = true
 		}
 		names = append(names, name)
 		if p.cur.Type != ',' {
@@ -620,7 +658,7 @@ func (p *Parser) parseATInmemoryColumnItem() error {
 	if p.cur.Type != '(' && hasNo {
 		return p.syntaxErrorAtTok(noTok)
 	}
-	return p.parseATNameList()
+	return p.parseATUniqueNameList()
 }
 
 // parseATIlmClause reads ilm_clause:
@@ -911,7 +949,9 @@ func (p *Parser) parseATEncryptionSpec() error {
 		if err := p.atExpect(kwBY); err != nil {
 			return err
 		}
-		if err := p.parseATName(); err != nil {
+		if p.cur.Type == ')' {
+			p.advance()
+		} else if err := p.parseATName(); err != nil {
 			return err
 		}
 	}
@@ -1118,10 +1158,17 @@ func (p *Parser) parseATLobItemList() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for {
+		tok := p.cur
 		if err := p.parseATItemPath(); err != nil {
 			return err
 		}
+		key := strings.ToUpper(p.source[tok.Loc:p.prev.End])
+		if seen[key] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[key] = true
 		if p.cur.Type != ',' {
 			break
 		}
@@ -2067,9 +2114,13 @@ func (p *Parser) parseATFilterCondition() error {
 	if err := p.atExpect(kwROWS); err != nil {
 		return err
 	}
-	if err := p.atExpect(kwWHERE); err != nil {
-		return err
+	if p.cur.Type != kwWHERE {
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		return p.syntaxErrorAtCur()
 	}
+	p.advance() // WHERE
 	cond, err := p.parseExpr()
 	if err != nil {
 		return err
@@ -2705,6 +2756,7 @@ func (p *Parser) parseATPartitionColumnList() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for {
 		if !p.isATNameStart() {
 			return p.syntaxErrorAtCur()
@@ -2719,9 +2771,14 @@ func (p *Parser) parseATPartitionColumnList() error {
 			}
 			return p.syntaxErrorAtCur()
 		}
+		tok := p.cur
 		if err := p.parseATName(); err != nil {
 			return err
 		}
+		if seen[tok.Str] {
+			return p.syntaxErrorAtTok(tok)
+		}
+		seen[tok.Str] = true
 		if p.cur.Type != ',' {
 			break
 		}

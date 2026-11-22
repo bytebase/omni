@@ -85,10 +85,16 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 				if err := p.atExpect('('); err != nil {
 					return err
 				}
+				seenCols := map[string]bool{}
 				for {
+					colTok := p.cur
 					if err := p.parseATName(); err != nil {
 						return err
 					}
+					if seenCols[colTok.Str] {
+						return p.syntaxErrorAtTok(colTok)
+					}
+					seenCols[colTok.Str] = true
 					if p.atWord("NO") {
 						p.advance()
 						if err := p.atExpectWord("LOG"); err != nil {
