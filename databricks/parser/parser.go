@@ -706,11 +706,10 @@ func (p *Parser) parseDeclareConditionStatement() error {
 	}
 	norm := normalizeIdentName(name)
 	if len(p.scriptScopes) > 0 {
-		conds := p.scriptScopes[len(p.scriptScopes)-1].conditions
-		if _, dup := conds[norm]; dup {
+		if p.hasConditionInScope(norm) {
 			return p.errorf("duplicate condition %q in scope", name)
 		}
-		conds[norm] = struct{}{}
+		p.scriptScopes[len(p.scriptScopes)-1].conditions[norm] = struct{}{}
 	}
 	return nil
 }

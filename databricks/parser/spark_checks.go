@@ -313,32 +313,11 @@ func validateNumericLiteral(kind TokenKind, text string, negative bool) bool {
 		_, err := strconv.ParseInt(digits, 10, 64)
 		return err == nil
 	case tokFloat:
-		num := text[:len(text)-1]
-		if negative {
-			num = "-" + num
-		}
-		v, err := strconv.ParseFloat(num, 32)
-		if err != nil || math.IsInf(v, 0) || math.IsNaN(v) {
-			return false
-		}
-		// Spark also rejects float32 boundary values whose BigDecimal conversion
-		// rounds to Infinity (e.g. 3.4028235e38F).
-		f32 := float32(v)
-		return !math.IsInf(float64(f32), 0) && math.Abs(v) < 3.4028235e38
+		return decimalMagnitudeWithinBound(text[:len(text)-1], sparkMaxFloatRat)
 	case tokDouble:
-		num := text[:len(text)-1]
-		if negative {
-			num = "-" + num
-		}
-		v, err := strconv.ParseFloat(num, 64)
-		return err == nil && !math.IsInf(v, 0) && !math.IsNaN(v)
+		return decimalMagnitudeWithinBound(text[:len(text)-1], sparkMaxDoubleRat)
 	case tokExponent:
-		num := text
-		if negative {
-			num = "-" + num
-		}
-		v, err := strconv.ParseFloat(num, 64)
-		return err == nil && !math.IsInf(v, 0) && !math.IsNaN(v)
+		return decimalMagnitudeWithinBound(text, sparkMaxDoubleRat)
 	case tokBigDecimal:
 		num := text[:len(text)-2]
 		return decimalPrecisionWithinLimit(num, 38)
@@ -347,6 +326,55 @@ func validateNumericLiteral(kind TokenKind, text string, negative bool) bool {
 		return len(trimmed) <= 38
 	case tokDecimal:
 		return decimalPrecisionWithinLimit(text, 38)
+	}
+	return true
+}
+
+// Spark v4.0.5 AstBuilder.numericLiteral compares the exact decimal literal
+// against BigDecimal(Float.MaxValue.toDouble) = 3.4028234663852886E38 and
+// BigDecimal(Double.MaxValue) = 1.7976931348623157E308 before float conversion.
+var (
+	sparkMaxFloatRat, _  = new(big.Rat).SetString("3.4028234663852886e38")
+	sparkMaxDoubleRat, _ = new(big.Rat).SetString("1.7976931348623157e308")
+)
+
+func decimalMagnitudeWithinBound(s string, maxBound *big.Rat) bool {
+	mantissa := s
+	exp := 0
+	if idx := strings.IndexAny(s, "eE"); idx >= 0 {
+		mantissa = s[:idx]
+		e, err := strconv.Atoi(s[idx+1:])
+		if err != nil {
+			// Overflowing exponent: only valid if mantissa is zero.
+			return isZeroMantissa(mantissa)
+		}
+		exp = e
+	}
+	if isZeroMantissa(mantissa) {
+		return true
+	}
+	// Quick exponent guard before arbitrary-precision big.Rat construction.
+	if exp > 400 {
+		return false
+	}
+	if exp < -400 {
+		return true
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return false
+	}
+	if r.Sign() < 0 {
+		r.Neg(r)
+	}
+	return r.Cmp(maxBound) <= 0
+}
+
+func isZeroMantissa(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '1' && s[i] <= '9' {
+			return false
+		}
 	}
 	return true
 }

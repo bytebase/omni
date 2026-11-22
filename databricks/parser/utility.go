@@ -738,12 +738,15 @@ func (p *Parser) parseCacheTable() (Statement, error) {
 			return nil, err
 		}
 	}
-	if p.match(kwAS) {
-		if err := p.parseQuery(); err != nil {
-			return nil, err
+	if p.match(kwAS) || !p.isStatementEnd() {
+		if isQualifiedIdent(target) {
+			return nil, p.errorf("CACHE TABLE AS SELECT cannot specify a qualified table name %q", target)
 		}
-	} else if !p.isStatementEnd() {
-		if err := p.parseQuery(); err != nil {
+		prevDisallow := p.disallowParamMarkers
+		p.disallowParamMarkers = true
+		err := p.parseQuery()
+		p.disallowParamMarkers = prevDisallow
+		if err != nil {
 			return nil, err
 		}
 	}

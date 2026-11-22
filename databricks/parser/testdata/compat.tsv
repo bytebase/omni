@@ -6671,3 +6671,18 @@ reject	reject	engine	suite:spark-astbuilder	DECLARE x INT DEFAULT ?
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet OPTIONS (path '/tmp/a') LOCATION '/tmp/b'
 reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT) USING parquet LOCATION '/tmp/b' OPTIONS ('PATH' = '/tmp/a')
 reject	reject	engine	suite:spark-astbuilder	REPLACE TABLE t (a INT) USING parquet OPTIONS (path '/tmp/a') LOCATION '/tmp/b'
+reject	reject	engine	suite:spark-astbuilder	CACHE TABLE t AS SELECT ?
+reject	reject	engine	suite:spark-astbuilder	CACHE TABLE t SELECT :p
+reject	reject	engine	suite:spark-astbuilder	CACHE TABLE db.t AS SELECT 1
+reject	reject	engine	suite:spark-astbuilder	CACHE TABLE db.t SELECT 1
+accept	accept	engine	suite:spark-astbuilder	CACHE TABLE `a.b` AS SELECT 1
+accept	accept	engine	suite:spark-astbuilder	CACHE TABLE db.t
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT GENERATED ALWAYS AS (?))
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (a INT GENERATED ALWAYS AS (:p))
+accept	accept	engine	suite:spark-astbuilder	SELECT 1.7976931348623157e308D
+reject	reject	engine	suite:spark-astbuilder	SELECT 1.7976931348623158e308D
+reject	reject	engine	suite:spark-astbuilder	SELECT -1.7976931348623158e308D
+reject	reject	engine	suite:spark-astbuilder	SELECT 1.7976931348623158e308
+reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE c CONDITION; BEGIN DECLARE c CONDITION; SELECT 1; END; END
+reject	reject	engine	suite:spark-astbuilder	BEGIN DECLARE c CONDITION; BEGIN DECLARE C CONDITION; SELECT 1; END; END
+accept	accept	engine	suite:spark-astbuilder	BEGIN BEGIN DECLARE c CONDITION; SELECT 1; END; BEGIN DECLARE c CONDITION; SELECT 1; END; END

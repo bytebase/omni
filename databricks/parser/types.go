@@ -706,10 +706,14 @@ func (p *Parser) parseGenerationExpression(colType TokenKind) error {
 		if _, err := p.expect(tokLParen); err != nil {
 			return err
 		}
-		if err := p.parseExpression(); err != nil {
+		prevDisallow := p.disallowParamMarkers
+		p.disallowParamMarkers = true
+		err := p.parseExpression()
+		p.disallowParamMarkers = prevDisallow
+		if err != nil {
 			return err
 		}
-		_, err := p.expect(tokRParen)
+		_, err = p.expect(tokRParen)
 		return err
 	}
 	if _, err := p.expect(kwBY); err != nil {
