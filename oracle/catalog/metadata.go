@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -1151,6 +1150,80 @@ func expressionReferencesFunction(expression, function string) bool {
 		}
 		if strings.EqualFold(expression[i:end], function) && next < len(expression) && expression[next] == '(' {
 			return true
+		}
+		i = end
+	}
+	return false
+}
+
+func expressionReferencesPackage(expression, pkg string) bool {
+	if pkg == "" {
+		return false
+	}
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '-' && expression[i+1] == '-' {
+			if end := strings.IndexByte(expression[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '/' && expression[i+1] == '*' {
+			if end := strings.Index(expression[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
+			continue
+		}
+		if expression[i] == '\'' {
+			if end := strings.IndexByte(expression[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
+			continue
+		}
+		matched := false
+		end := i
+		if expression[i] == '"' {
+			end = i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			matched = expression[i+1:end] == pkg
+			if end < len(expression) {
+				end++
+			}
+		} else if isIdentifierByte(expression[i]) {
+			end = i + 1
+			for end < len(expression) && isIdentifierByte(expression[end]) {
+				end++
+			}
+			matched = strings.EqualFold(expression[i:end], pkg)
+		} else {
+			i++
+			continue
+		}
+		if matched {
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			if next < len(expression) && expression[next] == '.' {
+				member := next + 1
+				for member < len(expression) && (expression[member] == ' ' || expression[member] == '\t' || expression[member] == '\n' || expression[member] == '\r') {
+					member++
+				}
+				if member < len(expression) && (expression[member] == '"' || isIdentifierByte(expression[member])) {
+					return true
+				}
+			}
 		}
 		i = end
 	}
@@ -2540,30 +2613,39 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 }
 
 var (
-	identityStartPattern     = regexp.MustCompile(`(?i)START\s+WITH\s+([-+]?[0-9]+)`)
-	identityIncrementPattern = regexp.MustCompile(`(?i)INCREMENT\s+BY\s+([-+]?[0-9]+)`)
-	functionCreatePrefix     = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
+	functionCreatePrefix = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
 )
 
 func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClause, text string) {
 	column.IsIdentity = true
 	if identity != nil && !identity.Always {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
-		column.DefaultOnNull = strings.Contains(strings.ToUpper(text), "ON NULL")
+		column.DefaultOnNull = identityTextHasOnNull(text)
 	} else {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
 	}
-	if match := identityStartPattern.FindStringSubmatch(text); len(match) == 2 {
-		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			column.IdentitySeed = value
-		}
-	}
-	if match := identityIncrementPattern.FindStringSubmatch(text); len(match) == 2 {
-		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			column.IdentityIncrement = value
-		}
-	}
 	applyIdentitySequenceOptionsFromText(column, text)
+}
+
+func identityTextHasOnNull(text string) bool {
+	lexer := oracleparser.NewLexer(text)
+	var prevQuoted bool
+	var prevStr string
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			return false
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(text) && text[tok.Loc] == '"'
+		if !quoted && strings.EqualFold(tok.Str, "IDENTITY") {
+			return false
+		}
+		if !prevQuoted && !quoted && strings.EqualFold(prevStr, "ON") && strings.EqualFold(tok.Str, "NULL") {
+			return true
+		}
+		prevQuoted = quoted
+		prevStr = tok.Str
+	}
 }
 
 func (e *oracleMetadataExtractor) extractCreateSynonym(n *ast.CreateSynonymStmt) {

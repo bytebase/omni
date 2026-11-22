@@ -541,8 +541,17 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// Views and virtual columns can call functions, so the function must exist
-	// first.
+	// Views and virtual columns can call functions or package functions, so
+	// those units must exist first.
+	packageMap := make(map[string]*PackageDiff)
+	addPackageDep := func(pkgDiff *PackageDiff, dependentID string) {
+		pkgID := "pkg:" + getMigrationObjectID(pkgDiff.SchemaName, pkgDiff.PackageName)
+		if _, exists := packageMap[pkgID]; !exists {
+			packageMap[pkgID] = pkgDiff
+			graph.AddNode(pkgID)
+		}
+		graph.AddEdge(pkgID, dependentID)
+	}
 	for viewID, viewDiff := range viewMap {
 		view := viewDiff.NewView
 		if view == nil {
@@ -558,6 +567,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			}
 			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+				pkgDiff.SchemaName == viewDiff.SchemaName &&
+				expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+				addPackageDep(pkgDiff, viewID)
 			}
 		}
 	}
@@ -578,6 +594,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				graph.AddEdge(functionID, viewID)
 			}
 		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+				pkgDiff.SchemaName == viewDiff.SchemaName &&
+				expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+				addPackageDep(pkgDiff, viewID)
+			}
+		}
 	}
 	for tableID, tableDiff := range tableMap {
 		if tableDiff.NewTable == nil {
@@ -594,6 +617,13 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				}
 				if function != nil && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 					graph.AddEdge(functionID, tableID)
+				}
+			}
+			for _, pkgDiff := range diff.PackageChanges {
+				if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+					pkgDiff.SchemaName == tableDiff.SchemaName &&
+					expressionReferencesPackage(column.GetGeneration().GetExpression(), pkgDiff.PackageName) {
+					addPackageDep(pkgDiff, tableID)
 				}
 			}
 		}
@@ -699,10 +729,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	}
 
 	// Get topological order
+	writtenPackages := map[*PackageDiff]bool{}
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there's a cycle, fall back to a safe order. Functions a virtual
-		// column calls must exist before their table.
+		// If there's a cycle, fall back to a safe order. Functions and packages
+		// a virtual column calls must exist before their table.
 		prewrittenFunctions := map[string]bool{}
 		for _, tableDiff := range tableMap {
 			if tableDiff.NewTable == nil {
@@ -720,6 +751,15 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					if function != nil && !prewrittenFunctions[functionID] && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 						writeFunctionDiff(buf, functionDiff)
 						prewrittenFunctions[functionID] = true
+					}
+				}
+				for _, pkgDiff := range diff.PackageChanges {
+					if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) &&
+						!writtenPackages[pkgDiff] &&
+						pkgDiff.SchemaName == tableDiff.SchemaName &&
+						expressionReferencesPackage(column.GetGeneration().GetExpression(), pkgDiff.PackageName) {
+						writePackageDiff(buf, pkgDiff)
+						writtenPackages[pkgDiff] = true
 					}
 				}
 			}
@@ -784,6 +824,34 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			if called {
 				writeFunctionDiff(buf, functionDiff)
 				prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] = true
+			}
+		}
+		for _, pkgDiff := range diff.PackageChanges {
+			if (pkgDiff.Action != DiffActionCreate && pkgDiff.Action != DiffActionAlter) || writtenPackages[pkgDiff] {
+				continue
+			}
+			called := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && viewDiff.SchemaName == pkgDiff.SchemaName && expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+					called = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && viewDiff.SchemaName == pkgDiff.SchemaName && expressionReferencesPackage(view.Definition, pkgDiff.PackageName) {
+					called = true
+				}
+			}
+			if called {
+				writePackageDiff(buf, pkgDiff)
+				writtenPackages[pkgDiff] = true
 			}
 		}
 
@@ -854,6 +922,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				writeFunctionDiff(buf, funcDiff)
 			} else if procDiff, ok := procedureMap[objID]; ok {
 				writeProcedureDiff(buf, procDiff)
+			} else if pkgDiff, ok := packageMap[objID]; ok {
+				writePackageDiff(buf, pkgDiff)
+				writtenPackages[pkgDiff] = true
 			}
 		}
 
@@ -962,9 +1033,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// Create/alter packages after tables, views, functions and procedures exist.
+	// Create/alter remaining packages after tables, views, functions and procedures exist.
 	for _, pkgDiff := range diff.PackageChanges {
-		if pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter {
+		if (pkgDiff.Action == DiffActionCreate || pkgDiff.Action == DiffActionAlter) && !writtenPackages[pkgDiff] {
 			writePackageDiff(buf, pkgDiff)
 		}
 	}

@@ -102,12 +102,26 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// Procedures will be created after tables by default order
 	}
 
-	// Views and virtual columns can call functions, so the function must exist
-	// first.
+	// Views and virtual columns can call functions or package functions, so
+	// those units must exist first.
+	packageMap := make(map[string]*metadatapb.PackageMetadata)
+	addPackageDep := func(pkg *metadatapb.PackageMetadata, dependentID string) {
+		pkgID := "pkg:" + getObjectID(databaseName, pkg.Name)
+		if _, exists := packageMap[pkgID]; !exists {
+			packageMap[pkgID] = pkg
+			graph.AddNode(pkgID)
+		}
+		graph.AddEdge(pkgID, dependentID)
+	}
 	for viewID, view := range viewMap {
 		for functionID, function := range functionMap {
 			if expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkg := range schema.Packages {
+			if expressionReferencesPackage(view.Definition, pkg.Name) {
+				addPackageDep(pkg, viewID)
 			}
 		}
 	}
@@ -115,6 +129,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		for functionID, function := range functionMap {
 			if expressionReferencesFunction(view.Definition, function.Name) {
 				graph.AddEdge(functionID, viewID)
+			}
+		}
+		for _, pkg := range schema.Packages {
+			if expressionReferencesPackage(view.Definition, pkg.Name) {
+				addPackageDep(pkg, viewID)
 			}
 		}
 	}
@@ -127,6 +146,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			for functionID, function := range functionMap {
 				if expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
 					graph.AddEdge(functionID, tableID)
+				}
+			}
+			for _, pkg := range schema.Packages {
+				if expressionReferencesPackage(column.GetGeneration().GetExpression(), pkg.Name) {
+					addPackageDep(pkg, tableID)
 				}
 			}
 		}
@@ -146,10 +170,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	// Perform topological sort
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there are cycles, fall back to original order. Functions a virtual
-		// column calls must exist before their table; the foreign keys are added
-		// once all tables exist.
+		// If there are cycles, fall back to original order. Functions and
+		// packages a virtual column calls must exist before their table; the
+		// foreign keys are added once all tables exist.
 		prewrittenFunctions := map[string]bool{}
+		prewrittenPackages := map[string]bool{}
 		for _, table := range tables {
 			for _, column := range table.Columns {
 				if column.GetGeneration() == nil {
@@ -161,6 +186,14 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 							return "", err
 						}
 						prewrittenFunctions[function.Name] = true
+					}
+				}
+				for _, pkg := range schema.Packages {
+					if !prewrittenPackages[pkg.Name] && expressionReferencesPackage(column.GetGeneration().GetExpression(), pkg.Name) {
+						if err := writePackage(&buf, pkg); err != nil {
+							return "", err
+						}
+						prewrittenPackages[pkg.Name] = true
 					}
 				}
 			}
@@ -177,8 +210,8 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				}
 			}
 		}
-		// A view that calls a function needs it before the view, as a virtual
-		// column does.
+		// A view that calls a function or package function needs it before the
+		// view, as a virtual column does.
 		checkView := func(definition string) error {
 			for _, function := range schema.Functions {
 				if !prewrittenFunctions[function.Name] && expressionReferencesFunction(definition, function.Name) {
@@ -186,6 +219,14 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 						return err
 					}
 					prewrittenFunctions[function.Name] = true
+				}
+			}
+			for _, pkg := range schema.Packages {
+				if !prewrittenPackages[pkg.Name] && expressionReferencesPackage(definition, pkg.Name) {
+					if err := writePackage(&buf, pkg); err != nil {
+						return err
+					}
+					prewrittenPackages[pkg.Name] = true
 				}
 			}
 			return nil
@@ -217,6 +258,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			}
 		}
 		for _, pkg := range schema.Packages {
+			if prewrittenPackages[pkg.Name] {
+				continue
+			}
 			if err := writePackage(&buf, pkg); err != nil {
 				return "", err
 			}
@@ -234,6 +278,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	}
 
 	// Generate objects in dependency order
+	writtenPackages := map[string]bool{}
 	for _, objectID := range orderedList {
 		if table, ok := tableMap[objectID]; ok {
 			if err := writeTableWithoutFunctionIndexes(&buf, table); err != nil {
@@ -260,8 +305,17 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				return "", err
 			}
 		}
+		if pkg, ok := packageMap[objectID]; ok {
+			if err := writePackage(&buf, pkg); err != nil {
+				return "", err
+			}
+			writtenPackages[pkg.Name] = true
+		}
 	}
 	for _, pkg := range schema.Packages {
+		if writtenPackages[pkg.Name] {
+			continue
+		}
 		if err := writePackage(&buf, pkg); err != nil {
 			return "", err
 		}
@@ -1820,14 +1874,13 @@ func writeTablePartitions(buf *strings.Builder, partitions []*metadatapb.TablePa
 				return err
 			}
 		}
-		if _, err := buf.WriteString(`  PARTITION "`); err != nil {
+		if _, err := buf.WriteString(`  PARTITION`); err != nil {
 			return err
 		}
-		if _, err := buf.WriteString(part.GetName()); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(`"`); err != nil {
-			return err
+		if name := part.GetName(); name != "" {
+			if _, err := buf.WriteString(` "` + name + `"`); err != nil {
+				return err
+			}
 		}
 		switch kind {
 		case "RANGE":
@@ -1849,8 +1902,13 @@ func writeTablePartitions(buf *strings.Builder, partitions []*metadatapb.TablePa
 						return err
 					}
 				}
-				if _, err := buf.WriteString(`    SUBPARTITION "` + sub.GetName() + `"`); err != nil {
+				if _, err := buf.WriteString(`    SUBPARTITION`); err != nil {
 					return err
+				}
+				if name := sub.GetName(); name != "" {
+					if _, err := buf.WriteString(` "` + name + `"`); err != nil {
+						return err
+					}
 				}
 				switch subKind {
 				case "RANGE":

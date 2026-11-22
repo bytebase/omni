@@ -287,6 +287,16 @@ END PKG;
 		require.Contains(t, plan.SQL(), `MAXVALUE 500000`)
 		require.Contains(t, plan.SQL(), `NOCACHE`)
 		require.Contains(t, plan.SQL(), `NOCYCLE`)
+
+		// Quoted column names matching sequence option keywords (e.g. "CYCLE", "ORDER") must not set those options
+		cQuotedCol, err := LoadSQL(`CREATE TABLE i_kw ("CYCLE" NUMBER GENERATED ALWAYS AS IDENTITY)`)
+		require.NoError(t, err)
+		require.Empty(t, cQuotedCol.Metadata().Schemas[0].Tables[0].Columns[0].GetOptions())
+		defQuotedCol, err := DatabaseDefinition(cQuotedCol.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, defQuotedCol, `"CYCLE" NUMBER GENERATED ALWAYS AS IDENTITY`)
+		require.NotContains(t, defQuotedCol, `(CYCLE)`)
+		require.NotContains(t, defQuotedCol, ` CYCLE`)
 	})
 
 	t.Run("explicit column collation emitted and USING_NLS_COMP omitted", func(t *testing.T) {
@@ -446,6 +456,19 @@ CREATE TABLE comp_tpl (
 		}))
 		require.NoError(t, err)
 		require.Contains(t, defSubComma, `PARTITION BY RANGE ("A,B") SUBPARTITION BY LIST ("C,D")`)
+
+		// Unnamed partitions and subpartitions omit zero-length "" identifiers
+		cUnnamed, err := LoadSQL(`CREATE TABLE p_unnamed (id NUMBER) PARTITION BY RANGE (id) (PARTITION VALUES LESS THAN (10))`)
+		require.NoError(t, err)
+		defUnnamed, err := DatabaseDefinition(cUnnamed.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, defUnnamed, `PARTITION VALUES LESS THAN (10)`)
+		require.NotContains(t, defUnnamed, `PARTITION ""`)
+		cUnnamed2, err := LoadSQL(defUnnamed)
+		require.NoError(t, err)
+		defUnnamed2, err := DatabaseDefinition(cUnnamed2.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, defUnnamed, defUnnamed2)
 	})
 
 	t.Run("materialized view refresh policy clauses", func(t *testing.T) {
@@ -753,5 +776,34 @@ CREATE INDEX APP.T2_UPPER_IDX ON APP.T2 (UPPER(CODE));
 		require.NoError(t, err)
 		require.Empty(t, GenerateMigration(fromChar, toNum, nil).SQL())
 		require.Empty(t, Diff(fromChar, toNum).TableChanges)
+	})
+
+	t.Run("packages referenced by views are created before dependent views", func(t *testing.T) {
+		c, err := LoadSQL(`
+CREATE OR REPLACE PACKAGE PKG AS
+  FUNCTION F RETURN NUMBER;
+END PKG;
+/
+CREATE OR REPLACE PACKAGE BODY PKG AS
+  FUNCTION F RETURN NUMBER IS
+  BEGIN
+    RETURN 1;
+  END F;
+END PKG;
+/
+CREATE VIEW V AS SELECT PKG.F() AS N FROM DUAL;
+`)
+		require.NoError(t, err)
+
+		def, err := DatabaseDefinition(c.Metadata())
+		require.NoError(t, err)
+		pkgPos := strings.Index(def, "CREATE OR REPLACE PACKAGE PKG")
+		viewPos := strings.Index(def, `CREATE VIEW "V"`)
+		require.True(t, pkgPos >= 0 && viewPos > pkgPos, "package must precede dependent view in definition:\n%s", def)
+
+		mig := GenerateMigration(New(), c, nil).SQL()
+		migPkgPos := strings.Index(mig, "CREATE OR REPLACE PACKAGE PKG")
+		migViewPos := strings.Index(mig, `CREATE VIEW "V"`)
+		require.True(t, migPkgPos >= 0 && migViewPos > migPkgPos, "package must precede dependent view in migration:\n%s", mig)
 	})
 }

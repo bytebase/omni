@@ -2,10 +2,11 @@ package catalog
 
 import (
 	"fmt"
-	"regexp"
+	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	oracleparser "github.com/bytebase/omni/oracle/parser"
 )
 
 const (
@@ -145,26 +146,112 @@ func (v identityOptionValues) sqlClauses() []string {
 	return options
 }
 
-var (
-	identityMaxValuePattern = regexp.MustCompile(`(?i)\bMAXVALUE\s+([-+]?[0-9]+)`)
-	identityMinValuePattern = regexp.MustCompile(`(?i)\bMINVALUE\s+([-+]?[0-9]+)`)
-	identityCachePattern    = regexp.MustCompile(`(?i)\bCACHE\s+([0-9]+)`)
-	identityWordPattern     = regexp.MustCompile(`(?i)\b(NOMAXVALUE|NOMINVALUE|NOCACHE|CYCLE|NOCYCLE|ORDER|NOORDER|KEEP|NOKEEP|SCALE|NOSCALE|EXTEND|NOEXTEND|SESSION|SHARD|NOSHARD)\b`)
-)
+type identityToken struct {
+	tokType int
+	str     string
+	raw     string
+	quoted  bool
+}
+
+func tokenizeIdentityOptions(text string) []identityToken {
+	lexer := oracleparser.NewLexer(text)
+	var all []identityToken
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(text) && text[tok.Loc] == '"'
+		raw := tok.Str
+		if tok.Loc >= 0 && tok.End >= tok.Loc && tok.End <= len(text) {
+			raw = text[tok.Loc:tok.End]
+		}
+		all = append(all, identityToken{
+			tokType: tok.Type,
+			str:     tok.Str,
+			raw:     raw,
+			quoted:  quoted,
+		})
+	}
+	// IdentityClause.Loc.Start starts at the column definition, which includes
+	// the column name (e.g. a quoted identifier like "CYCLE") and datatype.
+	// Restrict option parsing to tokens after the unquoted IDENTITY keyword.
+	start := 0
+	for i, tok := range all {
+		if !tok.quoted && strings.EqualFold(tok.str, "IDENTITY") {
+			start = i + 1
+			break
+		}
+	}
+	return all[start:]
+}
+
+func readSignedIntToken(tokens []identityToken, idx int) (string, int, bool) {
+	if idx >= len(tokens) {
+		return "", idx, false
+	}
+	sign := ""
+	if !tokens[idx].quoted && (tokens[idx].raw == "+" || tokens[idx].raw == "-") {
+		sign = tokens[idx].raw
+		idx++
+	}
+	if idx >= len(tokens) || tokens[idx].quoted {
+		return "", idx, false
+	}
+	digits := tokens[idx].raw
+	if digits == "" {
+		return "", idx, false
+	}
+	for i := 0; i < len(digits); i++ {
+		if digits[i] < '0' || digits[i] > '9' {
+			return "", idx, false
+		}
+	}
+	return sign + digits, idx + 1, true
+}
 
 func applyIdentitySequenceOptionsFromText(column *metadatapb.ColumnMetadata, text string) {
+	tokens := tokenizeIdentityOptions(text)
 	v := parseColumnIdentityOptions(column.GetOptions())
-	if match := identityMaxValuePattern.FindStringSubmatch(text); len(match) == 2 {
-		v.maxValue = match[1]
-	}
-	if match := identityMinValuePattern.FindStringSubmatch(text); len(match) == 2 {
-		v.minValue = match[1]
-	}
-	if match := identityCachePattern.FindStringSubmatch(text); len(match) == 2 {
-		v.cache = match[1]
-	}
-	for _, match := range identityWordPattern.FindAllStringSubmatch(text, -1) {
-		switch strings.ToUpper(match[1]) {
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if tok.quoted {
+			continue
+		}
+		switch strings.ToUpper(tok.str) {
+		case "START":
+			if i+1 < len(tokens) && !tokens[i+1].quoted && strings.EqualFold(tokens[i+1].str, "WITH") {
+				if num, next, ok := readSignedIntToken(tokens, i+2); ok {
+					if val, err := strconv.ParseInt(num, 10, 64); err == nil {
+						column.IdentitySeed = val
+					}
+					i = next - 1
+				}
+			}
+		case "INCREMENT":
+			if i+1 < len(tokens) && !tokens[i+1].quoted && strings.EqualFold(tokens[i+1].str, "BY") {
+				if num, next, ok := readSignedIntToken(tokens, i+2); ok {
+					if val, err := strconv.ParseInt(num, 10, 64); err == nil {
+						column.IdentityIncrement = val
+					}
+					i = next - 1
+				}
+			}
+		case "MAXVALUE":
+			if num, next, ok := readSignedIntToken(tokens, i+1); ok {
+				v.maxValue = num
+				i = next - 1
+			}
+		case "MINVALUE":
+			if num, next, ok := readSignedIntToken(tokens, i+1); ok {
+				v.minValue = num
+				i = next - 1
+			}
+		case "CACHE":
+			if num, next, ok := readSignedIntToken(tokens, i+1); ok {
+				v.cache = num
+				i = next - 1
+			}
 		case "NOMAXVALUE":
 			v.maxValue = ""
 		case "NOMINVALUE":
