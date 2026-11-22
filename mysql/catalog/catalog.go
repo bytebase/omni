@@ -64,6 +64,7 @@ type Catalog struct {
 	globalDefaultTableEncrypt bool
 	globalDefaultEngine       string
 	globalDefaultTmpEngine    string
+	globalDefaultWeekFormat   int
 	currentDB                 string
 	defaultCharset            string
 	defaultCollation          string
@@ -90,6 +91,7 @@ type SessionState struct {
 	// CREATE TABLE without ENGINE gets, "" for InnoDB.
 	DefaultStorageEngine    string
 	DefaultTmpStorageEngine string
+	DefaultWeekFormat       int
 	SQLMode                 string
 	TimeZone                string
 	SystemTimeZone          string

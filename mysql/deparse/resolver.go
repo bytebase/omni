@@ -37,6 +37,10 @@ type Resolver struct {
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
 	DefaultCharset string
+	// DefaultWeekFormat is the effective session default_week_format (0..7) used
+	// to expand 1-arg WEEK(x) -> week(x, mode). A negative value means unknown,
+	// preserving the 1-arg call unexpanded.
+	DefaultWeekFormat int
 	// Source is the text the statement was parsed from, which the AST's Loc
 	// offsets index into. When it is set, an unaliased select item is named
 	// after its source text, as MySQL names it; otherwise the name is rebuilt
@@ -99,10 +103,11 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		}
 		for _, cte := range stmt.CTEs {
 			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(mergedCTETables),
-				SchemaLookup:   r.SchemaLookup,
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:            r.withCTELookup(mergedCTETables),
+				SchemaLookup:      r.SchemaLookup,
+				DefaultCharset:    r.DefaultCharset,
+				DefaultWeekFormat: r.DefaultWeekFormat,
+				Source:            r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
@@ -143,10 +148,11 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			}
 			for _, cte := range leftCTEs {
 				cteResolver := &Resolver{
-					Lookup:         r.withCTELookup(mergedCTETables),
-					SchemaLookup:   r.SchemaLookup,
-					DefaultCharset: r.DefaultCharset,
-					Source:         r.Source,
+					Lookup:            r.withCTELookup(mergedCTETables),
+					SchemaLookup:      r.SchemaLookup,
+					DefaultCharset:    r.DefaultCharset,
+					DefaultWeekFormat: r.DefaultWeekFormat,
+					Source:            r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
@@ -193,10 +199,11 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				SchemaLookup:   r.SchemaLookup,
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:            r.withCTELookup(localCTETables),
+				SchemaLookup:      r.SchemaLookup,
+				DefaultCharset:    r.DefaultCharset,
+				DefaultWeekFormat: r.DefaultWeekFormat,
+				Source:            r.Source,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -208,19 +215,21 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 
 			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
 			rightResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				SchemaLookup:   r.SchemaLookup,
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:            r.withCTELookup(localCTETables),
+				SchemaLookup:      r.SchemaLookup,
+				DefaultCharset:    r.DefaultCharset,
+				DefaultWeekFormat: r.DefaultWeekFormat,
+				Source:            r.Source,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				SchemaLookup:   r.SchemaLookup,
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
+				Lookup:            r.withCTELookup(localCTETables),
+				SchemaLookup:      r.SchemaLookup,
+				DefaultCharset:    r.DefaultCharset,
+				DefaultWeekFormat: r.DefaultWeekFormat,
+				Source:            r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
@@ -561,13 +570,13 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		if n.Over != nil {
 			r.resolveWindowDef(n.Over, sc)
 		}
-		// MySQL 8.0 rewrites 1-arg TIME(x) to cast(x as time[(fsp)]) and 1-arg
-		// TIMESTAMP(x) to cast(x as datetime[(fsp)]) in stored views, where fsp
-		// is derived from the argument's type. Only rewrite when the argument's
-		// fsp can be determined without losing precision.
+		// MySQL 8.0 rewrites 1-arg TIME(x) -> cast(x as time[(fsp)]), 1-arg
+		// TIMESTAMP(x) -> cast(x as datetime[(fsp)]) using the argument's type,
+		// and 1-arg WEEK(x) -> week(x, default_week_format) using the session mode.
 		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 && n.Over == nil {
 			upper := strings.ToUpper(n.Name)
-			if upper == "TIME" || upper == "TIMESTAMP" {
+			switch upper {
+			case "TIME", "TIMESTAMP":
 				if fsp, ok := exprTemporalFSP(n.Args[0], sc); ok {
 					targetType := "time"
 					if upper == "TIMESTAMP" {
@@ -578,6 +587,10 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 						Expr:     n.Args[0],
 						TypeName: &ast.DataType{Name: targetType, Length: fsp},
 					}
+				}
+			case "WEEK":
+				if r.DefaultWeekFormat >= 0 {
+					n.Args = append(n.Args, &ast.IntLit{Value: int64(r.DefaultWeekFormat)})
 				}
 			}
 		}

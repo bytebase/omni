@@ -174,4 +174,23 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			t.Errorf("got:\n  %s\nwant:\n  %s", got, want)
 		}
 	})
+
+	t.Run("week_respects_default_week_format", func(t *testing.T) {
+		sql := "SELECT WEEK('2021-01-01') AS w"
+		stmt := parseSelect(t, sql)
+		r := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", DefaultWeekFormat: 3, Source: sql}
+		r.Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		if got, want := DeparseSelect(stmt), "select week('2021-01-01',3) AS `w`"; got != want {
+			t.Errorf("mode 3: got %q, want %q", got, want)
+		}
+
+		stmtUnknown := parseSelect(t, sql)
+		rUnknown := &Resolver{Lookup: lookup, DefaultCharset: "utf8mb4", DefaultWeekFormat: -1, Source: sql}
+		rUnknown.Resolve(stmtUnknown)
+		RewriteSelectStmt(stmtUnknown)
+		if got, want := DeparseSelect(stmtUnknown), "select week('2021-01-01') AS `w`"; got != want {
+			t.Errorf("unknown mode: got %q, want %q", got, want)
+		}
+	})
 }

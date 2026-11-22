@@ -730,6 +730,10 @@ func (c *ConstExprQ) exprCollation() string   { return c.Collation }
 //
 // pg: src/include/nodes/primnodes.h — FuncExpr / Aggref / WindowFunc (merged)
 type FuncCallExprQ struct {
+	// Schema is the explicit database qualifier for a stored function call
+	// (e.g. "db1" in `db1.abs()`). Empty for unqualified calls.
+	Schema string
+
 	// Name is the canonical lowercase function name (e.g. "concat", "count").
 	Name string
 

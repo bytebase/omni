@@ -376,10 +376,11 @@ func validateTemporalLiteral(lit *nodes.TemporalLit) error {
 	switch strings.ToUpper(lit.Type) {
 	case "DATE":
 		s := strings.TrimSpace(lit.Value)
-		if s == "" || strings.ContainsAny(s, " \t\n\rTt:") {
+		if s == "" || strings.ContainsAny(s, " \t\n\rTt") {
 			return errWrongValue("DATE", lit.Value)
 		}
-		if countDigitRuns(s) == 1 && len(s) > 8 {
+		runs := countDigitRuns(s)
+		if (runs == 1 && len(s) > 8) || runs > 3 {
 			return errWrongValue("DATE", lit.Value)
 		}
 		p, ok := parseMySQLStringDateTime("date", 0, s, false)
@@ -404,14 +405,18 @@ func validateTemporalLiteral(lit *nodes.TemporalLit) error {
 }
 
 func hasDateTimeTimePart(s string) bool {
-	if strings.ContainsAny(s, " \tTt:") {
-		return true
-	}
 	head := s
 	if dot := strings.IndexByte(head, '.'); dot >= 0 {
 		head = head[:dot]
 	}
-	return countDigitRuns(head) == 1 && len(head) >= 12
+	runs := countDigitRuns(head)
+	if runs == 1 {
+		return len(head) >= 12
+	}
+	if strings.ContainsAny(head, " \t\n\rTt") {
+		return true
+	}
+	return runs > 3
 }
 
 func validateBlockLocking(block *nodes.SelectStmt, currentDB string) error {
@@ -1629,10 +1634,11 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 
 	// Resolve: qualify columns, expand *, normalize JOINs.
 	resolver := &deparse.Resolver{
-		Lookup:         lookup,
-		SchemaLookup:   schemaLookup,
-		DefaultCharset: charset,
-		Source:         source,
+		Lookup:            lookup,
+		SchemaLookup:      schemaLookup,
+		DefaultCharset:    charset,
+		DefaultWeekFormat: c.session.DefaultWeekFormat,
+		Source:            source,
 	}
 	resolver.Resolve(sel)
 
@@ -1697,11 +1703,12 @@ func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup, schem
 func tableLookupForDB(db *Database) deparse.TableLookup {
 	return func(tableName string) *deparse.ResolverTable {
 		key := toLower(tableName)
-		// Try tables first.
+		// Try tables first (excluding system-hidden columns such as functional-index backing columns).
 		tbl := db.Tables[key]
 		if tbl != nil {
-			cols := make([]deparse.ResolverColumn, len(tbl.Columns))
-			for i, c := range tbl.Columns {
+			visible := tbl.VisibleColumns()
+			cols := make([]deparse.ResolverColumn, len(visible))
+			for i, c := range visible {
 				cols[i] = deparse.ResolverColumn{
 					Name:     c.Name,
 					Position: c.Position,

@@ -43,7 +43,7 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.HexLit:
 		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: &ResolvedType{BaseType: BaseTypeVarBinary}}, nil
 	case *nodes.BitLit:
-		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: &ResolvedType{BaseType: BaseTypeBit}}, nil
+		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: &ResolvedType{BaseType: BaseTypeVarBinary}}, nil
 	case *nodes.TemporalLit:
 		return &ConstExprQ{Value: deparse.Deparse(n), Keyword: true, Type: temporalLitResolvedType(n.Type)}, nil
 	case *nodes.DefaultExpr:
@@ -389,20 +389,30 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 			}
 		}
 	}
-	if lower == "coalesce" || lower == "ifnull" {
+	if fc.Schema == "" && !fc.SpacedParen && (lower == "coalesce" || lower == "ifnull") {
 		return &CoalesceExprQ{Args: args, IsIfNull: lower == "ifnull"}, nil
 	}
 	result := &FuncCallExprQ{
-		Name: lower,
-		Args: args,
-		// A spaced gated keyword is a generic call, not the builtin, so it is
-		// never the aggregate: `count (a)` is a stored-function call, not COUNT.
-		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
+		Schema: fc.Schema,
+		Name:   lower,
+		Args:   args,
+		// A schema-qualified or spaced gated keyword is a stored-function call,
+		// not the builtin, so it is never the aggregate: `count (a)` and
+		// `db1.count(a)` are stored-function calls, not COUNT.
+		IsAggregate: fc.Schema == "" && !fc.SpacedParen && isAggregateFunc(fc.Name),
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
 	}
-	// Phase 3: populate return type from function type table.
-	result.ResultType = functionReturnType(result.Name, result.Args)
+	// Phase 3: populate return type from function type table for builtin calls,
+	// or from the registered stored function for qualified / non-builtin calls.
+	if fc.Schema != "" || fc.SpacedParen {
+		result.ResultType = c.storedFuncReturnType(fc.Schema, lower)
+	} else {
+		result.ResultType = functionReturnType(result.Name, result.Args)
+		if result.ResultType == nil && !isBuiltinMySQLFunction(lower) {
+			result.ResultType = c.storedFuncReturnType("", lower)
+		}
+	}
 	if fc.JSONValueArm {
 		result.JSONValueClauses = deparse.JSONValueClauses(fc.JSONValue, "")
 		if fc.JSONValue != nil && fc.JSONValue.Returning != nil {
@@ -410,6 +420,33 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		}
 	}
 	return result, nil
+}
+
+func (c *Catalog) storedFuncReturnType(schema, lowerName string) *ResolvedType {
+	if c == nil {
+		return nil
+	}
+	var db *Database
+	if schema != "" {
+		db = c.GetDatabase(schema)
+	} else if cur := c.CurrentDatabase(); cur != "" {
+		db = c.GetDatabase(cur)
+	}
+	if db == nil {
+		return nil
+	}
+	fn := db.Functions[lowerName]
+	if fn == nil || fn.Returns == "" {
+		return nil
+	}
+	baseName := fn.Returns
+	if idx := strings.IndexAny(baseName, " ("); idx >= 0 {
+		baseName = baseName[:idx]
+	}
+	if bt := columnDataTypeToBaseType(baseName); bt != BaseTypeUnknown {
+		return &ResolvedType{BaseType: bt}
+	}
+	return nil
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be
@@ -793,7 +830,7 @@ func analyzedExprBaseType(expr AnalyzedExpr, scope *analyzerScope) (MySQLBaseTyp
 		}
 		return BaseTypeUnknown, false
 	case *FuncCallExprQ:
-		if isGeometryReturningFunc(e.Name) {
+		if e.Schema == "" && !e.SpacedParen && isGeometryReturningFunc(e.Name) {
 			return BaseTypeGeometry, false
 		}
 		if e.ResultType != nil {

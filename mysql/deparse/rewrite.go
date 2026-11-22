@@ -171,17 +171,11 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 
 // rewriteFuncCall folds MySQL 8.0 view-resolver function rewrites:
 //   - date-arithmetic functions (TIMESTAMPADD/DATE_ADD/ADDDATE/DATE_SUB/SUBDATE)
-//   - 1-arg WEEK(x) -> week(x, 0) (default_week_format=0)
 //   - MySQL SHOW CREATE VIEW's internal `cast_as_year`(x) -> cast(x as year), so
 //     an engine-readback view converges with omni's executable CAST(... AS YEAR).
 func rewriteFuncCall(n *ast.FuncCallExpr) ast.ExprNode {
 	if n.Schema == "" && !n.SpacedParen && n.Over == nil {
 		switch strings.ToUpper(n.Name) {
-		case "WEEK":
-			if len(n.Args) == 1 {
-				n.Args = append(n.Args, &ast.IntLit{Value: 0})
-				return n
-			}
 		case "CAST_AS_YEAR":
 			if len(n.Args) == 1 {
 				return &ast.CastExpr{

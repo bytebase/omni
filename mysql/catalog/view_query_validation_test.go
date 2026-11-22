@@ -45,10 +45,12 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"invalid_date_calendar", "CREATE VIEW v AS SELECT DATE '2020-02-30' FROM t", ErrWrongValue},
 		{"invalid_date_zero", "CREATE VIEW v AS SELECT DATE '0000-00-00' FROM t", ErrWrongValue},
 		{"invalid_date_with_time", "CREATE VIEW v AS SELECT DATE '2020-01-01 12:00:00' FROM t", ErrWrongValue},
+		{"invalid_date_colon_with_time", "CREATE VIEW v AS SELECT DATE '2020:01:01:12:00:00' FROM t", ErrWrongValue},
 		{"invalid_time_literal", "CREATE VIEW v AS SELECT TIME 's' FROM t", ErrWrongValue},
 		{"invalid_time_overflow", "CREATE VIEW v AS SELECT TIME '900:00:00' FROM t", ErrWrongValue},
 		{"invalid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP 's' FROM t", ErrWrongValue},
 		{"invalid_timestamp_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01' FROM t", ErrWrongValue},
+		{"invalid_timestamp_colon_date_only", "CREATE VIEW v AS SELECT TIMESTAMP '2020:01:01' FROM t", ErrWrongValue},
 		{"invalid_timestamp_zero", "CREATE VIEW v AS SELECT TIMESTAMP '0000-00-00 00:00:00' FROM t", ErrWrongValue},
 
 		// CAST(... AT TIME ZONE ... AS DATETIME) requires TIMESTAMP or NULL (3998).
@@ -213,12 +215,16 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"st_collect_builtin", "CREATE VIEW v AS SELECT ST_COLLECT(pt) FROM t"},
 		// Valid temporal literals.
 		{"valid_date_literal", "CREATE VIEW v AS SELECT DATE '2020-01-01' FROM t"},
+		{"valid_date_colon_literal", "CREATE VIEW v AS SELECT DATE '2020:01:01' AS d FROM t"},
 		{"valid_time_literal", "CREATE VIEW v AS SELECT TIME '-838:59:59' FROM t"},
 		{"valid_timestamp_literal", "CREATE VIEW v AS SELECT TIMESTAMP '2020-01-01 12:34:56.123456' FROM t"},
+		{"valid_timestamp_colon_date", "CREATE VIEW v AS SELECT TIMESTAMP '2020:01:01 12:34:56' FROM t"},
 		// Valid CAST AT TIME ZONE, JSON_VALUE, geometry constructors, and non-top-level DEFAULT(col).
 		{"cast_at_tz_timestamp", "CREATE VIEW v AS SELECT CAST(ts AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
 		{"cast_at_tz_null", "CREATE VIEW v AS SELECT CAST(NULL AT TIME ZONE 'UTC' AS DATETIME) FROM t"},
 		{"json_value_json_col", "CREATE VIEW v AS SELECT JSON_VALUE(j, '$.a') FROM t"},
+		{"json_value_bit_literal", "CREATE VIEW v AS SELECT JSON_VALUE(b'00110001', '$') AS x"},
+		{"json_value_hex_literal", "CREATE VIEW v AS SELECT JSON_VALUE(0x31, '$') AS x"},
 		{"json_value_json_extract", "CREATE VIEW v AS SELECT JSON_VALUE(j->'$.obj', '$.a') AS a FROM t"},
 		{"json_value_json_unquote", "CREATE VIEW v AS SELECT JSON_VALUE(j->>'$.obj', '$.a') AS a FROM t"},
 		{"json_value_binary_unary", "CREATE VIEW v AS SELECT JSON_VALUE(BINARY s, '$.a') AS a FROM t"},
@@ -267,6 +273,56 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		}
 		if len(vCTE.Columns) != 2 || vCTE.Columns[0] != "id" || vCTE.Columns[1] != "b" {
 			t.Errorf("v_cte columns = %v, want [id b]", vCTE.Columns)
+		}
+	})
+
+	t.Run("stored_func_shadowing_builtin_return_type", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE FUNCTION db1.abs() RETURNS VARCHAR(20) DETERMINISTIC RETURN '{\"x\":1}';")
+		mustExec(t, c, "CREATE VIEW v AS SELECT JSON_VALUE(db1.abs(), '$.x') AS x")
+
+		mustExec(t, c, "CREATE FUNCTION db1.point() RETURNS INT DETERMINISTIC RETURN 1;")
+		if got := execErrorCode(t, c, "CREATE VIEW v_bad_geom AS SELECT LINESTRING(db1.point())"); got != ErrIllegalValueForType {
+			t.Errorf("LINESTRING(db1.point()) got %d, want %d", got, ErrIllegalValueForType)
+		}
+	})
+
+	t.Run("explicit_table_excludes_functional_index_hidden_cols", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE TABLE tf (a INT, INDEX ((a + 1)));")
+		mustExec(t, c, "CREATE VIEW vf AS TABLE tf")
+		v := c.GetDatabase("db1").Views["vf"]
+		if v == nil {
+			t.Fatal("view vf not found")
+		}
+		wantDef := "select `tf`.`a` AS `a` from `tf`"
+		if v.Definition != wantDef {
+			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
+		}
+		if len(v.Columns) != 1 || v.Columns[0] != "a" {
+			t.Errorf("columns = %v, want [a]", v.Columns)
+		}
+	})
+
+	t.Run("default_week_format_preserved_in_view", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "SET SESSION default_week_format = 3;")
+		mustExec(t, c, "CREATE VIEW vw AS SELECT WEEK('2021-01-01') AS w")
+		v := c.GetDatabase("db1").Views["vw"]
+		if v == nil {
+			t.Fatal("view vw not found")
+		}
+		wantDef := "select week('2021-01-01',3) AS `w`"
+		if v.Definition != wantDef {
+			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
+		}
+
+		mustExec(t, c, "SET SESSION default_week_format = DEFAULT;")
+		mustExec(t, c, "CREATE VIEW vw_def AS SELECT WEEK('2021-01-01') AS w")
+		vDef := c.GetDatabase("db1").Views["vw_def"]
+		wantDefZero := "select week('2021-01-01',0) AS `w`"
+		if vDef.Definition != wantDefZero {
+			t.Errorf("default definition = %q, want %q", vDef.Definition, wantDefZero)
 		}
 	})
 }
