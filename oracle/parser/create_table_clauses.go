@@ -367,6 +367,7 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 					p.advance()
 					return p.syntaxErrorAtCur()
 				}
+				p.mviewInmemoryColumn = true
 				*tableClause = true
 			}
 		} else if !*tableClause {

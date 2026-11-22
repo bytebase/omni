@@ -316,18 +316,17 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	// [ SHARING = NONE ]: Oracle refuses METADATA and any other value here
-	// at the word after '=' (ORA-65021, ORA-65014).
+	// [ SHARING = { METADATA | NONE } ]
 	if p.isKeywordStr("SHARING") {
 		p.advance() // SHARING
 		if p.cur.Type != '=' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // =
-		if !p.isKeywordStr("NONE") {
+		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("NONE") {
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Sharing = "NONE"
+		stmt.Sharing = p.cur.Str
 		p.advance()
 	}
 

@@ -322,7 +322,7 @@ reject@46	reject@46	engine	statement/associateStatistics!insert	ASSOCIATE STATIS
 reject@0	reject@0	engine	statement/associateStatistics!swap	ASYNCHRONOUS STATISTICS WITH FUNCTIONS a USING a
 accept	accept	engine	statement/auditUnifiedAuditing	AUDIT POLICY a
 reject@0	reject@0	engine	statement/auditUnifiedAuditing!drop-1	POLICY a
-accept	reject@6	engine	statement/auditUnifiedAuditing!drop-2	AUDIT a
+reject@6	reject@6	engine	statement/auditUnifiedAuditing!drop-2	AUDIT a
 reject@12	reject@12	engine	statement/auditUnifiedAuditing!drop-3	AUDIT POLICY
 reject@15	reject@15	engine	statement/auditUnifiedAuditing!insert	AUDIT POLICY a zzz
 reject@0	reject@0	engine	statement/auditUnifiedAuditing!swap	AUTHENTICATED POLICY a
@@ -8742,12 +8742,12 @@ reject@43	reject@43	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NE
 reject@46	reject@46	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!insert	ALTER MATERIALIZED VIEW a REFRESH FAST NEXT 1 zzz
 reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(NEXT_EXPR)?/NEXT_EXPR!swap	ALTER MATERIALIZED VIEW a REFRESH FAST NO 1
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
-accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a
+reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a
 reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-1	ALTER MATERIALIZED VIEW a REFRESH FAST ROLLBACK SEGMENT a
 reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-2	ALTER MATERIALIZED VIEW a REFRESH FAST USING SEGMENT a
-accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK a
-accept	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-4	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT
-reject@64	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!insert	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a zzz
+reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-3	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK a
+reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!drop-4	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT
+reject@45	reject@45	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!insert	ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a zzz
 reject@39	reject@39	engine	alterMaterializedView_alter_mv_refresh(USING_ROLLBACK_SEGMENT_ID)?/USING_ROLLBACK_SEGMENT_ID!swap	ALTER MATERIALIZED VIEW a REFRESH FAST VALIDATE ROLLBACK SEGMENT a
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/%empty	ALTER MATERIALIZED VIEW a REFRESH FAST
 accept	accept	engine	alterMaterializedView_alter_mv_refresh(WITH_PRIMARY_KEY)?/WITH_PRIMARY_KEY	ALTER MATERIALIZED VIEW a REFRESH FAST WITH PRIMARY KEY
@@ -11834,36 +11834,36 @@ reject@46	reject@46	engine	alterPluggableDatabase_pdb_refresh_mode_clause(MINUTE
 reject@33	reject@33	engine	alterPluggableDatabase_pdb_refresh_switchover_clause/REFRESH_SWITCHOVER_TO_PRIMARY_ID	ALTER PLUGGABLE DATABASE REFRESH SWITCHOVER TO PRIMARY a
 accept	accept	engine	alterPluggableDatabase_pdb_general_recovery/RECOVER_(STANDBY)?_(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMB~4461bd02	ALTER PLUGGABLE DATABASE RECOVER
 accept	accept	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/%empty	ALTER PLUGGABLE DATABASE RECOVER
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/STANDBY	ALTER PLUGGABLE DATABASE RECOVER STANDBY
-reject@41	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/STANDBY!insert	ALTER PLUGGABLE DATABASE RECOVER STANDBY zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/STANDBY	ALTER PLUGGABLE DATABASE RECOVER STANDBY
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/STANDBY!insert	ALTER PLUGGABLE DATABASE RECOVER STANDBY zzz
 reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(STANDBY)?/STANDBY!swap	ALTER PLUGGABLE DATABASE RECOVER STANDBYS
 accept	accept	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/%empty	ALTER PLUGGABLE DATABASE RECOVER
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL
 accept	accept	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!drop-1	ALTER PLUGGABLE DATABASE RECOVER CANCEL
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL
-reject@46	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL zzz
 reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBE~4dea6f78)?/UNTIL_(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)!swap	ALTER PLUGGABLE DATABASE RECOVER UNUSABLE CANCEL
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CANCEL	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CANCEL!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL CAPACITY
-reject@44	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME 1
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!drop-1	ALTER PLUGGABLE DATABASE RECOVER UNTIL 1
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME
-reject@44	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME 1 zzz
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIMEOUT 1
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE 1
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE
-reject@48	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE 1 zzz
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHECK 1
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE 1
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE 1 zzz
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENTIAL 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CANCEL	ALTER PLUGGABLE DATABASE RECOVER UNTIL CANCEL
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CANCEL!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL CAPACITY
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!drop-1	ALTER PLUGGABLE DATABASE RECOVER UNTIL 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIME 1 zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/TIME_EXPR!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL TIMEOUT 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHANGE 1 zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/CHANGE_NUMBER!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL CHECK 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE 1
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!drop-2	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!insert	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENCE 1 zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(CANCEL|TIME_EXPR|CHANGE_NUMBER|SEQUENCE_NUMBER)/SEQUENCE_NUMBER!swap	ALTER PLUGGABLE DATABASE RECOVER UNTIL SEQUENTIAL 1
 accept	accept	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/%empty	ALTER PLUGGABLE DATABASE RECOVER
-accept	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP CONTROLFILE
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP CONTROLFILE
 reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!drop-1	ALTER PLUGGABLE DATABASE RECOVER BACKUP CONTROLFILE
-reject@39	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!drop-2	ALTER PLUGGABLE DATABASE RECOVER USING CONTROLFILE
-reject@45	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!drop-3	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP
-reject@58	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!insert	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP CONTROLFILE zzz
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!drop-2	ALTER PLUGGABLE DATABASE RECOVER USING CONTROLFILE
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!drop-3	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP
+reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!insert	ALTER PLUGGABLE DATABASE RECOVER USING BACKUP CONTROLFILE zzz
 reject@33	reject@0	engine	alterPluggableDatabase_pdb_general_recovery(USING_BACKUP_CONTROLFILE)?/USING_BACKUP_CONTROLFILE!swap	ALTER PLUGGABLE DATABASE RECOVER VALIDATE BACKUP CONTROLFILE
 accept	accept	engine	alterPluggableDatabase_pdb_open/OPEN_((READ_WRITE|READ_ONLY|HYBRID_READ_ON~986f0d29)?_(~9b7e2300	ALTER PLUGGABLE DATABASE OPEN
 accept	accept	engine	alterPluggableDatabase_pdb_open((READ_WRITE|READ_ONLY|HYBRID_READ_ON~986f0d29)?/%empty	ALTER PLUGGABLE DATABASE OPEN
@@ -13845,13 +13845,13 @@ accept	accept	engine	alterTable_immutable_table_clauses(LOCKED)?/LOCKED	ALTER TA
 reject@31	reject@31	engine	alterTable_immutable_table_clauses(LOCKED)?/LOCKED!insert	ALTER TABLE a NO DELETE LOCKED zzz
 reject@24	reject@24	engine	alterTable_immutable_table_clauses(LOCKED)?/LOCKED!swap	ALTER TABLE a NO DELETE LOG
 accept	accept	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/%empty	ALTER TABLE a NO DELETE
-accept	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT
+reject@32	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT
 reject@24	reject@24	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-1	ALTER TABLE a NO DELETE 1 DAY AFTER INSERT
 reject@30	reject@30	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-2	ALTER TABLE a NO DELETE UNTIL DAY AFTER INSERT
 reject@32	reject@0	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-3	ALTER TABLE a NO DELETE UNTIL 1 AFTER INSERT
-reject@36	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-4	ALTER TABLE a NO DELETE UNTIL 1 DAY INSERT
-reject@41	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-5	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER
-reject@49	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!insert	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT zzz
+reject@32	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-4	ALTER TABLE a NO DELETE UNTIL 1 DAY INSERT
+reject@32	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!drop-5	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER
+reject@32	reject@32	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!insert	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT zzz
 reject@24	reject@24	engine	alterTable_immutable_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT!swap	ALTER TABLE a NO DELETE UNUSABLE 1 DAY AFTER INSERT
 accept	accept	engine	alterTable_blockchain_table_clauses/(NO_DROP_(UNTIL_NUMBER_(DAY|DAYS)_IDL~e15fe73b)	ALTER TABLE a NO DROP
 accept	accept	engine	alterTable_blockchain_table_clauses(NO_DROP_(UNTIL_NUMBER_(DAY|DAYS)_IDL~e15fe73b)/NO_DROP_(UNTIL_NUMBER_(DAY|DAYS)_IDLE)?	ALTER TABLE a NO DROP
@@ -13874,7 +13874,7 @@ accept	accept	engine	alterTable_blockchain_table_clauses(DAY|DAYS)/DAYS	ALTER TA
 accept	accept	engine	alterTable_blockchain_table_clauses(LOCKED)?/%empty	ALTER TABLE a NO DELETE
 accept	accept	engine	alterTable_blockchain_table_clauses(LOCKED)?/LOCKED	ALTER TABLE a NO DELETE LOCKED
 accept	accept	engine	alterTable_blockchain_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/%empty	ALTER TABLE a NO DELETE
-accept	reject@32	engine	alterTable_blockchain_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT
+reject@32	reject@32	engine	alterTable_blockchain_table_clauses(UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT)?/UNTIL_NUMBER_(DAY|DAYS)_AFTER_INSERT	ALTER TABLE a NO DELETE UNTIL 1 DAY AFTER INSERT
 reject@21	reject@21	engine	alterTable_duplicated_table_refresh/(REFRESH|NO_REFRESH)	ALTER TABLE a REFRESH
 reject@21	reject@21	engine	alterTable_duplicated_table_refresh(REFRESH|NO_REFRESH)/REFRESH	ALTER TABLE a REFRESH
 reject@14	reject@14	engine	alterTable_duplicated_table_refresh(REFRESH|NO_REFRESH)/NO_REFRESH	ALTER TABLE a NO REFRESH
@@ -16169,11 +16169,11 @@ accept	accept	engine	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	
 reject@27	reject@27	engine	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE!insert	ALTER TABLE a ADD(a NUMBER zzz AS(1))
 reject@18	reject@18	engine	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE!swap	ALTER TABLE a ADD(a OBJECT AS(1))
 accept	accept	engine	alterTable_virtual_column_definition(COLLATE_ID)?/%empty	ALTER TABLE a ADD(a AS(1))
-reject@20	accept	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+accept	accept	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 reject@18	reject@18	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!drop-1	ALTER TABLE a ADD(a a AS(1))
-reject@20	reject@28	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a ADD(a COLLATE AS(1))
-reject@20	reject@27	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a ADD(a COLLATE
-reject@20	reject@30	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a ADD(a COLLATE a zzz AS(1))
+reject@28	reject@28	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a ADD(a COLLATE AS(1))
+reject@27	reject@27	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a ADD(a COLLATE
+reject@30	reject@30	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a ADD(a COLLATE a zzz AS(1))
 reject@30	reject@30	engine	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID!swap	ALTER TABLE a ADD(a COLLATION a AS(1))
 accept	accept	engine	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/%empty	ALTER TABLE a ADD(a AS(1))
 accept	accept	engine	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
@@ -16215,10 +16215,10 @@ accept	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTE
 reject@30	reject@30	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE!insert	ALTER TABLE a MODIFY(a NUMBER zzz)
 accept	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE!swap	ALTER TABLE a MODIFY(a OBJECT)
 accept	accept	engine	alterTable_modify_col_properties(COLLATE_ID)?/%empty	ALTER TABLE a MODIFY(a)
-reject@23	accept	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
-reject@23	reject@30	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a MODIFY(a COLLATE)
-reject@23	reject@30	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a MODIFY(a COLLATE
-reject@23	reject@33	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a MODIFY(a COLLATE a zzz)
+accept	accept	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+reject@30	reject@30	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a MODIFY(a COLLATE)
+reject@30	reject@30	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a MODIFY(a COLLATE
+reject@33	reject@33	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a MODIFY(a COLLATE a zzz)
 reject@33	reject@33	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!swap	ALTER TABLE a MODIFY(a COLLATION a)
 accept	accept	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
@@ -16300,10 +16300,10 @@ accept	accept	engine	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	
 reject@30	reject@30	engine	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE!insert	ALTER TABLE a MODIFY(a NUMBER zzz AS(1))
 reject@21	reject@21	engine	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE!swap	ALTER TABLE a MODIFY(a OBJECT AS(1))
 accept	accept	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/%empty	ALTER TABLE a MODIFY(a AS(1))
-reject@23	accept	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+accept	accept	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 reject@21	reject@21	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!drop-1	ALTER TABLE a MODIFY(a a AS(1))
-reject@23	reject@31	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a MODIFY(a COLLATE AS(1))
-reject@23	reject@33	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a MODIFY(a COLLATE a zzz AS(1))
+reject@31	reject@31	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a MODIFY(a COLLATE AS(1))
+reject@33	reject@33	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a MODIFY(a COLLATE a zzz AS(1))
 reject@33	reject@33	engine	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID!swap	ALTER TABLE a MODIFY(a COLLATION a AS(1))
 accept	accept	engine	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/%empty	ALTER TABLE a MODIFY(a AS(1))
 accept	accept	engine	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
@@ -20473,10 +20473,10 @@ reject@20	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spe
 reject@25	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/alterType_alter_collection_clauses!drop-3	ALTER TYPE a MODIFY LIMIT
 reject@28	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/alterType_alter_collection_clauses!insert	ALTER TYPE a MODIFY LIMIT 1 zzz
 reject@13	reject@13	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/alterType_alter_collection_clauses!swap	ALTER TYPE a MODULE LIMIT 1
-accept	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause	ALTER TYPE a MODIFY INSTANTIABLE
+reject@20	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause	ALTER TYPE a MODIFY INSTANTIABLE
 accept	accept	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause!drop-1	ALTER TYPE a INSTANTIABLE
 reject@19	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause!drop-2	ALTER TYPE a MODIFY
-reject@33	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause!insert	ALTER TYPE a MODIFY INSTANTIABLE zzz
+reject@20	reject@0	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause!insert	ALTER TYPE a MODIFY INSTANTIABLE zzz
 reject@13	reject@13	engine	alterType_alter_type_clause(alterType_alter_method_spec|alterTyp~f0649adb)/MODIFY_alterType_modifier_clause!swap	ALTER TYPE a MODULE INSTANTIABLE
 accept	accept	engine	alterType_alter_type_clause(alterType_dependent_handling_clause)?/%empty	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER
 accept	accept	engine	alterType_alter_type_clause(alterType_dependent_handling_clause)?/alterType_dependent_handling_clause	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
@@ -20562,18 +20562,18 @@ reject@28	reject@0	engine	alterType_alter_collection_clauses(LIMIT_NUMBER|ELEMEN
 reject@32	reject@0	engine	alterType_alter_collection_clauses(LIMIT_NUMBER|ELEMENT_TYPE_DATA_TYPE)/ELEMENT_TYPE_DATA_TYPE!drop-3	ALTER TYPE a MODIFY ELEMENT TYPE
 reject@40	reject@0	engine	alterType_alter_collection_clauses(LIMIT_NUMBER|ELEMENT_TYPE_DATA_TYPE)/ELEMENT_TYPE_DATA_TYPE!insert	ALTER TYPE a MODIFY ELEMENT TYPE NUMBER zzz
 reject@20	reject@0	engine	alterType_alter_collection_clauses(LIMIT_NUMBER|ELEMENT_TYPE_DATA_TYPE)/ELEMENT_TYPE_DATA_TYPE!swap	ALTER TYPE a MODIFY ELSE TYPE NUMBER
-accept	reject@0	engine	alterType_modifier_clause/(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)	ALTER TYPE a MODIFY INSTANTIABLE
+reject@20	reject@0	engine	alterType_modifier_clause/(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)	ALTER TYPE a MODIFY INSTANTIABLE
 reject@20	reject@0	engine	alterType_modifier_clause/(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)!swap	ALTER TYPE a MODIFY INTERLEAVED
-accept	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE	ALTER TYPE a MODIFY NOT INSTANTIABLE
-reject@23	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE!drop-2	ALTER TYPE a MODIFY NOT
-reject@37	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE!insert	ALTER TYPE a MODIFY NOT INSTANTIABLE zzz
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE	ALTER TYPE a MODIFY NOT INSTANTIABLE
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE!drop-2	ALTER TYPE a MODIFY NOT
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE!insert	ALTER TYPE a MODIFY NOT INSTANTIABLE zzz
 reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_INSTANTIABLE!swap	ALTER TYPE a MODIFY NOTHING INSTANTIABLE
-accept	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/INSTANTIABLE	ALTER TYPE a MODIFY INSTANTIABLE
-accept	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_FINAL	ALTER TYPE a MODIFY NOT FINAL
-reject@30	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_FINAL!insert	ALTER TYPE a MODIFY NOT FINAL zzz
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/INSTANTIABLE	ALTER TYPE a MODIFY INSTANTIABLE
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_FINAL	ALTER TYPE a MODIFY NOT FINAL
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_FINAL!insert	ALTER TYPE a MODIFY NOT FINAL zzz
 reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/NOT_FINAL!swap	ALTER TYPE a MODIFY NOTHING FINAL
-accept	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/FINAL	ALTER TYPE a MODIFY FINAL
-reject@26	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/FINAL!insert	ALTER TYPE a MODIFY FINAL zzz
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/FINAL	ALTER TYPE a MODIFY FINAL
+reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/FINAL!insert	ALTER TYPE a MODIFY FINAL zzz
 reject@20	reject@0	engine	alterType_modifier_clause(NOT_INSTANTIABLE|INSTANTIABLE|NOT_FINAL|FINAL)/FINAL!swap	ALTER TYPE a MODIFY FINE
 accept	accept	engine	alterType_dependent_handling_clause/(INVALIDATE|CASCADE_((NOT_INCLUDING_T~491534c6)	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
 accept	accept	engine	alterType_dependent_handling_clause(INVALIDATE|CASCADE_((NOT_INCLUDING_T~491534c6)/INVALIDATE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER INVALIDATE
@@ -20588,21 +20588,21 @@ reject@76	reject@0	engine	alterType_dependent_handling_clause((NOT_INCLUDING_TAB
 reject@82	reject@0	engine	alterType_dependent_handling_clause((NOT_INCLUDING_TABLE_DATA|INCLUDING_~974ad987)?/(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA zzz
 reject@61	reject@0	engine	alterType_dependent_handling_clause((NOT_INCLUDING_TABLE_DATA|INCLUDING_~974ad987)?/(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)!swap	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCREMENT TABLE DATA
 accept	accept	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA
-reject@65	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!drop-2	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT TABLE DATA
+reject@61	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!drop-2	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT TABLE DATA
 reject@75	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!drop-3	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING DATA
 reject@80	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!drop-4	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE
 reject@86	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT INCLUDING TABLE DATA zzz
 reject@61	reject@0	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/NOT_INCLUDING_TABLE_DATA!swap	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOTHING INCLUDING TABLE DATA
 accept	accept	engine	alterType_dependent_handling_clause(NOT_INCLUDING_TABLE_DATA|INCLUDING_TABLE_DATA)/INCLUDING_TABLE_DATA	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INCLUDING TABLE DATA
 accept	accept	engine	alterType_dependent_handling_clause(FORCE)?/%empty	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
-accept	reject@0	engine	alterType_dependent_handling_clause(FORCE)?/FORCE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE FORCE
+reject@66	reject@0	engine	alterType_dependent_handling_clause(FORCE)?/FORCE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE FORCE
 reject@67	reject@0	engine	alterType_dependent_handling_clause(FORCE)?/FORCE!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE FORCE zzz
 reject@61	reject@0	engine	alterType_dependent_handling_clause(FORCE)?/FORCE!swap	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE FOREIGN
 accept	accept	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/%empty	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
-accept	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE
+reject@61	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE
 reject@61	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!drop-1	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE SUBSTITUTABLE
-reject@64	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!drop-2	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT
-reject@79	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE zzz
+reject@61	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!drop-2	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT
+reject@61	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE zzz
 reject@61	reject@0	engine	alterType_dependent_handling_clause((CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE))?/(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)!swap	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOTHING SUBSTITUTABLE
 accept	accept	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/CONVERT_TO_SUBSTITUTABLE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE
 reject@61	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/CONVERT_TO_SUBSTITUTABLE!drop-1	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE TO SUBSTITUTABLE
@@ -20610,7 +20610,7 @@ reject@69	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTIT
 reject@71	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/CONVERT_TO_SUBSTITUTABLE!drop-3	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO
 reject@86	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/CONVERT_TO_SUBSTITUTABLE!insert	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE CONVERT TO SUBSTITUTABLE zzz
 reject@61	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/CONVERT_TO_SUBSTITUTABLE!swap	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE COPY TO SUBSTITUTABLE
-accept	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/NOT_SUBSTITUTABLE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE
+reject@61	reject@0	engine	alterType_dependent_handling_clause(CONVERT_TO_SUBSTITUTABLE|NOT_SUBSTITUTABLE)/NOT_SUBSTITUTABLE	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE NOT SUBSTITUTABLE
 accept	accept	engine	alterType_dependent_handling_clause(alterType_exceptions_clause)?/%empty	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE
 accept	accept	engine	alterType_dependent_handling_clause(alterType_exceptions_clause)?/alterType_exceptions_clause	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE EXCEPTIONS INTO a
 reject@61	reject@0	engine	alterType_dependent_handling_clause(alterType_exceptions_clause)?/alterType_exceptions_clause!drop-1	ALTER TYPE a ADD MAP MEMBER FUNCTION a RETURN NUMBER CASCADE INTO a
@@ -21483,8 +21483,8 @@ reject@41	reject@41	engine	associateStatistics_function_association(,_(ID_.)?_ID
 accept	accept	engine	associateStatistics_using_statistics_type/USING_((ID_.)?_ID|NULL)	ASSOCIATE STATISTICS WITH FUNCTIONS a USING a
 reject@38	reject@38	engine	associateStatistics_using_statistics_type/USING_((ID_.)?_ID|NULL)!swap	ASSOCIATE STATISTICS WITH FUNCTIONS a VALIDATE a
 accept	accept	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/(ID_.)?_ID	ASSOCIATE STATISTICS WITH FUNCTIONS a USING a
-accept	reject@44	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/NULL	ASSOCIATE STATISTICS WITH FUNCTIONS a USING NULL
-reject@49	reject@44	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/NULL!insert	ASSOCIATE STATISTICS WITH FUNCTIONS a USING NULL zzz
+reject@44	reject@44	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/NULL	ASSOCIATE STATISTICS WITH FUNCTIONS a USING NULL
+reject@44	reject@44	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/NULL!insert	ASSOCIATE STATISTICS WITH FUNCTIONS a USING NULL zzz
 accept	accept	engine	associateStatistics_using_statistics_type((ID_.)?_ID|NULL)/NULL!swap	ASSOCIATE STATISTICS WITH FUNCTIONS a USING NULLS
 accept	accept	engine	associateStatistics_using_statistics_type(ID_.)?/%empty	ASSOCIATE STATISTICS WITH FUNCTIONS a USING a
 reject@48	reject@48	engine	associateStatistics_using_statistics_type(ID_.)?/%empty!insert	ASSOCIATE STATISTICS WITH FUNCTIONS a USING zzz a
@@ -21505,15 +21505,15 @@ reject@51	reject@51	engine	associateStatistics_storage_table_clause(SYSTEM_MANAG
 reject@51	reject@51	engine	associateStatistics_storage_table_clause(SYSTEM_MANAGED_STORAGE_TABLES|USER_M~25b787e4)/USER_MANAGED_STORAGE_TABLES!swap	ASSOCIATE STATISTICS WITH FUNCTIONS a USING a WITH USERGROUP MANAGED STORAGE TABLES
 accept	accept	engine	auditUnifiedAuditing/AUDIT_(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)	AUDIT POLICY a
 accept	accept	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_((BY|EXCEPT)_USERS_~4fd4a9b0	AUDIT POLICY a
-accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_((BY|EXCEPT)_USERS_~4fd4a9b0!swap	AUDIT PORT a
+reject@6	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_((BY|EXCEPT)_USERS_~4fd4a9b0!swap	AUDIT PORT a
 accept	accept	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a
-accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-1	AUDIT NAMESPACE a ATTRIBUTES a
+reject@6	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-1	AUDIT NAMESPACE a ATTRIBUTES a
 reject@14	reject@14	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-2	AUDIT CONTEXT a ATTRIBUTES a
 reject@35	reject@35	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-3	AUDIT CONTEXT NAMESPACE ATTRIBUTES a
 reject@26	reject@26	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-4	AUDIT CONTEXT NAMESPACE a a
 reject@36	reject@36	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-5	AUDIT CONTEXT NAMESPACE a ATTRIBUTES
 reject@39	reject@39	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!insert	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a zzz
-accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!swap	AUDIT CONTINUE NAMESPACE a ATTRIBUTES a
+reject@6	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!swap	AUDIT CONTINUE NAMESPACE a ATTRIBUTES a
 accept	accept	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/%empty	AUDIT POLICY a
 accept	accept	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*	AUDIT POLICY a BY a
 reject@15	reject@15	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!drop-1	AUDIT POLICY a a
@@ -23828,18 +23828,18 @@ reject@17	reject	engine	createFunction(ID_.)?/ID_.!truncate	CREATE FUNCTION a
 reject@22	accept	engine	createFunction(ID_.)?/ID_.!insert	CREATE FUNCTION a.zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
 accept	accept	engine	createFunction(SHARING_=_(METADATA|NONE))?/%empty	CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/%empty!insert	CREATE FUNCTION a RETURN NUMBER zzz IS BEGIN RETURN 1; END;
-accept	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA IS BEGIN RETURN 1; END;
 reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE FUNCTION a RETURN NUMBER = METADATA IS BEGIN RETURN 1; END;
-reject@40	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE FUNCTION a RETURN NUMBER SHARING METADATA IS BEGIN RETURN 1; END;
-reject@42	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE FUNCTION a RETURN NUMBER SHARING = IS BEGIN RETURN 1; END;
-reject@41	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE FUNCTION a RETURN NUMBER SHARING =
-reject@51	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA zzz IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE FUNCTION a RETURN NUMBER SHARING METADATA IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE FUNCTION a RETURN NUMBER SHARING = IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE FUNCTION a RETURN NUMBER SHARING =
+reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA zzz IS BEGIN RETURN 1; END;
 reject@32	reject	engine	createFunction(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE FUNCTION a RETURN NUMBER SHOW = METADATA IS BEGIN RETURN 1; END;
-accept	reject	engine	createFunction(METADATA|NONE)/METADATA	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA IS BEGIN RETURN 1; END;
-reject@42	reject	engine	createFunction(METADATA|NONE)/METADATA!swap	CREATE FUNCTION a RETURN NUMBER SHARING = MIGRATE IS BEGIN RETURN 1; END;
-accept	reject	engine	createFunction(METADATA|NONE)/NONE	CREATE FUNCTION a RETURN NUMBER SHARING = NONE IS BEGIN RETURN 1; END;
-reject@47	reject	engine	createFunction(METADATA|NONE)/NONE!insert	CREATE FUNCTION a RETURN NUMBER SHARING = NONE zzz IS BEGIN RETURN 1; END;
-reject@42	reject	engine	createFunction(METADATA|NONE)/NONE!swap	CREATE FUNCTION a RETURN NUMBER SHARING = NONEDITIONABLE IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(METADATA|NONE)/METADATA	CREATE FUNCTION a RETURN NUMBER SHARING = METADATA IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(METADATA|NONE)/METADATA!swap	CREATE FUNCTION a RETURN NUMBER SHARING = MIGRATE IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(METADATA|NONE)/NONE	CREATE FUNCTION a RETURN NUMBER SHARING = NONE IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(METADATA|NONE)/NONE!insert	CREATE FUNCTION a RETURN NUMBER SHARING = NONE zzz IS BEGIN RETURN 1; END;
+reject@32	reject	engine	createFunction(METADATA|NONE)/NONE!swap	CREATE FUNCTION a RETURN NUMBER SHARING = NONEDITIONABLE IS BEGIN RETURN 1; END;
 accept	accept	engine	createFunction(createFunction_invoker_rights_clause)*/%empty	CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 accept	accept	engine	createFunction(createFunction_invoker_rights_clause)*/createFunction_invoker_rights_clause_(createFunction_in~24486b4c	CREATE FUNCTION a RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
 reject@32	reject	engine	createFunction(createFunction_invoker_rights_clause)*/createFunction_invoker_rights_clause_(createFunction_in~24486b4c!drop-1	CREATE FUNCTION a RETURN NUMBER CURRENT_USER IS BEGIN RETURN 1; END;
@@ -26946,7 +26946,7 @@ accept	accept	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLA
 reject@27	reject@27	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	CREATE MATERIALIZED VIEW a COLLATION a AS SELECT 1 FROM dual
 reject@35	reject@35	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE MATERIALIZED VIEW a DEFAULT a AS SELECT 1 FROM dual
 reject@45	reject@45	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE MATERIALIZED VIEW a DEFAULT COLLATION AS SELECT 1 FROM dual
-accept	reject@44	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!truncate	CREATE MATERIALIZED VIEW a DEFAULT COLLATION
+reject@44	reject@44	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!truncate	CREATE MATERIALIZED VIEW a DEFAULT COLLATION
 reject@47	reject@47	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	CREATE MATERIALIZED VIEW a DEFAULT COLLATION a zzz AS SELECT 1 FROM dual
 reject@27	reject@27	engine	createMaterializedView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	CREATE MATERIALIZED VIEW a DEFAULT_COLLATION COLLATION a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView(ON_PREBUILT_TABLE_((WITH_REDUCED_PRE~c0a49290)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual
@@ -27403,7 +27403,7 @@ reject@27	reject@27	engine	createMaterializedView_inmemory_table_clause(INMEMORY
 accept	accept	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_attributes)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_attributes)?/createMaterializedView_inmemory_attributes	CREATE MATERIALIZED VIEW a INMEMORY AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/%empty	CREATE MATERIALIZED VIEW a INMEMORY AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@36	reject@36	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-1	CREATE MATERIALIZED VIEW a INMEMORY a) INMEMORY AS SELECT 1 FROM dual
 reject@36	reject@36	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-2	CREATE MATERIALIZED VIEW a INMEMORY() INMEMORY AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-3	CREATE MATERIALIZED VIEW a INMEMORY(a INMEMORY AS SELECT 1 FROM dual
@@ -27411,7 +27411,7 @@ reject@39	reject@56	engine	createMaterializedView_inmemory_table_clause(createMa
 reject@38	reject@38	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a)
 reject@48	reject@48	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!insert	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY zzz AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!swap	CREATE MATERIALIZED VIEW a INMEMORY(a) INNER AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@48	reject@48	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY,(a) INMEMORY AS SELECT 1 FROM dual
 reject@47	reject@77	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@49	reject@49	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY, a) INMEMORY AS SELECT 1 FROM dual
@@ -27767,22 +27767,22 @@ accept	accept	engine	createMaterializedView_inmemory_attributes(createMaterializ
 accept	accept	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_duplicate)?/createMaterializedView_inmemory_duplicate	CREATE MATERIALIZED VIEW a INMEMORY DUPLICATE AS SELECT 1 FROM dual
 reject@46	reject@46	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_duplicate)?/createMaterializedView_inmemory_duplicate!insert	CREATE MATERIALIZED VIEW a INMEMORY DUPLICATE zzz AS SELECT 1 FROM dual
 reject@36	reject@36	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_duplicate)?/createMaterializedView_inmemory_duplicate!swap	CREATE MATERIALIZED VIEW a INMEMORY DUPLICATED AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_column_clause/(_ID_(,_ID)*_)_(INMEMORY_createMaterializedView_inme~72fdf742)	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_column_clause(,_ID)*/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_column_clause/(_ID_(,_ID)*_)_(INMEMORY_createMaterializedView_inme~72fdf742)	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_column_clause(,_ID)*/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_column_clause(,_ID)*/%empty!insert	CREATE MATERIALIZED VIEW a INMEMORY(a zzz) INMEMORY AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*	CREATE MATERIALIZED VIEW a INMEMORY(a, a) INMEMORY AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a a) INMEMORY AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a,) INMEMORY AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a,
 reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE MATERIALIZED VIEW a INMEMORY(a, a zzz) INMEMORY AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/INMEMORY_(createMaterializedView_inmemory_memcompress)?	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
-accept	reject@68	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY	CREATE MATERIALIZED VIEW a INMEMORY(a) NO INMEMORY AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/INMEMORY_(createMaterializedView_inmemory_memcompress)?	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@68	reject@68	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY	CREATE MATERIALIZED VIEW a INMEMORY(a) NO INMEMORY AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) NO AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a) NO
 reject@51	reject@51	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY!insert	CREATE MATERIALIZED VIEW a INMEMORY(a) NO INMEMORY zzz AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(INMEMORY_createMaterializedView_inme~72fdf742)/NO_INMEMORY!swap	CREATE MATERIALIZED VIEW a INMEMORY(a) NOARCHIVELOG INMEMORY AS SELECT 1 FROM dual
-accept	reject@65	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
-accept	reject@80	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO MEMCOMPRESS AS SELECT 1 FROM dual
+reject@65	reject@65	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@80	reject@80	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO MEMCOMPRESS AS SELECT 1 FROM dual
 reject@60	reject@60	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY MEMCOMPRESS AS SELECT 1 FROM dual
 reject@51	reject@51	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO AS SELECT 1 FROM dual
 reject@50	reject@50	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO
@@ -30354,7 +30354,7 @@ accept	accept	engine	createPfile/CREATE_PFILE_(=_STRING)?_FROM_(SPFILE_(=_STRING
 accept	accept	engine	createPfile(=_STRING)?/%empty	CREATE PFILE FROM SPFILE
 reject@13	reject@13	engine	createPfile(=_STRING)?/%empty!insert	CREATE PFILE zzz FROM SPFILE
 accept	accept	engine	createPfile(=_STRING)?/=_STRING	CREATE PFILE = 's' FROM SPFILE
-accept	reject@13	engine	createPfile(=_STRING)?/=_STRING!drop-1	CREATE PFILE 's' FROM SPFILE
+reject@13	reject@13	engine	createPfile(=_STRING)?/=_STRING!drop-1	CREATE PFILE 's' FROM SPFILE
 reject@15	reject@15	engine	createPfile(=_STRING)?/=_STRING!drop-2	CREATE PFILE = FROM SPFILE
 reject@14	reject@14	engine	createPfile(=_STRING)?/=_STRING!truncate	CREATE PFILE =
 reject@19	reject@19	engine	createPfile(=_STRING)?/=_STRING!insert	CREATE PFILE = 's' zzz FROM SPFILE
@@ -30776,10 +30776,10 @@ reject@56	reject@56	engine	createPluggableDatabase_create_pdb_from_xml(createPlu
 reject@61	reject@61	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_create_file_~5a223a99)?/createPluggableDatabase_create_file_dest_clause!insert	CREATE PLUGGABLE DATABASE a USING 's' CREATE_FILE_DEST = 's' zzz
 reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_create_file_~5a223a99)?/createPluggableDatabase_create_file_dest_clause!swap	CREATE PLUGGABLE DATABASE a USING 's' CREATION = 's'
 accept	accept	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/%empty	CREATE PLUGGABLE DATABASE a USING 's'
-accept	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE	CREATE PLUGGABLE DATABASE a USING 's' AS CLONE
+reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE	CREATE PLUGGABLE DATABASE a USING 's' AS CLONE
 reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!drop-1	CREATE PLUGGABLE DATABASE a USING 's' CLONE
-reject@40	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!drop-2	CREATE PLUGGABLE DATABASE a USING 's' AS
-reject@47	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!insert	CREATE PLUGGABLE DATABASE a USING 's' AS CLONE zzz
+reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!drop-2	CREATE PLUGGABLE DATABASE a USING 's' AS
+reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!insert	CREATE PLUGGABLE DATABASE a USING 's' AS CLONE zzz
 reject@38	reject@38	engine	createPluggableDatabase_create_pdb_from_xml(AS_CLONE)?/AS_CLONE!swap	CREATE PLUGGABLE DATABASE a USING 's' ASC CLONE
 accept	accept	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_container_map_clause)?/%empty	CREATE PLUGGABLE DATABASE a USING 's'
 accept	accept	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_container_map_clause)?/createPluggableDatabase_container_map_clause	CREATE PLUGGABLE DATABASE a USING 's' CONTAINER_MAP UPDATE(ADD PARTITION a VALUES LESS THAN(1))
@@ -31662,14 +31662,14 @@ reject@16	reject@16	engine	createSynonym(ID_.)?/ID_.!truncate	CREATE SYNONYM a
 reject@21	reject@21	engine	createSynonym(ID_.)?/ID_.!insert	CREATE SYNONYM a.zzz a FOR a
 accept	accept	engine	createSynonym(SHARING_=_(METADATA|NONE))?/%empty	CREATE SYNONYM a FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/%empty!insert	CREATE SYNONYM a zzz FOR a
-reject@27	accept	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+accept	accept	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE SYNONYM a = METADATA FOR a
 reject@25	reject@25	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE SYNONYM a SHARING METADATA FOR a
 reject@27	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE SYNONYM a SHARING = FOR a
 reject@26	reject@26	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE SYNONYM a SHARING =
-reject@27	reject@36	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE SYNONYM a SHARING = METADATA zzz FOR a
+reject@36	reject@36	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE SYNONYM a SHARING = METADATA zzz FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE SYNONYM a SHOW = METADATA FOR a
-reject@27	accept	engine	createSynonym(METADATA|NONE)/METADATA	CREATE SYNONYM a SHARING = METADATA FOR a
+accept	accept	engine	createSynonym(METADATA|NONE)/METADATA	CREATE SYNONYM a SHARING = METADATA FOR a
 reject@27	reject@27	engine	createSynonym(METADATA|NONE)/METADATA!swap	CREATE SYNONYM a SHARING = MIGRATE FOR a
 accept	accept	engine	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 reject@32	reject@32	engine	createSynonym(METADATA|NONE)/NONE!insert	CREATE SYNONYM a SHARING = NONE zzz FOR a
@@ -31772,10 +31772,10 @@ reject@14	reject@14	engine	createTable_relational_table(createTable_immutable_ta
 reject@14	reject@14	engine	createTable_relational_table(createTable_blockchain_table_clauses)?/%empty	CREATE TABLE a
 reject@14	reject@14	engine	createTable_relational_table(createTable_blockchain_table_clauses)?/createTable_blockchain_table_clauses	CREATE TABLE a
 reject@14	reject@14	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/%empty	CREATE TABLE a
-accept	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE TABLE a DEFAULT COLLATION a
+reject@15	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE TABLE a DEFAULT COLLATION a
 reject@15	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	CREATE TABLE a COLLATION a
 reject@23	reject@23	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE TABLE a DEFAULT a
-accept	reject@32	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE TABLE a DEFAULT COLLATION
+reject@32	reject@32	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE TABLE a DEFAULT COLLATION
 reject@35	reject@35	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	CREATE TABLE a DEFAULT COLLATION a zzz
 reject@15	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	CREATE TABLE a DEFAULT_COLLATION COLLATION a
 reject@14	reject@14	engine	createTable_relational_table(ON_COMMIT_(DELETE|PRESERVE)_ROWS)?/%empty	CREATE TABLE a
@@ -37468,7 +37468,7 @@ accept	accept	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREA
 reject@14	reject@14	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	CREATE VIEW a COLLATION a AS SELECT 1 FROM dual
 reject@22	reject@22	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE VIEW a DEFAULT a AS SELECT 1 FROM dual
 reject@32	reject@32	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE VIEW a DEFAULT COLLATION AS SELECT 1 FROM dual
-accept	reject@31	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!truncate	CREATE VIEW a DEFAULT COLLATION
+reject@31	reject@31	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!truncate	CREATE VIEW a DEFAULT COLLATION
 reject@34	reject@34	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	CREATE VIEW a DEFAULT COLLATION a zzz AS SELECT 1 FROM dual
 reject@14	reject@14	engine	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	CREATE VIEW a DEFAULT_COLLATION COLLATION a AS SELECT 1 FROM dual
 accept	accept	engine	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/%empty	CREATE VIEW a AS SELECT 1 FROM dual

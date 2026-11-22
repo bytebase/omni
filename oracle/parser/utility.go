@@ -1672,32 +1672,40 @@ func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) error 
 	return err
 }
 
+func (p *Parser) isAuditOptionEnd() bool {
+	if isNoauditOptionEndTok(p.cur) {
+		return true
+	}
+	return p.cur.Type != tokQIDENT && (p.cur.Str == "NETWORK" || p.cur.Str == "DIRECT_PATH")
+}
+
 func (p *Parser) parseAuditActions() ([]string, error) {
 	var actions []string
-	for {
-		// Collect multi-word action (e.g., "CREATE TABLE", "ALTER SESSION")
-		action := ""
-		for p.isIdentLike() || p.cur.Type == kwSELECT || p.cur.Type == kwINSERT ||
-			p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE || p.cur.Type == kwCREATE ||
-			p.cur.Type == kwALTER || p.cur.Type == kwDROP || p.cur.Type == kwGRANT ||
-			p.cur.Type == kwEXECUTE || p.cur.Type == kwINDEX || p.cur.Type == kwALL {
-			// Stop before special clause identifiers
-			if p.isIdentLikeStr("NETWORK") || p.isIdentLikeStr("DIRECT_PATH") || p.isIdentLikeStr("CONTAINER") {
-				break
-			}
-			if action != "" {
-				action += " "
-			}
-			action += p.cur.Str
+	if p.cur.Type == kwALL {
+		p.advance()
+		action := "ALL"
+		if p.isKeywordStr("STATEMENTS") || p.cur.Type == kwPRIVILEGES {
+			action += " " + p.cur.Str
 			p.advance()
-			// Stop if we hit keywords that start a clause
-			if p.cur.Type == kwON || p.cur.Type == kwBY || p.cur.Type == kwWHENEVER {
-				break
-			}
 		}
-		if action != "" {
-			actions = append(actions, action)
+		if !p.isAuditOptionEnd() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		return []string{action}, nil
+	}
+	for {
+		itemStart := p.cur
+		name, n := p.matchAuditName(noauditStatementOptions, auditSystemPrivileges, noauditObjectOperations)
+		if n == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		for range n {
+			p.advance()
+		}
+		if !p.isAuditOptionEnd() {
+			return nil, p.syntaxErrorAtTok(itemStart)
+		}
+		actions = append(actions, name)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1810,6 +1818,10 @@ func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		if p.cur.Type == kwNULL {
+			// Oracle 23ai allows USING NULL only with COLUMNS or INDEXES (ORA-29936).
+			if stmt.ObjectType != "COLUMNS" && stmt.ObjectType != "INDEXES" {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.Using = &nodes.ObjectName{Name: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.cur.End}}
 			p.advance()
 		} else if stmt.Using, err = p.ixObjectName(); err != nil {

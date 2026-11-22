@@ -2718,7 +2718,7 @@ func TestParseCreatePDB(t *testing.T) {
 		{"clone", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1"},
 		{"relocate", "CREATE PLUGGABLE DATABASE pdb3 FROM pdb1@cdb1_link RELOCATE"},
 		{"using_xml", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml'"},
-		{"as_clone", "CREATE PLUGGABLE DATABASE pdb2 USING '/tmp/pdb1.xml' AS CLONE"},
+		{"as_clone", "CREATE PLUGGABLE DATABASE pdb2 AS CLONE USING '/tmp/pdb1.xml'"},
 		{"file_name_convert", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass FILE_NAME_CONVERT = ('/u01/pdb_seed/', '/u01/pdb1/')"},
 		{"storage", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass STORAGE UNLIMITED"},
 		{"create_file_dest", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass CREATE_FILE_DEST = '/u01/oradata/pdb1'"},
@@ -2873,7 +2873,7 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"create_xml_nocopy", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' NOCOPY"},
 		{"create_xml_source_file_name_convert", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' SOURCE_FILE_NAME_CONVERT = ('/old/', '/new/')"},
 		{"create_xml_source_file_directory", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' SOURCE_FILE_DIRECTORY = '/tmp/files'"},
-		{"create_xml_as_clone", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' AS CLONE"},
+		{"create_xml_as_clone", "CREATE PLUGGABLE DATABASE pdb1 AS CLONE USING '/tmp/pdb1.xml'"},
 		{"create_xml_decrypt", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' DECRYPT USING secret"},
 		{"create_xml_keystore", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' KEYSTORE IDENTIFIED BY pass1"},
 		// === ALTER PLUGGABLE DATABASE ===
@@ -2930,11 +2930,6 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_datafile_number", "ALTER PLUGGABLE DATABASE pdb1 DATAFILE 5 ONLINE"},
 		// pdb_recovery_clauses
 		{"alter_recover", "ALTER PLUGGABLE DATABASE pdb1 RECOVER"},
-		{"alter_recover_until_cancel", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CANCEL"},
-		{"alter_recover_until_time", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL TIME '2024-01-01'"},
-		{"alter_recover_until_change", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CHANGE 12345"},
-		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER DATAFILE '/u01/a.dbf'"},
-		{"alter_recover_backup_controlfile", "ALTER PLUGGABLE DATABASE pdb1 RECOVER USING BACKUP CONTROLFILE"},
 		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BEGIN BACKUP"},
 		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 END BACKUP"},
 		{"alter_enable_recovery", "ALTER PLUGGABLE DATABASE pdb1 ENABLE RECOVERY"},
@@ -3989,7 +3984,7 @@ func TestBatch76_PfileSpfile(t *testing.T) {
 		obj    ast.ObjectType
 	}{
 		{"create_pfile", "CREATE PFILE FROM SPFILE", "CREATE", ast.OBJECT_PFILE},
-		{"create_pfile_named", "CREATE PFILE '/tmp/initTEST.ora' FROM SPFILE '/u01/app/oracle/dbs/spfileTEST.ora'", "CREATE", ast.OBJECT_PFILE},
+		{"create_pfile_named", "CREATE PFILE = '/tmp/initTEST.ora' FROM SPFILE = '/u01/app/oracle/dbs/spfileTEST.ora'", "CREATE", ast.OBJECT_PFILE},
 		{"create_spfile", "CREATE SPFILE FROM PFILE", "CREATE", ast.OBJECT_SPFILE},
 		{"create_spfile_named", "CREATE SPFILE = '/u01/app/oracle/dbs/spfileTEST.ora' FROM PFILE = '/tmp/initTEST.ora'", "CREATE", ast.OBJECT_SPFILE},
 	}
@@ -4813,7 +4808,7 @@ func TestParseAlterType(t *testing.T) {
 		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE CONVERT TO SUBSTITUTABLE",
 
 		// FORCE (exceptions clause)
-		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE FORCE",
+		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE FORCE EXCEPTIONS INTO err_tab",
 
 		// REPLACE clause — redefine the type spec inline
 		"ALTER TYPE person_t REPLACE AS OBJECT (name VARCHAR2(100), age NUMBER)",
@@ -4888,7 +4883,7 @@ func TestParseAlterMaterializedView(t *testing.T) {
 		// REFRESH WITH PRIMARY KEY
 		"ALTER MATERIALIZED VIEW mv1 REFRESH WITH PRIMARY KEY",
 		// REFRESH USING ROLLBACK SEGMENT
-		"ALTER MATERIALIZED VIEW mv1 REFRESH USING ROLLBACK SEGMENT rbs1",
+		"ALTER MATERIALIZED VIEW mv1 REFRESH USING MASTER ROLLBACK SEGMENT rbs1",
 		// REFRESH USING ENFORCED CONSTRAINTS
 		"ALTER MATERIALIZED VIEW mv1 REFRESH USING ENFORCED CONSTRAINTS",
 		// REFRESH USING TRUSTED CONSTRAINTS
@@ -7762,7 +7757,7 @@ func TestParseBatch101_PLSQLObjects(t *testing.T) {
 		// CREATE FUNCTION - IF NOT EXISTS (comes after FUNCTION per BNF)
 		"CREATE FUNCTION IF NOT EXISTS get_total (p_id IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END;",
 		// CREATE FUNCTION - EDITIONABLE with SHARING
-		"CREATE OR REPLACE EDITIONABLE FUNCTION calc RETURN NUMBER SHARING = METADATA DETERMINISTIC IS BEGIN RETURN 1; END;",
+		"CREATE OR REPLACE EDITIONABLE FUNCTION calc SHARING = METADATA RETURN NUMBER DETERMINISTIC IS BEGIN RETURN 1; END;",
 		// CREATE FUNCTION - AGGREGATE USING
 		// AGGREGATE USING ends the function: Oracle 23ai rejects an IS body
 		// after it (PLS-00103).
@@ -7789,8 +7784,8 @@ func TestParseBatch101_PLSQLObjects(t *testing.T) {
 		"ALTER PACKAGE my_pkg EDITIONABLE",
 		// ALTER TYPE - REPLACE clause
 		"ALTER TYPE my_type REPLACE AS OBJECT (id NUMBER, name VARCHAR2(200), email VARCHAR2(100))",
-		// ALTER TYPE - MODIFY modifier_clause (MODIFY NOT FINAL)
-		"ALTER TYPE my_type MODIFY NOT FINAL CASCADE",
+		// ALTER TYPE - modifier_clause (NOT FINAL)
+		"ALTER TYPE my_type NOT FINAL CASCADE",
 		// DROP TYPE - VALIDATE
 		"DROP TYPE my_type VALIDATE",
 		// DROP TYPE - FORCE
@@ -9317,7 +9312,7 @@ func TestBatch106_ReviewBundleTxnUtilityDclDrop(t *testing.T) {
 		{"assoc_stat_columns", "ASSOCIATE STATISTICS WITH COLUMNS employees.salary USING my_stats"},
 		{"assoc_stat_packages", "ASSOCIATE STATISTICS WITH PACKAGES my_pkg USING my_stats_type"},
 		{"assoc_stat_types", "ASSOCIATE STATISTICS WITH TYPES my_type USING my_stats_type"},
-		{"assoc_stat_null", "ASSOCIATE STATISTICS WITH FUNCTIONS my_func USING NULL"},
+		{"assoc_stat_null", "ASSOCIATE STATISTICS WITH COLUMNS my_tab.my_col USING NULL"},
 
 		// === DISASSOCIATE STATISTICS (BNF: DISASSOCIATE-STATISTICS.bnf) ===
 		{"disassoc_stat_functions", "DISASSOCIATE STATISTICS FROM FUNCTIONS my_func"},

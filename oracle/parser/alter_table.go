@@ -2076,7 +2076,8 @@ func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 			if err := p.parseATInteger(); err != nil {
 				return nil, err
 			}
-			if err := p.atOneOf("DAY", "DAYS"); err != nil {
+			// Oracle 23ai requires plural DAYS (ORA-02000: missing DAYS keyword for DAY).
+			if err := p.atExpectWord("DAYS"); err != nil {
 				return nil, err
 			}
 			if err := p.atExpectWord("AFTER"); err != nil {

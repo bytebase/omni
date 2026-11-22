@@ -494,11 +494,16 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 		if err := p.expectCreateTableWord("COLLATION"); err != nil {
 			return nil, err
 		}
-		p.createTableEngineCheck = true
+		if !p.isCreateTableNameStart() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr492 error
 		stmt.Collation, parseErr492 = p.parseIdentifier()
 		if parseErr492 != nil {
 			return nil, parseErr492
+		}
+		if stmt.Collation == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	parseErr493 := p.parseTableOptions(stmt, hasColumns)
@@ -1256,13 +1261,17 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					p.advance() // consume DECRYPT
 					col.Encrypt = "DECRYPT"
 				case "COLLATE":
-					// A column collation needs the column's datatype:
-					// Oracle 23ai answers a COLLATE without one with
-					// ORA-03099 at COLLATE.
-					if col.TypeName == nil && col.Domain == nil {
+					// CREATE TABLE requires a column datatype before COLLATE
+					// (ORA-03099 at COLLATE); ALTER TABLE ADD (virtual column)
+					// and ALTER TABLE MODIFY allow COLLATE without restating the
+					// datatype.
+					if p.createTableColumns && col.TypeName == nil && col.Domain == nil {
 						return p.syntaxErrorAtCur()
 					}
 					p.advance()
+					if !p.isCreateTableNameStart() {
+						return p.syntaxErrorAtCur()
+					}
 					var // consume COLLATE
 					parseErr510 error
 					col.Collation, parseErr510 = p.parseIdentifier()

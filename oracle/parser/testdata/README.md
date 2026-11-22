@@ -26,15 +26,20 @@ subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
 `COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets), Wave 8
 (`DELETE ... FROM ... MATCH_RECOGNIZE` syntax-error parsing, `CREATE VIEW ... OF
 XMLTYPE` per `CREATE-VIEW.bnf`, `CREATE TABLE ENABLE CONSTRAINTS`, and
-`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal), and
+`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal),
 judge revision 4 (`MAX_STRING_SIZE=EXTENDED`, `TYPE`/`DIMENSION` fixtures, and
-offset-preserving stand-ins):
+offset-preserving stand-ins), and Wave 9 (`ALTER TABLE` `COLLATE`/`NO DELETE
+UNTIL ... DAYS`, `DEFAULT COLLATION`, `CREATE SYNONYM SHARING`, `CREATE PFILE`,
+traditional `AUDIT` options, `CREATE FUNCTION SHARING` placement, `ALTER TYPE`
+modifiers & `CASCADE`, `ALTER MATERIALIZED VIEW USING ROLLBACK`, `CREATE
+MATERIALIZED VIEW` column `INMEMORY`, `CREATE`/`ALTER PLUGGABLE DATABASE`
+`AS CLONE`/`RECOVER`, and `ASSOCIATE STATISTICS USING NULL`):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 14,297 | 133 | 9 | 95 |
-| Near-misses | 31,318 | 30,440 | 761 | 100 | 17 |
+| One per alternative | 14,534 | 14,316 | 150 | 4 | 64 |
+| Near-misses | 31,318 | 30,466 | 748 | 100 | 4 |
 | Hand rows | 1,010 | 921 | 70 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -638,7 +643,33 @@ token-end rows, 89 `suite:*` corpus rows, non-sharded/non-standby server checks
 (`DROP TABLESPACE SET`, `ALTER SEQUENCE SHARD`), and a small set of newly
 exposed parser gaps (`DEFAULT COLLATION`, `CREATE SYNONYM SHARING`, `ALTER
 TABLE COLLATE`, `AUDIT`, `ALTER MATERIALIZED VIEW USING ROLLBACK`) addressed in
-the follow-up parser wave.
+Wave 9 below.
+
+### Wave 9 (closing all remaining parser gaps exposed by judge rev 4)
+
+Wave 9 closed **49 verdict discrepancies** (`-5 only_oracle`, `-44 only_omni`)
+and moved **45 net rows** to Oracle's exact cell (`45,658 / 46,862` ->
+**`45,703 / 46,862`**, **97.53% exact**, **99.59% verdict**; `only_oracle`:
+126 -> **121**, `only_omni`: 114 -> **70**, `another_byte`: 964 -> **968**):
+
+| Cause | Verdict rows closed | What changed |
+| --- | --- | --- |
+| `ALTER TABLE ADD/MODIFY (... COLLATE ...)` without explicit datatype | 3 `oj` (+8 `off` exact) | allow `COLLATE` without restating datatype in `ALTER TABLE ADD` (virtual column) and `MODIFY`, and require an unreserved collation name |
+| `CREATE SYNONYM ... SHARING = METADATA` | 2 `oj` (+1 `off` exact) | accept `METADATA` alongside `NONE` per `CREATE-SYNONYM.bnf` |
+| `ALTER TYPE` modifiers & `CASCADE` | 9 `oo` | reject invalid `MODIFY [NOT] INSTANTIABLE\|FINAL` (`PLS-00103`), require `EXCEPTIONS INTO` after `CASCADE ... FORCE`, and reject `CASCADE NOT SUBSTITUTABLE` |
+| `CREATE MATERIALIZED VIEW ... INMEMORY (col) ...` | 8 `oo` | parse inner `inmemory_column_clause` errors at their token and reject the completed statement at the end of the `AS` subquery (`ORA-00922`) |
+| `ALTER PLUGGABLE DATABASE RECOVER` | 8 `oo` | accept `RECOVER [ CANCEL \| CONTINUE [ DEFAULT ] ]` and reject `STANDBY`/`UNTIL`/`USING BACKUP CONTROLFILE` (`ORA-00905`) |
+| `CREATE TABLE`/`VIEW`/`MATERIALIZED VIEW DEFAULT COLLATION` | 4 `oo` | require collation name after `DEFAULT COLLATION` and remove old rev-3 `STANDARD` workarounds |
+| Traditional `AUDIT` option validation | 4 `oo` | validate traditional `AUDIT` options against `NOAUDIT`'s option tables, rejecting broken unified-audit near-misses at byte 6 |
+| `ALTER MATERIALIZED VIEW REFRESH USING ROLLBACK` | 3 `oo` (+1 `off` exact) | require `[ DEFAULT ] { MASTER \| LOCAL } ROLLBACK SEGMENT [ name ]` (`ORA-12061` at byte 45) |
+| `CREATE FUNCTION ... SHARING` placement | 3 `oo` | place `SHARING = { METADATA \| NONE }` before parameters and `RETURN` (`PLS-00103` after `RETURN`) |
+| `ALTER TABLE NO DELETE UNTIL n DAYS AFTER INSERT` | 2 `oo` (+3 `off` exact) | require plural `DAYS` (`ORA-02000`) |
+| `CREATE PFILE = 'file'`, `CREATE PLUGGABLE DATABASE AS CLONE USING`, `ASSOCIATE STATISTICS USING NULL` | 3 `oo` (+1 `off` exact) | require `=` in `CREATE PFILE`, place `AS CLONE` before `USING`, and restrict `USING NULL` to `COLUMNS`/`INDEXES` (`ORA-29936`) |
+
+Zero genuine `oracle/parser` grammar bugs remain among the 121 `only_oracle` and
+70 `only_omni` rows at judge revision 4: every remaining discrepancy is a judge
+blind spot, server setup/feature refusal, or byte-offset difference addressed in
+judge revision 5.
 
 ## Tapes
 

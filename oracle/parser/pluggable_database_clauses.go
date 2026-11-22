@@ -92,8 +92,24 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, er
 	key := "FROM"
 	switch {
 	case p.cur.Type == kwAS:
-		key = "AS_PROXY_FROM"
 		p.advance()
+		if p.adbWord("CLONE") {
+			p.advance()
+			p.pdbOption(opts, "AS_CLONE", "", optStart)
+			if !p.adbWord("USING") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			usingStart := p.pos()
+			p.advance()
+			kind = pdbFromXML
+			f, err := p.adbString()
+			if err != nil {
+				return nil, err
+			}
+			p.pdbOption(opts, "USING", f, usingStart)
+			break
+		}
+		key = "AS_PROXY_FROM"
 		if p.adbWord("SEED") {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -387,12 +403,6 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case kind == pdbFromXML && (key == "COPY" || key == "MOVE" || key == "NOCOPY"):
 			seen["COPY"], seen["MOVE"], seen["NOCOPY"] = true, true, true
 			p.pdbOption(opts, p.advance().Str, "", optStart)
-		case kind == pdbFromXML && p.cur.Type == kwAS:
-			p.advance()
-			if err := p.adbExpect("CLONE"); err != nil {
-				return err
-			}
-			p.pdbOption(opts, "AS_CLONE", "", optStart)
 		case kind == pdbFromXML && key == "DECRYPT":
 			p.advance()
 			if p.cur.Type != kwUSING {
@@ -1052,7 +1062,23 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 			opt.Value, err = p.adbInteger()
 		}
 	case "RECOVER":
-		err = p.parseAlterDatabaseRecover(opt)
+		// Oracle 23ai accepts ALTER PLUGGABLE DATABASE [pdb_name] RECOVER
+		// [ CANCEL | CONTINUE [ DEFAULT ] ] and refuses STANDBY/UNTIL/USING
+		// clauses with ORA-00905.
+		p.advance()
+		opt.Key = "RECOVER"
+		switch {
+		case p.adbWord("CANCEL"):
+			p.advance()
+			opt.Key = "RECOVER_CANCEL"
+		case p.adbWord("CONTINUE"):
+			p.advance()
+			opt.Key = "RECOVER_CONTINUE"
+			if p.cur.Type == kwDEFAULT {
+				p.advance()
+				opt.Value = "DEFAULT"
+			}
+		}
 	case "BEGIN", "END":
 		// Oracle takes { BEGIN | END } BACKUP, not the page's BACKUP { BEGIN
 		// | END }: it reads BACKUP there as the PDB's name (ORA-01906).
