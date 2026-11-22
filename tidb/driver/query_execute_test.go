@@ -333,3 +333,67 @@ func TestQueryExplainAndSessionState(t *testing.T) {
 		t.Errorf("parse error = %v", err)
 	}
 }
+
+// TestProbeAndDryRun pins TiDB's dry-run and session rollback behavior: Explain
+// refuses invalid statements, BATCH ... DRY RUN fails inside a transaction and
+// succeeds in autocommit mode, and transactional session writes roll back.
+func TestProbeAndDryRun(t *testing.T) {
+	ctx := context.Background()
+	const dbName = "omni_qe_probe"
+	d := openTestDriver(t, dbName)
+	if _, err := d.db.ExecContext(ctx, "CREATE TABLE t (id INT PRIMARY KEY, note VARCHAR(64))"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Explain(ctx, "DELETE FROM t WHERE id = 1"); err != nil {
+		t.Fatalf("Explain valid DELETE failed: %v", err)
+	}
+	if err := d.Explain(ctx, "DELETE FROM t WHERE missing_column = 1"); err == nil {
+		t.Fatal("Explain on missing_column succeeded, want error")
+	}
+
+	const batchDryRun = "BATCH ON id LIMIT 2 DRY RUN DELETE FROM t WHERE id > 0"
+	if err := d.DryRunAutoCommit(ctx, batchDryRun); err != nil {
+		t.Fatalf("DryRunAutoCommit BATCH DRY RUN failed: %v", err)
+	}
+
+	sess, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	// BATCH ... DRY RUN is refused inside an explicit transaction.
+	if res, err := sess.Query(ctx, "START TRANSACTION", driver.QueryOptions{}); err != nil || len(res) != 1 || res[0].Err != nil {
+		t.Fatalf("START TRANSACTION = %+v, %v", res, err)
+	}
+	batchRes, err := sess.Query(ctx, batchDryRun, driver.QueryOptions{})
+	if err == nil && (len(batchRes) == 0 || batchRes[0].Err == nil) {
+		t.Fatalf("BATCH DRY RUN inside transaction succeeded: %+v", batchRes)
+	}
+	if res, err := sess.Query(ctx, "ROLLBACK", driver.QueryOptions{}); err != nil || len(res) != 1 || res[0].Err != nil {
+		t.Fatalf("ROLLBACK after BATCH DRY RUN = %+v, %v", res, err)
+	}
+
+	// Pre-execution writes inside a probe transaction are visible to the probed
+	// query and gone after ROLLBACK.
+	for _, stmt := range []string{
+		"START TRANSACTION",
+		"INSERT INTO t VALUES (42, 'probe')",
+	} {
+		if res, err := sess.Query(ctx, stmt, driver.QueryOptions{}); err != nil || len(res) != 1 || res[0].Err != nil {
+			t.Fatalf("%s = %+v, %v", stmt, res, err)
+		}
+	}
+	inTx, err := sess.Query(ctx, "SELECT COUNT(*) FROM t", driver.QueryOptions{})
+	if err != nil || len(inTx) != 1 || inTx[0].Err != nil || len(inTx[0].Rows) != 1 || inTx[0].Rows[0][0].Int64 != 1 {
+		t.Fatalf("in-transaction count = %+v, %v", inTx, err)
+	}
+	if res, err := sess.Query(ctx, "ROLLBACK", driver.QueryOptions{}); err != nil || len(res) != 1 || res[0].Err != nil {
+		t.Fatalf("ROLLBACK = %+v, %v", res, err)
+	}
+	afterRollback, err := sess.Query(ctx, "SELECT COUNT(*) FROM t", driver.QueryOptions{})
+	if err != nil || len(afterRollback) != 1 || afterRollback[0].Err != nil || len(afterRollback[0].Rows) != 1 || afterRollback[0].Rows[0][0].Int64 != 0 {
+		t.Fatalf("post-rollback count = %+v, %v", afterRollback, err)
+	}
+}

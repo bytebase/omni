@@ -754,3 +754,75 @@ func TestWithFunctionRowCapAndExplain(t *testing.T) {
 		t.Errorf("explainStatement(EXPLAIN ANALYZE ...) succeeded, want error")
 	}
 }
+
+// TestSessionStateAndTemporalVariants pins that a Session preserves SET SESSION
+// across separate Query calls and that temporal precision/null variants decode
+// consistently.
+func TestSessionStateAndTemporalVariants(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("session persists SET SESSION across Query calls", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+
+		results, err := session.Query(ctx, "SET SESSION query_max_run_time = '1m'", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("SET SESSION results = %+v", results)
+		}
+
+		results, err = session.Query(ctx, "SHOW SESSION LIKE 'query_max_run_time'", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil || len(results[0].Rows) != 1 {
+			t.Fatalf("SHOW SESSION results = %+v", results)
+		}
+		if got := results[0].Rows[0][1].String; got != "1m" {
+			t.Errorf("query_max_run_time = %q, want 1m", got)
+		}
+	})
+
+	t.Run("temporal precision and null variants", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+
+		results, err := session.Query(ctx, `SELECT
+			TIME '12:34:56' AS c_time_sec,
+			TIME '12:34:56.789 +02:00' AS c_time_tz_ms,
+			TIMESTAMP '2026-01-02 12:34:56.789' AS c_timestamp_ms,
+			TIMESTAMP '2026-01-02 12:34:56 +02:00' AS c_timestamp_tz_sec,
+			CAST(NULL AS DATE) AS c_null_date;`, driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		wantColumns := []driver.Column{
+			{Name: "c_time_sec", TypeName: "TIME"},
+			{Name: "c_time_tz_ms", TypeName: "TIME WITH TIME ZONE"},
+			{Name: "c_timestamp_ms", TypeName: "TIMESTAMP"},
+			{Name: "c_timestamp_tz_sec", TypeName: "TIMESTAMP WITH TIME ZONE"},
+			{Name: "c_null_date", TypeName: "DATE"},
+		}
+		if diff := cmp.Diff(wantColumns, results[0].Columns); diff != "" {
+			t.Errorf("columns (-want +got):\n%s", diff)
+		}
+		if len(results[0].Rows) != 1 {
+			t.Fatalf("rows = %d, want 1", len(results[0].Rows))
+		}
+		wantRow := []driver.Value{
+			{Kind: driver.String, String: "12:34:56"},
+			{Kind: driver.String, String: "12:34:56.789+02:00"},
+			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 789000000, time.UTC), Precision: 3},
+			{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 12, 34, 56, 0, time.FixedZone("", 2*60*60)), Precision: 0},
+			{Kind: driver.Null},
+		}
+		if diff := cmp.Diff(wantRow, results[0].Rows[0]); diff != "" {
+			t.Errorf("row (-want +got):\n%s", diff)
+		}
+	})
+}
