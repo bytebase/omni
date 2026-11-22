@@ -1792,40 +1792,7 @@ func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStm
 }
 
 func isKnownPGConfigParam(key string) bool {
-	if strings.Contains(key, ".") {
-		return true
-	}
-	switch key {
-	case "search_path", "default_tablespace", "default_table_access_method", "role",
-		"timezone", "datestyle", "work_mem", "statement_timeout", "lock_timeout",
-		"idle_in_transaction_session_timeout", "client_min_messages",
-		"standard_conforming_strings", "check_function_bodies",
-		"default_transaction_isolation", "default_transaction_read_only",
-		"default_transaction_deferrable", "temp_tablespaces", "extra_float_digits",
-		"client_encoding", "application_name", "effective_cache_size",
-		"enable_seqscan", "enable_indexscan", "enable_bitmapscan",
-		"enable_hashjoin", "enable_mergejoin", "enable_nestloop",
-		"random_page_cost", "seq_page_cost", "from_collapse_limit",
-		"join_collapse_limit", "geqo", "row_security", "bytea_output",
-		"intervalstyle", "lc_monetary", "lc_numeric", "lc_time", "xmlbinary",
-		"xmloption", "gin_fuzzy_search_limit", "default_text_search_config",
-		"synchronous_commit", "commit_delay", "commit_siblings",
-		"maintenance_work_mem", "max_parallel_workers_per_gather", "jit",
-		"plan_cache_mode", "array_nulls", "backslash_quote",
-		"escape_string_warning", "quote_all_identifiers", "synchronize_seqscans",
-		"transform_null_equals", "lo_compat_privileges",
-		"operator_precedence_warning", "session_authorization", "log_statement",
-		"log_min_messages", "log_min_error_statement", "log_min_duration_statement",
-		"deadlock_timeout", "temp_buffers", "hash_mem_multiplier",
-		"cursor_tuple_fraction", "default_statistics_target",
-		"constraint_exclusion", "enable_partition_pruning", "enable_parallel_append",
-		"enable_parallel_hash", "enable_incremental_sort", "enable_memoize",
-		"enable_material", "enable_sort", "enable_tidscan", "enable_indexonlyscan",
-		"enable_gathermerge", "force_parallel_mode", "debug_parallel_query",
-		"zero_damaged_pages", "vacuum_cost_delay", "vacuum_cost_limit":
-		return true
-	}
-	return false
+	return strings.Contains(key, ".") || pg17ConfigParams[key]
 }
 
 func (c *Catalog) resolveCurrentSettingValue(key string) (string, bool) {

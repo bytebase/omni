@@ -1314,18 +1314,11 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			return nil
 		}
 		// pg: src/backend/commands/tablecmds.c — ATPrepSetUnLogged
-		// An unlogged table cannot reference a logged table or be referenced by one.
+		// An unlogged table may reference a logged table, but cannot be
+		// referenced by a logged table.
 		for _, con := range c.constraints {
 			if con.Type != ConstraintFK {
 				continue
-			}
-			if con.RelOID == rel.OID && con.FRelOID != rel.OID {
-				if frel := c.relationByOID[con.FRelOID]; frel != nil && frel.Persistence != 'u' {
-					return &Error{
-						Code:    CodeInvalidTableDefinition,
-						Message: fmt.Sprintf("could not change table %q to unlogged because it references logged table %q", rel.Name, frel.Name),
-					}
-				}
 			}
 			if con.FRelOID == rel.OID && con.RelOID != rel.OID {
 				if refRel := c.relationByOID[con.RelOID]; refRel != nil && refRel.Persistence != 'u' {
@@ -2186,8 +2179,9 @@ func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
 	}
 
 	// ALTER TYPE ... RENAME ATTRIBUTE does not recurse to children (inh=false),
-	// so renaming a column on a table with children/partitions fails with 42P16.
-	if rel.RelKind == 'p' || len(c.findPartitionChildRelations(rel.OID)) > 0 {
+	// so renaming a column on a table with ordinary inheritance children or
+	// partitions fails with 42P16.
+	if rel.RelKind == 'p' || len(c.findChildRelations(rel.OID)) > 0 {
 		if _, exists := rel.colByName[stmt.Subname]; exists {
 			return &Error{
 				Code:    CodeInvalidTableDefinition,

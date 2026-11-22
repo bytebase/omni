@@ -323,11 +323,13 @@ CREATE POLICY a ON a USING (a);
 		{"alter type set unknown attr", enumSetup, "ALTER TYPE a SET (a = 1)", CodeSyntaxError},
 		{"alter type rename table rowtype", fkSetup, "ALTER TYPE a RENAME TO a", CodeWrongObjectType},
 		{"alter type rename attr on partitioned", partSetup, "ALTER TYPE a RENAME ATTRIBUTE a TO a", CodeInvalidTableDefinition},
+		{"alter type rename attr on ordinary inheritance parent", "CREATE TABLE parent (id int); CREATE TABLE child () INHERITS (parent);", "ALTER TYPE parent RENAME ATTRIBUTE id TO renamed", CodeInvalidTableDefinition},
 
 		// DROP TYPE / DOMAIN
 		{"drop builtin type", "", "DROP TYPE INT", CodeDependentObjects},
 		{"drop type bad typmod", "", "DROP TYPE BIT(a)", CodeInvalidTextRepresentation},
 		{"drop type table rowtype", fkSetup, "DROP TYPE a", CodeDependentObjects},
+		{"drop type cascade table rowtype", "CREATE TABLE t (id int);", "DROP TYPE t CASCADE", CodeDependentObjects},
 		{"drop type if exists table rowtype", fkSetup, "DROP TYPE IF EXISTS a", CodeDependentObjects},
 		{"drop domain on enum", enumSetup, "DROP DOMAIN a", CodeWrongObjectType},
 		{"drop domain if exists on enum", enumSetup, "DROP DOMAIN IF EXISTS a", CodeWrongObjectType},
@@ -338,7 +340,8 @@ CREATE POLICY a ON a USING (a);
 		{"create view vs enum", enumSetup, "CREATE VIEW a AS SELECT", CodeDuplicateObject},
 		{"create table of composite dup col", compSetup, "CREATE TABLE a OF a (a, a)", CodeDuplicateColumn},
 		{"truncate fk referenced", fkSetup, "TRUNCATE a", CodeFeatureNotSupported},
-		{"alter table set unlogged with fk", fkSetup, "ALTER TABLE a SET UNLOGGED", CodeInvalidTableDefinition},
+		{"alter table set unlogged with incoming fk", fkSetup, "ALTER TABLE a SET UNLOGGED", CodeInvalidTableDefinition},
+		{"alter table set unlogged with outgoing fk only", "CREATE TABLE logged1 (id int PRIMARY KEY); CREATE TABLE logged2 (id int REFERENCES logged1 (id));", "ALTER TABLE logged2 SET UNLOGGED", ""},
 		{"alter table add identity non-int", polSetup, "ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY", CodeInvalidParameterValue},
 		{"alter index rename composite", compSetup, "ALTER INDEX a RENAME TO a", CodeWrongObjectType},
 
@@ -347,6 +350,8 @@ CREATE POLICY a ON a USING (a);
 		{"alter function bad parallel", funcSetup, "ALTER FUNCTION AUTHORIZATION PARALLEL a", CodeSyntaxError},
 		{"alter function dup strict", funcSetup, "ALTER FUNCTION AUTHORIZATION STRICT STRICT", CodeSyntaxError},
 		{"alter function reset unknown guc", funcSetup, "ALTER FUNCTION AUTHORIZATION RESET a", CodeUndefinedObject},
+		{"alter function reset enable_partitionwise_join", funcSetup, "ALTER FUNCTION AUTHORIZATION RESET enable_partitionwise_join", ""},
+		{"alter function reset max_parallel_workers", funcSetup, "ALTER FUNCTION AUTHORIZATION RESET max_parallel_workers", ""},
 		{"drop procedure if exists on func", funcSetup, "DROP PROCEDURE IF EXISTS AUTHORIZATION", ""},
 		{"drop procedure on func no parens", funcSetup, "DROP PROCEDURE AUTHORIZATION", CodeUndefinedFunction},
 		{"comment on procedure on func no parens", funcSetup, "COMMENT ON PROCEDURE AUTHORIZATION IS 's'", CodeUndefinedFunction},

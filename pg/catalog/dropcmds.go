@@ -329,15 +329,12 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 					compRel = rel
 					dropRelOIDs[rel.OID] = true
 				} else {
-					// Table/view/matview/sequence row type has an internal dependency on its relation.
-					if !cascade {
-						return &Error{
-							Code:    CodeDependentObjects,
-							Message: fmt.Sprintf("cannot drop type %s because table %s requires it", typeName, rel.Name),
-						}
+					// Table/view/matview/sequence row type has an internal dependency on its relation;
+					// PostgreSQL refuses directly dropping it even with CASCADE.
+					return &Error{
+						Code:    CodeDependentObjects,
+						Message: fmt.Sprintf("cannot drop type %s because table %s requires it", typeName, rel.Name),
 					}
-					compRel = rel
-					dropRelOIDs[rel.OID] = true
 				}
 			}
 		}
