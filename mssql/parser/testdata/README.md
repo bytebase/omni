@@ -6,17 +6,18 @@
 `../../testdata/TSql160.g4`, then its near-misses (a token dropped, the end cut
 off, a stray word inserted, a keyword swapped), then the token forms of
 `suite:lexer`, with omni's verdict and the pinned SQL Server's
-(`../../testdata/pins.tsv`). `TestCompatibility` (`../compat_test.go`) reads it
-through `enginetest/compat` and starts no server. Recorded 2026-11-14 in under
-a minute; a second recording on a fresh server wrote the same file.
+(`../../testdata/pins.tsv`, role `parser`, judge rev 2). `TestCompatibility`
+(`../compat_test.go`) reads it through `enginetest/compat` and starts no server.
+Re-recorded 2026-11-22 under judge rev 2 in under a minute; `OMNI_RECORD=verify`
+on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,405 | 0 | 105 |
-| Near-misses | 11,960 | 11,938 | 20 | 2 |
+| One per alternative | 5,510 | 5,406 | 0 | 104 |
+| Near-misses | 11,960 | 11,942 | 0 | 18 |
 | `suite:lexer` | 67 | 66 | 0 | 1 |
 
-SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
+SQL Server accepts 3,035 of the 5,510 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
 (`Credential`, `Connection`, `Object`, `Disk`, `Precision`), so ScriptDOM's
 lexer never makes it.
@@ -47,7 +48,7 @@ lexer never makes it.
   `{NextTokenMatches(CodeGenerationSupporter.X)}? rule`, which becomes a copy
   of `rule` that starts with `X` (`rule_X`). An option a helper reads by its
   text (`ParseOption(tOption)`) stays an identifier, sampled `a`, so its rows
-  are refused: most of the 2,476 alternatives SQL Server refuses are such
+  are refused: most of the 2,475 alternatives SQL Server refuses are such
   options, and Azure SQL and Synapse forms SQL Server 2022 does not take.
 - **Token forms** are in `../../testdata/tokens.tsv`, cited to the lexer rules
   of `TSql160.g`. One row picks a rule's text: a `statement` inside another is
@@ -64,26 +65,45 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## What the judge needs
 
-- **`SET PARSEONLY ON`** (`compat.ParseOnlyVerdict`). The judge sends each row
-  as a batch of its own on one session under `SET PARSEONLY ON`, which parses
-  and neither compiles nor runs it, and puts the session back after each:
-  `PARSEONLY`, `QUOTED_IDENTIFIER` and `FIPS_FLAGGER` take effect while a batch
-  is parsed, and so may `USE`.
-- **Every error is the parser's, and a rejection.** SQL Server's parser checks
-  more than a grammar does: a `BREAK` outside a `WHILE` (135), a column with no
-  type (173), an option it does not know (155, 195), a statement that must
-  start its batch (111). The first error decides; the parser stops reading a
-  statement there.
-- **A lookup of what the server holds is an acceptance:** a database (911), an
-  object (208, 15151), a collation (448), a language (7678), full-text search,
-  which the image does not install (7609). The judge's session is in a
-  database `a` holding a table `a (a INT)`, so the rows' names mostly resolve
-  and the parser reads on.
-- **A variable is the batch's to declare.** A row is one statement, so an
-  undeclared variable (137, 1087, 16948 for a cursor) is declared before it
-  and the row asked again. A statement that must start its batch, such as
-  `CREATE PROCEDURE`, keeps its rejection, since nothing outside it could
-  declare the variable.
+- **`SET PARSEONLY ON`** (`parseOnlyVerdictRev2` in `../compat_test.go`,
+  extending `compat.ParseOnlyVerdict`). The judge sends each row as a batch of
+  its own on one session under `SET PARSEONLY ON`, which parses and neither
+  compiles nor runs it, and puts the session back after each: `PARSEONLY`,
+  `QUOTED_IDENTIFIER` and `FIPS_FLAGGER` take effect while a batch is parsed,
+  and so may `USE`.
+- **Every error in the batch is checked.** SQL Server's parser checks more than
+  a grammar does: a `BREAK` outside a `WHILE` (135), a column with no type
+  (173), an option it does not know (155, 195), a statement that must start its
+  batch (111). Judge rev 2 inspects all errors returned in the batch rather than
+  stopping at the first, so a lookup paired with a syntax error (such as
+  `ALTER DATABASE a COLLATE a zzz`, Msg 448 + Msg 102) is rejected.
+- **A lookup of what the server holds is an acceptance only when no syntax
+  error accompanies it:** a database (911), an object (208, 15151), or a
+  collation (448). The judge's session runs in database `a` holding table
+  `a (a INT)`, and scratch databases `FEDERATION` and `ROOT` exist so
+  `USE FEDERATION ...` and `USE ROOT ...` resolve past the database name
+  instead of aborting on Msg 911 before reading the rest of the statement.
+- **Full-text language lookups probe the tail (7609, 7678).** Without
+  `mssql-server-fts` installed, SQL Server aborts inside `LANGUAGE <term>`
+  before reading the rest of the statement. On Msg 7609 or 7678, judge rev 2
+  re-asks with the validated `LANGUAGE <term>` clause removed (in
+  `FULLTEXT INDEX`) or normalized to `DROP ALL` (in `ALTER FULLTEXT STOPLIST`),
+  so SQL Server parses and checks the statement's tail and required semicolon.
+- **Batch context and placeholder values are supplied on retry:**
+  - An undeclared variable (137, 1087, 16948 for a cursor) is declared before
+    the statement and asked again; statements that must start their batch keep
+    their rejection (Msg 111).
+  - An undeclared `GOTO` label (133) is declared after the statement (`<label>:`)
+    and asked again.
+  - An unused CTE (422) is referenced by appending `FROM <cte>` to a trailing
+    table-less `SELECT *` and asked again, so valid CTEs accept while invalid
+    combinations such as `WITH CHANGE_TRACKING_CONTEXT(0x00), a AS(SELECT *) SELECT *`
+    still reject (Msg 22108).
+  - A placeholder `PARSE` / `TRY_PARSE` target type (10761) is retried with
+    `INT` so SQL Server parses the rest of the call and trailing tokens.
+  - An `ALTER EXTERNAL LANGUAGE ... ENVIRONMENT_VARIABLES` placeholder string
+    (39133) is retried with `'{"a":"b"}'` so SQL Server parses past the JSON
+    check and rejects broken tails such as `... = 'a' zzz)`.
 - **A batch ends in a newline.** go-mssqldb sends a text that looks like a
   procedure name (`GO`, `a`, `BREAK`) as a call of that procedure, not a
   batch.
@@ -92,38 +112,40 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,409 rows agree: 12,212 when the file was recorded, the rest closed family
-by family (#1034 to #1070, and then the batch's call by name, `ALTER
-AUTHORIZATION` and the refusals around it, `SELECT`'s table sources, ODBC
-escapes, graph `MATCH`, the security policies, sensitivity classifications and
-federation shapes, and then `ALTER TABLE`'s remaining clauses, DML targets,
-`WITH CHANGE_TRACKING_CONTEXT`, the `CREATE`/`DROP`/`ALTER` statement shapes,
-query-expression parentheses, `GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the
-search-condition-only boolean operators, the shapes a query expression's
-parentheses, a name's dot and a label's colon carry, and then the CTAS
-alternatives and a line comment's opening).
+17,414 rows agree (99.30%, up from 17,409 / 99.27% under judge rev 1): 12,212
+when the file was first recorded, the rest closed family by family (#1034 to
+#1070, and then the batch's call by name, `ALTER AUTHORIZATION` and the refusals
+around it, `SELECT`'s table sources, ODBC escapes, graph `MATCH`, the security
+policies, sensitivity classifications and federation shapes, and then
+`ALTER TABLE`'s remaining clauses, DML targets, `WITH CHANGE_TRACKING_CONTEXT`,
+the `CREATE`/`DROP`/`ALTER` statement shapes, query-expression parentheses,
+`GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the search-condition-only boolean
+operators, the shapes a query expression's parentheses, a name's dot and a
+label's colon carry, and then the CTAS alternatives and a line comment's
+opening), followed by judge rev 2 closing all 20 `only_mssql` lookup-hides-syntax
+rows and 18 context-only `only_omni` rows (`GOTO`, unused CTE, `PARSE`/`TRY_PARSE`,
+and `ALTER EXTERNAL LANGUAGE`).
 
-128 rows disagree: 108 omni accepts and the pinned server refuses, and 20 the
-other way. Each of the 131 before #1468 was measured on the pinned image and on
-the same release with the features below installed, and each was put to
-ScriptDOM — the pin's own reader of the grammar the rows come from — which tells
-a check of a parsed statement from a refusal of its text. Three were the
-grammar's and are closed; the 128 here are a feature the image lacks, a
-statement of another product, or a check made after the statement is read, and
-stay rows. The two sections below hold the measurement so that no one measures
-them again.
+123 rows disagree: all 123 are accepted only by omni, and 0 are accepted only by
+SQL Server (`only_mssql` dropped from 20 to 0). Upgrading the judge to rev 2
+also exposed 33 previously masked `only_omni` rows where judge rev 1 had blindly
+accepted early lookups: 24 `USE FEDERATION` rows (6 valid Azure SQL forms plus
+18 loose near-misses) and 9 `ALTER FULLTEXT STOPLIST` rows missing their
+required semicolon.
 
 A byte in them is the offset of the token the server's message names: SQL
 Server reports a line, not a byte, and each row is one line. A row that says
 "no byte" has a message that names what it refuses and reports no position.
 
-## Rows only omni accepts, measured (108)
+## Rows only omni accepts, measured (123)
 
 `TSql160.g4` is the grammar omni reads, so a statement the rule under the row
 derives stays accepted where this server refuses it: the row is recorded here
 instead of closed. Three rows of the 111 before #1468 were the grammar's, and
-are closed; the 108 here are the image's features, another product's
-statements, or checks of the parsed statement.
+are closed; judge rev 2 closed 18 context-only rows (`GOTO`, unused CTE,
+`PARSE`/`TRY_PARSE`, `ALTER EXTERNAL LANGUAGE`) and exposed 33 rows previously
+hidden behind Msg 911 (`USE FEDERATION`, 24) and Msg 7609/7678
+(`ALTER FULLTEXT STOPLIST` without `;`, 9).
 
 ### Closed (3)
 
@@ -138,7 +160,7 @@ form SQL Server takes.
 | 1 | `CREATE TABLE a WITH() AS SELECT *` | Msg 102 near `)` (20) | `withTableOptions` is one option at least (TSql160.g:26710-26723): SQL Server, ScriptDOM and omni all refuse at 20 |
 | 1 | `SELECT 1 --(* a *)` | Msg 102 near `--(*` (9) | a line comment opening with `(*` is no comment: ScriptDOM's lexer refuses the same four characters, and a comment that opens otherwise may hold them later (`SELECT 1 --x --(* a *)` parses). omni now refuses at 9 |
 
-### Measured (108)
+### Measured (123)
 
 Each group's code was measured on both servers, and the control beside it — the
 form the server takes, or the same text with the feature it lacks — is what
@@ -152,23 +174,15 @@ tells a check from the grammar.
 | Synapse's `COPY INTO` | 23 | Msg 156 near `INTO` (5) on both servers, and Msg 319 near `WITH` (21) for the row whose `WITH (IDENTITY_INSERT = a)` is read as a CTE clause: this product reads `COPY` as no statement at all. ScriptDOM parses all of them, and refuses the `WITH` row for its option's value |
 | Synapse's `CREATE EXTERNAL STREAM` | 9 | Msg 102 at `EXTERNAL` (7), with PolyBase installed too: `EXTERNAL` is a word the shape takes only for the kinds this product has |
 | Synapse's CTAS options | 5 | Msg 102 at `HEAP` (20) for `CREATE TABLE a WITH(HEAP) AS SELECT *`, and Msg 173 at the column `a` (15) then Msg 319 near `WITH` (18) for `CREATE TABLE a(a) WITH(HEAP) AS SELECT *`. `CREATE TABLE a(a INT) WITH(DATA_COMPRESSION = PAGE)` parses and `CREATE TABLE a WITH(DATA_COMPRESSION = PAGE) AS SELECT *` answers Msg 156 near `AS` (45): the option list is read and the `AS SELECT` is not. ScriptDOM takes both texts and refuses each for the distribution option a CTAS requires |
-| Federations (Azure SQL Database's) | 12 | Msg 343 "Unknown object type 'FEDERATION'" at the object type word (7 for `CREATE`, 6 for `ALTER`, 5 for `DROP`), the answer `CREATE FOO a(a INT)` gets too: the word is looked up in the set of object types this product has, not read by a grammar |
-| `GOTO a` | 3 | Msg 133, no byte: the label is looked up as the statement is read, and a batch of one statement declares none. `GOTO a` after a line `a:` parses |
-| A CTE the statement does not use | 4 | Msg 422, no byte: `WITH a AS(SELECT *) SELECT * FROM a` parses |
-| The type `PARSE` and `TRY_PARSE` convert to | 10 | Msg 10761 naming the type, no byte: the two functions take the datetime and numeric types, so `PARSE(1 AS int)` and `PARSE('1' AS datetime)` parse while `PARSE(1 AS nvarchar(10))` is refused as `PARSE(1 AS a)` is |
-| `ALTER EXTERNAL LANGUAGE`'s environment variables | 1 | Msg 39133 naming the string, no byte: `ALTER EXTERNAL LANGUAGE a SET(CONTENT = 0x00)` and `... SET(CONTENT = 0x00, FILE_NAME = 'a')` parse |
+| Federations (`CREATE`/`ALTER`/`DROP`, Azure SQL Database's) | 12 | Msg 343 "Unknown object type 'FEDERATION'" at the object type word (7 for `CREATE`, 6 for `ALTER`, 5 for `DROP`), the answer `CREATE FOO a(a INT)` gets too: the word is looked up in the set of object types this product has, not read by a grammar |
+| Federations (`USE FEDERATION`, Azure SQL Database's + loose parser forms) | 24 | With scratch database `FEDERATION` present, SQL Server 2022 reads past the database name and refuses all 24 rows with Msg 102/319 (6 valid Azure SQL `USE FEDERATION` alternatives plus 18 loose near-misses previously kept accepted in `utility.go` because judge rev 1 accepted Msg 911; tightening `parseUseFederationStmt` in a follow-up parser PR closes the 18 near-misses) |
+| `ALTER FULLTEXT STOPLIST` without `;` | 9 | With judge rev 2 probing past the Msg 7609/7678 language lookup, SQL Server refuses all 9 `ALTER FULLTEXT STOPLIST ... LANGUAGE ...` forms lacking `;` with Msg 10736 (matching `CREATE`/`DROP FULLTEXT STOPLIST` and `ALTER FULLTEXT STOPLIST a DROP ALL`; removing the rev-1 workaround in `fulltext.go` closes all 9 in a follow-up parser PR) |
 | A name of 129 characters | 1 | Msg 103 at 7, the name; 128 characters parse, and ScriptDOM's lexer refuses the 129 as well. omni reads a name of any length and `mssql/review` reports it as WT403 (`NameTooLong`): the limit is the review layer's, and moving it into the lexer would report the text as a syntax error instead, so it stays its own change |
 
-## Rows only SQL Server accepts, measured (20)
+## Rows only SQL Server accepts (0)
 
-The server accepts each of these by looking a name up while it parses, which the
-judge reads as an acceptance: in all but the last row the read stops there, and
-the words after the name are never read. omni refuses those words, and so does
-the grammar, so the rows stay and the server's acceptance is the row's
-`expected` cell rather than omni's answer.
-
-| Cause | Rows | The server's answer, and the control |
-| --- | --- | --- |
-| A full-text language term is looked up while it is parsed | 10 | Msg 7678 for the six rows whose term is a string or a name this server has no alias for, and Msg 7609 for the four whose term is an integer or a binary, since full-text search is not installed: both stop the read at the term (41 in `ALTER FULLTEXT INDEX`, 43 or 44 in `ALTER FULLTEXT STOPLIST`), so the `zzz` after it is never read. With `mssql-server-fts` installed, `ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'English' zzz)` is Msg 102 at `zzz` (51) and `... LANGUAGE 'English'` parses, and `ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'English' zzz;` is Msg 102 at `zzz` (53) and parses without it: the trailing word is the grammar's to refuse, and omni refuses it at 45, 43, 43, 46, 47, 45, 45, 48, 48 and 48. ScriptDOM refuses all ten as well — the four `ALTER FULLTEXT INDEX` rows at `zzz`, and the six stoplist rows at the stoplist name (24), where its reader wants the statement to end (a stoplist statement's rule ends in `requiredSemicolon`, TSql160.g:1720, which these rows do not have either) |
-| `USE` takes the next word as a database name and looks it up | 9 | Msg 911 naming `FEDERATION` (4) or `ROOT` (4), and nothing after it is read. The control is `USE a zzz`: with a database that exists the server reads on and answers Msg 102 at `zzz` (6). ScriptDOM refuses the nine at 14, 31, 25, 45, 24, 44, 41, 45 and 41 |
-| A collation is looked up while it is parsed | 1 | `ALTER DATABASE a COLLATE a zzz` answers Msg 448 for the collation *and* Msg 102 at `zzz` (27) in the same batch, and the judge reads the first error, a lookup, as an acceptance although the text is refused. `ALTER DATABASE a COLLATE Latin1_General_100_CI_AS zzz` answers Msg 102 at `zzz` (50), and the statement without the word parses. Closing this row means the judge reading the last error of a batch instead of the first, which is a change of the judge's reading and a pin bump of its own |
+All 20 rows previously accepted only by SQL Server under judge rev 1 were broken
+near-misses hidden behind early lookups (`ALTER DATABASE a COLLATE a zzz` via
+Msg 448 + Msg 102, 9 `USE FEDERATION`/`USE ROOT` rows via Msg 911, and 10
+`ALTER FULLTEXT INDEX`/`STOPLIST ... LANGUAGE ... zzz` rows via Msg 7609/7678).
+Judge rev 2 resolves all three cases and SQL Server now rejects all 20.
