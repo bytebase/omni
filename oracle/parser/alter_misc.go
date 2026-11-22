@@ -880,36 +880,12 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 			}
 			parseErr114 := p.parseAlterTypeDependentHandling(stmt)
 			if parseErr114 != nil {
-
-				// modifier_clause: NOT INSTANTIABLE | INSTANTIABLE | NOT FINAL | FINAL
 				return nil, parseErr114
 			}
 		} else {
-
-			if p.cur.Type == kwNOT {
-				p.advance()
-				if p.isIdentLikeStr("INSTANTIABLE") {
-					stmt.Action = "MODIFY_NOT_INSTANTIABLE"
-					p.advance()
-				} else if p.isIdentLikeStr("FINAL") {
-					stmt.Action = "MODIFY_NOT_FINAL"
-					p.advance()
-				} else {
-					return nil, p.syntaxErrorAtCur()
-				}
-			} else if p.isIdentLikeStr("INSTANTIABLE") {
-				stmt.Action = "MODIFY_INSTANTIABLE"
-				p.advance()
-			} else if p.isIdentLikeStr("FINAL") {
-				stmt.Action = "MODIFY_FINAL"
-				p.advance()
-			} else {
-				return nil, p.syntaxErrorAtCur()
-			}
-			parseErr115 := p.parseAlterTypeDependentHandling(stmt)
-			if parseErr115 != nil {
-				return nil, parseErr115
-			}
+			// Oracle 23ai accepts [NOT] INSTANTIABLE / [NOT] FINAL directly after
+			// the type name, not after MODIFY (PLS-00103 expecting ATTRIBUTE).
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.isIdentLikeStr("INVALIDATE"):
@@ -1380,8 +1356,8 @@ func (p *Parser) parseAlterTypeDependentHandling(stmt *nodes.AlterTypeStmt) erro
 	return nil
 }
 
-// CASCADE [ [ NOT ] INCLUDING TABLE DATA ] [ FORCE ]
-// [ CONVERT TO SUBSTITUTABLE | NOT SUBSTITUTABLE ] [ EXCEPTIONS INTO [ schema. ] table ]
+// CASCADE [ [ NOT ] INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE ]
+// [ [ FORCE ] EXCEPTIONS INTO [ schema. ] table ]
 func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) error {
 	stmt.Cascade = true
 	p.advance() // consume CASCADE
@@ -1400,12 +1376,6 @@ func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) error {
 			return err
 		}
 		stmt.IncludeData = &include
-	}
-	if p.isKeywordStr("FORCE") {
-		stmt.Force = true
-		p.advance()
-	}
-	switch {
 	case p.isKeywordStr("CONVERT"):
 		p.advance() // consume CONVERT
 		if err := p.expectCreateTableToken(kwTO); err != nil {
@@ -1415,10 +1385,14 @@ func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) error {
 			return err
 		}
 		stmt.ConvertToSubst = true
-	case p.cur.Type == kwNOT:
-		p.advance() // consume NOT
-		if err := p.expectCreateTableWord("SUBSTITUTABLE"); err != nil {
-			return err
+	}
+	if p.isKeywordStr("FORCE") {
+		stmt.Force = true
+		p.advance()
+		// Oracle 23ai requires EXCEPTIONS INTO after CASCADE ... FORCE
+		// (PLS-00103 expecting EXCEPTIONS).
+		if !p.isKeywordStr("EXCEPTIONS") {
+			return p.syntaxErrorAtCur()
 		}
 	}
 	if p.isKeywordStr("EXCEPTIONS") {

@@ -105,10 +105,16 @@ type Parser struct {
 	// createTableEngineCheck is set while CREATE TABLE is parsed once a
 	// clause Oracle checks against the table before it asks for a missing
 	// column list has been read: enable_disable_clause (ORA-02432),
-	// ILM DELETE_ALL, ENABLE_ALL or DISABLE_ALL (ORA-38346), DEFAULT
-	// COLLATION (ORA-43929) and PARENT (ORA-02523). Those are the engine's
-	// answers, not syntax, and omni leaves them to it.
+	// ILM DELETE_ALL, ENABLE_ALL or DISABLE_ALL (ORA-38346), and PARENT
+	// (ORA-02523). Those are the engine's answers, not syntax, and omni leaves
+	// them to it.
 	createTableEngineCheck bool
+
+	// mviewInmemoryColumn is set while CREATE MATERIALIZED VIEW parses an
+	// inmemory_column_clause: Oracle 23ai parses the clause (reporting inner
+	// syntax errors at their token) and then refuses the statement with
+	// ORA-00922 at the end of the AS subquery.
+	mviewInmemoryColumn bool
 
 	// createTableConstraintNames records constraint names declared inside the
 	// current CREATE TABLE statement (including named inline NOT NULL/NULL

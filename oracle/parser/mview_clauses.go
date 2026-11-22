@@ -88,15 +88,6 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 		if err := p.expectCreateTableWord("COLLATION"); err != nil {
 			return nil, err
 		}
-		if p.isStatementEnd() {
-			// The pinned server answers DEFAULT COLLATION with ORA-43929 at
-			// byte 0, before it reads the statement (it has
-			// MAX_STRING_SIZE STANDARD), and compat.tsv records the
-			// statement cut off here as accepted; omni keeps its earlier
-			// reading of it.
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
-		}
 		if !p.isCreateTableNameStart() {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -106,6 +97,8 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 		}
 	}
 
+	defer func(saved bool) { p.mviewInmemoryColumn = saved }(p.mviewInmemoryColumn)
+	p.mviewInmemoryColumn = false
 	if p.cur.Type == kwON && isCreateTableWordTok(p.peekNext(), "PREBUILT") {
 		if err := p.parseMviewPrebuiltTable(stmt); err != nil {
 			return nil, err
@@ -212,6 +205,11 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 	}
 	if !selectStmtHasTargets(stmt.Query) {
 		return nil, p.syntaxErrorAtCur()
+	}
+	if p.mviewInmemoryColumn {
+		// Oracle 23ai refuses column-level INMEMORY clauses on CREATE
+		// MATERIALIZED VIEW with ORA-00922 at the final token of the query.
+		return nil, p.syntaxErrorAtTok(p.prev)
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

@@ -106,9 +106,8 @@ func TestOverAcceptsRefused(t *testing.T) {
 		"ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC",
 		"CREATE FUNCTION IF NOT EXISTS a RETURN NUMBER IS BEGIN RETURN 1; END;",
 		"CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;",
-		// A materialized view's column clause, as its page writes it.
-		"CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual",
-		"CREATE MATERIALIZED VIEW a INMEMORY(a) NO INMEMORY AS SELECT 1 FROM dual",
+		// A materialized view takes table-level INMEMORY / NO INMEMORY (column-level
+		// INMEMORY clauses are refused by Oracle 23ai with ORA-00922 at the query end).
 		"CREATE MATERIALIZED VIEW a INMEMORY NO MEMCOMPRESS AS SELECT 1 FROM dual",
 		"CREATE MATERIALIZED VIEW a NO INMEMORY AS SELECT 1 FROM dual",
 		// A table's, which writes the keyword first, and a column list alone.

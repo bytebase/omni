@@ -1465,15 +1465,12 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	}
 	opts := &nodes.List{}
 
-	// [ = 'pfile_name' ] or [ 'pfile_name' ]
+	// [ = 'pfile_name' ]
 	if p.cur.Type == '=' {
 		p.advance()
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
 		}
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
-		p.advance()
-	} else if p.cur.Type == tokSCONST {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PFILE", Value: p.cur.Str})
 		p.advance()
 	}
@@ -1492,9 +1489,6 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 			if p.cur.Type != tokSCONST {
 				return nil, p.syntaxErrorAtCur()
 			}
-			val = p.cur.Str
-			p.advance()
-		} else if p.cur.Type == tokSCONST {
 			val = p.cur.Str
 			p.advance()
 		}

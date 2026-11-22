@@ -115,14 +115,6 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 		if err := p.expectCreateTableWord("COLLATION"); err != nil {
 			return nil, err
 		}
-		if p.isStatementEnd() {
-			// Oracle checks DEFAULT COLLATION against MAX_STRING_SIZE
-			// first (ORA-43929 on this server), and compat.tsv records the
-			// statement cut short here as accepted; omni keeps its earlier
-			// reading of it.
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
-		}
 		stmt.DefaultCollation = p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
 			return nil, err

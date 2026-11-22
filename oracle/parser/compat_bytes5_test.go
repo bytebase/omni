@@ -69,8 +69,8 @@ func TestBytePositionGrammarReadings(t *testing.T) {
 		{`CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a USING 's'`, 37},
 		{`CREATE DATABASE LINK a AUTHENTICATED`, 36},
 
-		// CREATE SYNONYM SHARING = NONE refuses other sharing modes after '='.
-		{`CREATE SYNONYM a SHARING = METADATA FOR a`, 27},
+		// CREATE SYNONYM SHARING accepts METADATA or NONE and refuses other modes after '='.
+		{`CREATE SYNONYM a SHARING = DATA FOR a`, 27},
 		{`CREATE SYNONYM a SHARING METADATA FOR a`, 25},
 		{`CREATE SYNONYM a SHARING =`, 26},
 

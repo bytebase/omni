@@ -839,18 +839,32 @@ func (p *Parser) parseAlterMviewRefresh(stmt *nodes.AlterMaterializedViewStmt) e
 				constraints = true
 				break
 			}
-			// The pinned server refuses USING ... ROLLBACK SEGMENT here
-			// with ORA-12061 at USING, which compat.tsv records as
-			// accepted; omni keeps its earlier reading, ROLLBACK [ SEGMENT ]
-			// [ rollback_segment ], until a judge revision reads ORA-12061
-			// as a syntax error.
+			// Oracle 23ai requires [ DEFAULT ] { MASTER | LOCAL } ROLLBACK
+			// SEGMENT [ name ] in ALTER MATERIALIZED VIEW REFRESH; bare
+			// USING ROLLBACK SEGMENT (without MASTER/LOCAL) is ORA-12061 at
+			// ROLLBACK (byte 45).
+			isDefault := false
+			if p.cur.Type == kwDEFAULT {
+				isDefault = true
+				p.advance()
+			}
+			if !p.atWord("MASTER") && !p.atWord("LOCAL") {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
 			if err := p.atExpect(kwROLLBACK); err != nil {
 				return err
 			}
-			if p.atWord("SEGMENT") {
-				p.advance()
+			if err := p.atExpectWord("SEGMENT"); err != nil {
+				return err
 			}
-			if p.isATNameStart() {
+			if !isDefault {
+				if !p.isATNameStart() {
+					return p.syntaxErrorAtCur()
+				}
+				stmt.UsingRollbackSegment = p.cur.Str
+				p.advance()
+			} else if p.isATNameStart() {
 				stmt.UsingRollbackSegment = p.cur.Str
 				p.advance()
 			}

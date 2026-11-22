@@ -191,6 +191,16 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	// Optional SHARING = { METADATA | NONE } precedes parameters and RETURN
+	// (matching CREATE PROCEDURE; placing SHARING after RETURN is PLS-00103).
+	if p.isIdentLikeStr("SHARING") {
+		p.advance() // consume SHARING
+		var err error
+		if stmt.Sharing, err = p.parseSharingValue(); err != nil {
+			return nil, err
+		}
+	}
+
 	if p.cur.Type == '(' {
 		var parseErr458 error
 		stmt.Parameters, parseErr458 = p.parseParameterList()
@@ -215,13 +225,6 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	if p.isIdentLikeStr("SHARING") {
-		p.advance() // consume SHARING
-		var err error
-		if stmt.Sharing, err = p.parseSharingValue(); err != nil {
-			return nil, err
-		}
-	}
 	parseErr460 :=
 
 		// Optional function properties (can appear in any order before IS/AS)
