@@ -36,11 +36,25 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *AlterIndexAction:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *AlterLocalityGroupStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *AlterRowAccessPolicyStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Actions {
 			Walk(v, c)
 		}
 	case *AlterSequenceStmt:
@@ -80,6 +94,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.OnTable != nil {
 			Walk(v, n.OnTable)
+		}
+		for _, c := range n.IndexActions {
+			Walk(v, c)
 		}
 		for _, c := range n.SetOptions {
 			Walk(v, c)
@@ -187,6 +204,18 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateConnectionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateConstantStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Value)
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -261,6 +290,29 @@ func walkChildren(v Visitor, node Node) {
 		if n.ReplicaOf != nil {
 			Walk(v, n.ReplicaOf)
 		}
+	case *CreateModelStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.InputCols {
+			Walk(v, c)
+		}
+		for _, c := range n.OutputCols {
+			Walk(v, c)
+		}
+		for _, c := range n.Transform {
+			Walk(v, c)
+		}
+		if n.Connection != nil {
+			Walk(v, n.Connection)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.AsQuery)
+		for _, c := range n.AliasedQueries {
+			Walk(v, c)
+		}
 	case *CreateProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -299,6 +351,9 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Connection != nil {
+			Walk(v, n.Connection)
 		}
 		for _, c := range n.Options {
 			Walk(v, c)
@@ -345,11 +400,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Clone != nil {
 			Walk(v, n.Clone)
 		}
+		Walk(v, n.CloneSystemTime)
+		Walk(v, n.CloneWhere)
 		if n.Copy != nil {
 			Walk(v, n.Copy)
 		}
+		Walk(v, n.CopySystemTime)
+		Walk(v, n.CopyWhere)
 		walkNodes(v, n.PartitionBy)
 		walkNodes(v, n.ClusterBy)
+		for _, c := range n.PartitionColumns {
+			Walk(v, c)
+		}
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
@@ -373,6 +435,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Type)
 		}
 		Walk(v, n.Default)
+	case *DefineTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *DeleteStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
@@ -446,6 +515,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExplainStmt:
+		Walk(v, n.Stmt)
 	case *ExportDataStmt:
 		for _, c := range n.Options {
 			Walk(v, c)
@@ -636,6 +707,14 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Graph)
 		}
 		walkNodes(v, n.Blocks)
+	case *GraphTableQuery:
+		if n.Graph != nil {
+			Walk(v, n.Graph)
+		}
+		walkNodes(v, n.Ops)
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
 	case *GraphWithOp:
 		for _, c := range n.Items {
 			Walk(v, c)
@@ -965,6 +1044,23 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *PivotExpr:
 		Walk(v, n.Expr)
+	case *PrivilegeRestrictionAction:
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+	case *PrivilegeRestrictionStmt:
+		for _, c := range n.Privileges {
+			Walk(v, c)
+		}
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		for _, c := range n.RestrictTo {
+			Walk(v, c)
+		}
+		for _, c := range n.Actions {
+			Walk(v, c)
+		}
 	case *QueryStmt:
 		if n.With != nil {
 			Walk(v, n.With)
@@ -1010,6 +1106,11 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *RowAccessPolicyAction:
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+		Walk(v, n.Filter)
 	case *RowPattern:
 		if n.Left != nil {
 			Walk(v, n.Left)
@@ -1139,12 +1240,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Func != nil {
 			Walk(v, n.Func)
 		}
+		if n.GraphTable != nil {
+			Walk(v, n.GraphTable)
+		}
 		Walk(v, n.SystemTime)
 		if n.Pivot != nil {
 			Walk(v, n.Pivot)
 		}
 		if n.Unpivot != nil {
 			Walk(v, n.Unpivot)
+		}
+		if n.MatchRecognize != nil {
+			Walk(v, n.MatchRecognize)
 		}
 		if n.Sample != nil {
 			Walk(v, n.Sample)

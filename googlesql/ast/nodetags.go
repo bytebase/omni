@@ -343,6 +343,19 @@ const (
 	T_ExecuteImmediateStmt
 	T_UsingArg
 	T_LabeledStmt
+
+	// Additional GoogleSQL / BigQuery statements & table sources.
+	T_GraphTableQuery
+	T_ExplainStmt
+	T_DefineTableStmt
+	T_CreateModelStmt
+	T_CreateConnectionStmt
+	T_CreateConstantStmt
+	T_PrivilegeRestrictionStmt
+	T_PrivilegeRestrictionAction
+	T_AlterRowAccessPolicyStmt
+	T_RowAccessPolicyAction
+	T_AlterIndexAction
 )
 
 // String returns a human-readable representation of the tag.
@@ -812,6 +825,28 @@ func (t NodeTag) String() string {
 		return "UsingArg"
 	case T_LabeledStmt:
 		return "LabeledStmt"
+	case T_GraphTableQuery:
+		return "GraphTableQuery"
+	case T_ExplainStmt:
+		return "ExplainStmt"
+	case T_DefineTableStmt:
+		return "DefineTableStmt"
+	case T_CreateModelStmt:
+		return "CreateModelStmt"
+	case T_CreateConnectionStmt:
+		return "CreateConnectionStmt"
+	case T_CreateConstantStmt:
+		return "CreateConstantStmt"
+	case T_PrivilegeRestrictionStmt:
+		return "PrivilegeRestrictionStmt"
+	case T_PrivilegeRestrictionAction:
+		return "PrivilegeRestrictionAction"
+	case T_AlterRowAccessPolicyStmt:
+		return "AlterRowAccessPolicyStmt"
+	case T_RowAccessPolicyAction:
+		return "RowAccessPolicyAction"
+	case T_AlterIndexAction:
+		return "AlterIndexAction"
 	default:
 		return "Unknown"
 	}

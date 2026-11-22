@@ -52,6 +52,8 @@ package parser
 // segmentation, not seen here.
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -911,6 +913,12 @@ func (p *Parser) parseLabeledStmt() (ast.Node, error) {
 		endName, err := p.identifierText(endTok)
 		if err != nil {
 			return nil, err
+		}
+		if p.isBigQuery() && !strings.EqualFold(endName, name) {
+			return nil, &ParseError{
+				Position: endTok.Loc.Start, End: endTok.Loc.End,
+				Message: "syntax error: mismatched end label; expected " + name + ", got " + endName,
+			}
 		}
 		stmt.EndLabel = endName
 		stmt.Loc.End = endTok.Loc.End

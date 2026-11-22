@@ -46,6 +46,12 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 			stmt.Unique = true
 			continue
 		case kwNULL_FILTERED:
+			if p.isBigQuery() {
+				return nil, &ParseError{
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "syntax error: NULL_FILTERED is not a supported object type",
+				}
+			}
 			p.advance()
 			stmt.NullFiltered = true
 			continue
@@ -93,6 +99,15 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	// table directly); if present they would surface as a syntax error at the key
 	// list, which is acceptable for this core node (the dialect index nodes own
 	// the exotic array-index forms).
+
+	// as_alias? (BigQuery index table alias before key list).
+	if p.isBigQuery() && p.cur.Type != int('(') {
+		if alias, ok, err := p.tryParseTableAlias(); err != nil {
+			return nil, err
+		} else if ok {
+			stmt.TableAlias = alias
+		}
+	}
 
 	// index_order_by_and_options: `( column_ordering_and_options_expr, … )` or
 	// `( ALL COLUMNS … )`.
@@ -258,6 +273,12 @@ func (p *Parser) parseCreateIndexSuffix(stmt *ast.CreateIndexStmt) error {
 // parseIndexInterleave parses a spanner_index_interleave_clause: `, INTERLEAVE IN
 // maybe_dashed_path_expression`. cur is at the ','.
 func (p *Parser) parseIndexInterleave(stmt *ast.CreateIndexStmt) error {
+	if p.isBigQuery() {
+		return &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: INTERLEAVE IN is not supported",
+		}
+	}
 	p.advance() // ','
 	p.advance() // INTERLEAVE
 	if _, err := p.expect(kwIN); err != nil {

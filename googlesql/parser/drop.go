@@ -56,12 +56,37 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(drop, ast.DropDatabase, false)
 	case kwEXTERNAL:
 		// DROP EXTERNAL SCHEMA (BigQuery) — owned here as a SCHEMA-family drop;
-		// DROP EXTERNAL TABLE [FUNCTION] is dialect-node territory.
+		// DROP EXTERNAL TABLE [FUNCTION] is enabled in DialectBigQuery.
 		if p.peekNext().Type == kwSCHEMA {
 			p.advance() // EXTERNAL
 			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)
 		}
+		if p.isBigQuery() && p.peekNext().Type == kwTABLE {
+			p.advance() // EXTERNAL
+			if p.peekNext().Type == kwFUNCTION {
+				p.advance() // TABLE
+				return p.parseDropObject(drop, ast.DropTableFunction, true /*external*/)
+			}
+			return p.parseDropObject(drop, ast.DropTable, true /*external*/)
+		}
 		return p.unsupported("DROP EXTERNAL")
+	case kwMODEL:
+		return p.parseDropObject(drop, ast.DropModel, false)
+	case kwCONNECTION:
+		if p.isBigQuery() {
+			return p.parseDropObject(drop, ast.DropConnection, false)
+		}
+		return p.unsupported("DROP CONNECTION")
+	case kwCONSTANT:
+		if p.isBigQuery() {
+			return p.parseDropObject(drop, ast.DropConstant, false)
+		}
+		return p.unsupported("DROP CONSTANT")
+	case kwPRIVILEGE:
+		if p.isBigQuery() {
+			return p.parseDropPrivilegeRestriction(drop)
+		}
+		return p.unsupported("DROP PRIVILEGE")
 	// --- BigQuery-only object drops (parser-ddl-bigquery node) ---
 	case kwFUNCTION:
 		return p.parseBQDropFunction(drop)
@@ -109,7 +134,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// (bq_capacity.go). DROP MODEL / CONNECTION / CONSTANT / PRIVILEGE
 		// RESTRICTION and the bare-identifier dispatch-coverage probe otherwise emit
 		// the not-yet-supported diagnostic.
-		if isGenericEntityType(p.cur.Type) {
+		if isGenericEntityType(p.cur) {
 			return p.parseBQDropEntity(drop)
 		}
 		return p.unsupported("DROP")
@@ -148,8 +173,8 @@ func (p *Parser) parseDropObject(drop Token, kind ast.DropObjectKind, external b
 	stmt.Name = name
 
 	// opt_drop_mode?  — RESTRICT | CASCADE. Only the schema_object_kind alternative
-	// (everything here EXCEPT a bare TABLE) carries it.
-	if kind != ast.DropTable {
+	// (excluding bare TABLE and BigQuery CONNECTION) carries it.
+	if kind != ast.DropTable && kind != ast.DropConnection {
 		switch p.cur.Type {
 		case kwRESTRICT:
 			p.advance()

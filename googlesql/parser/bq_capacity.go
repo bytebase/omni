@@ -38,11 +38,11 @@ import (
 // generic-entity mechanism). Triangulated against the legacy .g4 + BigQuery
 // truth1 (DDL-024/025/026/053); proven by the unit tests in bq_capacity_test.go.
 
-// isGenericEntityType reports whether tokenType can begin a generic_entity_type
-// (`IDENTIFIER | PROJECT`). CAPACITY / RESERVATION / ASSIGNMENT lex as
-// tokIdentifier (they are not reserved keywords), so they are admitted here.
-func isGenericEntityType(tokenType int) bool {
-	return tokenType == tokIdentifier || tokenType == kwPROJECT
+// isGenericEntityType reports whether tok can begin a supported BigQuery
+// generic_entity_type (CAPACITY, RESERVATION, ASSIGNMENT, PROJECT,
+// ORGANIZATION, FOLDER).
+func isGenericEntityType(tok Token) bool {
+	return isKnownBigQueryEntityType(tok)
 }
 
 // parseCreateEntity parses a CREATE <generic-entity> statement. The shared CREATE

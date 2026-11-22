@@ -82,7 +82,9 @@ func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 	stmt.Loc.End = p.prev.Loc.End
 
 	// opt_options_list?
-	if p.cur.Type == kwOPTIONS && p.analyzeLeadingIsOptionsList() {
+	// In BigQuery, `ANALYZE OPTIONS(...)` always parses as an options_list
+	// rather than falling back to a table named OPTIONS with a column list.
+	if p.cur.Type == kwOPTIONS && ((p.isBigQuery() && p.peekNext().Type == int('(')) || p.analyzeLeadingIsOptionsList()) {
 		opts, err := p.parseOptionsList()
 		if err != nil {
 			return nil, err

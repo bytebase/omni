@@ -69,9 +69,42 @@ var tmNonReservedWords = map[int]bool{
 }
 
 // atTmNonReservedWord reports whether the cursor is a word the pinned grammar
-// takes as an identifier (see tmNonReservedWords).
+// takes as an identifier (see tmNonReservedWords). BigQuery reserves
+// MATCH_RECOGNIZE and QUALIFY, so those are excluded in DialectBigQuery.
 func (p *Parser) atTmNonReservedWord() bool {
-	return tmNonReservedWords[p.cur.Type]
+	return p.isTmNonReservedWord(p.cur.Type)
+}
+
+func (p *Parser) isTmNonReservedWord(tokenType int) bool {
+	if p.isBigQuery() && (tokenType == kwMATCH_RECOGNIZE || tokenType == kwQUALIFY) {
+		return false
+	}
+	return tmNonReservedWords[tokenType]
+}
+
+// isExtraReservedIdent reports whether tok is an unquoted word that GoogleSQL
+// engines reserve (GRAPH_TABLE, LATERAL) even though it is not in the legacy
+// keywordMap. Backtick-quoted identifiers have a wider Loc span than Str and
+// are never treated as reserved.
+func isExtraReservedIdent(tok Token) bool {
+	if tok.Type != tokIdentifier {
+		return false
+	}
+	if tok.Loc.End-tok.Loc.Start != len(tok.Str) {
+		return false
+	}
+	return strings.EqualFold(tok.Str, "GRAPH_TABLE") || strings.EqualFold(tok.Str, "LATERAL")
+}
+
+// isFunctionNameFromKeyword reports whether tokenType is in GoogleSQL's
+// function_name_from_keyword rule (IF / GROUPING / LEFT / RIGHT / COLLATE /
+// RANGE), which is allowed after '.' in identifier_or_function_name_from_keyword.
+func isFunctionNameFromKeyword(tokenType int) bool {
+	switch tokenType {
+	case kwIF, kwGROUPING, kwLEFT, kwRIGHT, kwCOLLATE, kwRANGE:
+		return true
+	}
+	return false
 }
 
 // isIdentifierInHints reports whether tokenType matches `identifier_in_hints`

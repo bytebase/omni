@@ -173,8 +173,14 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		// queryTypeListener lists create_property_graph_statement directly among the
 		// DDL forms (plugin/parser/{bigquery,spanner}/query_type.go), same as every
 		// other CREATE.
-		*ast.CreatePropertyGraphStmt:
+		*ast.CreatePropertyGraphStmt,
+		// Extended GoogleSQL / BigQuery DDL statements.
+		*ast.DefineTableStmt, *ast.CreateModelStmt, *ast.CreateConnectionStmt,
+		*ast.CreateConstantStmt, *ast.PrivilegeRestrictionStmt, *ast.AlterRowAccessPolicyStmt:
 		return DDL
+
+	case *ast.ExplainStmt:
+		return Explain
 
 	// DCL — GRANT / REVOKE are DDL in the legacy listener (its rule list groups
 	// privilege statements under DDL alongside CREATE/ALTER/DROP).

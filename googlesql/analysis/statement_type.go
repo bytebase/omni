@@ -257,7 +257,7 @@ func bqAlterStatementType(kind ast.BQAlterObjectKind) StatementType {
 	switch kind {
 	case ast.BQAlterMaterializedView, ast.BQAlterApproxView:
 		return AlterView
-	case ast.BQAlterVectorIndex:
+	case ast.BQAlterSearchIndex, ast.BQAlterVectorIndex:
 		return AlterIndex
 	default:
 		return StatementTypeUnspecified

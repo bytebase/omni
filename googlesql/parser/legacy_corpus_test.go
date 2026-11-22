@@ -164,7 +164,6 @@ func TestLegacyCorpusParses(t *testing.T) {
 // auditable and the self-prune check stays meaningful.
 var legacyCorpusParseSkips = map[string]string{
 	// --- OUT-OF-SCOPE: pure-ZetaSQL statements, no migration node ---
-	"zetasql/parser/testdata/define_table.sql":            "OUT-OF-SCOPE: DEFINE TABLE (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/create_constant.sql":         "OUT-OF-SCOPE: CREATE CONSTANT (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/create_model.sql":            "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT/TRANSFORM (ZetaSQL ML) — no migration node",
 	"zetasql/parser/testdata/create_external_table.sql":   "OUT-OF-SCOPE: CREATE [PRIVATE] EXTERNAL TABLE (ZetaSQL) — no migration node",

@@ -902,7 +902,7 @@ func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 		}
 	}
 	tc := &ast.TableClause{Table: te, Loc: ast.Loc{Start: tableTok.Loc.Start, End: te.Loc.End}}
-	if p.cur.Type == kwWHERE {
+	if !p.isBigQuery() && p.cur.Type == kwWHERE {
 		p.advance()
 		where, err := p.parseExpr()
 		if err != nil {

@@ -1419,16 +1419,19 @@ func (n *SetOperation) Tag() NodeTag { return T_SetOperation }
 // pivot/unpivot operator's own trailing alias is carried on the operator node;
 // Alias is the alias preceding the operator (the table's own `[AS] name`).
 type TableExpr struct {
-	Path            *PathExpr      // table / array-field path; nil for subquery / TVF
-	Subquery        Node           // ( query ) subquery; nil otherwise (*QueryStmt)
-	Func            *FuncCall      // table-valued function call; nil otherwise
-	Alias           string         // [AS] alias; "" if absent
-	WithOffset      bool           // trailing WITH OFFSET
-	WithOffsetAlias string         // alias for WITH OFFSET; "" if absent or unaliased
-	SystemTime      Node           // FOR SYSTEM_TIME AS OF expr; nil if absent
-	Pivot           *PivotClause   // PIVOT(...); nil if absent
-	Unpivot         *UnpivotClause // UNPIVOT(...); nil if absent
-	Sample          *SampleClause  // TABLESAMPLE …; nil if absent
+	Path            *PathExpr             // table / array-field path; nil for subquery / TVF
+	Subquery        Node                  // ( query ) subquery; nil otherwise (*QueryStmt)
+	Func            *FuncCall             // table-valued function call; nil otherwise
+	GraphTable      *GraphTableQuery      // GRAPH_TABLE(path ...); nil otherwise
+	Lateral         bool                  // LATERAL prefix on subquery or TVF
+	Alias           string                // [AS] alias; "" if absent
+	WithOffset      bool                  // trailing WITH OFFSET
+	WithOffsetAlias string                // alias for WITH OFFSET; "" if absent or unaliased
+	SystemTime      Node                  // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Pivot           *PivotClause          // PIVOT(...); nil if absent
+	Unpivot         *UnpivotClause        // UNPIVOT(...); nil if absent
+	MatchRecognize  *MatchRecognizeClause // MATCH_RECOGNIZE(...); nil if absent
+	Sample          *SampleClause         // TABLESAMPLE …; nil if absent
 	Loc             Loc
 }
 
@@ -2522,6 +2525,7 @@ func (n *InterleaveClause) Tag() NodeTag { return T_InterleaveClause }
 type CreateTableStmt struct {
 	OrReplace   bool      // OR REPLACE (BigQuery)
 	Scope       string    // "TEMP" | "TEMPORARY" | "PUBLIC" | "PRIVATE" | "" — opt_create_scope
+	External    bool      // EXTERNAL TABLE (BigQuery)
 	IfNotExists bool      // IF NOT EXISTS
 	Name        *PathExpr // table name (maybe_dashed_path_expression)
 	Columns     []*ColumnDef
@@ -2529,19 +2533,24 @@ type CreateTableStmt struct {
 	// Spanner trailing PRIMARY KEY ( … ) after the element list
 	// (opt_spanner_table_options). PrimaryKey holds its key parts; HasPrimaryKey
 	// distinguishes a present-but-empty `PRIMARY KEY ()` from an absent clause.
-	PrimaryKey     []*KeyPart
-	HasPrimaryKey  bool
-	Interleave     *InterleaveClause // Spanner INTERLEAVE IN PARENT; nil if absent
-	RowDeletion    Node              // Spanner ROW DELETION POLICY (expr); nil if absent (opt_ttl_clause)
-	Like           *PathExpr         // LIKE source table (BigQuery); nil if absent
-	Clone          *PathExpr         // CLONE source table (BigQuery); nil if absent
-	Copy           *PathExpr         // COPY source table (BigQuery); nil if absent
-	DefaultCollate string            // DEFAULT COLLATE spelling; "" if absent
-	PartitionBy    []Node            // PARTITION BY expressions (BigQuery); nil if absent
-	ClusterBy      []Node            // CLUSTER BY expressions (BigQuery); nil if absent
-	Options        []*OptionsEntry
-	AsQuery        Node // AS query (CTAS); nil if absent (*QueryStmt)
-	Loc            Loc
+	PrimaryKey       []*KeyPart
+	HasPrimaryKey    bool
+	Interleave       *InterleaveClause // Spanner INTERLEAVE IN PARENT; nil if absent
+	RowDeletion      Node              // Spanner ROW DELETION POLICY (expr); nil if absent (opt_ttl_clause)
+	Like             *PathExpr         // LIKE source table (BigQuery); nil if absent
+	Clone            *PathExpr         // CLONE source table (BigQuery); nil if absent
+	CloneSystemTime  Node              // CLONE ... FOR SYSTEM_TIME AS OF expr; nil if absent
+	CloneWhere       Node              // CLONE ... WHERE expr; nil if absent
+	Copy             *PathExpr         // COPY source table (BigQuery); nil if absent
+	CopySystemTime   Node              // COPY ... FOR SYSTEM_TIME AS OF expr; nil if absent
+	CopyWhere        Node              // COPY ... WHERE expr; nil if absent
+	DefaultCollate   string            // DEFAULT COLLATE spelling; "" if absent
+	PartitionBy      []Node            // PARTITION BY expressions (BigQuery); nil if absent
+	ClusterBy        []Node            // CLUSTER BY expressions (BigQuery); nil if absent
+	PartitionColumns []*ColumnDef      // WITH PARTITION COLUMNS (...) (BigQuery EXTERNAL TABLE)
+	Options          []*OptionsEntry
+	AsQuery          Node // AS query (CTAS); nil if absent (*QueryStmt)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -2599,6 +2608,7 @@ type CreateIndexStmt struct {
 	IfNotExists  bool
 	Name         *PathExpr  // index name
 	Table        *PathExpr  // ON <table> (a Node; walked)
+	TableAlias   string     // optional table alias after ON <table>
 	Keys         []*KeyPart // index key list (index_order_by_and_options)
 	AllColumns   bool       // ( ALL COLUMNS ) form (BigQuery SEARCH index)
 	Storing      []Node     // STORING ( expr, … ); nil if absent
@@ -2620,9 +2630,12 @@ func (n *CreateIndexStmt) Tag() NodeTag { return T_CreateIndexStmt }
 // shared by both dialects. BigQuery adds DEFAULT COLLATE and OPTIONS.
 type CreateSchemaStmt struct {
 	OrReplace      bool
+	Scope          string // opt_create_scope (BigQuery EXTERNAL SCHEMA); "" if absent
+	External       bool   // EXTERNAL SCHEMA (BigQuery)
 	IfNotExists    bool
 	Name           *PathExpr
-	DefaultCollate string // "" if absent
+	Connection     *PathExpr // WITH CONNECTION <path> (BigQuery EXTERNAL SCHEMA); nil if absent
+	DefaultCollate string    // "" if absent
 	Options        []*OptionsEntry
 	Loc            Loc
 }
@@ -2775,6 +2788,10 @@ const (
 	DropSchema
 	DropDatabase
 	DropPropertyGraph
+	DropModel
+	DropConnection
+	DropConstant
+	DropTableFunction
 )
 
 // String returns the object keyword(s).
@@ -2792,6 +2809,14 @@ func (k DropObjectKind) String() string {
 		return "DATABASE"
 	case DropPropertyGraph:
 		return "PROPERTY GRAPH"
+	case DropModel:
+		return "MODEL"
+	case DropConnection:
+		return "CONNECTION"
+	case DropConstant:
+		return "CONSTANT"
+	case DropTableFunction:
+		return "TABLE FUNCTION"
 	default:
 		return "UNKNOWN"
 	}
@@ -3114,6 +3139,7 @@ type BQAlterObjectKind int
 const (
 	BQAlterMaterializedView BQAlterObjectKind = iota // ALTER MATERIALIZED VIEW
 	BQAlterApproxView                                // ALTER APPROX VIEW
+	BQAlterSearchIndex                               // ALTER SEARCH INDEX …
 	BQAlterVectorIndex                               // ALTER VECTOR INDEX … REBUILD
 	BQAlterEntity                                    // ALTER <generic-entity> (CAPACITY/RESERVATION/…)
 )
@@ -3125,6 +3151,8 @@ func (k BQAlterObjectKind) String() string {
 		return "MATERIALIZED VIEW"
 	case BQAlterApproxView:
 		return "APPROX VIEW"
+	case BQAlterSearchIndex:
+		return "SEARCH INDEX"
 	case BQAlterVectorIndex:
 		return "VECTOR INDEX"
 	default:
@@ -3133,18 +3161,19 @@ func (k BQAlterObjectKind) String() string {
 }
 
 // BQAlterStmt is a BigQuery-only ALTER statement: ALTER MATERIALIZED|APPROX VIEW
-// SET OPTIONS, ALTER VECTOR INDEX … ON <table> REBUILD [OPTIONS(…)], or ALTER
-// <generic-entity> SET OPTIONS / SET AS <body>.
+// SET OPTIONS, ALTER SEARCH|VECTOR INDEX … actions, or ALTER <generic-entity>
+// SET OPTIONS / SET AS <body>.
 type BQAlterStmt struct {
-	Object     BQAlterObjectKind
-	EntityType string // generic_entity_type spelling when Object==BQAlterEntity
-	IfExists   bool
-	Name       *PathExpr
-	OnTable    *PathExpr       // ON <table> for ALTER VECTOR INDEX; nil otherwise
-	Rebuild    bool            // REBUILD (vector index)
-	SetOptions []*OptionsEntry // SET OPTIONS(…); nil if absent
-	SetAsBody  string          // SET AS <generic_entity_body> text (entity); "" if absent
-	Loc        Loc
+	Object       BQAlterObjectKind
+	EntityType   string // generic_entity_type spelling when Object==BQAlterEntity
+	IfExists     bool
+	Name         *PathExpr
+	OnTable      *PathExpr           // ON <table> for ALTER SEARCH|VECTOR INDEX; nil otherwise
+	Rebuild      bool                // REBUILD (search/vector index)
+	IndexActions []*AlterIndexAction // alter_index_action_list for ALTER SEARCH|VECTOR INDEX
+	SetOptions   []*OptionsEntry     // SET OPTIONS(…); nil if absent
+	SetAsBody    string              // SET AS <generic_entity_body> text (entity); "" if absent
+	Loc          Loc
 }
 
 // Tag implements Node.
@@ -5427,4 +5456,155 @@ var (
 	_ Node = (*ExecuteImmediateStmt)(nil)
 	_ Node = (*UsingArg)(nil)
 	_ Node = (*LabeledStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Additional GoogleSQL / BigQuery statements & table sources
+// ---------------------------------------------------------------------------
+
+// GraphTableQuery is a `GRAPH_TABLE(path ...)` table primary.
+type GraphTableQuery struct {
+	Graph   *PathExpr
+	Ops     []Node
+	Columns []*SelectItem
+	Alias   string
+	Loc     Loc
+}
+
+func (n *GraphTableQuery) Tag() NodeTag { return T_GraphTableQuery }
+
+// ExplainStmt is an `EXPLAIN <statement>` statement.
+type ExplainStmt struct {
+	Stmt Node
+	Loc  Loc
+}
+
+func (n *ExplainStmt) Tag() NodeTag { return T_ExplainStmt }
+
+// DefineTableStmt is a `DEFINE TABLE <path> (<options>)` statement.
+type DefineTableStmt struct {
+	Name    *PathExpr
+	Options []*OptionsEntry
+	Loc     Loc
+}
+
+func (n *DefineTableStmt) Tag() NodeTag { return T_DefineTableStmt }
+
+// CreateModelStmt is a `CREATE [OR REPLACE] [scope] MODEL [IF NOT EXISTS] <path> ...` statement.
+type CreateModelStmt struct {
+	OrReplace      bool
+	Scope          string
+	IfNotExists    bool
+	Name           *PathExpr
+	InputCols      []*ColumnDef
+	OutputCols     []*ColumnDef
+	Transform      []*SelectItem
+	Remote         bool
+	Connection     *PathExpr
+	Options        []*OptionsEntry
+	AsQuery        Node
+	AliasedQueries []*CTE
+	Loc            Loc
+}
+
+func (n *CreateModelStmt) Tag() NodeTag { return T_CreateModelStmt }
+
+// CreateConnectionStmt is a `CREATE [OR REPLACE] CONNECTION [IF NOT EXISTS] <path> [OPTIONS(...)]` statement.
+type CreateConnectionStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *PathExpr
+	Options     []*OptionsEntry
+	Loc         Loc
+}
+
+func (n *CreateConnectionStmt) Tag() NodeTag { return T_CreateConnectionStmt }
+
+// CreateConstantStmt is a `CREATE [OR REPLACE] [scope] CONSTANT [IF NOT EXISTS] <path> = <expr>` statement.
+type CreateConstantStmt struct {
+	OrReplace   bool
+	Scope       string
+	IfNotExists bool
+	Name        *PathExpr
+	Value       Node
+	Loc         Loc
+}
+
+func (n *CreateConstantStmt) Tag() NodeTag { return T_CreateConstantStmt }
+
+// PrivilegeRestrictionAction is one action in `ALTER PRIVILEGE RESTRICTION`.
+type PrivilegeRestrictionAction struct {
+	Kind        string // "RESTRICT TO" | "ADD" | "REMOVE"
+	IfNotExists bool
+	IfExists    bool
+	Grantees    []*Grantee
+	Loc         Loc
+}
+
+func (n *PrivilegeRestrictionAction) Tag() NodeTag { return T_PrivilegeRestrictionAction }
+
+// PrivilegeRestrictionStmt is a CREATE / ALTER / DROP PRIVILEGE RESTRICTION statement.
+type PrivilegeRestrictionStmt struct {
+	Action      string // "CREATE" | "ALTER" | "DROP"
+	OrReplace   bool
+	IfNotExists bool
+	IfExists    bool
+	Privileges  []*Privilege
+	ObjectType  string
+	Path        *PathExpr
+	RestrictTo  []*Grantee
+	Actions     []*PrivilegeRestrictionAction
+	Loc         Loc
+}
+
+func (n *PrivilegeRestrictionStmt) Tag() NodeTag { return T_PrivilegeRestrictionStmt }
+
+// RowAccessPolicyAction is one action in `ALTER [ALL] ROW ACCESS POLICY/POLICIES`.
+type RowAccessPolicyAction struct {
+	Kind     string // "GRANT TO" | "FILTER USING" | "REVOKE FROM" | "REVOKE FROM ALL" | "RENAME TO"
+	Grantees []*Grantee
+	Filter   Node
+	RenameTo string
+	Loc      Loc
+}
+
+func (n *RowAccessPolicyAction) Tag() NodeTag { return T_RowAccessPolicyAction }
+
+// AlterRowAccessPolicyStmt is an `ALTER [ALL] ROW ACCESS POLICY/POLICIES ...` statement.
+type AlterRowAccessPolicyStmt struct {
+	All      bool
+	IfExists bool
+	Name     string
+	Table    *PathExpr
+	Actions  []*RowAccessPolicyAction
+	Loc      Loc
+}
+
+func (n *AlterRowAccessPolicyStmt) Tag() NodeTag { return T_AlterRowAccessPolicyStmt }
+
+// AlterIndexAction is one action in `ALTER SEARCH|VECTOR INDEX`.
+type AlterIndexAction struct {
+	Kind        string // "SET OPTIONS" | "ADD COLUMN" | "DROP COLUMN" | "ALTER COLUMN" | "REBUILD"
+	IfNotExists bool
+	IfExists    bool
+	Column      string
+	Type        *TypeRef
+	Options     []*OptionsEntry
+	Loc         Loc
+}
+
+func (n *AlterIndexAction) Tag() NodeTag { return T_AlterIndexAction }
+
+var (
+	_ Node = (*GraphTableQuery)(nil)
+	_ Node = (*ExplainStmt)(nil)
+	_ Node = (*DefineTableStmt)(nil)
+	_ Node = (*CreateModelStmt)(nil)
+	_ Node = (*CreateConnectionStmt)(nil)
+	_ Node = (*CreateConstantStmt)(nil)
+	_ Node = (*PrivilegeRestrictionAction)(nil)
+	_ Node = (*PrivilegeRestrictionStmt)(nil)
+	_ Node = (*RowAccessPolicyAction)(nil)
+	_ Node = (*AlterRowAccessPolicyStmt)(nil)
+	_ Node = (*AlterIndexAction)(nil)
 )

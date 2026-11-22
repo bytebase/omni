@@ -161,7 +161,13 @@ func (p *Parser) parseExportData() (ast.Node, error) {
 // pipe EXPORT DATA operator, nothing: the exported rows are the pipe input.
 func (p *Parser) parseExportDataNoQuery() (*ast.ExportDataStmt, error) {
 	export := p.advance() // EXPORT
-	p.advance()           // DATA
+	if p.isBigQuery() {
+		if _, err := p.expect(kwDATA); err != nil {
+			return nil, err
+		}
+	} else {
+		p.advance() // DATA
+	}
 
 	stmt := &ast.ExportDataStmt{}
 	stmt.Loc.Start = export.Loc.Start
