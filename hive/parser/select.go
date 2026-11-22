@@ -501,6 +501,11 @@ func (p *parser) parseUniqueJoinSource() error {
 }
 
 func (p *parser) parseJoinSource() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
 	if err := p.parseAtomJoinSource(); err != nil {
 		return err
 	}
@@ -573,7 +578,7 @@ func (p *parser) parseAtomJoinSource() error {
 		return nil
 	}
 	if p.peek().Type == TokLParen {
-		if p.try(p.parseSubQuerySource) {
+		if p.looksLikeSubQuerySourceAfterLParen() && p.try(p.parseSubQuerySource) {
 			for p.try(p.parseLateralView) {
 			}
 			return nil
@@ -653,11 +658,29 @@ func (p *parser) parseTableSource() error {
 	return nil
 }
 
+func (p *parser) looksLikeSubQuerySourceAfterLParen() bool {
+	i := p.pos
+	for i < len(p.toks) && p.toks[i].Type == TokLParen {
+		i++
+	}
+	if i >= len(p.toks) {
+		return false
+	}
+	switch p.toks[i].Type {
+	case KW_WITH, KW_SELECT, KW_MAP, KW_REDUCE, KW_FROM, KW_VALUES, KW_INSERT:
+		return true
+	}
+	return false
+}
+
 func (p *parser) isClauseBoundaryAfterTableSource() bool {
 	switch p.peek().Type {
+	case KW_LIMIT:
+		return p.peekAt(1).Type == TokNumber
+	case KW_CLUSTER, KW_DISTRIBUTE, KW_SORT:
+		return p.peekAt(1).Type == KW_BY
 	case KW_LATERAL, KW_WHERE, KW_GROUP, KW_HAVING, KW_WINDOW, KW_QUALIFY,
-		KW_ORDER, KW_CLUSTER, KW_DISTRIBUTE, KW_SORT, KW_LIMIT,
-		KW_JOIN, KW_INNER, KW_LEFT, KW_RIGHT, KW_FULL, KW_CROSS,
+		KW_ORDER, KW_JOIN, KW_INNER, KW_LEFT, KW_RIGHT, KW_FULL, KW_CROSS,
 		KW_ON, KW_USING, KW_UNION, KW_INTERSECT, KW_EXCEPT, KW_MINUS,
 		KW_INSERT, KW_SELECT, KW_MAP, KW_REDUCE, KW_SET, KW_WHEN:
 		return true
@@ -835,6 +858,11 @@ func (p *parser) parseLateralView() error {
 }
 
 func (p *parser) parsePartitionedTableFunction() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
 	if _, err := p.parseIdentifier(); err != nil {
 		return err
 	}

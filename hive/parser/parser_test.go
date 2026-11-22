@@ -78,6 +78,11 @@ func TestParseCoreStatements(t *testing.T) {
 		"ALTER TABLE t EXECUTE CHERRY-PICK 42",
 		"ALTER TABLE t EXECUTE DELETE ORPHAN-FILES OLDER THAN ('2026-01-01')",
 		"DESCRIBE t col.$KEY$.$VALUE$.$ELEM$",
+		// Nonreserved implicit table aliases
+		"SELECT * FROM t limit WHERE 1 = 1",
+		"SELECT * FROM t cluster WHERE 1 = 1",
+		"SELECT * FROM t distribute WHERE 1 = 1",
+		"SELECT * FROM t sort WHERE 1 = 1",
 	}
 	for _, sql := range valid {
 		res, err := Parse(sql)
@@ -113,9 +118,46 @@ func TestParseCoreStatements(t *testing.T) {
 }
 
 func TestParseDeepNestingDoesNotStackOverflow(t *testing.T) {
-	deep := "SELECT " + strings.Repeat("(", 1000) + "1" + strings.Repeat(")", 1000)
-	if _, err := Parse(deep); err == nil {
-		t.Fatalf("expected error on deeply nested expression")
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "nested parens expression",
+			sql:  "SELECT " + strings.Repeat("(", 1000) + "1" + strings.Repeat(")", 1000),
+		},
+		{
+			name: "nested parenthesized join source",
+			sql:  "SELECT * FROM " + strings.Repeat("(", 1000) + "t" + strings.Repeat(")", 1000),
+		},
+		{
+			name: "nested partitioned table function",
+			sql:  "SELECT * FROM " + strings.Repeat("f(ON ", 500) + "t" + strings.Repeat(")", 500),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err == nil {
+				t.Fatalf("expected depth-limit error on %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestParseNestedTrimAndParensLinearTime(t *testing.T) {
+	// Nested ordinary TRIM(TRIM(...)) and nested parentheses must not exhibit
+	// exponential backtracking.
+	nestedTrim := "SELECT " + strings.Repeat("TRIM(", 40) + "a" + strings.Repeat(")", 40)
+	if _, err := Parse(nestedTrim); err != nil {
+		t.Fatalf("Parse nested TRIM failed: %v", err)
+	}
+	nestedTrimFrom := "SELECT " + strings.Repeat("TRIM(", 40) + "'x' FROM a" + strings.Repeat(")", 40)
+	if _, err := Parse(nestedTrimFrom); err != nil {
+		t.Fatalf("Parse nested TRIM FROM failed: %v", err)
+	}
+	nestedParens := "SELECT " + strings.Repeat("(", 40) + "1" + strings.Repeat(")", 40)
+	if _, err := Parse(nestedParens); err != nil {
+		t.Fatalf("Parse nested parens failed: %v", err)
 	}
 }
 

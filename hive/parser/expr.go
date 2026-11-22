@@ -376,22 +376,15 @@ func (p *parser) parseAtomExpression() error {
 		if p.try(p.parseParenIntervalExpression) {
 			return nil
 		}
-		if p.try(p.parseSubQueryExpression) {
-			return nil
+		if p.looksLikeSelectAfterLParen() {
+			return p.parseSubQueryExpression()
 		}
 		return p.parseExpressionsInParenthesis()
 	case TokNumber, TokStringLiteral, TokIntegralLiteral, TokNumberLiteral, TokCharSetName, KW_TRUE, KW_FALSE, KW_NULL, TokQuestion:
 		return p.parseConstant()
 	}
 
-	// TRIM(...) special form or function call.
-	if t.Type == KW_TRIM && p.peekAt(1).Type == TokLParen {
-		if p.try(p.parseTrimFunction) {
-			return nil
-		}
-	}
-
-	// (functionName LPAREN) => function
+	// (functionName LPAREN) => function (including left-factored TRIM).
 	if isFunctionNameStart(t.Type) {
 		if p.peekAt(1).Type == TokLParen || (isIdentifier(t.Type) && p.peekAt(1).Type == TokDot && isIdentifier(p.peekAt(2).Type) && p.peekAt(3).Type == TokLParen) {
 			return p.parseFunction()
@@ -629,30 +622,19 @@ func (p *parser) parseCaseOrWhenExpression() error {
 	return err
 }
 
-func (p *parser) parseTrimFunction() error {
-	if _, err := p.expect(KW_TRIM); err != nil {
-		return err
+func (p *parser) looksLikeSelectAfterLParen() bool {
+	i := p.pos
+	for i < len(p.toks) && p.toks[i].Type == TokLParen {
+		i++
 	}
-	if _, err := p.expect(TokLParen); err != nil {
-		return err
+	if i >= len(p.toks) {
+		return false
 	}
-	switch p.peek().Type {
-	case KW_LEADING, KW_TRAILING, KW_BOTH:
-		p.next()
+	switch p.toks[i].Type {
+	case KW_SELECT, KW_MAP, KW_REDUCE, KW_VALUES:
+		return true
 	}
-	if p.peek().Type != KW_FROM {
-		if err := p.parseSelectExpression(); err != nil {
-			return err
-		}
-	}
-	if _, err := p.expect(KW_FROM); err != nil {
-		return err
-	}
-	if err := p.parseSelectExpression(); err != nil {
-		return err
-	}
-	_, err := p.expect(TokRParen)
-	return err
+	return false
 }
 
 func (p *parser) parseFunctionName() error {
@@ -663,11 +645,11 @@ func (p *parser) parseFunctionName() error {
 	return p.parseFunctionIdentifier()
 }
 
+// parseFunction parses both Hive's special `TRIM([LEADING|TRAILING|BOTH] [chars] FROM str)`
+// form and general function calls without re-parsing the first argument on fallback.
 func (p *parser) parseFunction() error {
 	if p.peek().Type == KW_TRIM && p.peekAt(1).Type == TokLParen {
-		if p.try(p.parseTrimFunction) {
-			return nil
-		}
+		return p.parseTrimOrFunction()
 	}
 	if err := p.parseFunctionName(); err != nil {
 		return err
@@ -692,6 +674,90 @@ func (p *parser) parseFunction() error {
 			}
 		}
 	}
+	return p.parseFunctionCloseAndSuffix()
+}
+
+// parseTrimOrFunction left-factors `TRIM([LEADING|TRAILING|BOTH] [chars] FROM str)`
+// and ordinary `TRIM(expr, ...)` calls so nested TRIM calls run in linear time.
+func (p *parser) parseTrimOrFunction() error {
+	if _, err := p.expect(KW_TRIM); err != nil {
+		return err
+	}
+	if _, err := p.expect(TokLParen); err != nil {
+		return err
+	}
+	switch p.peek().Type {
+	case KW_LEADING, KW_TRAILING, KW_BOTH:
+		p.next()
+		if p.peek().Type != KW_FROM {
+			if err := p.parseSelectExpression(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(KW_FROM); err != nil {
+			return err
+		}
+		if err := p.parseSelectExpression(); err != nil {
+			return err
+		}
+		_, err := p.expect(TokRParen)
+		return err
+	case KW_FROM:
+		p.next()
+		if err := p.parseSelectExpression(); err != nil {
+			return err
+		}
+		_, err := p.expect(TokRParen)
+		return err
+	case TokStar:
+		p.next()
+		if p.match(KW_FROM) {
+			if err := p.parseSelectExpression(); err != nil {
+				return err
+			}
+			_, err := p.expect(TokRParen)
+			return err
+		}
+		return p.parseFunctionCloseAndSuffix()
+	case KW_DISTINCT, KW_ALL:
+		p.next()
+		if p.peek().Type != TokRParen && !p.isNullTreatment() {
+			if err := p.parseSelectExpression(); err != nil {
+				return err
+			}
+			for p.match(TokComma) {
+				if err := p.parseSelectExpression(); err != nil {
+					return err
+				}
+			}
+		}
+		return p.parseFunctionCloseAndSuffix()
+	case TokRParen:
+		return p.parseFunctionCloseAndSuffix()
+	}
+	if p.isNullTreatment() {
+		return p.parseFunctionCloseAndSuffix()
+	}
+	// Parse first selectExpression once, then branch on KW_FROM vs ordinary call.
+	if err := p.parseSelectExpression(); err != nil {
+		return err
+	}
+	if p.match(KW_FROM) {
+		if err := p.parseSelectExpression(); err != nil {
+			return err
+		}
+		_, err := p.expect(TokRParen)
+		return err
+	}
+	for p.match(TokComma) {
+		if err := p.parseSelectExpression(); err != nil {
+			return err
+		}
+	}
+	return p.parseFunctionCloseAndSuffix()
+}
+
+func (p *parser) parseFunctionCloseAndSuffix() error {
 	// Closing paren and optional null treatment / WITHIN GROUP / OVER window_specification.
 	if p.isNullTreatment() {
 		p.pos += 2
