@@ -1216,35 +1216,50 @@ func (p *Parser) parseCreateVariable() (Statement, error) {
 		p.advance()
 		p.advance()
 	}
-	if (p.cur().Kind == kwVARIABLE || p.cur().Kind == kwVAR) && !p.isStatementEndAt(1) {
+	if (p.cur().Kind == kwVARIABLE || p.cur().Kind == kwVAR) &&
+		!p.isStatementEndAt(1) && p.peek(1).Kind != tokDot && p.peek(1).Kind != tokEq &&
+		!(p.peek(1).Kind == kwDEFAULT && p.peek(2).Kind != tokEq && p.peek(2).Kind != kwDEFAULT && p.peek(2).Kind != tokDot && !p.isStatementEndAt(2)) {
+		cp := p.save()
 		p.advance()
+		if target, err := p.parseCreateVariableBody(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDeclare, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		}
+		p.restore(cp)
 	}
-	target, err := p.parseIdentifierReference()
+	target, err := p.parseCreateVariableBody()
 	if err != nil {
 		return nil, err
+	}
+	return &ParsedStmt{Kind: StmtDeclare, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+func (p *Parser) parseCreateVariableBody() (string, error) {
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return "", err
 	}
 	// Optional dataType followed by optional (DEFAULT | =) expression.
 	if !p.isStatementEnd() {
 		if p.cur().Kind == tokEq {
 			p.advance()
 			if err := p.parseExpression(); err != nil {
-				return nil, err
+				return "", err
 			}
 		} else if p.cur().Kind == kwDEFAULT && !p.isStatementEndAt(1) {
 			p.advance()
 			if err := p.parseExpression(); err != nil {
-				return nil, err
+				return "", err
 			}
 		} else {
 			if err := p.parseDataType(); err != nil {
-				return nil, err
+				return "", err
 			}
 			if p.match(kwDEFAULT, tokEq) {
 				if err := p.parseExpression(); err != nil {
-					return nil, err
+					return "", err
 				}
 			}
 		}
 	}
-	return &ParsedStmt{Kind: StmtDeclare, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	return target, nil
 }

@@ -1424,22 +1424,115 @@ func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
 		i++
 	}
 	switch p.peek(i).Kind {
-	case kwSELECT, kwFROM:
-		// Bare `(SELECT)` / `(FROM)` with nothing following is an identifier
-		// (Spark non-ANSI mode includes SELECT/FROM in nonReserved), not a query.
-		next := p.peek(i + 1).Kind
-		return next != tokRParen && next != tokEOF && next != tokSemicolon
+	case kwSELECT:
+		return p.isSelectQueryAt(i)
+	case kwFROM:
+		return p.isFromQueryAt(i)
 	case kwVALUES:
 		return p.isValuesQueryAt(i, true)
 	case kwWITH:
-		next := p.peek(i + 1).Kind
-		return next == kwRECURSIVE || next.isIdentifier()
+		pos := i + 1
+		if p.peek(pos).Kind == kwRECURSIVE && p.peek(pos+1).Kind != kwAS && p.peek(pos+1).Kind != tokLParen {
+			pos++
+		}
+		if !p.peek(pos).Kind.isIdentifier() {
+			return false
+		}
+		after := p.peek(pos + 1).Kind
+		if after == kwAS {
+			return p.peek(pos+2).Kind == tokLParen
+		}
+		return after == tokLParen && p.peek(pos).Kind != kwIN
 	case kwTABLE:
 		return p.isTableQueryAt(i)
 	case kwMAP, kwREDUCE:
 		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
 	return false
+}
+
+func (p *Parser) isSelectQueryAt(selectOffset int) bool {
+	next := p.peek(selectOffset + 1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
+		tokDot, tokLBracket, tokDoubleColon,
+		tokSlash, tokPercent,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		tokArrow, tokFatArrow:
+		return false
+	case tokAsterisk:
+		// `SELECT * ...` vs multiplication `(select * 2)` / `(select * x)`.
+		switch p.peek(selectOffset + 2).Kind {
+		case tokEOF, tokSemicolon, tokRParen, tokComma, tokOperatorPipe,
+			kwEXCEPT, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
+			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwMINUS, kwLATERAL:
+			return true
+		case tokIdent:
+			return isWord(p.peek(selectOffset+2), "QUALIFY")
+		}
+		return false
+	case kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+		switch p.peek(selectOffset + 2).Kind {
+		case tokEOF, tokSemicolon, tokRParen, tokComma, tokOperatorPipe,
+			kwAS, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
+			kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL:
+			return true
+		}
+		return false
+	}
+	return true
+}
+
+func (p *Parser) isFromQueryAt(fromOffset int) bool {
+	next := p.peek(fromOffset + 1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow, kwAS:
+		return false
+	case tokLParen:
+		inner := p.peek(fromOffset + 2).Kind
+		if inner == tokRParen || (!inner.isIdentifier() && inner != tokLParen && inner != kwIDENTIFIER && inner != kwLATERAL) {
+			return false
+		}
+		// Reject function calls like `(from(x) + 1)` or `(from(x), 1)` where an
+		// expression operator immediately follows `from(...)`.
+		depth := 0
+		for j := fromOffset + 1; ; j++ {
+			k := p.peek(j).Kind
+			if k == tokEOF || k == tokSemicolon {
+				return false
+			}
+			if k == tokLParen || k == tokLBracket {
+				depth++
+			} else if k == tokRParen || k == tokRBracket {
+				depth--
+				if depth == 0 {
+					switch p.peek(j + 1).Kind {
+					case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+						tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+						tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+						tokShiftLeft, tokShiftRight, tokShiftRightU,
+						tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+						kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+						tokArrow, tokFatArrow:
+						return false
+					}
+					return true
+				}
+			}
+		}
+	}
+	return true
 }
 
 // isTableQueryAt reports whether `TABLE` at tableOffset introduces a

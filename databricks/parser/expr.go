@@ -248,15 +248,67 @@ func (p *Parser) isNotIdentifierContinuation() bool {
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
 		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
-		tokArrow, tokFatArrow,
-		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwOFFSET, kwAS,
-		kwTHEN, kwELSE, kwEND, kwWHEN, kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwINTO:
+		tokArrow, tokFatArrow:
 		return true
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(2).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(2).Kind.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch p.peek(2).Kind {
+		case kwALL, kwDISTINCT, kwSELECT, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	case kwUSING:
+		after := p.peek(2).Kind
+		return after == tokLParen || after == tokString || after == tokDoubleQuoted
+	case kwEND:
+		return p.openCasesAtCurrentParenDepth() > 0
+	case kwAS:
+		after := p.peek(2).Kind
+		if after == tokLParen {
+			return true
+		}
+		if !after.isIdentifier() {
+			return false
+		}
+		return !isNotOperandClauseEnd(after)
+	case kwFROM, kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwTHEN, kwELSE, kwWHEN, kwON, kwINTO:
+		return !isNotOperandFollow(p.peek(2).Kind)
 	case kwCOLLATE:
 		// `not COLLATE utf8_binary` is a postfix COLLATE on column `not`,
 		// whereas `NOT collate FROM t` negates a column named `collate`.
 		after := p.peek(2).Kind
 		return after == tokIdent || after == tokBackquoted || after == tokDoubleQuoted
+	}
+	return false
+}
+
+func isNotOperandClauseEnd(k TokenKind) bool {
+	switch k {
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER,
+		kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+		kwTHEN, kwELSE, kwEND, kwWHEN, kwON, kwUSING, kwINTO:
+		return true
+	}
+	return false
+}
+
+func isNotOperandFollow(k TokenKind) bool {
+	if isNotOperandClauseEnd(k) {
+		return true
+	}
+	switch k {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokOperatorPipe,
+		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow:
+		return true
 	}
 	return false
 }

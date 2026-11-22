@@ -551,6 +551,36 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "parenthesized expressions and row constructors led by from, select, and with",
+			sql:  `SELECT (from + 1), (from.x), (select, x), (select.x), (select * 2), (select AND x), (with a, b), (with AND x), (from(1) + 1) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "unary NOT before non-reserved clause keywords",
+			sql:  `SELECT NOT order, NOT from, NOT where, NOT limit, NOT end, NOT as, NOT union FROM t WHERE NOT from.x AND NOT order AND NOT group`,
+			kind: StmtQuery,
+		},
+		{
+			name: "declare variables named var or variable with initializers and types",
+			sql:  `DECLARE var = 1`,
+			kind: StmtDeclare,
+		},
+		{
+			name: "declare variable named variable with DEFAULT",
+			sql:  `DECLARE variable DEFAULT 1`,
+			kind: StmtDeclare,
+		},
+		{
+			name: "declare variable named var with complex type",
+			sql:  `DECLARE var VARCHAR(10) = 'a'`,
+			kind: StmtDeclare,
+		},
+		{
+			name: "declare var keyword with variable named default",
+			sql:  `DECLARE VAR default = 1`,
+			kind: StmtDeclare,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
