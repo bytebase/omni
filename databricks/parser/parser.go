@@ -9,24 +9,29 @@ const maxNestingDepth = 1000
 
 // checkpoint stores parser cursor state for LL(k) backtracking.
 type checkpoint struct {
-	pos       int
-	gtPending int
-	gtStart   int
-	gtEnd     int
+	pos        int
+	gtPending  int
+	gtStart    int
+	gtEnd      int
+	parenDepth int
 }
 
 // Parser is a hand-written recursive-descent parser for Databricks / Spark SQL.
 type Parser struct {
-	src             string
-	toks            []Token
-	pos             int
-	gtPending       int
-	gtStart         int
-	gtEnd           int
-	depth           int
-	inCaseOperand   bool
-	noCaseWhenStart int
-	noCaseWhenEnd   int
+	src                 string
+	toks                []Token
+	pos                 int
+	gtPending           int
+	gtStart             int
+	gtEnd               int
+	depth               int
+	parenDepth          int
+	openCaseParenDepths []int
+	caseScanStart       int
+	caseScanEnd         int
+	caseScanParenDepth  int
+	caseScanHasWhen     bool
+	caseScanEnds        int
 }
 
 // Parse parses a Databricks / Spark SQL input string (single statement or
@@ -52,10 +57,11 @@ func Parse(sql string) (*ParseResult, error) {
 
 func (p *Parser) save() checkpoint {
 	return checkpoint{
-		pos:       p.pos,
-		gtPending: p.gtPending,
-		gtStart:   p.gtStart,
-		gtEnd:     p.gtEnd,
+		pos:        p.pos,
+		gtPending:  p.gtPending,
+		gtStart:    p.gtStart,
+		gtEnd:      p.gtEnd,
+		parenDepth: p.parenDepth,
 	}
 }
 
@@ -64,6 +70,7 @@ func (p *Parser) restore(cp checkpoint) {
 	p.gtPending = cp.gtPending
 	p.gtStart = cp.gtStart
 	p.gtEnd = cp.gtEnd
+	p.parenDepth = cp.parenDepth
 }
 
 func (p *Parser) enter() error {
@@ -126,6 +133,11 @@ func (p *Parser) advance() Token {
 	tok := p.cur()
 	if p.pos < len(p.toks)-1 {
 		p.pos++
+		if tok.Kind == tokLParen || tok.Kind == tokLBracket {
+			p.parenDepth++
+		} else if tok.Kind == tokRParen || tok.Kind == tokRBracket {
+			p.parenDepth--
+		}
 	}
 	return tok
 }

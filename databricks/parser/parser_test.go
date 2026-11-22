@@ -336,6 +336,26 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "case operand with parenthesized expression continuations",
+			sql:  `SELECT CASE (x) + 1 WHEN 2 THEN 'two' END, CASE (x)::INT WHEN 2 THEN 'two' END FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "nested simple case with unary operands",
+			sql:  `SELECT CASE CASE -1 WHEN -1 THEN 2 END WHEN 2 THEN 3 END, CASE abs(CASE -1 WHEN -1 THEN 2 END) WHEN 2 THEN 3 END, CASE CASE(CASE(x)) + 1 WHEN 2 THEN 'two' END FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "qualified digit-leading column identifiers",
+			sql:  `SELECT t.123abc, t.123_abc, t.1e2data, .5, .5e2, .5F, .5D, .5BD FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "values inline table comma separated with another relation",
+			sql:  `SELECT * FROM VALUES (1) AS v, other_table`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -530,6 +550,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested parenthesized values aliased row constructors",
 			sql:  "SELECT " + strings.Repeat("(VALUES(", 30) + "1" + strings.Repeat(") AS a, 2)", 30),
+		},
+		{
+			name: "nested values table function with named arg",
+			sql:  strings.Repeat("SELECT * FROM VALUES((", 25) + "SELECT 1" + strings.Repeat("), k => 1)", 25),
 		},
 		{
 			name: "nested parens",

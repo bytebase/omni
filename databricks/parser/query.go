@@ -37,7 +37,7 @@ func (p *Parser) startsWithQueryKeywordAfterParens() bool {
 	case kwSELECT, kwFROM:
 		return true
 	case kwVALUES:
-		return p.isValuesQueryAt(i)
+		return p.isValuesQueryAt(i, true)
 	case kwWITH:
 		next := p.peek(i + 1).Kind
 		return next == kwRECURSIVE || next.isIdentifier()
@@ -58,7 +58,7 @@ func (p *Parser) startsWithQueryKeywordAfterParens() bool {
 // named args, window/filter/within-group/nulls suffixes, or row-constructor comma
 // after an alias). This avoids exponential reparsing on nested parenthesized
 // `(VALUES(<expr>) OVER ())` calls.
-func (p *Parser) isValuesQueryAt(i int) bool {
+func (p *Parser) isValuesQueryAt(i int, inParens bool) bool {
 	next := p.peek(i + 1).Kind
 	switch next {
 	case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
@@ -79,7 +79,8 @@ func (p *Parser) isValuesQueryAt(i int) bool {
 			return false
 		}
 		// Scan to the matching ')' of VALUES(...), checking for depth-1 named
-		// arguments (`k => v`) and function-call suffixes immediately after ')'.
+		// arguments (`k => v`), TABLE arguments (`TABLE ...`), and function-call
+		// suffixes immediately after ')'.
 		depth := 0
 		closeIdx := -1
 		for j := i + 1; ; j++ {
@@ -95,7 +96,7 @@ func (p *Parser) isValuesQueryAt(i int) bool {
 					closeIdx = j
 					break
 				}
-			} else if depth == 1 && k == tokFatArrow {
+			} else if depth == 1 && (k == tokFatArrow || (k == kwTABLE && (j == i+2 || p.peek(j-1).Kind == tokComma))) {
 				return false
 			}
 		}
@@ -116,6 +117,9 @@ func (p *Parser) isValuesQueryAt(i int) bool {
 				return false
 			}
 		}
+	}
+	if !inParens {
+		return true
 	}
 	// In `(VALUES(...) AS a, 2)` or `(VALUES(...) a, 2)`, a depth-0 comma after
 	// an alias indicates a row constructor rather than an inlineTable (whose
@@ -859,11 +863,13 @@ func (p *Parser) parseJoinType() error {
 func (p *Parser) parseRelationPrimary() error {
 	switch p.cur().Kind {
 	case kwVALUES:
-		cp := p.save()
-		if err := p.parseInlineTable(); err == nil {
-			return nil
+		if p.isValuesQueryAt(0, false) {
+			cp := p.save()
+			if err := p.parseInlineTable(); err == nil {
+				return nil
+			}
+			p.restore(cp)
 		}
-		p.restore(cp)
 
 	case tokLParen:
 		cp := p.save()

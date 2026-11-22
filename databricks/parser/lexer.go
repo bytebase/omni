@@ -442,6 +442,13 @@ func scanNumberOrIdent(src string, start int) Token {
 		return Token{Kind: tokIdent, Text: src[start:i], Start: start, End: i}
 	}
 
+	// Spark's isValidDecimal(): a leading-dot decimal/exponent literal cannot
+	// be immediately followed by an identifier character (e.g. `t.123abc`,
+	// `t.123_abc`, `t.1e2data`). Emit DOT so the next token scans as IDENTIFIER.
+	if src[start] == '.' && isIdentPartAt(src, i) {
+		return Token{Kind: tokDot, Text: ".", Start: start, End: start + 1}
+	}
+
 	kind := tokInt
 	if hasExp {
 		kind = tokExponent
