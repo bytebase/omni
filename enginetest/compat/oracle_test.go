@@ -805,3 +805,51 @@ func TestOracleParseDropMLEEnv(t *testing.T) {
 		t.Fatal("OracleParse cleanup must map USER_OBJECTS object_type 'MLE ENVIRONMENT' to DROP MLE ENV")
 	}
 }
+
+func TestMaskSQLCommentsAndQuotesPreservesQuoteDelimiters(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string
+	}{
+		{"ALTER DISKGROUP a ADD DISK 's', 's'", "ALTER DISKGROUP a ADD DISK ' ', ' '"},
+		{"ALTER DISKGROUP a REBALANCE WITH RESTORE, /* c */", "ALTER DISKGROUP a REBALANCE WITH RESTORE,        "},
+		{"SELECT 'it''s', q'[SCALE]', \"SHARD\" FROM dual -- BY ACCESS", "SELECT '     ',  '       ', \"     \" FROM dual             "},
+		{"DROP CONTEXT 'x'", "DROP CONTEXT ' '"},
+		{"SELECT * FROM t FOR UPDATE WAIT '1'", "SELECT * FROM t FOR UPDATE WAIT ' '"},
+	} {
+		got := maskSQLCommentsAndQuotes(tc.in)
+		if len(got) != len(tc.in) {
+			t.Errorf("maskSQLCommentsAndQuotes(%q) len=%d, want %d", tc.in, len(got), len(tc.in))
+		}
+		if got != tc.want {
+			t.Errorf("maskSQLCommentsAndQuotes(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestOracleVerdictOnlyDiskgroupTrailingStringLiteral(t *testing.T) {
+	parse15260 := func(text string) error {
+		if strings.HasSuffix(text, OracleProbeTail) {
+			return oracleRaised(911, len(text)-1, "")
+		}
+		return oracleRaised(15260, 0, "")
+	}
+	for _, tc := range []struct {
+		sql  string
+		want string
+	}{
+		{"ALTER DISKGROUP a ADD DISK 's', 's'", Accept},
+		{"ALTER DISKGROUP a ADD DISK 's', q'[s]'", Accept},
+		{"ALTER DISKGROUP a REBALANCE WITH RESTORE,", Reject},
+		{"ALTER DISKGROUP a REBALANCE WITH RESTORE, /* trailing comment */", Reject},
+		{"ALTER DISKGROUP a ADD DISK 's',", Reject},
+	} {
+		got, err := OracleVerdictOnly(tc.sql, parse15260)
+		if err != nil {
+			t.Fatalf("OracleVerdictOnly(%q): err=%v", tc.sql, err)
+		}
+		if got != tc.want {
+			t.Errorf("OracleVerdictOnly(%q) = %q, want %q", tc.sql, got, tc.want)
+		}
+	}
+}
