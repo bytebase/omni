@@ -950,9 +950,11 @@ func (p *parser) parseTableColumnDfnt() (*TableElement, error) {
 			}
 		case KwTtl:
 			p.advance()
-			if _, err := p.parseExpr(); err != nil {
+			ttlExpr, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
+			elem.TTLExpr = ttlExpr
 		default:
 			elem.End = p.peek(-1).End
 			return elem, nil
@@ -984,11 +986,12 @@ func (p *parser) parseTableIndexDfnt(start int) (*TableElement, error) {
 		return nil, err
 	}
 	return &TableElement{
-		span: span{Pos: start, End: gran.End},
-		Kind: "INDEX",
-		Name: name,
-		Type: dt,
-		Expr: expr,
+		span:        span{Pos: start, End: gran.End},
+		Kind:        "INDEX",
+		Name:        name,
+		Type:        dt,
+		Expr:        expr,
+		Granularity: gran.Raw,
 	}, nil
 }
 
@@ -997,37 +1000,62 @@ func (p *parser) parseTableProjectionDfnt(start int) (*TableElement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.expect(TokLParen); err != nil {
+	lp, err := p.expect(TokLParen)
+	if err != nil {
 		return nil, err
 	}
+	proj := &SelectStmt{span: span{Pos: lp.End}}
 	if p.match(KwWith) {
-		if _, err := p.parseWithExprList(); err != nil {
+		withs, err := p.parseWithExprList()
+		if err != nil {
 			return nil, err
 		}
+		proj.With = withs
 	}
-	if _, err := p.expect(KwSelect); err != nil {
+	selTok, err := p.expect(KwSelect)
+	if err != nil {
 		return nil, err
 	}
-	if _, err := p.parseColumnExprList(); err != nil {
+	if len(proj.With) == 0 {
+		proj.Pos = selTok.Pos
+	}
+	cols, err := p.parseColumnExprList()
+	if err != nil {
 		return nil, err
 	}
+	proj.Columns = cols
 	if p.cur().Type == KwGroup && p.peek(1).Type == KwBy {
-		if _, err := p.parseGroupByClause(); err != nil {
+		gb, err := p.parseGroupByClause()
+		if err != nil {
 			return nil, err
 		}
+		proj.GroupBy = gb
 	}
 	if p.cur().Type == KwOrder && p.peek(1).Type == KwBy {
 		p.advance()
 		p.advance()
-		if _, err := p.parseColumnExprList(); err != nil {
+		orderExprs, err := p.parseColumnExprList()
+		if err != nil {
 			return nil, err
 		}
+		for _, oe := range orderExprs {
+			proj.OrderBy = append(proj.OrderBy, &OrderByItem{
+				span: span{Pos: oe.StartPos(), End: oe.EndPos()},
+				Expr: oe,
+			})
+		}
 	}
+	proj.End = p.peek(-1).End
 	rp, err := p.expect(TokRParen)
 	if err != nil {
 		return nil, err
 	}
-	return &TableElement{span: span{Pos: start, End: rp.End}, Kind: "PROJECTION", Name: name}, nil
+	return &TableElement{
+		span:       span{Pos: start, End: rp.End},
+		Kind:       "PROJECTION",
+		Name:       name,
+		Projection: proj,
+	}, nil
 }
 
 func (p *parser) parseCodecExpr() error {
@@ -1415,15 +1443,19 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 
 	case KwAttach:
 		p.advance()
-		if _, err := p.parsePartitionClause(); err != nil {
+		part, err := p.parsePartitionClause()
+		if err != nil {
 			return nil, err
 		}
+		var target string
 		if p.match(KwFrom) {
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			target = joinDB(db, tbl)
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ATTACH PARTITION"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "ATTACH PARTITION", Partition: part, Target: target}, nil
 
 	case KwClear:
 		p.advance()
@@ -1439,12 +1471,14 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
+		var part Expr
 		if p.match(KwIn) {
-			if _, err := p.parsePartitionClause(); err != nil {
+			part, err = p.parsePartitionClause()
+			if err != nil {
 				return nil, err
 			}
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name, Partition: part}, nil
 
 	case KwComment:
 		p.advance()
@@ -1456,27 +1490,30 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := p.parseStringLiteral(); err != nil {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "COMMENT COLUMN", Name: name}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "COMMENT COLUMN", Name: name, Comment: lit.Val}, nil
 
 	case KwDelete:
 		p.advance()
 		if _, err := p.expect(KwWhere); err != nil {
 			return nil, err
 		}
-		if _, err := p.parseExpr(); err != nil {
+		where, err := p.parseExpr()
+		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DELETE"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DELETE", Where: where}, nil
 
 	case KwDetach:
 		p.advance()
-		if _, err := p.parsePartitionClause(); err != nil {
+		part, err := p.parsePartitionClause()
+		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DETACH PARTITION"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DETACH PARTITION", Partition: part}, nil
 
 	case KwDrop:
 		p.advance()
@@ -1490,22 +1527,26 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			}
 			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name}, nil
 		case KwPartition:
-			if _, err := p.parsePartitionClause(); err != nil {
+			part, err := p.parsePartitionClause()
+			if err != nil {
 				return nil, err
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DROP PARTITION"}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "DROP PARTITION", Partition: part}, nil
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after DROP", p.cur().Raw))
 		}
 
 	case KwFreeze:
 		p.advance()
+		var part Expr
 		if p.cur().Type == KwPartition {
-			if _, err := p.parsePartitionClause(); err != nil {
+			var err error
+			part, err = p.parsePartitionClause()
+			if err != nil {
 				return nil, err
 			}
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "FREEZE"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "FREEZE", Partition: part}, nil
 
 	case KwMaterialize:
 		p.advance()
@@ -1521,12 +1562,14 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 		if err != nil {
 			return nil, err
 		}
+		var part Expr
 		if p.match(KwIn) {
-			if _, err := p.parsePartitionClause(); err != nil {
+			part, err = p.parsePartitionClause()
+			if err != nil {
 				return nil, err
 			}
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: kind, Name: name, Partition: part}, nil
 
 	case KwModify:
 		p.advance()
@@ -1552,19 +1595,21 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN CODEC", Name: name}, nil
 			case KwComment:
 				p.advance()
-				if _, err := p.parseStringLiteral(); err != nil {
+				lit, err := p.parseStringLiteral()
+				if err != nil {
 					return nil, err
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN COMMENT", Name: name}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN COMMENT", Name: name, Comment: lit.Val}, nil
 			case KwRemove:
 				p.advance()
+				var prop string
 				switch p.cur().Type {
 				case KwAlias, KwCodec, KwComment, KwDefault, KwMaterialized, KwTtl:
-					p.advance()
+					prop = strings.ToUpper(p.advance().Val)
 				default:
 					return nil, p.errAt(p.cur(), "expected column property type after REMOVE")
 				}
-				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN REMOVE", Name: name}, nil
+				return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY COLUMN REMOVE", Name: name, RemoveProp: prop}, nil
 			default:
 				p.pos = save
 				elem, err := p.parseTableColumnDfnt()
@@ -1578,48 +1623,57 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 			if _, err := p.expect(KwBy); err != nil {
 				return nil, err
 			}
-			if _, err := p.parseExpr(); err != nil {
+			orderBy, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY ORDER BY"}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY ORDER BY", OrderBy: orderBy}, nil
 		case KwTtl:
-			if _, err := p.parseTTLClause(); err != nil {
+			ttls, err := p.parseTTLClause()
+			if err != nil {
 				return nil, err
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY TTL"}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY TTL", TTL: ttls}, nil
 		case KwSetting:
 			p.advance()
-			if _, err := p.parseSettingExprList(); err != nil {
+			settings, err := p.parseSettingExprList()
+			if err != nil {
 				return nil, err
 			}
-			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY SETTING"}, nil
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MODIFY SETTING", Settings: settings}, nil
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after MODIFY", p.cur().Raw))
 		}
 
 	case KwMove:
 		p.advance()
-		if _, err := p.parsePartitionClause(); err != nil {
+		part, err := p.parsePartitionClause()
+		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(KwTo); err != nil {
 			return nil, err
 		}
+		var target string
 		switch p.cur().Type {
 		case KwDisk, KwVolume:
-			p.advance()
-			if _, err := p.parseStringLiteral(); err != nil {
+			destKind := strings.ToUpper(p.advance().Val)
+			lit, err := p.parseStringLiteral()
+			if err != nil {
 				return nil, err
 			}
+			target = destKind + " " + lit.Val
 		case KwTable:
 			p.advance()
-			if _, _, err := p.parseTableIdentifier(); err != nil {
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
 				return nil, err
 			}
+			target = "TABLE " + joinDB(db, tbl)
 		default:
 			return nil, p.errAt(p.cur(), "expected DISK, VOLUME, or TABLE after MOVE PARTITION ... TO")
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MOVE PARTITION"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MOVE PARTITION", Partition: part, Target: target}, nil
 
 	case KwRemove:
 		p.advance()
@@ -1649,29 +1703,33 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 
 	case KwReplace:
 		p.advance()
-		if _, err := p.parsePartitionClause(); err != nil {
+		part, err := p.parsePartitionClause()
+		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(KwFrom); err != nil {
 			return nil, err
 		}
-		if _, _, err := p.parseTableIdentifier(); err != nil {
+		db, tbl, err := p.parseTableIdentifier()
+		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "REPLACE PARTITION"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "REPLACE PARTITION", Partition: part, Target: joinDB(db, tbl)}, nil
 
 	case KwUpdate:
 		p.advance()
-		if _, err := p.parseAssignmentExprList(); err != nil {
+		assigns, err := p.parseAssignmentExprList()
+		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(KwWhere); err != nil {
 			return nil, err
 		}
-		if _, err := p.parseExpr(); err != nil {
+		where, err := p.parseExpr()
+		if err != nil {
 			return nil, err
 		}
-		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "UPDATE"}, nil
+		return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "UPDATE", Assignments: assigns, Where: where}, nil
 
 	default:
 		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q in ALTER TABLE", p.cur().Raw))

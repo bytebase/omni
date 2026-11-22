@@ -362,3 +362,32 @@ func TestParseAlterColumnElementAndWindowBaseName(t *testing.T) {
 		t.Errorf("OVER spec = %+v, want BaseWindow=\"w\" with 1 OrderBy", fc.Over)
 	}
 }
+
+func TestParseAlterMutationsAndProjectionAST(t *testing.T) {
+	stmts, err := Parse("ALTER TABLE t UPDATE x = 7 WHERE id = 9, DELETE WHERE id = 0")
+	if err != nil {
+		t.Fatalf("Parse ALTER mutations failed: %v", err)
+	}
+	at := stmts[0].(*AlterTableStmt)
+	if len(at.Clauses) != 2 {
+		t.Fatalf("got %d clauses, want 2", len(at.Clauses))
+	}
+	upd := at.Clauses[0]
+	if len(upd.Assignments) != 1 || upd.Assignments[0].Column != "x" || upd.Where == nil {
+		t.Errorf("UPDATE clause = %+v, want 1 assignment for x and non-nil Where", upd)
+	}
+	del := at.Clauses[1]
+	if del.Where == nil {
+		t.Errorf("DELETE clause = %+v, want non-nil Where", del)
+	}
+
+	pstmts, err := Parse("CREATE TABLE t (x UInt64, PROJECTION p (SELECT x GROUP BY x ORDER BY x)) ENGINE = Memory")
+	if err != nil {
+		t.Fatalf("Parse CREATE TABLE with PROJECTION failed: %v", err)
+	}
+	ct := pstmts[0].(*CreateTableStmt)
+	projElem := ct.Columns[1]
+	if projElem.Projection == nil || len(projElem.Projection.Columns) != 1 || projElem.Projection.GroupBy == nil || len(projElem.Projection.OrderBy) != 1 {
+		t.Errorf("PROJECTION element = %+v, proj = %+v", projElem, projElem.Projection)
+	}
+}

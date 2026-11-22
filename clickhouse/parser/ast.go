@@ -340,6 +340,9 @@ type TableElement struct {
 	Type        *DataType
 	DefaultKind string // "", "DEFAULT", "MATERIALIZED", "ALIAS"
 	Expr        Expr
+	TTLExpr     Expr        // column TTL expression
+	Granularity string      // for INDEX definitions
+	Projection  *SelectStmt // for PROJECTION definitions
 	Comment     string
 }
 
@@ -356,12 +359,21 @@ func (*AlterTableStmt) stmtNode() {}
 
 type AlterClause struct {
 	span
-	Action  string
-	Name    string
-	NewName string        // for RENAME COLUMN
-	Element *TableElement // column, index, projection, or constraint definition
-	After   string        // for ADD ... AFTER col
-	First   bool          // for ADD ... FIRST
+	Action      string
+	Name        string
+	NewName     string            // for RENAME COLUMN
+	Element     *TableElement     // column, index, projection, or constraint definition
+	After       string            // for ADD ... AFTER col
+	First       bool              // for ADD ... FIRST
+	Assignments []*AssignmentExpr // for UPDATE ... WHERE ...
+	Where       Expr              // for DELETE WHERE ... and UPDATE ... WHERE ...
+	Partition   Expr              // for partition clauses
+	Target      string            // for MOVE PARTITION TO ..., ATTACH/REPLACE ... FROM ...
+	Comment     string            // for COMMENT COLUMN / MODIFY COLUMN COMMENT
+	RemoveProp  string            // for MODIFY COLUMN REMOVE <prop>
+	OrderBy     Expr              // for MODIFY ORDER BY
+	TTL         []Expr            // for MODIFY TTL
+	Settings    []*SettingExpr    // for MODIFY SETTING
 }
 
 type DropStmt struct {
