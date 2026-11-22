@@ -30,7 +30,7 @@
 | UNION ALL SELECT 'view', owner, NULL, view_name, 'VIEW' FROM dba_views WHERE owner IN ('SIMSHOP', 'SIMOTHER')
 | UNION ALL SELECT 'sequence', sequence_owner, NULL, sequence_name, 'SEQUENCE' FROM dba_sequences WHERE sequence_owner IN ('SIMSHOP', 'SIMOTHER')
 | UNION ALL SELECT 'synonym', owner, NULL, synonym_name, 'SYNONYM' FROM all_synonyms
-|  WHERE owner IN ('SIMSHOP', 'SIMOTHER') OR owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0
+|  WHERE owner IN ('SIMSHOP', 'SIMOTHER') OR owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0
 | UNION ALL SELECT 'column', owner, table_name, column_name, NULL FROM dba_tab_cols WHERE owner IN ('SIMSHOP', 'SIMOTHER')
 | UNION ALL SELECT 'primary key', owner, table_name, NULL, NULL FROM dba_constraints WHERE owner IN ('SIMSHOP', 'SIMOTHER') AND constraint_type = 'P'
 | UNION ALL SELECT 'table constraint', owner, table_name, constraint_name, NULL FROM dba_constraints WHERE owner IN ('SIMSHOP', 'SIMOTHER')
@@ -1755,7 +1755,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -18589,7 +18589,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -37865,7 +37865,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -56320,7 +56320,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -75129,7 +75129,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -94484,7 +94484,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -111608,7 +111608,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -131604,7 +131604,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -148600,7 +148600,7 @@
 | T
 : null
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -166064,7 +166064,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"
@@ -182984,7 +182984,7 @@
 < column "TABLE_NAME" "NCHAR" "string"
 < column "DB_LINK" "NCHAR" "string"
 > query
-| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
 < column "SYNONYM_NAME" "NCHAR" "string"
 < column "TABLE_OWNER" "NCHAR" "string"

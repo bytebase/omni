@@ -184,21 +184,9 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 // parseSetClauses parses comma-separated SET clauses.
 func (p *Parser) parseSetClauses() (*nodes.List, error) {
-	return p.parseSetClausesUnique(false)
-}
-
-func (p *Parser) parseSetClausesUnique(unique bool) (*nodes.List, error) {
 	list := &nodes.List{}
-	var seen map[string]bool
-	if unique {
-		seen = map[string]bool{}
-	}
 
 	for {
-		colTok := p.cur
-		if unique && p.isIdentLike() && p.cur.Type != '(' && !p.isKeywordStr("VALUE") && seen[colTok.Str] {
-			return nil, p.syntaxErrorAtTok(colTok)
-		}
 		sc, parseErr1138 := p.parseSetClause()
 		if parseErr1138 != nil {
 			return nil, parseErr1138
@@ -208,9 +196,6 @@ func (p *Parser) parseSetClausesUnique(unique bool) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
-		}
-		if unique && sc.Column != nil && sc.Column.Table == "" && sc.Column.Schema == "" && sc.Column.Column != "" {
-			seen[sc.Column.Column] = true
 		}
 		list.Items = append(list.Items, sc)
 		if p.cur.Type != ',' {

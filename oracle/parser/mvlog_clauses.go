@@ -349,17 +349,11 @@ func (p *Parser) parseMVLogColumnList(list *nodes.List) error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
-	seen := map[string]bool{}
 	for {
-		tok := p.cur
 		name, err := p.parseATNameString()
 		if err != nil {
 			return err
 		}
-		if seen[name] {
-			return p.syntaxErrorAtTok(tok)
-		}
-		seen[name] = true
 		list.Items = append(list.Items, &nodes.String{Str: name})
 		if p.cur.Type != ',' {
 			break
@@ -1558,11 +1552,24 @@ func (p *Parser) parseMVLogSplit(stmt *nodes.AlterMviewLogStmt) error {
 			}
 		}
 	}
+	if p.atWord("DEPENDENT") {
+		if err := p.parseATDependentTables(); err != nil {
+			return err
+		}
+	}
 	if p.isMVLogIndexMaintenanceStart() {
 		return p.refuseMVLogIndexMaintenance()
 	}
 	if p.isMVLogParallelStart() {
-		return p.parseATParallel()
+		if err := p.parseATParallel(); err != nil {
+			return err
+		}
+	}
+	if p.atWord("ALLOW") || p.atWord("DISALLOW") {
+		p.advance()
+		if err := p.atExpectWord("CLUSTERING"); err != nil {
+			return err
+		}
 	}
 	return nil
 }

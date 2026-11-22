@@ -1101,13 +1101,9 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 		}
 		err = p.parseAlterPDBApplication(opt)
 	case "SNAPSHOT":
-		// Oracle's parser takes SNAPSHOT alone; this server lacks the
-		// feature (ORA-12754).
 		p.advance()
 		opt.Key = "SNAPSHOT"
-		if !p.adbEnd() {
-			opt.Value, err = p.pdbRefreshMode()
-		}
+		opt.Value, err = p.pdbRefreshMode()
 	case "MATERIALIZE":
 		p.advance()
 		opt.Key = "MATERIALIZE"

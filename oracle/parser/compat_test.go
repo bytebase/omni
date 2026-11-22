@@ -3,7 +3,6 @@ package parser
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,10 +28,11 @@ func TestMain(m *testing.M) {
 // TestCompatibility holds omni to testdata/compat.tsv: a statement for each
 // alternative of ../testdata/OracleDocs.g4, the statement pages of Oracle's
 // SQL Language Reference that bnf/ quotes, converted by cmd/docsgrammar,
-// and its near-misses, with omni's verdict and Oracle's. A rejection
-// carries the byte Oracle reports it at. The test reads the file and starts
-// no server. OMNI_RECORD=1 judges the rows that have no verdict yet on the
-// pinned Oracle, by compat.OracleVerdict.
+// and its near-misses, with omni's verdict and Oracle's (coarse accept/reject
+// at parser pin judge revision 5; exact ParseError.Position byte offsets are
+// pinned in TestErrorPositions). The test reads the file and starts no
+// server. OMNI_RECORD=1 judges the rows that have no verdict yet on the
+// pinned Oracle, by compat.OracleVerdictOnlySchema.
 //
 // testdata/README.md says what Oracle's judge needs.
 func TestCompatibility(t *testing.T) {
@@ -49,32 +49,11 @@ func TestCompatibility(t *testing.T) {
 	})
 }
 
-// omniVerdict reads the row as DBMS_SQL.PARSE does: one statement. Parse's
-// error is a rejection at its byte; a text that holds no statement, or a
-// second one, is rejected where the first ends.
-func omniVerdict(sql string) string {
-	list, err := Parse(sql)
-	if err != nil {
-		var pe *ParseError
-		if errors.As(err, &pe) && pe.Position >= 0 && pe.Position <= len(sql) {
-			return compat.RejectAt(pe.Position)
-		}
-		return compat.Reject
-	}
-	if list == nil || len(list.Items) == 0 {
-		return compat.RejectAt(len(sql))
-	}
-	if len(list.Items) > 1 {
-		return compat.Reject
-	}
-	return compat.Accept
-}
-
-// omniVerdictOnly reads the row as DBMS_SQL.PARSE does (one statement,
+// omniVerdict reads the row as DBMS_SQL.PARSE does (one statement,
 // non-empty) and returns a coarse accept/reject verdict for judge revision 5.
 // Exact ParseError.Position byte offsets are pinned separately in
 // TestErrorPositions (parse_errors_test.go).
-func omniVerdictOnly(sql string) string {
+func omniVerdict(sql string) string {
 	list, err := Parse(sql)
 	if err != nil {
 		return compat.Reject
@@ -87,9 +66,8 @@ func omniVerdictOnly(sql string) string {
 
 // compatJudge asks the pinned Oracle whether it parses each statement,
 // with compat.OracleParse in the judge's scratch schema, and reads the
-// answer with compat.OracleVerdict (or compat.OracleVerdictOnly at judge
-// revision 5). It runs only in a recording. With
-// ORACLE_PARSER_REF_DSN set it asks that server instead of starting one:
+// answer with compat.OracleVerdictOnlySchema. It runs only in a recording.
+// With ORACLE_PARSER_REF_DSN set it asks that server instead of starting one:
 // it must run the pinned release, and its user must be a scratch account,
 // since every statement that runs is followed by dropping all it owns.
 //
@@ -103,10 +81,8 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	open, canEnd := judgeSessions(t, pin)
 	db, end := open()
 	var schema string
-	if pin.Judge == "5" {
-		if err := db.QueryRowContext(context.Background(), "SELECT USER FROM dual").Scan(&schema); err != nil {
-			t.Fatalf("Oracle: read connected scratch schema: %v", err)
-		}
+	if err := db.QueryRowContext(context.Background(), "SELECT USER FROM dual").Scan(&schema); err != nil {
+		t.Fatalf("Oracle: read connected scratch schema: %v", err)
 	}
 	return func(stmt string) (string, error) {
 		runParse := func(text string) error {
@@ -132,10 +108,7 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 				return fmt.Errorf("after %s: %w", judgeTimeout, compat.ErrNoAnswer)
 			}
 		}
-		if pin.Judge == "5" {
-			return compat.OracleVerdictOnlySchema(stmt, schema, runParse)
-		}
-		return compat.OracleVerdict(stmt, runParse)
+		return compat.OracleVerdictOnlySchema(stmt, schema, runParse)
 	}
 }
 
@@ -334,7 +307,7 @@ func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
 	}
 }
 
-func TestOmniVerdictOnly(t *testing.T) {
+func TestOmniVerdict(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		sql  string
@@ -349,8 +322,8 @@ func TestOmniVerdictOnly(t *testing.T) {
 		{"two_statements", "SELECT 1 FROM dual; SELECT 2 FROM dual", compat.Reject},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := omniVerdictOnly(tc.sql); got != tc.want {
-				t.Errorf("omniVerdictOnly(%q) = %q, want %q", tc.sql, got, tc.want)
+			if got := omniVerdict(tc.sql); got != tc.want {
+				t.Errorf("omniVerdict(%q) = %q, want %q", tc.sql, got, tc.want)
 			}
 		})
 	}

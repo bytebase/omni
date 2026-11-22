@@ -107,13 +107,13 @@ func TestAdminTailOracleAnswers(t *testing.T) {
 // TestCreateLibraryOptionLocs checks that each CREATE LIBRARY option spans
 // its own text, the EDITIONABLE before LIBRARY included.
 func TestCreateLibraryOptionLocs(t *testing.T) {
-	sql := "CREATE OR REPLACE NONEDITIONABLE LIBRARY a IS 's' AGENT x CREDENTIAL c SHARING = NONE"
+	sql := "CREATE OR REPLACE NONEDITIONABLE LIBRARY a SHARING = NONE IS 's' AGENT 'x' CREDENTIAL c"
 	result := ParseAndCheck(t, sql)
 	stmt, ok := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
 	if !ok {
 		t.Fatalf("got %T, want *ast.AdminDDLStmt", result.Items[0].(*ast.RawStmt).Stmt)
 	}
-	want := []string{"NONEDITIONABLE", "IS 's'", "AGENT x", "CREDENTIAL c", "SHARING = NONE"}
+	want := []string{"NONEDITIONABLE", "SHARING = NONE", "IS 's'", "AGENT 'x'", "CREDENTIAL c"}
 	if stmt.Options == nil || len(stmt.Options.Items) != len(want) {
 		t.Fatalf("options = %v, want %d", stmt.Options, len(want))
 	}

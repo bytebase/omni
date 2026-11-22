@@ -227,7 +227,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(stmt *nodes.CreateViewStmt) (*n
 func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 	p.advance() // consume '('
 	stmt.Columns = &nodes.List{}
-	seenCols := map[string]Token{}
+	seenPartition := false
 	for {
 		if p.isKeywordStr("SCOPE") && p.peekNext().Type == kwFOR {
 			if err := p.parseMviewScopeFor(true); err != nil {
@@ -238,14 +238,16 @@ func (p *Parser) parseMviewColumnAliases(stmt *nodes.CreateViewStmt) error {
 				return p.syntaxErrorAtCur()
 			}
 			colTok := p.cur
+			if colTok.Type == kwPARTITION && seenPartition {
+				return p.syntaxErrorAtTok(colTok)
+			}
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return err
 			}
-			if firstTok, dup := seenCols[name]; dup {
-				return p.syntaxErrorAtTok(firstTok)
+			if colTok.Type == kwPARTITION {
+				seenPartition = true
 			}
-			seenCols[name] = colTok
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			if p.isKeywordStr("ENCRYPT") {
 				p.advance() // consume ENCRYPT
@@ -478,7 +480,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseCreateTableName(); err != nil {
 				return err
 			}
-			if err := p.parseCreateTableColumnNamesUnique(false); err != nil {
+			if err := p.parseCreateTableColumnNames(); err != nil {
 				return err
 			}
 		case p.cur.Type == kwCACHE, p.cur.Type == kwNOCACHE:

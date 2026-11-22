@@ -26,8 +26,6 @@ func TestWave5CompatReadings(t *testing.T) {
 		{`CREATE DIMENSION a LEVEL a IS(a.a) LEVEL a IS(a.a) JOIN KEY(a) REFERENCES a`, 41},
 
 		// CREATE TABLE / ALTER TABLE duplicate lists, virtual column datatypes, identity, bounds & clauses.
-		{`CREATE TABLE a(a, a)`, 18},
-		{`CREATE TABLE a(UNIQUE(a, a))`, 25},
 		{`CREATE TABLE t ("A" CLOB) LOB ("A", a) STORE AS (DISABLE STORAGE IN ROW)`, 36},
 		{`ALTER TABLE t ADD ("A" CLOB) LOB ("A", a) STORE AS (DISABLE STORAGE IN ROW)`, 39},
 		{`CREATE TABLE a(a zzz AS(1))`, 15},
@@ -36,7 +34,6 @@ func TestWave5CompatReadings(t *testing.T) {
 		{`CREATE TABLE a(CONSTRAINT a zzz UNIQUE(a))`, 32},
 		{`CREATE TABLE a(SUPPLEMENTAL GROUP a(a))`, 35},
 		{`ALTER TABLE ADD (a NUMBER)`, 12},
-		{`ALTER TABLE a ENABLE UNIQUE(a, a)`, 31},
 		{`ALTER TABLE a DROP PARTITION FORCE(1)`, 37},
 		{`ALTER TABLE a ADD(a zzz AS(1))`, 18},
 		{`ALTER TABLE a ADD DEFERRABLE INITIALLY DEFERRED`, 47},
@@ -44,13 +41,9 @@ func TestWave5CompatReadings(t *testing.T) {
 		{`ALTER TABLE a UPGRADE INCLUDING DATA(a)`, 37},
 
 		// CREATE / ALTER VIEW, MATERIALIZED VIEW, ZONEMAP, CLUSTER, INDEX, OPERATOR, INDEXTYPE.
-		{`CREATE VIEW a(a, a) AS SELECT 1 FROM dual`, 17},
 		{`CREATE VIEW a ANNOTATIONS(a, a) AS SELECT 1 FROM dual`, 32},
-		{`CREATE MATERIALIZED VIEW a(a, a) AS SELECT 1 FROM dual`, 27},
 		{`ALTER MATERIALIZED VIEW a ALLOCATE EXTENT(SIZE)`, 46},
 		{`ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS FORCE(1), a`, 54},
-		{`CREATE MATERIALIZED ZONEMAP a ON a(a, a)`, 38},
-		{`CREATE CLUSTER a(a NUMBER, a NUMBER)`, 27},
 		{`ALTER INDEX a UNUSABLE zzz`, 14},
 		{`CREATE OPERATOR a BINDING(OBJECT) RETURN NUMBER USING a`, 26},
 		{`ALTER INDEXTYPE a ADD a(NUMBER, OBJECT)`, 32},
@@ -61,9 +54,8 @@ func TestWave5CompatReadings(t *testing.T) {
 		{`CREATE PFILE = FROM SPFILE`, 15},
 		{`CREATE SPFILE FROM PFILE AS`, 25},
 
-		// Query & DML readings (EXTERNAL duplicate columns, INSERT SET duplicates, FETCH, UPDATE FOR).
+		// Query & DML readings (EXTERNAL duplicate columns, FETCH, UPDATE FOR).
 		{`SELECT * FROM EXTERNAL((a NUMBER, a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))`, 34},
-		{`INSERT INTO a SET a = 1, a = 1`, 25},
 		{`SELECT * FETCH FIRST 1 zzz ROW ONLY`, 27},
 		{`UPDATE a PARTITIONING FOR(1) SET a = 1`, 25},
 

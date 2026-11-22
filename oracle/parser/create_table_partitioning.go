@@ -206,15 +206,10 @@ func (p *Parser) parseCreateTablePartitionColumns(columns *nodes.List) error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
-	seen := map[string]bool{}
 	for {
 		if !p.isCreateTableNameStart() {
 			return p.syntaxErrorAtCur()
 		}
-		if seen[p.cur.Str] {
-			return p.syntaxErrorAtCur()
-		}
-		seen[p.cur.Str] = true
 		col, err := p.parseExpr()
 		if err != nil {
 			return err
@@ -556,6 +551,9 @@ func (p *Parser) parseCreateTablePartitionBoundWithArity(bound createTablePartit
 			break
 		}
 		p.advance() // consume ','
+	}
+	if bound == createTableRangeBound && maxRangeVals > 0 && def.Values.Len() < maxRangeVals {
+		return p.syntaxErrorAtCur()
 	}
 	return p.expectCreateTableToken(')')
 }

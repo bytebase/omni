@@ -124,13 +124,28 @@ func (p *Parser) parseJoinGroupMembers() ([]*nodes.JoinGroupMember, error) {
 		}
 		m.Loc.End = p.prev.End
 		members = append(members, m)
-		if p.cur.Type != ',' {
-			break
+		if p.cur.Type == ',' {
+			p.advance() // consume ,
+			continue
 		}
-		p.advance() // consume ,
+		// Oracle 23ai also accepts space-separated members without a comma
+		// between [schema.]table(col) items (e.g. (t1(a) t2(b)) or (s.t1(a) s.t2(b))).
+		if p.isCreateTableNameStart() {
+			next := p.peekNext()
+			if next.Type == '(' {
+				continue
+			}
+			if next.Type == '.' {
+				ahead := p.peekAhead(3)
+				if len(ahead) == 3 && ahead[2].Type == '(' {
+					continue
+				}
+			}
+		}
+		break
 	}
 	if p.cur.Type != ')' {
-		if p.cur.Type == tokEOF || (p.isCreateTableNameStart() && p.peekNext().Type == '(') {
+		if p.cur.Type == tokEOF {
 			return nil, p.syntaxErrorAtTok(firstTableTok)
 		}
 		if p.peekNext().Type == ')' {
