@@ -441,6 +441,21 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "parenthesized TABLE queries with multi-item clauses and set/pipe continuations",
+			sql:  `SELECT (TABLE t ORDER BY a, b), (TABLE db.t UNION SELECT a, b FROM s), (TABLE IDENTIFIER('t') ORDER BY a, b), (TABLE t |> SELECT a, b), ((TABLE t ORDER BY a, b) LIMIT 1), ((TABLE t ORDER BY a, b), 1) FROM (TABLE t ORDER BY a, b) AS u`,
+			kind: StmtQuery,
+		},
+		{
+			name: "parenthesized TABLE query inside function table arg",
+			sql:  `SELECT * FROM f(TABLE(TABLE t ORDER BY a, b))`,
+			kind: StmtQuery,
+		},
+		{
+			name: "parenthesized table identifier in row constructors, expressions, and relations",
+			sql:  `SELECT (table a, b), (table AS a, b), (table AND x), (table AND limit), (table AND limit = 1), (table OR offset > 0), (table OR union = 1), (table IS NULL) FROM (table a JOIN t2 ON a.id = t2.id), (table AS t3)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,

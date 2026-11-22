@@ -1265,36 +1265,80 @@ func (p *Parser) startsWithQueryKeywordAt(startOffset int) bool {
 		next := p.peek(i + 1).Kind
 		return next == kwRECURSIVE || next.isIdentifier()
 	case kwTABLE:
-		// `TABLE identRef` query vs row constructor `(table a, b)` or joined relation `(table a JOIN t2)`.
-		if !p.peek(i+1).Kind.isIdentifier() && p.peek(i+1).Kind != kwIDENTIFIER {
-			return false
-		}
-		return !p.hasCommaOrJoinAtDepthZero(i + 2)
+		return p.isTableQueryAt(i)
 	case kwMAP, kwREDUCE:
 		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
 	return false
 }
 
-func (p *Parser) hasCommaOrJoinAtDepthZero(startOffset int) bool {
-	depth := 0
-	for i := startOffset; ; i++ {
-		k := p.peek(i).Kind
-		switch k {
-		case tokEOF, tokSemicolon:
-			return false
-		case tokLParen, tokLBracket:
-			depth++
-		case tokRParen, tokRBracket:
-			if depth == 0 {
+// isTableQueryAt reports whether `TABLE` at tableOffset introduces a
+// `TABLE identifierReference` queryPrimary (followed by end-of-query or a
+// queryTerm/queryOrganization continuation) rather than a column/table
+// identifier named `table` in a row constructor `(table a, b)` or joined
+// relation `(table a JOIN t2)`.
+func (p *Parser) isTableQueryAt(tableOffset int) bool {
+	pos := tableOffset + 1
+	if p.peek(pos).Kind == kwIDENTIFIER && p.peek(pos+1).Kind == tokLParen {
+		depth := 0
+		end := -1
+		for j := pos + 1; ; j++ {
+			k := p.peek(j).Kind
+			if k == tokEOF || k == tokSemicolon {
 				return false
 			}
-			depth--
-		case tokComma, kwJOIN, kwINNER, kwCROSS, kwLEFT, kwRIGHT, kwFULL, kwSEMI, kwANTI, kwNATURAL, kwPIVOT, kwUNPIVOT:
-			if depth == 0 {
-				return true
+			if k == tokLParen || k == tokLBracket {
+				depth++
+			} else if k == tokRParen || k == tokRBracket {
+				depth--
+				if depth == 0 {
+					if k != tokRParen || j == pos+2 {
+						return false
+					}
+					end = j + 1
+					break
+				}
 			}
 		}
+		pos = end
+	} else {
+		if !p.peek(pos).Kind.isIdentifier() {
+			return false
+		}
+		pos++
+		for p.peek(pos).Kind == tokDot && p.peek(pos+1).Kind.isIdentifier() {
+			pos += 2
+		}
+	}
+
+	switch p.peek(pos).Kind {
+	case tokEOF, tokSemicolon, tokRParen, tokOperatorPipe:
+		return true
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch p.peek(pos + 1).Kind {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+		return false
+	case kwLIMIT, kwOFFSET:
+		switch p.peek(pos + 1).Kind {
+		case tokEOF, tokSemicolon, tokRParen, tokRBracket, tokComma, tokOperatorPipe,
+			tokDot, tokLBracket, tokDoubleColon,
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+			tokArrow, tokFatArrow:
+			return false
+		}
+		return true
+	case kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return p.peek(pos + 1).Kind == kwBY
+	case kwWINDOW:
+		return p.peek(pos+1).Kind.isIdentifier() && p.peek(pos+2).Kind == kwAS
+	default:
+		return false
 	}
 }
 
