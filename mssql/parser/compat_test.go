@@ -2,6 +2,7 @@ package parser
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -83,12 +84,41 @@ var (
 	reCTEHead        = regexp.MustCompile(`(?i)^\s*WITH\s+(?:CHANGE_TRACKING_CONTEXT\s*\([^)]*\)\s*,\s*)?(\[[^\]]+\]|"[^"]+"|[A-Za-z_@#][A-Za-z0-9_@#$]*)\s*(?:\([^)]*\))?\s*AS\s*\(`)
 	reCTESelectStar  = regexp.MustCompile(`(?i)(\)\s*SELECT\s+\*)(\s*;?\s*)$`)
 	reExtLangEnvVars = regexp.MustCompile(`(?i)(\bENVIRONMENT_VARIABLES\s*=\s*)(?:N?'(?:''|[^'])*')`)
+
+	// reScriptDOMFallbackFamily matches the documented T-SQL statement families
+	// from TSql160.g that SQL Server 2022 without mssql-server-polybase (or
+	// on-premises SQL Server 2022) rejects even when syntactically valid:
+	//   - PolyBase / Synapse external tables, file formats, and streams:
+	//     CREATE EXTERNAL TABLE / FILE FORMAT / STREAM, DROP EXTERNAL TABLE
+	//   - Azure Synapse COPY INTO
+	//   - Azure SQL Database Federations: CREATE / ALTER / DROP / USE FEDERATION
+	//   - Azure Synapse CTAS: CREATE TABLE <name> [(<cols>)] WITH (<opts>) AS SELECT ...
+	//
+	// SQL Server 2022's native EXTERNAL statements (DATA SOURCE, LIBRARY,
+	// LANGUAGE, RESOURCE POOL) are intentionally excluded so SQL Server 2022's
+	// stricter verdicts stay authoritative for them.
+	reScriptDOMFallbackFamily = regexp.MustCompile(`(?is)^\s*(?:` +
+		`CREATE\s+EXTERNAL\s+(?:TABLE|FILE\s+FORMAT|STREAM)\b` +
+		`|DROP\s+EXTERNAL\s+TABLE\b` +
+		`|COPY\s+INTO\b` +
+		`|(?:CREATE|ALTER|DROP|USE)\s+FEDERATION\b` +
+		`|CREATE\s+TABLE\s+[^;]*?\bWITH\s*\([^;]*\)\s*AS\s+SELECT\b` +
+		`)`)
+
+	// reCTASWithClose locates the closing ')' of a CTAS WITH(...) option list
+	// immediately before AS SELECT, requiring at least one non-whitespace
+	// character inside WITH(...) so empty WITH() is never rewritten.
+	reCTASWithClose = regexp.MustCompile(`(?is)^(\s*CREATE\s+TABLE\s+[^;]*?\bWITH\s*\(\s*\S[^;]*?)(\s*\)\s*AS\s+SELECT\b)`)
 )
+
+const scriptDOMCTASNeedsDistribution = "The CTAS statement requires a distribution option."
 
 // compatJudge asks the pinned SQL Server whether its parser accepts each
 // statement, sent as a batch of its own under SET PARSEONLY ON, which runs
-// nothing, and read by parseOnlyVerdictRev2. It runs only in a recording or
-// verification, outside any tape.
+// nothing, and read by parseOnlyVerdictRev3 (falling back to the pinned
+// mssql/scriptdom TSql160Parser only when SQL Server 2022 rejects one of the
+// documented PolyBase, Synapse, or Azure SQL Federation statement families).
+// It runs only in a recording or verification, outside any tape.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
 	defPin, err := enginetest.LoadPin(testcontainer.Pins, testcontainer.Default)
@@ -99,6 +129,7 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 		t.Fatalf("parser pin %s differs from default server pin %s", pin, defPin)
 	}
 	conn := testcontainer.Judge(t)
+	askScriptDOMRaw := testcontainer.ScriptDOMJudge(t)
 	ctx := context.Background()
 	// Create scratch databases FEDERATION and ROOT so USE FEDERATION ... and
 	// USE ROOT ... resolve the database name and SQL Server parses past it
@@ -112,13 +143,112 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 	if _, err := conn.ExecContext(ctx, "USE ["+testcontainer.JudgeDatabase+"]"); err != nil {
 		t.Fatalf("USE [%s]: %v", testcontainer.JudgeDatabase, err)
 	}
+	askScriptDOM := func(sql string) ([]string, error) {
+		raw, err := askScriptDOMRaw(sql)
+		if err != nil {
+			return nil, err
+		}
+		return scriptDOMParseErrors(raw)
+	}
 	return func(stmt string) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		return parseOnlyVerdictRev2(stmt, testcontainer.ServerErrors, func(declarations, batch string) error {
+		return parseOnlyVerdictRev3(stmt, testcontainer.ServerErrors, func(declarations, batch string) error {
 			return testcontainer.ParseOnly(ctx, conn, testcontainer.JudgeDatabase, declarations, batch)
-		})
+		}, askScriptDOM)
 	}
+}
+
+// parseOnlyVerdictRev3 extends parseOnlyVerdictRev2 with a scoped fallback to
+// Microsoft's pinned ScriptDOM (TSql160Parser): when SQL Server 2022 rejects a
+// statement belonging to a documented PolyBase, Synapse, or Azure SQL
+// Federation family (which the PolyBase-less on-prem SQL Server 2022 container
+// does not enable), ScriptDOM judges the statement instead. Statements outside
+// those families and statements SQL Server 2022 already accepts never invoke
+// ScriptDOM.
+func parseOnlyVerdictRev3(
+	stmt string,
+	read func(error) ([]compat.SQLServerError, bool),
+	askSQL func(declarations, batch string) error,
+	askScriptDOM func(sql string) ([]string, error),
+) (string, error) {
+	v, err := parseOnlyVerdictRev2(stmt, read, askSQL)
+	if err != nil || v != compat.Reject {
+		return v, err
+	}
+	if !isScriptDOMFallbackFamily(stmt) {
+		return compat.Reject, nil
+	}
+	return scriptDOMFallbackVerdict(stmt, askScriptDOM)
+}
+
+func isScriptDOMFallbackFamily(stmt string) bool {
+	return reScriptDOMFallbackFamily.MatchString(stmt)
+}
+
+// scriptDOMFallbackVerdict asks ScriptDOM (TSql160Parser) whether stmt parses
+// cleanly. If ScriptDOM rejects a Synapse CTAS statement solely because its
+// generated WITH(...) clause omits a DISTRIBUTION option, it retries with
+// ", DISTRIBUTION = ROUND_ROBIN" appended to WITH(...) so ScriptDOM parses and
+// validates the full statement and any trailing syntax errors (such as a stray
+// trailing token).
+func scriptDOMFallbackVerdict(stmt string, askScriptDOM func(sql string) ([]string, error)) (string, error) {
+	errs, err := askScriptDOM(stmt)
+	if err != nil {
+		return "", err
+	}
+	if len(errs) == 0 {
+		return compat.Accept, nil
+	}
+	if len(errs) == 1 && errs[0] == scriptDOMCTASNeedsDistribution {
+		if rewritten, ok := rewriteCTASDistribution(stmt); ok && rewritten != stmt {
+			retryErrs, err := askScriptDOM(rewritten)
+			if err != nil {
+				return "", err
+			}
+			if len(retryErrs) == 0 {
+				return compat.Accept, nil
+			}
+		}
+	}
+	return compat.Reject, nil
+}
+
+// rewriteCTASDistribution appends ", DISTRIBUTION = ROUND_ROBIN" to a non-empty
+// CTAS WITH(...) option list before AS SELECT so ScriptDOM parses past its
+// CheckCtasStatementHasDistributionOption check and validates the rest of the
+// statement.
+func rewriteCTASDistribution(stmt string) (string, bool) {
+	loc := reCTASWithClose.FindStringSubmatchIndex(stmt)
+	if loc == nil {
+		return stmt, false
+	}
+	return stmt[:loc[3]] + ", DISTRIBUTION = ROUND_ROBIN" + stmt[loc[4]:], true
+}
+
+// scriptDOMParseErrors extracts the parse error messages from one JSON line
+// emitted by the mssql/scriptdom harness.
+func scriptDOMParseErrors(raw string) ([]string, error) {
+	var out struct {
+		Error  string `json:"error"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil, fmt.Errorf("parse ScriptDOM harness JSON: %w (line=%q)", err, raw)
+	}
+	if out.Error != "" {
+		return nil, fmt.Errorf("ScriptDOM harness error: %s", out.Error)
+	}
+	if len(out.Errors) == 0 {
+		return nil, nil
+	}
+	msgs := make([]string, len(out.Errors))
+	for i, e := range out.Errors {
+		msgs[i] = e.Message
+	}
+	return msgs, nil
 }
 
 // parseOnlyVerdictRev2 reads SQL Server's answer to stmt sent under SET
@@ -544,3 +674,200 @@ type errStub struct {
 }
 
 func (errStub) Error() string { return "stub" }
+
+// TestParseOnlyVerdictRev3 holds judge rev 3's scoped ScriptDOM fallback and
+// CTAS distribution retry to valid PolyBase/Synapse/Federation forms,
+// malformed near-misses, non-fallback statements, and harness errors without
+// requiring a live server.
+func TestParseOnlyVerdictRev3(t *testing.T) {
+	makeErr := func(errs ...compat.SQLServerError) error {
+		return fmt.Errorf("mssql: %w", errStub{errs})
+	}
+	readErr := func(err error) ([]compat.SQLServerError, bool) {
+		var s errStub
+		if !errors.As(err, &s) {
+			return nil, false
+		}
+		return s.errs, true
+	}
+	sqlReject := func(_, _ string) error {
+		return makeErr(compat.SQLServerError{Number: 102, Message: "Incorrect syntax."})
+	}
+
+	t.Run("family_classification", func(t *testing.T) {
+		wantMatch := []string{
+			"CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)",
+			"CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *",
+			"DROP EXTERNAL TABLE a",
+			"CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON)",
+			"CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a', DATA_COMPRESSION = 'a')",
+			"CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')",
+			"COPY INTO a FROM 'a'",
+			"CREATE FEDERATION a(a a RANGE)",
+			"ALTER FEDERATION a SPLIT AT(a = 1)",
+			"DROP FEDERATION a",
+			"USE FEDERATION ROOT WITH RESET",
+			"CREATE TABLE a WITH(HEAP) AS SELECT *",
+			"CREATE TABLE a(a) WITH(HEAP) AS SELECT *",
+			"CREATE TABLE a WITH(DISTRIBUTION = HASH(a)) AS SELECT *",
+		}
+		for _, sql := range wantMatch {
+			if !isScriptDOMFallbackFamily(sql) {
+				t.Errorf("isScriptDOMFallbackFamily(%q) = false, want true", sql)
+			}
+		}
+
+		wantNoMatch := []string{
+			"CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP)",
+			"CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00) WITH(LANGUAGE = 'a')",
+			"CREATE EXTERNAL LANGUAGE a FROM(CONTENT = 0x00, FILE_NAME = 'a')",
+			"CREATE EXTERNAL RESOURCE POOL a WITH(MAX_CPU_PERCENT = 50)",
+			"DROP EXTERNAL FILE FORMAT a",
+			"DROP EXTERNAL DATA SOURCE a",
+			"CREATE TABLE a(a INT)",
+			"CREATE TABLE a(HEAP) AS SELECT *",
+			"CREATE TABLE a(a INT); SELECT * FROM b WITH(NOLOCK) AS SELECT",
+			"SELECT 1",
+		}
+		for _, sql := range wantNoMatch {
+			if isScriptDOMFallbackFamily(sql) {
+				t.Errorf("isScriptDOMFallbackFamily(%q) = true, want false", sql)
+			}
+		}
+	})
+
+	t.Run("sqlserver_accept_never_calls_scriptdom", func(t *testing.T) {
+		called := false
+		v, err := parseOnlyVerdictRev3("CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)", readErr, func(_, _ string) error {
+			return nil
+		}, func(string) ([]string, error) {
+			called = true
+			return nil, nil
+		})
+		if err != nil || v != compat.Accept {
+			t.Fatalf("got (%q, %v), want (%q, nil)", v, err, compat.Accept)
+		}
+		if called {
+			t.Fatal("ScriptDOM was called even though SQL Server accepted")
+		}
+	})
+
+	t.Run("non_fallback_family_never_calls_scriptdom", func(t *testing.T) {
+		called := false
+		v, err := parseOnlyVerdictRev3("CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP)", readErr, sqlReject, func(string) ([]string, error) {
+			called = true
+			return nil, nil
+		})
+		if err != nil || v != compat.Reject {
+			t.Fatalf("got (%q, %v), want (%q, nil)", v, err, compat.Reject)
+		}
+		if called {
+			t.Fatal("ScriptDOM was called for excluded CREATE EXTERNAL DATA SOURCE family")
+		}
+	})
+
+	t.Run("fallback_accepts_valid_and_rejects_nearmisses", func(t *testing.T) {
+		v, err := parseOnlyVerdictRev3("CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = JSON)", readErr, sqlReject, func(sql string) ([]string, error) {
+			return nil, nil
+		})
+		if err != nil || v != compat.Accept {
+			t.Fatalf("valid fallback: got (%q, %v), want (%q, nil)", v, err, compat.Accept)
+		}
+
+		v, err = parseOnlyVerdictRev3("COPY INTO a FROM 'a' WITH(IDENTITY_INSERT = a)", readErr, sqlReject, func(string) ([]string, error) {
+			return []string{"COPY statement failed because the value for option IDENTITY_INSERT is invalid."}, nil
+		})
+		if err != nil || v != compat.Reject {
+			t.Fatalf("invalid option fallback: got (%q, %v), want (%q, nil)", v, err, compat.Reject)
+		}
+
+		v, err = parseOnlyVerdictRev3("USE FEDERATION ROOT zzz", readErr, sqlReject, func(string) ([]string, error) {
+			return []string{"Incorrect syntax near 'zzz'."}, nil
+		})
+		if err != nil || v != compat.Reject {
+			t.Fatalf("near-miss fallback: got (%q, %v), want (%q, nil)", v, err, compat.Reject)
+		}
+	})
+
+	t.Run("ctas_distribution_retry_accepts_valid_and_rejects_broken_tail", func(t *testing.T) {
+		cases := []struct {
+			in        string
+			rewritten string
+			retryErrs []string
+			want      string
+		}{
+			{
+				in:        "CREATE TABLE a WITH(HEAP) AS SELECT *",
+				rewritten: "CREATE TABLE a WITH(HEAP, DISTRIBUTION = ROUND_ROBIN) AS SELECT *",
+				want:      compat.Accept,
+			},
+			{
+				in:        "CREATE TABLE a(a) WITH(HEAP) AS SELECT *",
+				rewritten: "CREATE TABLE a(a) WITH(HEAP, DISTRIBUTION = ROUND_ROBIN) AS SELECT *",
+				want:      compat.Accept,
+			},
+			{
+				in:        "CREATE TABLE a WITH(CLUSTERED INDEX (a)) AS SELECT *",
+				rewritten: "CREATE TABLE a WITH(CLUSTERED INDEX (a), DISTRIBUTION = ROUND_ROBIN) AS SELECT *",
+				want:      compat.Accept,
+			},
+			{
+				in:        "CREATE TABLE a WITH(HEAP) AS SELECT * zzz",
+				rewritten: "CREATE TABLE a WITH(HEAP, DISTRIBUTION = ROUND_ROBIN) AS SELECT * zzz",
+				retryErrs: []string{"Incorrect syntax near 'zzz'."},
+				want:      compat.Reject,
+			},
+		}
+		for _, tc := range cases {
+			v, err := parseOnlyVerdictRev3(tc.in, readErr, sqlReject, func(sql string) ([]string, error) {
+				if sql == tc.in {
+					return []string{scriptDOMCTASNeedsDistribution}, nil
+				}
+				if sql != tc.rewritten {
+					t.Errorf("rewrite(%q) = %q, want %q", tc.in, sql, tc.rewritten)
+				}
+				return tc.retryErrs, nil
+			})
+			if err != nil || v != tc.want {
+				t.Errorf("%q: got (%q, %v), want (%q, nil)", tc.in, v, err, tc.want)
+			}
+		}
+
+		// Empty WITH() must never be rewritten and must reject.
+		if _, ok := rewriteCTASDistribution("CREATE TABLE a WITH() AS SELECT *"); ok {
+			t.Error("rewriteCTASDistribution accepted empty WITH()")
+		}
+		if _, ok := rewriteCTASDistribution("CREATE TABLE a WITH(   ) AS SELECT *"); ok {
+			t.Error("rewriteCTASDistribution accepted whitespace-only WITH(   )")
+		}
+		v, err := parseOnlyVerdictRev3("CREATE TABLE a WITH() AS SELECT *", readErr, sqlReject, func(sql string) ([]string, error) {
+			return []string{"Incorrect syntax near ')'."}, nil
+		})
+		if err != nil || v != compat.Reject {
+			t.Fatalf("empty WITH(): got (%q, %v), want (%q, nil)", v, err, compat.Reject)
+		}
+	})
+
+	t.Run("scriptdom_json_and_error_propagation", func(t *testing.T) {
+		if errs, err := scriptDOMParseErrors(`{"shape":{"kind":"Script","stmts":[]}}`); err != nil || len(errs) != 0 {
+			t.Fatalf("accept json: got (%v, %v), want (nil, nil)", errs, err)
+		}
+		if errs, err := scriptDOMParseErrors(`{"errors":[{"line":1,"column":5,"message":"Incorrect syntax near 'a'."}]}`); err != nil || len(errs) != 1 || errs[0] != "Incorrect syntax near 'a'." {
+			t.Fatalf("error json: got (%v, %v)", errs, err)
+		}
+		if _, err := scriptDOMParseErrors(`{"error":"bad base64"}`); err == nil {
+			t.Fatal("harness error json: want error, got nil")
+		}
+		if _, err := scriptDOMParseErrors(`not-json`); err == nil {
+			t.Fatal("malformed json: want error, got nil")
+		}
+
+		boom := errors.New("harness exited")
+		v, err := parseOnlyVerdictRev3("COPY INTO a FROM 'a'", readErr, sqlReject, func(string) ([]string, error) {
+			return nil, boom
+		})
+		if !errors.Is(err, boom) || v != "" {
+			t.Fatalf("harness failure: got (%q, %v), want (\"\", %v)", v, err, boom)
+		}
+	})
+}
