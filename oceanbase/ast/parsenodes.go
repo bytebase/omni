@@ -3286,10 +3286,11 @@ func (s *TableStmt) stmtNode() {}
 // OrderBy and Limit are never set by the parser, and stay because Bytebase still
 // references this node.
 type ValuesStmt struct {
-	Loc     Loc
-	Rows    [][]ExprNode   // list of ROW(...) value lists
-	OrderBy []*OrderByItem // never set by the parser
-	Limit   *Limit         // never set by the parser
+	Loc          Loc
+	Rows         [][]ExprNode   // list of ROW(...) value lists
+	LeadingComma bool           // true if any ROW(...) started with an empty leading comma (e.g. ROW(, a))
+	OrderBy      []*OrderByItem // never set by the parser
+	Limit        *Limit         // never set by the parser
 }
 
 func (s *ValuesStmt) nodeTag()  {}

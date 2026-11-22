@@ -64,6 +64,10 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		}
 		return n.Column, true
 	case *ast.StringLit:
+		// OceanBase names N'...' after its source text (`N's'`), not its value.
+		if n.National {
+			return "", false
+		}
 		if n.Concatenated {
 			return n.FirstSegment, true
 		}

@@ -414,6 +414,9 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 		case p.cur.Type == kwON:
 			tok := p.advance()
 			return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: true}, nil
+		case p.cur.Type == kwOFF && ends:
+			tok := p.advance()
+			return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
 		case (p.cur.Type == kwBINARY || p.cur.Type == kwSYSTEM) && ends:
 			tok := p.advance()
 			return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: strings.ToUpper(tok.Str)}, nil

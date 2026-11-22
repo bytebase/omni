@@ -3282,9 +3282,12 @@ func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
 		}
-		row, err := p.parseRowValue()
+		row, leadingComma, err := p.parseRowValue()
 		if err != nil {
 			return nil, err
+		}
+		if leadingComma {
+			stmt.LeadingComma = true
 		}
 		stmt.Rows = append(stmt.Rows, row)
 

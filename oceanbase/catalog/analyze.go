@@ -46,12 +46,6 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	}
 
 	scope := newScopeWithParent(parentScope)
-	if stmt.ValuesSource != nil {
-		// The analyzer reads no VALUES into a target list, so it knows none of the
-		// columns such a query has: column_0 and its kin are not missing, only
-		// unseen, and nothing naming them is refused.
-		scope.namesUncertain = true
-	}
 
 	// Step 0: Process CTEs (WITH clause). The query sees its own, then those of
 	// the queries around it.
@@ -60,6 +54,25 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		return nil, err
 	}
 	scope.ctes = cteMap
+
+	// Analyze VALUES ROW(...) expressions before marking namesUncertain so
+	// unknown column references inside ROW(...) still report 1054.
+	if stmt.ValuesSource != nil {
+		for _, row := range stmt.ValuesSource.Rows {
+			for _, item := range row {
+				if item == nil {
+					continue
+				}
+				if _, err := analyzeExpr(c, item, scope); err != nil {
+					return nil, err
+				}
+			}
+		}
+		// The analyzer reads no VALUES into a target list, so it knows none of the
+		// columns such a query has: column_0 and its kin are not missing, only
+		// unseen, and nothing naming them is refused in outer clauses (e.g. ORDER BY).
+		scope.namesUncertain = true
+	}
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
@@ -196,6 +209,11 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		if err != nil {
 			return nil, err
 		}
+		if !remote {
+			if err := scope.checkDupFromName(rte.ERef); err != nil {
+				return nil, err
+			}
+		}
 		if !remote && viewNamesUncertain(c, ref) {
 			scope.namesUncertain = true
 		}
@@ -212,12 +230,18 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return analyzeFromSubquery(c, ref, q, scope, cteMap)
 
 	case *nodes.TableCollectionExpr:
+		if err := scope.checkDupFromName(ref.Alias); err != nil {
+			return nil, err
+		}
 		if _, err := analyzeExpr(c, ref.Expr, scope); err != nil {
 			return nil, err
 		}
 		return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
 
 	case *nodes.RbIterateExpr:
+		if err := scope.checkDupFromName(ref.Alias); err != nil {
+			return nil, err
+		}
 		if _, err := analyzeExpr(c, ref.Arg, scope); err != nil {
 			return nil, err
 		}
@@ -233,6 +257,12 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return registerKnownFunctionRTE(ref.Alias, []string{colName}, q, scope), nil
 
 	case *nodes.UnnestExpr:
+		if len(ref.Columns) > 0 && len(ref.Columns) != len(ref.Args) {
+			return nil, errWrongParamCount("unnest")
+		}
+		if err := scope.checkDupFromName(ref.Alias); err != nil {
+			return nil, err
+		}
 		for _, arg := range ref.Args {
 			if _, err := analyzeExpr(c, arg, scope); err != nil {
 				return nil, err
@@ -254,6 +284,21 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 				colNames = derived
 			}
 		}
+		if len(colNames) == 0 {
+			return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
+		}
+		return registerKnownFunctionRTE(ref.Alias, colNames, q, scope), nil
+
+	case *nodes.JsonTableExpr:
+		if err := scope.checkDupFromName(ref.Alias); err != nil {
+			return nil, err
+		}
+		if ref.Expr != nil {
+			if _, err := analyzeExpr(c, ref.Expr, scope); err != nil {
+				return nil, err
+			}
+		}
+		colNames := collectJsonTableColumns(ref.Columns)
 		if len(colNames) == 0 {
 			return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
 		}
@@ -660,6 +705,11 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 	}
 
 	alias := subq.Alias
+	if alias != "" {
+		if err := scope.checkDupFromName(alias); err != nil {
+			return nil, err
+		}
+	}
 	if alias == "" {
 		alias = fmt.Sprintf("__subquery_%d", len(q.RangeTable))
 	}
@@ -1322,6 +1372,9 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 	if ref.Alias != "" {
 		eref = ref.Alias
 	}
+	if err := scope.checkDupFromName(eref); err != nil {
+		return nil, err
+	}
 
 	// Find the CTE's index in the current query's CTEList.
 	cteIndex := -1
@@ -1636,4 +1689,21 @@ func viewNamesUncertain(c *Catalog, ref *nodes.TableRef) bool {
 	}
 	view := db.Views[toLower(ref.Name)]
 	return view != nil && view.namesUncertain
+}
+
+func collectJsonTableColumns(cols []*nodes.JsonTableColumn) []string {
+	var out []string
+	for _, col := range cols {
+		if col == nil {
+			continue
+		}
+		if col.Nested {
+			out = append(out, collectJsonTableColumns(col.NestedCols)...)
+			continue
+		}
+		if col.Name != "" {
+			out = append(out, col.Name)
+		}
+	}
+	return out
 }

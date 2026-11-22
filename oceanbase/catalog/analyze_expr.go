@@ -159,6 +159,60 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
 		return analyzeExistsSubquery(c, n, scope)
+	case *nodes.MemberOfExpr:
+		if _, err := analyzeExpr(c, n.Value, scope); err != nil {
+			return nil, err
+		}
+		if _, err := analyzeExpr(c, n.Array, scope); err != nil {
+			return nil, err
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.MatchExpr:
+		for _, col := range n.Columns {
+			if _, err := analyzeColumnRef(col, scope); err != nil {
+				return nil, err
+			}
+		}
+		if n.Against != nil {
+			if _, err := analyzeExpr(c, n.Against, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.ConvertExpr:
+		if n.Expr != nil {
+			if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.ExtractExpr:
+		if n.Expr != nil {
+			if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.DefaultExpr:
+		if n.Column != "" {
+			if _, err := analyzeColumnRef(&nodes.ColumnRef{Column: n.Column}, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.WeightStringExpr:
+		if n.Expr != nil {
+			if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+				return nil, err
+			}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.VariableRef:
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.HexLit:
+		return &ConstExprQ{Value: n.Value, Type: &ResolvedType{BaseType: BaseTypeBinary}}, nil
+	case *nodes.BitLit:
+		return &ConstExprQ{Value: n.Value, Type: &ResolvedType{BaseType: BaseTypeBinary}}, nil
 	default:
 		return nil, &Error{
 			Code:     0,
