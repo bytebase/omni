@@ -770,7 +770,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 	if names, ok := sc.naturalColumns(j); ok {
 		if len(names) > 0 {
-			if on, ok := sc.joinOn(j, names); ok {
+			if on, ok := sc.joinOn(j, names, false); ok {
 				j.Condition = &ast.OnCondition{Expr: on}
 			}
 		} else {
@@ -804,7 +804,7 @@ func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondi
 	if len(using.Columns) == 0 {
 		return
 	}
-	if on, ok := sc.joinOn(j, using.Columns); ok {
+	if on, ok := sc.joinOn(j, using.Columns, true); ok {
 		j.Condition = &ast.OnCondition{Expr: on}
 		return
 	}
@@ -1277,13 +1277,7 @@ func exprTemporalFSP(expr ast.ExprNode, sc *fromScope) (int, bool) {
 		}
 		return 0, true
 	case *ast.TemporalLit:
-		if strings.EqualFold(n.Type, "DATE") {
-			return 0, true
-		}
-		if _, frac, ok := strings.Cut(n.Value, "."); ok {
-			return clampFSP(len(frac)), true
-		}
-		return 0, true
+		return temporalLitFSP(n.Type, n.Value), true
 	case *ast.CastExpr:
 		if n.TypeName == nil {
 			return 0, false
@@ -1347,4 +1341,108 @@ func clampFSP(n int) int {
 		return 6
 	}
 	return n
+}
+
+// temporalLitFSP returns the fractional seconds precision of a MySQL DATE,
+// TIME, or TIMESTAMP literal. Unlike splitting at the first '.', this
+// distinguishes date/time field delimiters (such as '.' in
+// TIMESTAMP '2020.01.01 12:34:56.1' or '2020.01.01 12.34.56') from the
+// fractional-seconds suffix and stops before any trailing timezone suffix.
+func temporalLitFSP(typ, val string) int {
+	if strings.EqualFold(typ, "DATE") {
+		return 0
+	}
+	s := strings.TrimSpace(val)
+	if s == "" {
+		return 0
+	}
+	if strings.EqualFold(typ, "TIME") {
+		t := s
+		if t[0] == '+' || t[0] == '-' {
+			t = strings.TrimSpace(t[1:])
+		}
+		plain := true
+		dotIdx := -1
+		for i := 0; i < len(t); i++ {
+			ch := t[i]
+			switch {
+			case ch >= '0' && ch <= '9', ch == ':', ch == ' ':
+			case ch == '.':
+				if dotIdx >= 0 {
+					plain = false
+				} else {
+					dotIdx = i
+				}
+			default:
+				plain = false
+			}
+		}
+		if plain {
+			if dotIdx < 0 {
+				return 0
+			}
+			n := 0
+			for i := dotIdx + 1; i < len(t) && t[i] >= '0' && t[i] <= '9'; i++ {
+				n++
+			}
+			return clampFSP(n)
+		}
+	}
+	return datetimeLitFSP(s)
+}
+
+func datetimeLitFSP(s string) int {
+	var parts []string
+	var seps []string
+	i := 0
+	for i < len(s) {
+		sepStart := i
+		for i < len(s) && (s[i] < '0' || s[i] > '9') {
+			i++
+		}
+		sep := s[sepStart:i]
+		if i >= len(s) {
+			break
+		}
+		digStart := i
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		seps = append(seps, sep)
+		parts = append(parts, s[digStart:i])
+	}
+	if len(parts) == 0 {
+		return 0
+	}
+	n0 := len(parts[0])
+	if n0 >= 5 {
+		filled := 3
+		switch {
+		case n0 >= 11:
+			filled = 6
+		case n0 >= 9:
+			filled = 5
+		case n0 == 7:
+			filled = 4
+		}
+		for idx := 1; idx < len(parts); idx++ {
+			if filled < 6 {
+				if filled == 3 && len(parts[idx]) >= 5 {
+					filled = 6
+				} else {
+					filled++
+				}
+			} else {
+				if seps[idx] == "." {
+					return clampFSP(len(parts[idx]))
+				}
+				return 0
+			}
+		}
+		return 0
+	}
+	if len(parts) >= 7 && seps[6] == "." {
+		return clampFSP(len(parts[6]))
+	}
+	return 0
 }

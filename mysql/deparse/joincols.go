@@ -53,8 +53,10 @@ type fromScope struct {
 	coalesced map[string]joinColumn
 
 	// firsts caches, for an input of a NATURAL or USING join, each lowered
-	// column name to the first column of that name in the input's result.
-	firsts map[ast.TableExpr]map[string]joinColumn
+	// column name to the first column of that name in the input's result:
+	// slot 0 excludes invisible columns (for NATURAL JOIN), slot 1 includes
+	// them (for explicit USING).
+	firsts [2]map[ast.TableExpr]map[string]joinColumn
 }
 
 // joinColumn is one column of a FROM item's result.
@@ -119,14 +121,20 @@ func (sc *fromScope) inputs(j *ast.JoinClause, natural bool) (ast.TableExpr, ast
 	return j.Left, j.Right
 }
 
-// tableColumns returns the star-visible columns of a registered table, in table order.
-func (sc *fromScope) tableColumns(te ast.TableExpr) ([]joinColumn, bool) {
+// tableColumns returns the columns of a registered table, in table order.
+// When includeInvisible is false, MySQL INVISIBLE columns are excluded.
+func (sc *fromScope) tableColumns(te ast.TableExpr, includeInvisible bool) ([]joinColumn, bool) {
 	i, ok := sc.entries[te]
 	if !ok {
 		return nil, false
 	}
 	e := sc.tables[i]
-	cols := sortedVisibleResolverColumns(e.Table)
+	var cols []ResolverColumn
+	if includeInvisible {
+		cols = sortedResolverColumns(e.Table)
+	} else {
+		cols = sortedVisibleResolverColumns(e.Table)
+	}
 	out := make([]joinColumn, len(cols))
 	for k, c := range cols {
 		out[k] = joinColumn{table: i, qualifier: e.Name, name: c.Name, pos: c.Position}
@@ -139,24 +147,30 @@ func (sc *fromScope) tableColumns(te ast.TableExpr) ([]joinColumn, bool) {
 // map is built from its inputs' maps, adding the smaller one's names to the
 // larger, so a chain of joins builds its maps in linear time; an input's map
 // is handed to its join and dropped from the cache, and rebuilt if asked for
-// again.
-func (sc *fromScope) firstColumns(te ast.TableExpr) (map[string]joinColumn, bool) {
-	if m, ok := sc.firsts[te]; ok {
+// again. When includeInvisible is false, invisible base-table columns are
+// excluded (used for NATURAL JOIN); when true, invisible columns are included
+// (used for explicit USING).
+func (sc *fromScope) firstColumns(te ast.TableExpr, includeInvisible bool) (map[string]joinColumn, bool) {
+	slot := 0
+	if includeInvisible {
+		slot = 1
+	}
+	if m, ok := sc.firsts[slot][te]; ok {
 		return m, true
 	}
 	var m map[string]joinColumn
 	if j, ok := te.(*ast.JoinClause); ok {
 		left, right := sc.inputs(j, true)
-		lm, ok := sc.firstColumns(left)
+		lm, ok := sc.firstColumns(left, includeInvisible)
 		if !ok {
 			return nil, false
 		}
-		rm, ok := sc.firstColumns(right)
+		rm, ok := sc.firstColumns(right, includeInvisible)
 		if !ok {
 			return nil, false
 		}
-		delete(sc.firsts, left)
-		delete(sc.firsts, right)
+		delete(sc.firsts[slot], left)
+		delete(sc.firsts[slot], right)
 		if len(lm) >= len(rm) {
 			for k, c := range rm {
 				if _, ok := lm[k]; !ok {
@@ -170,8 +184,16 @@ func (sc *fromScope) firstColumns(te ast.TableExpr) (map[string]joinColumn, bool
 			}
 			m = rm
 		}
+		if !includeInvisible {
+			// Columns explicitly joined by an inner USING are exposed in the
+			// join's output even if the base column was invisible, and take
+			// precedence over the hidden right-side copy.
+			for _, c := range sc.joined[j] {
+				m[strings.ToLower(c.name)] = c
+			}
+		}
 	} else {
-		cols, ok := sc.tableColumns(te)
+		cols, ok := sc.tableColumns(te, includeInvisible)
 		if !ok {
 			return nil, false
 		}
@@ -182,10 +204,10 @@ func (sc *fromScope) firstColumns(te ast.TableExpr) (map[string]joinColumn, bool
 			}
 		}
 	}
-	if sc.firsts == nil {
-		sc.firsts = make(map[ast.TableExpr]map[string]joinColumn)
+	if sc.firsts[slot] == nil {
+		sc.firsts[slot] = make(map[ast.TableExpr]map[string]joinColumn)
 	}
-	sc.firsts[te] = m
+	sc.firsts[slot][te] = m
 	return m, true
 }
 
@@ -201,7 +223,7 @@ func hasColumn(m map[string]joinColumn, k string) bool {
 func (sc *fromScope) columns(te ast.TableExpr, natural bool, listed map[colKey]bool, out []joinColumn) []joinColumn {
 	j, ok := te.(*ast.JoinClause)
 	if !ok {
-		cols, _ := sc.tableColumns(te)
+		cols, _ := sc.tableColumns(te, false)
 		for _, c := range cols {
 			if k := c.key(); !listed[k] && !sc.hidden[k] {
 				out = append(out, c)
@@ -273,17 +295,18 @@ func indexOfColumn(cols []joinColumn, c joinColumn) int {
 // condition MySQL writes for it: each column of its first input, in that
 // input's order, equal to the same-named column of its second input. ok is
 // false when a column cannot be found in both inputs, as when a table is
-// unknown.
-func (sc *fromScope) joinOn(j *ast.JoinClause, names []string) (ast.ExprNode, bool) {
+// unknown. includeInvisible is true for explicit USING joins and false for
+// NATURAL joins.
+func (sc *fromScope) joinOn(j *ast.JoinClause, names []string, includeInvisible bool) (ast.ExprNode, bool) {
 	left, right := j.Left, j.Right
 	if isRightJoin(j.Type) {
 		left, right = right, left
 	}
-	lm, ok := sc.firstColumns(left)
+	lm, ok := sc.firstColumns(left, includeInvisible)
 	if !ok {
 		return nil, false
 	}
-	rm, ok := sc.firstColumns(right)
+	rm, ok := sc.firstColumns(right, includeInvisible)
 	if !ok {
 		return nil, false
 	}
@@ -334,17 +357,17 @@ func noColumnsCondition() ast.ExprNode {
 }
 
 // naturalColumns returns the names of the columns a NATURAL join joins on:
-// those its inputs share.
+// those visible columns its inputs share.
 func (sc *fromScope) naturalColumns(j *ast.JoinClause) ([]string, bool) {
 	left, right := j.Left, j.Right
 	if isRightJoin(j.Type) {
 		left, right = right, left
 	}
-	lm, ok := sc.firstColumns(left)
+	lm, ok := sc.firstColumns(left, false)
 	if !ok {
 		return nil, false
 	}
-	rm, ok := sc.firstColumns(right)
+	rm, ok := sc.firstColumns(right, false)
 	if !ok {
 		return nil, false
 	}

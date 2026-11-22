@@ -83,6 +83,11 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as time) AS `TIME(a)`,cast(`t`.`dt3` as time(3)) AS `TIME(dt3)`,cast('12:34:56.123456' as time(6)) AS `TIME('12:34:56.123456')`,cast(`t`.`a` as datetime) AS `TIMESTAMP(a)`,cast(`t`.`dt3` as datetime(3)) AS `TIMESTAMP(dt3)`,cast('2021-01-01 12:34:56.123456' as datetime(6)) AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,timestamp(`t`.`a`,'01:00:00') AS `TIMESTAMP(a, '01:00:00')`,week(`t`.`a`,0) AS `WEEK(a)`,week(`t`.`a`,1) AS `WEEK(a, 1)` from `t`",
 		},
 		{
+			"time_timestamp_dotted_and_compact_literals",
+			"SELECT TIME(TIMESTAMP '2020.01.01 12:34:56.1') AS a, TIME(TIMESTAMP '2020.01.01 12:34:56') AS b, TIME(TIMESTAMP '2020.01.01 12.34.56') AS c, TIME(TIMESTAMP '2020.01.01 12.34.56.12') AS d, TIME(TIMESTAMP '2020.01.01 12:34:56.12+02:00') AS e, TIME(TIMESTAMP '20200101123456.123') AS f, TIME(TIME '12:34:56.12') AS g",
+			"select cast(TIMESTAMP'2020.01.01 12:34:56.1' as time(1)) AS `a`,cast(TIMESTAMP'2020.01.01 12:34:56' as time) AS `b`,cast(TIMESTAMP'2020.01.01 12.34.56' as time) AS `c`,cast(TIMESTAMP'2020.01.01 12.34.56.12' as time(2)) AS `d`,cast(TIMESTAMP'2020.01.01 12:34:56.12+02:00' as time(2)) AS `e`,cast(TIMESTAMP'20200101123456.123' as time(3)) AS `f`,cast(TIME'12:34:56.12' as time(2)) AS `g`",
+		},
+		{
 			"position_to_locate",
 			"SELECT POSITION(s IN s) FROM t",
 			"select locate(`t`.`s`,`t`.`s`) AS `POSITION(s IN s)` from `t`",
@@ -202,6 +207,90 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 		RewriteSelectStmt(stmt)
 		if got, want := DeparseSelect(stmt), "select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`"; got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("invisible_columns_using_vs_natural_and_star", func(t *testing.T) {
+		invLookup := func(name string) *ResolverTable {
+			switch name {
+			case "t1":
+				return &ResolverTable{
+					Name: "t1",
+					Columns: []ResolverColumn{
+						{Name: "a", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int", Invisible: true},
+					},
+				}
+			case "t2":
+				return &ResolverTable{
+					Name: "t2",
+					Columns: []ResolverColumn{
+						{Name: "b", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int", Invisible: true},
+					},
+				}
+			case "t3":
+				return &ResolverTable{
+					Name: "t3",
+					Columns: []ResolverColumn{
+						{Name: "c", Position: 1, DataType: "int"},
+						{Name: "k", Position: 2, DataType: "int"},
+					},
+				}
+			}
+			return nil
+		}
+		invCases := []struct {
+			name string
+			sql  string
+			want string
+		}{
+			{
+				"right_join_using_invisible_select_k",
+				"SELECT k AS x FROM t1 RIGHT JOIN t2 USING (k)",
+				"select `t2`.`k` AS `x` from (`t2` left join `t1` on((`t2`.`k` = `t1`.`k`)))",
+			},
+			{
+				"right_join_using_invisible_star",
+				"SELECT * FROM t1 RIGHT JOIN t2 USING (k)",
+				"select `t2`.`k` AS `k`,`t2`.`b` AS `b`,`t1`.`a` AS `a` from (`t2` left join `t1` on((`t2`.`k` = `t1`.`k`)))",
+			},
+			{
+				"inner_join_using_both_invisible_star",
+				"SELECT * FROM t1 JOIN t2 USING (k)",
+				"select `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`b` AS `b` from (`t1` join `t2` on((`t1`.`k` = `t2`.`k`)))",
+			},
+			{
+				"inner_join_using_left_invisible_right_visible_star",
+				"SELECT * FROM t1 JOIN t3 USING (k)",
+				"select `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t3`.`c` AS `c` from (`t1` join `t3` on((`t1`.`k` = `t3`.`k`)))",
+			},
+			{
+				"natural_join_both_invisible_not_joined",
+				"SELECT * FROM t1 NATURAL JOIN t2",
+				"select `t1`.`a` AS `a`,`t2`.`b` AS `b` from (`t1` join `t2`)",
+			},
+			{
+				"natural_join_mixed_invisible_not_joined",
+				"SELECT * FROM t1 NATURAL JOIN t3",
+				"select `t1`.`a` AS `a`,`t3`.`c` AS `c`,`t3`.`k` AS `k` from (`t1` join `t3`)",
+			},
+			{
+				"nested_join_natural_skips_invisible_binds_visible",
+				"SELECT * FROM (t1 JOIN t3 ON t1.a = t3.c) NATURAL JOIN (SELECT 1 AS k) s",
+				"select `t3`.`k` AS `k`,`t1`.`a` AS `a`,`t3`.`c` AS `c` from ((`t1` join `t3` on((`t1`.`a` = `t3`.`c`))) join (select 1 AS `k`) `s` on((`t3`.`k` = `s`.`k`)))",
+			},
+		}
+		for _, tc := range invCases {
+			t.Run(tc.name, func(t *testing.T) {
+				stmt := parseSelect(t, tc.sql)
+				r := &Resolver{Lookup: invLookup, DefaultCharset: "utf8mb4", Source: tc.sql}
+				r.Resolve(stmt)
+				RewriteSelectStmt(stmt)
+				if got := DeparseSelect(stmt); got != tc.want {
+					t.Errorf("got:\n  %s\nwant:\n  %s", got, tc.want)
+				}
+			})
 		}
 	})
 }

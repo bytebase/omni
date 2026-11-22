@@ -350,6 +350,24 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		if vNamed.Definition != wantNamed {
 			t.Errorf("SELECT secret definition = %q, want %q", vNamed.Definition, wantNamed)
 		}
+
+		mustExec(t, c, "CREATE TABLE ti2 (b INT, secret INT INVISIBLE);")
+		mustExec(t, c, "CREATE VIEW vi_right_using AS SELECT secret AS x FROM ti RIGHT JOIN ti2 USING (secret)")
+		vRightUsing := c.GetDatabase("db1").Views["vi_right_using"]
+		wantRightUsing := "select `ti2`.`secret` AS `x` from (`ti2` left join `ti` on((`ti2`.`secret` = `ti`.`secret`)))"
+		if vRightUsing.Definition != wantRightUsing {
+			t.Errorf("RIGHT JOIN USING invisible definition = %q, want %q", vRightUsing.Definition, wantRightUsing)
+		}
+	})
+
+	t.Run("dotted_timestamp_literal_time_fsp", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE VIEW v_ts_dot AS SELECT TIME(TIMESTAMP '2020.01.01 12:34:56.1') AS x")
+		v := c.GetDatabase("db1").Views["v_ts_dot"]
+		wantDef := "select cast(TIMESTAMP'2020.01.01 12:34:56.1' as time(1)) AS `x`"
+		if v.Definition != wantDef {
+			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
+		}
 	})
 
 	t.Run("stored_func_cast_as_year_not_rewritten_to_cast", func(t *testing.T) {
