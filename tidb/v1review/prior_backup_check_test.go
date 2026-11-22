@@ -213,7 +213,17 @@ func TestPriorBackupCheckUpdateTargets(t *testing.T) {
 			want: []priorBackupTable{table("test", "tech_book")},
 		},
 		{
-			name: "an unqualified column belongs to the table that has it",
+			name: "an unqualified column in an aliased single-table update",
+			sql:  "UPDATE tech_book AS t SET id = 1 WHERE id = 2",
+			want: []priorBackupTable{table("test", "tech_book")},
+		},
+		{
+			name: "an unqualified column unique to one joined table resolves to that table alone",
+			sql:  "UPDATE tech_book JOIN orders ON tech_book.id = orders.order_id SET order_id = 1",
+			want: []priorBackupTable{table("test", "orders")},
+		},
+		{
+			name: "an unqualified column shared by both joined tables resolves to both",
 			sql:  "UPDATE tech_book JOIN orders ON tech_book.id = orders.order_id SET name = 'x'",
 			want: []priorBackupTable{table("test", "tech_book"), table("test", "orders")},
 		},
@@ -442,6 +452,31 @@ func TestPriorBackupCheckMixedDML(t *testing.T) {
 			sql:  "WITH tech_book AS (SELECT 1 AS id) UPDATE test.tech_book SET id = 1; DELETE FROM test.tech_book",
 			want: []priorBackupFinding{mixed("test.tech_book")},
 		},
+		{
+			name: "update and delete on different tables in the same database",
+			sql:  "UPDATE tech_book SET id = 1 WHERE id = 2; DELETE FROM orders WHERE order_id = 3",
+			want: nil,
+		},
+		{
+			name: "update join does not mark the read-only joined table",
+			sql:  "UPDATE tech_book INNER JOIN orders ON tech_book.id = orders.order_id SET tech_book.name = 'x'; DELETE FROM orders WHERE order_id = 5",
+			want: nil,
+		},
+		{
+			name: "aliased single-table update with unqualified SET mixes with delete",
+			sql:  "UPDATE tech_book AS t SET id = 1 WHERE id = 2; DELETE FROM tech_book WHERE id = 3",
+			want: []priorBackupFinding{mixed("test.tech_book")},
+		},
+		{
+			name: "qualified and unqualified references are one table",
+			sql:  "UPDATE test.tech_book SET id = 1 WHERE id = 2; DELETE FROM tech_book WHERE id = 3",
+			want: []priorBackupFinding{mixed("test.tech_book")},
+		},
+		{
+			name: "unqualified SET matching a single joined table mixes only on that table",
+			sql:  "UPDATE tech_book INNER JOIN orders ON tech_book.id = orders.order_id SET order_id = 1; DELETE FROM orders WHERE order_id = 5",
+			want: []priorBackupFinding{mixed("test.orders")},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -535,6 +570,13 @@ func TestPriorBackupCheckCount(t *testing.T) {
 			name: "a WITH reference does not count as a change",
 			sql:  "WITH c AS (SELECT 1 AS id) UPDATE tech_book JOIN c ON tech_book.id = c.id SET tech_book.id = 1, c.id = 2; UPDATE a SET x = 1; UPDATE a SET x = 2; UPDATE a SET x = 3; UPDATE a SET x = 4",
 			want: nil,
+		},
+		{
+			name: "zero-match unqualified SET falls back to every joined table and trips the count cap",
+			sql: "UPDATE tech_book INNER JOIN orders ON tech_book.id = orders.order_id SET nonexistent = 1 WHERE tech_book.id = 1; " +
+				"UPDATE tech_book INNER JOIN orders ON tech_book.id = orders.order_id SET nonexistent = 2 WHERE tech_book.id = 2; " +
+				"UPDATE tech_book INNER JOIN orders ON tech_book.id = orders.order_id SET nonexistent = 3 WHERE tech_book.id = 3",
+			want: []priorBackupFinding{tooMany},
 		},
 	}
 	for _, tt := range tests {

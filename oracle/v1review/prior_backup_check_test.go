@@ -293,8 +293,14 @@ func TestPriorBackupCheckIdentifierCase(t *testing.T) {
 			want:   []priorBackupFinding{{Code: v1review.PriorBackupUncopyableColumn, Schema: "DB", Table: "t_raw", Value: `"RAWCOL"`}},
 		},
 		{
-			name:   "an unquoted reference folds upper",
+			name:   "an unquoted uppercase reference finds the uppercase table",
 			sql:    "UPDATE T_LONG SET ID = 1 WHERE ID = 2;",
+			schema: sensitive,
+			want:   []priorBackupFinding{{Code: v1review.PriorBackupUncopyableColumn, Schema: "DB", Table: "T_LONG", Value: `"PAYLOAD"`}},
+		},
+		{
+			name:   "an unquoted lowercase reference folds upper",
+			sql:    "UPDATE t_long SET ID = 1 WHERE ID = 2;",
 			schema: sensitive,
 			want:   []priorBackupFinding{{Code: v1review.PriorBackupUncopyableColumn, Schema: "DB", Table: "T_LONG", Value: `"PAYLOAD"`}},
 		},
