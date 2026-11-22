@@ -18,12 +18,15 @@ import (
 )
 
 // TestPostgresCompatibility holds spanner/parser.ParsePostgres (delegating to
-// pg/parser.Parse) to testdata/pg/compat.tsv: a statement for each alternative
-// of PostgreSQL 17's grammar (../../pg/testdata/gram.y) and its near-misses,
-// with omni's verdict and the pinned Cloud Spanner emulator's verdict in
-// DatabaseDialect_POSTGRESQL mode (../testdata/pins.tsv). The test reads the
-// committed file and starts no server in offline replay. OMNI_RECORD=1 judges
-// rows on the pinned emulator; OMNI_RECORD=verify re-judges every row read-only.
+// pg/parser.ParseWithDialect with DialectSpannerPG) to testdata/pg/compat.tsv:
+// a statement for each alternative of PostgreSQL 17's grammar
+// (../../pg/testdata/gram.y) and its near-misses, plus the hand-curated
+// suite:spanner-pg-ddl corpus of Cloud Spanner PostgreSQL DDL extensions and
+// near-misses, with omni's verdict and the pinned Cloud Spanner emulator's
+// verdict in DatabaseDialect_POSTGRESQL mode (../testdata/pins.tsv). The test
+// reads the committed file and starts no server in offline replay.
+// OMNI_RECORD=1 judges unjudged rows on the pinned emulator; OMNI_RECORD=verify
+// re-judges every row read-only.
 func TestPostgresCompatibility(t *testing.T) {
 	pgtd := filepath.Join("..", "..", "pg", "testdata")
 	compat.Check(t, compat.Suite{

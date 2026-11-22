@@ -140,6 +140,21 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 		return nil, err
 	}
 
+	// Spanner PG: optional INTERLEAVE IN qualified_name (before WHERE)
+	var interleaveParent *nodes.RangeVar
+	if p.isSpannerPG() && p.isSpannerIdent("interleave") {
+		p.advance() // consume INTERLEAVE
+		if _, err := p.expect(IN_P); err != nil {
+			return nil, err
+		}
+		parentStart := p.pos()
+		parentNames, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		interleaveParent = makeRangeVarFromNames(parentNames, nodes.Loc{Start: parentStart, End: p.prev.End})
+	}
+
 	// where_clause
 	whereClause, err := p.parseWhereClause()
 	if err != nil {
@@ -154,6 +169,7 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 		IndexIncludingParams: includeParams,
 		Options:              options,
 		TableSpace:           tableSpace,
+		InterleaveParent:     interleaveParent,
 		WhereClause:          whereClause,
 		Unique:               unique,
 		Nulls_not_distinct:   nullsNotDistinct,

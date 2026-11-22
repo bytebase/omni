@@ -375,6 +375,9 @@ var seqOptElemLeadTokens = []int{AS, CACHE, CYCLE, NO, INCREMENT, LOGGED, MAXVAL
 // No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
 // against the whole Keywords table.
 func (p *Parser) isSeqOptElemStart() bool {
+	if p.isSpannerSeqOptElemLead() {
+		return true
+	}
 	if !slices.Contains(seqOptElemLeadTokens, p.cur.Type) {
 		return false
 	}
@@ -382,6 +385,8 @@ func (p *Parser) isSeqOptElemStart() bool {
 		switch p.peekNext().Type {
 		case CYCLE, MAXVALUE, MINVALUE:
 			return true
+		case SKIP:
+			return p.isSpannerPG()
 		}
 		return false
 	}
@@ -396,7 +401,7 @@ func (p *Parser) isSeqOptElemStart() bool {
 // Its set is seqOptElemLeadTokens, which TestSeqOptElemLeadTokensMatchPG
 // holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
-	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+	return p.isSpannerSeqOptElemLead() || slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
 
 // isFetchOptionStart reports whether tok starts what follows row_or_rows in

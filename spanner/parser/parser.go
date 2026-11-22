@@ -4,7 +4,8 @@
 //     github.com/bytebase/omni/googlesql/parser with DialectSpanner (backed by
 //     testdata/compat.tsv).
 //   - PostgreSQL via ParsePostgres, delegating to
-//     github.com/bytebase/omni/pg/parser (backed by testdata/pg/compat.tsv).
+//     github.com/bytebase/omni/pg/parser with DialectSpannerPG (backed by
+//     testdata/pg/compat.tsv).
 //
 // BigQuery and Cloud Spanner share the GoogleSQL language, while Spanner's
 // GoogleSQL dialect rejects BigQuery-only procedural scripting, QUALIFY,
@@ -39,8 +40,8 @@ func ParseBestEffort(sql string) *googlesqlparser.ParseResult {
 	return googlesqlparser.ParseBestEffortWithDialect(sql, googlesqlparser.DialectSpanner)
 }
 
-// ParsePostgres parses Cloud Spanner PostgreSQL-dialect SQL input by delegating
-// to github.com/bytebase/omni/pg/parser.Parse.
+// ParsePostgres parses Cloud Spanner PostgreSQL-dialect SQL input using
+// github.com/bytebase/omni/pg/parser with DialectSpannerPG.
 func ParsePostgres(sql string) (*pgast.List, error) {
-	return pgparser.Parse(sql)
+	return pgparser.ParseWithDialect(sql, pgparser.DialectSpannerPG)
 }

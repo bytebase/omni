@@ -17,10 +17,11 @@ import (
 type Parser struct {
 	lexer   *Lexer
 	source  string
-	cur     Token // current token
-	prev    Token // previous token (for error reporting)
-	nextBuf Token // buffered next token for 2-token lookahead
-	hasNext bool  // whether nextBuf is valid
+	dialect Dialect // dialect-specific syntax rules
+	cur     Token   // current token
+	prev    Token   // previous token (for error reporting)
+	nextBuf Token   // buffered next token for 2-token lookahead
+	hasNext bool    // whether nextBuf is valid
 
 	// Memos for the paren classifiers, keyed by the byte offset of a '('.
 	// The parser asks again at every nesting level as it descends, and each
@@ -60,7 +61,7 @@ type Parser struct {
 // Currently supports basic SELECT statements for expression testing.
 // Full statement dispatch will be implemented in batch 34.
 func Parse(sql string) (*nodes.List, error) {
-	return ParseRange(sql, 0, len(sql))
+	return ParseRangeWithDialect(sql, 0, len(sql), DialectDefault)
 }
 
 // ParseRange parses source[start:end] in place. Every Loc and error
@@ -68,10 +69,17 @@ func Parse(sql string) (*nodes.List, error) {
 // parse each segment with absolute positions without copying or padding
 // the text. Text past end is not read.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
+	return ParseRangeWithDialect(source, start, end, DialectDefault)
+}
+
+// ParseRangeWithDialect parses source[start:end] in place using the specified
+// PostgreSQL dialect.
+func ParseRangeWithDialect(source string, start, end int, dialect Dialect) (*nodes.List, error) {
 	start, end = clampRange(start, end, len(source))
 	p := &Parser{
-		lexer:  NewLexerRange(source, start, end),
-		source: source,
+		lexer:   NewLexerRange(source, start, end),
+		source:  source,
+		dialect: dialect,
 	}
 	// A UTF-8 BOM at the start of the script is trivia: psql strips it
 	// before scanning (mainloop.c).
@@ -162,6 +170,9 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	}
 
 	if len(stmts) == 0 {
+		if p.isSpannerPG() {
+			return nil, &ParseError{Message: "SQL queries are limited to single statements", Position: start}
+		}
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
@@ -303,6 +314,16 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			return p.parseAlterTriggerDependsOnExtension()
 		case RULE:
 			return p.parseAlterRuleStmt()
+		case SEARCH:
+			if p.isSpannerPG() {
+				return p.parseAlterSearchIndexStmt(alterLoc)
+			}
+			return p.parseAlterTableStmt()
+		case IDENT:
+			if p.isSpannerPG() && p.isSpannerIdent("change") {
+				return p.parseAlterChangeStreamStmt(alterLoc)
+			}
+			return p.parseAlterTableStmt()
 		default:
 			return p.parseAlterTableStmt()
 		}
@@ -729,6 +750,24 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case ASSERTION:
 		p.advance() // consume CREATE
 		return nil, p.parseCreateAssertionStmt()
+	case SEARCH:
+		if p.isSpannerPG() {
+			p.advance() // consume CREATE
+			return p.parseCreateSearchIndexStmt(createLoc)
+		}
+		return nil, p.syntaxErrorAtTok(next)
+	case IDENT:
+		if p.isSpannerPG() {
+			if isSpannerIdentTok(next, "change") {
+				p.advance() // consume CREATE
+				return p.parseCreateChangeStreamStmt(createLoc)
+			}
+			if isSpannerIdentTok(next, "locality") {
+				p.advance() // consume CREATE
+				return p.parseCreateLocalityGroupStmt(createLoc)
+			}
+		}
+		return nil, p.syntaxErrorAtTok(next)
 	// exhaustive: gram.y:6780 CreateStmt-family — no CREATE statement goes
 	// on with this token, so the syntax error is at it.
 	default:

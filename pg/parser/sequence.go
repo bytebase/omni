@@ -209,6 +209,14 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		case MINVALUE:
 			p.advance()
 			return makeDefElem("minvalue", nil), nil
+		case SKIP:
+			if p.isSpannerPG() {
+				p.advance() // consume SKIP
+				if _, err := p.expect(RANGE); err != nil {
+					return nil, err
+				}
+				return makeDefElem("skip_range", nil), nil
+			}
 		}
 		return nil, p.syntaxErrorAtCur()
 	case INCREMENT:
@@ -246,6 +254,13 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		return makeDefElem("sequence_name", name), nil
 	case START:
 		p.advance()
+		if p.isSpannerPG() && p.isSpannerIdent("counter") {
+			p.advance() // consume COUNTER
+			if p.cur.Type == WITH {
+				p.advance()
+			}
+			return numeric("start_counter")
+		}
 		// opt_with: WITH | EMPTY
 		if p.cur.Type == WITH {
 			p.advance()
@@ -253,6 +268,13 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		return numeric("start")
 	case RESTART:
 		p.advance()
+		if p.isSpannerPG() && p.isSpannerIdent("counter") {
+			p.advance() // consume COUNTER
+			if p.cur.Type == WITH {
+				p.advance()
+			}
+			return numeric("restart_counter")
+		}
 		// After WITH the number is required; bare RESTART takes none.
 		if p.cur.Type == WITH {
 			p.advance()
@@ -268,6 +290,27 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 	case UNLOGGED:
 		p.advance()
 		return makeDefElem("unlogged", nil), nil
+	case SKIP:
+		if p.isSpannerPG() {
+			p.advance() // consume SKIP
+			if _, err := p.expect(RANGE); err != nil {
+				return nil, err
+			}
+			minVal, err := p.parseNumericOnlyRequired()
+			if err != nil {
+				return nil, err
+			}
+			maxVal, err := p.parseNumericOnlyRequired()
+			if err != nil {
+				return nil, err
+			}
+			return makeDefElem("skip_range", &nodes.List{Items: []nodes.Node{minVal, maxVal}}), nil
+		}
+	case IDENT:
+		if p.isSpannerPG() && p.isSpannerIdent("bit_reversed_positive") {
+			p.advance()
+			return makeDefElem("bit_reversed_positive", &nodes.Boolean{Boolval: true}), nil
+		}
 	}
 	return nil, p.syntaxErrorAtCur()
 }
