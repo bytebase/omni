@@ -57,6 +57,7 @@ const (
 	tokRParen
 	tokComma
 	tokPipe
+	tokBar
 	tokOther
 )
 
@@ -136,6 +137,12 @@ func tokenizeStatements(script string) ([][]token, error) {
 		case c == '|' && i+1 < len(script) && script[i+1] == '>':
 			cur = append(cur, token{kind: tokPipe})
 			i += 2
+		case c == '|' && i+1 < len(script) && script[i+1] == '|':
+			cur = append(cur, token{kind: tokOther})
+			i += 2
+		case c == '|':
+			cur = append(cur, token{kind: tokBar})
+			i++
 		case isWordStart(c):
 			start := i
 			i++
@@ -352,7 +359,7 @@ func isReadOnlyQuery(tokens []token, pairs []int, start, end int) bool {
 			if restStart >= end {
 				return true
 			}
-			if tokens[restStart].kind == tokPipe {
+			if tokens[restStart].kind == tokPipe || tokens[restStart].kind == tokBar {
 				return isReadOnlyPipeTail(tokens, pairs, restStart, end)
 			}
 			if tokens[restStart].kind == tokWord {
@@ -389,8 +396,8 @@ func isReadOnlyQuery(tokens []token, pairs []int, start, end int) bool {
 }
 
 // isReadOnlyFromPipeline validates Databricks SQL FROM-first pipeline queries
-// (FROM relation |> pipe_operator ...) while rejecting FROM-first inserts
-// (FROM s INSERT INTO t SELECT ...) and bare FROM clauses without a pipeline.
+// using either `|>` or Databricks Runtime 18.0+ `|` separators, while rejecting
+// FROM-first inserts (FROM s INSERT INTO t SELECT ...) and bare FROM clauses.
 func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
 	for i := start + 1; i < end; i++ {
 		switch tokens[i].kind {
@@ -408,6 +415,13 @@ func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
 				return false
 			}
 			return isReadOnlyPipeTail(tokens, pairs, i, end)
+		case tokBar:
+			if i == start+1 {
+				return false
+			}
+			if i+1 < end && tokens[i+1].kind == tokWord && isReadOnlyPipeOperator(tokens[i+1].val) {
+				return isReadOnlyPipeTail(tokens, pairs, i, end)
+			}
 		case tokWord:
 			if isInsertClause(tokens, i, end) {
 				return false
@@ -417,14 +431,15 @@ func isReadOnlyFromPipeline(tokens []token, pairs []int, start, end int) bool {
 	return false
 }
 
-// isReadOnlyPipeTail validates one or more `|> ...` pipe stages starting at
+// isReadOnlyPipeTail validates one or more `|>` / `|` pipe stages starting at
 // start. Each stage must begin with a documented read-only Databricks SQL pipe
-// operator; write operations are rejected by syntactic position rather than
-// blocking scalar function names such as replace(...) in stage expressions.
+// operator; bitwise OR `|` inside stage expressions is distinguished from stage
+// separators, and write operations are rejected by syntactic position rather
+// than blocking scalar function names such as replace(...) in expressions.
 func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 	i := start
 	for i < end {
-		if tokens[i].kind != tokPipe {
+		if tokens[i].kind != tokPipe && tokens[i].kind != tokBar {
 			return false
 		}
 		i++
@@ -433,6 +448,22 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 		}
 		i++
 		for i < end && tokens[i].kind != tokPipe {
+			if tokens[i].kind == tokBar {
+				if i+1 >= end {
+					return false
+				}
+				if tokens[i+1].kind == tokWord {
+					if isReadOnlyPipeOperator(tokens[i+1].val) {
+						break
+					}
+					isCall := i+2 < end && tokens[i+2].kind == tokLParen
+					if !isCall && (isNonReadOnlyLeadKeyword(tokens[i+1].val) || tokens[i+1].val == "EXPORT") {
+						return false
+					}
+				}
+				i++
+				continue
+			}
 			switch tokens[i].kind {
 			case tokLParen:
 				closeIdx := pairs[i]
