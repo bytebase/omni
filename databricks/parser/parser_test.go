@@ -316,6 +316,11 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "parenthesized map and reduce function calls vs transform subquery",
+			sql:  `SELECT (MAP('a', 1)), (REDUCE(arr, 0, (acc, x) -> acc + x)), (MAP a USING 'cat') FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -490,6 +495,14 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "repeated case identifier arithmetic inside simple case",
 			sql:  "SELECT CASE " + strings.Repeat("case + ", 200) + "1 WHEN 1 THEN 'ok' END",
+		},
+		{
+			name: "nested parenthesized map calls",
+			sql:  "SELECT " + strings.Repeat("(MAP(1, ", 40) + "1" + strings.Repeat("))", 40),
+		},
+		{
+			name: "nested parenthesized reduce calls",
+			sql:  "SELECT " + strings.Repeat("(REDUCE(a, ", 40) + "0" + strings.Repeat(", (x, y) -> x + y))", 40),
 		},
 		{
 			name: "nested parens",

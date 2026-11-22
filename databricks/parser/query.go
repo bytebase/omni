@@ -34,10 +34,42 @@ func (p *Parser) startsWithQueryKeywordAfterParens() bool {
 		i++
 	}
 	switch p.peek(i).Kind {
-	case kwWITH, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE:
+	case kwSELECT, kwFROM, kwVALUES:
 		return true
+	case kwWITH:
+		next := p.peek(i + 1).Kind
+		return next == kwRECURSIVE || next.isIdentifier()
+	case kwTABLE:
+		return p.peek(i + 1).Kind.isIdentifier()
+	case kwMAP, kwREDUCE:
+		// A MAP/REDUCE query (transformClause) always has a USING clause at
+		// the same paren depth, distinguishing it from ordinary MAP(...)/REDUCE(...)
+		// function calls so nested `(MAP(1, (MAP(1, ...))))` never backtracks.
+		return p.hasKeywordAtDepthZero(i+1, kwUSING)
 	}
 	return false
+}
+
+func (p *Parser) hasKeywordAtDepthZero(startOffset int, target TokenKind) bool {
+	depth := 0
+	for i := startOffset; ; i++ {
+		k := p.peek(i).Kind
+		switch k {
+		case tokEOF, tokSemicolon:
+			return false
+		case tokLParen, tokLBracket:
+			depth++
+		case tokRParen, tokRBracket:
+			if depth == 0 {
+				return false
+			}
+			depth--
+		default:
+			if depth == 0 && k == target {
+				return true
+			}
+		}
+	}
 }
 
 func (p *Parser) parseCTEs() error {
