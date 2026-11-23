@@ -573,4 +573,55 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, results[0].Error)
 	})
+
+	t.Run("ALTER TABLE accepts materialized-view containers from CREATE and LoadMetadata", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER);
+			CREATE MATERIALIZED VIEW mv AS SELECT id FROM t;
+		`)
+		require.NoError(t, err)
+		results, err := c.Exec(`ALTER TABLE mv LOGGING; COMMENT ON TABLE mv IS 'container comment'`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+
+		c2 := New()
+		_, err = c2.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "MV_SYNCED", Definition: "SELECT 1 FROM DUAL"},
+				},
+			}},
+		})
+		require.NoError(t, err)
+		results, err = c2.Exec(`ALTER TABLE mv_synced LOGGING`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
+
+	t.Run("editioning views allow ALTER VIEW READ ONLY and READ WRITE", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER);
+			CREATE EDITIONING VIEW ev AS SELECT id FROM t;
+		`)
+		require.NoError(t, err)
+		for _, stmt := range []string{
+			`ALTER VIEW ev READ ONLY`,
+			`ALTER VIEW ev READ WRITE`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			require.Nil(t, results[0].Error, stmt)
+		}
+
+		// Replacing with a non-editioning view restores the ORA-42310 check.
+		results, err := c.Exec(`CREATE OR REPLACE VIEW ev AS SELECT id FROM t; ALTER VIEW ev READ ONLY`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		var oraErr *Error
+		require.True(t, errors.As(results[1].Error, &oraErr))
+		require.Equal(t, "42310", oraErr.Code)
+	})
 }

@@ -78,6 +78,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		primaryKeyNotNull:    make(map[string]bool),
 		syntheticConstraints: make(map[string]bool),
 		viewConstraints:      make(map[string][]viewConstraint),
+		editioningViews:      make(map[string]bool),
 		tables:               make(map[string]*metadatapb.TableMetadata),
 		views:                make(map[string]*metadatapb.ViewMetadata),
 		materializedViews:    make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -102,6 +103,7 @@ type oracleMetadataExtractor struct {
 	primaryKeyNotNull           map[string]bool
 	syntheticConstraints        map[string]bool
 	viewConstraints             map[string][]viewConstraint
+	editioningViews             map[string]bool
 	explicitSchema              bool
 	owner                       string
 	currentDatabase             string
@@ -852,6 +854,10 @@ func (e *oracleMetadataExtractor) renameView(oldName, newName string) bool {
 		delete(e.viewConstraints, oldName)
 		e.viewConstraints[newName] = vcs
 	}
+	if e.editioningViews[oldName] {
+		delete(e.editioningViews, oldName)
+		e.editioningViews[newName] = true
+	}
 	view.Name = newName
 	for _, trigger := range view.Triggers {
 		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
@@ -920,6 +926,29 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 	}
 	table := e.tables[tableName]
 	if table == nil {
+		if e.materializedViews[tableName] != nil {
+			for _, item := range listItems(n.Actions) {
+				action, ok := item.(*ast.AlterTableCmd)
+				if !ok {
+					continue
+				}
+				switch action.Action {
+				case ast.AT_RENAME:
+					e.setError(oraError("32318", "cannot rename a materialized view %q", tableName))
+					return
+				case ast.AT_ENABLE_DISABLE, ast.AT_MODIFY_CONSTRAINT:
+					e.setError(fmt.Errorf("constraint enable/disable is not supported by oracle/catalog"))
+					return
+				case ast.AT_ENABLE_DISABLE_TRIGGERS:
+					e.setError(fmt.Errorf("table-wide trigger enable/disable is not supported by oracle/catalog"))
+					return
+				case ast.AT_SET_UNUSED:
+					e.setError(fmt.Errorf("SET UNUSED is not supported by oracle/catalog"))
+					return
+				}
+			}
+			return
+		}
 		e.setError(oraError("00942", "table or view %q does not exist", tableName))
 		return
 	}
@@ -1917,6 +1946,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			}
 			delete(e.views, name)
 			delete(e.viewConstraints, name)
+			delete(e.editioningViews, name)
 		case ast.OBJECT_MATERIALIZED_VIEW:
 			if !e.checkSchema(nameNode.Schema, "12003") {
 				return
@@ -2613,6 +2643,11 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	} else {
 		delete(e.viewConstraints, viewName)
 	}
+	if n.Editioning {
+		e.editioningViews[viewName] = true
+	} else {
+		delete(e.editioningViews, viewName)
+	}
 }
 
 func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) string {
@@ -3064,6 +3099,9 @@ func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
 			}
 			return
 		}
+		if e.materializedViews[name] != nil {
+			return
+		}
 		e.setError(oraError("00942", "table or view %q does not exist", rawName))
 		return
 	}
@@ -3076,6 +3114,9 @@ func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
 		}
 		if view := e.views[name]; view != nil {
 			view.Comment = n.Comment
+			return
+		}
+		if e.materializedViews[name] != nil {
 			return
 		}
 		e.setError(oraError("00942", "table or view %q does not exist", rawName))

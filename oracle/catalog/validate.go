@@ -515,7 +515,9 @@ func (e *oracleMetadataExtractor) extractAlterView(n *ast.AlterViewStmt) {
 			e.setError(oraError("25129", "cannot modify constraint - no such constraint"))
 		}
 	case "READ_ONLY", "READ_WRITE":
-		e.setError(oraError("42310", "ALTER VIEW READ ONLY/READ WRITE is only supported on editioning views"))
+		if !e.editioningViews[name] {
+			e.setError(oraError("42310", "ALTER VIEW READ ONLY/READ WRITE is only supported on editioning views"))
+		}
 	default:
 		// COMPILE, EDITIONABLE, NONEDITIONABLE, ANNOTATIONS.
 	}
