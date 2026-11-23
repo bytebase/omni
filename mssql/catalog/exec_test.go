@@ -297,4 +297,34 @@ CREATE INDEX [ix] ON [dbo].[t]([a]);
 	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [UQ_t_u] WITH (ONLINE = OFF)`)
 	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t] WITH (ONLINE = ON)`)
 	require.Empty(t, c.GetTable("dbo", "t").Indexes)
+
+	// 13. Opaque execution principals and external schema/routine attributes are preserved by GetDatabaseMetadata.
+	meta, err = GetDatabaseMetadata(`
+CREATE SCHEMA [app] AUTHORIZATION [app_owner];
+GO
+CREATE PROCEDURE [app].[p] WITH EXECUTE AS 'app_user' AS BEGIN SELECT 1; END;
+GO
+CREATE FUNCTION [app].[f]() RETURNS INT WITH EXECUTE AS 'app_user' AS BEGIN RETURN 1; END;
+`)
+	require.NoError(t, err)
+	require.Len(t, meta.Schemas, 1)
+	require.Len(t, meta.Schemas[0].Procedures, 1)
+	require.Len(t, meta.Schemas[0].Functions, 1)
+
+	// 14. DROP COLUMN rejects columns referenced by computed columns.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] AS ([a] + 1) PERSISTED);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrColumnDependentObject)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "a"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`)
+
+	// 15. Multi-target DROP INDEX validates all targets before mutating any table.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT, [b] INT);
+CREATE INDEX [ix] ON [dbo].[t]([a]);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP INDEX [ix] ON [dbo].[t], [missing] ON [dbo].[t]`, ErrCannotDropNotFound)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "t"), "ix"), "failed multi-target DROP INDEX must not remove earlier indexes")
 }

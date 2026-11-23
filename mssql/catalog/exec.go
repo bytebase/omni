@@ -255,7 +255,7 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 			return nil
 		}
 	}
-	if n.Authorization != "" && !strings.EqualFold(n.Authorization, "dbo") {
+	if !c.lenientMetadataLoad && n.Authorization != "" && !strings.EqualFold(n.Authorization, "dbo") {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the user '%s', because it does not exist or you do not have permission.", n.Authorization)
 	}
 	if c.GetSchema(n.Name) != nil {
@@ -448,7 +448,7 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tableName)
 		}
 	}
-	if n.IsFileTable {
+	if !c.lenientMetadataLoad && n.IsFileTable {
 		return mssqlErr(ErrFileTableNotSupported, "Default FILESTREAM filegroup is not available.")
 	}
 
@@ -897,7 +897,7 @@ func (c *Catalog) execCreateOrAlterProcedure(n *ast.CreateProcedureStmt, source 
 			}
 		}
 	}
-	if n.ExternalName != "" {
+	if !c.lenientMetadataLoad && n.ExternalName != "" {
 		return mssqlErr(ErrAssemblyNotFound, "Assembly '%s' was not found in the SQL catalog.", n.ExternalName)
 	}
 	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
@@ -923,8 +923,10 @@ func (c *Catalog) execCreateOrAlterProcedure(n *ast.CreateProcedureStmt, source 
 		}
 	}
 
-	if err := checkExecuteAsOptions(n.Options); err != nil {
-		return err
+	if !c.lenientMetadataLoad {
+		if err := checkExecuteAsOptions(n.Options); err != nil {
+			return err
+		}
 	}
 
 	schema = c.getOrCreateSchema(schemaName)
@@ -960,7 +962,7 @@ func normalizeProcDefinition(def string) string {
 }
 
 func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source string) error {
-	if n.ExternalName != "" {
+	if !c.lenientMetadataLoad && n.ExternalName != "" {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the assembly '%s', because it does not exist or you do not have permission.", n.ExternalName)
 	}
 	if !c.lenientMetadataLoad && n.Params != nil {
@@ -1008,8 +1010,10 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 		}
 	}
 
-	if err := checkExecuteAsOptions(n.Options); err != nil {
-		return err
+	if !c.lenientMetadataLoad {
+		if err := checkExecuteAsOptions(n.Options); err != nil {
+			return err
+		}
 	}
 
 	schema = c.getOrCreateSchema(schemaName)
@@ -1671,6 +1675,14 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 			return name, true
 		}
 	}
+	for _, other := range table.Columns {
+		if other == col || !isComputedColumnType(other.Type) {
+			continue
+		}
+		if computedExprReferencesColumn(other.Type, table.Name, col.Name) {
+			return other.Name, true
+		}
+	}
 	for _, s := range c.schemas {
 		for _, t := range s.Tables {
 			for _, fk := range t.ForeignKeys {
@@ -1706,20 +1718,9 @@ func exprReferencesColumn(node ast.Node, colName string) bool {
 	return found
 }
 
-func checkExprReferencesColumn(expr, tableName, colName string) bool {
-	if strings.TrimSpace(expr) == "" {
-		return false
-	}
-	stmts, err := mssql.Parse("SELECT 1 WHERE (" + expr + ")")
-	if err != nil || len(stmts) == 0 {
-		return false
-	}
-	sel, ok := stmts[0].AST.(*ast.SelectStmt)
-	if !ok || sel.WhereClause == nil {
-		return false
-	}
+func exprReferencesTableColumn(node ast.Node, tableName, colName string) bool {
 	found := false
-	ast.Inspect(sel.WhereClause, func(n ast.Node) bool {
+	ast.Inspect(node, func(n ast.Node) bool {
 		if found {
 			return false
 		}
@@ -1734,6 +1735,40 @@ func checkExprReferencesColumn(expr, tableName, colName string) bool {
 		return true
 	})
 	return found
+}
+
+func checkExprReferencesColumn(expr, tableName, colName string) bool {
+	if strings.TrimSpace(expr) == "" {
+		return false
+	}
+	stmts, err := mssql.Parse("SELECT 1 WHERE (" + expr + ")")
+	if err != nil || len(stmts) == 0 {
+		return false
+	}
+	sel, ok := stmts[0].AST.(*ast.SelectStmt)
+	if !ok || sel.WhereClause == nil {
+		return false
+	}
+	return exprReferencesTableColumn(sel.WhereClause, tableName, colName)
+}
+
+func computedExprReferencesColumn(colType, tableName, colName string) bool {
+	if !isComputedColumnType(colType) {
+		return false
+	}
+	stmts, err := mssql.Parse("CREATE TABLE _ (_ " + colType + ")")
+	if err != nil || len(stmts) == 0 {
+		return false
+	}
+	ct, ok := stmts[0].AST.(*ast.CreateTableStmt)
+	if !ok || ct.Columns == nil || len(ct.Columns.Items) == 0 {
+		return false
+	}
+	cd, ok := ct.Columns.Items[0].(*ast.ColumnDef)
+	if !ok || cd.Computed == nil || cd.Computed.Expr == nil {
+		return false
+	}
+	return exprReferencesTableColumn(cd.Computed.Expr, tableName, colName)
 }
 
 // hasOptionOn reports whether opts contains optionName set to ON.
@@ -1910,6 +1945,12 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 	if n.Names == nil {
 		return nil
 	}
+	type dropIndexTarget struct {
+		table *metadata.TableMetadata
+		idx   *metadata.IndexMetadata
+	}
+	seen := make(map[*metadata.IndexMetadata]bool)
+	var targets []dropIndexTarget
 	for i, item := range n.Names.Items {
 		ref, ok := item.(*ast.TableRef)
 		if !ok {
@@ -1931,17 +1972,15 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 
 		table := c.GetTable(schemaName, tableName)
 		var foundIdx *metadata.IndexMetadata
-		foundPos := -1
 		if table != nil {
-			for j, idx := range table.Indexes {
+			for _, idx := range table.Indexes {
 				if strings.EqualFold(idx.Name, indexName) && !idx.IsConstraint {
 					foundIdx = idx
-					foundPos = j
 					break
 				}
 			}
 		}
-		if foundIdx == nil {
+		if foundIdx == nil || seen[foundIdx] {
 			if n.IfExists {
 				continue
 			}
@@ -1953,7 +1992,13 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 			return err
 		}
 
-		table.Indexes = append(table.Indexes[:foundPos], table.Indexes[foundPos+1:]...)
+		seen[foundIdx] = true
+		targets = append(targets, dropIndexTarget{table: table, idx: foundIdx})
+	}
+	for _, target := range targets {
+		target.table.Indexes = slices.DeleteFunc(target.table.Indexes, func(idx *metadata.IndexMetadata) bool {
+			return idx == target.idx
+		})
 	}
 	return nil
 }
