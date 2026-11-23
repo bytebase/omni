@@ -6,7 +6,7 @@
 < ok 0 0
 > exec
 |
-| CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT, INT) WITH PARAMETER(x, y) AS greatest(x, y);
+| CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT, INT) WITH PARAMETER(x, y) AS abs(x - y);
 < ok 0 0
 > exec
 |
@@ -134,7 +134,7 @@
 : bytes
 | NULL
 : bytes
-| {"parameter":"x, y","origin_function":"greatest(`x`, `y`)"}
+| {"parameter":"x, y","origin_function":"abs((`x` - `y`))"}
 < row
 : bytes
 | dump_global_unused(int)
@@ -165,7 +165,7 @@
 : bytes
 | dump_global_called(int, int)
 : bytes
-| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS greatest(`x`, `y`);
+| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS abs((`x` - `y`));
 > exec
 | DROP DATABASE `omni_dump_global_function`
 < ok 0 0
@@ -187,7 +187,7 @@
 | --
 | -- Global function structure for dump_global_called(int, int)
 | --
-| CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int, int) WITH PARAMETER(x, y) AS greatest(`x`, `y`);
+| CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int, int) WITH PARAMETER(x, y) AS abs(`x` - `y`);
 < ok 0 0
 > exec
 |
@@ -321,7 +321,7 @@
 : bytes
 | NULL
 : bytes
-| {"parameter":"x, y","origin_function":"greatest(`x`, `y`)"}
+| {"parameter":"x, y","origin_function":"abs((`x` - `y`))"}
 < row
 : bytes
 | dump_global_unused(int)
@@ -352,7 +352,7 @@
 : bytes
 | dump_global_called(int, int)
 : bytes
-| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS greatest(`x`, `y`);
+| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS abs((`x` - `y`));
 > exec
 | DROP DATABASE `omni_dump_global_function`
 < ok 0 0
@@ -374,7 +374,7 @@
 | --
 | -- Global function structure for dump_global_called(int, int)
 | --
-| CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int, int) WITH PARAMETER(x, y) AS greatest(`x`, `y`);
+| CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int, int) WITH PARAMETER(x, y) AS abs(`x` - `y`);
 < ok 0 0
 > exec
 |
@@ -508,7 +508,7 @@
 : bytes
 | NULL
 : bytes
-| {"parameter":"x, y","origin_function":"greatest(`x`, `y`)"}
+| {"parameter":"x, y","origin_function":"abs((`x` - `y`))"}
 > query
 | SHOW CREATE GLOBAL FUNCTION dump_global_called(int)
 < result
@@ -528,4 +528,4 @@
 : bytes
 | dump_global_called(int, int)
 : bytes
-| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS greatest(`x`, `y`);
+| CREATE GLOBAL ALIAS FUNCTION dump_global_called(int, int) WITH PARAMETER(x, y) AS abs((`x` - `y`));
