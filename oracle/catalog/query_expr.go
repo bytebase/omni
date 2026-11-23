@@ -479,8 +479,11 @@ func commonResultType(results []qtype, strict bool) (qtype, error) {
 			if out.kind == "DATE" {
 				out = t
 			}
-		case strict:
+		case strict && typeFamily(out) != "" && typeFamily(t) != "":
 			return qtype{}, oraError("00932", "expression is of data type %s, which is incompatible with expected data type %s", t.kind, out.kind)
+		default:
+			// A type this analyzer does not model proves no mismatch.
+			return simpleType("UNKNOWN"), nil
 		}
 	}
 	if !have {
@@ -729,4 +732,22 @@ func walkChildren(n ast.Node, fn func(ast.Node)) {
 		fn(child)
 		return false
 	})
+}
+
+// typeFamily is the family of types that convert into one another in CASE,
+// or "" for a type this analyzer does not know well enough to compare.
+func typeFamily(t qtype) string {
+	switch {
+	case t.isCharacter():
+		return "character"
+	case t.isNumeric():
+		return "numeric"
+	case t.isDatetime():
+		return "datetime"
+	case t.isInterval():
+		return t.kind
+	case t.kind == "BOOLEAN", t.kind == "RAW":
+		return t.kind
+	}
+	return ""
 }

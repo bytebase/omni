@@ -279,7 +279,7 @@ func (a *queryAnalyzer) query(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		}
 	}
 	if fetch != nil {
-		if err := a.fetchClause(fetch, outer); err != nil {
+		if err := a.fetchClause(fetch, &qscope{parent: outer, ctes: ctes, from: &qfrom{}}); err != nil {
 			return nil, err
 		}
 	}
@@ -612,6 +612,9 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		rt   *ast.ResTarget
 		cols []qcol
 	}
+	// starRefs are the column references a * or t.* in the select list
+	// stands for, which the grouping rules check as written columns.
+	var starRefs []ast.ExprNode
 	var targets []target
 	for _, item := range listItems(sel.TargetList) {
 		rt, ok := item.(*ast.ResTarget)
@@ -624,6 +627,7 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		}
 		targets = append(targets, target{rt: rt, cols: tc})
 		cols = append(cols, tc...)
+		starRefs = append(starRefs, a.starReferences(rt, sc)...)
 	}
 	sc.aliases = cols
 
@@ -663,6 +667,7 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	if sel.HavingClause != nil {
 		exprs = append(exprs, sel.HavingClause)
 	}
+	exprs = append(exprs, starRefs...)
 	grouped := len(listItems(sel.GroupClause)) > 0
 	nested := false
 	for _, x := range exprs {
@@ -711,7 +716,7 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			}
 		}
 		if sel.FetchFirst != nil {
-			if err := a.fetchClause(sel.FetchFirst, outer); err != nil {
+			if err := a.fetchClause(sel.FetchFirst, sc); err != nil {
 				return nil, err
 			}
 		}
@@ -752,7 +757,17 @@ func (a *queryAnalyzer) modelColumns(sel *ast.SelectStmt, cols []qcol) []qcol {
 	return out
 }
 
-func (a *queryAnalyzer) fetchClause(f *ast.FetchFirstClause, outer *qscope) error {
+// fetchClause checks a row-limiting clause's offset and count, which a view
+// may not bind (ORA-01027).
+func (a *queryAnalyzer) fetchClause(f *ast.FetchFirstClause, sc *qscope) error {
+	for _, x := range []ast.ExprNode{f.Offset, f.Count} {
+		if x == nil {
+			continue
+		}
+		if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1013,8 +1028,11 @@ func (a *queryAnalyzer) lookupIn(from *qfrom, name string) (qcol, bool, error) {
 	var rels []string
 	for _, it := range from.items {
 		if it.rel == nil {
+			// A merged USING or NATURAL column is one candidate among the
+			// FROM clause's columns of that name.
 			if it.col.name == name {
-				return it.col, true, nil
+				hits = append(hits, it.col)
+				rels = append(rels, "")
 			}
 			continue
 		}
@@ -1184,7 +1202,7 @@ func (a *queryAnalyzer) columnIdentity(ref *ast.ColumnRef, sc *qscope) string {
 			for i, it := range s.from.items {
 				if it.rel == nil {
 					if it.col.name == ref.Column {
-						return fmt.Sprintf("merged:%p#%d", s.from, i)
+						hits = append(hits, fmt.Sprintf("merged:%p#%d", s.from, i))
 					}
 					continue
 				}
@@ -1352,4 +1370,38 @@ func checkViewColumnNames(cols []qcol) error {
 // quoteIdent quotes an identifier as Oracle writes it in a view's text.
 func quoteIdent(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+// starReferences lists the column references a select-list * or t.* stands
+// for, qualified by the item that holds each column.
+func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.ExprNode {
+	var qualifier string
+	switch x := rt.Expr.(type) {
+	case *ast.Star:
+	case *ast.ColumnRef:
+		if x.Column != "*" {
+			return nil
+		}
+		qualifier = x.Table
+	default:
+		return nil
+	}
+	var refs []ast.ExprNode
+	for _, it := range sc.from.items {
+		if it.rel == nil {
+			if qualifier == "" {
+				refs = append(refs, &ast.ColumnRef{Column: it.col.name, Loc: ast.NoLoc()})
+			}
+			continue
+		}
+		if qualifier != "" && it.rel.name != qualifier {
+			continue
+		}
+		c := it.rel.cols[it.idx]
+		if c.hidden || it.rel.merged[c.name] {
+			continue
+		}
+		refs = append(refs, &ast.ColumnRef{Table: it.rel.name, Column: c.name, Loc: ast.NoLoc()})
+	}
+	return refs
 }

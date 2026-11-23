@@ -47,6 +47,36 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 				}
 			}
 			return t, false, nil
+		case "TRIM":
+			// TRIM([mode] [char] FROM source): the parser keeps the mode
+			// word as a column reference and the source last.
+			items := listItems(n.Args)
+			if len(items) > 0 {
+				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) && len(items) > 1 {
+					items = items[1:]
+				}
+			}
+			var source qtype
+			for i, item := range items {
+				ex, ok := item.(ast.ExprNode)
+				if !ok {
+					continue
+				}
+				t, _, err := a.expr(ex, sc, clause)
+				if err != nil {
+					return qtype{}, false, err
+				}
+				if i == len(items)-1 {
+					source = t
+				}
+			}
+			if source.kind == "CHAR" {
+				source.kind = "VARCHAR2"
+			}
+			if source.isNumeric() {
+				source = varchar2Bytes(40)
+			}
+			return source, false, nil
 		case "XMLELEMENT":
 			// XMLELEMENT's first argument names the element.
 			for i, item := range listItems(n.Args) {
@@ -136,7 +166,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	switch name {
 	case "UPPER", "LOWER", "INITCAP", "NLS_UPPER", "NLS_LOWER", "NLS_INITCAP":
 		return arg(0), false, nil
-	case "TRIM", "LTRIM", "RTRIM":
+	case "LTRIM", "RTRIM":
 		t := arg(0)
 		if t.kind == "CHAR" {
 			t.kind = "VARCHAR2"
@@ -490,4 +520,8 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		}
 	}
 	return nil
+}
+
+func isTrimMode(word string) bool {
+	return word == "BOTH" || word == "LEADING" || word == "TRAILING"
 }

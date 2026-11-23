@@ -649,8 +649,9 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 		return nil, err
 	}
 	used := map[string]bool{}
-	var valueType qtype
-	first := true
+	// One type per value column, merged across the IN mappings by position.
+	var valueTypes []qtype
+	var haveType []bool
 	labelBytes := 0
 	labelIsNumber := false
 	for _, item := range listItems(n.InputMappings) {
@@ -659,7 +660,7 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 			continue
 		}
 		var names []string
-		for _, x := range listItems(m.InputColumns) {
+		for pos, x := range listItems(m.InputColumns) {
 			ref, ok := x.(*ast.ColumnRef)
 			if !ok {
 				continue
@@ -673,13 +674,17 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 			}
 			used[ref.Column] = true
 			names = append(names, ref.Column)
-			if first {
-				valueType, first = c.typ, false
-			} else {
-				valueType, err = mergeSetOpTypes(valueType, c.typ)
-				if err != nil {
-					return nil, err
-				}
+			for len(valueTypes) <= pos {
+				valueTypes = append(valueTypes, qtype{})
+				haveType = append(haveType, false)
+			}
+			if !haveType[pos] {
+				valueTypes[pos], haveType[pos] = c.typ, true
+				continue
+			}
+			valueTypes[pos], err = mergeSetOpTypes(valueTypes[pos], c.typ)
+			if err != nil {
+				return nil, err
 			}
 		}
 		if m.Label != nil {
@@ -714,9 +719,13 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 			rel.cols = append(rel.cols, qcol{name: ref.Column, typ: labelType})
 		}
 	}
-	for _, x := range listItems(n.ValueColumns) {
+	for pos, x := range unpivotValueColumns(n) {
 		if ref, ok := x.(*ast.ColumnRef); ok {
-			rel.cols = append(rel.cols, qcol{name: ref.Column, typ: valueType})
+			t := simpleType("UNKNOWN")
+			if pos < len(valueTypes) && haveType[pos] {
+				t = valueTypes[pos]
+			}
+			rel.cols = append(rel.cols, qcol{name: ref.Column, typ: t})
 		}
 	}
 	seen := map[string]bool{}
@@ -762,7 +771,30 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 		}
 		defined[rt.Name] = true
 	}
-	inner := &qscope{parent: sc.parent, ctes: sc.ctes, from: src}
+	// A pattern variable or subset qualifies the input's columns in
+	// MEASURES and DEFINE: a.id reads id of the rows a matched.
+	inner := &qscope{parent: sc.parent, ctes: sc.ctes, from: &qfrom{items: src.items, flat: src.flat}}
+	var inputCols []qcol
+	for _, it := range src.items {
+		inputCols = append(inputCols, src.itemCol(it))
+	}
+	names := append(append([]string{}, vars...), mapKeys(subsets)...)
+	for _, r := range src.rels {
+		// A pattern variable shadows an input item of its name.
+		if !containsString(names, r.name) {
+			inner.from.rels = append(inner.from.rels, r)
+		}
+	}
+	for _, v := range names {
+		inner.from.rels = append(inner.from.rels, &qrel{name: v, cols: inputCols})
+	}
+	for _, item := range listItems(n.Definitions) {
+		if rt, ok := item.(*ast.ResTarget); ok && rt.Expr != nil {
+			if err := a.condition(rt.Expr, inner, clauseSelect); err != nil {
+				return nil, err
+			}
+		}
+	}
 	rel := &qrel{name: aliasName(n.Alias)}
 	var partition []qcol
 	for _, x := range listItems(n.PartitionBy) {
@@ -939,4 +971,26 @@ func (a *queryAnalyzer) startsWithKeyword(offset int, kw string) bool {
 	}
 	ch := text[offset+len(kw)]
 	return !(ch == '_' || ch == '$' || ch == '#' || unicode.IsLetter(rune(ch)) || unicode.IsDigit(rune(ch)))
+}
+
+// unpivotValueColumns lists an UNPIVOT's value columns, which a list in
+// parentheses holds as a row constructor.
+func unpivotValueColumns(n *ast.UnpivotClause) []ast.Node {
+	var out []ast.Node
+	for _, x := range listItems(n.ValueColumns) {
+		if row, ok := x.(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+			out = append(out, listItems(row.Args)...)
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func mapKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

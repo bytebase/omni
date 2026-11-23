@@ -86,6 +86,16 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"in_row_subquery_too_narrow", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) IN (SELECT id FROM t)`, "00947"},
 		{"qualified_grouped_column", `CREATE VIEW v AS SELECT t.id FROM t GROUP BY id`, ""},
 		{"cross_join_lateral_reads_left", `CREATE VIEW v AS SELECT x.id FROM t CROSS JOIN LATERAL (SELECT t.id FROM dual) x`, ""},
+		{"case_unknown_function", `CREATE VIEW v AS SELECT CASE WHEN 1=1 THEN TO_MULTI_BYTE('x') ELSE 'x' END x FROM dual`, ""},
+		{"coalesce_unknown_function", `CREATE VIEW v AS SELECT COALESCE(TO_MULTI_BYTE('x'), 1) x FROM dual`, ""},
+		{"unpivot_columns_by_position", `CREATE VIEW v AS SELECT * FROM (SELECT id n1, TO_CHAR(id) s1, n n2, TO_CHAR(n) s2 FROM t) UNPIVOT ((n, s) FOR src IN ((n1, s1) AS 'A', (n2, s2) AS 'B'))`, ""},
+		{"star_not_single_group", `CREATE VIEW v AS SELECT t.*, COUNT(*) c FROM t`, "00937"},
+		{"star_not_grouped", `CREATE VIEW v AS SELECT t.*, COUNT(*) c FROM t GROUP BY id`, "00979"},
+		{"merged_and_plain_column", `CREATE VIEW v AS SELECT id FROM t JOIN t u USING (id), t w`, "00918"},
+		{"fetch_bind", `CREATE VIEW v AS SELECT id FROM t FETCH FIRST :n ROWS ONLY`, "01027"},
+		{"offset_bind", `CREATE VIEW v AS SELECT id FROM t OFFSET :n ROWS`, "01027"},
+		{"match_recognize_variable_qualifier", `CREATE VIEW v AS SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a) DEFINE a AS a.id > 0)`, ""},
+		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -136,5 +146,20 @@ CREATE VIEW v AS SELECT n, m FROM t;
 	cols := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()
 	if len(cols) != 2 || cols[0].GetType() != "NUMBER(5,-1)" || cols[1].GetType() != "NUMBER(*,-2)" {
 		t.Fatalf("columns = %v, want NUMBER(5,-1) and NUMBER(*,-2)", cols)
+	}
+}
+
+func TestViewQueryTrimSourceType(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (name VARCHAR2(100));
+CREATE VIEW v AS SELECT TRIM('x' FROM name) a, TRIM(LEADING 'x' FROM name) b FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != "VARCHAR2(100 BYTE)" {
+			t.Errorf("%s type = %s, want VARCHAR2(100 BYTE)", col.GetName(), col.GetType())
+		}
 	}
 }
