@@ -425,7 +425,7 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 	switch st.partType {
 	case metadata.TablePartitionMetadata_RANGE:
 		switch {
-		case tokWord(toks, verbIdx, "COALESCE"):
+		case tokWord(toks, verbIdx, "COALESCE") && tokWord(toks, verbIdx+1, "PARTITION"):
 			b.fail(rng, review.UnsupportedForm, "COALESCE PARTITION requires a hash-partitioned table.")
 			return true
 		case tokWord(toks, verbIdx, "SET") && (tokWord(toks, verbIdx+1, "PARTITIONING") || tokWord(toks, verbIdx+1, "AUTOMATIC")):
@@ -451,7 +451,7 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 
 	case metadata.TablePartitionMetadata_LIST:
 		switch {
-		case tokWord(toks, verbIdx, "COALESCE"):
+		case tokWord(toks, verbIdx, "COALESCE") && tokWord(toks, verbIdx+1, "PARTITION"):
 			b.fail(rng, review.UnsupportedForm, "COALESCE PARTITION requires a hash-partitioned table.")
 			return true
 		case tokWord(toks, verbIdx, "SET") && tokWord(toks, verbIdx+1, "INTERVAL"):
@@ -471,7 +471,8 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 		case tokWord(toks, verbIdx, "SET") && (tokWord(toks, verbIdx+1, "INTERVAL") || tokWord(toks, verbIdx+1, "PARTITIONING") || tokWord(toks, verbIdx+1, "AUTOMATIC")):
 			b.fail(rng, review.UnsupportedForm, "Cannot use SET INTERVAL or SET PARTITIONING on a hash-partitioned table.")
 			return true
-		case tokWord(toks, verbIdx, "SPLIT"), tokWord(toks, verbIdx, "MERGE"), tokWord(toks, verbIdx, "DROP"):
+		case (tokWord(toks, verbIdx, "SPLIT") || tokWord(toks, verbIdx, "MERGE") || tokWord(toks, verbIdx, "DROP")) &&
+			(tokWord(toks, verbIdx+1, "PARTITION") || tokWord(toks, verbIdx+1, "PARTITIONS")):
 			b.fail(rng, review.UnsupportedForm, "Cannot SPLIT, MERGE, or DROP partitions on a hash-partitioned table.")
 			return true
 		case tokWord(toks, verbIdx, "ADD") && tokWord(toks, verbIdx+1, "PARTITION"):
@@ -648,10 +649,13 @@ func (b *builder) checkCreateIndexLocal(v *ast.CreateIndexStmt, targetRef objRef
 	return false
 }
 
-// checkDuplicateIndexCols fails CREATE INDEX when the exact plain column list
-// is already indexed on the synced table (ORA-01408).
+// checkDuplicateIndexCols fails CREATE INDEX when a visible plain-column index
+// is created on a column list that already has a visible index on the synced
+// table (ORA-01408). Oracle permits multiple indexes on the same columns only
+// when at most one is visible and their type, partitioning, or uniqueness differ.
 func (b *builder) checkDuplicateIndexCols(v *ast.CreateIndexStmt, targetRef objRef, st *syncedTable, rng review.Range) bool {
-	if st == nil || len(st.indexedCols) == 0 || v.Columns == nil || len(v.Columns.Items) == 0 || v.IndexType != nil || v.Multivalue {
+	if st == nil || len(st.indexedCols) == 0 || v.Columns == nil || len(v.Columns.Items) == 0 ||
+		v.Invisible || v.Reverse || v.FromTables != nil || v.IndexType != nil || v.Multivalue {
 		return false
 	}
 	cols := make([]string, 0, len(v.Columns.Items))
@@ -1253,10 +1257,10 @@ func (b *builder) checkDMLInlineSubquery(target ast.TableExpr) bool {
 	if rng == (review.Range{}) {
 		rng = b.anchor()
 	}
-	// Check FROM DUAL or constant-only SELECT list.
+	// Check FROM SYS.DUAL or single base table in subquery.
 	if sel.WithClause == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
 		if tr, ok := sel.FromClause.Items[0].(*ast.TableRef); ok && tr.Name != nil && tr.Dblink == "" {
-			if strings.EqualFold(tr.Name.Name, "DUAL") && (tr.Name.Schema == "" || strings.EqualFold(tr.Name.Schema, "SYS")) {
+			if b.isSysDual(tr.Name) {
 				b.fail(rng, review.UnsupportedForm, "Data manipulation is not legal on an inline view over DUAL.")
 				return true
 			}
@@ -1284,6 +1288,43 @@ func (b *builder) checkDMLInlineSubquery(target ast.TableExpr) bool {
 		}
 	}
 	return false
+}
+
+// isSysDual reports whether o resolves to Oracle's SYS.DUAL table (either
+// explicitly qualified as SYS.DUAL, or unqualified DUAL with no shadowing
+// object in the current schema and PUBLIC.DUAL synced to SYS.DUAL). Exact case
+// is required so a quoted table named "dual" does not match.
+func (b *builder) isSysDual(o *ast.ObjectName) bool {
+	if o == nil || o.DBLink != "" || o.Name != "DUAL" {
+		return false
+	}
+	if o.Schema == "SYS" {
+		return true
+	}
+	if o.Schema != "" {
+		return false
+	}
+	if b.w.otherSpecs || b.w.current == "" || b.w.mutatedSynonyms[publicSchema+".DUAL"] {
+		return false
+	}
+	target, ok := b.w.snap.publicSynonymTargets["DUAL"]
+	if !ok || target != [2]string{"SYS", "DUAL"} {
+		return false
+	}
+	dr := objRef{schema: b.w.current, name: "DUAL"}
+	if f, _ := b.look(dr.key(spaceTable)); f != walk.Absent {
+		return false
+	}
+	if f, _ := b.look(dr.key(spaceView)); f != walk.Absent {
+		return false
+	}
+	if f, _ := b.look(dr.key(spaceSynonym)); f != walk.Absent {
+		return false
+	}
+	if f, _ := b.look(dr.key(spaceObject)); f == walk.Present {
+		return false
+	}
+	return true
 }
 
 // isValidBareIdentifier reports whether a bare identifier in a SQL expression
@@ -1704,6 +1745,7 @@ func (b *builder) checkCreateMviewExtra(v *ast.CreateViewStmt, r objRef) bool {
 		toks := tokens(b.w.sql, ast.Loc{Start: v.Name.Loc.End, End: qStart})
 		hasPartBy := false
 		hasOrgIndex := false
+		hasWithRowid := v.WithRowID
 		hasDistPart := false
 		for i := 0; i < len(toks); i++ {
 			if tokWord(toks, i, "PARTITION") && tokWord(toks, i+1, "BY") {
@@ -1712,13 +1754,36 @@ func (b *builder) checkCreateMviewExtra(v *ast.CreateViewStmt, r objRef) bool {
 			if tokWord(toks, i, "ORGANIZATION") && tokWord(toks, i+1, "INDEX") {
 				hasOrgIndex = true
 			}
+			if tokWord(toks, i, "WITH") && tokWord(toks, i+1, "ROWID") {
+				hasWithRowid = true
+			}
 			if tokWord(toks, i, "DISTRIBUTE") && tokWord(toks, i+1, "BY") && (tokWord(toks, i+2, "PARTITION") || tokWord(toks, i+2, "SUBPARTITION")) {
 				hasDistPart = true
 			}
 		}
-		if hasOrgIndex && !v.WithPK {
-			b.fail(r.rng, review.UnsupportedForm, "Index-organized materialized view "+review.Code(r.written)+" requires a PRIMARY KEY.")
-			return true
+		if hasOrgIndex {
+			missingPK := hasWithRowid
+			if !missingPK && !v.WithPK {
+				// Oracle defaults materialized views to WITH PRIMARY KEY, so
+				// ORGANIZATION INDEX fails only when the query source is known
+				// to have no primary key (e.g. SYS.DUAL or a single base table
+				// whose primary key is absent).
+				if sel, ok := v.Query.(*ast.SelectStmt); ok && sel != nil && sel.WithClause == nil && sel.Larg == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
+					if tr, ok := sel.FromClause.Items[0].(*ast.TableRef); ok && tr.Name != nil && tr.Dblink == "" {
+						if b.isSysDual(tr.Name) {
+							missingPK = true
+						} else if br, ok := b.ref(tr.Name); ok {
+							if f, _ := b.look(br.childKey(spacePrimary, "")); f == walk.Absent {
+								missingPK = true
+							}
+						}
+					}
+				}
+			}
+			if missingPK {
+				b.fail(r.rng, review.UnsupportedForm, "Index-organized materialized view "+review.Code(r.written)+" requires a PRIMARY KEY.")
+				return true
+			}
 		}
 		if hasDistPart && !hasPartBy {
 			b.fail(r.rng, review.UnsupportedForm, "INMEMORY DISTRIBUTE BY PARTITION requires a partitioned materialized view.")

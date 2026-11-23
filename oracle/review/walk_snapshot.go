@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -370,22 +371,24 @@ func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*met
 		if idx.GetType() == "DOMAIN" {
 			s.domainTables[table] = true
 			s.domainIndexes[idx.GetName()] = true
-		} else if exprs := idx.GetExpressions(); len(exprs) > 0 {
-			cols := make([]string, 0, len(exprs))
-			plain := true
-			for _, e := range exprs {
-				c := strings.TrimSpace(e)
-				if len(c) >= 2 && c[0] == '"' && c[len(c)-1] == '"' {
-					c = strings.ReplaceAll(c[1:len(c)-1], `""`, `"`)
+		} else if idx.GetVisible() && !strings.Contains(idx.GetType(), "REV") && !slices.Contains(idx.GetDescending(), true) {
+			if exprs := idx.GetExpressions(); len(exprs) > 0 {
+				cols := make([]string, 0, len(exprs))
+				plain := true
+				for _, e := range exprs {
+					c := strings.TrimSpace(e)
+					if len(c) >= 2 && c[0] == '"' && c[len(c)-1] == '"' {
+						c = strings.ReplaceAll(c[1:len(c)-1], `""`, `"`)
+					}
+					if c == "" || strings.ContainsAny(c, "() ") || strings.HasPrefix(c, "SYS_NC") {
+						plain = false
+						break
+					}
+					cols = append(cols, c)
 				}
-				if c == "" || strings.ContainsAny(c, "() ") || strings.HasPrefix(c, "SYS_NC") {
-					plain = false
-					break
+				if plain {
+					st.indexedCols = append(st.indexedCols, cols)
 				}
-				cols = append(cols, c)
-			}
-			if plain {
-				st.indexedCols = append(st.indexedCols, cols)
 			}
 		}
 		if !idx.GetIsConstraint() {

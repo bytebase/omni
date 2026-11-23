@@ -749,8 +749,9 @@ func walkRichSchema() *metadata.DatabaseSchemaMetadata {
 					{Name: "BODY", Type: "CLOB", Nullable: true},
 				},
 				Indexes: []*metadata.IndexMetadata{
-					{Name: "PK_PLAIN", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}},
-					{Name: "IX_PLAIN_VAL", Type: "NORMAL", Expressions: []string{"VAL"}},
+					{Name: "PK_PLAIN", Primary: true, Unique: true, IsConstraint: true, Visible: true, Expressions: []string{"ID"}},
+					{Name: "IX_PLAIN_VAL", Type: "NORMAL", Visible: true, Expressions: []string{"VAL"}},
+					{Name: "IX_PLAIN_NAME_INV", Type: "NORMAL", Visible: false, Expressions: []string{"NAME"}},
 				},
 			},
 			{
@@ -797,6 +798,24 @@ func walkRichSchema() *metadata.DatabaseSchemaMetadata {
 				},
 				Partitions: []*metadata.TablePartitionMetadata{
 					{Name: "P1", Type: metadata.TablePartitionMetadata_HASH, Expression: "A"},
+				},
+			},
+			{
+				Name: "PART_HASH_COMP",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "A", Type: "NUMBER", Nullable: true},
+					{Name: "B", Type: "NUMBER", Nullable: true},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{
+						Name:       "P1",
+						Type:       metadata.TablePartitionMetadata_HASH,
+						Expression: "A",
+						Subpartitions: []*metadata.TablePartitionMetadata{
+							{Name: "SP1", Type: metadata.TablePartitionMetadata_LIST},
+							{Name: "SP2", Type: metadata.TablePartitionMetadata_LIST},
+						},
+					},
 				},
 			},
 			{
@@ -880,6 +899,8 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "ALTER TABLE part_hash ADD PARTITION;", rich)
 	noFinding(t, "ALTER TABLE part_hash COALESCE PARTITION;", rich)
 	oneFinding(t, "ALTER TABLE part_hash DROP PARTITION p1;", 0, "Cannot SPLIT, MERGE, or DROP partitions on a hash-partitioned table.", rich)
+	noFinding(t, "ALTER TABLE part_hash_comp DROP SUBPARTITION sp1;", rich)
+	oneFinding(t, "ALTER TABLE part_hash_comp DROP PARTITION p1;", 0, "Cannot SPLIT, MERGE, or DROP partitions on a hash-partitioned table.", rich)
 
 	// Quoted partition key containing a comma must be parsed as a single partition key.
 	noFinding(t, "ALTER TABLE part_quoted_key ADD PARTITION p2 VALUES LESS THAN (200);", rich)
@@ -921,6 +942,8 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VECTOR INDEX vix ON plain (vec) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", rich)
 	oneFinding(t, "CREATE INDEX ix_dup ON plain (val);", 0, "Column list is already indexed on `PLAIN`.", rich)
 	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)
+	noFinding(t, "CREATE BITMAP INDEX ix_bm_inv ON plain (val) INVISIBLE;", rich)
+	noFinding(t, "CREATE BITMAP INDEX ix_name_vis ON plain (name);", rich)
 	noFinding(t, "CREATE INDEX ix_desc ON plain (val DESC);", rich)
 
 	// 6) Pure-text DDL checks (all-virtual, self-synonym, PK/FK, ILM, ANNOTATIONS, INMEMORY, TRIGGER UPDATE OF).
@@ -955,6 +978,10 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "INSERT INTO plain (id, val) VALUES (1, 2);", rich)
 	// CTE shadowing a physical table name in CREATE MATERIALIZED VIEW / inline subquery.
 	noFinding(t, "CREATE MATERIALIZED VIEW mv_cte AS WITH plain AS (SELECT 1 z FROM dual) SELECT z FROM plain;", rich)
+	// Implicit primary-key mode on ORGANIZATION INDEX materialized views.
+	noFinding(t, "CREATE MATERIALIZED VIEW mv_iot_pk ORGANIZATION INDEX AS SELECT id FROM plain;", rich)
+	oneFinding(t, "CREATE MATERIALIZED VIEW mv_iot_nopk ORGANIZATION INDEX AS SELECT a FROM nokey_rich;", 0, "Index-organized materialized view `MV_IOT_NOPK` requires a PRIMARY KEY.", rich)
+	oneFinding(t, "CREATE MATERIALIZED VIEW mv_iot_rowid ORGANIZATION INDEX REFRESH WITH ROWID AS SELECT id FROM plain;", 0, "Index-organized materialized view `MV_IOT_ROWID` requires a PRIMARY KEY.", rich)
 	oneFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 FROM dual;", 0, "Column `\"1\"` doesn't exist in `NOKEY_RICH`.", rich)
 	noFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 a FROM dual;", rich)
 	oneFinding(t, "INSERT ALL INTO vw VALUES (1) SELECT 1 FROM dual;", 0, "`VW` is a view, not a table.", rich)
@@ -983,5 +1010,16 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "DROP INDEX ix_plain_val;\nCREATE INDEX ix_plain_val2 ON plain (val);", rich)
 	noFinding(t, "ALTER TABLE nokey_rich ADD (z NUMBER);\nDELETE FROM nokey_rich WHERE z = 1;", rich)
 	oneFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nDELETE FROM nokey_rich WHERE a = 1;", 1, "Column `A` doesn't exist in `NOKEY_RICH`.", rich)
+	// RENAME COLUMN invalidates partition and index metadata so reusing the old name succeeds.
+	noFinding(t, "ALTER TABLE part_range RENAME COLUMN a TO a_new;\nALTER TABLE part_range ADD (a NUMBER);\nALTER TABLE part_range DROP COLUMN a;", rich)
+	noFinding(t, "ALTER TABLE plain RENAME COLUMN val TO val_new;\nALTER TABLE plain ADD (val NUMBER);\nCREATE INDEX ix_reused_val ON plain (val);", rich)
+	// Local table named DUAL or quoted "dual" shadows PUBLIC.DUAL and allows inline-view DML.
+	localDualSchema := walkRichSchema()
+	localDualSchema.Schemas[0].Tables = append(localDualSchema.Schemas[0].Tables,
+		&metadata.TableMetadata{Name: "DUAL", Columns: []*metadata.ColumnMetadata{{Name: "ID", Type: "NUMBER", Nullable: true}}},
+		&metadata.TableMetadata{Name: "dual", Columns: []*metadata.ColumnMetadata{{Name: "ID", Type: "NUMBER", Nullable: true}}},
+	)
+	noFinding(t, "DELETE FROM (SELECT id FROM dual);", review.Target{Schema: localDualSchema})
+	noFinding(t, `DELETE FROM (SELECT id FROM "dual");`, review.Target{Schema: localDualSchema})
 	noFinding(t, "ALTER TABLE plain ADD PARTITION;", review.Target{Schema: walkRichSchema(), OtherSpecs: true})
 }

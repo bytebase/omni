@@ -456,7 +456,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			b.Set(from, walk.Absent, "")
 			b.Set(to, walk.Present, "")
 		}
-		b.mutateColMeta(r)
+		b.mutateTableAll(r)
 	case ast.AT_ADD_CONSTRAINT:
 		if c.Constraint == nil {
 			return false
