@@ -441,6 +441,14 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 			if t == table {
 				srcSchema.Tables = append(srcSchema.Tables[:i], srcSchema.Tables[i+1:]...)
 				delete(c.tableByName, tableKey{schema: srcSchema.Name, table: t.Name})
+				oldPeriodKey := tableKey{schema: normalizeOrDefault(srcSchema.Name, c.defaultSchema), table: t.Name}
+				if c.systemTimeTables[oldPeriodKey] {
+					delete(c.systemTimeTables, oldPeriodKey)
+					if c.systemTimeTables == nil {
+						c.systemTimeTables = make(map[tableKey]bool)
+					}
+					c.systemTimeTables[tableKey{schema: normalizeOrDefault(targetSchema.Name, c.defaultSchema), table: t.Name}] = true
+				}
 				targetSchema.Tables = append(targetSchema.Tables, t)
 				c.indexTable(targetSchema.Name, t)
 				// Update foreign keys pointing to this table.
@@ -826,9 +834,46 @@ func (c *Catalog) execCreateSelectiveXMLIndex(n *ast.CreateSelectiveXmlIndexStmt
 		Type:        "XML",
 		Expressions: []string{n.XmlColumn},
 		Descending:  []bool{false},
-		Definition:  "SELECTIVE",
+		Definition:  selectiveXMLIndexDefinition(n),
 	})
 	return nil
+}
+
+func selectiveXMLIndexDefinition(n *ast.CreateSelectiveXmlIndexStmt) string {
+	var parts []string
+	if n.Namespaces != nil && len(n.Namespaces.Items) > 0 {
+		var ns []string
+		for _, item := range n.Namespaces.Items {
+			decl, ok := item.(*ast.XmlNamespaceDecl)
+			if !ok {
+				continue
+			}
+			uri := "'" + strings.ReplaceAll(decl.URI, "'", "''") + "'"
+			if decl.IsDefault {
+				ns = append(ns, "DEFAULT "+uri)
+			} else {
+				ns = append(ns, uri+" AS "+quote(decl.Prefix))
+			}
+		}
+		if len(ns) > 0 {
+			parts = append(parts, "WITH XMLNAMESPACES ("+strings.Join(ns, ", ")+")")
+		}
+	}
+	if n.Paths != nil && len(n.Paths.Items) > 0 {
+		var paths []string
+		for _, item := range n.Paths.Items {
+			if s, ok := item.(*ast.String); ok && strings.TrimSpace(s.Str) != "" {
+				paths = append(paths, strings.TrimSpace(s.Str))
+			}
+		}
+		if len(paths) > 0 {
+			parts = append(parts, "FOR ("+strings.Join(paths, ", ")+")")
+		}
+	}
+	if len(parts) == 0 {
+		return "SELECTIVE"
+	}
+	return "SELECTIVE " + strings.Join(parts, " ")
 }
 
 func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) error {
@@ -1435,6 +1480,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
 		}
+		if action.Column != nil && action.Column.Nullable != nil && !action.Column.Nullable.NotNull {
+			if pkName, inPK := columnInPrimaryKey(table, col.Name); inPK {
+				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", pkName, col.Name)
+			}
+		}
 		col.Type = nodeText(action.DataType, source)
 		if action.Column != nil && action.Column.Nullable != nil {
 			col.Nullable = !action.Column.Nullable.NotNull
@@ -1722,6 +1772,20 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		}
 	}
 	return false, nil
+}
+
+func columnInPrimaryKey(table *metadata.TableMetadata, colName string) (string, bool) {
+	for _, idx := range table.Indexes {
+		if !idx.Primary {
+			continue
+		}
+		for _, expr := range idx.Expressions {
+			if strings.EqualFold(expr, colName) {
+				return idx.Name, true
+			}
+		}
+	}
+	return "", false
 }
 
 func hasCheckOrFKConstraint(table *metadata.TableMetadata, name string) bool {

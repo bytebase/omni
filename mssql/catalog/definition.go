@@ -1012,19 +1012,34 @@ func writeXMLIndex(out *strings.Builder, schemaName, tableName string, index *me
 			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
 		return
 	}
+	if index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE ") {
+		rest := strings.TrimSpace(strings.TrimPrefix(index.Definition, "SELECTIVE"))
+		if rest != "" {
+			fmt.Fprintf(out, "CREATE SELECTIVE XML INDEX %s ON %s.%s (%s)\n%s;\n\n",
+				quote(index.Name), quote(schemaName), quote(tableName), column, rest)
+			return
+		}
+		fmt.Fprintf(out, "CREATE SELECTIVE XML INDEX %s ON %s.%s (%s);\n\n",
+			quote(index.Name), quote(schemaName), quote(tableName), column)
+		return
+	}
 	fmt.Fprintf(out, "CREATE PRIMARY XML INDEX %s ON %s.%s (%s);\n\n",
 		quote(index.Name), quote(schemaName), quote(tableName), column)
+}
+
+func isPrimaryXMLIndex(index *metadata.IndexMetadata) bool {
+	return index.Type == "XML" && (index.Definition == "PRIMARY" || index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE "))
 }
 
 func orderedIndexes(indexes []*metadata.IndexMetadata) []*metadata.IndexMetadata {
 	out := make([]*metadata.IndexMetadata, 0, len(indexes))
 	for _, index := range indexes {
-		if index.Type == "XML" && index.Definition == "PRIMARY" {
+		if isPrimaryXMLIndex(index) {
 			out = append(out, index)
 		}
 	}
 	for _, index := range indexes {
-		if index.Type != "XML" || index.Definition != "PRIMARY" {
+		if !isPrimaryXMLIndex(index) {
 			out = append(out, index)
 		}
 	}

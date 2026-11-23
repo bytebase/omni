@@ -3263,6 +3263,15 @@ func generateXMLIndex(schemaName, tableName string, index *metadata.IndexMetadat
 		return fmt.Sprintf("CREATE XML INDEX %s ON %s.%s (%s) USING XML INDEX %s FOR %s",
 			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
 	}
+	if index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE ") {
+		rest := strings.TrimSpace(strings.TrimPrefix(index.Definition, "SELECTIVE"))
+		if rest != "" {
+			return fmt.Sprintf("CREATE SELECTIVE XML INDEX %s ON %s.%s (%s) %s",
+				quote(index.Name), quote(schemaName), quote(tableName), column, rest)
+		}
+		return fmt.Sprintf("CREATE SELECTIVE XML INDEX %s ON %s.%s (%s)",
+			quote(index.Name), quote(schemaName), quote(tableName), column)
+	}
 	return fmt.Sprintf("CREATE PRIMARY XML INDEX %s ON %s.%s (%s)",
 		quote(index.Name), quote(schemaName), quote(tableName), column)
 }

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -372,4 +373,49 @@ CREATE TABLE [dbo].[foo] ([a] INT);
 	execExpectOK(t, c, `DROP TABLE [dbo].[Foo], [dbo].[foo]`)
 	require.Nil(t, c.GetTable("dbo", "Foo"))
 	require.Nil(t, c.GetTable("dbo", "foo"))
+
+	// 21. ALTER COLUMN rejects making a primary-key column nullable.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL PRIMARY KEY);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] INT NULL`, ErrColumnDependentObject)
+	require.False(t, columnByName(c.GetTable("dbo", "t"), "id").Nullable)
+
+	// 22. ALTER SCHEMA TRANSFER moves SYSTEM_TIME period tracking with the table.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[t]`)
+	execExpectOK(t, c, `ALTER TABLE [app].[t] SET (SYSTEM_VERSIONING = ON)`)
+	execExpectOK(t, c, `CREATE TABLE [dbo].[t] ([id] INT NOT NULL)`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`, ErrSystemVersioningNoPeriod)
+
+	// 23. Selective XML indexes preserve promoted paths/namespaces in diff and DDL/migration rendering.
+	fromXML, err := LoadSQL(`
+CREATE TABLE [dbo].[docs] ([id] INT NOT NULL PRIMARY KEY, [body] XML);
+CREATE SELECTIVE XML INDEX [sxi_docs] ON [dbo].[docs]([body]) FOR (p = '/a');
+`)
+	require.NoError(t, err)
+	toXML, err := LoadSQL(`
+CREATE TABLE [dbo].[docs] ([id] INT NOT NULL PRIMARY KEY, [body] XML);
+CREATE SELECTIVE XML INDEX [sxi_docs] ON [dbo].[docs]([body]) FOR (p = '/b');
+`)
+	require.NoError(t, err)
+	xmlDiff := Diff(fromXML, toXML)
+	require.False(t, xmlDiff.IsEmpty())
+	def, err := toXML.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 1, strings.Count(def, "CREATE SELECTIVE XML INDEX [sxi_docs]"))
+	require.Contains(t, def, "FOR (p = '/b')")
+	plan := GenerateMigration(fromXML, toXML, xmlDiff)
+	mig := plan.SQL()
+	require.Contains(t, mig, "CREATE SELECTIVE XML INDEX [sxi_docs]")
+	require.Contains(t, mig, "FOR (p = '/b')")
 }
