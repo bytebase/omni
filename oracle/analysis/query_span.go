@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bytebase/omni/metadata"
 	oracleast "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -34,6 +35,68 @@ type accessResource struct {
 	Table    string
 	// LinkedServer is the database link the name goes through.
 	LinkedServer string
+	// Unqualified is set for a local name written without a schema, which
+	// a public synonym may resolve.
+	Unqualified bool
+}
+
+// maxSynonymChain bounds the synonyms one name resolves through; Oracle
+// refuses a loop (ORA-01775).
+const maxSynonymChain = 32
+
+// resolveSynonym follows the synonym database.table of a local name that
+// names no table or view, or, for an unqualified name, the public synonym of
+// that name, to the object it stands for. ok is false when no synonym gives
+// the name.
+func (q *querySpanExtractor) resolveSynonym(database, table string, unqualified bool) (target accessResource, ok bool) {
+	current := accessResource{Database: database, Table: table}
+	for hop := 0; hop < maxSynonymChain; hop++ {
+		db, err := q.getDatabaseMetadata(current.Database)
+		if err != nil {
+			return accessResource{}, false
+		}
+		if db != nil && db.HasSchema() && holdsTable(db, current.Table) {
+			return current, hop > 0
+		}
+		synonyms, _ := db.(SynonymDatabase)
+		var synonym *metadata.SynonymMetadata
+		if synonyms != nil {
+			synonym = synonyms.GetSynonym(current.Table)
+		}
+		if synonym == nil && hop == 0 && unqualified {
+			if public, ok := q.publicSynonyms(); ok {
+				synonym = public.GetPublicSynonym(current.Table)
+			}
+		}
+		if synonym == nil || synonym.GetTargetName() == "" {
+			return accessResource{}, false
+		}
+		current = accessResource{Database: synonym.GetTargetSchema(), Table: synonym.GetTargetName(), LinkedServer: synonym.GetTargetDbLink()}
+		if current.LinkedServer != "" {
+			return current, true
+		}
+	}
+	return accessResource{}, false
+}
+
+// publicSynonyms is the connected database, through which the instance's
+// public synonyms are read.
+func (q *querySpanExtractor) publicSynonyms() (SynonymDatabase, bool) {
+	db, err := q.getDatabaseMetadata(q.defaultDatabase)
+	if err != nil || db == nil {
+		return nil, false
+	}
+	synonyms, ok := db.(SynonymDatabase)
+	return synonyms, ok
+}
+
+// holdsTable reports whether db holds a table, view, materialized view or
+// external table name.
+func holdsTable(db Database, name string) bool {
+	return db.GetTable(name) != nil ||
+		db.GetView(name) != nil ||
+		db.GetMaterializedView(name) != nil ||
+		db.GetExternalTable(name) != nil
 }
 
 type querySpanExtractor struct {
@@ -107,11 +170,7 @@ func (q *querySpanExtractor) existsTableMetadata(resource accessResource) bool {
 	if !meta.HasSchema() {
 		return false
 	}
-
-	return meta.GetTable(resource.Table) != nil ||
-		meta.GetView(resource.Table) != nil ||
-		meta.GetMaterializedView(resource.Table) != nil ||
-		meta.GetExternalTable(resource.Table) != nil
+	return holdsTable(meta, resource.Table)
 }
 
 // isMixedQuery classifies the tables a statement reads. A linked table is a user table:
@@ -201,15 +260,6 @@ func (q *querySpanExtractor) plsqlFindTableSchema(dbLink []string, schemaName, t
 		// Lineage carries the resolved database, as the access set does, so the masker
 		// finds the policy of the database the link reaches rather than of "" for `t@link`.
 		return q.findTableSchemaInMetadata(linkedInstanceID, linkedMeta, linkedDatabaseName, tableName)
-	}
-
-	if schemaName == q.defaultDatabase {
-		for i := len(q.ctes) - 1; i >= 0; i-- {
-			table := q.ctes[i]
-			if table.Name == tableName {
-				return table, nil
-			}
-		}
 	}
 
 	dbMetadata, err := q.getDatabaseMetadata(schemaName)
@@ -354,6 +404,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	}
 
 	accessTables, linkedTables := collectAccessTables(q.defaultDatabase, raw.Stmt)
+	accessTables, linkedTables = q.resolveSynonyms(accessTables, linkedTables)
 	allSystem, mixed := isMixedQuery(accessTables, linkedTables)
 	if mixed {
 		return nil, ErrMixUserSystemTables
@@ -495,6 +546,35 @@ func queryType(stmt oracleast.StmtNode, allSystem bool) QueryType {
 // linkedAccessColumn authorizes the name as written, not looked up in connected-instance
 // metadata, which would drop a remote table or keep a same-named local one as the wrong
 // resource. A link that resolves to nothing yields Server set and Instance empty.
+// resolveSynonyms replaces each local name a synonym gives by the object the
+// synonym stands for, which may be through a database link: the statement
+// reads that object, and the synonym holds no data of its own.
+func (q *querySpanExtractor) resolveSynonyms(local, linked []accessResource) ([]accessResource, []accessResource) {
+	seen := map[accessResource]bool{}
+	for _, r := range linked {
+		seen[r] = true
+	}
+	var resolved []accessResource
+	for _, r := range local {
+		if !q.existsTableMetadata(r) {
+			if target, ok := q.resolveSynonym(r.Database, r.Table, r.Unqualified); ok {
+				r = target
+			}
+		}
+		r.Unqualified = false
+		if seen[r] {
+			continue
+		}
+		seen[r] = true
+		if r.LinkedServer != "" {
+			linked = append(linked, r)
+			continue
+		}
+		resolved = append(resolved, r)
+	}
+	return resolved, linked
+}
+
 func (q *querySpanExtractor) linkedAccessColumn(resource accessResource) (ColumnResource, error) {
 	column := ColumnResource{
 		Server:   resource.LinkedServer,
@@ -613,6 +693,7 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 			Database:     database,
 			Table:        name.Name,
 			LinkedServer: link,
+			Unqualified:  name.Schema == "" && link == "",
 		}
 		if seen[resource] {
 			return
@@ -629,10 +710,39 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 			addResource(name, name.DBLink)
 		}
 	}
-	oracleast.Inspect(stmt, func(node oracleast.Node) bool {
+	// The WITH elements in scope, innermost last: an unqualified local name
+	// one of them declares is the element, not a table.
+	var ctes []map[string]bool
+	isCTE := func(ref *oracleast.TableRef) bool {
+		if ref.Name == nil || ref.Name.Schema != "" || tableLink(ref) != "" {
+			return false
+		}
+		for _, names := range ctes {
+			if names[ref.Name.Name] {
+				return true
+			}
+		}
+		return false
+	}
+	withNames := func(node oracleast.Node) map[string]bool {
+		sel, ok := node.(*oracleast.SelectStmt)
+		if !ok || sel.WithClause == nil {
+			return nil
+		}
+		names := map[string]bool{}
+		for _, item := range listItems(sel.WithClause.CTEs) {
+			if cte, ok := item.(*oracleast.CTE); ok {
+				names[cte.Name] = true
+			}
+		}
+		return names
+	}
+	collect := func(node oracleast.Node) bool {
 		switch node := node.(type) {
 		case *oracleast.TableRef:
-			addResource(node.Name, tableLink(node))
+			if !isCTE(node) {
+				addResource(node.Name, tableLink(node))
+			}
 		case *oracleast.ContainersExpr:
 			addTarget(node.Name)
 		// A derived analytic view, inline in a FROM clause or declared in a
@@ -667,7 +777,25 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 		default:
 		}
 		return true
-	})
+	}
+	var visit func(root oracleast.Node)
+	visit = func(root oracleast.Node) {
+		oracleast.Inspect(root, func(node oracleast.Node) bool {
+			if node != root {
+				if names := withNames(node); names != nil {
+					ctes = append(ctes, names)
+					visit(node)
+					ctes = ctes[:len(ctes)-1]
+					return false
+				}
+			}
+			return collect(node)
+		})
+	}
+	if names := withNames(stmt); names != nil {
+		ctes = append(ctes, names)
+	}
+	visit(stmt)
 	return local, linked
 }
 
@@ -939,9 +1067,26 @@ func (q *querySpanExtractor) extractTableExpr(expr oracleast.TableExpr) (spanTab
 		dbLink := tableLink(expr)
 		database := expr.Name.Schema
 		if database == "" && dbLink == "" {
+			// An unqualified local name is a WITH element first; a
+			// qualified one is always a schema object.
+			for i := len(q.ctes) - 1; i >= 0; i-- {
+				if q.ctes[i].Name == expr.Name.Name {
+					return aliasTableSource(q.ctes[i], expr.Alias), nil
+				}
+			}
 			database = q.defaultDatabase
 		}
 		tableSource, err := q.plsqlFindTableSchema(splitDBLink(dbLink), database, expr.Name.Name)
+		var notFound *NotFoundError
+		if dbLink == "" && errors.As(err, &notFound) && notFound.Table != nil {
+			if target, ok := q.resolveSynonym(database, expr.Name.Name, expr.Name.Schema == ""); ok {
+				tableSource, err = q.plsqlFindTableSchema(splitDBLink(target.LinkedServer), target.Database, target.Table)
+				// The synonym's name qualifies its columns, as a table's does.
+				if err == nil && (expr.Alias == nil || expr.Alias.Name == "") {
+					return aliasTableSource(tableSource, &oracleast.Alias{Name: expr.Name.Name}), nil
+				}
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -983,7 +1128,17 @@ func (q *querySpanExtractor) extractTableExpr(expr oracleast.TableExpr) (spanTab
 		if right != nil {
 			q.tableSourcesFrom = append(q.tableSourcesFrom, right)
 		}
-		return mergeJoinTableSource(expr, left, right)
+		merged, err := mergeJoinTableSource(expr, left, right)
+		if err != nil {
+			return nil, err
+		}
+		// An unqualified name of a USING or NATURAL join's column is the
+		// merged column, whose values come from either side, so it resolves
+		// before the operands' columns of the same name.
+		if shared := joinedColumns(expr, left, right, merged); shared != nil {
+			q.tableSourcesFrom = append([]spanTable{shared}, q.tableSourcesFrom...)
+		}
+		return merged, nil
 	case *oracleast.XmlTableRef:
 		return q.extractXMLTable(expr)
 	case *oracleast.JsonTableRef:
@@ -1158,17 +1313,7 @@ func (q *querySpanExtractor) extractUnpivot(unpivot *oracleast.UnpivotClause) (s
 			}
 		}
 	}
-	for i, expr := range valueColumns {
-		name, _, err := q.extractExpr(expr)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, QuerySpanResult{
-			Name:          name,
-			SourceColumns: inputSources[i],
-			IsPlainField:  false,
-		})
-	}
+	// Oracle puts the FOR column before the measure columns.
 	if unpivot.PivotColumn != nil {
 		name, _, err := q.extractExpr(unpivot.PivotColumn)
 		if err != nil {
@@ -1177,6 +1322,17 @@ func (q *querySpanExtractor) extractUnpivot(unpivot *oracleast.UnpivotClause) (s
 		results = append(results, QuerySpanResult{
 			Name:          name,
 			SourceColumns: ColumnSet{},
+			IsPlainField:  false,
+		})
+	}
+	for i, expr := range valueColumns {
+		name, _, err := q.extractExpr(expr)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, QuerySpanResult{
+			Name:          name,
+			SourceColumns: inputSources[i],
 			IsPlainField:  false,
 		})
 	}
@@ -1424,6 +1580,49 @@ func mergeJoinTableSource(join *oracleast.JoinClause, left, right spanTable) (sp
 	result.Columns = append(result.Columns, leftResults...)
 	result.Columns = append(result.Columns, rightResults...)
 	return result, nil
+}
+
+// joinedColumns returns the columns a USING or NATURAL join merges, as an
+// unnamed source that a qualified name cannot reach, or nil for another join.
+func joinedColumns(join *oracleast.JoinClause, left, right, merged spanTable) spanTable {
+	if left == nil || right == nil || merged == nil {
+		return nil
+	}
+	shared := map[string]bool{}
+	switch {
+	case isNaturalJoin(join.Type):
+		inRight := map[string]bool{}
+		for _, field := range right.GetQuerySpanResult() {
+			inRight[field.Name] = true
+		}
+		for _, field := range left.GetQuerySpanResult() {
+			shared[field.Name] = inRight[field.Name]
+		}
+	case len(listItems(join.Using)) != 0:
+		for _, node := range listItems(join.Using) {
+			switch node := node.(type) {
+			case *oracleast.String:
+				shared[node.Str] = true
+			case *oracleast.ColumnRef:
+				shared[node.Column] = true
+			default:
+			}
+		}
+	default:
+		return nil
+	}
+	var columns []QuerySpanResult
+	for _, field := range merged.GetQuerySpanResult() {
+		if shared[field.Name] {
+			columns = append(columns, field)
+			// A merged column comes first, and once.
+			shared[field.Name] = false
+		}
+	}
+	if len(columns) == 0 {
+		return nil
+	}
+	return &pseudoTable{Columns: columns}
 }
 
 func isNaturalJoin(joinType oracleast.JoinType) bool {
@@ -1987,20 +2186,23 @@ func cloneTableSourceSlice(sources []spanTable) []spanTable {
 	return cloned
 }
 
+// exprName is the name Oracle gives a select-list expression with no alias:
+// its text without whitespace, upper-cased, quoted identifiers and string
+// literals too.
 func (q *querySpanExtractor) exprName(loc oracleast.Loc, fallback string) string {
 	if !loc.IsUnknown() && loc.Start >= 0 && loc.End <= len(q.source) && loc.Start < loc.End {
-		return removeWhitespace(q.source[loc.Start:loc.End])
+		return expressionName(q.source[loc.Start:loc.End])
 	}
-	return removeWhitespace(fallback)
+	return expressionName(fallback)
 }
 
-func removeWhitespace(s string) string {
+func expressionName(text string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsSpace(r) {
 			return -1
 		}
-		return r
-	}, s)
+		return unicode.ToUpper(r)
+	}, text)
 }
 
 func getNodeLoc(node oracleast.Node) oracleast.Loc {
