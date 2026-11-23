@@ -232,6 +232,9 @@ func TestProgramBinding(t *testing.T) {
 		{"UPDATE target beside its FROM sources", nil, "CREATE PROCEDURE p AS UPDATE t SET id = t.id + 1 FROM u WHERE t.id = u.n", 0},
 		{"function updates its table variable by alias", nil, "CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r VALUES (1); UPDATE r SET id = 2 FROM @r AS r; RETURN; END", 0},
 		{"function updates a table by alias", nil, "CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN UPDATE r SET id = 2 FROM t AS r; RETURN; END", 443},
+		{"qualified UPDATE target in its FROM", nil, "CREATE PROCEDURE p AS UPDATE dbo.t SET id = id + 1 FROM dbo.t", 0},
+		{"INSERT skips a table variable's computed column", nil, "CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (id INT, doubled AS id * 2); INSERT INTO @t VALUES (1); END", 0},
+		{"method receiver is bound", nil, "CREATE VIEW v AS SELECT CAST(nope AS xml).value('(/x)[1]', 'int') AS x FROM t", ErrInvalidColumnName},
 		{"recursive call binds the new signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN CASE WHEN @x <= 0 THEN @y ELSE dbo.f(@x - 1, @y) END; END", 0},
 		{"recursive call with the old signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN dbo.f(@x); END", 313},
 	}

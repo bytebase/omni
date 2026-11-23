@@ -123,7 +123,7 @@ func columnDefs(cols *ast.List) []qcol {
 	out := []qcol{}
 	for _, item := range cols.Items {
 		if cd, ok := item.(*ast.ColumnDef); ok {
-			out = append(out, qcol{name: cd.Name, typ: dataTypeClass(cd.DataType), identity: cd.Identity != nil})
+			out = append(out, qcol{name: cd.Name, typ: dataTypeClass(cd.DataType), identity: cd.Identity != nil, noInsert: cd.Computed != nil})
 		}
 	}
 	return out
@@ -602,10 +602,11 @@ func (pb *programBinder) dmlScope(wc *ast.WithClause, target ast.Node, fromClaus
 			sc.rels = append(sc.rels, rels...)
 		}
 	}
-	// The target may name a table source of the FROM clause by its alias.
-	if ref, ok := target.(*ast.TableRef); ok && ref.Schema == "" && ref.Database == "" {
+	// The target may name a table source of the FROM clause, by its alias
+	// or, qualified or not, by the table an unaliased source reads.
+	if ref, ok := target.(*ast.TableRef); ok && ref.Database == "" {
 		for _, r := range sc.rels {
-			if strings.EqualFold(r.name, ref.Object) {
+			if relMatches(r, ref.Schema, ref.Object) {
 				return sc, r, nil
 			}
 		}

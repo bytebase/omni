@@ -2147,6 +2147,10 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 		if e.Type != nil && e.Type.Schema == "" && !isValidDataType(e.Type, false) {
 			return qtUnknown, mssqlErr(ErrUnknownType, "Type %s is not a defined system type.", e.Type.Name)
 		}
+		// An instance method's receiver is an expression of its own.
+		if _, err := b.expr(e.Expr, sc, x); err != nil {
+			return qtUnknown, err
+		}
 		return qtUnknown, b.children(e.Args, sc, x)
 	case *ast.CollateExpr:
 		t, err := b.expr(e.Expr, sc, x)
