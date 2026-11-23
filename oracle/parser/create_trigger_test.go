@@ -181,3 +181,12 @@ func TestParseCreateTriggerFullSQL(t *testing.T) {
 		t.Error("expected ForEachRow to be true")
 	}
 }
+
+// TestParseCreateTriggerUpdateOfColumns keeps an UPDATE OF event's columns,
+// which Oracle checks against the table (ORA-00904).
+func TestParseCreateTriggerUpdateOfColumns(t *testing.T) {
+	stmt := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER trg AFTER UPDATE OF status, amount OR DELETE ON orders FOR EACH ROW BEGIN NULL; END;")
+	if got := stmt.UpdateColumns; len(got) != 2 || got[0] != "STATUS" || got[1] != "AMOUNT" {
+		t.Errorf("UpdateColumns = %q, want [STATUS AMOUNT]", got)
+	}
+}

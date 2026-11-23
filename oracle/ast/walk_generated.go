@@ -1269,6 +1269,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Condition)
 	case *PLSQLCursorDecl:
 		walkList(v, n.Parameters)
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
 		Walk(v, n.Query)
 	case *PLSQLElsIf:
 		Walk(v, n.Condition)

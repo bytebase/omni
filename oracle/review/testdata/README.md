@@ -37,6 +37,13 @@ query as `CREATE VIEW v AS <query>` on the catalog's fixtures, and asks Oracle f
 each verdict on the same tape. The walk resolves no view query, so it catches 6 / 255
 refusals (2.4%); the subtest holds it to zero false positives.
 
+Its `programs` subtest walks `../../catalog/testdata/programs/simulate.tsv` the
+same way: procedures, functions, packages, triggers and types with bodies, and
+DDL on the objects they read, on `programs@objects`. Oracle creates a unit it
+cannot compile, so most rows are accepted; the walk catches the refusals it
+models (an existing name, a missing object to drop, a trigger on a missing
+table) and is held to zero false positives and a recall floor of its own.
+
 ## Commands
 
 Run from `<repo root>`.

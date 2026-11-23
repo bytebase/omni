@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -1109,13 +1110,24 @@ func TestTemporaryTableIsRejected(t *testing.T) {
 	}
 }
 
-func TestCreateOrReplaceTriggerMovesTarget(t *testing.T) {
-	c, err := LoadSQL(`CREATE TABLE A (ID NUMBER); CREATE TABLE Z (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON Z FOR EACH ROW BEGIN NULL; END; CREATE OR REPLACE TRIGGER TR BEFORE INSERT ON A FOR EACH ROW BEGIN NULL; END;`)
+// TestCreateOrReplaceTriggerOnAnotherTable holds CREATE OR REPLACE TRIGGER
+// to Oracle, which does not move a trigger to another table (ORA-04095;
+// testdata/programs/simulate.tsv records it).
+func TestCreateOrReplaceTriggerOnAnotherTable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE A (ID NUMBER); CREATE TABLE Z (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON Z FOR EACH ROW BEGIN NULL; END;`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	results, err := c.Exec(`CREATE OR REPLACE TRIGGER TR BEFORE INSERT ON A FOR EACH ROW BEGIN NULL; END;`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &refusal) || refusal.Code != "04095" {
+		t.Fatalf("results = %+v, want ORA-04095", results)
+	}
 	schema := c.Metadata().Schemas[0]
-	if len(tableByName(schema)["Z"].Triggers) != 0 || len(tableByName(schema)["A"].Triggers) != 1 {
+	if len(tableByName(schema)["Z"].Triggers) != 1 || len(tableByName(schema)["A"].Triggers) != 0 {
 		t.Fatalf("triggers A=%d Z=%d", len(tableByName(schema)["A"].Triggers), len(tableByName(schema)["Z"].Triggers))
 	}
 }

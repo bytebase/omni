@@ -459,6 +459,9 @@ func (a *queryAnalyzer) columnRef(n *ast.ColumnRef, sc *qscope) (qtype, bool, er
 		}
 		return c.typ, c.notNull, nil
 	}
+	if a.plsqlName != nil && a.plsqlName(n) {
+		return simpleType("UNKNOWN"), false, nil
+	}
 	if n.Table == "" {
 		if t, ok := keywordValues[n.Column]; ok && !strings.Contains(a.e.nodeText(n), `"`) {
 			// A quoted name is a column's, never the keyword's.

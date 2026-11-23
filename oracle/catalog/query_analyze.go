@@ -152,6 +152,12 @@ type queryAnalyzer struct {
 	blockMemo map[blockMemoKey]queryMemo
 	// hashMemo holds each subtree's structural hash by scope.
 	hashMemo map[hashMemoKey]uint64
+	// plsqlName, in a PL/SQL unit's SQL statement, reports whether a name
+	// that resolves to no column is one the unit or the schema declares.
+	plsqlName func(*ast.ColumnRef) bool
+	// plsqlCall, in a PL/SQL unit's SQL statement, checks the function a
+	// call names.
+	plsqlCall func(*ast.FuncCallExpr) error
 }
 
 type textEdit struct {

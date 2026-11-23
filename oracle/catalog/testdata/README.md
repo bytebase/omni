@@ -113,3 +113,60 @@ OMNI_RECORD=1 go test -v -timeout 30m ./oracle/catalog/ -run '^TestQuerySimulati
 OMNI_RECORD=verify go test -v -timeout 30m ./oracle/catalog/ -run '^TestQuerySimulation$'
 go test -v ./oracle/catalog/ -run '^TestQuerySimulation$' -args -simulate-show='corpus/pivot'
 ```
+
+## Stored-program simulation
+
+`programs/simulate.tsv` holds one row per statement in `programFeatures`
+(`../simulate_program_test.go`), run on `programs@objects` by
+`TestProgramSimulation`, which replays `tapes/TestProgramSimulation.tape`. The
+fixture has tables `customers`, `orders` and `audit_log`, view `v_customers`,
+sequence `order_seq`, synonym `cust`, function `f_double`, procedures
+`p_existing` and `p_calls` (which calls `f_double`, `p_existing` and
+`pk.log_it`), package `pk` with its body, object type `t_point` with its body,
+and trigger `trg_existing`. Besides the refusals, the rows hold everyday forms
+Oracle compiles `VALID` (cursor attributes, collections, `RETURNING`, forward
+declarations, overloads, dictionary views), so the catalog is held to reading
+them without a false error. Rows are labelled `program:<kind>`: procedures,
+functions, package specs and bodies, triggers, types and type bodies, and
+`reference`, DDL on the objects those units read.
+
+Oracle creates a unit it cannot compile, `INVALID`, and the driver reports no
+error (SQL*Plus prints ORA-24344 as a warning), so most rows are `ok:`. The
+hash covers `dump_forms`'s tables, views, sequences and synonyms, and each
+PL/SQL unit's kind, name and `USER_OBJECTS.STATUS`, a trigger's `ENABLED` or
+`DISABLED`, and the first error `USER_ERRORS` lists for the unit: `PLS-nnnnn`,
+or the `ORA-nnnnn` of a SQL statement in it. The catalog compiles a unit's
+names in `../plsql*.go` and keeps each unit's status, first error and what it
+reads in `../program.go`; `ExecResult` stays error-free for a unit Oracle
+creates `INVALID`. It reports only the errors the rows pin (`PLS-00049`,
+`00201`, `00302`, `00306`, `00323`, `00363`, `00372`, `00428`, `00503`,
+`00539`, `00590`, and `ORA-00904`, `00913`, `00942`, `00947` in static SQL) and
+takes a name it cannot place, such as another schema's or a public synonym's,
+as resolving. A change marks `INVALID` the units that read what it changed, as
+Oracle 23.26 does: dropping or renaming an object, dropping, renaming or
+modifying a column a unit names (not adding one, nor changing another),
+replacing a procedure, or a function under other parameters, and replacing a
+spec, which leaves its own body `INVALID` but not the spec's callers.
+
+**266 / 274 rows (97.08%) agree.** The 8 that do not:
+
+- `CREATE PROCEDURE p IS BEGIN NULL END;` and `CREATE TABLE` inside a body:
+  omni's parser refuses the statement, and Oracle creates the unit `INVALID`
+  with `PLS-00103`.
+- A variable declared after a local subprogram's body: Oracle reports
+  `PLS-00103`, and omni's parser takes the order.
+- `nope_pkg.p` and `g_missing.y`: the catalog takes an unknown first part as
+  another schema's or a public synonym's (Oracle: `PLS-00201`).
+- `RETURN 1` in a function returning `DATE`: the catalog checks no types
+  (Oracle: `PLS-00382`).
+- `END nope;` closing package `p2`: the AST keeps no `END` label (Oracle:
+  `PLS-00113`).
+- `CREATE TABLE pts (p nope_type)`: the catalog takes an unknown column type,
+  as a catalog loaded from metadata holds no types (Oracle: `ORA-00902`).
+
+```bash
+go test ./oracle/catalog/ -run '^TestProgramSimulation$' -update-compat
+OMNI_RECORD=1 go test -v -timeout 30m ./oracle/catalog/ -run '^TestProgramSimulation$'
+OMNI_RECORD=verify go test -v -timeout 30m ./oracle/catalog/ -run '^TestProgramSimulation$'
+go test -v ./oracle/catalog/ -run '^TestProgramSimulation$' -args -simulate-show='program:trigger'
+```

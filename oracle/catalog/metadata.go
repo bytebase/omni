@@ -97,11 +97,13 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		checkNames:           make(map[string]map[string]bool),
 		checkNameNext:        make(map[string]map[string]int),
 		schemaText:           schemaText,
+		units:                newUnitBook(),
 	}
 }
 
 type oracleMetadataExtractor struct {
 	err                         error
+	units                       *unitBook
 	serverConfig                ServerConfig
 	allowUsingExistingIndex     bool
 	omitMaterializedViewClauses bool
@@ -298,17 +300,57 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 	case *ast.CreateSequenceStmt:
 		e.extractCreateSequence(n)
 	case *ast.CreateProcedureStmt:
-		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
+		if e.createsUnit(unitProcedure, n.Name, n.OrReplace, n.IfNotExists) {
+			name := n.Name.Name
+			if e.procedures[name] != nil {
+				// Oracle 23.26 leaves a replaced procedure's callers to be
+				// compiled again, even under the same parameters.
+				e.invalidateReaders(name)
+			}
 			e.procedures[name] = &metadatapb.ProcedureMetadata{Name: name, Definition: e.definitionText(n)}
+			e.compileUnit(unitProcedure, name, n)
 		}
 	case *ast.CreateFunctionStmt:
-		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
+		if e.createsUnit(unitFunction, n.Name, n.OrReplace, n.IfNotExists) {
+			name := n.Name.Name
+			if old := e.functions[name]; old != nil && !sameSignature(old.Definition, signatureText(n.Parameters, n.ReturnType)) {
+				// A function replaced under the same parameters and return
+				// type keeps its callers valid.
+				e.invalidateReaders(name)
+			}
 			e.functions[name] = &metadatapb.FunctionMetadata{Name: name, Definition: e.functionDefinitionText(n)}
+			e.compileUnit(unitFunction, name, n)
 		}
 	case *ast.CreatePackageStmt:
-		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
-			e.extractCreatePackage(name, n)
+		kind := unitPackage
+		if n.IsBody {
+			kind = unitPackageBody
 		}
+		if e.createsUnit(kind, n.Name, n.OrReplace, n.IfNotExists) {
+			name := n.Name.Name
+			if !n.IsBody && e.hasUnit(unitPackageBody, name) {
+				// A replaced spec leaves its body to be compiled again; its
+				// callers keep what they use of it.
+				e.units.invalid[unitKey(unitPackageBody, name)] = true
+			}
+			e.extractCreatePackage(name, n)
+			e.compileUnit(kind, name, n)
+		}
+	case *ast.CreateTypeStmt:
+		kind := unitType
+		if n.IsBody {
+			kind = unitTypeBody
+		}
+		if e.createsUnit(kind, n.Name, n.OrReplace, n.IfNotExists) {
+			e.extractCreateType(n)
+			e.compileUnit(kind, n.Name.Name, n)
+		}
+	case *ast.AlterProcedureStmt:
+		e.findsUnit(unitProcedure, n.Name, n.IfExists)
+	case *ast.AlterFunctionStmt:
+		e.findsUnit(unitFunction, n.Name, n.IfExists)
+	case *ast.AlterPackageStmt:
+		e.findsUnit(unitPackage, n.Name, n.IfExists)
 	case *ast.CreateSynonymStmt:
 		e.extractCreateSynonym(n)
 	case *ast.CreateDomainStmt:
@@ -317,6 +359,9 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractCreateTrigger(n)
 	case *ast.AlterTableStmt:
 		e.extractAlterTable(n)
+		if e.err == nil {
+			e.invalidateColumnReaders(n)
+		}
 	case *ast.AlterViewStmt:
 		e.extractAlterView(n)
 	case *ast.TruncateStmt:
@@ -907,6 +952,7 @@ func (e *oracleMetadataExtractor) extractRename(n *ast.RenameStmt) {
 		e.setError(oraError("00955", "name %q is already used by an existing object", newName))
 		return
 	}
+	e.invalidateReaders(oldName)
 	if e.renameSequence(oldName, newName) {
 		return
 	}
@@ -2253,6 +2299,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			}
 			e.dropTableProvenance(name)
 			delete(e.tables, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_VIEW:
 			if !e.checkSchema(nameNode.Schema, "00942") {
 				return
@@ -2267,6 +2314,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			delete(e.views, name)
 			delete(e.viewConstraints, name)
 			delete(e.editioningViews, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_MATERIALIZED_VIEW:
 			if !e.checkSchema(nameNode.Schema, "12003") {
 				return
@@ -2285,25 +2333,50 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			}
 			delete(e.sequences, name)
 			delete(e.sequenceCurrent, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_FUNCTION:
-			if !e.useSchema(nameNode.Schema) {
+			if !e.findsUnit(unitFunction, nameNode, n.IfExists) {
 				continue
 			}
 			delete(e.functions, name)
+			e.forgetUnit(unitFunction, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_PROCEDURE:
-			if !e.useSchema(nameNode.Schema) {
+			if !e.findsUnit(unitProcedure, nameNode, n.IfExists) {
 				continue
 			}
 			delete(e.procedures, name)
+			e.forgetUnit(unitProcedure, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_PACKAGE:
-			if !e.useSchema(nameNode.Schema) {
+			if !e.findsUnit(unitPackage, nameNode, n.IfExists) {
 				continue
 			}
 			delete(e.packages, name)
-		case ast.OBJECT_PACKAGE_BODY:
-			if !e.useSchema(nameNode.Schema) {
+			e.forgetUnit(unitPackage, name)
+			e.forgetUnit(unitPackageBody, name)
+			e.invalidateReaders(name)
+		case ast.OBJECT_TYPE:
+			if !e.findsUnit(unitType, nameNode, n.IfExists) {
 				continue
 			}
+			delete(e.units.types, name)
+			e.forgetUnit(unitType, name)
+			e.forgetUnit(unitTypeBody, name)
+			e.invalidateReaders(name)
+		case ast.OBJECT_TYPE_BODY:
+			if !e.findsUnit(unitTypeBody, nameNode, n.IfExists) {
+				continue
+			}
+			if t := e.units.types[name]; t != nil {
+				t.body = false
+			}
+			e.forgetUnit(unitTypeBody, name)
+		case ast.OBJECT_PACKAGE_BODY:
+			if !e.findsUnit(unitPackageBody, nameNode, n.IfExists) {
+				continue
+			}
+			e.forgetUnit(unitPackageBody, name)
 			if pkg := e.packages[name]; pkg != nil {
 				spec, _ := splitPackageUnits(pkg.Definition)
 				if spec == "" {
@@ -2334,6 +2407,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 					return
 				}
 				delete(e.synonyms, name)
+				e.invalidateReaders(name)
 			}
 		case ast.OBJECT_INDEX:
 			if !e.checkSchema(nameNode.Schema, "01418") {
@@ -2353,10 +2427,11 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			}
 			e.dropIndex(name)
 		case ast.OBJECT_TRIGGER:
-			if !e.useSchema(nameNode.Schema) {
+			if !e.findsUnit(unitTrigger, nameNode, n.IfExists) {
 				continue
 			}
 			e.dropTrigger(name)
+			e.forgetUnit(unitTrigger, name)
 		case ast.OBJECT_DOMAIN:
 			if !e.checkSchema(nameNode.Schema, "01031") {
 				return
@@ -3421,14 +3496,11 @@ func renameTriggerName(body, oldName, newName string) string {
 }
 
 func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
-	name := objectName(n.Name)
-	if name == "" || !e.useSchema(n.Name.Schema) {
+	if !e.findsUnit(unitTrigger, n.Name, n.IfExists) {
 		return
 	}
+	name := n.Name.Name
 	trigger := e.triggers[name]
-	if trigger == nil {
-		return
-	}
 	switch strings.ToUpper(n.Action) {
 	case "RENAME":
 		if n.NewName == "" {
@@ -3471,6 +3543,10 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 		}
 		return
 	}
+	if !e.checkTrigger(n) {
+		return
+	}
+	tableName = e.resolveSynonymTarget(tableName, n.Table.Schema)
 	if n.OrReplace {
 		e.dropTrigger(triggerName)
 	}
@@ -3487,6 +3563,7 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 		Body:   body,
 	}
 	e.triggers[triggerName] = trigger
+	e.compileUnit(unitTrigger, triggerName, n)
 	if view := e.views[tableName]; view != nil {
 		view.Triggers = append(view.Triggers, trigger)
 		return
