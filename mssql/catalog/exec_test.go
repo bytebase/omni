@@ -464,4 +464,52 @@ CREATE VIEW [dbo].[v_sb] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
 	require.NotNil(t, c.GetTable("dbo", "t"))
 	execExpectOK(t, c, `DROP VIEW [dbo].[v_sb]`)
 	execExpectOK(t, c, `DROP TABLE [dbo].[t]`)
+
+	// 28. ALTER SCHEMA TRANSFER updates only FKs pointing to the transferred case-distinct table.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[Foo] ([id] INT NOT NULL PRIMARY KEY);
+CREATE TABLE [dbo].[foo] ([id] INT NOT NULL PRIMARY KEY);
+CREATE TABLE [dbo].[child] ([fid] INT NULL REFERENCES [dbo].[Foo]([id]));
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[foo]`)
+	require.Equal(t, "dbo", c.GetTable("dbo", "child").ForeignKeys[0].ReferencedSchema)
+	execExpectCode(t, c, `DROP TABLE [dbo].[Foo]`, ErrDropTableReferencedByFK)
+
+	// 29. ALTER COLUMN rejects incompatible type changes on indexed/PK columns.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL PRIMARY KEY, [name] VARCHAR(20) NOT NULL); CREATE INDEX [ix_name] ON [dbo].[t]([name]);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] BIGINT NOT NULL`, ErrColumnDependentObject)
+	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "id").Type)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [name] VARCHAR(50) NOT NULL`)
+	require.Equal(t, "VARCHAR(50)", columnByName(c.GetTable("dbo", "t"), "name").Type)
+
+	// 30. LoadMetadata clears temporal tracking maps from previously executed DDL.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	plain, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL PRIMARY KEY);`)
+	require.NoError(t, err)
+	require.NoError(t, c.LoadMetadata(t.Context(), plain.Metadata()))
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`, ErrSystemVersioningNoPeriod)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`, ErrSystemVersioningNotEnabled)
+
+	// 31. Dropping a primary XML index cascades to its dependent secondary XML indexes.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[docs] ([id] INT NOT NULL PRIMARY KEY, [body] XML);
+CREATE PRIMARY XML INDEX [pxml] ON [dbo].[docs]([body]);
+CREATE XML INDEX [sxml] ON [dbo].[docs]([body]) USING XML INDEX [pxml] FOR PATH;
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `DROP INDEX [pxml] ON [dbo].[docs]`)
+	require.Nil(t, indexByName(c.GetTable("dbo", "docs"), "pxml"))
+	require.Nil(t, indexByName(c.GetTable("dbo", "docs"), "sxml"))
 }

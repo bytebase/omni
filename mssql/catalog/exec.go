@@ -456,6 +456,20 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		}
 		for i, t := range srcSchema.Tables {
 			if t == table {
+				var inboundFKs []*metadata.ForeignKeyMetadata
+				for _, s := range c.schemas {
+					for _, tbl := range s.Tables {
+						for _, fk := range tbl.ForeignKeys {
+							refSchema := fk.ReferencedSchema
+							if refSchema == "" {
+								refSchema = c.defaultSchema
+							}
+							if c.GetTable(refSchema, fk.ReferencedTable) == t {
+								inboundFKs = append(inboundFKs, fk)
+							}
+						}
+					}
+				}
 				srcSchema.Tables = append(srcSchema.Tables[:i], srcSchema.Tables[i+1:]...)
 				delete(c.tableByName, tableKey{schema: srcSchema.Name, table: t.Name})
 				oldPeriodKey := tableKey{schema: normalizeOrDefault(srcSchema.Name, c.defaultSchema), table: t.Name}
@@ -476,15 +490,8 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 				}
 				targetSchema.Tables = append(targetSchema.Tables, t)
 				c.indexTable(targetSchema.Name, t)
-				// Update foreign keys pointing to this table.
-				for _, s := range c.schemas {
-					for _, tbl := range s.Tables {
-						for _, fk := range tbl.ForeignKeys {
-							if strings.EqualFold(fk.ReferencedSchema, srcSchema.Name) && strings.EqualFold(fk.ReferencedTable, t.Name) {
-								fk.ReferencedSchema = targetSchema.Name
-							}
-						}
-					}
+				for _, fk := range inboundFKs {
+					fk.ReferencedSchema = targetSchema.Name
 				}
 				return nil
 			}
@@ -1530,12 +1537,18 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
 		}
+		newType := nodeText(action.DataType, source)
+		if !c.lenientMetadataLoad && !typesEqual(col.Type, newType) {
+			if dep, blocked := alterColumnTypeDependency(c, schemaName, table, col, newType, action.Collation != "" && !strings.EqualFold(action.Collation, col.Collation)); blocked {
+				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
+			}
+		}
 		if action.Column != nil && action.Column.Nullable != nil && !action.Column.Nullable.NotNull {
 			if pkName, inPK := columnInPrimaryKey(table, col.Name); inPK {
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", pkName, col.Name)
 			}
 		}
-		col.Type = nodeText(action.DataType, source)
+		col.Type = newType
 		if action.Column != nil && action.Column.Nullable != nil {
 			col.Nullable = !action.Column.Nullable.NotNull
 		}
@@ -1836,6 +1849,113 @@ func columnInPrimaryKey(table *metadata.TableMetadata, colName string) (string, 
 		}
 	}
 	return "", false
+}
+
+func alterColumnTypeDependency(c *Catalog, schemaName string, table *metadata.TableMetadata, col *metadata.ColumnMetadata, newType string, collationChanged bool) (string, bool) {
+	widenOK := !collationChanged && isCompatibleVarLengthWidening(col.Type, newType)
+	for _, idx := range table.Indexes {
+		for _, expr := range idx.Expressions {
+			if strings.EqualFold(expr, col.Name) {
+				if !widenOK {
+					return idx.Name, true
+				}
+			}
+		}
+		for _, inc := range indexIncludeColumns(idx.Definition) {
+			if strings.EqualFold(inc, col.Name) {
+				if !widenOK {
+					return idx.Name, true
+				}
+			}
+		}
+		if where := indexWhereClause(idx.Definition); where != "" && checkExprReferencesColumn(where, table.Name, col.Name) {
+			return idx.Name, true
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		for _, fc := range fk.Columns {
+			if strings.EqualFold(fc, col.Name) {
+				return fk.Name, true
+			}
+		}
+	}
+	for _, s := range c.schemas {
+		for _, t := range s.Tables {
+			for _, fk := range t.ForeignKeys {
+				refSchema := fk.ReferencedSchema
+				if refSchema == "" {
+					refSchema = c.defaultSchema
+				}
+				if c.GetTable(refSchema, fk.ReferencedTable) == table {
+					for _, rc := range fk.ReferencedColumns {
+						if strings.EqualFold(rc, col.Name) {
+							return fk.Name, true
+						}
+					}
+				}
+			}
+		}
+	}
+	for _, ck := range table.CheckConstraints {
+		if checkExprReferencesColumn(ck.Expression, table.Name, col.Name) {
+			name := ck.Name
+			if name == "" {
+				name = "CHECK"
+			}
+			return name, true
+		}
+	}
+	for _, other := range table.Columns {
+		if other == col || !isComputedColumnType(other.Type) {
+			continue
+		}
+		if computedExprReferencesColumn(other.Type, table.Name, col.Name) {
+			return other.Name, true
+		}
+	}
+	return "", false
+}
+
+// isCompatibleVarLengthWidening reports whether altering oldType to newType is
+// a finite length increase on the same variable-length string/binary base type,
+// which SQL Server permits in place on indexed columns.
+func isCompatibleVarLengthWidening(oldType, newType string) bool {
+	oldBase, oldLen, ok1 := parseVarLengthType(oldType)
+	newBase, newLen, ok2 := parseVarLengthType(newType)
+	if !ok1 || !ok2 || oldBase != newBase {
+		return false
+	}
+	return newLen >= oldLen
+}
+
+func parseVarLengthType(t string) (string, int, bool) {
+	s := strings.ToLower(strings.TrimSpace(t))
+	open := strings.IndexByte(s, '(')
+	close := strings.LastIndexByte(s, ')')
+	if open <= 0 || close != len(s)-1 {
+		return "", 0, false
+	}
+	base := strings.TrimSpace(s[:open])
+	switch base {
+	case "varchar", "nvarchar", "varbinary":
+	default:
+		return "", 0, false
+	}
+	arg := strings.TrimSpace(s[open+1 : close])
+	if arg == "" || arg == "max" {
+		return "", 0, false
+	}
+	n := 0
+	for i := 0; i < len(arg); i++ {
+		if arg[i] < '0' || arg[i] > '9' {
+			return "", 0, false
+		}
+		n = n*10 + int(arg[i]-'0')
+	}
+	if n <= 0 {
+		return "", 0, false
+	}
+	return base, n, true
 }
 
 func hasCheckOrFKConstraint(table *metadata.TableMetadata, name string) bool {
@@ -2222,6 +2342,14 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 
 		seen[foundIdx] = true
 		targets = append(targets, dropIndexTarget{table: table, idx: foundIdx})
+		if isPrimaryXMLIndex(foundIdx) {
+			for _, sec := range table.Indexes {
+				if sec != foundIdx && !seen[sec] && isSecondaryXMLIndexOf(sec, foundIdx.Name) {
+					seen[sec] = true
+					targets = append(targets, dropIndexTarget{table: table, idx: sec})
+				}
+			}
+		}
 	}
 	for _, target := range targets {
 		target.table.Indexes = slices.DeleteFunc(target.table.Indexes, func(idx *metadata.IndexMetadata) bool {
@@ -2229,6 +2357,18 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		})
 	}
 	return nil
+}
+
+func isSecondaryXMLIndexOf(idx *metadata.IndexMetadata, primaryName string) bool {
+	if idx == nil || !strings.EqualFold(idx.Type, "XML") || !strings.HasPrefix(idx.Definition, "USING XML INDEX ") {
+		return false
+	}
+	rest := strings.TrimPrefix(idx.Definition, "USING XML INDEX ")
+	parent := rest
+	if before, _, ok := strings.Cut(rest, " FOR "); ok {
+		parent = before
+	}
+	return strings.EqualFold(strings.TrimSpace(parent), primaryName)
 }
 
 func checkDropIndexOptions(opts *ast.List, tableName, indexName string, isClustered bool) error {

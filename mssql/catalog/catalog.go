@@ -259,6 +259,8 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	c.schemaByName = make(map[string]*metadata.SchemaMetadata)
 	c.schemasByFold = make(map[string][]*metadata.SchemaMetadata)
 	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
+	c.systemTimeTables = make(map[tableKey]bool)
+	c.systemVersionedTables = make(map[tableKey]bool)
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))
 	}
