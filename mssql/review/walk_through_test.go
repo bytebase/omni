@@ -820,3 +820,101 @@ func TestWalkThroughLowersEveryForm(t *testing.T) {
 		return len(stmts), len(stmts), false
 	})
 }
+
+// TestWalkThroughSyncedFacts pins the refusals the walk reads from facts
+// of the synced schema other than names, and that it stops reading them
+// once the change alters the object they describe.
+func TestWalkThroughSyncedFacts(t *testing.T) {
+	col := func(name, typ string) *metadata.ColumnMetadata {
+		return &metadata.ColumnMetadata{Name: name, Type: typ}
+	}
+	schema := func() *metadata.DatabaseSchemaMetadata {
+		k := &metadata.TableMetadata{
+			Name:    "k",
+			Columns: []*metadata.ColumnMetadata{col("id", "int"), col("a", "int"), col("n", "nvarchar(10)")},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "pk_k", Primary: true, Unique: true, IsConstraint: true, Type: "CLUSTERED", Expressions: []string{"id"}},
+				{Name: "ix_k", Type: "NONCLUSTERED", Expressions: []string{"a"}},
+			},
+		}
+		k.Columns[0].IsIdentity = true
+		return &metadata.DatabaseSchemaMetadata{
+			Name: "shop",
+			Schemas: []*metadata.SchemaMetadata{{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					k,
+					{Name: "temporal", Columns: []*metadata.ColumnMetadata{col("id", "int"), col("vf", "datetime2(7)"), col("vt", "datetime2(7)")}},
+					{Name: "ft", Columns: []*metadata.ColumnMetadata{col("stream_id", "uniqueidentifier"), col("path_locator", "hierarchyid")}},
+					{Name: "p", Columns: []*metadata.ColumnMetadata{col("id", "int")}, Indexes: []*metadata.IndexMetadata{{Name: "pk_p", Primary: true, Unique: true, IsConstraint: true, Type: "CLUSTERED"}}},
+					{
+						Name:        "c",
+						Columns:     []*metadata.ColumnMetadata{col("id", "int"), col("pid", "int")},
+						ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_c_p", Columns: []string{"pid"}, ReferencedSchema: "dbo", ReferencedTable: "p", ReferencedColumns: []string{"id"}}},
+						Triggers:    []*metadata.TriggerMetadata{{Name: "tr_c"}},
+					},
+				},
+				Views: []*metadata.ViewMetadata{
+					{Name: "uv", Definition: "CREATE VIEW dbo.uv AS SELECT id FROM dbo.k"},
+					{Name: "bv", Definition: "CREATE VIEW dbo.bv WITH SCHEMABINDING AS SELECT id FROM dbo.k"},
+				},
+			}},
+		}
+	}
+	tests := []struct {
+		name      string
+		sql       string
+		statement int // -1 for no finding
+		message   string
+	}{
+		{"CTAS", "CREATE TABLE dbo.x WITH (HEAP) AS SELECT 1 AS a;", 0, "SQL Server doesn't accept `CREATE TABLE AS SELECT`."},
+		{"drop a column and a constraint of one name", "ALTER TABLE dbo.k DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a;", 0, "This statement drops `a` twice."},
+		{"index on an unbound view", "CREATE INDEX ix ON dbo.uv (id);", 0, "SQL Server doesn't accept an index on view `dbo.uv`, which isn't schema-bound."},
+		{"index on a schema-bound view", "CREATE UNIQUE CLUSTERED INDEX ix ON dbo.bv (id);", -1, ""},
+		{"index on a view the change binds", "ALTER VIEW dbo.uv WITH SCHEMABINDING AS SELECT id FROM dbo.k;\nGO\nCREATE UNIQUE CLUSTERED INDEX ix ON dbo.uv (id);", -1, ""},
+		{"alter an index of an unbound view", "ALTER INDEX ix ON dbo.uv DISABLE;", 0, "Index `ix` doesn't exist in `dbo.uv`."},
+		{"drop an index of an unbound view", "DROP INDEX ix ON dbo.uv;", 0, "Index `ix` doesn't exist in `dbo.uv`."},
+		{"drop an index of a schema-bound view", "DROP INDEX ix ON dbo.bv;", -1, ""},
+		{"second clustered index", "CREATE CLUSTERED INDEX cx ON dbo.k (a);", 0, "Table `dbo.k` already has clustered index `pk_k`."},
+		{"second clustered columnstore index", "CREATE CLUSTERED COLUMNSTORE INDEX cx ON dbo.k;", 0, "Table `dbo.k` already has clustered index `pk_k`."},
+		{"nonclustered index beside a clustered one", "CREATE INDEX nx ON dbo.k (a);", -1, ""},
+		{"clustered index once the key is gone", "ALTER TABLE dbo.k DROP CONSTRAINT pk_k;\nCREATE CLUSTERED INDEX cx ON dbo.k (a);", -1, ""},
+		{"system versioning without a period", "ALTER TABLE dbo.k SET (SYSTEM_VERSIONING = OFF);", 0, "Table `dbo.k` has no `SYSTEM_TIME` period."},
+		{"drop a period that can't exist", "ALTER TABLE dbo.k DROP PERIOD FOR SYSTEM_TIME;", 0, "Table `dbo.k` has no `SYSTEM_TIME` period."},
+		{"system versioning of a table with datetime2 columns", "ALTER TABLE dbo.temporal SET (SYSTEM_VERSIONING = OFF);", -1, ""},
+		{"FileTable directory of a plain table", "ALTER TABLE dbo.k SET (FILETABLE_DIRECTORY = N'd');", 0, "Table `dbo.k` isn't a FileTable."},
+		{"FileTable directory of a FileTable", "ALTER TABLE dbo.ft SET (FILETABLE_DIRECTORY = N'd');", -1, ""},
+		{"drop a referenced table", "DROP TABLE dbo.p;", 0, "Table `dbo.p` is referenced by a foreign key of `dbo.c`."},
+		{"truncate a referenced table", "TRUNCATE TABLE dbo.p;", 0, "Table `dbo.p` is referenced by a foreign key of `dbo.c`."},
+		{"drop the referencing table first", "DROP TABLE dbo.c, dbo.p;", -1, ""},
+		{"drop a table once its reference is gone", "ALTER TABLE dbo.c DROP CONSTRAINT fk_c_p;\nDROP TABLE dbo.p;", -1, ""},
+		{"drop a foreign key's column", "ALTER TABLE dbo.c DROP COLUMN pid;", 0, "Foreign key `fk_c_p` depends on column `pid`."},
+		{"drop a foreign key and its column", "ALTER TABLE dbo.c DROP CONSTRAINT fk_c_p, COLUMN pid;", -1, ""},
+		{"NOT FOR REPLICATION on a plain column", "ALTER TABLE dbo.k ALTER COLUMN a ADD NOT FOR REPLICATION;", 0, "Column `a` isn't an identity column."},
+		{"NOT FOR REPLICATION on an identity column", "ALTER TABLE dbo.k ALTER COLUMN id ADD NOT FOR REPLICATION;", -1, ""},
+		{"drop a nonclustered index online", "DROP INDEX ix_k ON dbo.k WITH (ONLINE = ON);", 0, "Index `ix_k` isn't clustered, so it can't be dropped with `ONLINE = ON`."},
+		{"drop a nonclustered index with MAXDOP", "DROP INDEX ix_k ON dbo.k WITH (MAXDOP = 1);", 0, "Index `ix_k` isn't clustered, so it can't be dropped with `MAXDOP`."},
+		{"drop a nonclustered index", "DROP INDEX ix_k ON dbo.k WITH (ONLINE = OFF);", -1, ""},
+		{"alter a trigger onto another table", "ALTER TRIGGER dbo.tr_c ON dbo.p AFTER INSERT AS SELECT 1;", 0, "Trigger `dbo.tr_c` is on `dbo.c`, not `dbo.p`."},
+		{"alter a trigger on its table", "ALTER TRIGGER dbo.tr_c ON dbo.c AFTER INSERT AS SELECT 1;", -1, ""},
+		{"RETURN of a value in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN 1; END;", 0, "SQL Server doesn't accept `RETURN` of a value in a table-valued function."},
+		{"RETURN in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN; END;", -1, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := walkFindings(t, tt.sql, review.Target{Schema: schema(), DefaultSchema: "dbo"})
+			if tt.statement < 0 {
+				if len(got) != 0 {
+					t.Errorf("findings = %+v, want none", got)
+				}
+				return
+			}
+			if len(got) != 1 || got[0].Statement != tt.statement || got[0].Message != tt.message {
+				t.Errorf("findings = %+v, want statement %d: %q", got, tt.statement, tt.message)
+			}
+			if (&walkEngine{}).Codes(tt.message) == nil {
+				t.Errorf("walkCodes maps no error to %q", tt.message)
+			}
+		})
+	}
+}

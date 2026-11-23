@@ -320,6 +320,10 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	if r.where == placed {
 		b.moduleChecks(r, verb, kindTrigger)
+		if on := b.syncedTriggerOn(r); verb == "ALTER" && t.where == placed && on.path != "" && on.path != t.tablePath() {
+			b.fail(r.rng, review.UnsupportedForm, "Trigger "+review.Code(r.written)+" is on "+review.Code(on.written)+", not "+review.Code(t.written)+".")
+			return true
+		}
 	}
 	pseudo := ""
 	if b.knownTable(t) {
@@ -489,8 +493,6 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	}
 	b.leave(space, path, cn)
 	b.arrive(space, path, nn, kind)
-	if space == spaceColumn {
-		b.markTableDirty(path)
-	}
+	b.markTableDirty(path)
 	return true
 }
