@@ -554,10 +554,13 @@ func numericResult(l, r qtype) qtype {
 // caseExpr types a CASE expression: its results' common type, which keeps
 // a type all results share and otherwise widens characters to VARCHAR2.
 func (a *queryAnalyzer) caseExpr(n *ast.CaseExpr, sc *qscope, clause exprClause) (qtype, bool, error) {
+	var argType qtype
 	if n.Arg != nil {
-		if _, _, err := a.expr(n.Arg, sc, clause); err != nil {
+		t, _, err := a.expr(n.Arg, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
 		}
+		argType = t
 	}
 	var results []qtype
 	for _, item := range listItems(n.Whens) {
@@ -565,8 +568,15 @@ func (a *queryAnalyzer) caseExpr(n *ast.CaseExpr, sc *qscope, clause exprClause)
 		if !ok {
 			continue
 		}
-		if _, _, err := a.expr(w.Condition, sc, clause); err != nil {
+		wt, _, err := a.expr(w.Condition, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
+		}
+		if n.Arg != nil {
+			// A simple CASE compares its operand with each WHEN value.
+			if err := comparable(argType, wt, nil); err != nil {
+				return qtype{}, false, err
+			}
 		}
 		t, _, err := a.expr(w.Result, sc, clause)
 		if err != nil {

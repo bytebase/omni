@@ -1103,6 +1103,9 @@ func (a *queryAnalyzer) groupByExpr(g ast.ExprNode, sc *qscope) error {
 	if ref, ok := unparen(g).(*ast.ColumnRef); ok && ref.Table == "" && !a.resolvesInFrom(ref, sc) {
 		for _, c := range sc.aliases {
 			if c.name == ref.Column {
+				if c.typ.isLOB() {
+					return oraError("22848", "cannot use %s type as comparison key", c.typ.kind)
+				}
 				return nil
 			}
 		}

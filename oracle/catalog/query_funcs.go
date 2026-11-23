@@ -241,7 +241,16 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 		if !t.isCharacter() && !t.isNull() && t.kind != "UNKNOWN" {
 			// A number or date is converted to characters first.
-			return varchar2Bytes(concatLength(t)), false, nil
+			t = varchar2Bytes(concatLength(t))
+		}
+		// A replacement no longer than what it replaces keeps the source's
+		// length; a longer or unknown one leaves the length unknown.
+		search, sok := literalString(argNode(n, 1))
+		if len(args) > 2 {
+			repl, rok := literalString(argNode(n, 2))
+			if !sok || !rok || len(repl) > len(search) {
+				return simpleType("UNKNOWN"), false, nil
+			}
 		}
 		if t.kind == "CHAR" {
 			t.kind = "VARCHAR2"

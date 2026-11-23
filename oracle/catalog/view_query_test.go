@@ -148,6 +148,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"in_list_incompatible", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE 1 IN (DATE '2020-01-01')`, "00932"},
 		{"in_row_list_width", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) IN ((1, 2), (3))`, "00947"},
 		{"order_by_position_lob", `CREATE VIEW v AS SELECT doc FROM t ORDER BY 1`, "22848"},
+		{"group_by_lob_alias", `CREATE VIEW v AS SELECT doc x FROM t GROUP BY x`, "22848"},
+		{"simple_case_incompatible", `CREATE VIEW v AS SELECT CASE 1 WHEN DATE '2020-01-01' THEN 1 ELSE 0 END x FROM dual`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -385,7 +387,7 @@ func TestViewQueryTypesRound14(t *testing.T) {
 func TestViewQueryTypesRound15(t *testing.T) {
 	c, err := LoadSQL(`
 CREATE TABLE t (id NUMBER, grp VARCHAR2(10), val DATE);
-CREATE VIEW v AS SELECT REPLACE(123, '2', '45') x FROM dual;
+CREATE VIEW v AS SELECT REPLACE(123, '2', '4') x FROM dual;
 CREATE VIEW w AS SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY grp ORDER BY id MEASURES FIRST(a.val) AS first_val ALL ROWS PER MATCH PATTERN (a) DEFINE a AS id > 0);
 `)
 	if err != nil {
@@ -455,6 +457,19 @@ CREATE VIEW v AS SELECT MOD(1, CAST(2 AS BINARY_DOUBLE)) a, CONCAT(nd, 'x') b, J
 		t.Fatal(err)
 	}
 	want := []string{"BINARY_DOUBLE", "NCLOB", "JSON"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryReplaceLength(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (s VARCHAR2(10)); CREATE VIEW v AS SELECT REPLACE(s, 'a', 'b') a, REPLACE(s, 'a', 'abcdefghij') b, REPLACE(s, 'a') c, REPLACE(123, '2', '4') d FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"VARCHAR2(10 BYTE)", "", "VARCHAR2(10 BYTE)", "VARCHAR2(40 BYTE)"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
