@@ -3551,3 +3551,34 @@ func TestPatternsRecordsAndSnapshotTypeBodies(t *testing.T) {
 		t.Errorf("type body after a metadata load: %s, want VALID", got)
 	}
 }
+
+// TestXMLTypeSynonymsAndUsingKeys holds three more readings: a built-in
+// type's constructor in static SQL, dropping a public synonym a unit reads
+// through, and a JOIN USING key's column.
+func TestXMLTypeSynonymsAndUsingKeys(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER, x NUMBER);\nCREATE TABLE u (id NUMBER, y NUMBER);\nCREATE TABLE w (id NUMBER);\nCREATE PUBLIC SYNONYM ws FOR w;\n" +
+		"CREATE PROCEDURE xml IS x XMLTYPE; BEGIN SELECT XMLTYPE('<r/>') INTO x FROM dual; END;\n/\n" +
+		"CREATE PROCEDURE pub IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM ws; END;\n/\n" +
+		"CREATE PROCEDURE joined IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM t JOIN u USING (id); END;\n/\n" +
+		"DROP PUBLIC SYNONYM ws;\nALTER TABLE t DROP COLUMN id;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "XML", "VALID"},
+		{unitProcedure, "PUB", "INVALID"},
+		{unitProcedure, "JOINED", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}

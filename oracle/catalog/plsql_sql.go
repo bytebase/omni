@@ -79,6 +79,12 @@ func (c *plChecker) readColumns(n ast.Node) {
 			} else {
 				names[x.Column] = true
 			}
+		case *ast.JoinClause:
+			for _, item := range listItems(x.Using) {
+				if u, ok := item.(*ast.String); ok {
+					names[u.Str] = true
+				}
+			}
 		}
 		return true
 	})
@@ -193,10 +199,11 @@ func (c *plChecker) sqlName(ref *ast.ColumnRef) bool {
 	return true
 }
 
-// sqlCall checks a function a SQL statement calls: a built-in, a schema
-// or package function, or a type's constructor. A unit's own local
-// function cannot be called from SQL, nor can a name the schema does not
-// hold (ORA-00904).
+// sqlCall checks a function a SQL statement calls: a built-in, a type's
+// constructor (a built-in type's too, as XMLTYPE('<r/>')), a schema or
+// package function, or a name the catalog cannot place. A name the schema
+// does not hold is ORA-00904; a unit's own local function cannot be called
+// from SQL either.
 func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 	if n.FuncName == nil || n.FuncName.Name == "" {
 		return nil
@@ -209,7 +216,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 		return nil
 	}
 	name := n.FuncName.Name
-	if plsqlFunctions[name] || n.Over != nil || sqlQuantifiers[name] || rowPatternFunctions[name] {
+	if plsqlFunctions[name] || plsqlTypes[name] || n.Over != nil || sqlSyntaxCalls[name] {
 		return nil
 	}
 	target := c.e.resolveSynonymTarget(name, "")
@@ -221,6 +228,14 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 		return nil
 	}
 	return oraError("00904", "%q: invalid identifier", name)
+}
+
+// sqlSyntaxCalls are the words the parser keeps as a call's name though
+// they call nothing: a quantified comparison's list (x = ANY (1, 2)) and
+// MATCH_RECOGNIZE's row-pattern functions.
+var sqlSyntaxCalls = map[string]bool{
+	"ALL": true, "ANY": true, "SOME": true,
+	"MATCH_NUMBER": true, "CLASSIFIER": true, "PREV": true, "NEXT": true, "FIRST": true, "LAST": true,
 }
 
 // readsUnknown reports a statement that reads a relation the catalog
@@ -495,11 +510,3 @@ func (c *plChecker) merge(a *queryAnalyzer, s *ast.MergeStmt) error {
 	}
 	return nil
 }
-
-// sqlQuantifiers are the words the parser keeps as a call's name for a
-// quantified comparison's list: x = ANY (1, 2).
-var sqlQuantifiers = map[string]bool{"ALL": true, "ANY": true, "SOME": true}
-
-// rowPatternFunctions are MATCH_RECOGNIZE's, which the query analyzer reads
-// in a pattern's MEASURES and DEFINE.
-var rowPatternFunctions = map[string]bool{"MATCH_NUMBER": true, "CLASSIFIER": true, "PREV": true, "NEXT": true, "FIRST": true, "LAST": true}

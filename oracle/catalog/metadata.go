@@ -2428,6 +2428,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 					return
 				}
 				delete(e.publicSynonyms, name)
+				e.invalidateReaders(name)
 			} else {
 				if !e.checkSchema(nameNode.Schema, "01434") {
 					return
