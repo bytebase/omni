@@ -96,11 +96,15 @@ func (cs *CandidateSet) HasRule(r string) bool {
 // and rule candidates at the given cursor offset.
 func Collect(sql string, cursorOffset int) *CandidateSet {
 	// Use Split to find the segment containing the cursor.
-	segments := Split(sql)
-	for _, seg := range segments {
-		if seg.Empty() {
-			continue
+	// Empty segments hold no statement to complete in: skip them, and read
+	// the trailing text from the last segment that holds one.
+	var segments []Segment
+	for _, seg := range Split(sql) {
+		if !seg.Empty() {
+			segments = append(segments, seg)
 		}
+	}
+	for _, seg := range segments {
 		if cursorOffset >= seg.ByteStart && cursorOffset <= seg.ByteEnd {
 			return collectSingle(seg.Text, cursorOffset-seg.ByteStart)
 		}

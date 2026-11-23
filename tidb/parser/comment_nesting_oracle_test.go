@@ -54,7 +54,7 @@ func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
 	}
 
 	// omni must describe the same two statements the server actually ran.
-	segments := Split(statement)
+	segments := nonEmptySegments(statement)
 	if len(segments) != 2 {
 		t.Fatalf("Split(%q) returned %d segments, want 2 (matching the server, which ran an INSERT then a DROP TABLE)", statement, len(segments))
 	}

@@ -36,11 +36,15 @@ func extractTableRefs(sql string, cursorOffset int) (refs []TableRef) {
 // when the cursor is past it, else the whole input. A TableRef carries no
 // position, so the statement is parsed on its own.
 func cursorStatement(sql string, cursorOffset int) (string, int) {
-	segments := parser.Split(sql)
-	for _, seg := range segments {
-		if seg.Empty() {
-			continue
+	// Empty segments are skipped, as parser.Collect skips them, so "last" is
+	// the last segment that holds a statement.
+	var segments []parser.Segment
+	for _, seg := range parser.Split(sql) {
+		if !seg.Empty() {
+			segments = append(segments, seg)
 		}
+	}
+	for _, seg := range segments {
 		if cursorOffset >= seg.ByteStart && cursorOffset <= seg.ByteEnd {
 			return seg.Text, cursorOffset - seg.ByteStart
 		}
