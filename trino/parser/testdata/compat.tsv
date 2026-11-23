@@ -254,6 +254,28 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLU
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ALTER COLUMN a SET DEFAULT 1.5
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ALTER COLUMN a SET DEFAULT 1.5
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a' YEAR
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a' YEAR
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL YEAR
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT a 'a'
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?	ALTER TABLE a ALTER COLUMN a SET DEFAULT a U&'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION 'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION 'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE 'a'
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION U&'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION U&'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE U&'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_DOUBLE_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1E1
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_INTEGER_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/booleanValue	ALTER TABLE a ALTER COLUMN a SET DEFAULT TRUE
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+booleanValue/FALSE	ALTER TABLE a ALTER COLUMN a SET DEFAULT FALSE
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/string	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#3	ALTER TABLE a ALTER COLUMN a SET DEFAULT U&'a'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/BINARY_LITERAL	ALTER TABLE a ALTER COLUMN a SET DEFAULT X'00'
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/NULL	ALTER TABLE a ALTER COLUMN a SET DEFAULT NULL
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!drop-1	TABLE a ALTER COLUMN a DROP DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!drop-2	ALTER a ALTER COLUMN a DROP DEFAULT
@@ -330,6 +352,10 @@ reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZA
 reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal!drop-6	ALTER TABLE a SET AUTHORIZATION
 reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal!insert	ALTER TABLE a SET AUTHORIZATION a zzz
 reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal!swap	ANALYZE TABLE a SET AUTHORIZATION a
+accept	accept	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier	ALTER TABLE a SET AUTHORIZATION USER a
+accept	accept	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION USER
+accept	accept	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier	ALTER TABLE a SET AUTHORIZATION ROLE a
+accept	accept	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION ROLE
 accept	accept	engine	statement/ANALYZE_qualifiedName_(WITH_properties)?	ANALYZE a
 reject	reject	engine	statement/ANALYZE_qualifiedName_(WITH_properties)?!drop-2	ANALYZE
 reject	reject	engine	statement/ANALYZE_qualifiedName_(WITH_properties)?!insert	ANALYZE a zzz
@@ -565,6 +591,10 @@ reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbc
 reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177!drop-6	GRANT CREATE ON a TO
 reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177!insert	GRANT CREATE ON a TO a zzz
 reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177!swap	GRANTED CREATE ON a TO a
+accept	accept	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177+principal/USER_identifier	GRANT CREATE ON a TO USER a
+accept	accept	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177+principal/USER_identifier!drop-7	GRANT CREATE ON a TO USER
+accept	accept	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177+principal/ROLE_identifier	GRANT CREATE ON a TO ROLE a
+accept	accept	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177+principal/ROLE_identifier!drop-7	GRANT CREATE ON a TO ROLE
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be	REVOKE CREATE FROM a
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be!drop-1	CREATE FROM a
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be!drop-2	REVOKE FROM a
@@ -579,6 +609,17 @@ reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_pri
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?	REVOKE CREATE FROM a IN a
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?!drop-5	REVOKE CREATE FROM a a
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?!drop-6	REVOKE CREATE FROM a IN
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/SELECT	REVOKE SELECT FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/DELETE	REVOKE DELETE FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/INSERT	REVOKE INSERT FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/UPDATE	REVOKE UPDATE FROM a
+accept	accept	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/identifier	REVOKE a FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/CREATE_BRANCH	REVOKE CREATE BRANCH FROM a
+accept	accept	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+privilegeOrRole/CREATE_BRANCH!drop-2	REVOKE BRANCH FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+principal/USER_identifier	REVOKE CREATE FROM USER a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+principal/USER_identifier!drop-5	REVOKE CREATE FROM USER
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+principal/ROLE_identifier	REVOKE CREATE FROM ROLE a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+principal/ROLE_identifier!drop-5	REVOKE CREATE FROM ROLE
 accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37	REVOKE CREATE ON a FROM a
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!drop-1	CREATE ON a FROM a
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!drop-2	REVOKE ON a FROM a
@@ -588,6 +629,10 @@ reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_p
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!drop-6	REVOKE CREATE ON a FROM
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!insert	REVOKE CREATE ON a FROM a zzz
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!swap	RIGHT CREATE ON a FROM a
+accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37+principal/USER_identifier	REVOKE CREATE ON a FROM USER a
+accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37+principal/USER_identifier!drop-7	REVOKE CREATE ON a FROM USER
+accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37+principal/ROLE_identifier	REVOKE CREATE ON a FROM ROLE a
+accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37+principal/ROLE_identifier!drop-7	REVOKE CREATE ON a FROM ROLE
 accept	accept	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3	DENY CREATE ON a TO a
 reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3!drop-2	DENY ON a TO a
 reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3!drop-3	DENY CREATE a TO a
@@ -596,6 +641,10 @@ reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON
 reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3!drop-6	DENY CREATE ON a TO
 reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3!insert	DENY CREATE ON a TO a zzz
 reject	reject	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3!swap	DESC CREATE ON a TO a
+accept	accept	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3+principal/USER_identifier	DENY CREATE ON a TO USER a
+accept	accept	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3+principal/USER_identifier!drop-7	DENY CREATE ON a TO USER
+accept	accept	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3+principal/ROLE_identifier	DENY CREATE ON a TO ROLE a
+accept	accept	engine	statement/DENY_(privilege_(,_privilege)*|ALL_PRIVILEGES)_ON_grant~62e94ad3+principal/ROLE_identifier!drop-7	DENY CREATE ON a TO ROLE
 accept	accept	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?	SET ROLE ALL
 reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!drop-1	ROLE ALL
 reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!drop-2	SET ALL
@@ -768,6 +817,7 @@ reject	reject	engine	statement/EXECUTE_IMMEDIATE_string_(USING_expression_(,_exp
 accept	accept	engine	statement/EXECUTE_IMMEDIATE_string_(USING_expression_(,_expression)*)?!drop-3	EXECUTE IMMEDIATE
 reject	reject	engine	statement/EXECUTE_IMMEDIATE_string_(USING_expression_(,_expression)*)?!insert	EXECUTE IMMEDIATE 'a' zzz
 reject	reject	engine	statement/EXECUTE_IMMEDIATE_string_(USING_expression_(,_expression)*)?!swap	EXISTS IMMEDIATE 'a'
+reject	reject	engine	statement/EXECUTE_IMMEDIATE_string_(USING_expression_(,_expression)*)?+string/UNICODE_STRING_(UESCAPE_STRING)?	EXECUTE IMMEDIATE U&'a'
 accept	accept	engine	statement/DESCRIBE_INPUT_identifier	DESCRIBE INPUT a
 reject	reject	engine	statement/DESCRIBE_INPUT_identifier!drop-1	INPUT a
 accept	accept	engine	statement/DESCRIBE_INPUT_identifier!drop-3	DESCRIBE INPUT
@@ -841,12 +891,17 @@ reject	reject	engine	statement(COMMENT_string)?/COMMENT_string!drop-1	CREATE CAT
 reject	reject	engine	statement(COMMENT_string)?/COMMENT_string!drop-2	CREATE CATALOG a USING a COMMENT
 reject	reject	engine	statement(COMMENT_string)?/COMMENT_string!insert	CREATE CATALOG a USING a COMMENT 'a' zzz
 reject	reject	engine	statement(COMMENT_string)?/COMMENT_string!swap	CREATE CATALOG a USING a COMMIT 'a'
+accept	accept	engine	statement(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE CATALOG a USING a COMMENT U&'a'
 accept	accept	engine	statement(AUTHORIZATION_principal)?/%empty	CREATE SCHEMA a
 accept	accept	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal	CREATE SCHEMA a AUTHORIZATION a
 reject	reject	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal!drop-1	CREATE SCHEMA a a
 reject	reject	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal!drop-2	CREATE SCHEMA a AUTHORIZATION
 reject	reject	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal!insert	CREATE SCHEMA a AUTHORIZATION a zzz
 reject	reject	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal!swap	CREATE SCHEMA a AUTO a
+accept	accept	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier	CREATE SCHEMA a AUTHORIZATION USER a
+accept	accept	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION USER
+accept	accept	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier	CREATE SCHEMA a AUTHORIZATION ROLE a
+accept	accept	engine	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION ROLE
 accept	accept	engine	statement(WITH_properties)?/%empty	ANALYZE a
 accept	accept	engine	statement(WITH_properties)?/WITH_properties	ANALYZE a WITH(a = DEFAULT)
 reject	reject	engine	statement(WITH_properties)?/WITH_properties!drop-1	ANALYZE a(a = DEFAULT)
@@ -917,6 +972,8 @@ reject	reject	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*
 reject	reject	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!truncate	CREATE TABLE a(a TIMESTAMP, a
 reject	reject	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!insert	CREATE TABLE a(a TIMESTAMP, a TIMESTAMP zzz)
 accept	accept	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!swap	CREATE TABLE a(a TIMESTAMP, a TO)
+accept	accept	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause	CREATE TABLE a(a TIMESTAMP, LIKE a)
+reject	reject	engine	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause!drop-3	CREATE TABLE a(a TIMESTAMP, LIKE)
 accept	accept	engine	statement(@_identifier)?/%empty	DELETE FROM a
 accept	accept	engine	statement(@_identifier)?/@_identifier	DELETE FROM a@a
 reject	reject	engine	statement(@_identifier)?/@_identifier!drop-1	DELETE FROM a a
@@ -929,6 +986,7 @@ reject	reject	engine	statement(WHERE_booleanExpression)?/WHERE_booleanExpression
 reject	reject	engine	statement(WHERE_booleanExpression)?/WHERE_booleanExpression!insert	DELETE FROM a WHERE 1.5 zzz
 reject	reject	engine	statement(WHERE_booleanExpression)?/WHERE_booleanExpression!swap	DELETE FROM a WHILE 1.5
 accept	accept	engine	statement(string|NULL)/string	COMMENT ON TABLE a IS 'a'
+accept	accept	engine	statement(string|NULL)/string+string/UNICODE_STRING_(UESCAPE_STRING)?	COMMENT ON TABLE a IS U&'a'
 accept	accept	engine	statement(string|NULL)/NULL	COMMENT ON TABLE a IS NULL
 reject	reject	engine	statement(string|NULL)/NULL!insert	COMMENT ON TABLE a IS NULL zzz
 reject	reject	engine	statement(string|NULL)/NULL!swap	COMMENT ON TABLE a IS NULLIF
@@ -953,12 +1011,20 @@ accept	accept	engine	statement(argument_(,_argument)*)?/%empty	CALL a()
 accept	accept	engine	statement(argument_(,_argument)*)?/%empty!insert	CALL a(zzz)
 accept	accept	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*	CALL a(1.5)
 reject	reject	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*!insert	CALL a(1.5 zzz)
+accept	accept	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression	CALL a(a => 1.5)
+reject	reject	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-1	CALL a(=> 1.5)
+reject	reject	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-2	CALL a(a 1.5)
+reject	reject	engine	statement(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-3	CALL a(a =>)
 accept	accept	engine	statement(,_argument)*/%empty	CALL a(1.5)
 accept	accept	engine	statement(,_argument)*/,_argument_(,_argument)*	CALL a(1.5, 1.5)
 reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*!drop-1	CALL a(1.5 1.5)
 reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*!drop-2	CALL a(1.5,)
 reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*!truncate	CALL a(1.5,
 reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*!insert	CALL a(1.5, 1.5 zzz)
+accept	accept	engine	statement(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression	CALL a(1.5, a => 1.5)
+reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-2	CALL a(1.5, => 1.5)
+reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-3	CALL a(1.5, a 1.5)
+reject	reject	engine	statement(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-4	CALL a(1.5, a =>)
 accept	accept	engine	statement(GRACE_PERIOD_interval)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1.5
 reject	reject	engine	statement(GRACE_PERIOD_interval)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT 1.5
 accept	accept	engine	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
@@ -1016,6 +1082,10 @@ reject	reject	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor!drop-2	CR
 reject	reject	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor!drop-3	CREATE ROLE a WITH ADMIN
 reject	reject	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor!insert	CREATE ROLE a WITH ADMIN a zzz
 reject	reject	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor!swap	CREATE ROLE a WITHIN ADMIN a
+accept	accept	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor+principal/USER_identifier	CREATE ROLE a WITH ADMIN USER a
+accept	accept	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor+principal/USER_identifier!drop-4	CREATE ROLE a WITH ADMIN USER
+accept	accept	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor+principal/ROLE_identifier	CREATE ROLE a WITH ADMIN ROLE a
+accept	accept	engine	statement(WITH_ADMIN_grantor)?/WITH_ADMIN_grantor+principal/ROLE_identifier!drop-4	CREATE ROLE a WITH ADMIN ROLE
 accept	accept	engine	statement(IN_identifier)?/%empty	CREATE ROLE a
 accept	accept	engine	statement(IN_identifier)?/IN_identifier	CREATE ROLE a IN a
 reject	reject	engine	statement(IN_identifier)?/IN_identifier!drop-1	CREATE ROLE a a
@@ -1030,10 +1100,21 @@ reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privileg
 reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*!truncate	GRANT CREATE,
 reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*!insert	GRANT CREATE, CREATE zzz TO a
 reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*!swap	GRANT CREATE, CROSS TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/SELECT	GRANT CREATE, SELECT TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/DELETE	GRANT CREATE, DELETE TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/INSERT	GRANT CREATE, INSERT TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/UPDATE	GRANT CREATE, UPDATE TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/identifier	GRANT CREATE, a TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/CREATE_BRANCH	GRANT CREATE, CREATE BRANCH TO a
+reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/CREATE_BRANCH!drop-2	GRANT CREATE, BRANCH TO a
 reject	reject	engine	statement(,_principal)*/%empty	GRANT CREATE TO a
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*	GRANT CREATE TO a, a
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*!drop-2	GRANT CREATE TO a,
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*!insert	GRANT CREATE TO a, a zzz
+reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*+principal/USER_identifier	GRANT CREATE TO a, USER a
+reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*+principal/USER_identifier!drop-3	GRANT CREATE TO a, USER
+reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*+principal/ROLE_identifier	GRANT CREATE TO a, ROLE a
+reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*+principal/ROLE_identifier!drop-3	GRANT CREATE TO a, ROLE
 reject	reject	engine	statement(WITH_ADMIN_OPTION)?/%empty	GRANT CREATE TO a
 reject	reject	engine	statement(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION	GRANT CREATE TO a WITH ADMIN OPTION
 reject	reject	engine	statement(WITH_ADMIN_OPTION)?/WITH_ADMIN_OPTION!drop-1	GRANT CREATE TO a ADMIN OPTION
@@ -1048,10 +1129,23 @@ reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor!drop-2	GR
 reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor!drop-3	GRANT CREATE TO a GRANTED BY
 reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor!insert	GRANT CREATE TO a GRANTED BY a zzz
 reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor!swap	GRANT CREATE TO a GRANTS BY a
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+principal/USER_identifier	GRANT CREATE TO a GRANTED BY USER a
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+principal/USER_identifier!drop-4	GRANT CREATE TO a GRANTED BY USER
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+principal/ROLE_identifier	GRANT CREATE TO a GRANTED BY ROLE a
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+principal/ROLE_identifier!drop-4	GRANT CREATE TO a GRANTED BY ROLE
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+grantor/CURRENT_USER	GRANT CREATE TO a GRANTED BY CURRENT_USER
+reject	reject	engine	statement(GRANTED_BY_grantor)?/GRANTED_BY_grantor+grantor/CURRENT_ROLE	GRANT CREATE TO a GRANTED BY CURRENT_ROLE
 accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*	GRANT CREATE ON a TO a
 reject	reject	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*!truncate	GRANT
 reject	reject	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*!insert	GRANT CREATE zzz ON a TO a
 reject	reject	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*!swap	GRANT CROSS ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/SELECT	GRANT SELECT ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/DELETE	GRANT DELETE ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/INSERT	GRANT INSERT ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/UPDATE	GRANT UPDATE ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/identifier	GRANT a ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/CREATE_BRANCH	GRANT CREATE BRANCH ON a TO a
+accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/privilegeOrRole_(,_privilegeOrRole)*+privilegeOrRole/CREATE_BRANCH!drop-1	GRANT BRANCH ON a TO a
 accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/ALL_PRIVILEGES	GRANT ALL PRIVILEGES ON a TO a
 accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/ALL_PRIVILEGES!drop-1	GRANT PRIVILEGES ON a TO a
 accept	accept	engine	statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)/ALL_PRIVILEGES!drop-2	GRANT ALL ON a TO a
@@ -1100,6 +1194,13 @@ reject	reject	engine	statement(,_privilege)*/,_privilege_(,_privilege)*!drop-2	D
 reject	reject	engine	statement(,_privilege)*/,_privilege_(,_privilege)*!truncate	DENY CREATE,
 reject	reject	engine	statement(,_privilege)*/,_privilege_(,_privilege)*!insert	DENY CREATE, CREATE zzz ON a TO a
 reject	reject	engine	statement(,_privilege)*/,_privilege_(,_privilege)*!swap	DENY CREATE, CROSS ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/SELECT	DENY CREATE, SELECT ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/DELETE	DENY CREATE, DELETE ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/INSERT	DENY CREATE, INSERT ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/UPDATE	DENY CREATE, UPDATE ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/identifier	DENY CREATE, a ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/CREATE_BRANCH	DENY CREATE, CREATE BRANCH ON a TO a
+accept	accept	engine	statement(,_privilege)*/,_privilege_(,_privilege)*+privilege/CREATE_BRANCH!drop-2	DENY CREATE, BRANCH ON a TO a
 accept	accept	engine	statement(ALL|NONE|identifier)/ALL	SET ROLE ALL
 reject	reject	engine	statement(ALL|NONE|identifier)/ALL!swap	SET ROLE ALTER
 accept	accept	engine	statement(ALL|NONE|identifier)/NONE	SET ROLE NONE
@@ -1132,6 +1233,9 @@ reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOptio
 reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*!truncate	EXPLAIN(FORMAT TEXT, FORMAT
 reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*!insert	EXPLAIN(FORMAT TEXT, FORMAT TEXT zzz) COMMIT
 reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*!swap	EXPLAIN(FORMAT TEXT, FORWARD TEXT) COMMIT
+accept	accept	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*+explainOption/TYPE_(LOGICAL|DISTRIBUTED|VALIDATE|IO)	EXPLAIN(FORMAT TEXT, TYPE LOGICAL) COMMIT
+reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*+explainOption/TYPE_(LOGICAL|DISTRIBUTED|VALIDATE|IO)!drop-2	EXPLAIN(FORMAT TEXT, LOGICAL) COMMIT
+reject	reject	engine	statement(,_explainOption)*/,_explainOption_(,_explainOption)*+explainOption/TYPE_(LOGICAL|DISTRIBUTED|VALIDATE|IO)!drop-3	EXPLAIN(FORMAT TEXT, TYPE) COMMIT
 accept	accept	engine	statement(VERBOSE)?/%empty	EXPLAIN ANALYZE COMMIT
 reject	reject	engine	statement(VERBOSE)?/%empty!insert	EXPLAIN ANALYZE zzz COMMIT
 accept	accept	engine	statement(VERBOSE)?/VERBOSE	EXPLAIN ANALYZE VERBOSE COMMIT
@@ -1147,12 +1251,14 @@ reject	reject	engine	statement(LIKE_string_(ESCAPE_string)?)?/LIKE_string_(ESCAP
 reject	reject	engine	statement(LIKE_string_(ESCAPE_string)?)?/LIKE_string_(ESCAPE_string)?!drop-2	SHOW TABLES LIKE
 reject	reject	engine	statement(LIKE_string_(ESCAPE_string)?)?/LIKE_string_(ESCAPE_string)?!insert	SHOW TABLES LIKE 'a' zzz
 reject	reject	engine	statement(LIKE_string_(ESCAPE_string)?)?/LIKE_string_(ESCAPE_string)?!swap	SHOW TABLES LIMIT 'a'
+accept	accept	engine	statement(LIKE_string_(ESCAPE_string)?)?/LIKE_string_(ESCAPE_string)?+string/UNICODE_STRING_(UESCAPE_STRING)?	SHOW TABLES LIKE U&'a'
 accept	accept	engine	statement(ESCAPE_string)?/%empty	SHOW TABLES LIKE 'a'
 accept	accept	engine	statement(ESCAPE_string)?/ESCAPE_string	SHOW TABLES LIKE 'a' ESCAPE 'a'
 reject	reject	engine	statement(ESCAPE_string)?/ESCAPE_string!drop-1	SHOW TABLES LIKE 'a' 'a'
 reject	reject	engine	statement(ESCAPE_string)?/ESCAPE_string!drop-2	SHOW TABLES LIKE 'a' ESCAPE
 reject	reject	engine	statement(ESCAPE_string)?/ESCAPE_string!insert	SHOW TABLES LIKE 'a' ESCAPE 'a' zzz
 reject	reject	engine	statement(ESCAPE_string)?/ESCAPE_string!swap	SHOW TABLES LIKE 'a' EXCEPT 'a'
+accept	accept	engine	statement(ESCAPE_string)?/ESCAPE_string+string/UNICODE_STRING_(UESCAPE_STRING)?	SHOW TABLES LIKE 'a' ESCAPE U&'a'
 accept	accept	engine	statement((FROM|IN)_identifier)?/%empty	SHOW SCHEMAS
 accept	accept	engine	statement((FROM|IN)_identifier)?/(FROM|IN)_identifier	SHOW SCHEMAS FROM a
 reject	reject	engine	statement((FROM|IN)_identifier)?/(FROM|IN)_identifier!drop-1	SHOW SCHEMAS a
@@ -1177,6 +1283,10 @@ reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transact
 reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*!drop-3	START TRANSACTION READ ONLY, READ
 reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*!insert	START TRANSACTION READ ONLY, READ ONLY zzz
 reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*!swap	START TRANSACTION READ ONLY, RECURSIVE ONLY
+accept	accept	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*+transactionMode/ISOLATION_LEVEL_levelOfIsolation	START TRANSACTION READ ONLY, ISOLATION LEVEL SERIALIZABLE
+reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*+transactionMode/ISOLATION_LEVEL_levelOfIsolation!drop-2	START TRANSACTION READ ONLY, LEVEL SERIALIZABLE
+reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*+transactionMode/ISOLATION_LEVEL_levelOfIsolation!drop-3	START TRANSACTION READ ONLY, ISOLATION SERIALIZABLE
+reject	reject	engine	statement(,_transactionMode)*/,_transactionMode_(,_transactionMode)*+transactionMode/ISOLATION_LEVEL_levelOfIsolation!drop-4	START TRANSACTION READ ONLY, ISOLATION LEVEL
 accept	accept	engine	statement(WORK)?/%empty	COMMIT
 accept	accept	engine	statement(WORK)?/WORK	COMMIT WORK
 reject	reject	engine	statement(WORK)?/WORK!insert	COMMIT WORK zzz
@@ -1324,6 +1434,28 @@ reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal!drop-2	C
 reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal!truncate	CREATE TABLE a(a TIMESTAMP DEFAULT
 reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal!insert	CREATE TABLE a(a TIMESTAMP DEFAULT 1.5 zzz)
 reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal!swap	CREATE TABLE a(a TIMESTAMP DEFINE 1.5)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a' YEAR)
+reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT 'a' YEAR)
+reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL YEAR)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string	CREATE TABLE a(a TIMESTAMP DEFAULT a 'a')
+reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT a)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP DEFAULT a U&'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION 'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION 'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE 'a')
+reject	reject	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION U&'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION U&'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE U&'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_DOUBLE_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1E1)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_INTEGER_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/booleanValue	CREATE TABLE a(a TIMESTAMP DEFAULT TRUE)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+booleanValue/FALSE	CREATE TABLE a(a TIMESTAMP DEFAULT FALSE)
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/string	CREATE TABLE a(a TIMESTAMP DEFAULT 'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#3	CREATE TABLE a(a TIMESTAMP DEFAULT U&'a')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/BINARY_LITERAL	CREATE TABLE a(a TIMESTAMP DEFAULT X'00')
+accept	accept	engine	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/NULL	CREATE TABLE a(a TIMESTAMP DEFAULT NULL)
 accept	accept	engine	columnDefinition(NOT_NULL)?/%empty	CREATE TABLE a(a TIMESTAMP)
 accept	accept	engine	columnDefinition(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a TIMESTAMP NOT NULL)
 reject	reject	engine	columnDefinition(NOT_NULL)?/NOT_NULL!drop-1	CREATE TABLE a(a TIMESTAMP NULL)
@@ -1338,6 +1470,7 @@ reject	reject	engine	columnDefinition(COMMENT_string)?/COMMENT_string!drop-2	CRE
 reject	reject	engine	columnDefinition(COMMENT_string)?/COMMENT_string!truncate	CREATE TABLE a(a TIMESTAMP COMMENT
 reject	reject	engine	columnDefinition(COMMENT_string)?/COMMENT_string!insert	CREATE TABLE a(a TIMESTAMP COMMENT 'a' zzz)
 reject	reject	engine	columnDefinition(COMMENT_string)?/COMMENT_string!swap	CREATE TABLE a(a TIMESTAMP COMMIT 'a')
+accept	accept	engine	columnDefinition(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP COMMENT U&'a')
 accept	accept	engine	columnDefinition(WITH_properties)?/%empty	CREATE TABLE a(a TIMESTAMP)
 accept	accept	engine	columnDefinition(WITH_properties)?/WITH_properties	CREATE TABLE a(a TIMESTAMP WITH(a = DEFAULT))
 reject	reject	engine	columnDefinition(WITH_properties)?/WITH_properties!drop-1	CREATE TABLE a(a TIMESTAMP(a = DEFAULT))
@@ -1423,6 +1556,7 @@ accept	accept	engine	queryNoWith(rowCount)?/%empty	SELECT 1.5 FETCH FIRST ROW ON
 accept	accept	engine	queryNoWith(rowCount)?/rowCount	SELECT 1.5 FETCH FIRST 1 ROW ONLY
 reject	reject	engine	queryNoWith(rowCount)?/rowCount!truncate	SELECT 1.5 FETCH FIRST
 reject	reject	engine	queryNoWith(rowCount)?/rowCount!insert	SELECT 1.5 FETCH FIRST 1 zzz ROW ONLY
+accept	accept	engine	queryNoWith(rowCount)?/rowCount+rowCount/QUESTION_MARK	SELECT 1.5 FETCH FIRST ? ROW ONLY
 accept	accept	engine	queryNoWith(ROW|ROWS)/ROW	SELECT 1.5 FETCH FIRST ROW ONLY
 reject	reject	engine	queryNoWith(ROW|ROWS)/ROW!insert	SELECT 1.5 FETCH FIRST ROW zzz ONLY
 accept	accept	engine	queryNoWith(ROW|ROWS)/ROWS	SELECT 1.5 FETCH FIRST ROWS ONLY
@@ -1441,10 +1575,19 @@ accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*	SELECT 1.5 OR
 reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-1	SELECT 1.5 ORDER BY 1.5 1.5
 reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-2	SELECT 1.5 ORDER BY 1.5,
 reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*!insert	SELECT 1.5 ORDER BY 1.5, 1.5 zzz
+accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/ASC	SELECT 1.5 ORDER BY 1.5, 1.5 ASC
+accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/ASC!drop-2	SELECT 1.5 ORDER BY 1.5, ASC
+accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/DESC	SELECT 1.5 ORDER BY 1.5, 1.5 DESC
+accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/DESC!drop-2	SELECT 1.5 ORDER BY 1.5, DESC
+accept	accept	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT 1.5 ORDER BY 1.5, 1.5 NULLS FIRST
+reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT 1.5 ORDER BY 1.5, NULLS FIRST
+reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-3	SELECT 1.5 ORDER BY 1.5, 1.5 FIRST
+reject	reject	engine	orderBy(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-4	SELECT 1.5 ORDER BY 1.5, 1.5 NULLS
 accept	accept	engine	limitRowCount/ALL	SELECT 1.5 LIMIT ALL
 reject	reject	engine	limitRowCount/ALL!swap	SELECT 1.5 LIMIT ALTER
 accept	accept	engine	limitRowCount/rowCount	SELECT 1.5 LIMIT 1
 reject	reject	engine	limitRowCount/rowCount!insert	SELECT 1.5 LIMIT 1 zzz
+accept	accept	engine	limitRowCount/rowCount+rowCount/QUESTION_MARK	SELECT 1.5 LIMIT ?
 accept	accept	engine	rowCount/INTEGER_VALUE	SELECT 1.5 OFFSET 1
 accept	accept	engine	rowCount/QUESTION_MARK	SELECT 1.5 OFFSET ?
 reject	reject	engine	rowCount/QUESTION_MARK!insert	SELECT 1.5 OFFSET ? zzz
@@ -1470,6 +1613,7 @@ accept	accept	engine	queryTerm(setQuantifier)?/setQuantifier	SELECT 1.5 INTERSEC
 reject	reject	engine	queryTerm(setQuantifier)?/setQuantifier!truncate	SELECT 1.5 INTERSECT
 reject	reject	engine	queryTerm(setQuantifier)?/setQuantifier!insert	SELECT 1.5 INTERSECT DISTINCT zzz SELECT 1.5
 reject	reject	engine	queryTerm(setQuantifier)?/setQuantifier!swap	SELECT 1.5 INTERSECT DISTRIBUTED SELECT 1.5
+accept	accept	engine	queryTerm(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT 1.5 INTERSECT ALL SELECT 1.5
 accept	accept	engine	queryTerm(corresponding)?/%empty	SELECT 1.5 INTERSECT SELECT 1.5
 accept	accept	engine	queryTerm(corresponding)?/corresponding	SELECT 1.5 INTERSECT CORRESPONDING SELECT 1.5
 reject	reject	engine	queryTerm(corresponding)?/corresponding!insert	SELECT 1.5 INTERSECT CORRESPONDING zzz SELECT 1.5
@@ -1541,6 +1685,11 @@ accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectIte
 reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-1	SELECT 1.5 1.5
 reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-2	SELECT 1.5,
 accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*!insert	SELECT 1.5, 1.5 zzz
+accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*+selectItem/primaryExpression_._ASTERISK_(AS_columnAliases)?	SELECT 1.5, 1.5.*
+reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*+selectItem/primaryExpression_._ASTERISK_(AS_columnAliases)?!drop-2	SELECT 1.5,.*
+reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*+selectItem/primaryExpression_._ASTERISK_(AS_columnAliases)?!drop-3	SELECT 1.5, 1.5 *
+reject	reject	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*+selectItem/primaryExpression_._ASTERISK_(AS_columnAliases)?!drop-4	SELECT 1.5, 1.5.
+accept	accept	engine	querySpecification(,_selectItem)*/,_selectItem_(,_selectItem)*+selectItem/ASTERISK	SELECT 1.5, *
 accept	accept	engine	querySpecification(FROM_relation_(,_relation)*)?/%empty	SELECT 1.5
 accept	accept	engine	querySpecification(FROM_relation_(,_relation)*)?/FROM_relation_(,_relation)*	SELECT 1.5 FROM a
 reject	reject	engine	querySpecification(FROM_relation_(,_relation)*)?/FROM_relation_(,_relation)*!drop-2	SELECT 1.5 FROM
@@ -1585,16 +1734,43 @@ reject	reject	engine	querySpecification(,_windowDefinition)*/,_windowDefinition_
 reject	reject	engine	querySpecification(,_windowDefinition)*/,_windowDefinition_(,_windowDefinition)*!insert	SELECT 1.5 WINDOW a AS(), a AS() zzz
 reject	reject	engine	querySpecification(,_windowDefinition)*/,_windowDefinition_(,_windowDefinition)*!swap	SELECT 1.5 WINDOW a AS(), a ASC()
 accept	accept	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*	SELECT 1.5 GROUP BY 1.5
+accept	accept	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2	SELECT 1.5 GROUP BY GROUPING SETS(())
+reject	reject	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-1	SELECT 1.5 GROUP BY SETS(())
+reject	reject	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-2	SELECT 1.5 GROUP BY GROUPING(())
+reject	reject	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-3	SELECT 1.5 GROUP BY GROUPING SETS())
+reject	reject	engine	groupBy/(setQuantifier)?_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-5	SELECT 1.5 GROUP BY GROUPING SETS(()
 accept	accept	engine	groupBy(setQuantifier)?/%empty	SELECT 1.5 GROUP BY 1.5
 reject	reject	engine	groupBy(setQuantifier)?/%empty!insert	SELECT 1.5 GROUP BY zzz 1.5
 accept	accept	engine	groupBy(setQuantifier)?/setQuantifier	SELECT 1.5 GROUP BY DISTINCT 1.5
 reject	reject	engine	groupBy(setQuantifier)?/setQuantifier!insert	SELECT 1.5 GROUP BY DISTINCT zzz 1.5
 reject	reject	engine	groupBy(setQuantifier)?/setQuantifier!swap	SELECT 1.5 GROUP BY DISTRIBUTED 1.5
+accept	accept	engine	groupBy(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT 1.5 GROUP BY ALL 1.5
 accept	accept	engine	groupBy(,_groupingElement)*/%empty	SELECT 1.5 GROUP BY 1.5
 accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*	SELECT 1.5 GROUP BY 1.5, 1.5
 reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*!drop-1	SELECT 1.5 GROUP BY 1.5 1.5
 reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*!drop-2	SELECT 1.5 GROUP BY 1.5,
 reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*!insert	SELECT 1.5 GROUP BY 1.5, 1.5 zzz
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)	SELECT 1.5 GROUP BY 1.5,()
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-2	SELECT 1.5 GROUP BY 1.5,)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-3	SELECT 1.5 GROUP BY 1.5,(
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/AUTO	SELECT 1.5 GROUP BY 1.5, AUTO
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/ROLLUP_(_(groupingSet_(,_groupingSet)*)?_)	SELECT 1.5 GROUP BY 1.5, ROLLUP()
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/ROLLUP_(_(groupingSet_(,_groupingSet)*)?_)!drop-3	SELECT 1.5 GROUP BY 1.5, ROLLUP)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/ROLLUP_(_(groupingSet_(,_groupingSet)*)?_)!drop-4	SELECT 1.5 GROUP BY 1.5, ROLLUP(
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/CUBE_(_(groupingSet_(,_groupingSet)*)?_)	SELECT 1.5 GROUP BY 1.5, CUBE()
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/CUBE_(_(groupingSet_(,_groupingSet)*)?_)!drop-3	SELECT 1.5 GROUP BY 1.5, CUBE)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/CUBE_(_(groupingSet_(,_groupingSet)*)?_)!drop-4	SELECT 1.5 GROUP BY 1.5, CUBE(
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)	SELECT 1.5 GROUP BY 1.5, GROUPING SETS(1.5)
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!drop-2	SELECT 1.5 GROUP BY 1.5, SETS(1.5)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!drop-3	SELECT 1.5 GROUP BY 1.5, GROUPING(1.5)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!drop-4	SELECT 1.5 GROUP BY 1.5, GROUPING SETS 1.5)
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!drop-5	SELECT 1.5 GROUP BY 1.5, GROUPING SETS()
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!drop-6	SELECT 1.5 GROUP BY 1.5, GROUPING SETS(1.5
+accept	accept	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2	SELECT 1.5 GROUP BY 1.5, GROUPING SETS(())
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-2	SELECT 1.5 GROUP BY 1.5, SETS(())
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-3	SELECT 1.5 GROUP BY 1.5, GROUPING(())
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-4	SELECT 1.5 GROUP BY 1.5, GROUPING SETS())
+reject	reject	engine	groupBy(,_groupingElement)*/,_groupingElement_(,_groupingElement)*+groupingSet/(_(expression_(,_expression)*)?_)#2!drop-6	SELECT 1.5 GROUP BY 1.5, GROUPING SETS(()
 accept	accept	engine	groupingElement/groupingSet	SELECT 1.5 GROUP BY 1.5
 accept	accept	engine	groupingElement/AUTO	SELECT 1.5 GROUP BY AUTO
 reject	reject	engine	groupingElement/AUTO!insert	SELECT 1.5 GROUP BY AUTO zzz
@@ -1621,12 +1797,18 @@ accept	accept	engine	groupingElement(groupingSet_(,_groupingSet)*)?/%empty	SELEC
 accept	accept	engine	groupingElement(groupingSet_(,_groupingSet)*)?/%empty!insert	SELECT 1.5 GROUP BY ROLLUP(zzz)
 accept	accept	engine	groupingElement(groupingSet_(,_groupingSet)*)?/groupingSet_(,_groupingSet)*	SELECT 1.5 GROUP BY ROLLUP(1.5)
 reject	reject	engine	groupingElement(groupingSet_(,_groupingSet)*)?/groupingSet_(,_groupingSet)*!insert	SELECT 1.5 GROUP BY ROLLUP(1.5 zzz)
+accept	accept	engine	groupingElement(groupingSet_(,_groupingSet)*)?/groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)	SELECT 1.5 GROUP BY ROLLUP(())
+reject	reject	engine	groupingElement(groupingSet_(,_groupingSet)*)?/groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-1	SELECT 1.5 GROUP BY ROLLUP())
+reject	reject	engine	groupingElement(groupingSet_(,_groupingSet)*)?/groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-2	SELECT 1.5 GROUP BY ROLLUP(()
 accept	accept	engine	groupingElement(,_groupingSet)*/%empty	SELECT 1.5 GROUP BY ROLLUP(1.5)
 accept	accept	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*	SELECT 1.5 GROUP BY ROLLUP(1.5, 1.5)
 reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*!drop-1	SELECT 1.5 GROUP BY ROLLUP(1.5 1.5)
 reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*!drop-2	SELECT 1.5 GROUP BY ROLLUP(1.5,)
 reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*!truncate	SELECT 1.5 GROUP BY ROLLUP(1.5,
 reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*!insert	SELECT 1.5 GROUP BY ROLLUP(1.5, 1.5 zzz)
+accept	accept	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)	SELECT 1.5 GROUP BY ROLLUP(1.5,())
+reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-2	SELECT 1.5 GROUP BY ROLLUP(1.5,))
+reject	reject	engine	groupingElement(,_groupingSet)*/,_groupingSet_(,_groupingSet)*+groupingSet/(_(expression_(,_expression)*)?_)!drop-3	SELECT 1.5 GROUP BY ROLLUP(1.5,()
 accept	accept	engine	groupingSet/(_(expression_(,_expression)*)?_)	SELECT 1.5 GROUP BY()
 reject	reject	engine	groupingSet/(_(expression_(,_expression)*)?_)!drop-1	SELECT 1.5 GROUP BY)
 reject	reject	engine	groupingSet/(_(expression_(,_expression)*)?_)!drop-2	SELECT 1.5 GROUP BY(
@@ -1733,6 +1915,9 @@ reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joi
 reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria!drop-4	SELECT 1.5 FROM a JOIN a ON
 reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria!insert	SELECT 1.5 FROM a JOIN a ON 1.5 zzz
 reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria!swap	SELECT 1.5 FROM a JSON a ON 1.5
+accept	accept	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria+joinType/LEFT_(OUTER)?	SELECT 1.5 FROM a LEFT JOIN a ON 1.5
+accept	accept	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria+joinType/RIGHT_(OUTER)?	SELECT 1.5 FROM a RIGHT JOIN a ON 1.5
+accept	accept	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/joinType_JOIN_relation_joinCriteria+joinType/FULL_(OUTER)?	SELECT 1.5 FROM a FULL JOIN a ON 1.5
 accept	accept	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/NATURAL_joinType_JOIN_sampledRelation	SELECT 1.5 FROM a NATURAL JOIN a
 reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/NATURAL_joinType_JOIN_sampledRelation!drop-2	SELECT 1.5 FROM a NATURAL a
 reject	reject	engine	relation(CROSS_JOIN_sampledRelation|joinType_~f7482ea6)/NATURAL_joinType_JOIN_sampledRelation!drop-3	SELECT 1.5 FROM a NATURAL JOIN
@@ -1819,6 +2004,7 @@ reject	reject	engine	listAggOverflowBehavior(string)?/%empty!insert	SELECT LISTA
 accept	accept	engine	listAggOverflowBehavior(string)?/string	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE 'a' WITH COUNT) WITHIN GROUP(ORDER BY 1.5)
 reject	reject	engine	listAggOverflowBehavior(string)?/string!truncate	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE
 reject	reject	engine	listAggOverflowBehavior(string)?/string!insert	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE 'a' zzz WITH COUNT) WITHIN GROUP(ORDER BY 1.5)
+accept	accept	engine	listAggOverflowBehavior(string)?/string+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE U&'a' WITH COUNT) WITHIN GROUP(ORDER BY 1.5)
 accept	accept	engine	listaggCountIndication/WITH_COUNT	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP(ORDER BY 1.5)
 reject	reject	engine	listaggCountIndication/WITH_COUNT!swap	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE WITHIN COUNT) WITHIN GROUP(ORDER BY 1.5)
 accept	accept	engine	listaggCountIndication/WITHOUT_COUNT	SELECT LISTAGG(1.5 ON OVERFLOW TRUNCATE WITHOUT COUNT) WITHIN GROUP(ORDER BY 1.5)
@@ -1901,6 +2087,24 @@ reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo!
 reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo!truncate	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO
 reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo!insert	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a zzz PATTERN(a) DEFINE a AS 1.5)
 reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo!swap	SELECT 1.5 FROM a MATCH_RECOGNIZE(ALL MATCH SKIP TO a PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_NEXT_ROW	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_NEXT_ROW!drop-3	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH TO NEXT ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_NEXT_ROW!drop-4	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP NEXT ROW PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_NEXT_ROW!drop-5	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO ROW PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_NEXT_ROW!drop-6	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_PAST_LAST_ROW	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_PAST_LAST_ROW!drop-3	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH PAST LAST ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_PAST_LAST_ROW!drop-4	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_PAST_LAST_ROW!drop-5	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST ROW PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_PAST_LAST_ROW!drop-6	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_FIRST_identifier	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_FIRST_identifier!drop-3	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH TO FIRST a PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_FIRST_identifier!drop-4	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP FIRST a PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_FIRST_identifier!drop-6	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_LAST_identifier	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_LAST_identifier!drop-3	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH TO LAST a PATTERN(a) DEFINE a AS 1.5)
+reject	reject	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_LAST_identifier!drop-4	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST a PATTERN(a) DEFINE a AS 1.5)
+accept	accept	engine	patternRecognition(AFTER_MATCH_skipTo)?/AFTER_MATCH_skipTo+skipTo/SKIP_TO_LAST_identifier!drop-6	SELECT 1.5 FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST PATTERN(a) DEFINE a AS 1.5)
 accept	accept	engine	patternRecognition(INITIAL|SEEK)?/%empty	SELECT 1.5 FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1.5)
 accept	accept	engine	patternRecognition(INITIAL|SEEK)?/INITIAL	SELECT 1.5 FROM a MATCH_RECOGNIZE(INITIAL PATTERN(a) DEFINE a AS 1.5)
 reject	reject	engine	patternRecognition(INITIAL|SEEK)?/INITIAL!truncate	SELECT 1.5 FROM a MATCH_RECOGNIZE(
@@ -2232,6 +2436,7 @@ reject	reject	engine	jsonTableColumn/NESTED_(PATH)?_string_(AS_identifier)?_COLU
 reject	reject	engine	jsonTableColumn/NESTED_(PATH)?_string_(AS_identifier)?_COLUMNS_(_jsonTa~44af300e!truncate	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED 'a' COLUMNS(a TIMESTAMP
 reject	reject	engine	jsonTableColumn/NESTED_(PATH)?_string_(AS_identifier)?_COLUMNS_(_jsonTa~44af300e!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED 'a' COLUMNS(a TIMESTAMP) zzz))
 reject	reject	engine	jsonTableColumn/NESTED_(PATH)?_string_(AS_identifier)?_COLUMNS_(_jsonTa~44af300e!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NEXT 'a' COLUMNS(a TIMESTAMP)))
+accept	accept	engine	jsonTableColumn/NESTED_(PATH)?_string_(AS_identifier)?_COLUMNS_(_jsonTa~44af300e+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED U&'a' COLUMNS(a TIMESTAMP)))
 accept	accept	engine	jsonTableColumn(PATH_string)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP))
 accept	accept	engine	jsonTableColumn(PATH_string)?/PATH_string	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP PATH 'a'))
 reject	reject	engine	jsonTableColumn(PATH_string)?/PATH_string!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP 'a'))
@@ -2239,6 +2444,7 @@ reject	reject	engine	jsonTableColumn(PATH_string)?/PATH_string!drop-2	SELECT 1.5
 reject	reject	engine	jsonTableColumn(PATH_string)?/PATH_string!truncate	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP PATH
 reject	reject	engine	jsonTableColumn(PATH_string)?/PATH_string!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP PATH 'a' zzz))
 reject	reject	engine	jsonTableColumn(PATH_string)?/PATH_string!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP PATTERN 'a'))
+accept	accept	engine	jsonTableColumn(PATH_string)?/PATH_string+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP PATH U&'a'))
 accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP))
 accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ON EMPTY))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ON EMPTY))
@@ -2247,12 +2453,20 @@ reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehav
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY!truncate	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ON
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ON EMPTY zzz))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ESCAPE ON EMPTY))
+accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY+jsonValueBehavior/NULL	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP NULL ON EMPTY))
+accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY+jsonValueBehavior/DEFAULT_expression	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP DEFAULT 1.5 ON EMPTY))
+reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY+jsonValueBehavior/DEFAULT_expression!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP 1.5 ON EMPTY))
+reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_EMPTY)?/jsonValueBehavior_ON_EMPTY+jsonValueBehavior/DEFAULT_expression!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP DEFAULT ON EMPTY))
 accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP))
 accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ON ERROR))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ON ERROR))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ERROR))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ERROR ON ERROR zzz))
 reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP ESCAPE ON ERROR))
+accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/NULL	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP NULL ON ERROR))
+accept	accept	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP DEFAULT 1.5 ON ERROR))
+reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP 1.5 ON ERROR))
+reject	reject	engine	jsonTableColumn(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP DEFAULT ON ERROR))
 accept	accept	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON))
 accept	accept	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WITHOUT WRAPPER))
 reject	reject	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WRAPPER))
@@ -2260,6 +2474,7 @@ reject	reject	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQuer
 reject	reject	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER!truncate	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WITHOUT
 reject	reject	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WITHOUT WRAPPER zzz))
 reject	reject	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WORK WRAPPER))
+accept	accept	engine	jsonTableColumn(jsonQueryWrapperBehavior_WRAPPER)?/jsonQueryWrapperBehavior_WRAPPER+jsonQueryWrapperBehavior/WITH_(CONDITIONAL|UNCONDITIONAL)?_(ARRAY)?	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON WITH WRAPPER))
 accept	accept	engine	jsonTableColumn((KEEP|OMIT)_QUOTES_(ON_SCALAR_TEXT_STRING)?)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON))
 accept	accept	engine	jsonTableColumn((KEEP|OMIT)_QUOTES_(ON_SCALAR_TEXT_STRING)?)?/(KEEP|OMIT)_QUOTES_(ON_SCALAR_TEXT_STRING)?	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON KEEP QUOTES))
 reject	reject	engine	jsonTableColumn((KEEP|OMIT)_QUOTES_(ON_SCALAR_TEXT_STRING)?)?/(KEEP|OMIT)_QUOTES_(ON_SCALAR_TEXT_STRING)?!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON QUOTES))
@@ -2289,12 +2504,24 @@ reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehav
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY!truncate	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ERROR ON
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ERROR ON EMPTY zzz))
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ESCAPE ON EMPTY))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/NULL	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON NULL ON EMPTY))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/EMPTY_ARRAY	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY ARRAY ON EMPTY))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/EMPTY_ARRAY!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ARRAY ON EMPTY))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/EMPTY_ARRAY!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY ON EMPTY))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/EMPTY_OBJECT	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY OBJECT ON EMPTY))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_EMPTY)?/jsonQueryBehavior_ON_EMPTY+jsonQueryBehavior/EMPTY_OBJECT!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON OBJECT ON EMPTY))
 accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON))
 accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ERROR ON ERROR))
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ON ERROR))
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ERROR ERROR))
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ERROR ON ERROR zzz))
 reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!swap	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ESCAPE ON ERROR))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/NULL	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON NULL ON ERROR))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY ARRAY ON ERROR))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON ARRAY ON ERROR))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY!drop-2	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY ON ERROR))
+accept	accept	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_OBJECT	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON EMPTY OBJECT ON ERROR))
+reject	reject	engine	jsonTableColumn(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_OBJECT!drop-1	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(a TIMESTAMP FORMAT JSON OBJECT ON ERROR))
 accept	accept	engine	jsonTableColumn(PATH)?/%empty	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED 'a' COLUMNS(a TIMESTAMP)))
 reject	reject	engine	jsonTableColumn(PATH)?/%empty!insert	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED zzz 'a' COLUMNS(a TIMESTAMP)))
 accept	accept	engine	jsonTableColumn(PATH)?/PATH	SELECT 1.5 FROM JSON_TABLE(1.5, 'a' COLUMNS(NESTED PATH 'a' COLUMNS(a TIMESTAMP)))
@@ -2506,7 +2733,23 @@ reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortIt
 reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)!drop-3	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5))
 reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)!truncate	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5
 reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)!insert	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5) zzz))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(ASC|DESC)?/ASC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 ASC)))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(ASC|DESC)?/ASC!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(ASC)))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(ASC|DESC)?/DESC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 DESC)))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(ASC|DESC)?/DESC!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(DESC)))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 NULLS FIRST)))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(NULLS FIRST)))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-3	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 FIRST)))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/(_sortItem_(,_sortItem)*_)+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-4	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 NULLS)))
 accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(ASC|DESC)?/ASC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5 ASC))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(ASC|DESC)?/ASC!drop-1	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY ASC))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(ASC|DESC)?/DESC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5 DESC))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(ASC|DESC)?/DESC!drop-1	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY DESC))
+accept	accept	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5 NULLS FIRST))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-1	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY NULLS FIRST))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5 FIRST))
+reject	reject	engine	tableArgument((_sortItem_(,_sortItem)*_)|sortItem)/sortItem+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-3	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY 1.5 NULLS))
 accept	accept	engine	tableArgument(,_sortItem)*/%empty	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5)))
 reject	reject	engine	tableArgument(,_sortItem)*/%empty!insert	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5 zzz)))
 accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5)))
@@ -2514,6 +2757,14 @@ reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-1	
 reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5,)))
 reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*!truncate	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5,
 reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*!insert	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 zzz)))
+accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/ASC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 ASC)))
+accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/ASC!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, ASC)))
+accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/DESC	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 DESC)))
+accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(ASC|DESC)?/DESC!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, DESC)))
+accept	accept	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 NULLS FIRST)))
+reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, NULLS FIRST)))
+reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-3	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 FIRST)))
+reject	reject	engine	tableArgument(,_sortItem)*/,_sortItem_(,_sortItem)*+sortItem(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-4	SELECT 1.5 FROM TABLE(a(TABLE(a) ORDER BY(1.5, 1.5 NULLS)))
 accept	accept	engine	tableArgumentRelation/TABLE_(_qualifiedName_)_(AS?_identifier_columnAliases?)?	SELECT 1.5 FROM TABLE(a(TABLE(a)))
 accept	accept	engine	tableArgumentRelation/TABLE_(_query_)_(AS?_identifier_columnAliases?)?	SELECT 1.5 FROM TABLE(a(TABLE(SELECT 1.5)))
 accept	accept	engine	tableArgumentRelation/TABLE_(_query_)_(AS?_identifier_columnAliases?)?!drop-1	SELECT 1.5 FROM TABLE(a((SELECT 1.5)))
@@ -2601,6 +2852,11 @@ reject	reject	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)
 reject	reject	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)!drop-6	SELECT 1.5 = ALL(SELECT 1.5
 accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)!insert	SELECT 1.5 = ALL(SELECT 1.5) zzz
 reject	reject	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)!swap	SELECT 1.5 = ALTER(SELECT 1.5)
+accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)+comparisonOperator/NEQ	SELECT 1.5 <> ALL(SELECT 1.5)
+accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)+comparisonOperator/LT	SELECT 1.5 < ALL(SELECT 1.5)
+accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)+comparisonOperator/LTE	SELECT 1.5 <= ALL(SELECT 1.5)
+accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)+comparisonOperator/GT	SELECT 1.5 > ALL(SELECT 1.5)
+accept	accept	engine	predicate/comparisonOperator_comparisonQuantifier_(_query_)+comparisonOperator/GTE	SELECT 1.5 >= ALL(SELECT 1.5)
 accept	accept	engine	predicate/(NOT)?_BETWEEN_(ASYMMETRIC|SYMMETRIC)?_valueExpression_~fa5e8464	SELECT 1.5 BETWEEN 1.5 AND 1.5
 reject	reject	engine	predicate/(NOT)?_BETWEEN_(ASYMMETRIC|SYMMETRIC)?_valueExpression_~fa5e8464!drop-1	SELECT 1.5 1.5 AND 1.5
 reject	reject	engine	predicate/(NOT)?_BETWEEN_(ASYMMETRIC|SYMMETRIC)?_valueExpression_~fa5e8464!drop-2	SELECT 1.5 BETWEEN AND 1.5
@@ -2743,6 +2999,11 @@ reject	reject	engine	valueExpression(PLUS|MINUS)/PLUS!insert	SELECT 1.5 + zzz 1.
 accept	accept	engine	valueExpression(PLUS|MINUS)/MINUS	SELECT 1.5 - 1.5
 reject	reject	engine	valueExpression(PLUS|MINUS)/MINUS!insert	SELECT 1.5 - zzz 1.5
 accept	accept	engine	primaryExpression/literal	SELECT 1.5
+accept	accept	engine	primaryExpression/literal+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT a U&'a'
+accept	accept	engine	primaryExpression/literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	SELECT DOUBLE PRECISION U&'a'
+accept	accept	engine	primaryExpression/literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-1	SELECT PRECISION U&'a'
+accept	accept	engine	primaryExpression/literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	SELECT DOUBLE U&'a'
+accept	accept	engine	primaryExpression/literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	SELECT DOUBLE PRECISION
 accept	accept	engine	primaryExpression/QUESTION_MARK	SELECT ?
 accept	accept	engine	primaryExpression/QUESTION_MARK!insert	SELECT ? zzz
 accept	accept	engine	primaryExpression/POSITION_(_valueExpression_IN_valueExpression_)	SELECT POSITION(1.5 IN 1.5)
@@ -3029,6 +3290,7 @@ reject	reject	engine	primaryExpression(setQuantifier)?/%empty!insert	SELECT a(zz
 accept	accept	engine	primaryExpression(setQuantifier)?/setQuantifier	SELECT a(DISTINCT 1.5)
 reject	reject	engine	primaryExpression(setQuantifier)?/setQuantifier!insert	SELECT a(DISTINCT zzz 1.5)
 reject	reject	engine	primaryExpression(setQuantifier)?/setQuantifier!swap	SELECT a(DISTRIBUTED 1.5)
+accept	accept	engine	primaryExpression(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT a(ALL 1.5)
 accept	accept	engine	primaryExpression(,_string)?/%empty	SELECT LISTAGG(1.5) WITHIN GROUP(ORDER BY 1.5)
 reject	reject	engine	primaryExpression(,_string)?/%empty!insert	SELECT LISTAGG(1.5 zzz) WITHIN GROUP(ORDER BY 1.5)
 accept	accept	engine	primaryExpression(,_string)?/,_string	SELECT LISTAGG(1.5, 'a') WITHIN GROUP(ORDER BY 1.5)
@@ -3036,6 +3298,7 @@ reject	reject	engine	primaryExpression(,_string)?/,_string!drop-1	SELECT LISTAGG
 reject	reject	engine	primaryExpression(,_string)?/,_string!drop-2	SELECT LISTAGG(1.5,) WITHIN GROUP(ORDER BY 1.5)
 reject	reject	engine	primaryExpression(,_string)?/,_string!truncate	SELECT LISTAGG(1.5,
 reject	reject	engine	primaryExpression(,_string)?/,_string!insert	SELECT LISTAGG(1.5, 'a' zzz) WITHIN GROUP(ORDER BY 1.5)
+accept	accept	engine	primaryExpression(,_string)?/,_string+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT LISTAGG(1.5, U&'a') WITHIN GROUP(ORDER BY 1.5)
 accept	accept	engine	primaryExpression(ON_OVERFLOW_listAggOverflowBehavior)?/%empty	SELECT LISTAGG(1.5) WITHIN GROUP(ORDER BY 1.5)
 accept	accept	engine	primaryExpression(ON_OVERFLOW_listAggOverflowBehavior)?/ON_OVERFLOW_listAggOverflowBehavior	SELECT LISTAGG(1.5 ON OVERFLOW ERROR) WITHIN GROUP(ORDER BY 1.5)
 reject	reject	engine	primaryExpression(ON_OVERFLOW_listAggOverflowBehavior)?/ON_OVERFLOW_listAggOverflowBehavior!drop-1	SELECT LISTAGG(1.5 OVERFLOW ERROR) WITHIN GROUP(ORDER BY 1.5)
@@ -3078,6 +3341,10 @@ reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*!dro
 reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*!drop-2	SELECT a(1.5,)
 reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*!truncate	SELECT a(1.5,
 reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*!insert	SELECT a(1.5, 1.5 zzz)
+accept	accept	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression	SELECT a(1.5, a => 1.5)
+reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-2	SELECT a(1.5, => 1.5)
+reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-3	SELECT a(1.5, a 1.5)
+reject	reject	engine	primaryExpression(,_argument)*/,_argument_(,_argument)*+argument/identifier_=>_expression!drop-4	SELECT a(1.5, a =>)
 accept	accept	engine	primaryExpression(orderBy)?/%empty	SELECT a()
 accept	accept	engine	primaryExpression(orderBy)?/orderBy	SELECT a(ORDER BY 1.5)
 reject	reject	engine	primaryExpression(orderBy)?/orderBy!drop-1	SELECT a(BY 1.5)
@@ -3104,6 +3371,10 @@ accept	accept	engine	primaryExpression(argument_(,_argument)*)?/%empty	SELECT a 
 accept	accept	engine	primaryExpression(argument_(,_argument)*)?/%empty!insert	SELECT a :: a(zzz)
 accept	accept	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*	SELECT a :: a(1.5)
 reject	reject	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*!insert	SELECT a :: a(1.5 zzz)
+accept	accept	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression	SELECT a :: a(a => 1.5)
+reject	reject	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-1	SELECT a :: a(=> 1.5)
+reject	reject	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-2	SELECT a :: a(a 1.5)
+reject	reject	engine	primaryExpression(argument_(,_argument)*)?/argument_(,_argument)*+argument/identifier_=>_expression!drop-3	SELECT a :: a(a =>)
 accept	accept	engine	primaryExpression(identifier_(,_identifier)*)?/%empty	SELECT() -> 1.5
 accept	accept	engine	primaryExpression(identifier_(,_identifier)*)?/%empty!insert	SELECT(zzz) -> 1.5
 accept	accept	engine	primaryExpression(identifier_(,_identifier)*)?/identifier_(,_identifier)*	SELECT(a) -> 1.5
@@ -3237,6 +3508,10 @@ reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBeh
 reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!drop-2	SELECT JSON_VALUE(1.5, 'a' ERROR ERROR)
 reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!insert	SELECT JSON_VALUE(1.5, 'a' ERROR ON ERROR zzz)
 reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR!swap	SELECT JSON_VALUE(1.5, 'a' ESCAPE ON ERROR)
+accept	accept	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/NULL	SELECT JSON_VALUE(1.5, 'a' NULL ON ERROR)
+accept	accept	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression	SELECT JSON_VALUE(1.5, 'a' DEFAULT 1.5 ON ERROR)
+reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression!drop-1	SELECT JSON_VALUE(1.5, 'a' 1.5 ON ERROR)
+reject	reject	engine	primaryExpression(jsonValueBehavior_ON_ERROR)?/jsonValueBehavior_ON_ERROR+jsonValueBehavior/DEFAULT_expression!drop-2	SELECT JSON_VALUE(1.5, 'a' DEFAULT ON ERROR)
 accept	accept	engine	primaryExpression(RETURNING_type_(FORMAT_jsonRepresentation)?)?/%empty	SELECT JSON_OBJECT()
 reject	reject	engine	primaryExpression(RETURNING_type_(FORMAT_jsonRepresentation)?)?/%empty!insert	SELECT JSON_OBJECT(zzz)
 accept	accept	engine	primaryExpression(RETURNING_type_(FORMAT_jsonRepresentation)?)?/RETURNING_type_(FORMAT_jsonRepresentation)?	SELECT JSON_OBJECT(RETURNING TIMESTAMP)
@@ -3294,6 +3569,12 @@ reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBeh
 reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!drop-2	SELECT JSON_QUERY(1.5, 'a' ERROR ERROR)
 reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!insert	SELECT JSON_QUERY(1.5, 'a' ERROR ON ERROR zzz)
 reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR!swap	SELECT JSON_QUERY(1.5, 'a' ESCAPE ON ERROR)
+accept	accept	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/NULL	SELECT JSON_QUERY(1.5, 'a' NULL ON ERROR)
+accept	accept	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY	SELECT JSON_QUERY(1.5, 'a' EMPTY ARRAY ON ERROR)
+reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY!drop-1	SELECT JSON_QUERY(1.5, 'a' ARRAY ON ERROR)
+reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_ARRAY!drop-2	SELECT JSON_QUERY(1.5, 'a' EMPTY ON ERROR)
+accept	accept	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_OBJECT	SELECT JSON_QUERY(1.5, 'a' EMPTY OBJECT ON ERROR)
+reject	reject	engine	primaryExpression(jsonQueryBehavior_ON_ERROR)?/jsonQueryBehavior_ON_ERROR+jsonQueryBehavior/EMPTY_OBJECT!drop-1	SELECT JSON_QUERY(1.5, 'a' OBJECT ON ERROR)
 accept	accept	engine	primaryExpression(jsonObjectMember_(,_jsonObjectMember~d6343bef)?/%empty	SELECT JSON_OBJECT()
 accept	accept	engine	primaryExpression(jsonObjectMember_(,_jsonObjectMember~d6343bef)?/jsonObjectMember_(,_jsonObjectMember)*_(NULL_ON_NULL|AB~ba1a61fc	SELECT JSON_OBJECT(1.5 VALUE 1.5)
 reject	reject	engine	primaryExpression(jsonObjectMember_(,_jsonObjectMember~d6343bef)?/jsonObjectMember_(,_jsonObjectMember)*_(NULL_ON_NULL|AB~ba1a61fc!drop-1	SELECT JSON_OBJECT(VALUE 1.5)
@@ -3363,7 +3644,6 @@ accept	accept	engine	literal/identifier_string!insert	SELECT a 'a' zzz
 accept	accept	engine	literal/DOUBLE_PRECISION_string	SELECT DOUBLE PRECISION 'a'
 accept	accept	engine	literal/DOUBLE_PRECISION_string!drop-1	SELECT PRECISION 'a'
 accept	accept	engine	literal/DOUBLE_PRECISION_string!drop-2	SELECT DOUBLE 'a'
-accept	accept	engine	literal/DOUBLE_PRECISION_string!drop-3	SELECT DOUBLE PRECISION
 accept	accept	engine	literal/DOUBLE_PRECISION_string!insert	SELECT DOUBLE PRECISION 'a' zzz
 reject	reject	engine	literal/DOUBLE_PRECISION_string!swap	SELECT DROP PRECISION 'a'
 accept	accept	engine	literal/number	SELECT 1.5
@@ -3387,6 +3667,7 @@ reject	reject	engine	fieldConstructor(AS)?/AS!insert	SELECT ROW(1.5 AS zzz a)
 reject	reject	engine	fieldConstructor(AS)?/AS!swap	SELECT ROW(1.5 ASC a)
 accept	accept	engine	jsonPathInvocation/jsonValueExpression_,_string_(AS_identifier)?_(PASSING_~bcdfcf0a	SELECT JSON_EXISTS(1.5, 'a')
 reject	reject	engine	jsonPathInvocation/jsonValueExpression_,_string_(AS_identifier)?_(PASSING_~bcdfcf0a!truncate	SELECT JSON_EXISTS(1.5,
+accept	accept	engine	jsonPathInvocation/jsonValueExpression_,_string_(AS_identifier)?_(PASSING_~bcdfcf0a+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT JSON_EXISTS(1.5, U&'a')
 accept	accept	engine	jsonPathInvocation(AS_identifier)?/%empty	SELECT JSON_EXISTS(1.5, 'a')
 accept	accept	engine	jsonPathInvocation(AS_identifier)?/AS_identifier	SELECT JSON_EXISTS(1.5, 'a' AS a)
 reject	reject	engine	jsonPathInvocation(AS_identifier)?/AS_identifier!drop-1	SELECT JSON_EXISTS(1.5, 'a' a)
@@ -3531,6 +3812,7 @@ accept	accept	engine	timeZoneSpecifier/TIME_ZONE_interval!insert	SELECT 1.5 AT T
 reject	reject	engine	timeZoneSpecifier/TIME_ZONE_interval!swap	SELECT 1.5 AT TIMESTAMP ZONE INTERVAL 'a' YEAR
 accept	accept	engine	timeZoneSpecifier/TIME_ZONE_string	SELECT 1.5 AT TIME ZONE 'a'
 reject	reject	engine	timeZoneSpecifier/TIME_ZONE_string!swap	SELECT 1.5 AT TIMESTAMP ZONE 'a'
+accept	accept	engine	timeZoneSpecifier/TIME_ZONE_string+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT 1.5 AT TIME ZONE U&'a'
 accept	accept	engine	comparisonOperator/EQ	SELECT 1.5 = 1.5
 reject	reject	engine	comparisonOperator/EQ!insert	SELECT 1.5 = zzz 1.5
 accept	accept	engine	comparisonOperator/NEQ	SELECT 1.5 <> 1.5
@@ -3555,6 +3837,7 @@ accept	accept	engine	booleanValue/TRUE	SELECT TRUE
 accept	accept	engine	booleanValue/FALSE	SELECT FALSE
 accept	accept	engine	booleanValue/FALSE!insert	SELECT FALSE zzz
 accept	accept	engine	interval/INTERVAL_(PLUS|MINUS)?_string_intervalQualifier	SELECT INTERVAL 'a' YEAR
+accept	accept	engine	interval/INTERVAL_(PLUS|MINUS)?_string_intervalQualifier+string/UNICODE_STRING_(UESCAPE_STRING)?	SELECT INTERVAL U&'a' YEAR
 accept	accept	engine	interval(PLUS|MINUS)?/%empty	SELECT INTERVAL 'a' YEAR
 reject	reject	engine	interval(PLUS|MINUS)?/%empty!insert	SELECT INTERVAL zzz 'a' YEAR
 accept	accept	engine	interval(PLUS|MINUS)?/PLUS	SELECT INTERVAL + 'a' YEAR
@@ -3583,6 +3866,16 @@ accept	accept	engine	type/INTERVAL_intervalQualifier!drop-2	SELECT JSON_OBJECT(R
 reject	reject	engine	type/INTERVAL_intervalQualifier!truncate	SELECT JSON_OBJECT(RETURNING INTERVAL
 reject	reject	engine	type/INTERVAL_intervalQualifier!insert	SELECT JSON_OBJECT(RETURNING INTERVAL YEAR zzz)
 reject	reject	engine	type/INTERVAL_intervalQualifier!swap	SELECT JSON_OBJECT(RETURNING INTO YEAR)
+accept	accept	engine	type/INTERVAL_intervalQualifier+intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH	SELECT JSON_OBJECT(RETURNING INTERVAL YEAR TO MONTH)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH!drop-2	SELECT JSON_OBJECT(RETURNING INTERVAL TO MONTH)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH!drop-3	SELECT JSON_OBJECT(RETURNING INTERVAL YEAR MONTH)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH!drop-4	SELECT JSON_OBJECT(RETURNING INTERVAL YEAR TO)
+accept	accept	engine	type/INTERVAL_intervalQualifier+intervalQualifier/(DAY|HOUR|MINUTE)_((_INTEGER_VALUE_))?_TO_(HOUR|MINUTE|~e0df6a2e	SELECT JSON_OBJECT(RETURNING INTERVAL DAY TO HOUR)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/(DAY|HOUR|MINUTE)_((_INTEGER_VALUE_))?_TO_(HOUR|MINUTE|~e0df6a2e!drop-2	SELECT JSON_OBJECT(RETURNING INTERVAL TO HOUR)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/(DAY|HOUR|MINUTE)_((_INTEGER_VALUE_))?_TO_(HOUR|MINUTE|~e0df6a2e!drop-3	SELECT JSON_OBJECT(RETURNING INTERVAL DAY HOUR)
+reject	reject	engine	type/INTERVAL_intervalQualifier+intervalQualifier/(DAY|HOUR|MINUTE)_((_INTEGER_VALUE_))?_TO_(HOUR|MINUTE|~e0df6a2e!drop-4	SELECT JSON_OBJECT(RETURNING INTERVAL DAY TO)
+accept	accept	engine	type/INTERVAL_intervalQualifier+intervalQualifier/(DAY|HOUR|MINUTE)_((_INTEGER_VALUE_))?	SELECT JSON_OBJECT(RETURNING INTERVAL DAY)
+accept	accept	engine	type/INTERVAL_intervalQualifier+intervalQualifier/SECOND_((_INTEGER_VALUE_(,_INTEGER_VALUE)?_))?	SELECT JSON_OBJECT(RETURNING INTERVAL SECOND)
 accept	accept	engine	type/TIMESTAMP_((_typeParameter_))?_(WITHOUT_TIME_ZONE)?	SELECT JSON_OBJECT(RETURNING TIMESTAMP)
 accept	accept	engine	type/TIMESTAMP_((_typeParameter_))?_(WITHOUT_TIME_ZONE)?!swap	SELECT JSON_OBJECT(RETURNING TO)
 accept	accept	engine	type/TIMESTAMP_((_typeParameter_))?_WITH_TIME_ZONE	SELECT JSON_OBJECT(RETURNING TIMESTAMP WITH TIME ZONE)
@@ -3640,6 +3933,8 @@ reject	reject	engine	type(,_rowField)*/,_rowField_(,_rowField)*!drop-2	SELECT JS
 reject	reject	engine	type(,_rowField)*/,_rowField_(,_rowField)*!truncate	SELECT JSON_OBJECT(RETURNING ROW(TIMESTAMP,
 accept	accept	engine	type(,_rowField)*/,_rowField_(,_rowField)*!insert	SELECT JSON_OBJECT(RETURNING ROW(TIMESTAMP, TIMESTAMP zzz))
 accept	accept	engine	type(,_rowField)*/,_rowField_(,_rowField)*!swap	SELECT JSON_OBJECT(RETURNING ROW(TIMESTAMP, TO))
+accept	accept	engine	type(,_rowField)*/,_rowField_(,_rowField)*+rowField/identifier_type	SELECT JSON_OBJECT(RETURNING ROW(TIMESTAMP, a TIMESTAMP))
+accept	accept	engine	type(,_rowField)*/,_rowField_(,_rowField)*+rowField/identifier_type!drop-3	SELECT JSON_OBJECT(RETURNING ROW(TIMESTAMP, a))
 accept	accept	engine	type((_typeParameter_))?/%empty	SELECT JSON_OBJECT(RETURNING TIMESTAMP)
 accept	accept	engine	type((_typeParameter_))?/(_typeParameter_)	SELECT JSON_OBJECT(RETURNING TIMESTAMP(1))
 reject	reject	engine	type((_typeParameter_))?/(_typeParameter_)!drop-1	SELECT JSON_OBJECT(RETURNING TIMESTAMP 1))
@@ -3668,6 +3963,7 @@ reject	reject	engine	type((_typeParameter_(,_typeParameter)*_))?/(_typeParameter
 reject	reject	engine	type((_typeParameter_(,_typeParameter)*_))?/(_typeParameter_(,_typeParameter)*_)!drop-3	SELECT JSON_OBJECT(RETURNING a(1)
 reject	reject	engine	type((_typeParameter_(,_typeParameter)*_))?/(_typeParameter_(,_typeParameter)*_)!truncate	SELECT JSON_OBJECT(RETURNING a(1
 reject	reject	engine	type((_typeParameter_(,_typeParameter)*_))?/(_typeParameter_(,_typeParameter)*_)!insert	SELECT JSON_OBJECT(RETURNING a(1) zzz)
+accept	accept	engine	type((_typeParameter_(,_typeParameter)*_))?/(_typeParameter_(,_typeParameter)*_)+typeParameter/type	SELECT JSON_OBJECT(RETURNING a(TIMESTAMP))
 accept	accept	engine	type(,_typeParameter)*/%empty	SELECT JSON_OBJECT(RETURNING a(1))
 reject	reject	engine	type(,_typeParameter)*/%empty!insert	SELECT JSON_OBJECT(RETURNING a(1 zzz))
 accept	accept	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*	SELECT JSON_OBJECT(RETURNING a(1, 1))
@@ -3675,6 +3971,7 @@ reject	reject	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*!d
 reject	reject	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*!drop-2	SELECT JSON_OBJECT(RETURNING a(1,))
 reject	reject	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*!truncate	SELECT JSON_OBJECT(RETURNING a(1,
 reject	reject	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*!insert	SELECT JSON_OBJECT(RETURNING a(1, 1 zzz))
+accept	accept	engine	type(,_typeParameter)*/,_typeParameter_(,_typeParameter)*+typeParameter/type	SELECT JSON_OBJECT(RETURNING a(1, TIMESTAMP))
 accept	accept	engine	intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH	SELECT INTERVAL 'a' YEAR TO MONTH
 reject	reject	engine	intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH!drop-1	SELECT INTERVAL 'a' TO MONTH
 accept	accept	engine	intervalQualifier/YEAR_((_INTEGER_VALUE_))?_TO_MONTH!drop-2	SELECT INTERVAL 'a' YEAR MONTH
@@ -3894,12 +4191,26 @@ reject	reject	engine	frameExtent/ROWS_frameBound!drop-3	SELECT a OVER(ROWS UNBOU
 reject	reject	engine	frameExtent/ROWS_frameBound!truncate	SELECT a OVER(ROWS UNBOUNDED
 reject	reject	engine	frameExtent/ROWS_frameBound!insert	SELECT a OVER(ROWS UNBOUNDED PRECEDING zzz)
 reject	reject	engine	frameExtent/ROWS_frameBound!swap	SELECT a OVER(RUNNING UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/ROWS_frameBound+frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(ROWS UNBOUNDED FOLLOWING)
+reject	reject	engine	frameExtent/ROWS_frameBound+frameBound/UNBOUNDED_FOLLOWING!drop-2	SELECT a OVER(ROWS FOLLOWING)
+accept	accept	engine	frameExtent/ROWS_frameBound+frameBound/CURRENT_ROW	SELECT a OVER(ROWS CURRENT ROW)
+reject	reject	engine	frameExtent/ROWS_frameBound+frameBound/CURRENT_ROW!drop-2	SELECT a OVER(ROWS ROW)
+reject	reject	engine	frameExtent/ROWS_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT a OVER(ROWS CURRENT)
+accept	accept	engine	frameExtent/ROWS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT a OVER(ROWS 1.5 PRECEDING)
+reject	reject	engine	frameExtent/ROWS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-3	SELECT a OVER(ROWS 1.5)
 accept	accept	engine	frameExtent/GROUPS_frameBound	SELECT a OVER(GROUPS UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/GROUPS_frameBound!drop-2	SELECT a OVER(GROUPS PRECEDING)
 reject	reject	engine	frameExtent/GROUPS_frameBound!drop-3	SELECT a OVER(GROUPS UNBOUNDED)
 reject	reject	engine	frameExtent/GROUPS_frameBound!truncate	SELECT a OVER(GROUPS UNBOUNDED
 reject	reject	engine	frameExtent/GROUPS_frameBound!insert	SELECT a OVER(GROUPS UNBOUNDED PRECEDING zzz)
 reject	reject	engine	frameExtent/GROUPS_frameBound!swap	SELECT a OVER(HAVING UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/GROUPS_frameBound+frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(GROUPS UNBOUNDED FOLLOWING)
+reject	reject	engine	frameExtent/GROUPS_frameBound+frameBound/UNBOUNDED_FOLLOWING!drop-2	SELECT a OVER(GROUPS FOLLOWING)
+accept	accept	engine	frameExtent/GROUPS_frameBound+frameBound/CURRENT_ROW	SELECT a OVER(GROUPS CURRENT ROW)
+reject	reject	engine	frameExtent/GROUPS_frameBound+frameBound/CURRENT_ROW!drop-2	SELECT a OVER(GROUPS ROW)
+reject	reject	engine	frameExtent/GROUPS_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT a OVER(GROUPS CURRENT)
+accept	accept	engine	frameExtent/GROUPS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT a OVER(GROUPS 1.5 PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-3	SELECT a OVER(GROUPS 1.5)
 accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!drop-1	SELECT a OVER(BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!drop-2	SELECT a OVER(RANGE UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
@@ -3911,6 +4222,20 @@ reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!drop-7	
 reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!truncate	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!insert	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound!swap	SELECT a OVER(READ BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(RANGE BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING!drop-3	SELECT a OVER(RANGE BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW	SELECT a OVER(RANGE BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT a OVER(RANGE BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-4	SELECT a OVER(RANGE BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT a OVER(RANGE BETWEEN 1.5 PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-4	SELECT a OVER(RANGE BETWEEN 1.5 AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2!drop-6	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-6	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-7	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+accept	accept	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND 1.5 PRECEDING)
+reject	reject	engine	frameExtent/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2!drop-7	SELECT a OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND 1.5)
 accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!drop-2	SELECT a OVER(ROWS UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!drop-3	SELECT a OVER(ROWS BETWEEN PRECEDING AND UNBOUNDED PRECEDING)
@@ -3921,6 +4246,20 @@ reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!drop-7	S
 reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!truncate	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!insert	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound!swap	SELECT a OVER(RUNNING BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING!drop-3	SELECT a OVER(ROWS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW	SELECT a OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT a OVER(ROWS BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-4	SELECT a OVER(ROWS BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT a OVER(ROWS BETWEEN 1.5 PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-4	SELECT a OVER(ROWS BETWEEN 1.5 AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2!drop-6	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-6	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-7	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+accept	accept	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND 1.5 PRECEDING)
+reject	reject	engine	frameExtent/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2!drop-7	SELECT a OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND 1.5)
 accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!drop-2	SELECT a OVER(GROUPS UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!drop-3	SELECT a OVER(GROUPS BETWEEN PRECEDING AND UNBOUNDED PRECEDING)
@@ -3931,6 +4270,20 @@ reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!drop-7
 reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!truncate	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!insert	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound!swap	SELECT a OVER(HAVING BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(GROUPS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING!drop-3	SELECT a OVER(GROUPS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW	SELECT a OVER(GROUPS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT a OVER(GROUPS BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-4	SELECT a OVER(GROUPS BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT a OVER(GROUPS BETWEEN 1.5 PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-4	SELECT a OVER(GROUPS BETWEEN 1.5 AND UNBOUNDED PRECEDING)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/UNBOUNDED_FOLLOWING#2!drop-6	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-6	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-7	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+accept	accept	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND 1.5 PRECEDING)
+reject	reject	engine	frameExtent/GROUPS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2!drop-7	SELECT a OVER(GROUPS BETWEEN UNBOUNDED PRECEDING AND 1.5)
 accept	accept	engine	frameBound/UNBOUNDED_PRECEDING	SELECT a OVER(RANGE UNBOUNDED PRECEDING)
 accept	accept	engine	frameBound/UNBOUNDED_PRECEDING!swap	SELECT a OVER(RANGE UNCOMMITTED PRECEDING)
 accept	accept	engine	frameBound/UNBOUNDED_FOLLOWING	SELECT a OVER(RANGE UNBOUNDED FOLLOWING)
@@ -4171,6 +4524,7 @@ reject	reject	engine	routineCharacteristic/COMMENT_string!drop-2	CREATE FUNCTION
 reject	reject	engine	routineCharacteristic/COMMENT_string!truncate	CREATE FUNCTION a() RETURNS TIMESTAMP COMMENT
 reject	reject	engine	routineCharacteristic/COMMENT_string!insert	CREATE FUNCTION a() RETURNS TIMESTAMP COMMENT 'a' zzz RETURN 1.5
 reject	reject	engine	routineCharacteristic/COMMENT_string!swap	CREATE FUNCTION a() RETURNS TIMESTAMP COMMIT 'a' RETURN 1.5
+accept	accept	engine	routineCharacteristic/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE FUNCTION a() RETURNS TIMESTAMP COMMENT U&'a' RETURN 1.5
 accept	accept	engine	routineCharacteristic/WITH_properties	CREATE FUNCTION a() RETURNS TIMESTAMP WITH(a = DEFAULT) RETURN 1.5
 reject	reject	engine	routineCharacteristic/WITH_properties!drop-1	CREATE FUNCTION a() RETURNS TIMESTAMP(a = DEFAULT) RETURN 1.5
 reject	reject	engine	routineCharacteristic/WITH_properties!drop-2	CREATE FUNCTION a() RETURNS TIMESTAMP WITH a = DEFAULT) RETURN 1.5
@@ -4509,6 +4863,7 @@ accept	accept	engine	number(MINUS)?/MINUS	SELECT - 1.5
 accept	accept	engine	authorizationUser/identifier	SET SESSION AUTHORIZATION a
 accept	accept	engine	authorizationUser/string	SET SESSION AUTHORIZATION 'a'
 reject	reject	engine	authorizationUser/string!insert	SET SESSION AUTHORIZATION 'a' zzz
+accept	accept	engine	authorizationUser/string+string/UNICODE_STRING_(UESCAPE_STRING)?	SET SESSION AUTHORIZATION U&'a'
 accept	accept	engine	nonReserved/ABSENT	SELECT ABSENT
 accept	accept	engine	nonReserved/ADD	SELECT ADD
 accept	accept	engine	nonReserved/ADD!insert	SELECT ADD zzz
@@ -5166,6 +5521,9 @@ accept	accept	engine	suite:select	SELECT a FROM t GROUP BY (a, b)
 accept	accept	engine	suite:select	SELECT a FROM t GROUP BY a, b, (c, d)
 accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP (a, b)
 accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP ()
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP ((a, b), (), c)
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY CUBE (())
+accept	accept	engine	suite:select	SELECT a FROM t GROUP BY ROLLUP ((a) + 1, (b))
 accept	accept	engine	suite:select	SELECT a FROM t GROUP BY CUBE (a, b)
 accept	accept	engine	suite:select	SELECT a FROM t GROUP BY GROUPING SETS (a)
 accept	accept	engine	suite:select	SELECT a, b, GROUPING(a, b) FROM t GROUP BY GROUPING SETS ((a), (b))
@@ -5326,6 +5684,13 @@ accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decima
 accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
 accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
 reject	reject	engine	suite:ddl	CREATE TABLE t (a bigint NOT NULL DEFAULT 5)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT -5)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a double DEFAULT - 1.5E1)
+accept	accept	engine	suite:ddl	CREATE TABLE t (a date DEFAULT DATE '2020-01-01')
+reject	reject	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT 1 + 1)
+reject	reject	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT +5)
+reject	reject	engine	suite:ddl	CREATE TABLE t (a bigint DEFAULT (5))
+reject	reject	engine	suite:ddl	CREATE TABLE t (a timestamp DEFAULT current_timestamp)
 accept	accept	engine	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
 accept	accept	engine	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
 accept	accept	engine	suite:ddl	CREATE TABLE t (a array(bigint))
@@ -5402,6 +5767,10 @@ reject	reject	engine	suite:ddl	ALTER TABLE users RENAME COLUMN id TO a.b
 accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
 accept	accept	engine	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
 accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5
+accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY
+reject	reject	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT lower('a')
+reject	reject	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -a
 accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
 accept	accept	engine	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
 accept	accept	engine	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint

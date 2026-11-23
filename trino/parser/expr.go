@@ -1077,6 +1077,45 @@ func isValidUnicodeEscape(s string) bool {
 	return true
 }
 
+// parseLiteral parses one `literal` (SqlBase.g4:687): an interval, a type
+// constructor (`identifier string` or `DOUBLE PRECISION string`), a number
+// with an optional leading minus (SqlBase.g4:1059), a boolean, a string, a
+// binary literal or NULL. A column's DEFAULT takes only this, not an
+// expression: Trino refuses `DEFAULT a` and `DEFAULT 1 + 1`. A non-reserved
+// INTERVAL, DOUBLE or PRECISION that is not the literal of its own name is
+// the identifier of a type constructor, as parsePrimaryAtom reads it.
+func (p *Parser) parseLiteral() (Expr, error) {
+	if p.cur.Kind == int('-') {
+		switch p.peekNext().Kind {
+		case tokInteger, tokDecimal, tokDouble:
+			minus := p.advance()
+			num, err := p.parsePrimaryAtom()
+			if err != nil {
+				return nil, err
+			}
+			return &UnaryExpr{Op: "-", Operand: num, Loc: ast.Loc{Start: minus.Loc.Start, End: num.Span().End}}, nil
+		}
+		return nil, p.syntaxErrorAtCur()
+	}
+	start := p.cur
+	switch p.cur.Kind {
+	case kwNULL, kwTRUE, kwFALSE, tokString, tokUnicodeString, tokInteger, tokDecimal, tokDouble, tokBinaryLiteral:
+	default:
+		if !isIdentifierStart(p.cur.Kind) {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	lit, err := p.parsePrimaryAtom()
+	if err != nil {
+		return nil, err
+	}
+	switch lit.(type) {
+	case *Literal, *IntervalLiteral, *TypeConstructor:
+		return lit, nil
+	}
+	return nil, p.syntaxErrorAt(start)
+}
+
 // parseIntervalLiteral parses `INTERVAL [+|-] 'string' field [TO field]`
 // (the `interval` rule / intervalLiteral primaryExpression). It is distinct from
 // the INTERVAL *type* (datatypes.go): a literal requires a string body and a
