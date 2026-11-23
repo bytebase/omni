@@ -137,10 +137,7 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		if _, _, err := a.expr(n.Expr, sc, clause); err != nil {
 			return qtype{}, false, err
 		}
-		width := 1
-		if row, ok := unparen(n.Expr).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
-			width = len(listItems(row.Args))
-		}
+		width := operandWidth(n.Expr)
 		for _, item := range listItems(n.List) {
 			if ex, ok := item.(ast.ExprNode); ok {
 				if sq, ok := ex.(*ast.SubqueryExpr); ok {
@@ -308,6 +305,16 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 	lt, lnn, err := a.expr(n.Left, sc, clause)
 	if err != nil {
 		return qtype{}, false, err
+	}
+	if isComparison(n.Op) {
+		// A subquery compared with a value, or quantified by ANY, SOME or
+		// ALL, returns as many columns as the left side holds.
+		if sq := comparedSubquery(n.Right); sq != nil {
+			if err := a.subquery(sq, sc, operandWidth(n.Left)); err != nil {
+				return qtype{}, false, err
+			}
+			return simpleType("BOOLEAN"), false, nil
+		}
 	}
 	rt, rnn, err := a.expr(n.Right, sc, clause)
 	if err != nil {
@@ -754,4 +761,44 @@ func typeFamily(t qtype) string {
 		return t.kind
 	}
 	return ""
+}
+
+func isComparison(op string) bool {
+	switch strings.ToUpper(op) {
+	case "=", "!=", "<>", "^=", "~=", "<", ">", "<=", ">=":
+		return true
+	}
+	return false
+}
+
+// comparedSubquery is the subquery a comparison's right side is, directly or
+// under ANY, SOME or ALL, or nil.
+func comparedSubquery(x ast.ExprNode) *ast.SubqueryExpr {
+	switch v := unparen(x).(type) {
+	case *ast.SubqueryExpr:
+		return v
+	case *ast.FuncCallExpr:
+		if v.FuncName == nil || v.FuncName.Schema != "" {
+			return nil
+		}
+		switch v.FuncName.Name {
+		case "ANY", "SOME", "ALL":
+			items := listItems(v.Args)
+			if len(items) == 1 {
+				if sq, ok := items[0].(*ast.SubqueryExpr); ok {
+					return sq
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// operandWidth is how many values an operand holds: a row constructor's
+// width, else one.
+func operandWidth(x ast.ExprNode) int {
+	if row, ok := unparen(x).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+		return len(listItems(row.Args))
+	}
+	return 1
 }

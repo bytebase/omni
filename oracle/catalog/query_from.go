@@ -70,6 +70,14 @@ func (a *queryAnalyzer) fromItem(te ast.TableExpr, sc *qscope) (*qfrom, error) {
 			if !ok {
 				continue
 			}
+			for _, x := range []ast.ExprNode{c.Path, c.Default} {
+				if x == nil {
+					continue
+				}
+				if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+					return nil, err
+				}
+			}
 			t := varchar2Bytes(4000)
 			if c.ForOrdinality {
 				t = numberType()

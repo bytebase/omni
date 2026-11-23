@@ -110,6 +110,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"having_without_group_by", `CREATE VIEW v AS SELECT id FROM t HAVING id > 1`, "00937"},
 		{"distinct_order_by_unselected", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY n`, "01791"},
 		{"distinct_order_by_selected", `CREATE VIEW v AS SELECT DISTINCT id x, n + 1 y FROM t ORDER BY x, n + 1, 1`, ""},
+		{"any_subquery_too_wide", `CREATE VIEW v AS SELECT id FROM t WHERE id = ANY (SELECT id, n FROM t)`, "00913"},
+		{"all_row_subquery", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) = ALL (SELECT id, n FROM t)`, ""},
+		{"row_equals_subquery", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) = (SELECT id, n FROM t)`, ""},
+		{"xmltable_default_bind", `CREATE VIEW v AS SELECT * FROM XMLTABLE('/x' COLUMNS id NUMBER PATH '.' DEFAULT :x)`, "01027"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
