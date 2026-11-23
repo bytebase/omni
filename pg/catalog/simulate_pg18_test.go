@@ -670,6 +670,40 @@ CREATE TABLE c_np () INHERITS (p1_np, p2_np);
 	if got, _ := execCodeVersion(t, PG18, "", "CREATE TABLE t_dup_chk (x int CONSTRAINT nn NOT NULL, CONSTRAINT nn CHECK (x > 0))"); got != CodeDuplicateObject {
 		t.Fatalf("PG18 CREATE TABLE duplicate explicit NOT NULL and CHECK name: got %q, want %q", got, CodeDuplicateObject)
 	}
+
+	// ALTER TABLE ONLY DROP COLUMN on parent updates child's NOT NULL inheritance metadata so child can drop NOT NULL.
+	onlyDropColSetup := `
+CREATE TABLE p_dc (x int NOT NULL, y int);
+CREATE TABLE c_dc () INHERITS (p_dc);
+`
+	if got, c := execCodeVersion(t, PG18, onlyDropColSetup, "ALTER TABLE ONLY p_dc DROP COLUMN x"); got != "" {
+		t.Fatalf("PG18 ALTER TABLE ONLY DROP COLUMN: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("ALTER TABLE c_dc ALTER COLUMN x DROP NOT NULL", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 child DROP NOT NULL after parent ONLY DROP COLUMN: %v", res[0].Error)
+		}
+		ch := c.GetRelation("public", "c_dc")
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected c_dc.x to become nullable after parent ONLY DROP COLUMN + child DROP NOT NULL")
+		}
+	}
+
+	// Recursive DROP COLUMN on one parent updates surviving child's NOT NULL constraint.
+	recDropColSetup := `
+CREATE TABLE p1_dc (x int NOT NULL, y int);
+CREATE TABLE p2_dc (x int);
+CREATE TABLE c_rdc () INHERITS (p1_dc, p2_dc);
+`
+	if got, c := execCodeVersion(t, PG18, recDropColSetup, "ALTER TABLE p1_dc DROP COLUMN x"); got != "" {
+		t.Fatalf("PG18 recursive DROP COLUMN on p1_dc: got %q, want ok", got)
+	} else {
+		ch := c.GetRelation("public", "c_rdc")
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected surviving c_rdc.x to become nullable after sole NOT NULL parent p1_dc drops x")
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

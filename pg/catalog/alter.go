@@ -346,12 +346,17 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		subtype := nodes.AlterTableType(p.cmd.Subtype)
 		beforeCons := len(c.consByRel[rel.OID])
 		dropNotNull := false
+		dropColWasNotNull := false
 		if subtype == nodes.AT_DropConstraint {
 			for _, con := range c.consByRel[rel.OID] {
 				if con.Name == p.cmd.Name && con.Type == ConstraintNotNull {
 					dropNotNull = true
 					break
 				}
+			}
+		} else if subtype == nodes.AT_DropColumn {
+			if ci, ok := rel.colByName[p.cmd.Name]; ok && rel.Columns[ci].NotNull {
+				dropColWasNotNull = true
 			}
 		}
 		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
@@ -383,6 +388,20 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			if (subtype == nodes.AT_SetNotNull || subtype == nodes.AT_DropNotNull) && c.Version() >= PG18 {
 				// PG 18 SET/DROP NOT NULL propagates through setNotNullTree /
 				// dropNotNullConstraintTree with ConIsLocal and ConInhCount tracking.
+				continue
+			}
+			if subtype == nodes.AT_DropColumn {
+				cascade := p.cmd.Behavior == int(nodes.DROP_CASCADE)
+				for _, childOID := range c.findChildRelations(rel.OID) {
+					childRel := c.relationByOID[childOID]
+					if childRel == nil {
+						continue
+					}
+					if err := c.atDropColumnWithParentNotNull(childRel.Schema, childRel, p.cmd.Name, cascade, p.cmd.Missing_ok, true, dropColWasNotNull); err != nil {
+						restore()
+						return err
+					}
+				}
 				continue
 			}
 			for _, childOID := range c.findChildRelations(rel.OID) {
@@ -970,7 +989,8 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atSetNotNull(rel, atc.Name)
 
 	case nodes.AT_DropColumn:
-		_, had := rel.colByName[atc.Name]
+		hadIdx, had := rel.colByName[atc.Name]
+		hadNotNull := had && rel.Columns[hadIdx].NotNull
 		if had && !recursing {
 			if recurse {
 				// The drop reaches the children after this relation: refuse
@@ -1001,6 +1021,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				if idx, ok := child.colByName[atc.Name]; ok && child.Columns[idx].InhCount > 0 {
 					child.Columns[idx].InhCount--
 					child.Columns[idx].IsLocal = true
+					if hadNotNull && c.Version() >= PG18 {
+						c.decrementNotNullInheritance(child, child.Columns[idx].AttNum)
+					}
 				}
 			}
 		}
@@ -2368,6 +2391,10 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn
 func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, cascade, ifExists, recursing bool) error {
+	return c.atDropColumnWithParentNotNull(schema, rel, colName, cascade, ifExists, recursing, false)
+}
+
+func (c *Catalog) atDropColumnWithParentNotNull(schema *Schema, rel *Relation, colName string, cascade, ifExists, recursing, parentNotNull bool) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
 		if ifExists {
@@ -2382,6 +2409,11 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	col := rel.Columns[idx]
 	if recursing && (col.InhCount > 1 || col.InhCount == 1 && col.IsLocal) {
 		col.InhCount--
+		if parentNotNull && c.Version() >= PG18 {
+			if err := c.dropNotNullConstraintTree(rel, colName, true, true); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	if !recursing && col.InhCount > 0 {
@@ -2430,6 +2462,7 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	}
 	idx = rel.colByName[colName]
 	col = rel.Columns[idx]
+	colWasNotNull := col.NotNull
 
 	// Drop indexes and constraints that reference this column. Their
 	// dependency entries normally cover them; this also catches those that
@@ -2490,7 +2523,7 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	if recursing {
 		for _, childOID := range c.findChildRelations(rel.OID) {
 			if child := c.relationByOID[childOID]; child != nil {
-				if err := c.atDropColumn(child.Schema, child, colName, cascade, true, true); err != nil {
+				if err := c.atDropColumnWithParentNotNull(child.Schema, child, colName, cascade, true, true, colWasNotNull); err != nil {
 					return err
 				}
 			}
@@ -2750,6 +2783,22 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 	return nil
 }
 
+// decrementNotNullInheritance decrements ConInhCount on the PG 18 cataloged
+// NOT NULL constraint for attnum on rel, marking it local if ConInhCount hits 0.
+func (c *Catalog) decrementNotNullInheritance(rel *Relation, attnum int16) {
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+			if con.ConInhCount > 0 {
+				con.ConInhCount--
+			}
+			if con.ConInhCount == 0 {
+				con.ConIsLocal = true
+			}
+			return
+		}
+	}
+}
+
 // dropNotNullConstraintTree drops a PG 18 cataloged NOT NULL constraint on rel
 // and propagates the drop down inheritance/partition children, decrementing
 // each child's ConInhCount and stopping at any child whose NOT NULL constraint
@@ -2799,21 +2848,8 @@ func (c *Catalog) dropNotNullConstraintTree(rel *Relation, colName string, propa
 			if childRel == nil {
 				continue
 			}
-			ci, ok := childRel.colByName[colName]
-			if !ok {
-				continue
-			}
-			attnum := childRel.Columns[ci].AttNum
-			for _, con := range c.consByRel[childRel.OID] {
-				if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
-					if con.ConInhCount > 0 {
-						con.ConInhCount--
-					}
-					if con.ConInhCount == 0 {
-						con.ConIsLocal = true
-					}
-					break
-				}
+			if ci, ok := childRel.colByName[colName]; ok {
+				c.decrementNotNullInheritance(childRel, childRel.Columns[ci].AttNum)
 			}
 		}
 		return nil
