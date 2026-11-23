@@ -147,7 +147,7 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	// Disallow ROW-level TRUNCATE triggers.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (line 377)
 	if forEachRow && events&TriggerEventTruncate != 0 {
-		return errInvalidObjectDefinition("TRUNCATE FOR EACH ROW triggers are not supported")
+		return &Error{Code: CodeFeatureNotSupported, Message: "TRUNCATE FOR EACH ROW triggers are not supported"}
 	}
 
 	// TRUNCATE triggers on views and foreign tables are not supported.
@@ -197,6 +197,9 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	if stmt.WhenClause != nil {
 		analyzed, err := c.AnalyzeTriggerWhenExpr(stmt.WhenClause, rel)
 		if err == nil {
+			err = checkTriggerWhenVars(analyzed, forEachRow, events)
+		}
+		if err == nil {
 			whenAnalyzed = analyzed
 			oldRTE := c.buildRelationRTE(rel)
 			oldRTE.ERef = "old"
@@ -204,7 +207,7 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 			newRTE.ERef = "new"
 			whenExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{oldRTE, newRTE}, true)
 		} else {
-			return fmt.Errorf("failed to analyze trigger WHEN clause: %w", err)
+			return err
 		}
 	}
 
@@ -628,4 +631,30 @@ func (c *Catalog) findTriggerFunc(schemaName, funcName string) (*BuiltinProc, bo
 // TriggersOf returns all triggers on the given relation.
 func (c *Catalog) TriggersOf(relOID uint32) []*Trigger {
 	return c.triggersByRel[relOID]
+}
+
+// checkTriggerWhenVars refuses a WHEN condition that reads a row the
+// trigger does not have: any row in a statement trigger, OLD in an INSERT
+// trigger, NEW in a DELETE one.
+//
+// pg: src/backend/commands/trigger.c — CreateTrigger (pull_var_clause over whenClause)
+func checkTriggerWhenVars(when AnalyzedExpr, forEachRow bool, events TriggerEvent) error {
+	var err error
+	WalkAnalyzedExpr(when, func(e AnalyzedExpr) bool {
+		v, ok := e.(*VarExpr)
+		if !ok || err != nil || v.LevelsUp != 0 {
+			return err == nil
+		}
+		isOld := v.RangeIdx == 0
+		switch {
+		case !forEachRow:
+			err = errInvalidObjectDefinition("statement trigger's WHEN condition cannot reference column values")
+		case isOld && events&TriggerEventInsert != 0:
+			err = errInvalidObjectDefinition("INSERT trigger's WHEN condition cannot reference OLD values")
+		case !isOld && events&TriggerEventDelete != 0:
+			err = errInvalidObjectDefinition("DELETE trigger's WHEN condition cannot reference NEW values")
+		}
+		return err == nil
+	})
+	return err
 }

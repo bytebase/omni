@@ -860,42 +860,42 @@ func TestDryRunValidation_Function(t *testing.T) {
 func TestDryRunValidation_Trigger(t *testing.T) {
 	t.Run("InsteadOfOnTable", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr INSTEAD OF INSERT ON t FOR EACH ROW EXECUTE FUNCTION trig()",
 			CodeWrongObjectType, "")
 	})
 
 	t.Run("RowTruncate", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr BEFORE TRUNCATE ON t FOR EACH ROW EXECUTE FUNCTION trig()",
-			CodeInvalidObjectDefinition, "")
+			CodeFeatureNotSupported, "")
 	})
 
 	t.Run("InsteadOfNotForEachRow", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr INSTEAD OF INSERT ON v FOR EACH STATEMENT EXECUTE FUNCTION trig()",
 			CodeFeatureNotSupported, "")
 	})
 
 	t.Run("OldTableOnInsert", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr AFTER INSERT ON t REFERENCING OLD TABLE AS old_t FOR EACH STATEMENT EXECUTE FUNCTION trig()",
 			CodeInvalidObjectDefinition, "")
 	})
 
 	t.Run("NewTableOnDelete", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr AFTER DELETE ON t REFERENCING NEW TABLE AS new_t FOR EACH STATEMENT EXECUTE FUNCTION trig()",
 			CodeInvalidObjectDefinition, "")
 	})
 
 	t.Run("DuplicateTransitionTableName", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr AFTER UPDATE ON t REFERENCING OLD TABLE AS x NEW TABLE AS x FOR EACH STATEMENT EXECUTE FUNCTION trig()",
 			CodeInvalidObjectDefinition, "")
 	})
@@ -916,14 +916,14 @@ func TestDryRunValidation_Trigger(t *testing.T) {
 
 	t.Run("DuplicateTriggerName", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql; CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trig()",
+			"CREATE TABLE t(id int); CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql; CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trig()",
 			"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trig()",
 			CodeDuplicateObject, "")
 	})
 
 	t.Run("TruncateOnView", func(t *testing.T) {
 		dryRunExpectError(t,
-			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ $$ LANGUAGE plpgsql",
+			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t; CREATE FUNCTION trig() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
 			"CREATE TRIGGER tr BEFORE TRUNCATE ON v FOR EACH STATEMENT EXECUTE FUNCTION trig()",
 			CodeWrongObjectType, "")
 	})

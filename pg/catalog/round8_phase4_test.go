@@ -298,7 +298,7 @@ func TestSqlBodyDefaultsToSqlLanguage(t *testing.T) {
 			Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "int4"}}},
 		},
 		// Use SqlBody (not AS clause) and no language option.
-		SqlBody: &nodes.Integer{Ival: 1}, // Any non-nil node triggers sql_body path.
+		SqlBody: &nodes.ReturnStmt{Returnval: &nodes.A_Const{Val: &nodes.Integer{Ival: 1}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			// Deliberately no "language" option.
 			// No "as" clause either — sql_body substitutes.

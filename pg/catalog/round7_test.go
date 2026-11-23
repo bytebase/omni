@@ -574,7 +574,7 @@ func TestDropFunctionOnProcedureError(t *testing.T) {
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myproc"}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},
-			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "NULL"}}}},
+			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELECT NULL"}}}},
 		}},
 	})
 	if err := c.CreateFunctionStmt(stmt); err != nil {

@@ -3224,6 +3224,11 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 				Code:    CodeFeatureNotSupported,
 				Message: "cannot alter type of a column used in a trigger definition",
 			}
+		case 'f':
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cannot alter type of a column used by a function or procedure",
+			}
 		}
 	}
 

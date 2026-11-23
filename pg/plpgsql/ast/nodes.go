@@ -234,7 +234,7 @@ func (n *PLForDynS) Tag() NodeTag { return T_PLForDynS }
 // PLForEachA represents a FOREACH ... IN ARRAY loop.
 type PLForEachA struct {
 	Label    string // optional label
-	Var      string // loop variable name
+	Var      string // loop variable name, or a comma-separated list of them
 	SliceDim int    // SLICE dimension (0 if no SLICE)
 	ArrayExpr string // array expression text
 	Body     []Node // statement list

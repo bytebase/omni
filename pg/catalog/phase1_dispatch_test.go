@@ -84,7 +84,6 @@ func TestPhase1_NewNoOpDispatch(t *testing.T) {
 		{"LoadStmt", "LOAD 'test_lib'"},
 		{"ConstraintsSetStmt", "SET CONSTRAINTS ALL DEFERRED"},
 		{"VariableShowStmt", "SHOW search_path"},
-		{"CallStmt", "CALL test_proc()"},
 		{"PrepareStmt", "PREPARE test_plan AS SELECT 1"},
 		{"ExecuteStmt", "EXECUTE test_plan"},
 		{"DeallocateStmt", "DEALLOCATE test_plan"},

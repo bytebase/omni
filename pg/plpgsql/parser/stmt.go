@@ -25,7 +25,7 @@ func (p *Parser) parseAssignOrCall() (ast.Node, error) {
 	startPos := p.pos()
 
 	// Collect the target (variable name, possibly with field/subscript)
-	target := p.identText()
+	target := p.intoTargetText()
 	p.advance()
 
 	// Handle dotted names and subscripts

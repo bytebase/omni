@@ -229,7 +229,7 @@ func TestTriggerRowTruncateRejected(t *testing.T) {
 	createTriggerFunc(t, c)
 
 	err := c.CreateTriggerStmt(makeCreateTrigStmt("", "t", "my_trig", TriggerBefore, TriggerEventTruncate, true, "", "trig_fn"))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeFeatureNotSupported)
 }
 
 func TestTriggerInsteadOfMustBeRow(t *testing.T) {

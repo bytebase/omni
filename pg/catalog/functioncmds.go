@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"fmt"
-	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,29 +12,33 @@ import (
 
 // UserProc represents a user-defined function or procedure.
 type UserProc struct {
-	OID          uint32
-	Name         string
-	Schema       *Schema
-	OwnerName    string
-	Kind         byte // 'f' or 'p'
-	ArgTypes     []uint32
-	RetType      uint32
-	RetSet       bool
-	Volatile     byte
-	Parallel     byte
-	IsStrict     bool
-	SecDef       bool
-	LeakProof    bool
-	IsWindow     bool
-	Cost         string
-	Rows         string
-	SetConfig    []string
-	Support      string
-	SupportOID   uint32
-	Language     string
-	Body         string
-	LinkSymbol   string
-	HasSqlBody   bool     // SQL-standard body (RETURN / BEGIN ATOMIC) without AS '...'
+	OID        uint32
+	Name       string
+	Schema     *Schema
+	OwnerName  string
+	Kind       byte // 'f' or 'p'
+	ArgTypes   []uint32
+	RetType    uint32
+	RetSet     bool
+	Volatile   byte
+	Parallel   byte
+	IsStrict   bool
+	SecDef     bool
+	LeakProof  bool
+	IsWindow   bool
+	Cost       string
+	Rows       string
+	SetConfig  []string
+	Support    string
+	SupportOID uint32
+	Language   string
+	Body       string
+	LinkSymbol string
+	HasSqlBody bool // SQL-standard body (RETURN / BEGIN ATOMIC) without AS '...'
+	// sqlBody and bodyBindings are a SQL-standard body as parsed and bound,
+	// which procBody prints with the names of what it uses as they are now.
+	sqlBody      nodes.Node
+	bodyBindings *ruleBindings
 	ArgNames     []string // all parameter names (IN+OUT+INOUT+TABLE)
 	ArgModes     []byte   // 'i','o','b','v','t' per parameter; nil if all IN
 	AllArgTypes  []uint32 // all parameter types (IN+OUT+INOUT); nil if no OUT params
@@ -257,6 +260,9 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	if hasSqlBody && language == "" {
 		language = "sql"
 	}
+	if language == "" {
+		return errInvalidFunctionDefinition("no language specified")
+	}
 
 	// Validate language name.
 	// pg: src/backend/commands/functioncmds.c — CreateFunction (line 1095-1101)
@@ -279,9 +285,6 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		return errInvalidFunctionDefinition("no function body specified")
 	}
 	sqlStandardBody := hasSqlBody && !hasAsClause
-	if sqlStandardBody {
-		body = c.deparseSqlBody(stmt.SqlBody)
-	}
 
 	// ---------------------------------------------------------------
 	// Resolve parameters and validate.
@@ -554,12 +557,43 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		returnSet = true
 	}
 
-	if retOID == EVENTTRIGGEROID {
-		if strings.EqualFold(language, "sql") {
-			return errInvalidFunctionDefinition("SQL functions cannot return type event_trigger")
+	if retOID == EVENTTRIGGEROID && !langIsSQL && len(allArgTypes) > 0 {
+		return errInvalidFunctionDefinition("event trigger functions cannot have declared arguments")
+	}
+
+	// A SQL-standard body is parsed and analyzed now, before the routine
+	// exists, and records what it uses.
+	// pg: src/backend/commands/functioncmds.c — interpret_AS_clause
+	fnParams := sqlFnInputParams(name, stmt.Parameters, argOIDs)
+	var bodyBindings *ruleBindings
+	if sqlStandardBody {
+		if !langIsSQL {
+			return errInvalidFunctionDefinition("inline SQL function body only valid for language SQL")
 		}
-		if len(allArgTypes) > 0 {
-			return errInvalidFunctionDefinition("event trigger functions cannot have declared arguments")
+		for _, t := range argOIDs {
+			if isPolymorphic(t) {
+				return errInvalidFunctionDefinition("SQL function with unquoted function body cannot have polymorphic arguments")
+			}
+		}
+		bodyBindings, err = c.bindSQLFunctionBody(sqlBodyStmts(stmt.SqlBody), fnParams)
+		if err != nil {
+			return err
+		}
+		body = c.deparseSqlBody(stmt.SqlBody, bodyBindings)
+	}
+
+	// A SQL function may not return a pseudo-type but record, void or a
+	// polymorphic one.
+	// pg: src/backend/executor/functions.c — fmgr_sql_validator
+	if langIsSQL && !isPolymorphic(retOID) && retOID != RECORDOID && retOID != VOIDOID {
+		if bt := c.typeByOID[retOID]; bt != nil && bt.Type == 'p' {
+			return errInvalidFunctionDefinition(fmt.Sprintf("SQL functions cannot return type %s", c.FormatType(retOID, -1)))
+		}
+	}
+	var outTypes []uint32
+	for i, mode := range allArgModes {
+		if mode == 'o' || mode == 'b' || mode == 't' {
+			outTypes = append(outTypes, allArgTypes[i])
 		}
 	}
 
@@ -587,6 +621,28 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		parallel = 'u'
 	}
 
+	// validateBody runs the validator over a string body once the routine
+	// exists, so the body may call it.
+	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (OidFunctionCall1 of the validator)
+	validateBody := func() error {
+		if !c.checkFunctionBodies() {
+			return nil
+		}
+		if strings.EqualFold(language, "plpgsql") {
+			return c.checkPLpgSQL(body, &plpgsqlRoutine{
+				name: name, kind: kind, retType: retOID, retSet: returnSet,
+				hasOut: len(outTypes) > 0, params: append(allArgNames, make([]string, len(allArgTypes)-len(allArgNames))...),
+			})
+		}
+		if !langIsSQL {
+			return nil
+		}
+		if sqlStandardBody {
+			return c.checkSQLFunctionResult(bodyBindings, sqlBodyStmts(stmt.SqlBody), kind, retOID, outTypes)
+		}
+		return c.checkSQLFunctionBody(body, fnParams, kind, retOID, outTypes)
+	}
+
 	argDefaults := c.paramDefaults(stmt.Parameters, len(argOIDs), int(nArgDefaults))
 	defaultTypes := c.paramDefaultTypes(stmt.Parameters, argOIDs, int(nArgDefaults))
 
@@ -597,17 +653,37 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			return errDuplicateFunction(name)
 		}
 		if existing.Kind != kind {
-			return errInvalidFunctionDefinition(fmt.Sprintf(
-				"cannot change routine kind of existing function %q", name))
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf(
+				"cannot change routine kind of existing function %q", name)}
 		}
 		// OrReplace: verify return type and setof flag match.
 		if existing.RetType != retOID || existing.RetSet != returnSet {
-			return errInvalidObjectDefinition(fmt.Sprintf(
+			return errInvalidFunctionDefinition(fmt.Sprintf(
 				"cannot change return type of existing function %q", name))
 		}
 		// Replace the body and attributes.
 		up := c.userProcs[existing.OID]
 		if up != nil {
+			// A replacement may not rename an input parameter.
+			// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (proargnames)
+			old := sqlFnInputParams(up.Name, nil, up.ArgTypes)
+			old.names = old.names[:0]
+			for i, n := range up.ArgNames {
+				if up.ArgModes == nil || i < len(up.ArgModes) && up.ArgModes[i] != 'o' && up.ArgModes[i] != 't' {
+					old.names = append(old.names, n)
+				}
+			}
+			for i, n := range old.names {
+				if n != "" && i < len(fnParams.names) && fnParams.names[i] != n {
+					return errInvalidFunctionDefinition(fmt.Sprintf("cannot change name of input parameter %q", n))
+				}
+			}
+		}
+		if err := validateBody(); err != nil {
+			return err
+		}
+		if up != nil {
+			fnParams.procOID = existing.OID
 			// A replacement may add parameter defaults, but not remove one
 			// or change one's type.
 			// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (pronargdefaults)
@@ -643,6 +719,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.Body = body
 			up.LinkSymbol = linkSymbol
 			up.HasSqlBody = sqlStandardBody
+			up.sqlBody, up.bodyBindings = nil, nil
+			if sqlStandardBody {
+				up.sqlBody, up.bodyBindings = stmt.SqlBody, bodyBindings
+			}
 		}
 		existing.Volatile = volatile
 		existing.Parallel = parallel
@@ -652,7 +732,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		// Rebuild all normal dependencies (arg/return types, support, defaults, SQL body)
 		// so dropped helpers/tables from replaced defaults or bodies are detached.
 		c.removeDepsOf('f', existing.OID)
-		c.recordFunctionDependencies(existing.OID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
+		c.recordFunctionDependencies(existing.OID, argOIDs, retOID, supportOID, stmt.Parameters, bodyBindings)
 		return nil
 	}
 
@@ -730,6 +810,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		Body:            body,
 		LinkSymbol:      linkSymbol,
 		HasSqlBody:      sqlStandardBody,
+		bodyBindings:    bodyBindings,
 		ArgNames:        allArgNames,
 		ArgModes:        storedArgModes,
 		AllArgTypes:     storedAllArgTypes,
@@ -737,10 +818,18 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		ArgDefaults:     argDefaults,
 		NArgDefaults:    nArgDefaults,
 	}
+	if sqlStandardBody {
+		up.sqlBody = stmt.SqlBody
+	}
+	fnParams.procOID = procOID
 	c.userProcs[procOID] = up
 
-	c.recordFunctionDependencies(procOID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
+	c.recordFunctionDependencies(procOID, argOIDs, retOID, supportOID, stmt.Parameters, bodyBindings)
 
+	if err := validateBody(); err != nil {
+		c.removeFunction(procOID, name)
+		return err
+	}
 	return nil
 }
 
@@ -750,10 +839,7 @@ func (c *Catalog) recordFunctionDependencies(
 	retOID uint32,
 	supportOID uint32,
 	params *nodes.List,
-	language string,
-	body string,
-	sqlStandardBody bool,
-	sqlBody nodes.Node,
+	body *ruleBindings,
 ) {
 	// Record dependencies on arg/return/support types/routines.
 	for _, aoid := range argOIDs {
@@ -783,20 +869,39 @@ func (c *Catalog) recordFunctionDependencies(
 		}
 	}
 
-	// Record dependencies from SQL function body.
+	// A SQL-standard body depends on what it uses; a string body on
+	// nothing.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate
 	//   if (languageObjectId == SQLlanguageId && prosqlbody)
 	//       recordDependencyOnExpr(&myself, prosqlbody, NIL, DEPENDENCY_NORMAL);
-	//
-	// For LANGUAGE sql functions, parse the body and extract table/function
-	// references so the migration toposort orders tables before functions
-	// that reference them.
-	if strings.EqualFold(language, "sql") {
-		if sqlStandardBody && sqlBody != nil {
-			c.recordDepsFromNode('f', procOID, sqlBody, true)
-		} else if body != "" {
-			c.recordFuncBodyDeps(procOID, body)
+	if body == nil {
+		return
+	}
+	for _, relOID := range body.relDeps {
+		c.recordDependency('f', procOID, 0, 'r', relOID, 0, DepNormal)
+	}
+	for _, cd := range body.colDeps {
+		c.recordDependency('f', procOID, 0, 'r', cd.relOID, int32(cd.attNum), DepNormal)
+	}
+	for _, conOID := range body.conDeps {
+		c.recordDependency('f', procOID, 0, 'c', conOID, 0, DepNormal)
+	}
+	for _, seqOID := range body.seqDeps {
+		c.recordDependency('f', procOID, 0, 's', seqOID, 0, DepNormal)
+	}
+	for _, typeOID := range body.typeDeps {
+		c.recordDependency('f', procOID, 0, 't', typeOID, 0, DepNormal)
+	}
+	for _, collOID := range body.collDeps {
+		c.recordDependency('f', procOID, 0, 'L', collOID, 0, DepNormal)
+	}
+	for _, funcOID := range body.funcDeps {
+		if funcOID != procOID {
+			c.recordDependency('f', procOID, 0, 'f', funcOID, 0, DepNormal)
 		}
+	}
+	for _, operOID := range body.operDeps {
+		c.recordDependency('f', procOID, 0, 'O', operOID, 0, DepNormal)
 	}
 }
 
@@ -876,302 +981,34 @@ func createFunctionStmtIsProcedure(stmt *nodes.CreateFunctionStmt) bool {
 	return false
 }
 
-// recordFuncBodyDeps parses a SQL function body and records dependencies on
-// tables referenced within it. Extracts relation names from the raw AST
-// rather than doing full semantic analysis, because function bodies may
-// reference function parameters that the analyzer doesn't know about.
-// Silently ignores parse errors to avoid blocking catalog loading.
-func (c *Catalog) recordFuncBodyDeps(funcOID uint32, body string) {
-	stmts, err := parser.Parse(body)
-	if err != nil || stmts == nil {
-		return
-	}
-	for _, stmt := range stmts.Items {
-		raw, ok := stmt.(*nodes.RawStmt)
-		if !ok {
+// bodyOrderingDeps returns, for each SQL function with a string body, an
+// entry on each table its body names. PostgreSQL records no dependency for
+// such a body, so a DROP ignores them; they only order a migration, which
+// must create a table before a function check_function_bodies reads it in.
+func (c *Catalog) bodyOrderingDeps() []DepEntry {
+	var out []DepEntry
+	for _, up := range c.userProcs {
+		if up.HasSqlBody || !strings.EqualFold(up.Language, "sql") || up.Body == "" {
 			continue
 		}
-		c.recordDepsFromNode('f', funcOID, raw.Stmt, false)
-	}
-}
-
-// recordDepsFromNode walks an AST node tree and records dependencies for
-// any RangeVar (table reference) found. This is a lightweight alternative
-// to full semantic analysis that works even when the query contains
-// unresolvable references (e.g., function parameters).
-//
-// sqlStandard is true for a SQL-standard body (RETURN or BEGIN ATOMIC), which
-// PostgreSQL parses at definition time and whose referenced routines and types
-// it records as dependencies. A string body records none of those, so for it
-// only table references are kept, as ordering hints for migrations.
-func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node, sqlStandard bool) {
-	if n == nil {
-		return
-	}
-	// The generated walker reaches every expression container (array
-	// constructors, row expressions, indirection, CASE arms, subqueries).
-	nodes.Inspect(n, func(node nodes.Node) bool {
-		switch v := node.(type) {
-		case *nodes.RangeVar:
-			c.recordDepsOnRangeVar(objType, objOID, v)
-		case *nodes.FuncCall:
-			if sqlStandard {
-				c.recordDepsOnFuncCall(objType, objOID, v)
-			}
-		case *nodes.TypeCast:
-			if sqlStandard {
-				c.recordDepsOnTypeName(objType, objOID, v.TypeName)
-			}
-		}
-		return true
-	})
-}
-
-// recordDepsOnRangeVar resolves a RangeVar to a catalog relation and records
-// a dependency if found.
-func (c *Catalog) recordDepsOnRangeVar(objType byte, objOID uint32, rv *nodes.RangeVar) {
-	if rv == nil {
-		return
-	}
-	_, rel, err := c.findRelation(rv.Schemaname, rv.Relname)
-	if err == nil && rel != nil {
-		c.recordDependency(objType, objOID, 0, 'r', rel.OID, 0, DepNormal)
-	}
-}
-
-// recordDepsOnTypeName records a dependency on the user-defined type a cast
-// names, and on its element type when it names an array of one.
-func (c *Catalog) recordDepsOnTypeName(objType byte, objOID uint32, tn *nodes.TypeName) {
-	if tn == nil {
-		return
-	}
-	oid, _, err := c.resolveTypeName(tn)
-	if err != nil || oid < FirstNormalObjectId {
-		return
-	}
-	c.recordDependency(objType, objOID, 0, 't', oid, 0, DepNormal)
-	if bt := c.typeByOID[oid]; bt != nil && bt.Elem >= FirstNormalObjectId {
-		c.recordDependency(objType, objOID, 0, 't', bt.Elem, 0, DepNormal)
-	}
-}
-
-// recordDepsOnFuncCall resolves a FuncCall AST node to matching user-defined
-// routine(s) and records DepNormal dependencies when found.
-func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.FuncCall) {
-	if c == nil || fc == nil || fc.Funcname == nil {
-		return
-	}
-	schemaName, funcName := qualifiedName(fc.Funcname)
-	if funcName == "" {
-		return
-	}
-	procs := c.filterProcsBySearchPath(schemaName, c.procByName[funcName])
-	if len(procs) == 0 {
-		return
-	}
-
-	var nargs int
-	var argNames []string
-	var hasNamed bool
-	if fc.Args != nil {
-		nargs = len(fc.Args.Items)
-		for _, item := range fc.Args.Items {
-			if na, ok := item.(*nodes.NamedArgExpr); ok {
-				hasNamed = true
-				argNames = append(argNames, na.Name)
-			} else {
-				argNames = append(argNames, "")
-			}
-		}
-	}
-	if !hasNamed {
-		argNames = nil
-	}
-
-	matchesCall := func(p *BuiltinProc) bool {
-		if fc.AggStar {
-			return true
-		}
-		if argNames != nil {
-			_, ok := namedCallPositions(p, argNames, fc.FuncVariadic)
-			return ok
-		}
-		_, ok := candidateArgTypesForCall(p, nargs, fc.FuncVariadic)
-		return ok
-	}
-
-	var targetSchemaOID uint32
-	if schemaName != "" {
-		sc := c.schemaByName[schemaName]
-		if sc == nil {
-			return
-		}
-		targetSchemaOID = sc.OID
-	}
-
-	recordProc := func(p *BuiltinProc) {
-		if objType == 'f' && p.OID == objOID {
-			return
-		}
-		for _, d := range c.deps {
-			if d.ObjType == objType && d.ObjOID == objOID && d.RefType == 'f' && d.RefOID == p.OID && d.DepType == DepNormal {
-				return
-			}
-		}
-		c.recordDependency(objType, objOID, 0, 'f', p.OID, 0, DepNormal)
-	}
-
-	var matched []*BuiltinProc
-	for _, p := range procs {
-		if p.OID < FirstNormalObjectId {
+		stmts, err := parser.Parse(up.Body)
+		if err != nil || stmts == nil {
 			continue
 		}
-		up := c.userProcs[p.OID]
-		if up == nil || up.Schema == nil {
-			continue
-		}
-		if targetSchemaOID != 0 && up.Schema.OID != targetSchemaOID {
-			continue
-		}
-		if matchesCall(p) {
-			matched = append(matched, p)
-		}
-	}
-	if len(matched) == 0 {
-		return
-	}
-
-	// When every argument's type is evident from the AST, pick the overload
-	// PostgreSQL would call; otherwise keep every candidate.
-	argTypes := c.literalCallArgTypes(fc)
-	narrow := func(cands []*BuiltinProc) []*BuiltinProc {
-		if len(cands) <= 1 || argTypes == nil {
-			return cands
-		}
-		if p, _, err := c.resolveFuncOverload(cands, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
-			return []*BuiltinProc{p}
-		}
-		return cands
-	}
-
-	if schemaName != "" {
-		for _, p := range narrow(matched) {
-			recordProc(p)
-		}
-		return
-	}
-
-	// With argument types known, resolve the overload across every schema on
-	// search_path, as PostgreSQL does: the match may sit in a later schema than
-	// another arity-compatible candidate. An earlier schema hides a routine
-	// with the same argument types in a later one.
-	if argTypes != nil {
-		var visible []*BuiltinProc
-		seenSig := make(map[string]bool)
-		// pg_catalog is searched first unless search_path names it.
-		for _, p := range procs {
-			if p.OID < FirstNormalObjectId && matchesCall(p) {
-				sig := fmt.Sprint(p.ArgTypes)
-				if !seenSig[sig] {
-					seenSig[sig] = true
-					visible = append(visible, p)
+		seen := map[uint32]bool{}
+		for _, stmt := range stmts.Items {
+			nodes.Inspect(stmt, func(n nodes.Node) bool {
+				if rv, ok := n.(*nodes.RangeVar); ok && rv != nil {
+					if _, rel, err := c.findRelation(rv.Schemaname, rv.Relname); err == nil && rel != nil && !seen[rel.OID] {
+						seen[rel.OID] = true
+						out = append(out, DepEntry{ObjType: 'f', ObjOID: up.OID, RefType: 'r', RefOID: rel.OID, DepType: DepNormal})
+					}
 				}
-			}
-		}
-		for _, sname := range c.searchPath {
-			sc := c.schemaByName[sname]
-			if sc == nil {
-				continue
-			}
-			for _, p := range matched {
-				up := c.userProcs[p.OID]
-				if up == nil || up.Schema == nil || up.Schema.OID != sc.OID {
-					continue
-				}
-				sig := fmt.Sprint(p.ArgTypes)
-				if seenSig[sig] {
-					continue
-				}
-				seenSig[sig] = true
-				visible = append(visible, p)
-			}
-		}
-		if len(visible) > 0 {
-			if p, _, err := c.resolveFuncOverload(visible, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
-				// A built-in routine needs no dependency.
-				if p.OID >= FirstNormalObjectId {
-					recordProc(p)
-				}
-				return
-			}
+				return true
+			})
 		}
 	}
-
-	// For unqualified calls, prefer routines in the first visible schema along search_path.
-	for _, sname := range c.searchPath {
-		sc := c.schemaByName[sname]
-		if sc == nil {
-			continue
-		}
-		var inSchema []*BuiltinProc
-		for _, p := range matched {
-			if up := c.userProcs[p.OID]; up != nil && up.Schema != nil && up.Schema.OID == sc.OID {
-				inSchema = append(inSchema, p)
-			}
-		}
-		if len(inSchema) > 0 {
-			for _, p := range narrow(inSchema) {
-				recordProc(p)
-			}
-			return
-		}
-	}
-	for _, p := range narrow(matched) {
-		recordProc(p)
-	}
-}
-
-// literalCallArgTypes returns the type of each argument of fc when every one
-// is a constant or a cast, the forms whose type needs no analysis, and nil
-// otherwise.
-func (c *Catalog) literalCallArgTypes(fc *nodes.FuncCall) []uint32 {
-	if fc == nil || fc.Args == nil || fc.AggStar {
-		return nil
-	}
-	types := make([]uint32, 0, len(fc.Args.Items))
-	for _, item := range fc.Args.Items {
-		if na, ok := item.(*nodes.NamedArgExpr); ok {
-			item = na.Arg
-		}
-		var t uint32
-		switch v := item.(type) {
-		case *nodes.A_Const:
-			switch val := v.Val.(type) {
-			case *nodes.Integer:
-				t = INT4OID
-				if val.Ival > math.MaxInt32 || val.Ival < math.MinInt32 {
-					t = INT8OID
-				}
-			case *nodes.Float:
-				t = NUMERICOID
-			case *nodes.Boolean:
-				t = BOOLOID
-			default:
-				// A string literal or NULL is unknown until resolution.
-				t = UNKNOWNOID
-			}
-		case *nodes.TypeCast:
-			oid, _, err := c.resolveTypeName(v.TypeName)
-			if err != nil {
-				return nil
-			}
-			t = oid
-		default:
-			return nil
-		}
-		types = append(types, t)
-	}
-	return types
+	return out
 }
 
 // CreateCast registers a user-defined cast.
@@ -1560,6 +1397,13 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			if !ok {
 				continue
 			}
+			// pg: src/backend/commands/functioncmds.c — compute_common_attribute (procedure_error)
+			switch strings.ToLower(de.Defname) {
+			case "volatility", "strict", "called_on_null_input", "leakproof", "cost", "rows", "support", "parallel":
+				if objType == nodes.OBJECT_PROCEDURE {
+					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
+				}
+			}
 			switch strings.ToLower(de.Defname) {
 			case "volatility":
 				if seenVolatility {
@@ -1894,11 +1738,11 @@ func formatFuncSetArgs(args *nodes.List) string {
 	return strings.Join(parts, ", ")
 }
 
-func (c *Catalog) deparseSqlBody(sqlBody nodes.Node) string {
+func (c *Catalog) deparseSqlBody(sqlBody nodes.Node, b *ruleBindings) string {
 	if sqlBody == nil {
 		return ""
 	}
-	d := &ruleDeparser{cat: c}
+	d := &ruleDeparser{cat: c, b: b}
 	switch n := sqlBody.(type) {
 	case *nodes.ReturnStmt:
 		return "RETURN " + d.deparseExpr(n.Returnval)
