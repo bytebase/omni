@@ -940,6 +940,40 @@ COMMENT ON CONSTRAINT p_sc_rec_x_not_null1 ON c_sc_rec IS 'ok3';
 `); got != "" {
 		t.Fatalf("PG18 schema-wide ChooseConstraintName collision avoidance: got %q, want ok", got)
 	}
+
+	// ATTACH PARTITION clears ConIsLocal on the merged NOT NULL constraint so a
+	// subsequent recursive DROP NOT NULL on the parent also drops it on the partition.
+	attachDropSetup := `
+CREATE TABLE p_ad (x int NOT NULL, k int) PARTITION BY RANGE (k);
+CREATE TABLE c_ad (x int NOT NULL, k int);
+ALTER TABLE p_ad ATTACH PARTITION c_ad FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, attachDropSetup, "ALTER TABLE p_ad ALTER COLUMN x DROP NOT NULL"); got != "" {
+		t.Fatalf("PG18 DROP NOT NULL after ATTACH PARTITION: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_ad")
+		part := c.GetRelation("public", "c_ad")
+		if p.Columns[0].NotNull || part.Columns[0].NotNull {
+			t.Fatalf("expected both p_ad.x and c_ad.x to become nullable (p=%v, part=%v)", p.Columns[0].NotNull, part.Columns[0].NotNull)
+		}
+	}
+
+	// ALTER TABLE c INHERIT p rejects merging an inheritable parent NOT NULL into
+	// a child's NO INHERIT NOT NULL constraint with 42P16 without mutating c.
+	inhConflictSetup := `
+CREATE TABLE p_ic (x int NOT NULL);
+CREATE TABLE c_ic (x int);
+CREATE TABLE g_ic () INHERITS (c_ic);
+ALTER TABLE ONLY c_ic ALTER COLUMN x SET NOT NULL;
+`
+	if got, c := execCodeVersion(t, PG18, inhConflictSetup, "ALTER TABLE c_ic INHERIT p_ic"); got != CodeInvalidTableDefinition {
+		t.Fatalf("PG18 INHERIT with NO INHERIT NOT NULL conflict: got %q, want %q", got, CodeInvalidTableDefinition)
+	} else {
+		ch := c.GetRelation("public", "c_ic")
+		if len(ch.InhParents) != 0 {
+			t.Fatalf("expected failed INHERIT not to attach p_ic as parent, got %v", ch.InhParents)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

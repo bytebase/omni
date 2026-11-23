@@ -3667,7 +3667,24 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 			if ci, ok := part.colByName[pcol.Name]; ok {
 				partCol := part.Columns[ci]
 				partCol.NotNull = true
-				_ = c.ensureNotNullConstraintWithInh(part.Schema, part, partCol, "", false, 1)
+				var existing *Constraint
+				for _, con := range c.consByRel[part.OID] {
+					if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == partCol.AttNum {
+						existing = con
+						break
+					}
+				}
+				if existing != nil {
+					// pg: src/backend/commands/tablecmds.c — MergeConstraintsIntoExisting (partition merge)
+					existing.ConIsLocal = false
+					existing.ConInhCount++
+				} else {
+					conName := ""
+					if parentName := c.notNullConstraintName(parent, pcol.AttNum); parentName != "" && c.checkConstraintNameFree(part.OID, parentName) == nil {
+						conName = parentName
+					}
+					_ = c.ensureNotNullConstraintWithInh(part.Schema, part, partCol, conName, false, 1)
+				}
 			}
 		}
 	}
@@ -4546,15 +4563,31 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 		return &Error{Code: CodeDuplicateTable, Message: "circular inheritance not allowed"}
 	}
 
-	// Merge parent columns into child (type must match, increment InhCount).
+	// Validate column types and PG 18 NO INHERIT NOT NULL compatibility before mutating rel.
+	// pg: src/backend/commands/tablecmds.c — MergeAttributesIntoExisting / MergeConstraintsIntoExisting
+	for _, pcol := range parent.Columns {
+		existIdx, exists := rel.colByName[pcol.Name]
+		if !exists {
+			continue
+		}
+		childCol := rel.Columns[existIdx]
+		if childCol.TypeOID != pcol.TypeOID {
+			return errDatatypeMismatch(fmt.Sprintf(
+				"column %q has a type conflict", pcol.Name,
+			))
+		}
+		if c.Version() >= PG18 && pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum) && c.isNotNullNoInherit(rel, childCol.AttNum) {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("constraint %q conflicts with non-inherited constraint on child table %q", c.notNullConstraintName(rel, childCol.AttNum), rel.Name),
+			}
+		}
+	}
+
+	// Merge parent columns into child (increment InhCount).
 	for _, pcol := range parent.Columns {
 		if existIdx, exists := rel.colByName[pcol.Name]; exists {
 			childCol := rel.Columns[existIdx]
-			if childCol.TypeOID != pcol.TypeOID {
-				return errDatatypeMismatch(fmt.Sprintf(
-					"column %q has a type conflict", pcol.Name,
-				))
-			}
 			pcolInheritableNN := pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum)
 			if pcolInheritableNN {
 				childCol.NotNull = true
@@ -4569,7 +4602,11 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 					if existing != nil {
 						existing.ConInhCount++
 					} else {
-						_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, childCol, "", false, 1)
+						conName := ""
+						if parentName := c.notNullConstraintName(parent, pcol.AttNum); parentName != "" && c.checkConstraintNameFree(rel.OID, parentName) == nil {
+							conName = parentName
+						}
+						_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, childCol, conName, false, 1)
 					}
 				}
 			}
@@ -4598,7 +4635,11 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 			rel.Columns = append(rel.Columns, col)
 			rel.colByName[col.Name] = len(rel.Columns) - 1
 			if col.NotNull {
-				_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", false, 1)
+				conName := ""
+				if parentName := c.notNullConstraintName(parent, pcol.AttNum); parentName != "" && c.checkConstraintNameFree(rel.OID, parentName) == nil {
+					conName = parentName
+				}
+				_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, conName, false, 1)
 			}
 		}
 	}
