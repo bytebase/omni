@@ -725,6 +725,12 @@ func TestWalkThroughMariaDBRecallFamilies(t *testing.T) {
 	noFinding(t, "ALTER TABLE t ADD COLUMN z INT DEFAULT (NEXTVAL(s));", shop)
 	noFinding(t, "ALTER TABLE t ADD (z1 INT, z2 INT DEFAULT (z1 + 1));", shop)
 	noFinding(t, "ALTER TABLE t ADD COLUMN z INT, ADD CHECK (z > 0);", shop)
+	// Earlier additions in the same ALTER satisfy later IF NOT EXISTS guards, skipping validation.
+	noFinding(t, "ALTER TABLE t ADD COLUMN c INT, ADD COLUMN IF NOT EXISTS c INT DEFAULT nosuch;", shop)
+	noFinding(t, "ALTER TABLE t ADD COLUMN c INT, ADD COLUMN IF NOT EXISTS c INT DEFAULT c;", shop)
+	noFinding(t, "ALTER TABLE t RENAME COLUMN a TO c, ADD COLUMN IF NOT EXISTS c INT DEFAULT nosuch;", shop)
+	noFinding(t, "ALTER TABLE t ADD INDEX k (a), ADD INDEX IF NOT EXISTS k (nosuch);", shop)
+	noFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS k (a), ADD INDEX IF NOT EXISTS k (nosuch);", shop)
 }
 
 func TestWalkThroughMariaDBLowersEveryForm(t *testing.T) {

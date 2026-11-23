@@ -250,19 +250,23 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			}
 		}
 		for _, col := range cols {
-			// IF NOT EXISTS makes a column the table has a note and leaves the
-			// table as it was (verified). One the walk does not know is there
-			// afterwards either way, though its keys may not be.
+			k, ok := b.key(spaceColumn, col.Name)
+			// IF NOT EXISTS makes a column the table already has (or an earlier
+			// subcommand of this ALTER added) a note and skips its definition
+			// without validating defaults, generated expressions, or references.
 			if c.IfNotExists {
-				k, ok := b.key(spaceColumn, col.Name)
 				if !ok {
 					return false
 				}
 				ck := colKey(r.db, r.name, k)
+				if b.addedCols[k] {
+					continue
+				}
 				if f, _ := b.l.Lookup(ck); f != walk.Absent {
 					if f == walk.Unknown {
 						b.Set(ck, walk.Present, "")
 					}
+					b.markAddedCol(k)
 					continue
 				}
 			}
@@ -277,6 +281,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			}
 			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
 				return false
+			}
+			if ok {
+				b.markAddedCol(k)
 			}
 		}
 		// The parenthesized form reads a table element list, so an index or a
@@ -397,6 +404,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.NewName), r.written)) // 1061
 			b.leave(fk)
 			b.arrive(tk)
+			b.markAddedIdx(to)
 			b.Session(func() { delete(b.w.fkGeneratedIdx, fk) })
 		}
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
@@ -642,6 +650,7 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 		b.need(tc, walk.Absent, nil, rng, "", alreadyExists("column", ident(to), r.written)) // 1060
 		b.leave(fc)
 		b.arrive(tc)
+		b.markAddedCol(tk)
 		tblPath := tablePath(r.db, r.name)
 		b.Session(func() {
 			for ik, cols := range b.w.fkGeneratedIdx {
@@ -672,9 +681,31 @@ func (b *builder) alterColumnKeys(r tableRef, col *ast.ColumnDef, rng review.Ran
 	for _, cc := range col.Constraints {
 		if cc.Type == ast.ColConstrPrimaryKey {
 			b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+			b.markAddedIdx(primaryIndex)
 		}
 	}
 	b.columnKeys(r, col)
+}
+
+func (b *builder) markAddedCol(k string) {
+	if b.addedCols == nil {
+		b.addedCols = make(map[string]bool)
+	}
+	b.addedCols[k] = true
+}
+
+func (b *builder) markAddedIdx(k string) {
+	if b.addedIdxs == nil {
+		b.addedIdxs = make(map[string]bool)
+	}
+	b.addedIdxs[k] = true
+}
+
+func (b *builder) markAddedFK(k string) {
+	if b.addedFKs == nil {
+		b.addedFKs = make(map[string]bool)
+	}
+	b.addedFKs[k] = true
 }
 
 // addConstraint follows ADD of a key, index, or foreign key.
@@ -685,16 +716,22 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		// IF NOT EXISTS, here and below, makes what is there a note and leaves the
 		// table as it was (verified).
 		if c.IfNotExists {
+			if b.addedIdxs[primaryIndex] {
+				return
+			}
 			if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
+				b.markAddedIdx(primaryIndex)
 				return
 			}
 			b.checkIndexColumns(r, c.IndexColumns)
 			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
+			b.markAddedIdx(primaryIndex)
 			break
 		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 		b.checkIndexColumns(r, c.IndexColumns)
 		b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
+		b.markAddedIdx(primaryIndex)
 	case ast.ConstrCheck:
 		if !c.IfNotExists && c.Expr != nil {
 			b.checkExprTableColumns(r, c.Expr, nil)
@@ -709,8 +746,12 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				name = c.Name
 			}
 			if k, ok := b.key(spaceForeignKey, name); ok {
+				if b.addedFKs[k] {
+					return
+				}
 				_, onTable := fkKeys(r, k)
 				if f, _ := b.l.Lookup(onTable); f != walk.Absent {
+					b.markAddedFK(k)
 					return
 				}
 			}
@@ -724,22 +765,29 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				b.need(colKey(r.db, r.name, ck), walk.Present, nil, rng, notFound("column", ident(colName), r.written), "") // 1072
 			}
 		}
-		if !b.fks {
-			break
-		}
 		if k, ok := b.key(spaceForeignKey, keyName(c)); ok {
-			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(keyName(c)), "")) // 1826; 1022 on 5.7
+			b.markAddedFK(k)
+			if b.fks {
+				b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(keyName(c)), "")) // 1826; 1022 on 5.7
+			}
 		}
-		b.foreignKeyTarget(r, c)
+		if b.fks {
+			b.foreignKeyTarget(r, c)
+		}
 	default:
 		isRegular := (c.Type == ast.ConstrIndex || c.Type == ast.ConstrUnique) && indexTypeSupportsFK(c.IndexType, c.IndexOptions)
 		if k, ok := b.key(spaceIndex, c.Name); ok {
 			ik := idxKey(r.db, r.name, k)
 			if c.IfNotExists {
+				if b.addedIdxs[k] {
+					return
+				}
 				if f, _ := b.l.Lookup(ik); f != walk.Absent {
+					b.markAddedIdx(k)
 					return
 				}
 				b.checkIndexColumns(r, c.IndexColumns)
+				b.markAddedIdx(k)
 			} else {
 				replacedFKIdx := false
 				if isRegular {
@@ -749,6 +797,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 					b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 				}
 				b.checkIndexColumns(r, c.IndexColumns)
+				b.markAddedIdx(k)
 			}
 		} else {
 			b.checkIndexColumns(r, c.IndexColumns)

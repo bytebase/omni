@@ -320,9 +320,14 @@ type builder struct {
 	renames bool
 	// early is set while ALTER TABLE lowers its drops and renames, which
 	// run together against the table as it was; arrived holds the column
-	// and index names they bring in (leave, arrive).
-	early   bool
-	arrived map[walk.Key]bool
+	// and index names they bring in (leave, arrive). addedCols, addedIdxs,
+	// and addedFKs track names already introduced by earlier subcommands of
+	// the same ALTER TABLE so a later IF NOT EXISTS subcommand skips checks.
+	early     bool
+	arrived   map[walk.Key]bool
+	addedCols map[string]bool
+	addedIdxs map[string]bool
+	addedFKs  map[string]bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index
