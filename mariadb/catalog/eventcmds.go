@@ -24,7 +24,11 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 		return err
 	}
 	if authored {
-		if err := validateEventTimes(stmt.Schedule, time.Now()); err != nil {
+		now := time.Now()
+		if c.loadingSDL {
+			now = time.Time{}
+		}
+		if err := validateEventTimes(stmt.Schedule, now); err != nil {
 			return err
 		}
 	}

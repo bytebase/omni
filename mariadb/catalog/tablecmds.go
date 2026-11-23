@@ -502,6 +502,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 					Table:       tbl,
 					Column:      colDef.Name,
 					CheckExpr:   nodeToSQL(cc.Expr),
+					checkRefs:   checkExprRefs(cc.Expr),
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
@@ -882,6 +883,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				Type:        ConCheck,
 				Table:       tbl,
 				CheckExpr:   nodeToSQL(con.Expr),
+				checkRefs:   checkExprRefs(con.Expr),
 				NotEnforced: con.NotEnforced,
 			})
 
@@ -4208,6 +4210,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Columns:     append([]string{}, srcCon.Columns...),
 			IndexName:   srcCon.IndexName,
 			CheckExpr:   srcCon.CheckExpr,
+			checkRefs:   srcCon.checkRefs,
 			NotEnforced: srcCon.NotEnforced,
 			RefDatabase: srcCon.RefDatabase,
 			RefTable:    srcCon.RefTable,

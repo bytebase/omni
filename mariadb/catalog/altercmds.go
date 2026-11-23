@@ -1137,6 +1137,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Table:       tbl,
 				Column:      colDef.Name,
 				CheckExpr:   nodeToSQL(cc.Expr),
+				checkRefs:   checkExprRefs(cc.Expr),
 				NotEnforced: cc.NotEnforced,
 			})
 		case nodes.ColConstrPrimaryKey:
@@ -1750,6 +1751,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			Table:       tbl,
 			Column:      colDef.Name,
 			CheckExpr:   nodeToSQL(cc.Expr),
+			checkRefs:   checkExprRefs(cc.Expr),
 			NotEnforced: cc.NotEnforced,
 		})
 		declared = true
@@ -2199,6 +2201,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Type:        ConCheck,
 			Table:       tbl,
 			CheckExpr:   nodeToSQL(con.Expr),
+			checkRefs:   checkExprRefs(con.Expr),
 			NotEnforced: con.NotEnforced,
 		})
 

@@ -870,8 +870,9 @@ func checkAutoIncrementInChecks(tbl *Table, stmt *nodes.CreateTableStmt) error {
 // AUTO_INCREMENT in: measured on mariadb:11.8.8 over (id INT AUTO_INCREMENT
 // PRIMARY KEY, b INT, CHECK (b > 0)), MODIFY id INT AUTO_INCREMENT CHECK (id >
 // 0), ADD COLUMN x INT CHECK (x > id) and MODIFY id INT, MODIFY b INT
-// AUTO_INCREMENT UNIQUE each answer 1901. The CHECKs the table holds are
-// stored as text, which is read as DROP COLUMN reads it (checkColumnRefs).
+// AUTO_INCREMENT UNIQUE each answer 1901. A CHECK's columns are the ones it was
+// declared reading (Constraint.checkRefs); one whose columns the catalog did
+// not read is passed over.
 func checkAutoIncrementInTableChecks(tbl *Table) error {
 	var auto []*Column
 	for _, col := range tbl.Columns {
@@ -886,12 +887,8 @@ func checkAutoIncrementInTableChecks(tbl *Table) error {
 		if con.Type != ConCheck || con.Implicit {
 			continue
 		}
-		refs, ok := checkColumnRefs(con.CheckExpr)
-		if !ok {
-			continue
-		}
 		for _, col := range auto {
-			if refs[toLower(col.Name)] {
+			if con.checkRefs[toLower(col.Name)] {
 				return errUnusableInCheck("AUTO_INCREMENT", col.Name)
 			}
 		}
@@ -1290,4 +1287,14 @@ func windowDefHasFrame(wd *nodes.WindowDef, declared map[string]*nodes.WindowDef
 		cur = declared[key]
 	}
 	return false
+}
+
+// checkExprRefs returns the lowered names of the columns a CHECK expression
+// reads.
+func checkExprRefs(expr nodes.ExprNode) map[string]bool {
+	refs := map[string]bool{}
+	for _, name := range generatedColumnRefs(expr) {
+		refs[toLower(name)] = true
+	}
+	return refs
 }

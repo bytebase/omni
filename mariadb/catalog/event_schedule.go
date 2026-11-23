@@ -85,7 +85,8 @@ func eventIntervalCount(expr nodes.ExprNode) (int64, bool) {
 // validateEventTimes refuses a schedule whose literal times MariaDB refuses,
 // measured on mariadb:11.8.8: an EVERY interval that is not positive (1542),
 // and ENDS before STARTS (1543), STARTS being the statement's time when it is
-// not written.
+// not written. A zero now compares no time with the present: a declarative
+// schema states the event it wants, which must not stop loading as time passes.
 func validateEventTimes(schedule *nodes.EventSchedule, now time.Time) error {
 	if schedule == nil || schedule.Every == nil {
 		return nil
@@ -101,7 +102,7 @@ func validateEventTimes(schedule *nodes.EventSchedule, now time.Time) error {
 		return nil
 	}
 	if schedule.Starts == nil {
-		if ends.Before(now.Add(-eventZoneMargin)) {
+		if !now.IsZero() && ends.Before(now.Add(-eventZoneMargin)) {
 			return errEventEndsBeforeStarts()
 		}
 		return nil

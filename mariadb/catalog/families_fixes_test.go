@@ -136,6 +136,7 @@ func TestReviewRoundOne(t *testing.T) {
 		{"column CHECK made on an AUTO_INCREMENT column", aiSetup, "ALTER TABLE ai MODIFY id INT AUTO_INCREMENT CHECK (id > 0)", 1901},
 		{"added column CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD COLUMN x INT CHECK (x > id)", 1901},
 		{"CHECKed column made AUTO_INCREMENT", aiSetup, "ALTER TABLE ai MODIFY id INT, MODIFY b INT AUTO_INCREMENT UNIQUE", 1901},
+		{"renamed CHECKed column made AUTO_INCREMENT", aiSetup + "; ALTER TABLE ai RENAME COLUMN b TO c", "ALTER TABLE ai MODIFY id INT, MODIFY c INT AUTO_INCREMENT UNIQUE", 1901},
 		{"added CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD CONSTRAINT cx CHECK (id > 0)", 1901},
 		{"FULLTEXT key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY name INT, DROP INDEX ft", 0},
 		{"SPATIAL key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY g POINT NULL, DROP INDEX sg", 0},
@@ -165,11 +166,15 @@ func TestReviewRoundOne(t *testing.T) {
 }
 
 // TestSDLKeepsPastEvents pins that a declarative schema keeps an event whose
-// AT time has passed, as written: loading SDL runs no schedule.
+// AT time has passed, as written, and one whose ENDS has: loading SDL runs no
+// schedule.
 func TestSDLKeepsPastEvents(t *testing.T) {
 	c, err := LoadSDL("CREATE DATABASE d; USE d; CREATE EVENT e ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT; CREATE EVENT f ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE EVENT g ON SCHEDULE EVERY 1 DAY ENDS '2000-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE DO COMMIT"); err != nil {
+		t.Fatalf("an ENDS past the present stops the load: %v", err)
 	}
 	db := c.GetDatabase("d")
 	if db.Events["e"] == nil {

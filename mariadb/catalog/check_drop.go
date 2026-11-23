@@ -126,6 +126,17 @@ func renameCheckColumnRefs(tbl *Table, oldName, newName string) {
 			continue
 		}
 		con.CheckExpr = renameColumnInExprText(con.CheckExpr, oldName, newName)
+		if con.checkRefs[toLower(oldName)] {
+			// A fresh map rather than a write through this one, which a
+			// snapshot of the table may still be sharing.
+			refs := make(map[string]bool, len(con.checkRefs))
+			for name := range con.checkRefs {
+				refs[name] = true
+			}
+			delete(refs, toLower(oldName))
+			refs[toLower(newName)] = true
+			con.checkRefs = refs
+		}
 	}
 }
 
