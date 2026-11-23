@@ -1673,20 +1673,68 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -1702,19 +1750,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -18461,55 +18496,89 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | A
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 > query
-| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
-< column "CONSTRAINT_NAME" "NCHAR" "string"
-< column "CONSTRAINT_TYPE" "NCHAR" "string"
-< column "SEARCH_CONDITION_VC" "NCHAR" "string"
-< row
-: string
-| A
-: string
-| PK_A
-: string
-| P
-: null
-< row
-: string
-| T
-: string
-| PK_T
-: string
-| P
-: null
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -18535,6 +18604,29 @@
 | B
 : string
 | 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| PK_A
+: string
+| P
+: null
+< row
+: string
+| T
+: string
+| PK_T
+: string
+| P
+: null
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -37764,30 +37856,100 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | A
 : string
 | B
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -37812,19 +37974,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -56223,35 +56372,159 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+< row
+: string
+| A
+: string
+| B
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| A
+: string
+| A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| A
+: string
+| C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| T
+: string
+| B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| T
+: string
+| C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| RANGE
+: string
+| NONE
+: null
+> query
+| SELECT name, column_name FROM dba_part_key_columns WHERE owner = 'SIMSHOP' AND object_type = 'TABLE' ORDER BY name, column_position
+< result
+< column "NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
+| A
+> query
+| SELECT table_name, partition_name, high_value, interval FROM dba_tab_partitions WHERE table_owner = 'SIMSHOP' ORDER BY table_name, partition_position
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITION_NAME" "NCHAR" "string"
+< column "HIGH_VALUE" "LONG"
+< column "INTERVAL" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| P1
+: string
+| 100
+: string
+| NO
+< row
+: string
+| A
+: string
+| A
+: string
+| 200
+: string
+| NO
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
 | B
-< row
 : string
-| A
-: string
-| A
-< row
-: string
-| A
-: string
-| C
-< row
-: string
-| T
-: string
-| B
-< row
-: string
-| T
-: string
-| C
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -56267,19 +56540,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -75021,42 +75281,73 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
-> query
-| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "TABLE_NAME" "NCHAR" "string"
-< column "CONSTRAINT_NAME" "NCHAR" "string"
-< column "CONSTRAINT_TYPE" "NCHAR" "string"
-< column "SEARCH_CONDITION_VC" "NCHAR" "string"
-< row
 : string
-| T
+| NUMBER
 : string
-| PK_T
+| Y
 : string
-| P
+| 3
+: string
+| NO
+: string
+| NO
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -75075,6 +75366,21 @@
 | B
 : string
 | 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| T
+: string
+| PK_T
+: string
+| P
+: null
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -94379,40 +94685,132 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | A
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -94428,19 +94826,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -111470,65 +111855,121 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | A
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | A
 : string
 | D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 > query
-| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
-< column "CONSTRAINT_NAME" "NCHAR" "string"
-< column "CONSTRAINT_TYPE" "NCHAR" "string"
-< column "SEARCH_CONDITION_VC" "NCHAR" "string"
-< row
-: string
-| A
-: string
-| SYS_C_SNAP$_9000001PK_T
-: string
-| P
-: null
-< row
-: string
-| T
-: string
-| PK_T
-: string
-| P
-: null
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -111554,6 +111995,29 @@
 | B
 : string
 | 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| SYS_C_SNAP$_9000001PK_T
+: string
+| P
+: null
+< row
+: string
+| T
+: string
+| PK_T
+: string
+| P
+: null
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -131519,20 +131983,68 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -131548,19 +132060,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -148505,25 +149004,84 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -148539,19 +149097,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -165977,20 +166522,68 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -166006,19 +166599,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -182902,20 +183482,68 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | T
 : string
 | B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | C
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| PK_T
+: string
+| B
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -182931,19 +183559,6 @@
 : string
 | P
 : null
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR" "string"
-< column "COLUMN_NAME" "NCHAR" "string"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
-< row
-: string
-| PK_T
-: string
-| B
-: string
-| 0
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result

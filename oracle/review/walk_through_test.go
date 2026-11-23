@@ -159,7 +159,8 @@ func TestWalkThroughOracle(t *testing.T) {
 	// Indexes and triggers: the sync lists them in part.
 	oneFinding(t, "CREATE INDEX ix_n ON nokey (a);", 0, "The name `IX_N` is already taken.", shop)
 	oneFinding(t, "CREATE INDEX mv_ix ON nokey (a);", 0, "The name `MV_IX` is already taken.", shop)
-	noFinding(t, "CREATE INDEX pk_t ON nokey (a);\nDROP INDEX nosuch;\nCREATE INDEX x ON nosuch (a);", shop)
+	noFinding(t, "CREATE INDEX pk_t ON nokey (a);\nDROP INDEX nosuch;\nCREATE INDEX x ON syn (n);\nCREATE INDEX x2 ON pubt (a);", shop)
+	oneFinding(t, "CREATE INDEX x ON nosuch (a);", 0, "Table `NOSUCH` doesn't exist.", shop)
 	oneFinding(t, "CREATE INDEX x ON pv (id);", 0, "`PV` is a view, not a table.", shop)
 	oneFinding(t, "CREATE INDEX i ON nokey (a);\nDROP INDEX i;\nDROP INDEX i;", 2, "Index `I` doesn't exist.", shop)
 	oneFinding(t, "CREATE INDEX i ON nokey (a);\nALTER INDEX i RENAME TO ix_n;", 1, "The name `IX_N` is already taken.", shop)
@@ -727,4 +728,241 @@ func TestWalkSweepChangesParse(t *testing.T) {
 			t.Fatalf("syntax: %s\n%s", syntax.Message, change)
 		}
 	}
+}
+
+// walkRichSchema mirrors oracle/driver/sync.go output with column datatypes,
+// nullability, identity/virtual/invisible flags, partition metadata, and index
+// column lists.
+func walkRichSchema() *metadata.DatabaseSchemaMetadata {
+	s := &metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{
+			{
+				Name: "PLAIN",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "ID", Type: "NUMBER", Nullable: false},
+					{Name: "VAL", Type: "NUMBER", Nullable: true},
+					{Name: "NAME", Type: "VARCHAR2(50)", Nullable: true},
+					{Name: "HID", Type: "NUMBER", Nullable: true, IsInvisible: true},
+					{Name: "GEN", Type: "NUMBER", Nullable: true, Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "VAL + 1"}},
+					{Name: "IDENT", Type: "NUMBER", Nullable: false, IsIdentity: true},
+					{Name: "VEC", Type: "VECTOR", Nullable: true},
+					{Name: "BODY", Type: "CLOB", Nullable: true},
+				},
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "PK_PLAIN", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}},
+					{Name: "IX_PLAIN_VAL", Type: "NORMAL", Expressions: []string{"VAL"}},
+				},
+			},
+			{
+				Name: "NOKEY_RICH",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "B", Type: "NUMBER", Nullable: true},
+					{Name: "A", Type: "NUMBER", Nullable: true},
+				},
+			},
+			{
+				Name: "PART_RANGE",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "B", Type: "NUMBER", Nullable: true},
+					{Name: "A", Type: "NUMBER", Nullable: true},
+					{Name: "C", Type: "NUMBER", Nullable: true},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{Name: "P1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "A", Value: "100"},
+					{Name: "P2", Type: metadata.TablePartitionMetadata_RANGE, Expression: "A", Value: "200"},
+				},
+			},
+			{
+				Name: "PART_COMP",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "A", Type: "NUMBER", Nullable: true},
+					{Name: "B", Type: "NUMBER", Nullable: true},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{
+						Name:       "P1",
+						Type:       metadata.TablePartitionMetadata_RANGE,
+						Expression: "A",
+						Value:      "100",
+						Subpartitions: []*metadata.TablePartitionMetadata{
+							{Name: "SP1", Type: metadata.TablePartitionMetadata_HASH},
+						},
+					},
+				},
+			},
+			{
+				Name: "PART_HASH",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "A", Type: "NUMBER", Nullable: true},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{Name: "P1", Type: metadata.TablePartitionMetadata_HASH, Expression: "A"},
+				},
+			},
+			{
+				Name: "CHILD_FK",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "ID", Type: "NUMBER", Nullable: true},
+					{Name: "P_ID", Type: "NUMBER", Nullable: true},
+				},
+				ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "FK_CHILD_PLAIN", ReferencedTable: "PLAIN"}},
+			},
+			{
+				Name: "ERR$_PLAIN",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "ORA_ERR_NUMBER$", Type: "NUMBER", Nullable: true},
+					{Name: "ORA_ERR_MESG$", Type: "VARCHAR2(2000)", Nullable: true},
+				},
+			},
+		},
+		Views:             []*metadata.ViewMetadata{{Name: "VW"}},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "MV"}},
+		Synonyms: []*metadata.SynonymMetadata{
+			{Name: "SYN_PLAIN", TargetSchema: "SHOP", TargetName: "PLAIN"},
+			{Name: "SYN_RANGE", TargetSchema: "SHOP", TargetName: "PART_RANGE"},
+		},
+	}
+	return &metadata.DatabaseSchemaMetadata{
+		Name:    "SHOP",
+		Schemas: []*metadata.SchemaMetadata{s},
+		PublicSynonyms: []*metadata.SynonymMetadata{
+			{Name: "DUAL", TargetSchema: "SYS", TargetName: "DUAL"},
+		},
+	}
+}
+
+func TestWalkThroughOracleRichChecks(t *testing.T) {
+	rich := review.Target{Schema: walkRichSchema()}
+
+	// 1) ALTER TABLE UPGRADE invalid column_properties (ORA-01735) vs valid forms.
+	noFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA;", rich)
+	noFinding(t, "ALTER TABLE plain UPGRADE NOT INCLUDING DATA;", rich)
+	noFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS CLOB;", rich)
+	noFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS CLOB LOGGING;", rich)
+	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA NESTED TABLE a STORE AS nt_s;", 0, "ALTER TABLE UPGRADE does not accept NESTED TABLE storage clauses.", rich)
+	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA VARRAY a STORE AS LOB l1;", 0, "ALTER TABLE UPGRADE does not accept VARRAY storage clauses.", rich)
+	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA JSON(a) STORE AS;", 0, "ALTER TABLE UPGRADE does not accept JSON storage clauses.", rich)
+	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS BASICFILE CLOB;", 0, "ALTER TABLE UPGRADE does not accept XMLTYPE STORE AS BASICFILE.", rich)
+	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS BINARY XML;", 0, "ALTER TABLE UPGRADE does not accept XMLTYPE STORE AS BINARY.", rich)
+
+	// 2) Partition maintenance checks on non-partitioned, RANGE, HASH, composite, and FK tables.
+	oneFinding(t, "ALTER TABLE plain ADD PARTITION;", 0, "Table `PLAIN` is not partitioned.", rich)
+	oneFinding(t, "ALTER TABLE plain MOVE PARTITION p1;", 0, "Table `PLAIN` is not partitioned.", rich)
+	oneFinding(t, "ALTER MATERIALIZED VIEW syn_plain ADD PARTITION;", 0, "Table `SYN_PLAIN` is not partitioned.", rich)
+	oneFinding(t, "CREATE INDEX ix_loc ON plain (name) LOCAL;", 0, "Cannot create a LOCAL index on non-partitioned table `PLAIN`.", rich)
+	// A table with an FK could be REFERENCE-partitioned (omitted by sync): no false positive.
+	noFinding(t, "ALTER TABLE child_fk ADD PARTITION;", rich)
+	// RANGE-partitioned non-composite table.
+	noFinding(t, "ALTER TABLE part_range ADD PARTITION p3 VALUES LESS THAN (300);", rich)
+	noFinding(t, "ALTER TABLE part_range ADD PARTITION p3 VALUES LESS THAN (MAXVALUE);", rich)
+	noFinding(t, "ALTER TABLE part_range MODIFY PARTITION p1 LOGGING;", rich)
+	noFinding(t, "CREATE INDEX ix_pr ON part_range (b) LOCAL (PARTITION p1, PARTITION p2);", rich)
+	oneFinding(t, "ALTER TABLE part_range ADD PARTITION;", 0, "ADD PARTITION on range-partitioned table `PART_RANGE` requires VALUES LESS THAN.", rich)
+	oneFinding(t, "ALTER TABLE part_range ADD PARTITION VALUES (1);", 0, "ADD PARTITION VALUES (...) requires a list-partitioned table, not range-partitioned `PART_RANGE`.", rich)
+	oneFinding(t, "ALTER TABLE part_range ADD PARTITION VALUES LESS THAN (1, 2);", 0, "Partition bound value count does not match partitioning key count of `PART_RANGE`.", rich)
+	oneFinding(t, "ALTER TABLE part_range ADD PARTITION VALUES LESS THAN (150);", 0, "Partition bound for `PART_RANGE` must be higher than the last partition's bound.", rich)
+	oneFinding(t, "ALTER TABLE part_range COALESCE PARTITION;", 0, "COALESCE PARTITION requires a hash-partitioned table.", rich)
+	oneFinding(t, "ALTER TABLE part_range SET PARTITIONING AUTOMATIC;", 0, "SET PARTITIONING AUTOMATIC/MANUAL requires a list-partitioned table.", rich)
+	oneFinding(t, "ALTER TABLE part_range MODIFY SUBPARTITION sp1 ALLOCATE EXTENT;", 0, "Table `PART_RANGE` is not composite-partitioned.", rich)
+	oneFinding(t, "ALTER TABLE part_range DROP COLUMN a;", 0, "Cannot drop partitioning key column `A` from `PART_RANGE`.", rich)
+	oneFinding(t, "CREATE INDEX ix_pr ON part_range (b) LOCAL (PARTITION p1);", 0, "LOCAL index partition count does not match table `PART_RANGE`.", rich)
+	// Composite-partitioned and HASH-partitioned controls.
+	noFinding(t, "ALTER TABLE part_comp MODIFY SUBPARTITION sp1 ALLOCATE EXTENT;", rich)
+	noFinding(t, "ALTER TABLE part_hash ADD PARTITION;", rich)
+	noFinding(t, "ALTER TABLE part_hash COALESCE PARTITION;", rich)
+	oneFinding(t, "ALTER TABLE part_hash DROP PARTITION p1;", 0, "Cannot SPLIT, MERGE, or DROP partitions on a hash-partitioned table.", rich)
+
+	// 3) Partition text contradictions (MERGE self, RENAME self, EXCHANGE self, SPLIT dup/missing comma).
+	oneFinding(t, "ALTER TABLE part_range MERGE PARTITIONS p1, p1;", 0, "Cannot merge partition `P1` with itself.", rich)
+	oneFinding(t, "ALTER TABLE part_range MERGE PARTITIONS FOR (1), p1;", 0, "MERGE PARTITIONS cannot mix FOR (...) with a partition name.", rich)
+	oneFinding(t, "ALTER TABLE part_range RENAME PARTITION p1 TO p1;", 0, "Cannot rename partition `P1` to the same name.", rich)
+	oneFinding(t, "ALTER TABLE part_range EXCHANGE PARTITION p1 WITH TABLE part_range;", 0, "Cannot exchange a partition of `PART_RANGE` with itself.", rich)
+	oneFinding(t, "ALTER TABLE part_range SPLIT PARTITION p1 AT (50) INTO (PARTITION q1, PARTITION q1);", 0, "This statement names partition `Q1` twice.", rich)
+	oneFinding(t, "ALTER TABLE part_range SPLIT PARTITION p1 AT (50) INTO (PARTITION PARTITION);", 0, "Missing comma between split partition specifications.", rich)
+	noFinding(t, "ALTER TABLE part_range MERGE PARTITIONS p1, p2;", rich)
+	noFinding(t, "ALTER TABLE part_range RENAME PARTITION p1 TO p1_new;", rich)
+	noFinding(t, "ALTER TABLE part_range EXCHANGE PARTITION p1 WITH TABLE nokey_rich;", rich)
+
+	// 4) ALTER MATERIALIZED VIEW synonym rejection rules (ORA-00942).
+	oneFinding(t, "ALTER MATERIALIZED VIEW syn_range MODIFY PARTITION p1 LOGGING;", 0, "`SYN_RANGE` is a synonym, not a table.", rich)
+	oneFinding(t, "ALTER MATERIALIZED VIEW syn_range RENAME PARTITION p1 TO p3;", 0, "`SYN_RANGE` is a synonym, not a table.", rich)
+	noFinding(t, "ALTER MATERIALIZED VIEW syn_range MOVE PARTITION p1;", rich)
+	noFinding(t, "ALTER MATERIALIZED VIEW syn_range ADD PARTITION VALUES LESS THAN (300);", rich)
+
+	// 5) Column metadata checks (identity, virtual, nullable, LOB/nested/varray, vector, collate, bad datatype).
+	oneFinding(t, "ALTER TABLE plain MODIFY (val GENERATED ALWAYS AS IDENTITY);", 0, "Column `VAL` in `PLAIN` is not an identity column.", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY (ident GENERATED BY DEFAULT AS IDENTITY);", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY (val AS (1));", 0, "Cannot modify non-virtual column `VAL` in `PLAIN` to a virtual column.", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY (gen AS (val + 2));", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY (val NULL);", 0, "Column `VAL` in `PLAIN` is already nullable.", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY (id NULL);", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY (val bogus_udt);", 0, "Cannot alter datatype of column `VAL` to `BOGUS_UDT`.", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY (val VARCHAR2(20));", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY NESTED TABLE val RETURN AS LOCATOR;", 0, "Column `VAL` in `PLAIN` is not a nested table column.", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY VARRAY val (RETENTION);", 0, "Column `VAL` in `PLAIN` is not a VARRAY column.", rich)
+	oneFinding(t, "ALTER TABLE plain MODIFY LOB (val) (RETENTION);", 0, "Column `VAL` in `PLAIN` is not a LOB column.", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY LOB (body) (RETENTION);", rich)
+	oneFinding(t, "ALTER TABLE plain ADD (x NUMBER COLLATE binary);", 0, "COLLATE is not allowed on non-character column `X`.", rich)
+	noFinding(t, "ALTER TABLE plain ADD (x VARCHAR2(20) COLLATE binary);", rich)
+	oneFinding(t, "CREATE VECTOR INDEX vix ON plain (val) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", 0, "Vector index column `VAL` in `PLAIN` must have VECTOR datatype.", rich)
+	noFinding(t, "CREATE VECTOR INDEX vix ON plain (vec) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", rich)
+	oneFinding(t, "CREATE INDEX ix_dup ON plain (val);", 0, "Column list is already indexed on `PLAIN`.", rich)
+	noFinding(t, "CREATE INDEX ix_desc ON plain (val DESC);", rich)
+
+	// 6) Pure-text DDL checks (all-virtual, self-synonym, PK/FK, ILM, ANNOTATIONS, INMEMORY, TRIGGER UPDATE OF).
+	oneFinding(t, "CREATE TABLE virt_only (a AS (1));", 0, "Table `VIRT_ONLY` must have at least one non-virtual column.", rich)
+	noFinding(t, "CREATE TABLE virt_ok (id NUMBER, a AS (id + 1));", rich)
+	oneFinding(t, "CREATE SYNONYM s1 FOR s1;", 0, "Cannot create synonym `S1` with the same name as its target.", rich)
+	noFinding(t, "CREATE SYNONYM s1 FOR plain;", rich)
+	oneFinding(t, "CREATE TABLE no_pk_en (a NUMBER) ENABLE PRIMARY KEY;", 0, "`NO_PK_EN` has no primary key.", rich)
+	oneFinding(t, "ALTER TABLE nokey_rich ENABLE PRIMARY KEY;", 0, "`NOKEY_RICH` has no primary key.", rich)
+	noFinding(t, "ALTER TABLE plain ENABLE PRIMARY KEY;", rich)
+	oneFinding(t, "CREATE TABLE self_fk (a REFERENCES self_fk);", 0, "Referenced table `SELF_FK` has no primary key.", rich)
+	noFinding(t, "CREATE TABLE self_fk_ok (id NUMBER PRIMARY KEY, p_id NUMBER REFERENCES self_fk_ok);", rich)
+	noFinding(t, "CREATE TABLE self_fk_fwd (p_id NUMBER REFERENCES self_fk_fwd (id), id NUMBER PRIMARY KEY);", rich)
+	oneFinding(t, "CREATE TABLE bad_ilm (a NUMBER) ILM DELETE_ALL;", 0, "ILM DELETE_ALL is not allowed in CREATE TABLE.", rich)
+	oneFinding(t, "ALTER TABLE plain ANNOTATIONS (ADD k, ADD k);", 0, "This statement names annotation `K` twice.", rich)
+	oneFinding(t, "ALTER TABLE plain INMEMORY (zz);", 0, "Column `ZZ` doesn't exist in `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain INMEMORY (val, val);", 0, "This statement lists column `VAL` twice.", rich)
+	oneFinding(t, "ALTER TABLE plain ADD SUPPLEMENTAL LOG GROUP g1 (val, val);", 0, "This statement lists column `VAL` twice.", rich)
+	oneFinding(t, "CREATE TRIGGER tr_upd BEFORE UPDATE OF zz ON plain FOR EACH ROW BEGIN NULL; END;", 0, "Column `ZZ` doesn't exist in `PLAIN`.", rich)
+	noFinding(t, "CREATE TRIGGER tr_upd BEFORE UPDATE OF val ON plain FOR EACH ROW BEGIN NULL; END;", rich)
+
+	// 7) DML checks (PARTITION on view, implicit INSERT counts, NOT NULL, BY NAME, PIVOT, UNPIVOT,
+	//    RETURNING INTO, DUAL subquery, ANALYTIC VIEW, TABLE(1), WHERE missing col, LOG ERRORS).
+	oneFinding(t, "DELETE vw PARTITION (p1);", 0, "Partition-extended name is not allowed on view `VW`.", rich)
+	oneFinding(t, "DELETE plain PARTITION (p1);", 0, "Table `PLAIN` is not partitioned.", rich)
+	noFinding(t, "DELETE part_range PARTITION (p1);", rich)
+	oneFinding(t, "INSERT INTO nokey_rich VALUES (1);", 0, "INSERT value count does not match column count of `NOKEY_RICH`.", rich)
+	noFinding(t, "INSERT INTO nokey_rich VALUES (1, 2);", rich)
+	oneFinding(t, "INSERT INTO plain (val) VALUES (1);", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)
+	noFinding(t, "INSERT INTO plain (id, val) VALUES (1, 2);", rich)
+	oneFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 FROM dual;", 0, "Column `\"1\"` doesn't exist in `NOKEY_RICH`.", rich)
+	noFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 a FROM dual;", rich)
+	oneFinding(t, "INSERT ALL INTO vw VALUES (1) SELECT 1 FROM dual;", 0, "`VW` is a view, not a table.", rich)
+	oneFinding(t, "DELETE plain LOG ERRORS INTO vw;", 0, "`VW` is a view, not a table.", rich)
+	oneFinding(t, "DELETE plain LOG ERRORS INTO nokey_rich;", 0, "Error logging table `NOKEY_RICH` is missing mandatory error logging columns.", rich)
+	noFinding(t, "DELETE plain LOG ERRORS INTO err$_plain;", rich)
+	oneFinding(t, "UPDATE nokey_rich SET a = 1, a = 2;", 0, "This statement assigns column `A` twice.", rich)
+	oneFinding(t, "UPDATE nokey_rich SET VALUE(a) = 1;", 0, "SET VALUE(...) is only valid on an object table, not `NOKEY_RICH`.", rich)
+	oneFinding(t, "DELETE nokey_rich RETURNING 1 INTO a;", 0, "RETURNING INTO requires bind variables in SQL.", rich)
+	noFinding(t, "DELETE nokey_rich RETURNING a INTO :out_a;", rich)
+	oneFinding(t, "UPDATE (SELECT 1 FROM dual) SET a = 1;", 0, "Data manipulation is not legal on an inline view over DUAL.", rich)
+	oneFinding(t, "DELETE (SELECT 1 FROM dual);", 0, "Data manipulation is not legal on an inline view over DUAL.", rich)
+	oneFinding(t, "DELETE nokey_rich FROM nokey_rich PIVOT (plain(1) FOR a IN (1));", 0, "`PLAIN` is a table, not an aggregate function.", rich)
+	noFinding(t, "DELETE nokey_rich FROM nokey_rich PIVOT (SUM(b) FOR a IN (1));", rich)
+	oneFinding(t, "DELETE nokey_rich FROM nokey_rich UNPIVOT (a FOR a IN (b));", 0, "UNPIVOT value column and FOR column cannot share name `A`.", rich)
+	noFinding(t, "DELETE nokey_rich FROM nokey_rich UNPIVOT INCLUDE NULLS (a FOR a IN (b));", rich)
+	oneFinding(t, "DELETE nokey_rich FROM ANALYTIC VIEW (USING plain);", 0, "`PLAIN` is a table, not an analytic view.", rich)
+	oneFinding(t, "DELETE nokey_rich FROM TABLE (1);", 0, "TABLE() requires a collection expression, not a scalar literal.", rich)
+	oneFinding(t, "DELETE FROM nokey_rich WHERE zz = 1;", 0, "Column `ZZ` doesn't exist in `NOKEY_RICH`.", rich)
+	noFinding(t, "DELETE FROM nokey_rich WHERE a = 1;", rich)
+
+	// 8) Multi-statement mutation invalidation & OtherSpecs safety (no stale snapshot false positives).
+	noFinding(t, "ALTER TABLE plain MODIFY PARTITION BY HASH (val) PARTITIONS 2;\nALTER TABLE plain ADD PARTITION;", rich)
+	noFinding(t, "ALTER TABLE plain MODIFY (val NOT NULL);\nALTER TABLE plain MODIFY (val NULL);", rich)
+	noFinding(t, "DROP INDEX ix_plain_val;\nCREATE INDEX ix_plain_val2 ON plain (val);", rich)
+	noFinding(t, "ALTER TABLE nokey_rich ADD (z NUMBER);\nDELETE FROM nokey_rich WHERE z = 1;", rich)
+	oneFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nDELETE FROM nokey_rich WHERE a = 1;", 1, "Column `A` doesn't exist in `NOKEY_RICH`.", rich)
+	noFinding(t, "ALTER TABLE plain ADD PARTITION;", review.Target{Schema: walkRichSchema(), OtherSpecs: true})
 }

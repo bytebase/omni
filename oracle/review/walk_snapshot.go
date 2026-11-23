@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -87,9 +88,13 @@ type oracleSnapshot struct {
 	objects map[string]string
 	tables  map[string]*syncedTable
 	// synonyms and publicSynonyms hold the names of the schema's private
-	// synonyms and of the public synonyms.
-	synonyms       map[string]bool
-	publicSynonyms map[string]bool
+	// synonyms and of the public synonyms. synonymTargets and
+	// publicSynonymTargets map a local (no DBLink) synonym to its target
+	// (schema, name) when synced.
+	synonyms             map[string]bool
+	publicSynonyms       map[string]bool
+	synonymTargets       map[string][2]string
+	publicSynonymTargets map[string][2]string
 	// constraints, indexes, and triggers map a name to the table or view
 	// it is on. constraintIndexes holds the names of the primary and unique
 	// constraints, whose indexes may have those names, another, or none.
@@ -112,32 +117,66 @@ type oracleSnapshot struct {
 	logs          []string
 }
 
+// syncedCol holds column-level metadata populated by oracle/driver/sync.go.
+type syncedCol struct {
+	typ        string
+	nullable   bool
+	invisible  bool
+	identity   bool
+	virtual    bool
+	hasDefault bool
+}
+
 // syncedTable is what the snapshot holds of a table or materialized view.
 type syncedTable struct {
-	mview   bool
-	columns map[string]bool
+	mview    bool
+	skipDump bool
+	columns  map[string]bool
 	// complete is set when the sync lists every column of the table.
 	complete    bool
 	primary     bool
 	constraints map[string]bool
+
+	// Rich metadata populated by oracle/driver/sync.go (and walkSync).
+	// hasRichSync is true when synced columns carry non-empty Type strings,
+	// distinguishing real Oracle sync output from minimal name-only test stubs.
+	hasRichSync     bool
+	colMeta         map[string]syncedCol
+	visibleInsCols  int // count of non-invisible, non-virtual columns
+	partType        metadata.TablePartitionMetadata_Type
+	hasSubparts     bool
+	hasInterval     bool
+	hasForeignKey   bool
+	partCount       int
+	partNames       map[string]bool
+	partKeyCols     map[string]bool
+	partKeyCount    int
+	allRangeInt     bool
+	maxRangeHighVal int64
+	indexedCols     [][]string
 }
 
 func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 	s := &oracleSnapshot{
-		schema:            db.GetName(),
-		objects:           make(map[string]string),
-		tables:            make(map[string]*syncedTable),
-		constraints:       make(map[string]string),
-		indexes:           make(map[string]string),
-		constraintIndexes: make(map[string]bool),
-		triggers:          make(map[string]string),
-		domainTables:      make(map[string]bool),
-		domainIndexes:     make(map[string]bool),
-		synonyms:          make(map[string]bool),
-		publicSynonyms:    make(map[string]bool),
+		schema:               db.GetName(),
+		objects:              make(map[string]string),
+		tables:               make(map[string]*syncedTable),
+		constraints:          make(map[string]string),
+		indexes:              make(map[string]string),
+		constraintIndexes:    make(map[string]bool),
+		triggers:             make(map[string]string),
+		domainTables:         make(map[string]bool),
+		domainIndexes:        make(map[string]bool),
+		synonyms:             make(map[string]bool),
+		publicSynonyms:       make(map[string]bool),
+		synonymTargets:       make(map[string][2]string),
+		publicSynonymTargets: make(map[string][2]string),
 	}
 	for _, syn := range db.GetPublicSynonyms() {
 		s.publicSynonyms[syn.GetName()] = true
+		if syn.GetTargetDbLink() == "" && syn.GetTargetName() != "" {
+			s.publicSynonymTargets[syn.GetName()] = [2]string{syn.GetTargetSchema(), syn.GetTargetName()}
+		}
 	}
 	for _, schema := range db.GetSchemas() {
 		if name := schema.GetName(); name != "" && name != s.schema {
@@ -146,12 +185,34 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		for _, t := range schema.GetTables() {
 			s.objects[t.GetName()] = kindTable
 			st := &syncedTable{
-				columns:     make(map[string]bool),
-				constraints: make(map[string]bool),
+				skipDump:      t.GetSkipDump(),
+				columns:       make(map[string]bool),
+				constraints:   make(map[string]bool),
+				colMeta:       make(map[string]syncedCol),
+				hasForeignKey: len(t.GetForeignKeys()) > 0,
 			}
+			allTyped := len(t.GetColumns()) > 0
 			for _, c := range t.GetColumns() {
 				st.columns[c.GetName()] = true
+				typ := baseOracleType(c.GetType())
+				if typ == "" {
+					allTyped = false
+				}
+				isVirt := c.GetGeneration() != nil && c.GetGeneration().GetType() != metadata.GenerationMetadata_TYPE_UNSPECIFIED
+				sc := syncedCol{
+					typ:        typ,
+					nullable:   c.GetNullable(),
+					invisible:  c.GetIsInvisible(),
+					identity:   c.GetIsIdentity(),
+					virtual:    isVirt,
+					hasDefault: c.GetDefault() != "" || c.GetDefaultOnNull(),
+				}
+				st.colMeta[c.GetName()] = sc
+				if !sc.invisible && !sc.virtual {
+					st.visibleInsCols++
+				}
 			}
+			st.hasRichSync = allTyped
 			st.complete = columnsComplete(t, st.columns)
 			if len(st.columns) == 0 {
 				s.storage = append(s.storage, t.GetName())
@@ -159,6 +220,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 			if strings.HasPrefix(t.GetName(), "MLOG$_") {
 				s.logs = append(s.logs, t.GetName())
 			}
+			s.partitionsOf(st, t.GetPartitions())
 			s.indexesOf(t.GetName(), st, t.GetIndexes())
 			for _, fk := range t.GetForeignKeys() {
 				st.constraints[fk.GetName()] = true
@@ -197,9 +259,72 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		for _, syn := range schema.GetSynonyms() {
 			s.objects[syn.GetName()] = kindSynonym
 			s.synonyms[syn.GetName()] = true
+			if syn.GetTargetDbLink() == "" && syn.GetTargetName() != "" {
+				s.synonymTargets[syn.GetName()] = [2]string{syn.GetTargetSchema(), syn.GetTargetName()}
+			}
 		}
 	}
 	return s
+}
+
+// baseOracleType normalizes a synced column type string (e.g. "VARCHAR2(20)",
+// "NUMBER(10, 2)", "TIMESTAMP(6) WITH TIME ZONE") to its uppercased base name.
+func baseOracleType(t string) string {
+	t = strings.TrimSpace(t)
+	if t == "" {
+		return ""
+	}
+	if i := strings.IndexByte(t, '('); i >= 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	return strings.ToUpper(t)
+}
+
+func (s *oracleSnapshot) partitionsOf(st *syncedTable, parts []*metadata.TablePartitionMetadata) {
+	if len(parts) == 0 {
+		return
+	}
+	st.partType = parts[0].GetType()
+	st.partCount = len(parts)
+	st.partNames = make(map[string]bool, len(parts))
+	st.partKeyCols = make(map[string]bool)
+	if expr := strings.TrimSpace(parts[0].GetExpression()); expr != "" {
+		for _, raw := range strings.Split(expr, ",") {
+			col := strings.TrimSpace(raw)
+			if len(col) >= 2 && col[0] == '"' && col[len(col)-1] == '"' {
+				col = strings.ReplaceAll(col[1:len(col)-1], `""`, `"`)
+			}
+			if col != "" {
+				st.partKeyCols[col] = true
+				st.partKeyCount++
+			}
+		}
+	}
+	allInt := st.partType == metadata.TablePartitionMetadata_RANGE && st.partKeyCount == 1
+	var maxVal int64
+	first := true
+	for _, p := range parts {
+		if p.GetName() != "" {
+			st.partNames[p.GetName()] = true
+		}
+		if len(p.GetSubpartitions()) > 0 {
+			st.hasSubparts = true
+		}
+		if p.GetIntervalClause() != "" {
+			st.hasInterval = true
+		}
+		if allInt {
+			v, err := strconv.ParseInt(strings.TrimSpace(p.GetValue()), 10, 64)
+			if err != nil {
+				allInt = false
+			} else if first || v > maxVal {
+				maxVal = v
+				first = false
+			}
+		}
+	}
+	st.allRangeInt = allInt && !first
+	st.maxRangeHighVal = maxVal
 }
 
 // indexesOf records a table's indexes. A primary key or unique constraint
@@ -212,6 +337,24 @@ func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*met
 		if idx.GetType() == "DOMAIN" {
 			s.domainTables[table] = true
 			s.domainIndexes[idx.GetName()] = true
+		}
+		if exprs := idx.GetExpressions(); len(exprs) > 0 {
+			cols := make([]string, 0, len(exprs))
+			plain := true
+			for _, e := range exprs {
+				c := strings.TrimSpace(e)
+				if len(c) >= 2 && c[0] == '"' && c[len(c)-1] == '"' {
+					c = strings.ReplaceAll(c[1:len(c)-1], `""`, `"`)
+				}
+				if c == "" || strings.ContainsAny(c, "() ") || strings.HasPrefix(c, "SYS_NC") {
+					plain = false
+					break
+				}
+				cols = append(cols, c)
+			}
+			if plain {
+				st.indexedCols = append(st.indexedCols, cols)
+			}
 		}
 		if !idx.GetIsConstraint() {
 			s.indexes[idx.GetName()] = table
