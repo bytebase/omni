@@ -1,0 +1,16 @@
+CREATE SCHEMA memory.sales;
+CREATE SCHEMA memory.hr;
+USE memory.sales;
+CREATE TABLE orders (id bigint, customer_id bigint, amount decimal(10, 2), status varchar, placed_at date);
+CREATE TABLE customers (id bigint, name varchar, region varchar, email varchar);
+CREATE TABLE items (order_id bigint, sku varchar, qty integer, tags array(varchar));
+CREATE TABLE "MixedCase" ("CamelCol" integer, "lower_col" varchar);
+CREATE VIEW big_orders AS SELECT id, customer_id, amount * 2 AS doubled FROM orders WHERE amount > 100;
+CREATE VIEW big_order_names AS SELECT b.id, c.name, b.doubled FROM big_orders b JOIN customers c ON b.customer_id = c.id;
+USE memory.hr;
+CREATE TABLE employees (id bigint, name varchar, dept_id integer, salary decimal(10, 2), manager_id bigint);
+CREATE TABLE depts (id integer, name varchar, region varchar);
+CREATE TABLE customers (id bigint, name varchar, vip boolean);
+CREATE VIEW dept_pay AS SELECT d.name AS dept, sum(e.salary) AS total FROM employees e JOIN depts d ON e.dept_id = d.id GROUP BY d.name;
+CREATE VIEW sales_customers AS SELECT name, region FROM memory.sales.customers;
+CREATE VIEW "Vip_Names" AS SELECT c.name AS "VipName" FROM customers c WHERE c.vip;

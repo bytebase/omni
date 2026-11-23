@@ -76,6 +76,8 @@ type ColumnInfo struct {
 	// Name is the output column name: the explicit alias if present, otherwise a
 	// best-effort rendering of the expression (the column name for a bare
 	// column reference, "*" for a star item, or "" when none can be derived).
+	// An identifier keeps the case it was written in, as Trino's result
+	// column names do.
 	Name string
 
 	// SourceColumns is the best-effort list of column references that directly
@@ -89,8 +91,7 @@ type ColumnInfo struct {
 	// ordinary column.
 	Star bool
 
-	// Quoted reports that Name came from a quoted identifier and is therefore
-	// matched case-sensitively (unquoted names fold to lower case).
+	// Quoted reports that Name came from a quoted identifier.
 	Quoted bool
 }
 
@@ -1114,11 +1115,11 @@ func (w *spanWalker) makeColumnInfo(item parser.SelectItem) ColumnInfo {
 		return info
 	}
 
-	if name := identName(item.Alias); name != "" {
+	if name := outputName(item.Alias); name != "" {
 		info.Name = name
 		info.Quoted = item.Alias.Quoted
 	} else {
-		info.Name = renderExprName(item.Expr)
+		info.Name = renderOutputName(item.Expr)
 		info.Quoted = exprNameQuoted(item.Expr)
 	}
 	info.SourceColumns = w.collectDirectColumns(item.Expr)
@@ -1156,9 +1157,34 @@ func renderExprName(expr parser.Expr) string {
 	return ""
 }
 
+// renderOutputName is the output column name Trino gives a select item with no
+// alias: the identifier of a bare or dotted column reference as written,
+// unwrapping parentheses, or "" for any other expression.
+func renderOutputName(expr parser.Expr) string {
+	switch e := expr.(type) {
+	case *parser.ColumnRef:
+		return outputName(e.Name)
+	case *parser.Dereference:
+		return outputName(e.FieldName)
+	case *parser.ParenExpr:
+		return renderOutputName(e.Expr)
+	}
+	return ""
+}
+
 // ---------------------------------------------------------------------------
 // Name helpers
 // ---------------------------------------------------------------------------
+
+// outputName returns an identifier as an output column name: as written, case
+// kept whether quoted or not, as Trino labels its result columns (SELECT ID
+// FROM t answers a column named ID). Names still match case-insensitively.
+func outputName(id *ast.Identifier) string {
+	if id == nil {
+		return ""
+	}
+	return id.Value
+}
 
 // identName returns the normalized (Trino case-folded) name of an identifier,
 // or "" for a nil identifier.
