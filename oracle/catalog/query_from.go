@@ -210,6 +210,7 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 		t := e.tables[target]
 		rel.cols = tableColumns(t.Columns)
 		rel.partitioned = len(t.Partitions) > 0
+		rel.table = t
 	default:
 		if schema == "" {
 			schema = owner
@@ -286,9 +287,19 @@ func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) err
 	return nil
 }
 
-// hasPeriod reports whether a table has a valid-time period of that name.
-// The catalog keeps no periods on query items yet, so none has.
-func hasPeriod(_ *qrel, _ string) bool { return false }
+// hasPeriod reports whether a table has a valid-time period of that name,
+// which the catalog records as the period's check constraint.
+func hasPeriod(rel *qrel, period string) bool {
+	if rel.table == nil {
+		return false
+	}
+	for _, check := range rel.table.GetCheckConstraints() {
+		if name, _, ok := periodForCheckConstraint(rel.table, check); ok && strings.EqualFold(name, period) {
+			return true
+		}
+	}
+	return false
+}
 
 // join analyzes a join.
 func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {

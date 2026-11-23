@@ -455,6 +455,30 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 	case "*", "/", "**":
 		return multiplyType(lt, rt), false, nil
 	case "=", "!=", "<>", "^=", "~=", "<", ">", "<=", ">=":
+		left, right := rowOperands(n.Left), rowOperands(n.Right)
+		if len(left) > 1 || len(right) > 1 {
+			// Rows compare element by element, at one width.
+			switch {
+			case len(right) > len(left):
+				return qtype{}, false, oraError("00913", "too many values")
+			case len(right) < len(left):
+				return qtype{}, false, oraError("00947", "not enough values")
+			}
+			for i := range left {
+				l, _, err := a.expr(left[i], sc, clause)
+				if err != nil {
+					return qtype{}, false, err
+				}
+				r, _, err := a.expr(right[i], sc, clause)
+				if err != nil {
+					return qtype{}, false, err
+				}
+				if err := comparable(l, r, nil); err != nil {
+					return qtype{}, false, err
+				}
+			}
+			return simpleType("BOOLEAN"), false, nil
+		}
 		if err := comparable(lt, rt, n.Right); err != nil {
 			return qtype{}, false, err
 		}

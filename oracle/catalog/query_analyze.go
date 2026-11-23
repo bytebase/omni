@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
@@ -42,6 +43,8 @@ type qrel struct {
 	partitioned bool
 	// view reports the item is a stored view (no partitions, no flashback).
 	view bool
+	// table is the catalog table the item reads, if it is one.
+	table *metadatapb.TableMetadata
 }
 
 func (r *qrel) col(i int) qcol {
@@ -1258,18 +1261,17 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 // view: its text, uppercased outside quotes, without blanks.
 func derivedName(text string) string {
 	var b strings.Builder
-	inQuote := byte(0)
-	for i := 0; i < len(text); i++ {
-		ch := text[i]
+	inQuote := rune(0)
+	for _, ch := range text {
 		switch {
 		case inQuote != 0:
-			b.WriteByte(ch)
+			b.WriteRune(ch)
 			if ch == inQuote {
 				inQuote = 0
 			}
 		case ch == '\'' || ch == '"':
 			inQuote = ch
-			b.WriteByte(ch)
+			b.WriteRune(ch)
 		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
 		default:
 			b.WriteString(strings.ToUpper(string(ch)))
@@ -1277,7 +1279,12 @@ func derivedName(text string) string {
 	}
 	name := b.String()
 	if len(name) > 128 {
-		name = name[:128]
+		// Cut at a character boundary.
+		cut := 128
+		for cut > 0 && !utf8.RuneStart(name[cut]) {
+			cut--
+		}
+		name = name[:cut]
 	}
 	return name
 }
