@@ -720,16 +720,37 @@ func TestFunctionBodyFallbackExpandsStarsInPlace(t *testing.T) {
 	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
 		{Name: "pf", Definition: "CREATE FUNCTION public.pf() RETURNS TABLE(a int, b text, c text, d text, e text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT *, t.email FROM t CROSS JOIN unknown_rows() u; END; $$"},
 		{Name: "sf", Definition: "CREATE FUNCTION public.sf() RETURNS TABLE(a int, b text, c text, d text, e text) LANGUAGE sql AS $$ SELECT *, t.email FROM t CROSS JOIN unknown_rows() u $$"},
+		// The star over the statement's own CTE expands to its column.
+		{Name: "cf", Definition: "CREATE FUNCTION public.cf() RETURNS TABLE(a int, b int, c text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY WITH c AS (SELECT 1 AS x) SELECT c.*, u.*, t.ssn FROM t, c, unknown_rows() u; END; $$"},
 	}
-	for _, statement := range []string{"SELECT * FROM pf()", "SELECT * FROM sf()"} {
-		t.Run(statement, func(t *testing.T) {
+	byPosition := [][]string{{"db.public.t.id"}, {"db.public.t.email"}, {"db.public.t.ssn"}, {}, {"db.public.t.email"}}
+	for _, tc := range []struct {
+		statement string
+		want      [][]string
+	}{
+		{"SELECT * FROM pf()", byPosition},
+		{"SELECT * FROM sf()", byPosition},
+		{"SELECT * FROM cf()", [][]string{{}, {}, {"db.public.t.ssn"}}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
 			var got [][]string
-			for _, r := range spanFor(t, statement, schema).Results {
+			for _, r := range spanFor(t, tc.statement, schema).Results {
 				got = append(got, columnNames(r.SourceColumns))
 			}
-			require.Equal(t, [][]string{{"db.public.t.id"}, {"db.public.t.email"}, {"db.public.t.ssn"}, {}, {"db.public.t.email"}}, got)
+			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// The ordinality column the fallback adds counts rows and reads none of the
+// function's arguments.
+func TestFallbackOrdinalityReadsNoArgument(t *testing.T) {
+	span := spanFor(t, "SELECT u.*, x.* FROM t CROSS JOIN unnest(ARRAY[t.ssn]) WITH ORDINALITY u CROSS JOIN unknown_rows() x", healthySchema())
+	var got [][]string
+	for _, r := range span.Results {
+		got = append(got, columnNames(r.SourceColumns))
+	}
+	require.Equal(t, [][]string{{"db.public.t.ssn"}, {}, {}}, got)
 }
 
 // The fallback resolves each subquery in FROM once, however many references

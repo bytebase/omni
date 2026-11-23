@@ -1836,6 +1836,10 @@ func (e *querySpanExtractor) extractColumnsFromRangeFunction(rf *ast.RangeFuncti
 	}
 	results := extractFuncColumnNames(rf)
 	e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
+	// The ordinality column counts rows and reads no argument.
+	if rf.Ordinality {
+		results = append(results, QuerySpanResult{Name: "ordinality", SourceColumns: ColumnSet{}})
+	}
 	return results
 }
 
@@ -1894,8 +1898,9 @@ func extractColnamesFromAlias(alias *ast.Alias) []QuerySpanResult {
 // extractFuncColumnNames names the columns of a RangeFunction whose
 // functions are not user functions omni resolved: those of a function's
 // column definition list, or else one column named for the function, or one
-// per argument of unnest. WITH ORDINALITY adds a last column. A star expands
-// to these in place, so their number keeps the columns after it in line.
+// per argument of unnest. A star expands to these, and the ordinality column
+// WITH ORDINALITY adds, in place, so their number keeps the columns after it
+// in line.
 //
 // pg: src/backend/parser/parse_clause.c — transformRangeFunction
 // pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
@@ -1949,9 +1954,6 @@ func extractFuncColumnNames(rf *ast.RangeFunction) []QuerySpanResult {
 		for range nCols {
 			results = append(results, column(funcName))
 		}
-	}
-	if rf.Ordinality {
-		results = append(results, column("ordinality"))
 	}
 	return results
 }

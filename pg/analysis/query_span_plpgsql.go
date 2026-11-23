@@ -1058,6 +1058,15 @@ func (a *plpgsqlAnalyzer) fallbackExtractLineage(origSQL string, selStmt *ast.Se
 	// qualified FROM must not pin a later query's unqualified reference.
 	a.qualifiedFrom = make(map[string]bool)
 	a.fromItems = make(map[string]fromItem)
+	// The statement's CTEs, which a star over one of them expands to.
+	defer a.pushCTEs(selStmt)()
+	outerAliases := a.extractor.fallbackCTEAliases
+	a.extractor.fallbackCTEAliases = maps.Clone(outerAliases)
+	if a.extractor.fallbackCTEAliases == nil {
+		a.extractor.fallbackCTEAliases = make(map[string][]string)
+	}
+	maps.Copy(a.extractor.fallbackCTEAliases, collectCTEAliases(selStmt))
+	defer func() { a.extractor.fallbackCTEAliases = outerAliases }()
 	fromTables := a.collectFromTables(selStmt)
 
 	var results []ColumnSet
