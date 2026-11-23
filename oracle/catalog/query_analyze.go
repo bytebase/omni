@@ -703,7 +703,14 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	}
 	if grouped {
 		for _, x := range exprs {
-			keyOf := func(n ast.Node) string { return a.groupKey(n, sc) }
+			keyOf := func(n ast.Node) string {
+				if ref, ok := n.(*ast.ColumnRef); ok && sc.parent != nil && !a.resolvesLocally(ref, sc) {
+					if _, found, _ := a.resolveColumn(ref, sc.parent); found {
+						return outerColumn
+					}
+				}
+				return a.groupKey(n, sc)
+			}
 			if err := checkGrouped(x, groupKeys, keyOf, len(listItems(sel.GroupClause)) > 0, positional, nested); err != nil {
 				return nil, err
 			}
@@ -1431,4 +1438,19 @@ func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.Expr
 		refs = append(refs, &ast.ColumnRef{Table: it.rel.name, Column: c.name, Loc: ast.NoLoc()})
 	}
 	return refs
+}
+
+// outerColumn is the grouping key of a reference to an enclosing block's
+// column.
+const outerColumn = "\x00outer"
+
+// resolvesLocally reports whether a reference names a column of the block's
+// own FROM clause.
+func (a *queryAnalyzer) resolvesLocally(ref *ast.ColumnRef, sc *qscope) bool {
+	if ref.Table == "" {
+		_, found, _ := a.lookupIn(sc.from, ref.Column)
+		return found
+	}
+	_, found, _ := a.lookupQualified(sc.from, ref)
+	return found
 }

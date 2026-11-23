@@ -697,6 +697,10 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, hasGro
 		if _, ok := keywordValues[n.Column]; ok && n.Table == "" {
 			return nil
 		}
+		if keyOf(n) == outerColumn {
+			// A column of an enclosing query block is a constant here.
+			return nil
+		}
 		switch {
 		case !hasGroupBy || nested:
 			return oraError("00937", "not a single-group group function")
