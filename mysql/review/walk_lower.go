@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/mysql/ast"
@@ -56,6 +57,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterEvent(v)
 	case *ast.DropEventStmt:
 		return b.dropEvent(v)
+	case *ast.CreateSpatialRefSysStmt:
+		return b.createSpatialRefSys(v)
 	case *ast.InsertStmt:
 		return b.dml(n, []*ast.TableRef{v.Table})
 	case *ast.LoadDataStmt:
@@ -165,13 +168,53 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 // aside: a session's temporary tables outlive DROP DATABASE of theirs
 // (verified on 8.0 and 8.4).
 func (b *builder) clearDatabase(d string) {
-	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
+	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceCheckConstraint, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
 	b.Session(func() {
 		for gk := range b.w.fkGeneratedIndexes {
 			if names := walk.Names(gk.Parent); len(names) > 0 && names[0] == d {
 				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+		for rk := range b.w.engines {
+			if names := walk.Names(rk.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.engines, rk)
+			}
+		}
+		for rk := range b.w.partitionState {
+			if names := walk.Names(rk.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.partitionState, rk)
+			}
+		}
+		for rk := range b.w.tableIndexes {
+			if names := walk.Names(rk.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.tableIndexes, rk)
+				delete(b.w.tableIndexesComplete, rk)
+			}
+		}
+		for rk := range b.w.tableFKs {
+			if names := walk.Names(rk.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.tableFKs, rk)
+			}
+		}
+		for ck := range b.w.colTypes {
+			if names := walk.Names(ck.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.colTypes, ck)
+			}
+		}
+		for pRel, refs := range b.w.referencedByFK {
+			if names := walk.Names(pRel.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.referencedByFK, pRel)
+				continue
+			}
+			for ref := range refs {
+				if names := walk.Names(ref.child.Parent); len(names) > 0 && names[0] == d {
+					delete(refs, ref)
+				}
+			}
+			if len(refs) == 0 {
+				delete(b.w.referencedByFK, pRel)
 			}
 		}
 	})
@@ -226,9 +269,11 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.Table.Schema != "" {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
-	// The new table keeps foreign keys as its ENGINE does, or for LIKE as
-	// its source's does, which the walk must know.
-	b.fks = !v.Temporary && keepsFKs(engineOf(v.Options))
+	// The new table keeps foreign keys as its ENGINE does (falling back to the
+	// session default storage engine), or for LIKE as its source's does, which
+	// the walk must know.
+	effEngine, engKnown := b.createTableEngine(v)
+	b.fks = !v.Temporary && engKnown && keepsFKs(effEngine)
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {
@@ -299,7 +344,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			b.foreignKeyTarget(r, c)
 		}
 	}
-	b.created(v, r)
+	b.created(v, r, prior == walk.Unknown)
 	// A table that may have been there keeps an engine the walk does not
 	// know.
 	ignores := !b.fks || prior == walk.Unknown
@@ -348,13 +393,45 @@ func (*builder) constraintName(c *ast.Constraint) string {
 	return keyName(c)
 }
 
+// createTableEngine resolves the storage engine a CREATE TABLE without LIKE
+// will use, honoring any explicit ENGINE option and otherwise the session's
+// default_storage_engine / default_tmp_storage_engine.
+func (b *builder) createTableEngine(v *ast.CreateTableStmt) (string, bool) {
+	if eng := engineOf(v.Options); eng != "" {
+		return eng, true
+	}
+	if v.Temporary {
+		if b.w.defaultTmpEngineUnknown {
+			return "", false
+		}
+		return b.w.defaultTmpEngine, true
+	}
+	if b.w.defaultEngineUnknown {
+		return "", false
+	}
+	return b.w.defaultEngine, true
+}
+
 // tableTextFails fails a CREATE TABLE its text alone refutes (verified):
 // a column named twice (1060), two indexes of one name (1061), two foreign
 // keys of one name (1826, or 1061 for the index each would add), two
-// primary keys (1068), or an index named PRIMARY (1280).
+// primary keys (1068), an index named PRIMARY (1280), empty table (4028),
+// column/option/check/index/partition/select errors.
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
+	if len(v.Columns) == 0 && v.Like == nil && v.Select == nil {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
+		return true
+	}
+	effEngine, engKnown := b.createTableEngine(v)
+	if b.tableOptionsFails(v.Options, effEngine, v.Like == nil && engKnown, r.rng) {
+		return true
+	}
 	columns := make(map[string]bool)
+	colBaseTypes := make(map[string]string)
 	for _, c := range v.Columns {
+		if b.columnDefTextFails(c) {
+			return true
+		}
 		k, ok := b.key(spaceColumn, c.Name)
 		if !ok {
 			continue
@@ -364,6 +441,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			return true
 		}
 		columns[k] = true
+		if bt := astBaseType(c.TypeName); bt != "" {
+			colBaseTypes[k] = bt
+		}
 	}
 	primaries := 0
 	indexes := make(map[string]bool)
@@ -375,12 +455,14 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			}
 		}
 	}
+	hasFK := false
 	for _, c := range v.Constraints {
 		switch c.Type {
 		case ast.ConstrPrimaryKey:
 			primaries++
 			continue
 		case ast.ConstrForeignKey:
+			hasFK = true
 			if k, ok := b.key(spaceForeignKey, c.Name); ok && b.fks {
 				if foreignKeys[k] {
 					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "foreign key", ident(c.Name)))
@@ -390,6 +472,10 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			}
 			continue
 		case ast.ConstrCheck:
+			if c.Expr != nil && !checkExprIsBoolean(c.Expr) {
+				b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Check constraint in "+review.Code(r.written)+" must be a boolean expression.")
+				return true
+			}
 			continue
 		}
 		k, ok := b.key(spaceIndex, c.Name)
@@ -409,6 +495,168 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		b.fail(r.rng, nil, review.NameTaken, hasPrimaryKey(r.written))
 		return true
 	}
+	if b.partitionClausePreFKFails(v.Partitions, r.rng) {
+		return true
+	}
+	if b.fks && v.Partitions != nil && hasFK {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Partitioned table "+review.Code(r.written)+" cannot define foreign keys.")
+		return true
+	}
+	completeCols := v.Like == nil && v.Select == nil
+	lookupCol := func(colName string) (walk.Fact, string) {
+		k, ok := b.key(spaceColumn, colName)
+		if !ok {
+			return walk.Unknown, ""
+		}
+		if columns[k] {
+			return walk.Present, colBaseTypes[k]
+		}
+		if completeCols {
+			return walk.Absent, ""
+		}
+		return walk.Unknown, ""
+	}
+	partitioned := v.Partitions != nil
+	for _, c := range v.Constraints {
+		if c.Type == ast.ConstrCheck {
+			continue
+		}
+		parts := constraintKeyParts(c)
+		isFK := c.Type == ast.ConstrForeignKey
+		fulltext := c.Type == ast.ConstrFulltextIndex
+		spatial := c.Type == ast.ConstrSpatialIndex || isSpatialIndexType(c.IndexType)
+		crng := rangeOf(c.Loc)
+		if crng == (review.Range{}) {
+			crng = r.rng
+		}
+		// Check missing column directly as a text failure for CREATE TABLE
+		// (the table does not exist in the ledger yet).
+		for _, p := range parts {
+			if p.functional && isBareColumnRef(p.expr) {
+				b.fail(crng, nil, review.UnsupportedForm, "Functional index key part cannot be a bare column reference.")
+				return true
+			}
+		}
+		seenPart := make(map[string]bool, len(parts))
+		for _, p := range parts {
+			if p.functional || p.name == "" {
+				continue
+			}
+			k, ok := b.key(spaceColumn, p.name)
+			if !ok {
+				continue
+			}
+			if seenPart[k] {
+				b.fail(crng, nil, review.DuplicateName, statesTwice("names", "column", ident(p.name)))
+				return true
+			}
+			seenPart[k] = true
+		}
+		for _, p := range parts {
+			if p.functional || p.name == "" {
+				continue
+			}
+			if st, _ := lookupCol(p.name); st == walk.Absent {
+				b.fail(crng, nil, review.ObjectNotFound, notFound("key column", ident(p.name), r.written))
+				return true
+			}
+		}
+		if fulltext && partitioned {
+			b.fail(crng, nil, review.UnsupportedForm, "Partitioned table "+review.Code(r.written)+" doesn't support "+review.Code("FULLTEXT")+" indexes.")
+			return true
+		}
+		for _, p := range parts {
+			if p.functional || p.name == "" {
+				continue
+			}
+			st, bt := lookupCol(p.name)
+			if st != walk.Present || bt == "" {
+				continue
+			}
+			if fulltext && !isFulltextBaseType(bt) {
+				b.fail(crng, nil, review.UnsupportedForm, "Column "+review.Code(ident(p.name))+" cannot be part of a "+review.Code("FULLTEXT")+" index.")
+				return true
+			}
+			if spatial && !isGeometryBaseType(bt) {
+				b.fail(crng, nil, review.UnsupportedForm, "Column "+review.Code(ident(p.name))+" cannot be part of a "+review.Code("SPATIAL")+" index.")
+				return true
+			}
+			if !fulltext && !spatial && !isFK && p.length > 0 && !isPrefixableBaseType(bt) {
+				b.fail(crng, nil, review.UnsupportedForm, "Column "+review.Code(ident(p.name))+" cannot use an index prefix length.")
+				return true
+			}
+		}
+		if isFK && b.fks {
+			if len(c.RefColumns) == 0 || (len(parts) > 0 && len(parts) != len(c.RefColumns)) {
+				b.fail(crng, nil, review.UnsupportedForm, "Foreign key in "+review.Code(r.written)+" must name matching referenced columns.")
+				return true
+			}
+		}
+	}
+	if completeCols {
+		autoCount := 0
+		for _, c := range v.Columns {
+			if !colHasAutoIncrement(c) {
+				continue
+			}
+			autoCount++
+			if autoCount > 1 {
+				b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" can have only one "+review.Code("AUTO_INCREMENT")+" column and it must be indexed.")
+				return true
+			}
+			if !colHasInlineKey(c) {
+				keyed := false
+				for _, con := range v.Constraints {
+					if con.Type == ast.ConstrCheck {
+						continue
+					}
+					if keyPartsCoverColumn(constraintKeyParts(con), c.Name) {
+						keyed = true
+						break
+					}
+				}
+				if !keyed {
+					b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Column "+review.Code(ident(c.Name))+" is "+review.Code("AUTO_INCREMENT")+" and must be defined as a key.")
+					return true
+				}
+			}
+		}
+	}
+	if v.Partitions != nil {
+		var uqIdxs map[string]*indexMeta
+		if completeCols {
+			uqIdxs = make(map[string]*indexMeta)
+			for _, c := range v.Columns {
+				for _, cc := range c.Constraints {
+					if cc.Type == ast.ColConstrPrimaryKey || cc.Type == ast.ColConstrUnique {
+						uqIdxs["col:"+strings.ToLower(c.Name)] = &indexMeta{
+							unique:  true,
+							primary: cc.Type == ast.ColConstrPrimaryKey,
+							cols:    []string{strings.ToLower(c.Name)},
+						}
+					}
+				}
+			}
+			for i, con := range v.Constraints {
+				if con.Type != ast.ConstrPrimaryKey && con.Type != ast.ConstrUnique {
+					continue
+				}
+				uqIdxs["con:"+strconv.Itoa(i)] = indexMetaFromParts(true, con.Type == ast.ConstrPrimaryKey, false, false, constraintKeyParts(con))
+			}
+		}
+		if b.partitionClauseColumnsAndUniqueFails(r, v.Partitions, r.rng, func(colName string) walk.Fact {
+			st, _ := lookupCol(colName)
+			return st
+		}, uqIdxs, completeCols) {
+			return true
+		}
+	}
+	if v.Select != nil {
+		if col, ok := selectFromlessColumn(v.Select); ok {
+			b.fail(r.rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(col))+" doesn't exist in the query.")
+			return true
+		}
+	}
 	return false
 }
 
@@ -417,7 +665,10 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 // May-effects. A table copied with LIKE or filled from a query holds what
 // the walk does not follow. A table with no primary key may get an
 // invisible one, with its column (sql_generate_invisible_primary_key).
-func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
+// When optional is true (CREATE TABLE IF NOT EXISTS over an unknown prior
+// state), side metadata stays unknown because the existing table may have
+// kept its own definition.
+func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 	path := tablePath(r.db, r.name)
 	b.Set(relKey(r.db, r.name), walk.Present, relTable)
 	b.Clear(walk.Scope{Parent: path, Deep: true})
@@ -439,6 +690,102 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Unknown, "")
 		b.Set(colKey(r.db, r.name, gipkColumn), walk.Unknown, "")
 	}
+	if optional {
+		return
+	}
+	rel := relKey(r.db, r.name)
+	eng, engKnown := b.createTableEngine(v)
+	hasLikeOrSelect := v.Like != nil || v.Select != nil
+	var likeKey walk.Key
+	hasLike := false
+	if v.Like != nil {
+		if src, st := b.ref(v.Like); st == refOK {
+			likeKey = relKey(src.db, src.name)
+			hasLike = true
+		}
+	}
+	colTypesMap := make(map[walk.Key]string)
+	for _, c := range v.Columns {
+		if k, ok := b.key(spaceColumn, c.Name); ok {
+			if bt := astBaseType(c.TypeName); bt != "" {
+				colTypesMap[colKey(r.db, r.name, k)] = bt
+			}
+		}
+	}
+	var pinfo *tablePartitionInfo
+	if !hasLike {
+		pinfo = partitionInfoFromClause(v.Partitions)
+	}
+	idxsMap := make(map[string]*indexMeta)
+	idxComplete := !hasLikeOrSelect
+	for _, c := range v.Columns {
+		for _, cc := range c.Constraints {
+			switch cc.Type {
+			case ast.ColConstrPrimaryKey:
+				idxsMap[primaryIndex] = &indexMeta{primary: true, unique: true, cols: []string{strings.ToLower(c.Name)}}
+			case ast.ColConstrUnique:
+				idxComplete = false
+			}
+		}
+	}
+	fksMap := make(map[string][]string)
+	for _, con := range v.Constraints {
+		switch con.Type {
+		case ast.ConstrCheck:
+		case ast.ConstrForeignKey:
+			idxComplete = false
+			if b.fks {
+				if k, ok := b.key(spaceForeignKey, con.Name); ok {
+					var cols []string
+					for _, p := range constraintKeyParts(con) {
+						if !p.functional && p.name != "" {
+							cols = append(cols, strings.ToLower(p.name))
+						}
+					}
+					fksMap[k] = cols
+				}
+			}
+		case ast.ConstrPrimaryKey:
+			idxsMap[primaryIndex] = indexMetaFromParts(true, true, false, false, constraintKeyParts(con))
+		default:
+			if k, ok := b.key(spaceIndex, con.Name); ok {
+				idxsMap[k] = indexMetaFromParts(
+					con.Type == ast.ConstrUnique,
+					false,
+					con.Type == ast.ConstrFulltextIndex,
+					con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+					constraintKeyParts(con),
+				)
+			} else {
+				idxComplete = false
+			}
+		}
+	}
+	b.Session(func() {
+		if hasLike {
+			if srcEng, ok := b.w.engines[likeKey]; ok {
+				b.w.engines[rel] = srcEng
+			}
+			if srcP, ok := b.w.partitionState[likeKey]; ok {
+				b.w.partitionState[rel] = srcP.clone()
+			}
+		} else {
+			if engKnown {
+				b.w.engines[rel] = eng
+			}
+			b.w.partitionState[rel] = pinfo
+		}
+		for ck, bt := range colTypesMap {
+			b.w.colTypes[ck] = bt
+		}
+		if idxComplete {
+			b.w.tableIndexes[rel] = idxsMap
+			b.w.tableIndexesComplete[rel] = true
+		}
+		if len(fksMap) > 0 {
+			b.w.tableFKs[rel] = fksMap
+		}
+	})
 }
 
 // columnKeys records the keys a column definition declares inline, and
@@ -459,6 +806,12 @@ func (b *builder) columnKeys(r tableRef, c *ast.ColumnDef) bool {
 			b.onIndexAdded(r, walk.Key{}, false)
 		case ast.ColConstrReferences:
 			b.mayAddForeignKeys(r)
+		case ast.ColConstrCheck:
+			if k, ok := b.key(spaceCheckConstraint, cc.Name); ok {
+				b.Set(chkKey(r.db, r.name, k), walk.Present, "")
+			} else {
+				b.MayAdd(walk.Scope{Space: spaceCheckConstraint, Parent: tablePath(r.db, r.name)})
+			}
 		}
 	}
 	return primary
@@ -477,6 +830,11 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 		b.onIndexAdded(r, ik, true)
 		return true
 	case ast.ConstrCheck:
+		if k, ok := b.key(spaceCheckConstraint, c.Name); ok {
+			b.Set(chkKey(r.db, r.name, k), walk.Present, "")
+		} else {
+			b.MayAdd(walk.Scope{Space: spaceCheckConstraint, Parent: tablePath(r.db, r.name)})
+		}
 	case ast.ConstrForeignKey:
 		// An engine that ignores foreign keys still adds the index (verified).
 		k, ok := b.key(spaceForeignKey, c.Name)
