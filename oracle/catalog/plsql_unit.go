@@ -137,6 +137,8 @@ func (c *plChecker) objectType(n *ast.CreateTypeStmt) {
 	if n.Under != nil {
 		super := c.e.units.types[n.Under.Name]
 		switch {
+		case (super == nil || !super.spec) && c.e.units.typesUnknown:
+			// A schema loaded from metadata may hold the supertype.
 		case super == nil || !super.spec:
 			c.fail("PLS-00201", "identifier '%s' must be declared", n.Under.Name)
 		case super.final:

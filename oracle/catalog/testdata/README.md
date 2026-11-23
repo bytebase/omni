@@ -170,7 +170,10 @@ method its spec declares (`PLS-00538`), invalidation that passes through a
 view to the units that read it, `DROP TYPE` of a type other types or tables
 use without `FORCE` (`ORA-02303`), a `MERGE`'s `INSERT` branch and `WHERE`
 predicates, a read-only actual passed to an `OUT` parameter (`PLS-00363`),
-and the package a `FOR r IN pk.c` loop reads.
+and the package a `FOR r IN pk.c` loop reads. A column a statement names is
+taken as read from every relation of the statement that has it, so a change
+to another relation's column of the same name may leave the unit `INVALID`
+where Oracle keeps it `VALID`, which only costs a recompile.
 
 ```bash
 go test ./oracle/catalog/ -run '^TestProgramSimulation$' -update-compat

@@ -118,25 +118,25 @@ func (c *plChecker) readColumns(n ast.Node) {
 	}
 }
 
-// dmlTables lists the tables a DML statement writes.
-func dmlTables(n ast.Node) []string {
+// dmlTarget is the table a DML statement writes, as it names it.
+func dmlTarget(n ast.Node) *ast.ObjectName {
 	switch s := n.(type) {
 	case *ast.InsertStmt:
-		if s.Table != nil {
-			return []string{s.Table.Name}
-		}
+		return s.Table
 	case *ast.UpdateStmt:
-		if s.Table != nil {
-			return []string{s.Table.Name}
-		}
+		return s.Table
 	case *ast.DeleteStmt:
-		if s.Table != nil {
-			return []string{s.Table.Name}
-		}
+		return s.Table
 	case *ast.MergeStmt:
-		if s.Target != nil {
-			return []string{s.Target.Name}
-		}
+		return s.Target
+	}
+	return nil
+}
+
+// dmlTables lists the tables a DML statement writes.
+func dmlTables(n ast.Node) []string {
+	if name := dmlTarget(n); name != nil {
+		return []string{name.Name}
 	}
 	return nil
 }
@@ -242,6 +242,10 @@ var sqlSyntaxCalls = map[string]bool{
 // cannot know: a dictionary view, a database link's table, or a
 // materialized view whose columns it does not keep.
 func (c *plChecker) readsUnknown(n ast.Node) bool {
+	if name := dmlTarget(n); name != nil && c.e.isForeignSchema(name.Schema) {
+		// Another schema's table, which the catalog does not hold.
+		return true
+	}
 	unknown := false
 	ast.Inspect(n, func(x ast.Node) bool {
 		ref, ok := x.(*ast.TableRef)

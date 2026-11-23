@@ -3582,3 +3582,23 @@ func TestXMLTypeSynonymsAndUsingKeys(t *testing.T) {
 		}
 	}
 }
+
+// TestForeignTargetsAndSnapshotSupertypes holds a DML statement writing
+// another schema's table, and a subtype after a metadata load, to compiling.
+func TestForeignTargetsAndSnapshotSupertypes(t *testing.T) {
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	for _, stmt := range []string{
+		"CREATE PROCEDURE p IS BEGIN INSERT INTO other.t (id) VALUES (1); UPDATE other.t SET id = 2; DELETE FROM other.t; END;",
+		"CREATE TYPE child_t UNDER base_t (b NUMBER)",
+	} {
+		if _, err := m.Exec(stmt, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, u := range m.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
