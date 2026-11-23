@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
@@ -92,7 +93,10 @@ type spanResolver struct {
 	text     string
 	tables   SourceColumnSet
 	notFound *NotFoundError
-	views    map[ColumnResource][]spanColumn
+	// err is why a view's stored definition could not be read: the span
+	// fails rather than omit what the view reads.
+	err   error
+	views map[ColumnResource][]spanColumn
 	// resolving holds the views whose definitions are being resolved, so
 	// a view that reads itself stops.
 	resolving map[ColumnResource]bool
@@ -118,6 +122,12 @@ func isQuery(node ast.Node) bool {
 	return false
 }
 
+func (r *spanResolver) fail(err error) {
+	if r.err == nil {
+		r.err = err
+	}
+}
+
 func (r *spanResolver) missing(nf NotFoundError) {
 	if r.notFound == nil {
 		r.notFound = &nf
@@ -132,7 +142,7 @@ func (r *spanResolver) query(node ast.Node, outer *spanScope, ctes *cteBinding) 
 	case *ast.SetOpStmt:
 		return r.setOp(n, outer, ctes)
 	case *ast.ValuesStmt:
-		return r.values(n, outer, ctes)
+		return r.values(n, outer, ctes, false)
 	case *ast.GroupedQuery:
 		cols := r.query(n.Query, outer, ctes)
 		r.trailing(n.OrderBy, n.Limit, n.Offset, &spanScope{outputs: cols, parent: outer}, ctes)
@@ -192,26 +202,26 @@ func renamed(cols []spanColumn, names []string) []spanColumn {
 	return out
 }
 
-// leftmostSelect returns the SELECT a set operation's left spine starts
-// with, whose WITH clause scopes over every arm.
-func leftmostSelect(node ast.Node) *ast.SelectStmt {
+// leftmostQuery returns the SELECT or VALUES a set operation's left spine
+// starts with, and its WITH clause, which scopes over every arm.
+func leftmostQuery(node ast.Node) (ast.Node, *ast.WithClause) {
 	for {
 		switch n := node.(type) {
 		case *ast.SetOpStmt:
 			node = n.Left
 		case *ast.SelectStmt:
-			return n
+			return n, n.With
+		case *ast.ValuesStmt:
+			return n, n.With
 		default:
-			return nil
+			return nil, nil
 		}
 	}
 }
 
 func (r *spanResolver) setOp(n *ast.SetOpStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
-	first := leftmostSelect(n)
-	if first != nil && first.With != nil {
-		ctes = r.with(first.With, outer, ctes)
-	}
+	first, with := leftmostQuery(n)
+	ctes = r.with(with, outer, ctes)
 	var arms []ast.Node
 	var flatten func(node ast.Node)
 	flatten = func(node ast.Node) {
@@ -227,9 +237,12 @@ func (r *spanResolver) setOp(n *ast.SetOpStmt, outer *spanScope, ctes *cteBindin
 	var cols []spanColumn
 	for i, arm := range arms {
 		var armCols []spanColumn
-		if s, ok := arm.(*ast.SelectStmt); ok && s == first {
-			armCols = r.selectStmt(s, outer, ctes, true)
-		} else {
+		switch a := arm.(type) {
+		case *ast.SelectStmt:
+			armCols = r.selectStmt(a, outer, ctes, arm == first)
+		case *ast.ValuesStmt:
+			armCols = r.values(a, outer, ctes, arm == first)
+		default:
 			armCols = r.query(arm, outer, ctes)
 		}
 		if i == 0 {
@@ -254,8 +267,12 @@ func (r *spanResolver) setOp(n *ast.SetOpStmt, outer *spanScope, ctes *cteBindin
 	return cols
 }
 
-func (r *spanResolver) values(n *ast.ValuesStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
-	ctes = r.with(n.With, outer, ctes)
+// values resolves a VALUES query. withBound is set when a set operation
+// has bound its WITH clause already.
+func (r *spanResolver) values(n *ast.ValuesStmt, outer *spanScope, ctes *cteBinding, withBound bool) []spanColumn {
+	if !withBound {
+		ctes = r.with(n.With, outer, ctes)
+	}
 	sc := &spanScope{parent: outer}
 	var cols []spanColumn
 	for i, row := range n.Rows {
@@ -351,10 +368,20 @@ func (r *spanResolver) selectStmt(stmt *ast.SelectStmt, outer *spanScope, ctes *
 func (r *spanResolver) from(node ast.Node, sc, outer *spanScope, ctes *cteBinding) {
 	switch n := node.(type) {
 	case *ast.JoinClause:
+		before := len(sc.relations)
 		r.from(n.Left, sc, outer, ctes)
+		middle := len(sc.relations)
 		r.from(n.Right, sc, outer, ctes)
 		if n.On != nil {
 			r.expr(n.On, sc, ctes)
+		}
+		// A semi or anti join returns one side's rows only: the other side
+		// is read, but its columns are out of scope after the join.
+		switch n.Type {
+		case ast.JoinLeftSemi, ast.JoinLeftAnti:
+			sc.relations = sc.relations[:middle]
+		case ast.JoinRightSemi, ast.JoinRightAnti:
+			sc.relations = append(sc.relations[:before], sc.relations[middle:]...)
 		}
 	case *ast.TableRef:
 		rel := r.tableRef(n, outer, ctes)
@@ -509,7 +536,13 @@ func (r *spanResolver) view(database string, v *metadata.ViewMetadata) []spanCol
 	var defined []spanColumn
 	if !r.resolving[key] {
 		r.resolving[key] = true
-		if file, err := parser.Parse(v.Definition); err == nil && file != nil && len(file.Stmts) == 1 && isQuery(file.Stmts[0]) {
+		file, err := parser.Parse(v.Definition)
+		switch {
+		case err != nil:
+			r.fail(fmt.Errorf("read the definition of view %s.%s: %w", database, v.Name, parser.FirstError(err)))
+		case file == nil || len(file.Stmts) != 1 || !isQuery(file.Stmts[0]):
+			r.fail(fmt.Errorf("the definition of view %s.%s is not one query", database, v.Name))
+		default:
 			savedDatabase, savedText := r.database, r.text
 			r.database, r.text = database, v.Definition
 			defined = r.query(file.Stmts[0], nil, nil)

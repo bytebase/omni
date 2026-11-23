@@ -129,6 +129,9 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		// and each view to the tables behind it, which the plan reads too.
 		r := newSpanResolver(opts, single)
 		cols := r.query(node, nil, nil)
+		if r.err != nil {
+			return nil, r.err
+		}
 		sources, results, notFound = r.tables, results[:0], r.notFound
 		if notFound == nil {
 			results = resolvedResults(cols)

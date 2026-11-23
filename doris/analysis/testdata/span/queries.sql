@@ -64,6 +64,8 @@ SELECT o.id, c.name FROM orders o CROSS JOIN customers c
 SELECT o.id, c.name FROM orders o, customers c WHERE c.id = o.customer_id
 SELECT o.id FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
 SELECT o.id FROM orders o LEFT ANTI JOIN customers c ON c.id = o.customer_id
+SELECT * FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
+SELECT * FROM orders o RIGHT ANTI JOIN customers c ON c.id = o.customer_id
 SELECT o.id FROM orders o JOIN customers c USING (id)
 SELECT id, name FROM orders JOIN customers USING (id)
 SELECT * FROM orders o JOIN customers c USING (id)
@@ -103,6 +105,7 @@ SELECT id FROM orders EXCEPT SELECT customer_id FROM orders
 SELECT id FROM orders MINUS SELECT customer_id FROM orders
 SELECT id AS k FROM orders UNION SELECT 1 ORDER BY k
 (SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
+WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c
 SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
 
 -- Views and materialized views.

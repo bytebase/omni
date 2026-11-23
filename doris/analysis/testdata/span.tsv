@@ -150,6 +150,12 @@ shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	
 id	id	engine	base	shop	results	SELECT o.id FROM orders o LEFT ANTI JOIN customers c ON c.id = o.customer_id
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT o.id FROM orders o LEFT ANTI JOIN customers c ON c.id = o.customer_id
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id FROM orders o LEFT ANTI JOIN customers c ON c.id = o.customer_id
+id, customer_id, amount, status, created_at	id, customer_id, amount, status, created_at	engine	base	shop	results	SELECT * FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
+shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	engine	base	shop	lineage	SELECT * FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT * FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
+id, name, region, email	id, name, region, email	engine	base	shop	results	SELECT * FROM orders o RIGHT ANTI JOIN customers c ON c.id = o.customer_id
+shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM orders o RIGHT ANTI JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT * FROM orders o RIGHT ANTI JOIN customers c ON c.id = o.customer_id
 id	id	engine	base	shop	results	SELECT o.id FROM orders o JOIN customers c USING (id)
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT o.id FROM orders o JOIN customers c USING (id)
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id FROM orders o JOIN customers c USING (id)
@@ -249,6 +255,9 @@ error:unknown-column	error:unknown-column	engine	base	shop	tables	SELECT id AS k
 id	id	engine	base	shop	results	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
 shop.customers.id shop.orders.id	~	engine	base	shop	lineage	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
+0	0	engine	base	shop	results	WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c
+shop.orders.id	~	engine	base	shop	lineage	WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c
+shop.orders	shop.orders	engine	base	shop	tables	WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c
 id	id	engine	base	shop	results	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
 shop.customers.id shop.orders.id	~	engine	base	shop	lineage	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u

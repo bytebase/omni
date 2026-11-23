@@ -275,6 +275,16 @@
 | {"columns":[{"name":"id","schema":"shop","table":"o","orgTable":"orders","orgName":"id"}],"relations":["shop.orders","shop.customers"]}
 > raw
 | span shop
+| SELECT * FROM orders o LEFT SEMI JOIN customers c ON c.id = o.customer_id
+< raw
+| {"columns":[{"name":"id","schema":"shop","table":"o","orgTable":"orders","orgName":"id"},{"name":"customer_id","schema":"shop","table":"o","orgTable":"orders","orgName":"customer_id"},{"name":"amount","schema":"shop","table":"o","orgTable":"orders","orgName":"amount"},{"name":"status","schema":"shop","table":"o","orgTable":"orders","orgName":"status"},{"name":"created_at","schema":"shop","table":"o","orgTable":"orders","orgName":"created_at"}],"relations":["shop.orders","shop.customers"]}
+> raw
+| span shop
+| SELECT * FROM orders o RIGHT ANTI JOIN customers c ON c.id = o.customer_id
+< raw
+| {"columns":[{"name":"id","schema":"shop","table":"c","orgTable":"customers","orgName":"id"},{"name":"name","schema":"shop","table":"c","orgTable":"customers","orgName":"name"},{"name":"region","schema":"shop","table":"c","orgTable":"customers","orgName":"region"},{"name":"email","schema":"shop","table":"c","orgTable":"customers","orgName":"email"}],"relations":["shop.customers","shop.orders"]}
+> raw
+| span shop
 | SELECT o.id FROM orders o JOIN customers c USING (id)
 < raw
 | {"columns":[{"name":"id","schema":"shop","table":"o","orgTable":"orders","orgName":"id"}],"relations":["shop.orders","shop.customers"]}
@@ -438,6 +448,11 @@
 | (SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
 < raw
 | {"columns":[{"name":"id"}],"relations":["shop.orders","shop.customers"]}
+> raw
+| span shop
+| WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c
+< raw
+| {"columns":[{"name":"0"}],"relations":["shop.orders"]}
 > raw
 | span shop
 | SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
