@@ -15,3 +15,27 @@ ION_CLOSURE	`1`	PartiQLTokens.g4:348 and 449: a backtick enters Ion mode, and th
 exprTerm	a	PartiQLParser.g4:625 the plainest expression is a name: the rule lists CURRENT_USER before varRefExpr, so the shortest expression would be a keyword every other row then carries
 explainOption	TYPE a	PartiQLParser.g4:30 two identifiers; PartiQLParserDefault.kt:524 takes the parameters TYPE and FORMAT only, so other rows write one
 patternRestrictor	TRAIL	PartiQLParser.g4:399 an identifier; PartiQLParserDefault.kt:1191 takes TRAIL, ACYCLIC and SIMPLE only, so other rows write one
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches. Each is an inline (...)? group, which the
+# reader lowers to a rule named after the group. PartiQLParser.g4 has no IF
+# [NOT] EXISTS, OR REPLACE, TEMPORARY or CASCADE.
+exprPredicate(NOT)?	(every site)	PartiQLParser.g4:565 IS NOT, NOT IN, NOT LIKE, NOT BETWEEN
+exprBagOp(OUTER)?	(every site)	PartiQLParser.g4:528 OUTER EXCEPT, UNION, INTERSECT
+exprBagOp(DISTINCT|ALL)?	(every site)	PartiQLParser.g4:528 EXCEPT, UNION, INTERSECT DISTINCT or ALL
+joinType(OUTER)?	(every site)	PartiQLParser.g4:499 LEFT, RIGHT, FULL OUTER
+tableReference(joinType)?	(every site)	PartiQLParser.g4:468 a join type before CROSS JOIN or JOIN
+selectClause(setQuantifierStrategy)?	(every site)	PartiQLParser.g4:258 SELECT DISTINCT or ALL
+literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	(every site)	PartiQLParser.g4:785 TIME or TIMESTAMP (precision)
+literal(WITH_TIME_ZONE)?	(every site)	PartiQLParser.g4:785 TIME or TIMESTAMP WITH TIME ZONE
+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	(every site)	PartiQLParser.g4:796 a type's (length) or (precision)
+tableBaseReference(asIdent)?	(every site)	PartiQLParser.g4:482 AS alias
+tableBaseReference(atIdent)?	(every site)	PartiQLParser.g4:482 AT alias
+tableBaseReference(byIdent)?	(every site)	PartiQLParser.g4:482 BY alias
+dml(whereClause)?	(every site)	PartiQLParser.g4:121 WHERE
+dml(returningClause)?	(every site)	PartiQLParser.g4:121 RETURNING
+pattern(patternRestrictor)?	(every site)	PartiQLParser.g4:411 TRAIL, ACYCLIC or SIMPLE
+pattern(patternPathVariable)?	(every site)	PartiQLParser.g4:411 a path variable
+pattern(whereClause)?	(every site)	PartiQLParser.g4:411 WHERE in a pattern
+pattern(patternQuantifier)?	(every site)	PartiQLParser.g4:411 a pattern's quantifier
+edge(patternQuantifier)?	(every site)	PartiQLParser.g4:406 an edge's quantifier
+varRefExpr(AT_SIGN)?	(every site)	PartiQLParser.g4:744 @ before a variable

@@ -116,6 +116,8 @@ func oceanBaseCodes(m, stmt string) []string {
 		{strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "-character limit."), []string{"1406"}},
 		{strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " doesn't exist.") || strings.HasPrefix(m, "Column ") && strings.Contains(m, " doesn't exist in "), []string{"1054", "1072", "1149", "1215", "1505", "3820", "5031", "5875", "10502"}},
 		{saysTwice(m, "table", "drops"), []string{"1066", "1051"}},
+		{strings.HasSuffix(m, " cannot be created LIKE itself."), []string{"1066"}},
+		{strings.Contains(m, " is read by a CHECK constraint on "), []string{"3959"}},
 		{saysTwice(m, "column", "names"), []string{"1060"}},
 		{saysTwice(m, "partition", "declares", "adds", "drops") || saysTwice(m, "subpartition", "adds"), []string{"1517", "1505", "5875"}},
 		{saysTwice(m, "column group", "declares"), []string{"1060"}},

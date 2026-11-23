@@ -30,9 +30,15 @@ unclosed-parenthesis tests) reach this harness through
 `testcontainer.OpenScriptDOM`: a replay of each test's tape, or, in a
 recording, this harness built and run in the .NET SDK image that
 `mssql/testdata/pins.tsv` pins as `scriptdom`, by digest. The pin's tag is
-the ScriptDOM version `harness.csproj` references; a recording fails while
-they differ. After changing `Program.cs` or the package version, record the
-tests again:
+the ScriptDOM version `harness.csproj` references, exactly (`[v]`, not a
+bare minimum version), and `packages.lock.json` resolves; a recording fails
+while either differs from the pin, and restore runs in locked mode, so a
+build that resolves another version fails. The NuGet cache persists in
+`$TMPDIR/omni-scriptdom-nuget-<uid>`; once it holds the package, the build
+restores from it without the network. To move the pin, change the version in
+`harness.csproj` and `pins.tsv`, regenerate the lock file with
+`dotnet restore --force-evaluate -p:RestoreLockedMode=false` in the SDK
+image, and record the tests again:
 
 ```bash
 OMNI_RECORD=1 go test ./mssql/parser/

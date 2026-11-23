@@ -374,13 +374,74 @@ func (b *builder) constraintNames(v *ast.AlterTableStmt) (dropped, added map[str
 	return dropped, added
 }
 
+// columnCmds returns the subcommands of an ALTER TABLE that name a column,
+// as namedCount counts them.
+func (b *builder) columnCmds(v *ast.AlterTableStmt, k string) []*ast.AlterTableCmd {
+	var out []*ast.AlterTableCmd
+	for _, c := range v.Commands {
+		if c != nil && b.namedCount(&ast.AlterTableStmt{Commands: []*ast.AlterTableCmd{c}}, k) > 0 {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// droppedOnly reports whether an ALTER TABLE drops a column and names it
+// nowhere else but in an ADD COLUMN after the drop, which a CHECK
+// constraint that read the column does not read (verified on
+// mariadb:11.8.8).
+func (b *builder) droppedOnly(v *ast.AlterTableStmt, k string) bool {
+	cmds := b.columnCmds(v, k)
+	switch {
+	case len(cmds) == 1:
+		return cmds[0].Type == ast.ATDropColumn
+	case len(cmds) == 2:
+		return cmds[0].Type == ast.ATDropColumn && cmds[1].Type == ast.ATAddColumn && !cmds[1].IfNotExists
+	}
+	return false
+}
+
+// keptByName reports whether an ALTER TABLE keeps a column a CHECK
+// constraint of cols reads: it names it nowhere, or only to rename it, by
+// RENAME COLUMN or CHANGE, to a name it names nowhere else and the CHECK
+// does not read, which the CHECK follows (verified on mariadb:11.8.8).
+func (b *builder) keptByName(v *ast.AlterTableStmt, k string, cols []string) bool {
+	cmds := b.columnCmds(v, k)
+	if len(cmds) == 0 {
+		return true
+	}
+	if len(cmds) != 1 {
+		return false
+	}
+	c := cmds[0]
+	var to string
+	switch {
+	case c.Type == ast.ATRenameColumn:
+		to = c.NewName
+	case c.Type == ast.ATChangeColumn && c.Column != nil:
+		to = c.Column.Name
+	default:
+		return false
+	}
+	from, ok1 := b.key(spaceColumn, c.Name)
+	nk, ok2 := b.key(spaceColumn, to)
+	if !ok1 || !ok2 || from != k {
+		return false
+	}
+	if nk == k {
+		return true
+	}
+	return len(b.columnCmds(v, nk)) == 1 && !slices.Contains(cols, nk)
+}
+
 // alterChecksFail fails an ALTER TABLE of a synced table the change has
 // not touched against its CHECK constraints and generated columns (each
 // verified on mariadb:11.8.8):
 //
 //   - dropping some but not all of the columns a CHECK constraint reads
-//     (1054): MariaDB drops a constraint all of whose columns go, and a
-//     column's own CHECK with its column;
+//     (1054), whether it renames the others or adds a dropped one back:
+//     MariaDB drops a constraint all of whose columns go, and a column's
+//     own CHECK with its column;
 //   - adding a CHECK constraint of a name the table's CHECK constraints
 //     hold (1826), or of its foreign key's, IF NOT EXISTS or not, and a
 //     unique key or foreign key of a CHECK constraint's name (1826);
@@ -413,15 +474,12 @@ func (b *builder) alterChecksFail(v *ast.AlterTableStmt, r tableRef) bool {
 			gone, kept := "", ""
 			clear := true
 			for _, k := range cols {
-				// A column the statement drops it names only there, and
-				// one it keeps it doesn't name at all.
-				if n := b.namedCount(v, k); dropCols[k] && n != 1 || !dropCols[k] && n != 0 {
-					clear = false
-				}
 				if dropCols[k] {
 					gone = k
+					clear = clear && b.droppedOnly(v, k)
 				} else {
 					kept = k
+					clear = clear && b.keptByName(v, k, cols)
 				}
 			}
 			// A column's own CHECK, named for it, goes with the column.

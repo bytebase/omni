@@ -67,6 +67,36 @@
               "position": 10,
               "default": "'2026-01-02'",
               "type": "Date"
+            },
+            {
+              "name": "ref",
+              "position": 11,
+              "default": "generateUUIDv4()",
+              "type": "UUID"
+            },
+            {
+              "name": "price",
+              "position": 12,
+              "default": "1.5",
+              "type": "Decimal(18, 4)"
+            },
+            {
+              "name": "point",
+              "position": 13,
+              "default": "(0, NULL)",
+              "type": "Tuple(x Float64, y Nullable(Float64))"
+            },
+            {
+              "name": "matrix",
+              "position": 14,
+              "default": "NULL",
+              "type": "Array(Array(Nullable(Decimal(9, 3))))"
+            },
+            {
+              "name": "counts",
+              "position": 15,
+              "default": "map('a', [1, 2])",
+              "type": "Map(LowCardinality(String), Array(UInt64))"
             }
           ],
           "indexes": [

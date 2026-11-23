@@ -251,6 +251,17 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtShow,
 		},
 		{
+			// FROM is nonReserved: a lone FROM is the function name pattern.
+			name: "show functions with a lone FROM",
+			sql:  `SHOW FUNCTIONS FROM`,
+			kind: StmtShow,
+		},
+		{
+			name: "show functions from a schema",
+			sql:  `SHOW FUNCTIONS IN main.default LIKE 'ev*'`,
+			kind: StmtShow,
+		},
+		{
 			name: "describe table formatted",
 			sql:  `DESCRIBE TABLE FORMATTED main.default.events`,
 			kind: StmtDescribe,

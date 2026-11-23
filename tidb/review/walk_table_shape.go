@@ -12,8 +12,8 @@ import (
 // read only when Present: a column's type (its kind), the table's indexes
 // with their columns (one key, its kind the list), its foreign keys with
 // their columns and referenced table (one key each), the name the sync
-// knew the table by, and whether its AUTO_ID_CACHE is 1. The sync gives
-// each; a statement that changes one in a way the walk does not follow
+// knew the table by, whether its AUTO_ID_CACHE is 1, and whether it is
+// clustered by its primary key. The sync gives each; a statement that changes one in a way the walk does not follow
 // leaves it Unknown, and a cleared table path leaves it Absent, which says
 // nothing. The facts move with the table (walk.Move).
 const (
@@ -22,6 +22,7 @@ const (
 	spaceFKDef      = "foreign key def"
 	spaceOrigin     = "table origin"
 	spaceIDCache    = "auto id cache"
+	spaceClustered  = "clustered"
 	shapeName       = "is"
 )
 
@@ -45,9 +46,21 @@ func idCacheKey(db, table string) walk.Key {
 	return walk.Key{Space: spaceIDCache, Parent: tablePath(db, table), Name: shapeName}
 }
 
+// clusteredKey is Present, with kind clusteredYes, for a table the sync
+// says is clustered by its primary key (TIDB_PK_TYPE), and nothing else: a
+// CREATE TABLE never sets it, since whether TiDB clusters a key written
+// without CLUSTERED or NONCLUSTERED is the session's
+// tidb_enable_clustered_index. No ALTER TABLE makes a clustered table
+// unclustered: TiDB refuses to drop its primary key.
+func clusteredKey(db, table string) walk.Key {
+	return walk.Key{Space: spaceClustered, Parent: tablePath(db, table), Name: shapeName}
+}
+
+const clusteredYes = "yes"
+
 // shapeSpaces are the spaces of a table's shape, which DROP DATABASE
 // clears.
-var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet}
+var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered}
 
 // AUTO_ID_CACHE kinds: 1, or anything else (TiDB keeps the two apart).
 const (
@@ -377,6 +390,11 @@ func (s *tidbSnapshot) readShape(tk string, t *metadata.TableMetadata) {
 	} else {
 		s.idCaches[tk] = idCacheOther
 	}
+	// A global temporary table fails a SHARD_ROW_ID_BITS for being
+	// temporary first, with another error.
+	if strings.EqualFold(t.GetPrimaryKeyType(), "CLUSTERED") && !t.GetIsGlobalTemporary() {
+		s.clustered[tk] = true
+	}
 }
 
 // lookupShape answers a key of a table's shape from the sync.
@@ -406,8 +424,19 @@ func (s *tidbSnapshot) lookupShape(k walk.Key, table string) (walk.Fact, string)
 		if cs, ok := s.checkSets[table]; ok && k.Name == shapeName {
 			return walk.Present, cs
 		}
+	case spaceClustered:
+		if s.clustered[table] && k.Name == shapeName {
+			return walk.Present, clusteredYes
+		}
 	}
 	return walk.Unknown, ""
+}
+
+// clustered reports whether the walk knows the table is clustered by its
+// primary key before the statement.
+func (b *builder) clustered(r tableRef) bool {
+	f, kind := b.l.Lookup(clusteredKey(r.db, r.name))
+	return f == walk.Present && kind == clusteredYes
 }
 
 // typeOf returns a column's type before the statement, false when the

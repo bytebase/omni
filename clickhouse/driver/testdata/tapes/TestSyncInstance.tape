@@ -15,7 +15,12 @@
 |   fixed FixedString(4),
 |   flag Bool,
 |   level Enum8('info' = 1, 'warn' = 2),
-|   seen Date DEFAULT '2026-01-02'
+|   seen Date DEFAULT '2026-01-02',
+|   ref UUID DEFAULT generateUUIDv4(),
+|   price Decimal(18, 4) DEFAULT 1.5,
+|   point Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL),
+|   matrix Array(Array(Nullable(Decimal(9, 3)))),
+|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)

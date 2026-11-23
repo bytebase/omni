@@ -33,7 +33,7 @@ func TestWalkSimulation(t *testing.T) {
 		// fell with them.
 		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.908},
 		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.906},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.96},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.978},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

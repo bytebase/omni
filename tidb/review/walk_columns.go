@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/review"
@@ -13,7 +14,7 @@ import (
 // table as it was, so a key or a foreign key the same statement drops
 // still counts (verified). Each refusal was verified on v8.5.5.
 func (b *builder) alterShapeFails(v *ast.AlterTableStmt, r tableRef) bool {
-	if b.idCacheFails(v, r) {
+	if b.idCacheFails(v, r) || b.shardRowIDFails(v, r) {
 		return true
 	}
 	for _, c := range v.Commands {
@@ -185,6 +186,26 @@ func (b *builder) idCacheFails(v *ast.AlterTableStmt, r tableRef) bool {
 		return false
 	}
 	b.fail(rangeOf(opt.Loc), nil, review.UnsupportedForm, engineName+" can't move "+review.Code("AUTO_ID_CACHE")+" of "+review.Code(r.written)+" between 1 and another value.")
+	return true
+}
+
+// shardRowIDFails fails SHARD_ROW_ID_BITS above 0 on a table clustered by
+// its primary key, which has no row id to shard (8200, "Unsupported
+// shard_row_id_bits for table with primary key as row id", ShardRowID in
+// v8.5.5's ddl). TiDB judges an ALTER TABLE's subcommands in order, so the
+// walk claims only an option that comes first.
+func (b *builder) shardRowIDFails(v *ast.AlterTableStmt, r tableRef) bool {
+	if len(v.Commands) == 0 {
+		return false
+	}
+	c := v.Commands[0]
+	if c.Type != ast.ATTableOption || c.Option == nil || !strings.EqualFold(c.Option.Name, "SHARD_ROW_ID_BITS") {
+		return false
+	}
+	if n, err := strconv.ParseUint(strings.TrimSpace(c.Option.Value), 10, 64); err != nil || n == 0 || !b.clustered(r) {
+		return false
+	}
+	b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, engineName+" can't set "+review.Code("SHARD_ROW_ID_BITS")+" on "+review.Code(r.written)+", which is clustered by its primary key and has no row id to shard.")
 	return true
 }
 

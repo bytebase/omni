@@ -594,7 +594,7 @@ func TestDumpGlobalFunction(t *testing.T) {
 	t.Cleanup(dropGlobalFunctions)
 	d := openTestDriver(t, "omni_dump_global_function")
 	execDumpScript(t, d.db, `CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT) WITH PARAMETER(x) AS abs(x);
-CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT, INT) WITH PARAMETER(x, y) AS greatest(x, y);
+CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT, INT) WITH PARAMETER(x, y) AS abs(x - y);
 CREATE GLOBAL ALIAS FUNCTION dump_global_unused(INT) WITH PARAMETER(x) AS abs(x);
 CREATE ALIAS FUNCTION dump_local(INT) WITH PARAMETER(x) AS abs(x);
 CREATE VIEW calls_functions AS SELECT dump_global_called(-1) AS g, dump_local(-2) AS l`)

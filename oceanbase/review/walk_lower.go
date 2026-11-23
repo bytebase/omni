@@ -301,6 +301,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		case refFailed:
 			return true
 		case refOK:
+			if b.w.oceanBase && !v.Temporary && relKey(src.db, src.name) == relKey(r.db, r.name) {
+				// Whether or not the table exists, and under IF NOT EXISTS
+				// (1066, verified on 4.3.5).
+				b.fail(r.rng, nil, review.DuplicateName, "Table "+review.Code(r.written)+" cannot be created LIKE itself.")
+				return true
+			}
 			f, temp, kind := b.resolve(src)
 			if !temp && f != walk.Unknown {
 				b.tableNeeds(src)

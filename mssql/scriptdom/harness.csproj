@@ -7,8 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>mssql-scriptdom-harness</AssemblyName>
     <RootNamespace>Bytebase.Omni.MssqlHarness</RootNamespace>
+    <!-- ScriptDOM is referenced at exactly the version mssql/testdata/pins.tsv
+         pins, and packages.lock.json holds that version and its content hash:
+         restore fails on any other. An exact version also restores from a warm
+         NuGet cache without the network, which a floating one cannot. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode>true</RestoreLockedMode>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="161.9142.0" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="[161.9142.1]" />
   </ItemGroup>
 </Project>

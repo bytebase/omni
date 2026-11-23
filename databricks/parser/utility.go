@@ -621,7 +621,12 @@ func (p *Parser) parseShowFunctionsTail(start int) (Statement, error) {
 	if _, err := p.expect(kwFUNCTIONS); err != nil {
 		return nil, err
 	}
-	if p.match(kwFROM, kwIN) {
+	// SqlBaseParser.g4:309 SHOW identifier? FUNCTIONS ((FROM | IN)
+	// ns=identifierReference)? (LIKE? (legacy=multipartIdentifier |
+	// pattern=stringLit))?: FROM and IN are nonReserved (:1931), so a lone
+	// FROM or IN at the end is the legacy pattern, as a lone LIKE is.
+	if (p.cur().Kind == kwFROM || p.cur().Kind == kwIN) && !p.isStatementEndAt(1) {
+		p.advance()
 		if _, err := p.parseIdentifierReference(); err != nil {
 			return nil, err
 		}

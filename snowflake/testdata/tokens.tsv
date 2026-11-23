@@ -95,3 +95,180 @@ WHENEVER	(reserved)	Reserved by ANSI.
 WHERE	(reserved)	Reserved by ANSI.
 WINDOW	(reserved)	Reserved by ANSI.
 WITH	(reserved)	Reserved by ANSI.
+# Optional clauses tried at every site a page's syntax allows them, and not
+# only at the one its own row reaches. Each is an inline (...)? group of the
+# page's rule, which the reader lowers to a rule named after the group; the
+# note names the page. Rules whose group stands at one site only are left out.
+alterAggregationPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-aggregation-policy IF EXISTS
+alterAlert(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-alert IF EXISTS
+alterApiIntegration(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-api-integration IF EXISTS
+alterApplication(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-application IF EXISTS
+alterApplicationPackage(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-application-package IF EXISTS
+alterApplicationRole(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-application-role IF EXISTS
+alterApplicationService(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-application-service IF EXISTS
+alterArtifactRepository(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-artifact-repository IF EXISTS
+alterAuthenticationPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-authentication-policy IF EXISTS
+alterComputePool(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-compute-pool IF EXISTS
+alterConnection(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-connection IF EXISTS
+alterContact(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-contact IF EXISTS
+alterCortexSearch(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-cortex-search IF EXISTS
+alterDataMovementPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-policy IF EXISTS
+alterDataMovementRule(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-rule IF EXISTS
+alterDatabase(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-database IF EXISTS
+alterDatabaseCatalogLinked(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked IF EXISTS
+alterDatabaseRole(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-database-role IF EXISTS
+alterDbtProject(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-dbt-project IF EXISTS
+alterDcmProject(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-dcm-project IF EXISTS
+alterDynamicTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-dynamic-table IF EXISTS
+alterExternalAccessIntegration(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-external-access-integration IF EXISTS
+alterExternalAgent(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-external-agent IF EXISTS
+alterExternalConsumer(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-external-consumer IF EXISTS
+alterExternalTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-external-table IF EXISTS
+alterExternalVolume(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-external-volume IF EXISTS
+alterFailoverGroup(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-failover-group IF EXISTS
+alterFeaturePolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-feature-policy IF EXISTS
+alterFileFormat(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-file-format IF EXISTS
+alterFunction(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-function IF EXISTS
+alterFunctionDmf(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-function-dmf IF EXISTS
+alterFunctionSpcs(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-function-spcs IF EXISTS
+alterGitRepository(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-git-repository IF EXISTS
+alterIcebergTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table IF EXISTS
+alterIcebergTableAlterColumnSetDataType(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-alter-column-set-data-type IF EXISTS
+alterIcebergTablePartitionEvolution(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-partition-evolution IF EXISTS
+alterIcebergTableVersionTag(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table-version-tag IF EXISTS
+alterImageRepository(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-image-repository IF EXISTS
+alterIngressPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-ingress-policy IF EXISTS
+alterJoinPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-join-policy IF EXISTS
+alterListing(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-listing IF EXISTS
+alterMaintenancePolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-maintenance-policy IF EXISTS
+alterMaskingPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-masking-policy IF EXISTS
+alterModel(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-model IF EXISTS
+alterModelAddVersion(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-model-add-version IF EXISTS
+alterModelMonitor(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-model-monitor IF EXISTS
+alterNetworkPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-network-policy IF EXISTS
+alterNetworkRule(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-network-rule IF EXISTS
+alterNotebook(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notebook IF EXISTS
+alterNotificationIntegrationEmail(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-email IF EXISTS
+alterNotificationIntegrationQueueInboundAzure(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-queue-inbound-azure IF EXISTS
+alterNotificationIntegrationQueueInboundGcp(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-queue-inbound-gcp IF EXISTS
+alterNotificationIntegrationQueueOutboundAws(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-queue-outbound-aws IF EXISTS
+alterNotificationIntegrationQueueOutboundAzure(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-queue-outbound-azure IF EXISTS
+alterNotificationIntegrationQueueOutboundGcp(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-queue-outbound-gcp IF EXISTS
+alterNotificationIntegrationWebhooks(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-notification-integration-webhooks IF EXISTS
+alterOnlineFeatureTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-online-feature-table IF EXISTS
+alterOpenflowDeployment(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-openflow-deployment IF EXISTS
+alterOpenflowRuntime(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-openflow-runtime IF EXISTS
+alterOrganizationProfile(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-organization-profile IF EXISTS
+alterOrganizationUserGroup(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user-group IF EXISTS
+alterPackagesPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-packages-policy IF EXISTS
+alterPasswordPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-password-policy IF EXISTS
+alterPipe(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-pipe IF EXISTS
+alterPostgresInstance(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-postgres-instance IF EXISTS
+alterPrivacyPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-privacy-policy IF EXISTS
+alterProcedure(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-procedure IF EXISTS
+alterProjectionPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-projection-policy IF EXISTS
+alterReplicationGroup(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-replication-group IF EXISTS
+alterRestrictedSessionScope(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-restricted-session-scope IF EXISTS
+alterRole(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-role IF EXISTS
+alterRowAccessPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-row-access-policy IF EXISTS
+alterSchema(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-schema IF EXISTS
+alterSecret(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-secret IF EXISTS
+alterSecurityIntegrationOauthExternal(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration-oauth-external IF EXISTS
+alterSecurityIntegrationOauthSnowflake(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration-oauth-snowflake IF EXISTS
+alterSemanticView(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-semantic-view IF EXISTS
+alterSequence(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-sequence IF EXISTS
+alterService(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-service IF EXISTS
+alterSessionPolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-session-policy IF EXISTS
+alterShare(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-share IF EXISTS
+alterStage(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-stage IF EXISTS
+alterStorageIntegration(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-storage-integration IF EXISTS
+alterStorageLifecyclePolicy(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-storage-lifecycle-policy IF EXISTS
+alterStream(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-stream IF EXISTS
+alterStreamlit(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-streamlit IF EXISTS
+alterTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-table IF EXISTS
+alterTableEventTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-table-event-table IF EXISTS
+alterTag(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-tag IF EXISTS
+alterTask(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-task IF EXISTS
+alterTaskGraph(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph IF EXISTS
+alterType(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-type IF EXISTS
+alterUser(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-user IF EXISTS
+alterUserModifyKeyPair(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-user-modify-key-pair IF EXISTS
+alterUserModifyProgrammaticAccessToken(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-user-modify-programmatic-access-token IF EXISTS
+alterUserModifyWorkloadIdentity(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-user-modify-workload-identity IF EXISTS
+alterVariable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-variable IF EXISTS
+alterView(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-view IF EXISTS
+alterWarehouse(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/alter-warehouse IF EXISTS
+comment(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/comment IF EXISTS
+executeDbtProject(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project IF EXISTS
+truncateTable(IF_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/truncate-table IF EXISTS
+createAgent(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-agent IF NOT EXISTS
+createAiFunction(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-ai-function IF NOT EXISTS
+createAlert(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-alert IF NOT EXISTS
+createApiIntegration(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-api-integration IF NOT EXISTS
+createBackupSet(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-backup-set IF NOT EXISTS
+createCatalogIntegrationOpenCatalog(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-open-catalog IF NOT EXISTS
+createConnection(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-connection IF NOT EXISTS
+createDatabase(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-database IF NOT EXISTS
+createEventTable(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-event-table IF NOT EXISTS
+createExternalTable(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-external-table IF NOT EXISTS
+createFailoverGroup(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-failover-group IF NOT EXISTS
+createFunction(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-function IF NOT EXISTS
+createIcebergTable(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table IF NOT EXISTS
+createIcebergTableRest(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-rest IF NOT EXISTS
+createListing(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-listing IF NOT EXISTS
+createModel(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-model IF NOT EXISTS
+createModelMonitor(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-model-monitor IF NOT EXISTS
+createOpenflowConnector(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-openflow-connector IF NOT EXISTS
+createOrganizationListing(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-organization-listing IF NOT EXISTS
+createOrganizationProfile(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-organization-profile IF NOT EXISTS
+createPostgresInstance(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-postgres-instance IF NOT EXISTS
+createReplicationGroup(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-replication-group IF NOT EXISTS
+createSchema(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-schema IF NOT EXISTS
+createSecret(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-secret IF NOT EXISTS
+createSecurityIntegrationOauthSnowflake(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-oauth-snowflake IF NOT EXISTS
+createSecurityIntegrationOidc(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-oidc IF NOT EXISTS
+createSnapshotSet(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-snapshot-set IF NOT EXISTS
+createStage(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-stage IF NOT EXISTS
+createStream(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-stream IF NOT EXISTS
+createStreamlit(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-streamlit IF NOT EXISTS
+createTable(IF_NOT_EXISTS)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-table IF NOT EXISTS
+createAgent(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-agent OR REPLACE
+createAiFunction(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-ai-function OR REPLACE
+createAlert(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-alert OR REPLACE
+createApiIntegration(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-api-integration OR REPLACE
+createBackupSet(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-backup-set OR REPLACE
+createCatalogIntegrationOpenCatalog(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-open-catalog OR REPLACE
+createClone(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-clone OR REPLACE
+createCortexSearch(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-cortex-search OR REPLACE
+createDatabase(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-database OR REPLACE
+createDynamicTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table OR REPLACE
+createEventTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-event-table OR REPLACE
+createExternalTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-external-table OR REPLACE
+createFunction(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-function OR REPLACE
+createIcebergTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table OR REPLACE
+createIcebergTableRest(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-rest OR REPLACE
+createIcebergTableSnowflake(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-snowflake OR REPLACE
+createInteractiveTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table OR REPLACE
+createModel(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-model OR REPLACE
+createModelMonitor(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-model-monitor OR REPLACE
+createProcedure(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-procedure OR REPLACE
+createSchema(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-schema OR REPLACE
+createSecret(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-secret OR REPLACE
+createSecurityIntegrationOauthSnowflake(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-oauth-snowflake OR REPLACE
+createSecurityIntegrationOidc(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-security-integration-oidc OR REPLACE
+createSnapshotSet(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-snapshot-set OR REPLACE
+createStage(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-stage OR REPLACE
+createStream(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-stream OR REPLACE
+createStreamlit(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-streamlit OR REPLACE
+createTable(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-table OR REPLACE
+createTask(OR_REPLACE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-task OR REPLACE
+createAgent((TEMP|TEMPORARY))?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-agent TEMP or TEMPORARY
+createFunction((TEMP|TEMPORARY))?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-function TEMP or TEMPORARY
+createProcedure((TEMP|TEMPORARY))?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-procedure TEMP or TEMPORARY
+createStage((TEMP|TEMPORARY))?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-stage TEMP or TEMPORARY
+createDatabase(TRANSIENT)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-database TRANSIENT
+createDynamicTable(TRANSIENT)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table TRANSIENT
+createIcebergTable(TRANSIENT)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table TRANSIENT
+createIcebergTableSnowflake(TRANSIENT)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-snowflake TRANSIENT
+createSchema(TRANSIENT)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/create-schema TRANSIENT
+revokePrivilege(RESTRICT|CASCADE)?	(every site)	https://docs.snowflake.com/en/sql-reference/sql/revoke-privilege RESTRICT or CASCADE

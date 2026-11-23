@@ -11,9 +11,8 @@ import (
 	"github.com/bytebase/omni/driver"
 )
 
-// querySetup holds the types a tape can hold. Decimal, UUID, Array, Tuple and
-// Map arrive as the client's own Go types, which the tape keeps no answer for;
-// the live parity harness covers them.
+// querySetup holds the scalar types. TestQueryTypes holds the ones the client
+// answers in its own Go types: Decimal, UUID, Array, Tuple and Map.
 const querySetup = `
 CREATE TABLE q (
   id Int32,
