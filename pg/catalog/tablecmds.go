@@ -942,6 +942,23 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 	// Process constraints (composite types have no constraints).
 	if relkind != 'c' {
+		// PG 18 catalogs table NOT NULL constraints in pg_constraint (contype = 'n').
+		// Register column-level NOT NULL constraints (including explicit names)
+		// before table constraints so a PRIMARY KEY on the same column preserves
+		// an explicit CONSTRAINT <name> NOT NULL.
+		for i, col := range columns {
+			if col.NotNull {
+				var nnName string
+				if i < len(colDefs) {
+					nnName = colDefs[i].NotNullConName
+				}
+				if err := c.ensureNotNullConstraint(schema, rel, col, nnName); err != nil {
+					rollbackRelation()
+					return err
+				}
+			}
+		}
+
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
 				rollbackRelation()
@@ -957,20 +974,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			seq.OwnerRelOID = rel.OID
 			seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
 			c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[si.colIdx].AttNum), DepAuto)
-		}
-
-		// PG 18 catalogs table NOT NULL constraints in pg_constraint (contype = 'n').
-		for i, col := range columns {
-			if col.NotNull {
-				var nnName string
-				if i < len(colDefs) {
-					nnName = colDefs[i].NotNullConName
-				}
-				if err := c.ensureNotNullConstraint(schema, rel, col, nnName); err != nil {
-					rollbackRelation()
-					return err
-				}
-			}
 		}
 	}
 

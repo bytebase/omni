@@ -247,6 +247,50 @@ CREATE TABLE a (
 			t.Fatalf("expected t_x_not_null to be removed by DROP NOT NULL")
 		}
 	}
+
+	// Explicit CONSTRAINT <name> NOT NULL on a PRIMARY KEY column preserves the explicit name.
+	if got, c := execCodeVersion(t, PG18, `CREATE TABLE t_pk_nn (id int CONSTRAINT id_nn NOT NULL PRIMARY KEY);`,
+		"COMMENT ON CONSTRAINT id_nn ON t_pk_nn IS 'explicit pk nn'"); got != "" {
+		t.Fatalf("PG18 explicit NOT NULL on PK column: got %q, want ok", got)
+	} else if res, err := c.Exec("ALTER TABLE t_pk_nn RENAME CONSTRAINT id_nn TO id_nn_renamed", nil); err != nil {
+		t.Fatal(err)
+	} else if len(res) > 0 && res[0].Error != nil {
+		t.Fatalf("PG18 RENAME CONSTRAINT id_nn: %v", res[0].Error)
+	}
+
+	// Dropping a NOT NULL constraint on a partitioned table propagates to descendant partitions.
+	partNNSetup := `
+CREATE TABLE p (x int NOT NULL, k int) PARTITION BY RANGE (k);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, partNNSetup, "ALTER TABLE p DROP CONSTRAINT p_x_not_null"); got != "" {
+		t.Fatalf("PG18 DROP CONSTRAINT p_x_not_null on partitioned table: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p")
+		p1 := c.GetRelation("public", "p1")
+		if p.Columns[0].NotNull {
+			t.Fatalf("expected parent column x to become nullable")
+		}
+		if p1.Columns[0].NotNull {
+			t.Fatalf("expected partition column x to become nullable")
+		}
+		for _, con := range c.ConstraintsOf(p1.OID) {
+			if con.Type == ConstraintNotNull {
+				t.Fatalf("expected partition NOT NULL constraint to be dropped, still have %q", con.Name)
+			}
+		}
+	}
+
+	// Failed ADD COLUMN with duplicate explicit NOT NULL constraint name leaves the table unchanged.
+	if got, c := execCodeVersion(t, PG18, `CREATE TABLE t_dup_nn (a int CONSTRAINT nn NOT NULL);`,
+		"ALTER TABLE t_dup_nn ADD COLUMN b int CONSTRAINT nn NOT NULL"); got != CodeDuplicateObject {
+		t.Fatalf("PG18 ADD COLUMN duplicate NOT NULL name: got %q, want %q", got, CodeDuplicateObject)
+	} else {
+		rel := c.GetRelation("public", "t_dup_nn")
+		if len(rel.Columns) != 1 {
+			t.Fatalf("expected failed ADD COLUMN to leave 1 column, got %d", len(rel.Columns))
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

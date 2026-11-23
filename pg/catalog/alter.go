@@ -2248,6 +2248,11 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	if err := c.checkCompositeSelfReference(rel.RowTypeOID, typeOID, rel.Name); err != nil {
 		return err
 	}
+	if c.Version() >= PG18 && (colDef.NotNull || colDef.Identity == 'a' || colDef.Identity == 'd') && colDef.NotNullConName != "" {
+		if err := c.checkConstraintNameFree(rel.OID, colDef.NotNullConName); err != nil {
+			return err
+		}
+	}
 
 	var identitySeq *Sequence
 	var identityDefault string
@@ -2489,7 +2494,28 @@ func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string
 		if con.Name == conName {
 			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
 				if ci := indexOfAttNum(rel, con.Columns[0]); ci >= 0 {
-					return c.atDropNotNull(rel, rel.Columns[ci].Name)
+					colName := rel.Columns[ci].Name
+					if err := c.atDropNotNull(rel, colName); err != nil {
+						return err
+					}
+					if rel.RelKind == 'p' {
+						// Propagate to all descendant partitions (AlterTableStmt skips
+						// child recursion for AT_DropConstraint on partitioned tables).
+						queue := c.findChildRelations(rel.OID)
+						for len(queue) > 0 {
+							childOID := queue[0]
+							queue = queue[1:]
+							childRel := c.relationByOID[childOID]
+							if childRel == nil || childRel.PartitionOf == 0 {
+								continue
+							}
+							if err := c.atDropNotNull(childRel, colName); err != nil {
+								return err
+							}
+							queue = append(queue, c.findChildRelations(childRel.OID)...)
+						}
+					}
+					return nil
 				}
 			}
 			// Collect this constraint and all descendant partition constraints
