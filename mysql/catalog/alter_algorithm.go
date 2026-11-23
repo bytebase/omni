@@ -142,7 +142,10 @@ func redefinedColumnLimit(old, tbl *Table, was, is *Column) (ddlLimit, bool) {
 	if was == nil || is == nil || isEnumSetType(was.DataType) || isEnumSetType(is.DataType) {
 		return ddlLimit{}, false
 	}
-	sameCharset := columnCharset(old, was) == columnCharset(tbl, is) && columnCollation(old, was) == columnCollation(tbl, is)
+	// A character set is a string column's alone: CONVERT TO beside MODIFY
+	// id INT changes nothing of id.
+	sameCharset := !isStringType(was.DataType) && !isStringType(is.DataType) ||
+		columnCharset(old, was) == columnCharset(tbl, is) && columnCollation(old, was) == columnCollation(tbl, is)
 	if strings.EqualFold(was.ColumnType, is.ColumnType) && sameCharset {
 		if was.Nullable != is.Nullable {
 			return limitNotInstant, true

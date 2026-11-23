@@ -40,10 +40,11 @@ type fromScope struct {
 
 	// schemas maps the index in tables of an unaliased table of another
 	// schema than a view's to that schema, which qualifies its columns (see
-	// Resolver.DefaultSchema); schemaNames maps the name the scope knows
-	// that table by to the same schema.
-	schemas     map[int]string
-	schemaNames map[string]string
+	// Resolver.DefaultSchema); schemaEntries maps that table's scope entry
+	// to the same schema. An entry is its table and its name: two schemas
+	// may each give the FROM clause a table of one name.
+	schemas       map[int]string
+	schemaEntries map[scopepkg.Entry]string
 
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
 	spans map[ast.TableExpr][2]int
@@ -106,16 +107,26 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 func (sc *fromScope) qualify(i int, schema string) {
 	if sc.schemas == nil {
 		sc.schemas = make(map[int]string)
-		sc.schemaNames = make(map[string]string)
+		sc.schemaEntries = make(map[scopepkg.Entry]string)
 	}
 	sc.schemas[i] = schema
-	sc.schemaNames[sc.tables[i].Name] = schema
+	sc.schemaEntries[sc.tables[i]] = schema
 }
 
-// schemaOf returns the schema that qualifies the columns of the table the
-// scope knows by name, or "".
-func (sc *fromScope) schemaOf(name string) string {
-	return sc.schemaNames[name]
+// schemaOf returns the schema that qualifies the columns of the table of a
+// scope entry, or "".
+func (sc *fromScope) schemaOf(e scopepkg.Entry) string {
+	return sc.schemaEntries[e]
+}
+
+// cteNamed reports whether a CTE of the name is in scope.
+func (sc *fromScope) cteNamed(name string) bool {
+	for cur := sc; cur != nil; cur = cur.parent {
+		if _, ok := cur.ctes[strings.ToLower(name)]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // span records the tables registered for a FROM item since lo.

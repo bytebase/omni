@@ -390,3 +390,34 @@ func TestEventTimesInSessionTimeZone(t *testing.T) {
 		t.Errorf("ENDS one hour ahead of the session's clock: got %d", got)
 	}
 }
+
+func TestViewKeepsSchemasOfSameNamedTables(t *testing.T) {
+	// a.t and o.t are two tables of one name; each column keeps the schema
+	// it names, and the view's own goes.
+	c := familiesCatalog(t, "CREATE TABLE t (id INT); CREATE TABLE o.t (id INT);")
+	mustExec(t, c, "CREATE VIEW v AS SELECT a.t.id AS aid, o.t.id AS oid FROM a.t JOIN o.t ON a.t.id = o.t.id")
+	const want = "select `t`.`id` AS `aid`,`o`.`t`.`id` AS `oid` from (`t` join `o`.`t` on((`t`.`id` = `o`.`t`.`id`)))"
+	if got := c.GetDatabase("a").Views["v"].Definition; got != want {
+		t.Errorf("v:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestCheckDependencyIgnoresStringLiterals(t *testing.T) {
+	setup := "CREATE TABLE t (a INT, b VARCHAR(20), CONSTRAINT ck CHECK (b <> '`a`'));"
+	for _, sql := range []string{"ALTER TABLE t DROP COLUMN a", "ALTER TABLE t RENAME COLUMN a TO a2"} {
+		c := familiesCatalog(t, setup)
+		if got := familiesCode(t, c, sql); got != 0 {
+			t.Errorf("%s: got %d", sql, got)
+		}
+		if got := c.ShowCreateTable("a", "t"); !strings.Contains(got, "CONSTRAINT `ck`") {
+			t.Errorf("%s keeps ck:\n%s", sql, got)
+		}
+	}
+}
+
+func TestConvertBesideNumericModifyRunsInPlace(t *testing.T) {
+	c := familiesCatalog(t, "CREATE TABLE t (id INT) DEFAULT CHARACTER SET utf8mb4;")
+	if got := familiesCode(t, c, "ALTER TABLE t CONVERT TO CHARACTER SET latin1, MODIFY id INT, ALGORITHM=INPLACE"); got != 0 {
+		t.Errorf("got %d", got)
+	}
+}

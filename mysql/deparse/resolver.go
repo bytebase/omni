@@ -537,8 +537,10 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 
 	// Find the effective name from scope entries (preserves alias casing)
 	effectiveName := tableName
+	schema := ""
 	if entry, ok := sc.FirstEqualFold(tableName); ok {
 		effectiveName = entry.Name
+		schema = sc.schemaOf(entry)
 	}
 
 	var result []ast.ExprNode
@@ -547,7 +549,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
 			Val: &ast.ColumnRef{
-				Schema: sc.schemaOf(effectiveName),
+				Schema: schema,
 				Table:  effectiveName,
 				Column: col.Name,
 			},
@@ -738,8 +740,16 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 				// Find the effective name from scope (preserves case)
 				if entry, ok := cur.FirstEqualFold(col.Table); ok {
 					col.Table = entry.Name
-					if r.DefaultSchema != "" {
-						col.Schema = cur.schemaOf(entry.Name)
+					// A schema the column names stays, since two schemas
+					// may each give the FROM clause a table of its name,
+					// except the view's own, which goes where no CTE of
+					// the name could take the reference.
+					switch {
+					case r.DefaultSchema == "":
+					case col.Schema == "":
+						col.Schema = cur.schemaOf(entry)
+					case strings.EqualFold(col.Schema, r.DefaultSchema) && !cur.cteNamed(col.Table):
+						col.Schema = ""
 					}
 				}
 				return col
@@ -760,7 +770,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
 		// field list is ambiguous. TODO: return error
 		if entry, ok := cur.FirstWithColumn(col.Column); ok {
-			col.Schema, col.Table = cur.schemaOf(entry.Name), entry.Name
+			col.Schema, col.Table = cur.schemaOf(entry), entry.Name
 			return col
 		}
 	}

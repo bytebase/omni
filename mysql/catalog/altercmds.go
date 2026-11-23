@@ -1498,7 +1498,7 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOld
 	// (checkConstraintColumnDeps).
 	kept := tbl.Constraints[:0]
 	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && generatedExprReferencesColumn(con.CheckExpr, cmd.Name) {
+		if con.Type == ConCheck && checkExprReadsColumn(con.CheckExpr, cmd.Name) {
 			continue
 		}
 		kept = append(kept, con)
@@ -2311,7 +2311,7 @@ func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) erro
 	reads := func(con *Constraint) []string {
 		var cols []string
 		for _, col := range tbl.Columns {
-			if generatedExprReferencesColumn(con.CheckExpr, col.Name) {
+			if checkExprReadsColumn(con.CheckExpr, col.Name) {
 				cols = append(cols, toLower(col.Name))
 			}
 		}
@@ -3419,4 +3419,31 @@ func pinInheritedColumnCharsets(tbl *Table) {
 			col.CollationExplicit = true
 		}
 	}
+}
+
+// checkExprReadsColumn reports whether a stored CHECK expression names the
+// column, outside its string literals: CHECK (b <> '`a`') reads b alone.
+func checkExprReadsColumn(expr, colName string) bool {
+	var b strings.Builder
+	var quote byte
+	for i := 0; i < len(expr); i++ {
+		ch := expr[i]
+		switch {
+		case quote != 0:
+			if ch == '\\' {
+				i++
+			} else if ch == quote {
+				if i+1 < len(expr) && expr[i+1] == quote {
+					i++
+				} else {
+					quote = 0
+				}
+			}
+		case ch == '\'' || ch == '"':
+			quote = ch
+		default:
+			b.WriteByte(ch)
+		}
+	}
+	return generatedExprReferencesColumn(b.String(), colName)
 }
