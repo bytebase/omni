@@ -855,5 +855,79 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		results, err = c.Exec(`ALTER TABLE t DROP CONSTRAINT t_uk CASCADE`, nil)
 		require.NoError(t, err)
 		require.Nil(t, results[0].Error)
+		// The pre-existing unique index t_idx is preserved after dropping t_uk and can be dropped separately.
+		results, err = c.Exec(`DROP INDEX t_idx`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
+
+	t.Run("dropping constraint backed by reused nonunique index preserves physical index for subsequent DROP INDEX", func(t *testing.T) {
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "T",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false}},
+					Indexes: []*metadatapb.IndexMetadata{{
+						Name:         "T_ID_IDX",
+						Type:         "NORMAL",
+						Primary:      true,
+						Unique:       false,
+						Expressions:  []string{`"ID"`},
+						Visible:      true,
+						IsConstraint: true,
+						Constraints: []*metadatapb.IndexConstraintMetadata{
+							{Name: "T_PK", Columns: []string{`"ID"`}, Primary: true},
+						},
+					}},
+				}},
+			}},
+		})
+		require.NoError(t, err)
+
+		// Mirrors writeDropConstraintIndex migration replay: DROP CONSTRAINT then DROP INDEX.
+		results, err := c.Exec(`ALTER TABLE t DROP CONSTRAINT t_pk; DROP INDEX t_id_idx`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+		require.Empty(t, tableByName(c.Metadata().Schemas[0])["T"].Indexes)
+	})
+
+	t.Run("ALTER TABLE MOVE follows private and public synonyms while ADD does not", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER);
+			CREATE SYNONYM s FOR t;
+			CREATE PUBLIC SYNONYM ps FOR t;
+		`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE s MOVE; ALTER TABLE ps MOVE`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+
+		results, err = c.Exec(`ALTER TABLE s ADD (x NUMBER)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "00942", oraErr.Code)
+	})
+
+	t.Run("CREATE DOMAIN allows domain-backed columns and DROP DOMAIN revokes them", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE DOMAIN d AS NUMBER`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`CREATE TABLE t (id DOMAIN d)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		results, err = c.Exec(`DROP DOMAIN d; CREATE TABLE t2 (id DOMAIN d)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		var oraErr *Error
+		require.True(t, errors.As(results[1].Error, &oraErr))
+		require.Equal(t, "11504", oraErr.Code)
 	})
 }

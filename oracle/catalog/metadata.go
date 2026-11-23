@@ -81,6 +81,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		viewConstraints:      make(map[string][]viewConstraint),
 		editioningViews:      make(map[string]bool),
 		encryptedColumns:     make(map[string]bool),
+		domains:              make(map[string]bool),
 		tables:               make(map[string]*metadatapb.TableMetadata),
 		views:                make(map[string]*metadatapb.ViewMetadata),
 		materializedViews:    make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -107,6 +108,7 @@ type oracleMetadataExtractor struct {
 	viewConstraints             map[string][]viewConstraint
 	editioningViews             map[string]bool
 	encryptedColumns            map[string]bool
+	domains                     map[string]bool
 	explicitSchema              bool
 	owner                       string
 	currentDatabase             string
@@ -304,6 +306,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		}
 	case *ast.CreateSynonymStmt:
 		e.extractCreateSynonym(n)
+	case *ast.CreateDomainStmt:
+		e.extractCreateDomain(n)
 	case *ast.CreateTriggerStmt:
 		e.extractCreateTrigger(n)
 	case *ast.AlterTableStmt:
@@ -396,10 +400,13 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 				e.setError(oraError("01917", "user or role %q does not exist", column.Domain.Schema))
 				return
 			}
-			e.setError(oraError("11504", "domain %q does not exist", objectName(column.Domain)))
-			return
+			domName := objectName(column.Domain)
+			if !e.domains[domName] {
+				e.setError(oraError("11504", "domain %q does not exist", domName))
+				return
+			}
 		}
-		if column.TypeName == nil && column.Virtual == nil && !colHasInlineReferences(column) {
+		if column.TypeName == nil && column.Domain == nil && column.Virtual == nil && !colHasInlineReferences(column) {
 			e.setError(oraError("02263", "need to specify the datatype for this column"))
 			return
 		}
@@ -932,9 +939,17 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 	if !e.checkSchema(n.Name.Schema, "00942") {
 		return
 	}
-	table := e.tables[tableName]
+	targetName := tableName
+	table := e.tables[targetName]
+	if table == nil && e.materializedViews[targetName] == nil && alterActionsFollowSynonym(n.Actions) {
+		resolved := e.resolveLocalOrPublicSynonym(tableName)
+		if resolved != tableName {
+			targetName = resolved
+			table = e.tables[targetName]
+		}
+	}
 	if table == nil {
-		if e.materializedViews[tableName] != nil {
+		if e.materializedViews[targetName] != nil {
 			for _, item := range listItems(n.Actions) {
 				action, ok := item.(*ast.AlterTableCmd)
 				if !ok {
@@ -1097,6 +1112,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			var droppedColumns []string
 			opts := stringList(action.Options)
 			keepIndex := slices.Contains(opts, "KEEP INDEX")
+			dropIndex := slices.Contains(opts, "DROP INDEX")
 			cascade := slices.Contains(opts, "CASCADE")
 			online := slices.Contains(opts, "ONLINE") || keywordOutsideQuotes(e.nodeText(action), "ONLINE")
 			if action.Constraint != nil && action.Constraint.Name != "" {
@@ -1113,7 +1129,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					}
 					return
 				}
-				e.dropConstraint(table, action.Constraint.Name, keepIndex)
+				e.dropConstraint(table, action.Constraint.Name, keepIndex, dropIndex)
 			} else {
 				var columns []string
 				if action.Constraint != nil {
@@ -1147,7 +1163,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					return
 				}
 				droppedColumns = columns
-				e.dropConstraintSubtype(table, action.Subtype, columns, keepIndex)
+				e.dropConstraintSubtype(table, action.Subtype, columns, keepIndex, dropIndex)
 			}
 			if cascade && len(droppedColumns) > 0 {
 				e.dropIncomingForeignKeysForColumns(table.Name, droppedColumns)
@@ -1751,7 +1767,7 @@ func isIdentifierByte(c byte) bool {
 		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
 
-func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string, keepIndex bool) {
+func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string, keepIndex, dropIndex bool) {
 	if name == "" {
 		return
 	}
@@ -1759,6 +1775,7 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
 		if len(index.Constraints) > 0 {
+			reused := needsReusedIndexClause(index)
 			var remaining []*metadatapb.IndexConstraintMetadata
 			matched := false
 			for _, c := range index.Constraints {
@@ -1786,7 +1803,7 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 				indexes = append(indexes, index)
 				continue
 			}
-			if keepIndex {
+			if keepIndex || (reused && !dropIndex) {
 				index.Constraints = nil
 				index.IsConstraint = false
 				index.Primary = false
@@ -1828,7 +1845,7 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	table.ForeignKeys = foreignKeys
 }
 
-func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string, keepIndex bool) {
+func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string, keepIndex, dropIndex bool) {
 	var wantSorted []string
 	if subtype == "UNIQUE" && len(columns) > 0 {
 		wantSorted = make([]string, len(columns))
@@ -1840,6 +1857,7 @@ func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableM
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
 		if len(index.Constraints) > 0 {
+			reused := needsReusedIndexClause(index)
 			var remaining []*metadatapb.IndexConstraintMetadata
 			matched := false
 			for _, c := range index.Constraints {
@@ -1874,7 +1892,7 @@ func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableM
 				indexes = append(indexes, index)
 				continue
 			}
-			if keepIndex {
+			if keepIndex || (reused && !dropIndex) {
 				index.Constraints = nil
 				index.IsConstraint = false
 				index.Primary = false
@@ -2185,6 +2203,18 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 				continue
 			}
 			e.dropTrigger(name)
+		case ast.OBJECT_DOMAIN:
+			if !e.checkSchema(nameNode.Schema, "01031") {
+				return
+			}
+			if !e.domains[name] {
+				if n.IfExists {
+					continue
+				}
+				e.setError(oraError("11504", "domain %q does not exist", name))
+				return
+			}
+			delete(e.domains, name)
 		default:
 			if !e.useSchema(nameNode.Schema) {
 				continue

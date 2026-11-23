@@ -435,6 +435,61 @@ func (e *oracleMetadataExtractor) resolveLocalSynonym(name string) string {
 	return cur
 }
 
+// resolveLocalOrPublicSynonym follows private synonyms first, then a matching
+// local-target public synonym when no private synonym resolved.
+func (e *oracleMetadataExtractor) resolveLocalOrPublicSynonym(name string) string {
+	resolved := e.resolveLocalSynonym(name)
+	if resolved != name {
+		return resolved
+	}
+	syn := e.publicSynonyms[name]
+	if syn == nil || syn.TargetDbLink != "" || syn.TargetName == "" {
+		return name
+	}
+	if syn.TargetSchema != "" && syn.TargetSchema != e.currentSchema && syn.TargetSchema != e.owner {
+		return name
+	}
+	return e.resolveLocalSynonym(syn.TargetName)
+}
+
+// alterActionsFollowSynonym reports whether every clause in an ALTER TABLE
+// statement is one that follows private and public synonyms in Oracle 23
+// (MOVE and MODIFY PARTITION BY).
+func alterActionsFollowSynonym(actions *ast.List) bool {
+	items := listItems(actions)
+	if len(items) == 0 {
+		return false
+	}
+	for _, item := range items {
+		cmd, ok := item.(*ast.AlterTableCmd)
+		if !ok || (cmd.Action != ast.AT_MOVE && cmd.Action != ast.AT_MODIFY_TO_PARTITIONED) {
+			return false
+		}
+	}
+	return true
+}
+
+func (e *oracleMetadataExtractor) extractCreateDomain(n *ast.CreateDomainStmt) {
+	if n == nil || n.Name == nil {
+		return
+	}
+	name := objectName(n.Name)
+	if name == "" {
+		return
+	}
+	if !e.checkSchema(n.Name.Schema, "01031") {
+		return
+	}
+	if n.IfNotExists && e.domains[name] {
+		return
+	}
+	if !n.IfNotExists && !n.OrReplace && (e.domains[name] || e.objectExistsInNamespace(name)) {
+		e.setError(oraError("00955", "name %q is already used by an existing object", name))
+		return
+	}
+	e.domains[name] = true
+}
+
 func (e *oracleMetadataExtractor) renameSynonym(oldName, newName string) bool {
 	syn := e.synonyms[oldName]
 	if syn == nil {
