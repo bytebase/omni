@@ -990,8 +990,10 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					}
 					switch cc.Type {
 					case ast.CONSTRAINT_SCOPE, ast.CONSTRAINT_WITH_ROWID:
-						e.setError(oraError("22893", "constraint may only be specified on a REF column"))
-						return
+						if col.TypeName == nil || !col.TypeName.IsRef {
+							e.setError(oraError("22893", "constraint may only be specified on a REF column"))
+							return
+						}
 					case ast.CONSTRAINT_PRIMARY:
 						if hasPrimaryIndex(table) {
 							e.setError(oraError("02260", "table %q can have only one primary key", table.Name))
@@ -1731,6 +1733,42 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	delete(e.syntheticConstraints, table.Name+"\x00"+name)
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
+		if len(index.Constraints) > 0 {
+			var remaining []*metadatapb.IndexConstraintMetadata
+			matched := false
+			for _, c := range index.Constraints {
+				if c.Name == name {
+					matched = true
+					if c.Primary {
+						cols := c.Columns
+						if len(cols) == 0 {
+							cols = index.Expressions
+						}
+						e.clearPrimaryKeyNotNull(table, cols)
+					}
+					continue
+				}
+				remaining = append(remaining, c)
+			}
+			if !matched {
+				indexes = append(indexes, index)
+				continue
+			}
+			if len(remaining) > 0 {
+				index.Constraints = remaining
+				index.IsConstraint = true
+				index.Primary = slices.ContainsFunc(remaining, func(c *metadatapb.IndexConstraintMetadata) bool { return c.Primary })
+				indexes = append(indexes, index)
+				continue
+			}
+			if keepIndex {
+				index.Constraints = nil
+				index.IsConstraint = false
+				index.Primary = false
+				indexes = append(indexes, index)
+			}
+			continue
+		}
 		if index.Name == name && index.IsConstraint {
 			if index.Primary {
 				e.clearPrimaryKeyNotNull(table, index.Expressions)
@@ -1738,7 +1776,6 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 			if keepIndex {
 				index.IsConstraint = false
 				index.Primary = false
-				index.Unique = true
 				indexes = append(indexes, index)
 			}
 			continue
@@ -1767,8 +1804,59 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 }
 
 func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string, keepIndex bool) {
+	var wantSorted []string
+	if subtype == "UNIQUE" && len(columns) > 0 {
+		wantSorted = make([]string, len(columns))
+		for i, c := range columns {
+			wantSorted[i] = strings.Trim(c, `"`)
+		}
+		slices.Sort(wantSorted)
+	}
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
+		if len(index.Constraints) > 0 {
+			var remaining []*metadatapb.IndexConstraintMetadata
+			matched := false
+			for _, c := range index.Constraints {
+				cCols := c.Columns
+				if len(cCols) == 0 {
+					cCols = index.Expressions
+				}
+				drop := false
+				if subtype == "PRIMARY KEY" && c.Primary {
+					drop = true
+				} else if subtype == "UNIQUE" && !c.Primary {
+					drop = len(wantSorted) == 0 || columnsMatchSet(cCols, wantSorted)
+				}
+				if drop {
+					matched = true
+					if c.Primary {
+						e.clearPrimaryKeyNotNull(table, cCols)
+					}
+					delete(e.syntheticConstraints, table.Name+"\x00"+c.Name)
+					continue
+				}
+				remaining = append(remaining, c)
+			}
+			if !matched {
+				indexes = append(indexes, index)
+				continue
+			}
+			if len(remaining) > 0 {
+				index.Constraints = remaining
+				index.IsConstraint = true
+				index.Primary = slices.ContainsFunc(remaining, func(c *metadatapb.IndexConstraintMetadata) bool { return c.Primary })
+				indexes = append(indexes, index)
+				continue
+			}
+			if keepIndex {
+				index.Constraints = nil
+				index.IsConstraint = false
+				index.Primary = false
+				indexes = append(indexes, index)
+			}
+			continue
+		}
 		drop := subtype == "PRIMARY KEY" && index.Primary
 		if subtype == "UNIQUE" && index.Unique && !index.Primary {
 			drop = len(columns) == 0 || expressionsMatchColumns(index.Expressions, columns)
@@ -2461,13 +2549,14 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 		e.setError(oraError("00942", "table or view %q does not exist", tableName))
 		return
 	}
-	if e.indexExists(indexName) {
+	if e.explicitIndexExists(indexName) {
 		if n.IfNotExists {
 			return
 		}
 		e.setError(oraError("00955", "name %q is already used by an existing object", indexName))
 		return
 	}
+	e.disambiguateSyntheticIndex(indexName)
 	if table := e.tables[resolved]; table != nil {
 		for _, item := range listItems(n.Columns) {
 			column, ok := item.(*ast.IndexColumn)

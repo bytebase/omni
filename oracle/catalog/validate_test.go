@@ -725,4 +725,100 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.True(t, errors.As(results[0].Error, &oraErr))
 		require.Equal(t, "29862", oraErr.Code)
 	})
+
+	t.Run("synthetic key-index names do not block explicit CREATE INDEX", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (id NUMBER PRIMARY KEY, x NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`CREATE INDEX pk_t ON t (x)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// Second explicit index with the same name must still fail with ORA-00955.
+		results, err = c.Exec(`CREATE INDEX pk_t ON t (x)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "00955", oraErr.Code)
+	})
+
+	t.Run("ALTER TABLE ADD REF column allows WITH ROWID and SCOPE IS while non-REF rejects", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE r (id NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`
+			ALTER TABLE r ADD (c1 REF obj_t WITH ROWID);
+			ALTER TABLE r ADD (c2 REF obj_t SCOPE IS other_tbl);
+		`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+
+		results, err = c.Exec(`ALTER TABLE r ADD (bad NUMBER WITH ROWID)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "22893", oraErr.Code)
+	})
+
+	t.Run("DROP PRIMARY KEY KEEP INDEX removes constraint metadata from retained synced index", func(t *testing.T) {
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "PARENT",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false},
+							{Name: "CODE", Type: "NUMBER", Position: 2, Nullable: true},
+						},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:         "SHARED_IDX",
+							Type:         "NORMAL",
+							Primary:      true,
+							Unique:       false,
+							Expressions:  []string{`"ID"`, `"CODE"`},
+							Visible:      true,
+							IsConstraint: true,
+							Constraints: []*metadatapb.IndexConstraintMetadata{
+								{Name: "SHARED_PK", Columns: []string{`"ID"`}, Primary: true},
+								{Name: "SHARED_UK", Columns: []string{`"CODE"`}, Primary: false},
+							},
+						}},
+					},
+					{
+						Name: "CHILD",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "P_ID", Type: "NUMBER", Position: 1, Nullable: true},
+							{Name: "P_CODE", Type: "NUMBER", Position: 2, Nullable: true},
+						},
+					},
+				},
+			}},
+		})
+		require.NoError(t, err)
+
+		// Dropping PK keeps the shared index and its remaining UK constraint.
+		results, err := c.Exec(`ALTER TABLE parent DROP PRIMARY KEY KEEP INDEX`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// FK to dropped PK column now fails with ORA-02270, while FK to remaining UK succeeds.
+		results, err = c.Exec(`ALTER TABLE child ADD FOREIGN KEY (p_id) REFERENCES parent (id)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "02270", oraErr.Code)
+
+		results, err = c.Exec(`ALTER TABLE child ADD FOREIGN KEY (p_code) REFERENCES parent (code)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// Adding a new primary key now succeeds without ORA-02260.
+		results, err = c.Exec(`ALTER TABLE parent ADD CONSTRAINT new_pk PRIMARY KEY (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
 }

@@ -130,8 +130,37 @@ func (e *oracleMetadataExtractor) findIndex(name string) *metadatapb.IndexMetada
 	return nil
 }
 
-func (e *oracleMetadataExtractor) indexExists(name string) bool {
-	return e.findIndex(name) != nil
+func (e *oracleMetadataExtractor) explicitIndexExists(name string) bool {
+	for _, table := range e.tables {
+		for _, idx := range table.Indexes {
+			if idx.Name != name {
+				continue
+			}
+			if idx.IsConstraint && len(idx.Constraints) == 0 && e.syntheticConstraints[table.Name+"\x00"+idx.Name] {
+				continue
+			}
+			return true
+		}
+	}
+	for _, mv := range e.materializedViews {
+		for _, idx := range mv.Indexes {
+			if idx.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e *oracleMetadataExtractor) disambiguateSyntheticIndex(name string) {
+	if name == "" {
+		return
+	}
+	for _, table := range e.tables {
+		if e.syntheticConstraints[table.Name+"\x00"+name] {
+			e.disambiguateSyntheticConstraint(table, name)
+		}
+	}
 }
 
 func (e *oracleMetadataExtractor) constraintNameExists(name string) bool {
@@ -162,7 +191,7 @@ func (e *oracleMetadataExtractor) resolveConstraintName(table *metadatapb.TableM
 		return explicitName
 	}
 	name := fallback
-	for suffix := 1; tableHasConstraint(table, name); suffix++ {
+	for suffix := 1; tableHasConstraint(table, name) || e.findIndex(name) != nil; suffix++ {
 		name = fmt.Sprintf("%s_%d", fallback, suffix)
 	}
 	e.syntheticConstraints[table.Name+"\x00"+name] = true
@@ -178,7 +207,7 @@ func (e *oracleMetadataExtractor) disambiguateSyntheticConstraint(table *metadat
 		return
 	}
 	newName := explicitName + "_SYS1"
-	for suffix := 2; tableHasConstraint(table, newName); suffix++ {
+	for suffix := 2; tableHasConstraint(table, newName) || e.findIndex(newName) != nil; suffix++ {
 		newName = fmt.Sprintf("%s_SYS%d", explicitName, suffix)
 	}
 	e.renameConstraint(table, explicitName, newName)
