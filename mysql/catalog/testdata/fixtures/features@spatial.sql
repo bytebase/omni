@@ -1,0 +1,1 @@
+CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))

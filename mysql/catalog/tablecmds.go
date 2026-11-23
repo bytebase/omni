@@ -1034,6 +1034,22 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if declared {
 		if !c.loadingSDL {
+			if err := c.checkColumnSRIDs(stmt.Columns); err != nil {
+				return err
+			}
+			if err := c.checkOversizeVarchars(stmt.Columns, tbl.Charset); err != nil {
+				return err
+			}
+			if err := c.checkGeographicSpatialKeys(tbl); err != nil {
+				return err
+			}
+			spatialKeysForGeometry(tbl)
+			if err := checkExprReferences(tbl, createExprRefs(tbl, stmt)); err != nil {
+				return err
+			}
+			if err := c.checkRowLengths(tbl); err != nil {
+				return err
+			}
 			if err := validateAutoIncrementTypes(tbl, c.session.Version); err != nil {
 				return err
 			}
@@ -1044,6 +1060,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := c.validateTableDefaultExpressions(tbl); err != nil {
 			return err
 		}
+	}
+
+	// An engine without foreign keys parses the clause and keeps no key, but
+	// the index the clause made stays: CREATE TABLE c (id INT, FOREIGN KEY (id)
+	// REFERENCES p (id)) ENGINE=MyISAM stores KEY `id` (`id`) alone, even when
+	// p is not there (mysql:8.0.46).
+	if declared && !isInnoDBEngine(tbl.Engine) {
+		kept := tbl.Constraints[:0]
+		for _, con := range tbl.Constraints {
+			if con.Type != ConForeignKey {
+				kept = append(kept, con)
+			}
+		}
+		tbl.Constraints = kept
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -1742,6 +1772,22 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 	if err := validatePartitionClauseColumns(tbl, pc); err != nil {
 		return err
 	}
+	for _, pd := range pc.Partitions {
+		if err := checkPartitionValuesKind(pc.Type, len(pc.Columns), pd.Values); err != nil {
+			return err
+		}
+	}
+	if err := checkPartitionFieldTypes(tbl, pc.Type, pc.Columns, pc.Expr); err != nil {
+		return err
+	}
+	if partitionClauseHasSubpartitions(pc) {
+		if err := checkPartitionFieldTypes(tbl, pc.SubPartType, pc.SubPartColumns, pc.SubPartExpr); err != nil {
+			return err
+		}
+	}
+	if err := checkPartitionNamesUnique(pc.Partitions); err != nil {
+		return err
+	}
 	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
 		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
 		// bounds that strictly increase, compared column by column, and it
@@ -1768,6 +1814,11 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
+	if pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList {
+		if err := checkPartitionBounds(tbl, clauseBounds(pc)); err != nil {
+			return err
+		}
+	}
 	if err := validateSubpartitionDefinitions(pc); err != nil {
 		return err
 	}
@@ -1783,6 +1834,44 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+// createExprRefs returns the expressions a CREATE TABLE defines: its columns'
+// generated expressions and its CHECK constraints, the columns' first, as the
+// table names them.
+func createExprRefs(tbl *Table, stmt *nodes.CreateTableStmt) []exprRef {
+	refs, checks := columnExprRefs(stmt.Columns)
+	for _, con := range stmt.Constraints {
+		if con != nil && con.Type == nodes.ConstrCheck && con.Expr != nil {
+			checks = append(checks, con.Expr)
+		}
+	}
+	var made []*Constraint
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck {
+			made = append(made, con)
+		}
+	}
+	return append(refs, namedChecks(checks, made)...)
+}
+
+// clauseBounds is the partitioning a clause defines as far as its bounds go,
+// which checkPartitionBounds reads.
+func clauseBounds(pc *nodes.PartitionClause) *PartitionInfo {
+	pi := &PartitionInfo{Type: "RANGE", Columns: pc.Columns}
+	if pc.Type == nodes.PartitionList {
+		pi.Type = "LIST"
+	}
+	if len(pc.Columns) > 0 {
+		pi.Type += " COLUMNS"
+	}
+	for _, pd := range pc.Partitions {
+		if pd.Values == nil {
+			return nil
+		}
+		pi.Partitions = append(pi.Partitions, &PartitionDefInfo{Name: pd.Name, ValueExpr: partitionValueToString(pd.Values, pc.Type)})
+	}
+	return pi
 }
 
 // partitionClauseHasSubpartitions reports whether the clause writes a SUBPARTITION
@@ -2205,6 +2294,12 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	if refTbl == nil {
 		return errFKNoRefTable(con.RefTable)
 	}
+	for _, name := range con.RefColumns {
+		if refTbl.GetColumn(name) == nil {
+			return &Error{Code: 3734, SQLState: "HY000", Message: fmt.Sprintf(
+				"Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'", name, con.Name, con.RefTable)}
+		}
+	}
 
 	// Check that referenced columns have a suitable parent index.
 	// On MySQL 8.4 with restrict_fk_on_non_standard_key=ON (the default), InnoDB
@@ -2228,21 +2323,56 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if col == nil || refCol == nil {
 			continue
 		}
-		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
-			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
-		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
-		if refCol.Generated != nil && !refCol.Generated.Stored {
-			return errFKCannotUseVirtualColumn(con.RefColumns[i])
-		}
-		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+		if err := fkColumnPairError(con, col, refCol, false); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// fkColumnPairError judges one column of a foreign key against the column it
+// references, in the order mysql:8.0.46 answers: a SET NULL action on a NOT
+// NULL column (1830), a virtual column on either side (3733), a cascading or
+// nulling action on a stored generated column (3104, ON UPDATE CASCADE, ON
+// UPDATE SET NULL and ON DELETE SET NULL), and two types the key cannot
+// compare (3780). ignoreCharset lets two string columns differ in character
+// set, as an existing key's do while foreign_key_checks is off.
+func fkColumnPairError(con *Constraint, col, refCol *Column, ignoreCharset bool) error {
+	if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
+		return &Error{Code: 1830, SQLState: "HY000", Message: fmt.Sprintf(
+			"Column '%s' cannot be NOT NULL: needed in a foreign key constraint '%s' SET NULL", col.Name, con.Name)}
+	}
+	if col.Generated != nil && !col.Generated.Stored {
+		return errFKCannotUseVirtualColumn(con.Name, col.Name)
+	}
+	if refCol.Generated != nil && !refCol.Generated.Stored {
+		return errFKCannotUseVirtualColumn(con.Name, refCol.Name)
+	}
+	if col.Generated != nil {
+		for _, clause := range []struct{ on, action string }{{"UPDATE", con.OnUpdate}, {"DELETE", con.OnDelete}} {
+			action := strings.ToUpper(clause.action)
+			if action == "SET NULL" || action == "SET DEFAULT" || (clause.on == "UPDATE" && action == "CASCADE") {
+				return &Error{Code: 3104, SQLState: "HY000", Message: fmt.Sprintf(
+					"Cannot define foreign key with ON %s %s clause on a generated column.", clause.on, action)}
+			}
+		}
+	}
+	if !fkTypesCompatibleUnless(col, refCol, ignoreCharset) {
+		return errFKIncompatibleColumns(col.Name, refCol.Name, con.Name)
+	}
+	return nil
+}
+
+// fkTypesCompatibleUnless is fkTypesCompatible, with ignoreCharset leaving
+// out two string columns' character sets.
+func fkTypesCompatibleUnless(col, refCol *Column, ignoreCharset bool) bool {
+	if ignoreCharset && isStringType(col.DataType) && isStringType(refCol.DataType) {
+		same := *refCol
+		same.Charset, same.Collation = col.Charset, col.Collation
+		refCol = &same
+	}
+	return fkTypesCompatible(col, refCol)
 }
 
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
@@ -2811,6 +2941,11 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 }
 
 func (c *Catalog) validateIndexColumnsOpts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique, checkWidths bool) error {
+	// A SPATIAL key has one part, which MySQL holds it to before it reads
+	// the parts: (loc, area) with area nullable is 1070 (mysql:8.0.46).
+	if spatial && len(idxCols) > 1 {
+		return &Error{Code: 1070, SQLState: "42000", Message: "Too many key parts specified; max 1 parts allowed"}
+	}
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -4169,6 +4304,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			AutoIncrement:                srcCol.AutoIncrement,
 			Charset:                      srcCol.Charset,
 			Collation:                    srcCol.Collation,
+			CharsetExplicit:              srcCol.CharsetExplicit,
+			CollationExplicit:            srcCol.CollationExplicit,
+			NullExplicit:                 srcCol.NullExplicit,
 			Comment:                      srcCol.Comment,
 			OnUpdate:                     srcCol.OnUpdate,
 			OnUpdateKind:                 srcCol.OnUpdateKind,
@@ -4231,13 +4369,21 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		tbl.Indexes = append(tbl.Indexes, idx)
 	}
 
-	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE).
+	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE). A
+	// CHECK constraint's name is unique in its schema, so the copy names its
+	// own <table>_chk_<n> in the source's order (mysql:8.0.46).
+	checks := 0
 	for _, srcCon := range srcTbl.Constraints {
 		if srcCon.Type == ConForeignKey {
 			continue
 		}
+		name := srcCon.Name
+		if srcCon.Type == ConCheck {
+			checks++
+			name = fmt.Sprintf("%s_chk_%d", tableName, checks)
+		}
 		con := &Constraint{
-			Name:        srcCon.Name,
+			Name:        name,
 			Type:        srcCon.Type,
 			Table:       tbl,
 			Columns:     append([]string{}, srcCon.Columns...),
@@ -4252,6 +4398,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+
+	// The copy is partitioned as its source is (mysql:8.0.46).
+	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
 
 	likeSrcDB := srcDB.Name
 	if srcTbl.Database != nil {

@@ -2,9 +2,10 @@
 
 `simulate.tsv` holds the full MySQL table, index, and view DDL simulation corpus
 (the same 411 statements from `mysql/parser/testdata/compat.tsv` × 7 fixtures as
-`../simulate.tsv`, totaling 2,877 generated rows) plus 7 hand-added MySQL 8.4
-LTS-specific rows (`mysql84:*`), recorded live against the pinned MySQL 8.4 LTS
-server (`../../../testdata/pins.tsv`, role `mysql84`: `mysql:8.4.13`).
+`../simulate.tsv`, totaling 2,877 generated rows, and the same 330 family rows,
+see `../README.md`) plus 7 hand-added MySQL 8.4 LTS-specific rows (`mysql84:*`),
+recorded live against the pinned MySQL 8.4 LTS server
+(`../../../testdata/pins.tsv`, role `mysql84`: `mysql:8.4.13`).
 
 `TestSimulationMySQL84` (`../../simulate_mysql84_test.go`) replays offline from
 `../tapes/TestSimulationMySQL84.tape` without starting a server and compares
@@ -12,7 +13,7 @@ server (`../../../testdata/pins.tsv`, role `mysql84`: `mysql:8.4.13`).
 `NormalizerFor(MySQL84)`) against MySQL 8.4.13's stored `SHOW CREATE` forms
 and error codes.
 
-**2,884 rows (2,877 generated + 7 `mysql84:*` hand-added): 2,884 agree, 0 disagree (100.00%).**
+**3,214 rows (2,877 generated + 330 family + 7 `mysql84:*` hand-added): 3,214 agree, 0 disagree (100.00%).**
 
 ## MySQL 8.4 LTS behaviors covered
 

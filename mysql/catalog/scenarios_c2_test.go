@@ -510,9 +510,13 @@ func TestScenario_C2(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Set sql_mode='' on this session (oracle only — omni has no session state).
+		// Set sql_mode='' on this session, on both sides: under a strict
+		// mode both refuse VARCHAR(65536) with 1074.
 		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=''"); err != nil {
 			t.Errorf("oracle SET sql_mode: %v", err)
+		}
+		if _, err := c.Exec("SET SESSION sql_mode=''", nil); err != nil {
+			t.Errorf("omni SET sql_mode: %v", err)
 		}
 		// Restore strict mode after to avoid leaking.
 		defer func() {

@@ -277,7 +277,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
         )`
 		_, mysqlErr := mc.db.ExecContext(mc.ctx, bad)
 		if mysqlErr == nil {
-			t.Errorf("oracle: expected ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3104), got nil")
+			t.Errorf("oracle: expected ER_FK_CANNOT_USE_VIRTUAL_COLUMN (3733), got nil")
 		}
 
 		results, err := c.Exec(bad+";", nil)

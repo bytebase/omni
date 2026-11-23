@@ -3,11 +3,15 @@ package catalog
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
-func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
+// createEvent installs the event stmt defines. authored is true for a
+// statement a user runs, false for an event a snapshot already holds, whose
+// times MySQL judged when it was created.
+func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error {
 	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
@@ -18,6 +22,12 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 	// COMMIT` is 1054 and not the 1537 its name answers (mysql:8.0.46).
 	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
 		return err
+	}
+	loc, knownZone := c.sessionTimeLocation()
+	if authored {
+		if err := validateEventTimes(stmt.Schedule, time.Now(), loc, knownZone); err != nil {
+			return err
+		}
 	}
 
 	name := stmt.Name
@@ -36,10 +46,18 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		definer = "`root`@`%`"
 	}
 
-	// Extract raw schedule text from the AST.
-	schedule := ""
-	if stmt.Schedule != nil {
-		schedule = stmt.Schedule.RawText
+	schedule, at, timed := eventScheduleText(stmt.Schedule, loc)
+	enable := stmt.Enable
+	// A one-time event whose time has passed is dropped as soon as it is
+	// created, or kept DISABLE ON COMPLETION PRESERVE (mysql:8.0.46: CREATE
+	// EVENT e ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT leaves no event).
+	if authored && !c.loadingSDL && knownZone && timed && at.Before(time.Now()) {
+		if !strings.EqualFold(stmt.OnCompletion, "PRESERVE") {
+			return nil
+		}
+		if enable == "" || strings.EqualFold(enable, "ENABLE") {
+			enable = "DISABLE"
+		}
 	}
 
 	event := &Event{
@@ -48,7 +66,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		Definer:      definer,
 		Schedule:     schedule,
 		OnCompletion: stmt.OnCompletion,
-		Enable:       stmt.Enable,
+		Enable:       enable,
 		Comment:      stmt.Comment,
 		Body:         strings.TrimSpace(stmt.BodyText),
 	}
@@ -89,6 +107,10 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 
 	// The schedule is read before the event is looked up, as CREATE EVENT's is.
 	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
+		return err
+	}
+	loc, knownZone := c.sessionTimeLocation()
+	if err := validateEventTimes(stmt.Schedule, time.Now(), loc, knownZone); err != nil {
 		return err
 	}
 
@@ -135,7 +157,7 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 
 	// Update schedule if specified.
 	if stmt.Schedule != nil {
-		event.Schedule = stmt.Schedule.RawText
+		event.Schedule, _, _ = eventScheduleText(stmt.Schedule, loc)
 	}
 
 	// Update ON COMPLETION if specified.

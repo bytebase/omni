@@ -38,6 +38,18 @@ type fromScope struct {
 	tables  []scopepkg.Entry
 	entries map[ast.TableExpr]int
 
+	// schemas maps the index in tables of an unaliased table of another
+	// schema than a view's to that schema, which qualifies its columns (see
+	// Resolver.DefaultSchema); schemaEntries maps that table's scope entry
+	// to the same schema. An entry is its table and its name: two schemas
+	// may each give the FROM clause a table of one name.
+	schemas       map[int]string
+	schemaEntries map[scopepkg.Entry]string
+
+	// ownSchema holds the entries of tables of a view's own schema read
+	// under their own name, which db.t names for the view's db.
+	ownSchema map[scopepkg.Entry]bool
+
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
 	spans map[ast.TableExpr][2]int
 
@@ -63,6 +75,7 @@ type fromScope struct {
 type joinColumn struct {
 	table     int    // index of its table in fromScope.tables
 	qualifier string // the name the scope knows its table by
+	schema    string // the schema that qualifies it too, or ""
 	name      string // the column's name in its table
 	pos       int    // the column's position in its table
 }
@@ -91,6 +104,54 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 	sc.Add(name, table)
 	sc.entries[te] = len(sc.tables)
 	sc.tables = append(sc.tables, scopepkg.Entry{Name: name, Table: table})
+}
+
+// qualify records that the columns of the table at index i of tables are
+// qualified by schema.
+func (sc *fromScope) qualify(i int, schema string) {
+	if sc.schemas == nil {
+		sc.schemas = make(map[int]string)
+		sc.schemaEntries = make(map[scopepkg.Entry]string)
+	}
+	sc.schemas[i] = schema
+	sc.schemaEntries[sc.tables[i]] = schema
+}
+
+// markOwnSchema records that the table at index i of tables is one of the
+// view's own schema under its own name.
+func (sc *fromScope) markOwnSchema(i int) {
+	if sc.ownSchema == nil {
+		sc.ownSchema = make(map[scopepkg.Entry]bool)
+	}
+	sc.ownSchema[sc.tables[i]] = true
+}
+
+// schemaOf returns the schema that qualifies the columns of the table of a
+// scope entry, or "".
+func (sc *fromScope) schemaOf(e scopepkg.Entry) string {
+	return sc.schemaEntries[e]
+}
+
+// entriesNamed returns the scope's tables that the name, matched without
+// case, names.
+func (sc *fromScope) entriesNamed(name string) []scopepkg.Entry {
+	var out []scopepkg.Entry
+	for _, e := range sc.tables {
+		if strings.EqualFold(e.Name, name) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// cteNamed reports whether a CTE of the name is in scope.
+func (sc *fromScope) cteNamed(name string) bool {
+	for cur := sc; cur != nil; cur = cur.parent {
+		if _, ok := cur.ctes[strings.ToLower(name)]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // span records the tables registered for a FROM item since lo.
@@ -137,7 +198,7 @@ func (sc *fromScope) tableColumns(te ast.TableExpr, includeInvisible bool) ([]jo
 	}
 	out := make([]joinColumn, len(cols))
 	for k, c := range cols {
-		out[k] = joinColumn{table: i, qualifier: e.Name, name: c.Name, pos: c.Position}
+		out[k] = joinColumn{table: i, qualifier: e.Name, schema: sc.schemas[i], name: c.Name, pos: c.Position}
 	}
 	return out, true
 }
@@ -391,8 +452,8 @@ func columnEqualities(lefts, rights []joinColumn) ast.ExprNode {
 	for i := range lefts {
 		eq := &ast.BinaryExpr{
 			Op:    ast.BinOpEq,
-			Left:  &ast.ColumnRef{Table: lefts[i].qualifier, Column: lefts[i].name},
-			Right: &ast.ColumnRef{Table: rights[i].qualifier, Column: rights[i].name},
+			Left:  &ast.ColumnRef{Schema: lefts[i].schema, Table: lefts[i].qualifier, Column: lefts[i].name},
+			Right: &ast.ColumnRef{Schema: rights[i].schema, Table: rights[i].qualifier, Column: rights[i].name},
 		}
 		if result == nil {
 			result = eq

@@ -38,7 +38,7 @@ func TestSimulation(t *testing.T) {
 		Path:     filepath.Join("testdata", "simulate.tsv"),
 		Pins:     testcontainer.Pins,
 		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     rows,
+		Rows:     append(rows, familyRows...),
 		Omni:     simulationOmni,
 		Engine:   simulationEngine,
 	})
@@ -170,13 +170,19 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 
 // parseCode is the code the server answers a statement it does not read with:
 // the parser's own lookup refusal where it made one (1273 for a collation no
-// server of the pin has), and 1064 for a syntax error.
+// server of the pin has), the code of a refusal MySQL's parser actions raise
+// with their own number (3980, 1504), and 1064 for a syntax error.
 func parseCode(pe *mysqlparser.ParseError) string {
 	if pe.Code != 0 {
 		return strconv.Itoa(pe.Code)
 	}
 	if pe.Message == "Invalid json attribute" {
 		return "3980"
+	}
+	// PARTITIONS 0 and SUBPARTITIONS 0 are refused while MySQL parses, with
+	// 1504 (mysql/parser parsePartitionCount).
+	if strings.HasPrefix(pe.Message, "Number of ") && strings.HasSuffix(pe.Message, " = 0 is not an allowed value") {
+		return "1504"
 	}
 	return "1064"
 }
@@ -214,6 +220,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	if engine.Refused() {
 		return simulate.Omni{}
 	}
+	onlySimulationDatabase(c)
 
 	var stored strings.Builder
 	stored.WriteString(database)
@@ -241,6 +248,18 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		plan = "nothing, though from there it would run: " + GenerateMigrationWithNormalizer(want, c, back, n).SQL()
 	}
 	return simulate.Omni{Why: "to store what MySQL stores, the catalog would run: " + strings.Join(strings.Fields(plan), " ")}
+}
+
+// onlySimulationDatabase forgets every database but the row's: MySQL's side
+// is the SHOW CREATE texts of that database alone, so a table a fixture keeps
+// in a second one (schemas@cross) is compared through what the row's database
+// holds and references, not as a schema of its own.
+func onlySimulationDatabase(c *Catalog) {
+	for key, db := range c.databases {
+		if !strings.EqualFold(db.Name, simulationDatabase) {
+			delete(c.databases, key)
+		}
+	}
 }
 
 func TestSimulationExcludesProgramDDL(t *testing.T) {

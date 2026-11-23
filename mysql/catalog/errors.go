@@ -67,7 +67,7 @@ const (
 	ErrTriggerInWrongSchema              = 1435
 	ErrDupEvent                          = 1537
 	ErrEventSameName                     = 1551
-	ErrFKCannotUseVirtualColumn          = 3104
+	ErrFKCannotUseVirtualColumn          = 3733
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
@@ -705,9 +705,9 @@ func errCannotDropColumnFunctionalIndex(column string) error {
 		Message: fmt.Sprintf("Cannot drop column '%s' because it is used by a functional index.", column)}
 }
 
-func errFKCannotUseVirtualColumn(col string) error {
+func errFKCannotUseVirtualColumn(constraint, col string) error {
 	return &Error{Code: ErrFKCannotUseVirtualColumn, SQLState: sqlState(ErrFKCannotUseVirtualColumn),
-		Message: fmt.Sprintf("Cannot define foreign key with clause on a generated column '%s'", col)}
+		Message: fmt.Sprintf("Foreign key '%s' uses virtual column '%s' which is not supported.", constraint, col)}
 }
 
 func errWrongArguments(fn string) error {

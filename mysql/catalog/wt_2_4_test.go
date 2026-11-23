@@ -15,8 +15,9 @@ func TestWalkThrough_2_4_CreateTableFKUnknownTable(t *testing.T) {
 
 // TestWalkThrough_2_4_CreateTableFKUnknownColumn tests that CREATE TABLE with a FK
 // referencing an unknown column returns an error when fk_checks=1.
-// MySQL returns ErrFKMissingIndex (1822) when the referenced column has no matching
-// index (which is the case when the column doesn't exist).
+// MySQL answers 3734, "Missing column 'nonexistent' for constraint 'child_ibfk_1'
+// in the referenced table 'parent'", before it looks for the parent's index
+// (mysql:8.0.46).
 func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -24,8 +25,7 @@ func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	// The referenced column "nonexistent" doesn't exist, so there's no matching index.
-	assertError(t, results[0].Error, ErrFKMissingIndex)
+	assertError(t, results[0].Error, 3734)
 }
 
 // TestWalkThrough_2_4_DropTableReferencedByFK tests that DROP TABLE on a table

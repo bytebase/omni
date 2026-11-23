@@ -380,3 +380,28 @@ ok:9633fe9bfe86	ok:9633fe9bfe86	engine	objects@event	sp_unlabeled_control/REPEAT
 1305	1305	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:0bab460fb68a	ok:0bab460fb68a	engine	objects@event	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	objects@event	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:eb5074ef0cd6	ok:eb5074ef0cd6	engine	objects@event	event:alter	ALTER EVENT utf8mb4 RENAME TO cleanup
+ok:8d211f20ab58	ok:8d211f20ab58	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE AT '2031-01-01 00:00:00'
+ok:bb65014e23b1	ok:bb65014e23b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'
+ok:0150f8691195	ok:0150f8691195	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE
+ok:9a5e84c51e75	ok:9a5e84c51e75	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON SLAVE
+ok:720db8a7e3fe	ok:720db8a7e3fe	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE
+ok:e5f6cc0ed0b1	ok:e5f6cc0ed0b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 COMMENT 'nightly'
+ok:698ddb2b224c	ok:698ddb2b224c	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DO SELECT 1
+1543	1543	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1551	1551	engine	objects@event	event:alter	ALTER EVENT utf8mb4 RENAME TO utf8mb4
+1539	1539	engine	objects@event	event:alter	ALTER EVENT nope DISABLE
+1537	1537	engine	objects@event	event:create	CREATE EVENT utf8mb4 ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	event:create	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	event:drop	DROP EVENT utf8mb4
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	event:drop	DROP EVENT IF EXISTS nope
+1539	1539	engine	objects@event	event:drop	DROP EVENT nope
+ok:20cf60a2a47d	ok:20cf60a2a47d	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO DELETE FROM t WHERE c < 0
+1543	1543	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+ok:6aa9617e6b98	ok:6aa9617e6b98	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY ON COMPLETION PRESERVE DISABLE COMMENT 'later' DO COMMIT
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+ok:faeef7b6cc4d	ok:faeef7b6cc4d	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+1542	1542	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:04fc9be5a860	ok:04fc9be5a860	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:a97b45e8a426	ok:a97b45e8a426	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
+ok:d218b7104e9d	ok:d218b7104e9d	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
