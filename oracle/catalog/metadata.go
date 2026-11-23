@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"regexp"
 	"slices"
 	"strings"
@@ -79,6 +80,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		syntheticConstraints: make(map[string]bool),
 		viewConstraints:      make(map[string][]viewConstraint),
 		editioningViews:      make(map[string]bool),
+		encryptedColumns:     make(map[string]bool),
 		tables:               make(map[string]*metadatapb.TableMetadata),
 		views:                make(map[string]*metadatapb.ViewMetadata),
 		materializedViews:    make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -104,6 +106,7 @@ type oracleMetadataExtractor struct {
 	syntheticConstraints        map[string]bool
 	viewConstraints             map[string][]viewConstraint
 	editioningViews             map[string]bool
+	encryptedColumns            map[string]bool
 	explicitSchema              bool
 	owner                       string
 	currentDatabase             string
@@ -528,6 +531,9 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 	}
 	if n.Null {
 		column.Nullable = true
+	}
+	if n.Encrypt != "" && !strings.EqualFold(n.Encrypt, "DECRYPT") {
+		e.encryptedColumns[table.Name+"\x00"+column.Name] = true
 	}
 
 	explicitNotNull := n.NotNull
@@ -1192,10 +1198,12 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		return
 	}
 	if strings.EqualFold(def.Encrypt, "DECRYPT") {
-		e.setError(oraError("28333", "cannot decrypt a column that is not encrypted"))
-		return
+		if !e.encryptedColumns[table.Name+"\x00"+def.Name] {
+			e.setError(oraError("28333", "cannot decrypt a column that is not encrypted"))
+			return
+		}
 	}
-	if def.Encrypt != "" && e.columnInForeignKey(table, def.Name) {
+	if def.Encrypt != "" && !strings.EqualFold(def.Encrypt, "DECRYPT") && e.columnInForeignKey(table, def.Name) {
 		e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", def.Name))
 		return
 	}
@@ -1275,6 +1283,11 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 	} else if def.Invisible {
 		column.IsInvisible = true
 	}
+	if strings.EqualFold(def.Encrypt, "DECRYPT") {
+		delete(e.encryptedColumns, table.Name+"\x00"+column.Name)
+	} else if def.Encrypt != "" {
+		e.encryptedColumns[table.Name+"\x00"+column.Name] = true
+	}
 	for _, item := range listItems(def.Constraints) {
 		constraint, ok := item.(*ast.ColumnConstraint)
 		if !ok {
@@ -1293,6 +1306,7 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 
 func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, name string) {
 	delete(e.primaryKeyNotNull, table.Name+"\x00"+name)
+	delete(e.encryptedColumns, table.Name+"\x00"+name)
 	for _, check := range table.CheckConstraints {
 		if e.namedNotNull[table.Name+"\x00"+check.Name] && expressionReferencesColumn(check.Expression, name) {
 			delete(e.namedNotNull, table.Name+"\x00"+check.Name)
@@ -1362,6 +1376,10 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 		delete(e.primaryKeyNotNull, oldKey)
 		e.primaryKeyNotNull[newKey] = true
 	}
+	if e.encryptedColumns[oldKey] {
+		delete(e.encryptedColumns, oldKey)
+		e.encryptedColumns[newKey] = true
+	}
 	for _, column := range table.Columns {
 		if column.Name == oldName {
 			column.Name = newName
@@ -1377,6 +1395,17 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 				continue
 			}
 			index.Expressions[i] = renameIdentifier(expression, oldName, newName)
+		}
+		for _, constraint := range index.Constraints {
+			for i, col := range constraint.Columns {
+				if strings.Trim(col, `"`) == oldName {
+					if strings.HasPrefix(col, `"`) && strings.HasSuffix(col, `"`) {
+						constraint.Columns[i] = `"` + newName + `"`
+					} else {
+						constraint.Columns[i] = newName
+					}
+				}
+			}
 		}
 	}
 	for _, column := range table.Columns {
@@ -1796,7 +1825,13 @@ func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetada
 		return
 	}
 	for _, index := range table.Indexes {
-		if index.Name == oldName && index.IsConstraint {
+		if len(index.Constraints) > 0 {
+			for _, constraint := range index.Constraints {
+				if constraint.Name == oldName {
+					constraint.Name = newName
+				}
+			}
+		} else if index.Name == oldName && index.IsConstraint {
 			index.Name = newName
 		}
 	}
@@ -1885,6 +1920,7 @@ func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	rekeyProvenance(e.primaryKeyNotNull, oldName, newName)
 	rekeyProvenance(e.namedNotNull, oldName, newName)
 	rekeyProvenance(e.syntheticConstraints, oldName, newName)
+	rekeyProvenance(e.encryptedColumns, oldName, newName)
 	table.Name = newName
 	for _, trigger := range table.Triggers {
 		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
@@ -2018,14 +2054,15 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			if !e.checkSchema(nameNode.Schema, "01418") {
 				return
 			}
-			if !e.indexExists(name) {
+			idx := e.findIndex(name)
+			if idx == nil {
 				if n.IfExists {
 					continue
 				}
 				e.setError(oraError("01418", "specified index %q does not exist", name))
 				return
 			}
-			if n.Force {
+			if n.Force && !strings.EqualFold(idx.Type, "DOMAIN") {
 				e.setError(oraError("29862", "cannot specify FORCE option for dropping a non-domain index"))
 				return
 			}
@@ -2453,7 +2490,9 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 		Expressions: []string{},
 		Visible:     !n.Invisible,
 	}
-	if n.Bitmap {
+	if n.IndexType != nil {
+		index.Type = "DOMAIN"
+	} else if n.Bitmap {
 		index.Type = "BITMAP"
 	}
 
@@ -2695,25 +2734,26 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 		e.setError(oraError("00955", "name %q is already used by an existing object", sequenceName))
 		return
 	}
-	inc := int64(1)
-	if v, ok := parseSignedIntText(e.nodeText(n.IncrementBy)); ok {
+	inc := big.NewInt(1)
+	if v, ok := parseSignedBigInt(e.nodeText(n.IncrementBy)); ok {
 		inc = v
 	}
 	if cacheStr := e.nodeText(n.Cache); cacheStr != "" {
-		if v, ok := parseSignedIntText(cacheStr); ok && v < 2 {
+		if v, ok := parseSignedBigInt(cacheStr); ok && v.Cmp(big.NewInt(2)) < 0 {
 			e.setError(oraError("04010", "the number of values to CACHE must be greater than 1"))
 			return
 		}
 	}
-	if n.Cycle && inc > 0 && n.MaxValue == nil {
+	if n.Cycle && inc.Sign() > 0 && n.MaxValue == nil {
 		e.setError(oraError("04015", "ascending sequences that CYCLE must specify MAXVALUE"))
 		return
 	}
-	minVal, hasMin := parseSignedIntText(e.nodeText(n.MinValue))
-	if !hasMin && inc > 0 {
-		minVal, hasMin = 1, true
+	minText := e.nodeText(n.MinValue)
+	minVal, hasMin := parseSignedBigInt(minText)
+	if strings.TrimSpace(minText) == "" && inc.Sign() > 0 {
+		minVal, hasMin = big.NewInt(1), true
 	}
-	if maxVal, hasMax := parseSignedIntText(e.nodeText(n.MaxValue)); hasMax && hasMin && minVal >= maxVal {
+	if maxVal, hasMax := parseSignedBigInt(e.nodeText(n.MaxValue)); hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
 		e.setError(oraError("04004", "MINVALUE must be less than MAXVALUE"))
 		return
 	}
@@ -2752,16 +2792,16 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 		return
 	}
 	if cacheStr := e.nodeText(n.Cache); cacheStr != "" {
-		if v, ok := parseSignedIntText(cacheStr); ok && v < 2 {
+		if v, ok := parseSignedBigInt(cacheStr); ok && v.Cmp(big.NewInt(2)) < 0 {
 			e.setError(oraError("04010", "the number of values to CACHE must be greater than 1"))
 			return
 		}
 	}
-	inc := int64(1)
-	if v, ok := parseSignedIntText(sequence.Increment); ok {
+	inc := big.NewInt(1)
+	if v, ok := parseSignedBigInt(sequence.Increment); ok {
 		inc = v
 	}
-	if v, ok := parseSignedIntText(e.nodeText(n.IncrementBy)); ok {
+	if v, ok := parseSignedBigInt(e.nodeText(n.IncrementBy)); ok {
 		inc = v
 	}
 	minText := sequence.MinValue
@@ -2770,9 +2810,9 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	} else if n.NoMinValue {
 		minText = ""
 	}
-	minVal, hasMin := parseSignedIntText(minText)
-	if !hasMin && inc > 0 {
-		minVal, hasMin = 1, true
+	minVal, hasMin := parseSignedBigInt(minText)
+	if strings.TrimSpace(minText) == "" && inc.Sign() > 0 {
+		minVal, hasMin = big.NewInt(1), true
 	}
 	maxText := sequence.MaxValue
 	if n.MaxValue != nil {
@@ -2780,7 +2820,7 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	} else if n.NoMaxValue {
 		maxText = ""
 	}
-	if maxVal, hasMax := parseSignedIntText(maxText); hasMax && hasMin && minVal >= maxVal {
+	if maxVal, hasMax := parseSignedBigInt(maxText); hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
 		e.setError(oraError("04004", "MINVALUE must be less than MAXVALUE"))
 		return
 	}
@@ -2964,6 +3004,11 @@ func (e *oracleMetadataExtractor) dropTableProvenance(tableName string) {
 	for key := range e.syntheticConstraints {
 		if strings.HasPrefix(key, prefix) {
 			delete(e.syntheticConstraints, key)
+		}
+	}
+	for key := range e.encryptedColumns {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.encryptedColumns, key)
 		}
 	}
 }

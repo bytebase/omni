@@ -624,4 +624,105 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.True(t, errors.As(results[1].Error, &oraErr))
 		require.Equal(t, "42310", oraErr.Code)
 	})
+
+	t.Run("RENAME COLUMN updates IndexMetadata.Constraints for FK validation", func(t *testing.T) {
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "PARENT",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false},
+						},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:         "P_IDX",
+							Type:         "NORMAL",
+							Primary:      true,
+							Unique:       false,
+							Expressions:  []string{`"ID"`},
+							Visible:      true,
+							IsConstraint: true,
+							Constraints: []*metadatapb.IndexConstraintMetadata{
+								{Name: "P_PK", Columns: []string{`"ID"`}, Primary: true},
+							},
+						}},
+					},
+					{
+						Name: "CHILD",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "P_ID", Type: "NUMBER", Position: 1, Nullable: true},
+						},
+					},
+				},
+			}},
+		})
+		require.NoError(t, err)
+
+		results, err := c.Exec(`
+			ALTER TABLE parent RENAME COLUMN id TO new_id;
+			ALTER TABLE child ADD CONSTRAINT ch_fk FOREIGN KEY (p_id) REFERENCES parent (new_id);
+		`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+	})
+
+	t.Run("encrypted columns can be decrypted and then reject a second DECRYPT", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (id NUMBER ENCRYPT)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE t MODIFY (id DECRYPT)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		results, err = c.Exec(`ALTER TABLE t MODIFY (id DECRYPT)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "28333", oraErr.Code)
+	})
+
+	t.Run("sequence validation preserves out-of-int64 bounds", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE SEQUENCE s MINVALUE -10000000000000000000 MAXVALUE 0 START WITH -1`)
+		require.NoError(t, err)
+		require.NotNil(t, sequenceByName(c.Metadata().Schemas[0])["S"])
+
+		results, err := c.Exec(`CREATE SEQUENCE s_bad MINVALUE 100000000000000000000 MAXVALUE 10000000000000000000`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "04004", oraErr.Code)
+	})
+
+	t.Run("DROP INDEX FORCE accepts domain indexes from LoadMetadata and rejects non-domain indexes", func(t *testing.T) {
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "T",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "DOC", Type: "VARCHAR2(100)", Position: 1, Nullable: true}},
+					Indexes: []*metadatapb.IndexMetadata{
+						{Name: "DOM_IDX", Type: "DOMAIN", Expressions: []string{`"DOC"`}, Visible: true},
+						{Name: "NORM_IDX", Type: "NORMAL", Expressions: []string{`"DOC"`}, Visible: true},
+					},
+				}},
+			}},
+		})
+		require.NoError(t, err)
+
+		results, err := c.Exec(`DROP INDEX dom_idx FORCE`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		results, err = c.Exec(`DROP INDEX norm_idx FORCE`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "29862", oraErr.Code)
+	})
 }

@@ -18,6 +18,7 @@ type Catalog struct {
 	syntheticConstraints map[string]bool
 	viewConstraints      map[string][]viewConstraint
 	editioningViews      map[string]bool
+	encryptedColumns     map[string]bool
 }
 
 // New returns an empty catalog.
@@ -29,6 +30,7 @@ func New() *Catalog {
 		syntheticConstraints: map[string]bool{},
 		viewConstraints:      map[string][]viewConstraint{},
 		editioningViews:      map[string]bool{},
+		encryptedColumns:     map[string]bool{},
 	}
 }
 
@@ -51,6 +53,7 @@ func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
 	c.syntheticConstraints = map[string]bool{}
 	c.viewConstraints = map[string][]viewConstraint{}
 	c.editioningViews = map[string]bool{}
+	c.encryptedColumns = map[string]bool{}
 }
 
 // LoadMetadataReport lists snapshot objects that could not be installed as
@@ -73,6 +76,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 	c.syntheticConstraints = map[string]bool{}
 	c.viewConstraints = map[string][]viewConstraint{}
 	c.editioningViews = map[string]bool{}
+	c.encryptedColumns = map[string]bool{}
 	if meta == nil {
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil
@@ -174,6 +178,9 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	for viewName := range c.editioningViews {
 		extractor.editioningViews[viewName] = true
 	}
+	for key := range c.encryptedColumns {
+		extractor.encryptedColumns[key] = true
+	}
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err
@@ -211,6 +218,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	c.syntheticConstraints = extractor.syntheticConstraints
 	c.viewConstraints = extractor.viewConstraints
 	c.editioningViews = extractor.editioningViews
+	c.encryptedColumns = extractor.encryptedColumns
 	return nil
 }
 

@@ -2,8 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -112,22 +112,26 @@ func (e *oracleMetadataExtractor) nonSynonymObjectExists(name string) bool {
 		e.packages[name] != nil
 }
 
-func (e *oracleMetadataExtractor) indexExists(name string) bool {
+func (e *oracleMetadataExtractor) findIndex(name string) *metadatapb.IndexMetadata {
 	for _, table := range e.tables {
 		for _, idx := range table.Indexes {
 			if idx.Name == name {
-				return true
+				return idx
 			}
 		}
 	}
 	for _, mv := range e.materializedViews {
 		for _, idx := range mv.Indexes {
 			if idx.Name == name {
-				return true
+				return idx
 			}
 		}
 	}
-	return false
+	return nil
+}
+
+func (e *oracleMetadataExtractor) indexExists(name string) bool {
+	return e.findIndex(name) != nil
 }
 
 func (e *oracleMetadataExtractor) constraintNameExists(name string) bool {
@@ -422,13 +426,13 @@ func queryHasUnaliasedExpression(query ast.StmtNode) bool {
 	return false
 }
 
-func parseSignedIntText(s string) (int64, bool) {
+func parseSignedBigInt(s string) (*big.Int, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return 0, false
+		return nil, false
 	}
-	v, err := strconv.ParseInt(s, 10, 64)
-	return v, err == nil
+	v, ok := new(big.Int).SetString(s, 10)
+	return v, ok
 }
 
 func (e *oracleMetadataExtractor) validateAlterForeignKey(table *metadatapb.TableMetadata, refTable *ast.ObjectName, refColumns *ast.List) bool {
