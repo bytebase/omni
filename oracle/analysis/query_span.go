@@ -428,6 +428,15 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		for _, resource := range accessTables {
 			sourceColumns[ColumnResource{Database: resource.Database, Table: resource.Table}] = true
 		}
+		// A table through a database link, named or reached through a
+		// synonym, is the statement's too.
+		for _, resource := range linkedTables {
+			column, err := q.linkedAccessColumn(resource)
+			if err != nil {
+				return nil, err
+			}
+			sourceColumns[column] = true
+		}
 		return &ResolvedSpan{
 			Type:          queryType,
 			SourceColumns: sourceColumns,

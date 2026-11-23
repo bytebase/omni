@@ -276,6 +276,11 @@ func TestResolveQuerySpanSynonym(t *testing.T) {
 	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RT"}: true}, span.SourceColumns)
 	require.Equal(t, []QuerySpanResult{{Name: "X", SourceColumns: column("R", "RT", "X")}}, span.Results)
 
+	// A statement that writes through a synonym over a link keeps its target.
+	span = resolve("UPDATE REMOTE SET X = 1")
+	require.Equal(t, DML, span.Type)
+	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RT"}: true}, span.SourceColumns)
+
 	// A public synonym answers an unqualified name only, and a loop
 	// resolves nothing.
 	for _, statement := range []string{"SELECT A FROM DB.PUB_T", "SELECT * FROM LOOP"} {
