@@ -190,6 +190,10 @@ type walker struct {
 	noDatabase bool
 	lost       bool
 	fkChecks   review.Switch
+	// renamedColumns is set once the change renames a column: a foreign
+	// key of another table may then name it under its old name, so the walk
+	// claims nothing of a foreign key's referenced columns.
+	renamedColumns bool
 	// TiDB has no triggers or stored functions (1064), so no statement
 	// runs code that creates or drops a temporary table: the walk keeps no
 	// record of either.
