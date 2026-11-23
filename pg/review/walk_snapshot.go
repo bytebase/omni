@@ -129,6 +129,50 @@ type pgSnapshot struct {
 	lost bool
 	// inSchema lists the relations, types, and routines each schema holds.
 	inSchema map[string][]walk.Key
+
+	// Synced detail maps populated from pg/driver/sync.go metadata (cleared
+	// under OtherSpecs and invalidated per-object when altered in the change).
+	colMeta     map[[2]string]map[string]syncedCol
+	pkCols      map[[2]string][]string
+	partKeyCols map[[2]string]map[string]bool
+	fkRefs      map[[2]string][]syncedFKRef
+	compAttrs   map[[2]string]map[string]bool
+	indexDefs   map[[2]string]*syncedIndex
+	funcSigs    map[[2]string]*syncedFuncInfo
+	trigFuncs   map[[2]string][]syncedTrigRef
+}
+
+type syncedCol struct {
+	typ       string // normalized lowercase ColumnMetadata.Type
+	nullable  bool
+	identity  bool
+	generated bool
+}
+
+type syncedFKRef struct {
+	fromSchema string
+	fromTable  string
+	conName    string
+}
+
+type syncedIndex struct {
+	colNames []string
+	isExpr   []bool
+	hasExpr  bool
+}
+
+type syncedFuncInfo struct {
+	complete             bool
+	arities              map[int]bool
+	anySetof             bool
+	zeroArg              bool
+	hasDefaultOrVariadic bool
+}
+
+type syncedTrigRef struct {
+	tableSchema string
+	tableName   string
+	trigName    string
 }
 
 // newPgSnapshot reads a target's synced schema. A nil schema gives a
@@ -149,6 +193,14 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		viewCols:          make(map[[2]string]int),
 		anywhere:          make(map[string]bool),
 		inSchema:          make(map[string][]walk.Key),
+		colMeta:           make(map[[2]string]map[string]syncedCol),
+		pkCols:            make(map[[2]string][]string),
+		partKeyCols:       make(map[[2]string]map[string]bool),
+		fkRefs:            make(map[[2]string][]syncedFKRef),
+		compAttrs:         make(map[[2]string]map[string]bool),
+		indexDefs:         make(map[[2]string]*syncedIndex),
+		funcSigs:          make(map[[2]string]*syncedFuncInfo),
+		trigFuncs:         make(map[[2]string][]syncedTrigRef),
 	}
 	if db == nil {
 		return s
@@ -171,13 +223,34 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			rel(t.GetName(), relTable)
 			rowType(t.GetName())
 			cols := make(map[string]bool, len(t.GetColumns()))
+			var cmeta map[string]syncedCol
 			for _, c := range t.GetColumns() {
 				cols[c.GetName()] = true
+				if c.GetType() != "" && c.GetPosition() > 0 {
+					if cmeta == nil {
+						cmeta = make(map[string]syncedCol, len(t.GetColumns()))
+					}
+					cmeta[c.GetName()] = syncedCol{
+						typ:       strings.ToLower(strings.TrimSpace(c.GetType())),
+						nullable:  c.GetNullable(),
+						identity:  c.GetIdentityGeneration() != metadata.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED,
+						generated: c.GetGeneration() != nil,
+					}
+				}
 			}
 			s.columns[key] = cols
+			if len(cmeta) > 0 {
+				s.colMeta[key] = cmeta
+			}
 			cons := make(map[string]string)
 			for _, idx := range t.GetIndexes() {
 				rel(idx.GetName(), relIndex)
+				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
+					s.indexDefs[[2]string{name, idx.GetName()}] = idxInfo
+					if idx.GetPrimary() && !idxInfo.hasExpr && len(idxInfo.colNames) > 0 {
+						s.pkCols[key] = idxInfo.colNames
+					}
+				}
 				switch {
 				case idx.GetPrimary():
 					cons[idx.GetName()] = conPrimary
@@ -188,6 +261,20 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			}
 			for _, fk := range t.GetForeignKeys() {
 				cons[fk.GetName()] = conForeign
+				if fk.GetReferencedTable() != "" {
+					refSchema := fk.GetReferencedSchema()
+					if refSchema == "" {
+						refSchema = name
+					}
+					refKey := [2]string{refSchema, fk.GetReferencedTable()}
+					if refKey != key {
+						s.fkRefs[refKey] = append(s.fkRefs[refKey], syncedFKRef{
+							fromSchema: name,
+							fromTable:  t.GetName(),
+							conName:    fk.GetName(),
+						})
+					}
+				}
 			}
 			for _, c := range t.GetCheckConstraints() {
 				cons[c.GetName()] = conCheck
@@ -199,8 +286,21 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			trigs := make(map[string]bool, len(t.GetTriggers()))
 			for _, tr := range t.GetTriggers() {
 				trigs[tr.GetName()] = true
+				if fSchema, fName, ok := parseTriggerFunc(tr.GetBody()); ok {
+					s.trigFuncs[[2]string{fSchema, fName}] = append(s.trigFuncs[[2]string{fSchema, fName}], syncedTrigRef{
+						tableSchema: name,
+						tableName:   t.GetName(),
+						trigName:    tr.GetName(),
+					})
+				}
 			}
 			s.triggers[key] = trigs
+			for _, p := range t.GetPartitions() {
+				if pcols := parsePartKeyCols(p.GetExpression()); len(pcols) > 0 {
+					s.partKeyCols[key] = pcols
+					break
+				}
+			}
 			s.addPartitions(name, t.GetPartitions())
 		}
 		for _, t := range schema.GetExternalTables() {
@@ -224,6 +324,9 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			rowType(v.GetName())
 			for _, idx := range v.GetIndexes() {
 				rel(idx.GetName(), relIndex)
+				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
+					s.indexDefs[[2]string{name, idx.GetName()}] = idxInfo
+				}
 			}
 		}
 		for _, q := range schema.GetSequences() {
@@ -232,6 +335,13 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, c := range schema.GetCompositeTypes() {
 			rel(c.GetName(), relComposite)
 			rowType(c.GetName())
+			if len(c.GetAttributes()) > 0 {
+				attrs := make(map[string]bool, len(c.GetAttributes()))
+				for _, a := range c.GetAttributes() {
+					attrs[a.GetName()] = true
+				}
+				s.compAttrs[[2]string{name, c.GetName()}] = attrs
+			}
 		}
 		for _, e := range schema.GetEnumTypes() {
 			rowType(e.GetName())
@@ -258,17 +368,50 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			// with their pg_get_functiondef() text (CREATE OR REPLACE PROCEDURE).
 			// Classify them via kindOf; an empty Definition may be either kind.
 			k := kindOf(fn)
+			fk := [2]string{name, fn.GetName()}
 			if k == kindFunction|kindProcedure {
-				s.ambigRoutines[[2]string{name, fn.GetName()}] = true
+				s.ambigRoutines[fk] = true
+				if fi := s.funcSigs[fk]; fi != nil {
+					fi.complete = false
+				} else {
+					s.funcSigs[fk] = &syncedFuncInfo{complete: false}
+				}
 				continue
 			}
 			if k&kindFunction != 0 {
-				s.functions[[2]string{name, fn.GetName()}] = true
+				s.functions[fk] = true
 				s.inSchema[name] = append(s.inSchema[name], funcKey(name, fn.GetName()))
+				fi := s.funcSigs[fk]
+				if fi == nil {
+					fi = &syncedFuncInfo{complete: true, arities: make(map[int]bool)}
+					s.funcSigs[fk] = fi
+				}
+				if fi.complete {
+					if arity, setof, defOrVar, ok := parseFuncDef(fn.GetDefinition()); ok {
+						fi.arities[arity] = true
+						if arity == 0 {
+							fi.zeroArg = true
+						}
+						if setof {
+							fi.anySetof = true
+						}
+						if defOrVar {
+							fi.hasDefaultOrVariadic = true
+						}
+					} else {
+						fi.complete = false
+					}
+				}
 			}
 			if k&kindProcedure != 0 {
-				s.procedures[[2]string{name, fn.GetName()}] = true
+				s.procedures[fk] = true
 				s.inSchema[name] = append(s.inSchema[name], procKey(name, fn.GetName()))
+			}
+		}
+		// Mark any range/multirange constructor names incomplete in funcSigs.
+		for rk := range s.rangeConstructors {
+			if fi := s.funcSigs[rk]; fi != nil {
+				fi.complete = false
 			}
 		}
 		for _, pr := range schema.GetProcedures() {
@@ -386,6 +529,171 @@ func isInternalConstraintTrigger(name string) bool {
 	return strings.HasPrefix(name, "RI_ConstraintTrigger_") ||
 		strings.HasPrefix(name, "Unique_ConstraintTrigger_") ||
 		strings.HasPrefix(name, "PK_ConstraintTrigger_")
+}
+
+// parseSyncedIndex parses a pg_get_indexdef() CREATE INDEX definition and
+// extracts its column names and expression flags.
+func parseSyncedIndex(def string) *syncedIndex {
+	if def == "" {
+		return nil
+	}
+	list, err := parser.Parse(def)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return nil
+	}
+	stmt, ok := raw.Stmt.(*ast.IndexStmt)
+	if !ok || stmt.IndexParams == nil || len(stmt.IndexParams.Items) == 0 {
+		return nil
+	}
+	info := &syncedIndex{
+		colNames: make([]string, 0, len(stmt.IndexParams.Items)),
+		isExpr:   make([]bool, 0, len(stmt.IndexParams.Items)),
+	}
+	for _, item := range stmt.IndexParams.Items {
+		elem, ok := item.(*ast.IndexElem)
+		if !ok {
+			return nil
+		}
+		if elem.Expr != nil {
+			info.colNames = append(info.colNames, "")
+			info.isExpr = append(info.isExpr, true)
+			info.hasExpr = true
+		} else {
+			name, ok := walkName(elem.Name)
+			if !ok {
+				return nil
+			}
+			info.colNames = append(info.colNames, name)
+			info.isExpr = append(info.isExpr, false)
+		}
+	}
+	if stmt.IndexIncludingParams != nil {
+		for _, item := range stmt.IndexIncludingParams.Items {
+			elem, ok := item.(*ast.IndexElem)
+			if !ok || elem.Name == "" {
+				return nil
+			}
+			name, ok := walkName(elem.Name)
+			if !ok {
+				return nil
+			}
+			info.colNames = append(info.colNames, name)
+			info.isExpr = append(info.isExpr, false)
+		}
+	}
+	return info
+}
+
+// parsePartKeyCols extracts plain column names from pg_get_partkeydef()
+// (e.g. "RANGE (a)" or "HASH (a, b)") via the PostgreSQL parser.
+func parsePartKeyCols(expr string) map[string]bool {
+	if expr == "" {
+		return nil
+	}
+	list, err := parser.Parse("CREATE TABLE _t (_ int) PARTITION BY " + expr)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return nil
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateStmt)
+	if !ok || stmt.Partspec == nil || stmt.Partspec.PartParams == nil {
+		return nil
+	}
+	var out map[string]bool
+	for _, item := range stmt.Partspec.PartParams.Items {
+		pe, ok := item.(*ast.PartitionElem)
+		if !ok || pe.Name == "" || pe.Expr != nil {
+			continue
+		}
+		if name, ok := walkName(pe.Name); ok {
+			if out == nil {
+				out = make(map[string]bool)
+			}
+			out[name] = true
+		}
+	}
+	return out
+}
+
+// parseTriggerFunc parses a pg_get_triggerdef() CREATE TRIGGER definition and
+// returns the schema and name of the executed trigger function when qualified.
+func parseTriggerFunc(body string) (schema, name string, ok bool) {
+	if body == "" {
+		return "", "", false
+	}
+	list, err := parser.Parse(body)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return "", "", false
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return "", "", false
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateTrigStmt)
+	if !ok || stmt.Funcname == nil {
+		return "", "", false
+	}
+	parts := nameParts(stmt.Funcname)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	s, ok1 := walkName(parts[0])
+	fn, ok2 := walkName(parts[1])
+	if !ok1 || !ok2 {
+		return "", "", false
+	}
+	return s, fn, true
+}
+
+// parseFuncDef parses a pg_get_functiondef() CREATE FUNCTION definition and
+// returns its input argument count (IN/INOUT/VARIADIC), whether it returns
+// a set (SETOF or TABLE(...)), and whether any parameter has a DEFAULT value
+// or is VARIADIC.
+func parseFuncDef(def string) (arity int, setof, defOrVar, ok bool) {
+	if def == "" {
+		return 0, false, false, false
+	}
+	list, err := parser.Parse(def)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return 0, false, false, false
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return 0, false, false, false
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateFunctionStmt)
+	if !ok {
+		return 0, false, false, false
+	}
+	if stmt.ReturnType != nil && stmt.ReturnType.Setof {
+		setof = true
+	}
+	if stmt.Parameters != nil {
+		for _, item := range stmt.Parameters.Items {
+			fp, ok := item.(*ast.FunctionParameter)
+			if !ok {
+				return 0, false, false, false
+			}
+			if fp.Defexpr != nil || fp.Mode == ast.FUNC_PARAM_VARIADIC {
+				defOrVar = true
+			}
+			switch fp.Mode {
+			case ast.FUNC_PARAM_OUT:
+			case ast.FUNC_PARAM_TABLE:
+				setof = true
+			default:
+				arity++
+			}
+		}
+	}
+	return arity, setof, defOrVar, true
 }
 
 // builtinCatalogFunctions holds every built-in function name in PostgreSQL's

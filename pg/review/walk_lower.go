@@ -2,6 +2,7 @@ package review
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -472,6 +473,21 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 					return true
 				}
 			}
+			if plain {
+				for _, con := range cons {
+					if con.Contype != ast.CONSTR_CHECK {
+						continue
+					}
+					if col, ok := bareColumnRef(con.RawExpr); ok && !seen[col] && !systemColumns[col] {
+						if col == name {
+							b.failAt(rangeOf(con.Loc), nil, review.UnsupportedForm, unsupported("non-boolean expression in `CHECK` constraint")) // 42804
+						} else {
+							b.failAt(rangeOf(con.Loc), nil, review.ObjectNotFound, notFoundIn("column", ident(col), relation(rv))) // 42703
+						}
+						return true
+					}
+				}
+			}
 			for _, col := range cols {
 				if col.TypeName == nil || isSerial(col.TypeName) {
 					continue
@@ -721,11 +737,29 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 		return
 	}
 	kind := constraintKind(con.Contype)
+	var fkTarget resolved
 	if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && alter {
-		b.exists(con.Pktable, false)
+		fkTarget = b.exists(con.Pktable, false)
 	}
 	if alter && con.Indexname == "" {
 		b.checkConstraintColumns(t, rv, con, rng)
+	}
+	if alter && con.Contype == ast.CONSTR_CHECK {
+		if col, ok := bareColumnRef(con.RawExpr); ok && b.colTouch[col] == 0 {
+			if sc, ok := b.w.syncedCol(t, col); ok && isPinnedNonBoolType(sc.typ) {
+				b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("non-boolean expression in `CHECK` constraint")) // 42804
+				return
+			}
+		}
+	}
+	if alter && con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && fkTarget.fact == walk.Present &&
+		(con.PkAttrs == nil || len(con.PkAttrs.Items) == 0) && con.FkAttrs != nil && !b.w.isTableDirty(fkTarget.key) {
+		if pkCols := b.w.pg.pkCols[[2]string{schemaOfKey(fkTarget.key), fkTarget.key.Name}]; len(pkCols) > 0 {
+			if len(con.FkAttrs.Items) != len(pkCols) {
+				b.failAt(rng, []walk.Key{fkTarget.key}, review.UnsupportedForm, unsupported("foreign key column count mismatch with primary key of "+review.Code(relation(con.Pktable)))) // 42830
+				return
+			}
+		}
 	}
 	if con.Contype == ast.CONSTR_PRIMARY {
 		pk := primaryKeyOf(t)
@@ -985,7 +1019,10 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	b.set(tk, walk.Present, typOther)
 	b.mayAddArrayType(c.schema)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
-	b.session(func() { b.w.modifiedViews[k] = true })
+	b.session(func() {
+		b.w.modifiedViews[k] = true
+		b.w.dirtyTables[k] = true
+	})
 	if temp || c.schema == tempSchema {
 		b.session(func() { b.w.temporary = true })
 	}
@@ -1301,6 +1338,7 @@ func (b *builder) createRange(v *ast.CreateRangeStmt) bool {
 	// range / multirange constructor functions in pg_proc. Weaken their target
 	// scopes so later references are not falsely reported absent.
 	b.mayAdd(walk.Scope{Space: spaceFunction, Parent: walk.Path(c.schema)})
+	b.session(func() { b.w.allDirty = true })
 	if multirangeArg != nil {
 		var mrParts []string
 		switch arg := multirangeArg.(type) {
@@ -1831,6 +1869,27 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 					}
 				}
 			}
+			for _, cmd := range cmds {
+				switch ast.AlterTableType(cmd.Subtype) {
+				case ast.AT_AddColumn:
+					if def, ok := cmd.Def.(*ast.ColumnDef); ok && !b.w.isTypeDirty(r.key) {
+						if an, ok := walkName(def.Colname); ok && !droppedAttrs[an] {
+							if b.w.pg.compAttrs[[2]string{schemaOfKey(r.key), r.key.Name}][an] {
+								b.failAt(rangeOf(cmd.Loc), []walk.Key{r.key}, review.DuplicateName, alreadyExistsIn("attribute", ident(def.Colname), relation(v.Relation))) // 42701
+								return true
+							}
+						}
+					}
+				case ast.AT_AlterColumnType:
+					if def, ok := cmd.Def.(*ast.ColumnDef); ok && def.TypeName != nil && def.TypeName.ArrayBounds == nil {
+						if tr := b.resolveType(nameParts(def.TypeName.Names)); tr.fact == walk.Present && !tr.builtin && tr.key == typeKey(schemaOfKey(r.key), r.key.Name) {
+							b.failAt(rangeOf(cmd.Loc), []walk.Key{r.key}, review.UnsupportedForm, "Composite type "+review.Code(relation(v.Relation))+" can't reference itself.") // 42P16
+							return true
+						}
+					}
+				}
+			}
+			b.session(func() { b.w.dirtyTypes[r.key] = true })
 		}
 		// Where the relation is, or what the subcommands do to a relation
 		// of its kind, is not followed: check known target-index/type
@@ -1854,10 +1913,38 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.repeated(v.Relation, cmds)
 	b.drops = make(map[string]bool)
 	b.added = make(map[string]bool)
+	b.colTouch = make(map[string]int)
+	b.conDropped = false
 	for _, cmd := range cmds {
-		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
+		sub := ast.AlterTableType(cmd.Subtype)
+		switch sub {
+		case ast.AT_DropColumn:
 			if k, ok := storedKey(cmd.Name); ok {
 				b.drops[k] = true
+				b.colTouch[k]++
+			}
+		case ast.AT_AddColumn:
+			if def, ok := cmd.Def.(*ast.ColumnDef); ok {
+				if k, ok := storedKey(def.Colname); ok {
+					b.colTouch[k]++
+				}
+			}
+		case ast.AT_AlterColumnType, ast.AT_SetNotNull, ast.AT_DropNotNull,
+			ast.AT_AddIdentity, ast.AT_DropIdentity, ast.AT_DropExpression:
+			if k, ok := storedKey(cmd.Name); ok {
+				b.colTouch[k]++
+			}
+		case ast.AT_DropConstraint:
+			b.conDropped = true
+		case ast.AT_AddConstraint:
+			if con, ok := cmd.Def.(*ast.Constraint); ok && con.Contype == ast.CONSTR_PRIMARY && con.Keys != nil {
+				for _, item := range con.Keys.Items {
+					if s, ok := item.(*ast.String); ok {
+						if k, ok := storedKey(s.Str); ok {
+							b.colTouch[k]++
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1867,6 +1954,13 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			return false
 		}
 	}
+	b.session(func() {
+		if v.Relation.Inh {
+			b.w.allDirty = true
+		} else {
+			b.w.dirtyTables[r.key] = true
+		}
+	})
 	return true
 }
 
@@ -2169,6 +2263,10 @@ func (b *builder) dropColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableCm
 		if !cmd.Missing_ok {
 			b.need(ck, walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(cmd.Name), relation(rv))}) // 42703
 		}
+		if !b.w.isTableDirty(t) && b.w.pg != nil && b.w.pg.partKeyCols[[2]string{schemaOfKey(t), t.Name}][name] {
+			b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("dropping partition key column "+review.Code(ident(cmd.Name)))) // 42P16
+			return
+		}
 		if inh {
 			b.mayRemove(walk.Scope{Space: spaceColumn, Deep: true, Prefix: name})
 		}
@@ -2244,6 +2342,47 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 			b.checkIdentityOptions(def.Options, rng)
 		}
 	}
+	if ok && !b.w.isTableDirty(t) {
+		sc, hasCol := b.w.syncedCol(t, name)
+		switch sub {
+		case ast.AT_DropExpression:
+			if !cmd.Missing_ok && hasCol && !sc.generated && b.colTouch[name] <= 1 {
+				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`DROP EXPRESSION` on non-generated column "+review.Code(ident(cmd.Name)))) // 55000
+				return
+			}
+		case ast.AT_SetExpression:
+			if hasCol && !sc.generated && b.colTouch[name] == 0 {
+				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`SET EXPRESSION` on non-generated column "+review.Code(ident(cmd.Name)))) // 55000
+				return
+			}
+		case ast.AT_DropIdentity:
+			if !cmd.Missing_ok && hasCol && !sc.identity && b.colTouch[name] <= 1 {
+				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`DROP IDENTITY` on non-identity column "+review.Code(ident(cmd.Name)))) // 55000
+				return
+			}
+		case ast.AT_SetIdentity:
+			if hasCol && !sc.identity && b.colTouch[name] == 0 {
+				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("identity column alteration on non-identity column "+review.Code(ident(cmd.Name)))) // 55000
+				return
+			}
+		case ast.AT_AddIdentity:
+			if hasCol && b.colTouch[name] <= 1 {
+				if isKnownNonIntegerBuiltinType(sc.typ) {
+					b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`ADD GENERATED AS IDENTITY` on non-integer column "+review.Code(ident(cmd.Name)))) // 22023
+					return
+				}
+				if sc.nullable {
+					b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`ADD GENERATED AS IDENTITY` on nullable column "+review.Code(ident(cmd.Name)))) // 55000
+					return
+				}
+			}
+		case ast.AT_DropNotNull:
+			if !b.conDropped && b.colTouch[name] <= 1 && b.w.pg != nil && slices.Contains(b.w.pg.pkCols[[2]string{schemaOfKey(t), t.Name}], name) {
+				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`DROP NOT NULL` on primary key column "+review.Code(ident(cmd.Name)))) // 42P16
+				return
+			}
+		}
+	}
 	parent := tableOf(t)
 	switch sub {
 	case ast.AT_SetNotNull, ast.AT_DropNotNull:
@@ -2309,6 +2448,7 @@ func (b *builder) dropConstraint(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTab
 
 // rename follows the RENAME forms of ALTER.
 func (b *builder) rename(v *ast.RenameStmt) bool {
+	b.session(func() { b.w.allDirty = true })
 	switch v.RenameType {
 	case ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_INDEX, ast.OBJECT_SEQUENCE, ast.OBJECT_FOREIGN_TABLE:
 		return b.renameRelation(v)
@@ -2609,6 +2749,7 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 //
 // pg: src/backend/commands/tablecmds.c — AlterTableNamespaceInternal
 func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
+	b.session(func() { b.w.allDirty = true })
 	switch v.ObjectType {
 	case ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_SEQUENCE, ast.OBJECT_FOREIGN_TABLE:
 	case ast.OBJECT_DOMAIN:
@@ -2751,14 +2892,23 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			b.dropType(parts, tn, v.Missing_ok, kind == ast.OBJECT_DOMAIN)
 		}
 	case dropKinds[kind].kind != "":
+		var dropping map[walk.Key]bool
+		if kind == ast.OBJECT_TABLE && !cascade {
+			dropping = make(map[walk.Key]bool, len(v.Objects.Items))
+			for _, obj := range v.Objects.Items {
+				if r := b.nameList(nameParts(listOf(obj))); r.fact == walk.Present {
+					dropping[r.key] = true
+				}
+			}
+		}
 		for _, obj := range v.Objects.Items {
 			b.next()
-			b.dropRelation(kind, nameParts(listOf(obj)), v.Missing_ok)
+			b.dropRelation(kind, nameParts(listOf(obj)), v.Missing_ok, cascade, dropping)
 		}
 	case kind == ast.OBJECT_FUNCTION || kind == ast.OBJECT_PROCEDURE || kind == ast.OBJECT_ROUTINE:
 		for _, obj := range v.Objects.Items {
 			b.next()
-			b.dropRoutine(obj, kind, v.Missing_ok)
+			b.dropRoutine(obj, kind, v.Missing_ok, cascade)
 		}
 	case kind == ast.OBJECT_TRIGGER:
 		for _, obj := range v.Objects.Items {
@@ -2775,11 +2925,12 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	}
 	if cascade {
 		b.mayRemove(walk.Scope{Deep: true})
+		b.session(func() { b.w.allDirty = true })
 	}
 	return true
 }
 
-func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bool) {
+func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK, cascade bool, dropping map[walk.Key]bool) {
 	want := dropKinds[kind]
 	written := qualified(parts)
 	r := b.nameList(parts)
@@ -2796,9 +2947,17 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bo
 		return
 	case walk.Unknown:
 		b.dropUnknown(parts)
+		b.session(func() { b.w.allDirty = true })
 		return
 	}
 	b.need(r.key, walk.Present, []string{want.kind}, ofKind(b.anchor(), written, want.word)) // 42809
+	if kind == ast.OBJECT_TABLE && !cascade && r.kind == relTable {
+		if ref, ok := b.activeFKDependent(r.key, dropping, false); ok {
+			b.fail([]walk.Key{r.key, relKey(ref.fromSchema, ref.fromTable)}, walk.Present, review.UnsupportedForm, "Table "+review.Code(written)+" is referenced by foreign key on "+review.Code(ident(ref.fromTable))+" and can't be dropped without `CASCADE`.") // 2BP01
+			return
+		}
+	}
+	b.session(func() { b.w.dirtyTables[r.key] = true })
 	b.dropped(r.key, r.kind)
 }
 
@@ -2849,7 +3008,10 @@ func (b *builder) dropped(k walk.Key, kind string) {
 	for _, child := range b.w.partitions[k] {
 		b.dropped(child, relTable)
 	}
-	b.session(func() { b.w.modifiedViews[k] = true })
+	b.session(func() {
+		b.w.modifiedViews[k] = true
+		b.w.dirtyTables[k] = true
+	})
 	b.unlisted(k)
 }
 
@@ -2875,6 +3037,7 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 	b.set(k, walk.Absent, "")
 	b.clear(walk.Scope{Parent: walk.Path(name), Deep: true})
 	b.session(func() {
+		b.w.allDirty = true
 		// What it held is gone, and so is the partition state of it.
 		w := b.w
 		in := func(k walk.Key) bool { return k.Parent == walk.Path(name) }
@@ -3209,7 +3372,9 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		}
 	case kind == ast.OBJECT_FUNCTION, kind == ast.OBJECT_PROCEDURE, kind == ast.OBJECT_ROUTINE:
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
-			b.checkRoutine(owa, kind, false)
+			// COMMENT ON FUNCTION / ROUTINE also accepts aggregates (prokind = 'a'),
+			// which pg/driver/sync.go omits from SchemaMetadata.Functions.
+			b.checkRoutine(owa, kind, false, kind != ast.OBJECT_PROCEDURE)
 		}
 	case kind == ast.OBJECT_DOMCONSTRAINT:
 		if list := listOf(v.Object); list != nil && len(list.Items) >= 2 {
@@ -3270,6 +3435,18 @@ func (b *builder) grant(v *ast.GrantStmt) bool {
 // a table (42P01, 42809). A TRUNCATE trigger may run anything.
 func (b *builder) truncate(v *ast.TruncateStmt) bool {
 	if v.Relations != nil {
+		cascade := ast.DropBehavior(v.Behavior) == ast.DROP_CASCADE
+		var truncating map[walk.Key]bool
+		if !cascade {
+			truncating = make(map[walk.Key]bool, len(v.Relations.Items))
+			for _, item := range v.Relations.Items {
+				if rv, ok := item.(*ast.RangeVar); ok {
+					if r := b.rangeVar(rv); r.fact == walk.Present {
+						truncating[r.key] = true
+					}
+				}
+			}
+		}
 		for _, item := range v.Relations.Items {
 			rv, ok := item.(*ast.RangeVar)
 			if !ok {
@@ -3286,6 +3463,11 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, review.UnsupportedForm, unsupported("`TRUNCATE ONLY` of partitioned table "+review.Code(relation(rv))))
 			default:
 				b.need(r.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(rv.Loc), relation(rv), relTable))
+				if !cascade && r.kind == relTable {
+					if ref, ok := b.activeFKDependent(r.key, truncating, rv.Inh); ok {
+						b.failAt(rangeOf(rv.Loc), []walk.Key{r.key, relKey(ref.fromSchema, ref.fromTable)}, review.UnsupportedForm, unsupported("`TRUNCATE` on table "+review.Code(relation(rv))+" referenced by a foreign key without `CASCADE`")) // 0A000
+					}
+				}
 			}
 		}
 	}
@@ -3550,7 +3732,7 @@ func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
 	}
 	if !dupTrig {
 		if fnParts := nameParts(v.Funcname); len(fnParts) > 0 {
-			b.checkRoutineName(fnParts, ast.OBJECT_FUNCTION, false)
+			b.checkRoutineName(fnParts, ast.OBJECT_FUNCTION, false, false)
 		}
 	}
 	return true
@@ -3596,6 +3778,7 @@ func (b *builder) dropTrigger(parts []string, missingOK bool) {
 		if !missingOK {
 			b.need(tk, walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("trigger", ident(trigWritten), qualified(table))}) // 42704
 		}
+		b.session(func() { b.w.dirtyTables[r.key] = true })
 		b.set(tk, walk.Absent, "")
 		if b.w.partitioned[r.key] || r.kind == "" {
 			b.mayRemove(walk.Scope{Space: spaceTrigger, Deep: true, Prefix: tn})
@@ -3660,6 +3843,10 @@ func (b *builder) createPolicy(v *ast.CreatePolicyStmt) bool {
 	}
 	if r.fact == walk.Present {
 		b.need(r.key, walk.Present, []string{relTable}, ofKind(rangeOf(v.Table.Loc), relation(v.Table), relTable)) // 42809
+		if r.kind == relTable {
+			b.checkPolicyBoolExpr(r.key, v.Qual)
+			b.checkPolicyBoolExpr(r.key, v.WithCheck)
+		}
 	}
 	cmd := strings.ToLower(v.CmdName)
 	if (cmd == "select" || cmd == "delete") && v.WithCheck != nil {
@@ -3696,6 +3883,10 @@ func (b *builder) alterPolicy(v *ast.AlterPolicyStmt) bool {
 		b.need(r.key, walk.Present, []string{relTable}, ofKind(rangeOf(v.Table.Loc), relation(v.Table), relTable)) // 42809
 		if pn, ok := walkName(v.PolicyName); ok {
 			b.need(polKey(r.key, pn), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("policy", ident(v.PolicyName), relation(v.Table))}) // 42704
+		}
+		if r.kind == relTable {
+			b.checkPolicyBoolExpr(r.key, v.Qual)
+			b.checkPolicyBoolExpr(r.key, v.WithCheck)
 		}
 	}
 	return true
@@ -3811,7 +4002,9 @@ func (b *builder) alterObjectDepends(v *ast.AlterObjectDependsStmt) bool {
 		}
 	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE:
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
-			b.checkRoutine(owa, v.ObjectType, false)
+			// ALTER FUNCTION / ROUTINE ... DEPENDS ON EXTENSION uses
+			// LookupFuncWithArgs and accepts aggregates (prokind = 'a').
+			b.checkRoutine(owa, v.ObjectType, false, v.ObjectType != ast.OBJECT_PROCEDURE)
 		}
 	}
 	return true
@@ -3904,8 +4097,7 @@ func (b *builder) checkSequenceOptions(opts *ast.List, isIdentity bool) {
 			}
 		case "as":
 			if !isIdentity {
-				if tn, ok := de.Arg.(*ast.TypeName); ok && !isValidSequenceType(tn) {
-					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
+				if tn, ok := de.Arg.(*ast.TypeName); ok && !b.checkSequenceType(tn) {
 					return
 				}
 			}
@@ -3913,8 +4105,9 @@ func (b *builder) checkSequenceOptions(opts *ast.List, isIdentity bool) {
 	}
 }
 
-func isValidSequenceType(tn *ast.TypeName) bool {
+func (b *builder) checkSequenceType(tn *ast.TypeName) bool {
 	if tn == nil || tn.ArrayBounds != nil {
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
 		return false
 	}
 	parts := nameParts(tn.Names)
@@ -3924,16 +4117,29 @@ func isValidSequenceType(tn *ast.TypeName) bool {
 		name = parts[0]
 	case 2:
 		if parts[0] != "pg_catalog" {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
 			return false
 		}
 		name = parts[1]
+	case 3:
+		if b.w.crossDatabase(parts[0]) {
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(typeName(tn))) // 0A000
+			return false
+		}
+		if parts[1] != "pg_catalog" {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
+			return false
+		}
+		name = parts[2]
 	default:
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
 		return false
 	}
 	switch strings.ToLower(name) {
 	case "smallint", "int2", "integer", "int", "int4", "bigint", "int8":
 		return true
 	}
+	b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("sequence data type "+review.Code(typeName(tn)))) // 42704 / 0A000
 	return false
 }
 
@@ -4025,6 +4231,20 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 	case ast.AT_SetStatistics:
 		if cmd.Num != 0 && r.kind != relIndex {
 			b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("`ALTER TABLE ... ALTER COLUMN` by column number")) // 0A000
+		} else if r.kind == relIndex && !b.w.isTableDirty(r.key) && b.w.pg != nil {
+			if idx := b.w.pg.indexDefs[[2]string{schemaOfKey(r.key), r.key.Name}]; idx != nil {
+				if cmd.Num > 0 {
+					if int(cmd.Num) > len(idx.isExpr) {
+						b.failAt(rng, []walk.Key{r.key}, review.ObjectNotFound, notFoundIn("column", strconv.Itoa(int(cmd.Num)), relation(rv))) // 42703
+					} else if !idx.isExpr[cmd.Num-1] {
+						b.failAt(rng, []walk.Key{r.key}, review.UnsupportedForm, unsupported("`SET STATISTICS` on non-expression index column")) // 0A000
+					}
+				} else if cmd.Name != "" && !idx.hasExpr {
+					if col, ok := walkName(cmd.Name); ok && !slices.Contains(idx.colNames, col) {
+						b.failAt(rng, []walk.Key{r.key}, review.ObjectNotFound, notFoundIn("column", ident(cmd.Name), relation(rv))) // 42703
+					}
+				}
+			}
 		}
 	case ast.AT_AddIdentity, ast.AT_SetIdentity, ast.AT_DropIdentity:
 		if r.kind == relView && (sub != ast.AT_DropIdentity || !cmd.Missing_ok) {
@@ -4153,6 +4373,9 @@ func (b *builder) checkIndexElems(r resolved, v *ast.IndexStmt) {
 			if elem.Expr != nil && isDirectSQLValueFunction(elem.Expr) {
 				b.failAt(rangeOf(elem.Loc), nil, review.UnsupportedForm, unsupported("non-immutable expression in index")) // 42P17
 				return
+			}
+			if elem.Expr != nil && hasColumns(r.kind) {
+				b.checkIndexFuncExpr(r.key, elem.Expr)
 			}
 		}
 	}
@@ -4552,14 +4775,17 @@ func routineWord(objType ast.ObjectType) string {
 
 // checkRoutine checks that the routine named by owa exists in the matching
 // space (spaceFunction, spaceProcedure, or either for OBJECT_ROUTINE).
-func (b *builder) checkRoutine(owa *ast.ObjectWithArgs, objType ast.ObjectType, missingOK bool) resolved {
+// When acceptsAggregate is true (or objType is OBJECT_ROUTINE), absence of the
+// routine name in an existing schema is kept conservative because
+// pg/driver/sync.go omits aggregates (prokind = 'a') from Functions.
+func (b *builder) checkRoutine(owa *ast.ObjectWithArgs, objType ast.ObjectType, missingOK, acceptsAggregate bool) resolved {
 	if owa == nil {
 		return resolved{}
 	}
-	return b.checkRoutineName(nameParts(owa.Objname), objType, missingOK)
+	return b.checkRoutineName(nameParts(owa.Objname), objType, missingOK, acceptsAggregate)
 }
 
-func (b *builder) checkRoutineName(parts []string, objType ast.ObjectType, missingOK bool) resolved {
+func (b *builder) checkRoutineName(parts []string, objType ast.ObjectType, missingOK, acceptsAggregate bool) resolved {
 	if len(parts) == 0 {
 		return resolved{}
 	}
@@ -4570,7 +4796,7 @@ func (b *builder) checkRoutineName(parts []string, objType ast.ObjectType, missi
 	case r.fact == walk.Absent && !missingOK:
 		if r.missingSchema != "" {
 			b.fail(r.keys, walk.Absent, review.ObjectNotFound, schemaNotFound(r.missingSchema)) // 3F000
-		} else {
+		} else if !acceptsAggregate {
 			b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound(routineWord(objType), qualified(parts))) // 42883
 		}
 	}
@@ -4580,17 +4806,55 @@ func (b *builder) checkRoutineName(parts []string, objType ast.ObjectType, missi
 // dropRoutine follows DROP FUNCTION / PROCEDURE / ROUTINE. Because routines
 // may be overloaded, dropping one overload weakens the name rather than
 // marking it Absent.
-func (b *builder) dropRoutine(obj ast.Node, objType ast.ObjectType, missingOK bool) {
+func (b *builder) dropRoutine(obj ast.Node, objType ast.ObjectType, missingOK, cascade bool) {
 	owa, ok := obj.(*ast.ObjectWithArgs)
 	if !ok {
 		return
 	}
 	parts := nameParts(owa.Objname)
-	r := b.checkRoutineName(parts, objType, missingOK)
+	r := b.checkRoutineName(parts, objType, missingOK, objType == ast.OBJECT_ROUTINE)
 	if r.fail != "" || r.fact == walk.Absent {
 		return
 	}
+	if objType == ast.OBJECT_FUNCTION && r.fact == walk.Present && !b.w.isRoutineDirty(r.key) && b.w.pg != nil {
+		fnKey := [2]string{schemaOfKey(r.key), r.key.Name}
+		if !owa.ArgsUnspecified {
+			if fi, ok := b.uniqueSyncedFunc(parts, r); ok {
+				if argc, ok := routineArgCount(owa); ok && !fi.arities[argc] {
+					if !missingOK {
+						b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("function", qualified(parts))) // 42883
+					}
+					return
+				}
+			}
+		}
+		if !cascade {
+			if fi, ok := b.uniqueSyncedFunc(parts, r); ok && len(fi.arities) == 1 {
+				for _, ref := range b.w.pg.trigFuncs[fnKey] {
+					tk := relKey(ref.tableSchema, ref.tableName)
+					if b.w.isTableDirty(tk) {
+						continue
+					}
+					if tf, _ := b.l.Lookup(tk); tf != walk.Present {
+						continue
+					}
+					if trf, _ := b.l.Lookup(trigKey(tk, ref.trigName)); trf != walk.Present {
+						continue
+					}
+					b.fail([]walk.Key{r.key, trigKey(tk, ref.trigName)}, walk.Present, review.UnsupportedForm, "Function "+review.Code(qualified(parts))+" is used by trigger "+review.Code(ident(ref.trigName))+" and can't be dropped without `CASCADE`.") // 2BP01
+					return
+				}
+			}
+		}
+	}
 	b.weakenRoutine(r, parts, objType)
+	b.session(func() {
+		if len(parts) >= 2 && r.fact == walk.Present {
+			b.w.dirtyRoutines[r.key] = true
+		} else {
+			b.w.allDirty = true
+		}
+	})
 }
 
 func (b *builder) weakenRoutine(r resolved, parts []string, objType ast.ObjectType) {
@@ -4631,12 +4895,25 @@ func (b *builder) renameRoutine(v *ast.RenameStmt) bool {
 		return true
 	}
 	parts := nameParts(owa.Objname)
-	r := b.checkRoutineName(parts, v.RenameType, false)
+	r := b.checkRoutineName(parts, v.RenameType, false, v.RenameType == ast.OBJECT_ROUTINE)
 	if r.fail != "" || r.fact == walk.Absent {
 		return true
 	}
-	b.weakenRoutine(r, parts, v.RenameType)
 	newName, ok := walkName(v.Newname)
+	if v.RenameType == ast.OBJECT_FUNCTION && ok {
+		if src, ok := b.uniqueSyncedFunc(parts, r); ok && len(src.arities) == 1 && src.zeroArg {
+			s := schemaOfKey(r.key)
+			dstKey := funcKey(s, newName)
+			dst := b.w.pg.funcSigs[[2]string{s, newName}]
+			if dst != nil && dst.complete && dst.zeroArg && !b.w.isRoutineDirty(dstKey) &&
+				(owa.ArgsUnspecified || func() bool { n, ok := routineArgCount(owa); return ok && n == 0 }()) {
+				b.fail([]walk.Key{r.key, dstKey}, walk.Present, review.NameTaken, alreadyExists("function", ident(v.Newname))) // 42723
+				return true
+			}
+		}
+	}
+	b.weakenRoutine(r, parts, v.RenameType)
+	b.session(func() { b.w.allDirty = true })
 	if len(parts) >= 2 && r.fact == walk.Present && ok && v.RenameType != ast.OBJECT_ROUTINE {
 		s := schemaOfKey(r.key)
 		var nk walk.Key
@@ -4679,10 +4956,11 @@ func (b *builder) setSchemaRoutine(v *ast.AlterObjectSchemaStmt) bool {
 		return true
 	}
 	parts := nameParts(owa.Objname)
-	r := b.checkRoutineName(parts, v.ObjectType, false)
+	r := b.checkRoutineName(parts, v.ObjectType, false, v.ObjectType == ast.OBJECT_ROUTINE)
 	if r.fail != "" || r.fact == walk.Absent {
 		return true
 	}
+	b.session(func() { b.w.allDirty = true })
 	ns, ok := walkName(v.Newschema)
 	if !ok || ns == tempSchema || ns == "pg_catalog" {
 		b.weakenRoutine(r, parts, v.ObjectType)
@@ -4719,7 +4997,7 @@ func (b *builder) alterOwner(v *ast.AlterOwnerStmt) bool {
 	switch v.ObjectType {
 	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE:
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
-			b.checkRoutine(owa, v.ObjectType, false)
+			b.checkRoutine(owa, v.ObjectType, false, v.ObjectType == ast.OBJECT_ROUTINE)
 		}
 	case ast.OBJECT_DOMAIN:
 		var parts []string
@@ -5295,12 +5573,14 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 		}
 		b.set(k, walk.Present, "")
 		b.made(k)
+		b.session(func() { b.w.dirtyRoutines[k] = true })
 	} else {
 		if isProcedure {
 			b.mayAdd(walk.Scope{Space: spaceProcedure, Deep: true})
 		} else {
 			b.mayAdd(walk.Scope{Space: spaceFunction, Deep: true})
 		}
+		b.session(func() { b.w.allDirty = true })
 	}
 	return true
 }
@@ -5309,13 +5589,18 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 // unconditional option checks and routine existence.
 func (b *builder) alterFunction(v *ast.AlterFunctionStmt) bool {
 	var seenVolatility, seenStrict, seenSecurity, seenParallel, seenLeakproof, seenCost, seenRows, seenSupport bool
+	hasNonAggAction := false
 	if v.Actions != nil {
 		for _, item := range v.Actions.Items {
 			de, ok := item.(*ast.DefElem)
 			if !ok {
 				continue
 			}
-			switch strings.ToLower(de.Defname) {
+			defName := strings.ToLower(de.Defname)
+			if defName != "parallel" {
+				hasNonAggAction = true
+			}
+			switch defName {
 			case "volatility":
 				if seenVolatility {
 					b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("conflicting or redundant options in `ALTER FUNCTION`")) // 42601
@@ -5376,7 +5661,218 @@ func (b *builder) alterFunction(v *ast.AlterFunctionStmt) bool {
 		}
 	}
 	if v.Func != nil {
-		b.checkRoutine(v.Func, v.Objtype, false)
+		// PostgreSQL's AlterFunction rejects aggregates (prokind = 'a') with
+		// 42809 for function-attribute actions (STRICT, VOLATILE, COST, ROWS,
+		// etc.), even under ALTER ROUTINE. Keep PARALLEL-only ALTER ROUTINE
+		// conservative for omitted aggregates.
+		acceptsAgg := v.Objtype == ast.OBJECT_ROUTINE && !hasNonAggAction
+		r := b.checkRoutine(v.Func, v.Objtype, false, acceptsAgg)
+		if seenRows {
+			if fi, ok := b.uniqueSyncedFunc(nameParts(v.Func.Objname), r); ok && !fi.anySetof {
+				b.fail([]walk.Key{r.key}, walk.Present, review.UnsupportedForm, unsupported("`ROWS` on a function that doesn't return a set")) // 22023
+				return true
+			}
+		}
 	}
 	return true
+}
+
+// uniqueSyncedFunc returns the complete synced function signature info for
+// parts/r only when r is definitely the sole schema that can satisfy parts
+// (for unqualified names, no other search-path schema or pg_catalog holds the
+// name) and the routine has not been modified earlier in the change.
+func (b *builder) uniqueSyncedFunc(parts []string, r resolved) (*syncedFuncInfo, bool) {
+	if r.fact != walk.Present || r.key.Space != spaceFunction || b.w.isRoutineDirty(r.key) || b.w.pg == nil {
+		return nil, false
+	}
+	targetSchema := schemaOfKey(r.key)
+	if len(parts) == 1 {
+		if !trustedRoutineName(r.key.Name) || builtinCatalogFunctions[r.key.Name] {
+			return nil, false
+		}
+		sp, ok := b.w.searchPath()
+		if !ok {
+			return nil, false
+		}
+		for _, s := range sp {
+			if s == targetSchema || s == "pg_catalog" {
+				continue
+			}
+			if sf, _ := b.l.Lookup(schemaKey(s)); sf == walk.Absent {
+				continue
+			}
+			if f, _ := b.l.Lookup(funcKey(s, r.key.Name)); f != walk.Absent {
+				return nil, false
+			}
+		}
+	}
+	fi := b.w.pg.funcSigs[[2]string{targetSchema, r.key.Name}]
+	if fi == nil || !fi.complete {
+		return nil, false
+	}
+	return fi, true
+}
+
+// bareColumnRef returns the folded column name when expr is an unqualified
+// single-part ColumnRef, or ("", false) otherwise.
+func bareColumnRef(expr ast.Node) (string, bool) {
+	cr, ok := expr.(*ast.ColumnRef)
+	if !ok || cr.Fields == nil || len(cr.Fields.Items) != 1 {
+		return "", false
+	}
+	s, ok := cr.Fields.Items[0].(*ast.String)
+	if !ok {
+		return "", false
+	}
+	return walkName(s.Str)
+}
+
+// isPinnedNonBoolType reports whether typ is PostgreSQL's built-in integer
+// (int4) type, whose pg_cast entry (int4 -> bool) is a pinned explicit-only
+// system cast that cannot be dropped or replaced with an implicit cast, and
+// domains over integer ignore custom casts.
+func isPinnedNonBoolType(typ string) bool {
+	return typ == "integer" || typ == "int4"
+}
+
+// isKnownNonIntegerBuiltinType reports whether typ is a standard PostgreSQL
+// built-in data type that is definitely not smallint/integer/bigint (so it
+// cannot be made an identity column, 22023).
+func isKnownNonIntegerBuiltinType(typ string) bool {
+	if typ == "" {
+		return false
+	}
+	base := typ
+	if i := strings.IndexByte(base, '('); i >= 0 {
+		base = strings.TrimSpace(base[:i])
+	}
+	switch base {
+	case "boolean", "bool", "text", "character varying", "varchar", "character", "char", "bpchar",
+		"numeric", "decimal", "real", "float4", "double precision", "float8",
+		"date", "uuid", "bytea", "json", "jsonb", "xml", "money", "interval",
+		"inet", "cidr", "macaddr", "macaddr8", "bit", "bit varying", "varbit",
+		"time", "time without time zone", "time with time zone", "timetz",
+		"timestamp", "timestamp without time zone", "timestamp with time zone", "timestamptz":
+		return true
+	}
+	return false
+}
+
+// isKnownScalarBuiltinType reports whether typ is a built-in scalar PostgreSQL
+// type (never a composite type, so f(col) cannot be composite field access).
+func isKnownScalarBuiltinType(typ string) bool {
+	switch typ {
+	case "smallint", "int2", "integer", "int4", "bigint", "int8":
+		return true
+	}
+	return isKnownNonIntegerBuiltinType(typ)
+}
+
+func (b *builder) checkPolicyBoolExpr(t walk.Key, expr ast.Node) {
+	if col, ok := bareColumnRef(expr); ok {
+		if sc, ok := b.w.syncedCol(t, col); ok && isPinnedNonBoolType(sc.typ) {
+			b.fail([]walk.Key{t}, walk.Present, review.UnsupportedForm, unsupported("non-boolean expression in policy")) // 42804
+		}
+	}
+}
+
+func (b *builder) activeFKDependent(target walk.Key, alsoRemoved map[walk.Key]bool, mayTruncateInherited bool) (syncedFKRef, bool) {
+	if b.w.allDirty || b.w.pg == nil {
+		return syncedFKRef{}, false
+	}
+	targetCols := b.w.pg.columns[[2]string{schemaOfKey(target), target.Name}]
+	for _, ref := range b.w.pg.fkRefs[[2]string{schemaOfKey(target), target.Name}] {
+		fromKey := relKey(ref.fromSchema, ref.fromTable)
+		if fromKey == target || alsoRemoved[fromKey] || b.w.isTableDirty(fromKey) {
+			continue
+		}
+		if f, _ := b.l.Lookup(fromKey); f != walk.Present {
+			continue
+		}
+		if cf, _ := b.l.Lookup(constraintKey(fromKey, ref.conName)); cf != walk.Present {
+			continue
+		}
+		// TRUNCATE without ONLY also truncates inheritance children of target.
+		// A child that INHERITS (target) must have every column of target; if
+		// target has at least one column absent from fromTable, fromTable
+		// cannot inherit from target.
+		if mayTruncateInherited {
+			fromCols := b.w.pg.columns[[2]string{ref.fromSchema, ref.fromTable}]
+			canInherit := true
+			if len(targetCols) > 0 && fromCols != nil {
+				for col := range targetCols {
+					if !fromCols[col] {
+						canInherit = false
+						break
+					}
+				}
+			}
+			if canInherit {
+				continue
+			}
+		}
+		return ref, true
+	}
+	return syncedFKRef{}, false
+}
+
+// checkIndexFuncExpr checks a direct function call f(col) in a CREATE INDEX
+// expression when col is a synced built-in scalar column (ruling out composite
+// field access) or a whole-row reference to a table that lacks column f.
+// Aggregates are forbidden in index expressions (0A000), so f must exist in
+// spaceFunction with a matching arity.
+func (b *builder) checkIndexFuncExpr(t walk.Key, expr ast.Node) {
+	fc, ok := expr.(*ast.FuncCall)
+	if !ok || fc.AggStar || fc.AggWithinGroup || fc.Over != nil || fc.Args == nil || len(fc.Args.Items) != 1 {
+		return
+	}
+	col, ok := bareColumnRef(fc.Args.Items[0])
+	if !ok {
+		return
+	}
+	parts := nameParts(fc.Funcname)
+	if len(parts) == 0 {
+		return
+	}
+	fnName, ok := walkName(parts[len(parts)-1])
+	if !ok {
+		return
+	}
+	scalar := false
+	if sc, ok := b.w.syncedCol(t, col); ok && isKnownScalarBuiltinType(sc.typ) {
+		scalar = true
+	} else if col == t.Name {
+		// Whole-row reference to t: only composite field access if t has column fnName.
+		if cf, _ := b.l.Lookup(columnKey(t, fnName)); cf == walk.Absent && !systemColumns[fnName] {
+			scalar = true
+		}
+	}
+	if !scalar {
+		return
+	}
+	r := b.checkRoutineName(parts, ast.OBJECT_FUNCTION, false, false)
+	if fi, ok := b.uniqueSyncedFunc(parts, r); ok && !fi.hasDefaultOrVariadic && !fi.arities[1] {
+		b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("function", qualified(parts))) // 42883
+	}
+}
+
+// routineArgCount returns the number of input arguments specified in owa when
+// ArgsUnspecified is false.
+func routineArgCount(owa *ast.ObjectWithArgs) (int, bool) {
+	if owa == nil || owa.ArgsUnspecified {
+		return 0, false
+	}
+	if owa.Objargs == nil {
+		return 0, true
+	}
+	n := 0
+	for _, item := range owa.Objargs.Items {
+		if fp, ok := item.(*ast.FunctionParameter); ok {
+			if fp.Mode == ast.FUNC_PARAM_OUT || fp.Mode == ast.FUNC_PARAM_TABLE {
+				continue
+			}
+		}
+		n++
+	}
+	return n, true
 }

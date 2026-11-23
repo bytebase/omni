@@ -727,16 +727,15 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER FUNCTION proc_existing STRICT;":                                          review.ObjectNotFound,
 		"DROP FUNCTION missing_fn;":                                                     review.ObjectNotFound,
 		"DROP PROCEDURE missing_proc;":                                                  review.ObjectNotFound,
-		"DROP ROUTINE missing_rtn;":                                                     review.ObjectNotFound,
-		"COMMENT ON FUNCTION missing_fn IS 'x';":                                        review.ObjectNotFound,
 		"COMMENT ON PROCEDURE missing_proc IS 'x';":                                     review.ObjectNotFound,
-		"COMMENT ON ROUTINE missing_rtn IS 'x';":                                        review.ObjectNotFound,
 		"ALTER FUNCTION missing_fn RENAME TO fn2;":                                      review.ObjectNotFound,
 		"ALTER PROCEDURE missing_proc SET SCHEMA public;":                               review.ObjectNotFound,
 		"ALTER FUNCTION fn_existing SET SCHEMA nosuch;":                                 review.ObjectNotFound,
 		"ALTER FUNCTION missing_fn OWNER TO bob;":                                       review.ObjectNotFound,
 		"ALTER PROCEDURE missing_proc OWNER TO bob;":                                    review.ObjectNotFound,
-		"ALTER FUNCTION missing_fn DEPENDS ON EXTENSION e;":                             review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc DEPENDS ON EXTENSION e;":                          review.ObjectNotFound,
+		"COMMENT ON FUNCTION nosuch.missing_fn IS 'x';":                                 review.ObjectNotFound,
+		"DROP ROUTINE nosuch.missing_rtn;":                                              review.ObjectNotFound,
 		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION no_fn();":   review.ObjectNotFound,
 		"CREATE TRIGGER tr BEFORE INSERT ON t WHEN (a > 0) EXECUTE FUNCTION trig_fn();": review.UnsupportedForm,
 		"ALTER TABLE t ENABLE TRIGGER missing_trig;":                                    review.ObjectNotFound,
@@ -800,7 +799,12 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER SEQUENCE q LOGGED;":                              review.UnsupportedForm,
 		"ALTER SEQUENCE q UNLOGGED;":                            review.UnsupportedForm,
 		"ALTER SEQUENCE q AS text;":                             review.UnsupportedForm,
+		"ALTER SEQUENCE q AS otherdb.pg_catalog.int8;":          review.CrossDatabaseReference,
+		"CREATE SEQUENCE q2 AS otherdb.pg_catalog.int8;":        review.CrossDatabaseReference,
+		"ALTER SEQUENCE q AS mydb.public.int8;":                 review.UnsupportedForm,
 		"ALTER FUNCTION synced_proc STRICT;":                    review.ObjectNotFound,
+		"ALTER FUNCTION fn_existing ROWS 10;":                   review.UnsupportedForm,
+		"DROP FUNCTION fn_existing(int);":                       review.ObjectNotFound,
 	} {
 		got := walkFindings(t, sql, target)
 		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
@@ -826,6 +830,18 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"DROP FUNCTION IF EXISTS missing_fn;",
 		"DROP PROCEDURE IF EXISTS missing_proc;",
 		"DROP ROUTINE IF EXISTS missing_rtn;",
+		// Omitted aggregates (prokind = 'a') are accepted by COMMENT ON FUNCTION/ROUTINE,
+		// ALTER FUNCTION/ROUTINE ... DEPENDS ON EXTENSION, DROP/RENAME/SET SCHEMA/OWNER ROUTINE,
+		// and PARALLEL-only ALTER ROUTINE.
+		"COMMENT ON FUNCTION public.total(integer) IS 'sum';",
+		"COMMENT ON ROUTINE public.total(integer) IS 'sum';",
+		"DROP ROUTINE public.total(integer);",
+		"ALTER ROUTINE public.total(integer) RENAME TO total2;",
+		"ALTER ROUTINE public.total(integer) SET SCHEMA public;",
+		"ALTER ROUTINE public.total(integer) OWNER TO bob;",
+		"ALTER ROUTINE public.total(integer) PARALLEL SAFE;",
+		"ALTER FUNCTION public.total(integer) DEPENDS ON EXTENSION e;",
+		"ALTER ROUTINE public.total(integer) DEPENDS ON EXTENSION e;",
 		"CREATE FUNCTION f_ov(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION f_ov(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION f_ov(int);\nDROP FUNCTION f_ov(text);",
 		"SET search_path = s1, s2;\nALTER FUNCTION ov_fn(int) RENAME TO ov_renamed;\nDROP FUNCTION s2.ov_renamed(int);",
 		"SET search_path = s1, s2;\nDROP FUNCTION ov_fn(int);\nDROP FUNCTION s1.ov_fn(text);",
@@ -885,9 +901,134 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER SEQUENCE q OWNED BY t.a;",
 		"ALTER SEQUENCE q OWNED BY mydb.public.t.a;",
 		"ALTER SEQUENCE q AS bigint;",
+		"ALTER SEQUENCE q AS mydb.pg_catalog.int8;",
+		"CREATE SEQUENCE q_db AS mydb.pg_catalog.int8;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)
 		}
+	}
+}
+
+func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name:       "mydb",
+		SearchPath: `"$user", public`,
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "t",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Position: 1, Type: "integer", Nullable: false},
+						{Name: "n", Position: 2, Type: "integer", Nullable: true},
+						{Name: "flag", Position: 3, Type: "boolean", Nullable: false},
+						{Name: "ident", Position: 4, Type: "integer", Nullable: false, IdentityGeneration: metadata.ColumnMetadata_ALWAYS},
+						{Name: "gen", Position: 5, Type: "integer", Nullable: true, Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "id + 1"}},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Definition: "CREATE UNIQUE INDEX t_pkey ON public.t USING btree (id)"},
+						{Name: "t_n_idx", Definition: "CREATE INDEX t_n_idx ON public.t USING btree (n) INCLUDE (flag)"},
+					},
+					Triggers: []*metadata.TriggerMetadata{
+						{Name: "tr_t", Body: "CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf()"},
+					},
+				},
+				{
+					Name: "child",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "cid", Position: 1, Type: "integer", Nullable: false},
+						{Name: "tid", Position: 2, Type: "integer", Nullable: true},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "child_tid_fkey", ReferencedSchema: "public", ReferencedTable: "t"},
+					},
+				},
+				{
+					Name: "parted",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "k", Position: 1, Type: "integer", Nullable: false},
+						{Name: "v", Position: 2, Type: "integer", Nullable: true},
+					},
+					Partitions: []*metadata.TablePartitionMetadata{
+						{Name: "parted_1", Expression: "RANGE (k)"},
+					},
+				},
+			},
+			CompositeTypes: []*metadata.CompositeTypeMetadata{
+				{Name: "pair", Attributes: []*metadata.CompositeTypeAttribute{{Name: "x", Type: "integer"}}},
+			},
+			Functions: []*metadata.FunctionMetadata{
+				{Name: "tf", Definition: "CREATE OR REPLACE FUNCTION public.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				{Name: "with_def", Definition: "CREATE OR REPLACE FUNCTION public.with_def(a integer, b integer DEFAULT 1) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT a + b'"},
+			},
+		}},
+	}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, wantCode := range map[string]review.FindingCode{
+		"ALTER TABLE t ALTER n DROP EXPRESSION;":                     review.UnsupportedForm,
+		"ALTER TABLE t ALTER n SET EXPRESSION AS (1);":               review.UnsupportedForm,
+		"ALTER TABLE t ALTER n DROP IDENTITY;":                       review.UnsupportedForm,
+		"ALTER TABLE t ALTER n RESTART;":                             review.UnsupportedForm,
+		"ALTER TABLE t ALTER n ADD GENERATED ALWAYS AS IDENTITY;":    review.UnsupportedForm,
+		"ALTER TABLE t ALTER flag ADD GENERATED ALWAYS AS IDENTITY;": review.UnsupportedForm,
+		"ALTER TABLE t ALTER id DROP NOT NULL;":                      review.UnsupportedForm,
+		"ALTER TABLE parted DROP COLUMN k;":                          review.UnsupportedForm,
+		"ALTER TABLE parted DROP COLUMN IF EXISTS k;":                review.UnsupportedForm,
+		"ALTER TABLE t ADD CHECK (n);":                               review.UnsupportedForm,
+		"ALTER POLICY p ON t USING (n);":                             review.UnsupportedForm,
+		"CREATE TABLE x (CHECK (x));":                                review.UnsupportedForm,
+		"CREATE INDEX ON t (missing_fn(n));":                         review.ObjectNotFound,
+		"CREATE INDEX ON t (tf(n));":                                 review.ObjectNotFound,
+		"DROP TABLE t;":                                              review.UnsupportedForm,
+		"TRUNCATE t;":                                                review.UnsupportedForm,
+		"DROP FUNCTION tf();":                                        review.UnsupportedForm,
+		"ALTER TYPE pair ADD ATTRIBUTE x int;":                       review.DuplicateName,
+		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair;":               review.UnsupportedForm,
+		"ALTER TABLE t_n_idx ALTER COLUMN 1 SET STATISTICS 10;":      review.UnsupportedForm,
+		"ALTER TABLE t_n_idx ALTER COLUMN bogus SET STATISTICS 10;":  review.ObjectNotFound,
+		"ALTER TABLE child ADD FOREIGN KEY (cid, tid) REFERENCES t;": review.UnsupportedForm,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// 0-FP control cases.
+	for _, sql := range []string{
+		"ALTER TABLE t ALTER ident DROP IDENTITY;",
+		"ALTER TABLE t ALTER ident RESTART;",
+		"ALTER TABLE t ALTER gen DROP EXPRESSION;",
+		"ALTER TABLE t ALTER gen SET EXPRESSION AS (id + 2);",
+		"ALTER TABLE t ALTER id ADD GENERATED ALWAYS AS IDENTITY;",
+		"ALTER TABLE t ALTER n SET NOT NULL, ALTER n ADD GENERATED ALWAYS AS IDENTITY;",
+		"ALTER TABLE t ALTER n TYPE boolean, ADD CHECK (n);",
+		"ALTER TABLE t DROP CONSTRAINT t_pkey, ALTER id DROP NOT NULL;",
+		"ALTER TABLE t ADD CHECK (flag);",
+		"ALTER POLICY p ON t USING (flag);",
+		"CREATE INDEX ON t (with_def(n));",
+		"DROP TABLE t CASCADE;",
+		"DROP TABLE t, child;",
+		"TRUNCATE t CASCADE;",
+		"TRUNCATE t, child;",
+		"ALTER TABLE child DROP CONSTRAINT child_tid_fkey;\nDROP TABLE t;",
+		"DROP FUNCTION tf() CASCADE;",
+		"DROP TRIGGER tr_t ON t;\nDROP FUNCTION tf();",
+		"ALTER TYPE pair ADD ATTRIBUTE x text, DROP ATTRIBUTE x;",
+		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair[];",
+		"ALTER TABLE t_n_idx ALTER COLUMN flag SET STATISTICS 10;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+
+	// OtherSpecs disables synced-detail checks.
+	other := target
+	other.OtherSpecs = true
+	if got := walkFindings(t, "ALTER TABLE t ALTER n DROP IDENTITY;", other); len(got) != 0 {
+		t.Errorf("OtherSpecs: findings = %+v, want none", got)
 	}
 }

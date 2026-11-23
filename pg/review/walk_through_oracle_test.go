@@ -989,10 +989,14 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " doesn't exist in "),
 		strings.HasPrefix(msg, "This statement drops constraint "):
 		return []string{"42704"}
-	case strings.HasPrefix(msg, "Function ") && strings.HasSuffix(msg, " doesn't exist."),
-		strings.HasPrefix(msg, "Procedure ") && strings.HasSuffix(msg, " doesn't exist."),
-		strings.HasPrefix(msg, "Routine ") && strings.HasSuffix(msg, " doesn't exist."):
+	case strings.HasPrefix(msg, "Function ") && strings.HasSuffix(msg, " doesn't exist."):
+		return []string{"42883", "42704", "0A000"}
+	case strings.HasPrefix(msg, "Procedure ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42883"}
+	case strings.HasPrefix(msg, "Routine ") && strings.HasSuffix(msg, " doesn't exist."):
+		return []string{"42883", "42809"}
+	case strings.HasPrefix(msg, "Function ") && strings.HasSuffix(msg, " already exists."):
+		return []string{"42723"}
 	case strings.HasPrefix(msg, "Prepared statement ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"26000"}
 	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " doesn't exist in "),
@@ -1014,7 +1018,8 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept storage parameters on partitioned table "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `NOT OF` on partitioned table "):
 		return []string{"42809"}
-	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " already exists in "):
+	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " already exists in "),
+		strings.HasPrefix(msg, "Attribute ") && strings.Contains(msg, " already exists in "):
 		return []string{"42701", "42703", "42P16"}
 	case strings.HasPrefix(msg, "This statement declares column "), strings.HasPrefix(msg, "This statement adds column "),
 		strings.HasSuffix(msg, " conflicts with a system column."):
@@ -1026,15 +1031,18 @@ func walkStates(msg string) []string {
 	case strings.HasSuffix(msg, " already has a primary key."),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ON COMMIT` on a non-temporary table"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept column of table "),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept dropping columns in `CREATE OR REPLACE VIEW`"):
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept dropping columns in `CREATE OR REPLACE VIEW`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP NOT NULL` on primary key column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept dropping partition key column "):
 		return []string{"42P16"}
 	case strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " already exists in "),
 		strings.HasPrefix(msg, "Trigger ") && strings.Contains(msg, " already exists in "),
 		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " already exists in "):
 		return []string{"42710"}
+	case strings.HasPrefix(msg, "Composite type ") && strings.HasSuffix(msg, " can't reference itself."):
+		return []string{"42704", "42710", "42P16"}
 	case strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " can't use itself as its underlying type."),
 		strings.HasPrefix(msg, "Table ") && strings.HasSuffix(msg, " can't use its own type in `CREATE TABLE`."),
-		strings.HasPrefix(msg, "Composite type ") && strings.HasSuffix(msg, " can't reference itself."),
 		strings.HasSuffix(msg, " can't be renamed to itself."):
 		return []string{"42704", "42710"}
 	case strings.HasPrefix(msg, "Table ") && strings.HasSuffix(msg, " can't be defined `OF` itself."):
@@ -1055,14 +1063,28 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `FOR EACH ROW` trigger with transition tables"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ALTER TABLE ... ALTER COLUMN` by column number"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `WITH CHECK OPTION` on a non-updatable view"),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET WITHOUT CLUSTER` on partitioned table "):
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET WITHOUT CLUSTER` on partitioned table "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `TRUNCATE` on table "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET STATISTICS` on non-expression index column"):
 		return []string{"0A000"}
 	case strings.HasPrefix(msg, "Array type ") && strings.HasSuffix(msg, " can't be dropped directly."):
 		return []string{"2BP01", "42704"}
 	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " still holds objects."),
 		strings.HasPrefix(msg, "Built-in type ") && strings.HasSuffix(msg, " can't be dropped."),
-		strings.HasPrefix(msg, "Row type ") && strings.HasSuffix(msg, " can't be dropped directly."):
+		strings.HasPrefix(msg, "Row type ") && strings.HasSuffix(msg, " can't be dropped directly."),
+		strings.HasPrefix(msg, "Table ") && strings.Contains(msg, " is referenced by foreign key on "),
+		strings.HasPrefix(msg, "Function ") && strings.Contains(msg, " is used by trigger "):
 		return []string{"2BP01"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP EXPRESSION` on non-generated column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET EXPRESSION` on non-generated column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP IDENTITY` on non-identity column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept identity column alteration on non-identity column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ADD GENERATED AS IDENTITY` on nullable column "):
+		return []string{"55000"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept non-boolean expression in "):
+		return []string{"42804", "42704"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept foreign key column count mismatch with primary key of "):
+		return []string{"42830"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept invalid type modifier for "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept non-integer value ") && !strings.Contains(msg, "for identity option"):
 		return []string{"22P02"}
@@ -1075,7 +1097,9 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept storage mode "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept attribute option "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept view option "),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept duplicate storage parameter "):
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept duplicate storage parameter "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ADD GENERATED AS IDENTITY` on non-integer column "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ROWS` on a function that doesn't return a set"):
 		return []string{"22023"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept compression method "):
 		return []string{"22023", "0A000"}
