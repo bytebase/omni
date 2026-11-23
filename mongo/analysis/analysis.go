@@ -132,7 +132,7 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 		"listCommands", "stats":
 		a.Operation = OpInfo
 	case "runCommand", "adminCommand":
-		a.Operation = classifyCommandArgs(s.Args)
+		analyzeCommandInto(s.Args, a)
 	case "getSiblingDB", "getMongo":
 		// These return a database handle for further chaining; they are not
 		// read/info/admin so default to OpWrite per existing Bytebase behavior.
@@ -143,25 +143,54 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	return a
 }
 
-func classifyCommandArgs(args []ast.Node) Operation {
+func analyzeCommandInto(args []ast.Node, a *StatementAnalysis) {
 	if len(args) == 0 {
-		return OpWrite
+		a.Operation = OpWrite
+		return
 	}
 	doc, ok := args[0].(*ast.Document)
 	if !ok || len(doc.Pairs) == 0 {
-		return OpWrite
+		a.Operation = OpWrite
+		return
 	}
 	switch doc.Pairs[0].Key {
-	case "find", "aggregate", "count", "distinct":
-		return OpRead
+	case "find", "count", "distinct":
+		a.Operation = OpRead
+	case "aggregate":
+		analyzeCommandAggregate(doc, a)
 	case "serverStatus", "listCollections", "listIndexes", "listDatabases",
 		"collStats", "dbStats", "hostInfo", "buildInfo", "connectionStatus":
-		return OpInfo
+		a.Operation = OpInfo
 	case "create", "drop", "createIndexes", "dropIndexes", "renameCollection", "collMod":
-		return OpAdmin
+		a.Operation = OpAdmin
 	default:
-		return OpWrite
+		a.Operation = OpWrite
 	}
+}
+
+func analyzeCommandAggregate(doc *ast.Document, a *StatementAnalysis) {
+	if coll, ok := doc.Pairs[0].Value.(*ast.StringLiteral); ok {
+		a.Collection = coll.Value
+	}
+	var pipelineNode ast.Node
+	pipelineCount := 0
+	for _, pair := range doc.Pairs[1:] {
+		if pair.Key == "pipeline" {
+			pipelineNode = pair.Value
+			pipelineCount++
+		}
+	}
+	if pipelineCount != 1 {
+		a.Operation = OpWrite
+		a.UnsupportedStage = "unknown"
+		return
+	}
+	analyzePipelineInto([]ast.Node{pipelineNode}, a)
+	if hasWriteOrUnknownStage(a) {
+		a.Operation = OpWrite
+		return
+	}
+	a.Operation = OpRead
 }
 
 func analyzeRs(s *ast.RsStatement) *StatementAnalysis {

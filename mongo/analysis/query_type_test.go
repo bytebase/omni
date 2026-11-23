@@ -1,9 +1,11 @@
 package analysis
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/mongo/parser"
 )
 
 func TestClassifyStatement(t *testing.T) {
@@ -20,6 +22,7 @@ func TestClassifyStatement(t *testing.T) {
 		{name: "estimatedDocumentCount", statement: `db.users.estimatedDocumentCount()`, want: Select},
 		{name: "distinct", statement: `db.users.distinct("name")`, want: Select},
 		{name: "aggregate without $out/$merge", statement: `db.users.aggregate([{$match: {}}])`, want: Select},
+		{name: "aggregate with $project read-only", statement: `db.users.aggregate([{$project: {name: 1}}])`, want: Select},
 		{name: "find with trailing semicolon", statement: `db.users.find({});`, want: Select},
 
 		// DML commands.
@@ -35,9 +38,15 @@ func TestClassifyStatement(t *testing.T) {
 		{name: "findOneAndDelete", statement: `db.users.findOneAndDelete({a: 1})`, want: DML},
 		{name: "bulkWrite", statement: `db.users.bulkWrite([{insertOne: {document: {a: 1}}}])`, want: DML},
 
-		// Aggregate with $out / $merge.
+		// Aggregate with $out / $merge (including after non-shape-preserving stages) and dynamic pipelines.
 		{name: "aggregate with $out", statement: `db.users.aggregate([{$match: {}}, {$out: "output"}])`, want: DML},
 		{name: "aggregate with $merge", statement: `db.users.aggregate([{$match: {}}, {$merge: {into: "output"}}])`, want: DML},
+		{name: "aggregate with $project then $out", statement: `db.users.aggregate([{$project: {name: 1}}, {$out: "output"}])`, want: DML},
+		{name: "aggregate with $group then $merge", statement: `db.users.aggregate([{$group: {_id: "$k"}}, {$merge: {into: "output"}}])`, want: DML},
+		{name: "aggregate with pipeline $lookup then $out", statement: `db.users.aggregate([{$lookup: {from: "orders", pipeline: [{$match: {}}], as: "o"}}, {$out: "output"}])`, want: DML},
+		{name: "aggregate with dynamic pipeline variable", statement: `db.users.aggregate(pipelineVar)`, want: DML},
+		{name: "aggregate with dynamic stage after $project", statement: `db.users.aggregate([{$project: {name: 1}}, dynamicStage])`, want: DML},
+		{name: "aggregate with multi-key stage doc", statement: `db.users.aggregate([{$match: {}, $out: "output"}])`, want: DML},
 
 		// DDL commands.
 		{name: "createCollection", statement: `db.createCollection("test")`, want: DDL},
@@ -100,10 +109,18 @@ func TestClassifyStatement(t *testing.T) {
 
 		// runCommand and adminCommand.
 		{name: "runCommand find", statement: `db.runCommand({find: "users"})`, want: Select},
+		{name: "runCommand aggregate read-only", statement: `db.runCommand({aggregate: "users", pipeline: [{$match: {}}, {$project: {name: 1}}], cursor: {}})`, want: Select},
+		{name: "runCommand aggregate $out", statement: `db.runCommand({aggregate: "users", pipeline: [{$out: "output"}], cursor: {}})`, want: DML},
+		{name: "runCommand aggregate $project then $merge", statement: `db.runCommand({aggregate: "users", pipeline: [{$project: {name: 1}}, {$merge: {into: "output"}}], cursor: {}})`, want: DML},
+		{name: "runCommand aggregate dynamic pipeline", statement: `db.runCommand({aggregate: "users", pipeline: myPipeline, cursor: {}})`, want: DML},
+		{name: "runCommand aggregate missing pipeline", statement: `db.runCommand({aggregate: "users", cursor: {}})`, want: DML},
 		{name: "runCommand insert", statement: `db.runCommand({insert: "users", documents: [{a: 1}]})`, want: DML},
 		{name: "runCommand create", statement: `db.runCommand({create: "newColl"})`, want: DDL},
 		{name: "runCommand serverStatus", statement: `db.runCommand({serverStatus: 1})`, want: SelectInfoSchema},
 		{name: "adminCommand find", statement: `db.adminCommand({find: "users"})`, want: Select},
+		{name: "adminCommand aggregate read-only", statement: `db.adminCommand({aggregate: 1, pipeline: [{$currentOp: {}}], cursor: {}})`, want: Select},
+		{name: "adminCommand aggregate $out", statement: `db.adminCommand({aggregate: "users", pipeline: [{$out: "output"}], cursor: {}})`, want: DML},
+		{name: "adminCommand aggregate $merge", statement: `db.adminCommand({aggregate: "users", pipeline: [{$merge: {into: "output"}}], cursor: {}})`, want: DML},
 		{name: "adminCommand insert", statement: `db.adminCommand({insert: "users", documents: [{a: 1}]})`, want: DML},
 		{name: "adminCommand create", statement: `db.adminCommand({create: "newColl"})`, want: DDL},
 		{name: "adminCommand serverStatus", statement: `db.adminCommand({serverStatus: 1})`, want: SelectInfoSchema},
@@ -112,24 +129,61 @@ func TestClassifyStatement(t *testing.T) {
 		{name: "unknown collection method", statement: `db.users.someUnknownMethod()`, want: DML},
 		{name: "unknown db method", statement: `db.someUnknownDbMethod()`, want: DML},
 
-		// Empty, multi-statement, and parse errors default to DML.
+		// Empty input defaults to DML with no error.
 		{name: "empty input", statement: ``, want: DML},
 		{name: "whitespace only", statement: "   \n\t  ", want: DML},
 		{name: "semicolon only", statement: `;`, want: DML},
 		{name: "comment only", statement: `// just a comment`, want: DML},
-		{name: "multi-statement script", statement: `db.users.find({}); db.users.drop()`, want: DML},
-		{name: "incomplete find statement", statement: `db.users.find({`, want: DML},
-		{name: "completely unparseable input", statement: `@@@###`, want: DML},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ClassifyStatement(tc.statement)
+			got, err := ClassifyStatement(tc.statement)
+			if err != nil {
+				t.Fatalf("ClassifyStatement(%q) unexpected error: %v", tc.statement, err)
+			}
 			if got != tc.want {
 				t.Fatalf("ClassifyStatement(%q) = %v, want %v", tc.statement, got, tc.want)
 			}
 		})
 	}
+}
+
+func TestClassifyStatementErrors(t *testing.T) {
+	t.Run("incomplete find preserves parse error", func(t *testing.T) {
+		got, err := ClassifyStatement(`db.users.find({`)
+		if got != DML {
+			t.Fatalf("ClassifyStatement = %v, want %v", got, DML)
+		}
+		var parseErr *parser.ParseError
+		if !errors.As(err, &parseErr) {
+			t.Fatalf("expected *parser.ParseError, got %T (%v)", err, err)
+		}
+		if parseErr.Position < 0 {
+			t.Fatalf("expected non-negative ParseError.Position, got %d", parseErr.Position)
+		}
+	})
+
+	t.Run("unparseable input preserves parse error", func(t *testing.T) {
+		got, err := ClassifyStatement(`@@@###`)
+		if got != DML {
+			t.Fatalf("ClassifyStatement = %v, want %v", got, DML)
+		}
+		var parseErr *parser.ParseError
+		if !errors.As(err, &parseErr) {
+			t.Fatalf("expected *parser.ParseError, got %T (%v)", err, err)
+		}
+	})
+
+	t.Run("multi-statement script returns error", func(t *testing.T) {
+		got, err := ClassifyStatement(`db.users.find({}); db.users.drop()`)
+		if got != DML {
+			t.Fatalf("ClassifyStatement = %v, want %v", got, DML)
+		}
+		if err == nil {
+			t.Fatalf("expected error for multi-statement input")
+		}
+	})
 }
 
 func TestQueryTypeOf(t *testing.T) {
@@ -154,10 +208,15 @@ func TestQueryTypeOf(t *testing.T) {
 		{name: "OpDistinct", in: &StatementAnalysis{Operation: OpDistinct, MethodName: "distinct"}, want: Select},
 		{name: "OpAggregate read", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$match", "$project"}}, want: Select},
 		{name: "OpAggregate $out", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$match", "$out"}}, want: DML},
+		{name: "OpAggregate $project then $out", in: &StatementAnalysis{Operation: OpAggregate, UnsupportedStage: "$project", PipelineStages: []string{"$project", "$out"}}, want: DML},
 		{name: "OpAggregate $merge", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$merge"}}, want: DML},
+		{name: "OpAggregate unknown pipeline", in: &StatementAnalysis{Operation: OpAggregate, UnsupportedStage: "unknown"}, want: DML},
+		{name: "OpAggregate unknown stage", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$project", "unknown"}}, want: DML},
 		{name: "OpRead collection metadata", in: &StatementAnalysis{Operation: OpRead, MethodName: "getIndexes"}, want: SelectInfoSchema},
 		{name: "OpRead runCommand", in: &StatementAnalysis{Operation: OpRead, MethodName: "runCommand"}, want: Select},
+		{name: "OpRead runCommand with $out stage", in: &StatementAnalysis{Operation: OpRead, MethodName: "runCommand", PipelineStages: []string{"$out"}}, want: DML},
 		{name: "OpRead adminCommand", in: &StatementAnalysis{Operation: OpRead, MethodName: "adminCommand"}, want: Select},
+		{name: "OpRead adminCommand with $merge stage", in: &StatementAnalysis{Operation: OpRead, MethodName: "adminCommand", PipelineStages: []string{"$merge"}}, want: DML},
 		{name: "OpInfo show", in: &StatementAnalysis{Operation: OpInfo, MethodName: "show"}, want: SelectInfoSchema},
 		{name: "OpInfo runCommand", in: &StatementAnalysis{Operation: OpInfo, MethodName: "runCommand"}, want: SelectInfoSchema},
 		{name: "OpInfo adminCommand", in: &StatementAnalysis{Operation: OpInfo, MethodName: "adminCommand"}, want: SelectInfoSchema},

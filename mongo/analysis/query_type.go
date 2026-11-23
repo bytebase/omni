@@ -1,7 +1,7 @@
 package analysis
 
 import (
-	"slices"
+	"errors"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mongo/parser"
@@ -26,6 +26,18 @@ const (
 	DML = analysis.DML
 )
 
+func hasWriteOrUnknownStage(a *StatementAnalysis) bool {
+	if a.UnsupportedStage == "unknown" {
+		return true
+	}
+	for _, stage := range a.PipelineStages {
+		if stage == "$out" || stage == "$merge" || stage == "unknown" {
+			return true
+		}
+	}
+	return false
+}
+
 // QueryTypeOf maps a StatementAnalysis to its QueryType.
 // Nil or unrecognized analyses default to DML for safety.
 func QueryTypeOf(a *StatementAnalysis) QueryType {
@@ -36,15 +48,19 @@ func QueryTypeOf(a *StatementAnalysis) QueryType {
 	case OpFind, OpFindOne, OpCount, OpDistinct:
 		return Select
 	case OpAggregate:
-		if slices.Contains(a.PipelineStages, "$out") || slices.Contains(a.PipelineStages, "$merge") {
+		if hasWriteOrUnknownStage(a) {
 			return DML
 		}
 		return Select
 	case OpRead:
 		// OpRead covers runCommand({find:...}) and collection metadata reads
 		// (getIndexes, stats, etc.). Treat runCommand/adminCommand as Select
-		// (data access) and collection metadata methods as SelectInfoSchema.
+		// (data access) unless a pipeline write/unknown stage is present, and
+		// collection metadata methods as SelectInfoSchema.
 		if a.MethodName == "runCommand" || a.MethodName == "adminCommand" {
+			if hasWriteOrUnknownStage(a) {
+				return DML
+			}
 			return Select
 		}
 		return SelectInfoSchema
@@ -84,12 +100,19 @@ func (a *StatementAnalysis) QueryType() QueryType {
 }
 
 // ClassifyStatement parses a single MongoDB shell statement and returns its
-// QueryType. It returns DML when the input fails to parse, is empty, contains
-// multiple statements, or cannot be analyzed.
-func ClassifyStatement(statement string) QueryType {
+// QueryType. Empty input returns DML with a nil error. Syntax errors return DML
+// alongside the *parser.ParseError from mongo/parser, and multi-statement input
+// returns DML with an error.
+func ClassifyStatement(statement string) (QueryType, error) {
 	nodes, err := parser.Parse(statement)
-	if err != nil || len(nodes) != 1 {
-		return DML
+	if err != nil {
+		return DML, err
 	}
-	return QueryTypeOf(Analyze(nodes[0]))
+	if len(nodes) == 0 {
+		return DML, nil
+	}
+	if len(nodes) > 1 {
+		return DML, errors.New("expected a single MongoDB statement")
+	}
+	return QueryTypeOf(Analyze(nodes[0])), nil
 }

@@ -656,6 +656,43 @@ func TestAnalyzeAdminCommand(t *testing.T) {
 	}
 }
 
+func TestAnalyzePipelineCollectsStagesAfterUnsupported(t *testing.T) {
+	sa := mustAnalyze(t, `db.users.aggregate([{$match: {a: 1}}, {$project: {a: 1}}, {$match: {b: 2}}, {$out: "output"}])`)
+	if sa.ShapePreserving {
+		t.Errorf("ShapePreserving = true, want false")
+	}
+	if sa.UnsupportedStage != "$project" {
+		t.Errorf("UnsupportedStage = %q, want %q", sa.UnsupportedStage, "$project")
+	}
+	wantStages := []string{"$match", "$project", "$match", "$out"}
+	if !slices.Equal(sa.PipelineStages, wantStages) {
+		t.Errorf("PipelineStages = %v, want %v", sa.PipelineStages, wantStages)
+	}
+	// Predicates are still collected only before the first shape-changing stage.
+	assertPredicateFields(t, sa, []string{"a"})
+}
+
+func TestAnalyzeRunCommandAggregate(t *testing.T) {
+	readSA := mustAnalyze(t, `db.runCommand({aggregate: "users", pipeline: [{$match: {a: 1}}], cursor: {}})`)
+	if readSA.Operation != analysis.OpRead {
+		t.Errorf("read aggregate Operation = %v, want OpRead", readSA.Operation)
+	}
+	if readSA.Collection != "users" {
+		t.Errorf("read aggregate Collection = %q, want %q", readSA.Collection, "users")
+	}
+	if !slices.Equal(readSA.PipelineStages, []string{"$match"}) {
+		t.Errorf("read aggregate PipelineStages = %v, want [$match]", readSA.PipelineStages)
+	}
+
+	writeSA := mustAnalyze(t, `db.runCommand({aggregate: "users", pipeline: [{$project: {a: 1}}, {$out: "out"}], cursor: {}})`)
+	if writeSA.Operation != analysis.OpWrite {
+		t.Errorf("write aggregate Operation = %v, want OpWrite", writeSA.Operation)
+	}
+	if !slices.Equal(writeSA.PipelineStages, []string{"$project", "$out"}) {
+		t.Errorf("write aggregate PipelineStages = %v, want [$project $out]", writeSA.PipelineStages)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Masking parity integration tests
 // ---------------------------------------------------------------------------
