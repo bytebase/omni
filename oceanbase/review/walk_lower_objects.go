@@ -68,13 +68,51 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
+	if !v.IfNotExists {
+		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
+	}
+	if b.w.oceanBase {
+		kind := obKeyPlain
+		switch {
+		case v.Fulltext:
+			kind = obKeyFulltext
+		case v.Spatial:
+			kind = obKeySpatial
+		case v.Vector:
+			kind = obKeyVector
+		}
+		if b.checkKeyPartsOB(r, nil, v.Columns, kind, v.Options, rng) {
+			return true
+		}
+	}
 	if v.IfNotExists {
 		b.Next()
 		b.Optional()
-	} else {
-		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")
+	rel := relKey(r.db, r.name)
+	b.Session(func() {
+		if b.w.indexLeadsKnown[rel] {
+			var cols []string
+			for _, ic := range v.Columns {
+				if ic == nil || ic.Functional {
+					cols = nil
+					break
+				}
+				if cr, ok := ic.Expr.(*ast.ColumnRef); ok && cr.Column != "" {
+					cols = append(cols, strings.ToLower(cr.Column))
+				} else {
+					cols = nil
+					break
+				}
+			}
+			if len(cols) > 0 {
+				b.w.indexLeads[rel] = append(b.w.indexLeads[rel], cols)
+			} else {
+				delete(b.w.indexLeadsKnown, rel)
+			}
+		}
+	})
 	return true
 }
 
@@ -88,6 +126,11 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	if !ok {
 		return lowered
 	}
+	rel := relKey(r.db, r.name)
+	b.Session(func() {
+		delete(b.w.indexLeadsKnown, rel)
+		delete(b.w.indexLeads, rel)
+	})
 	return b.dropIndexName(r, v.Name, b.anchor())
 }
 
@@ -108,6 +151,12 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	}
 	if v.Name.Schema != "" {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
+	}
+	if b.w.oceanBase && v.Select != nil {
+		if col, ok := selectWithoutFromColRef(v.Select); ok {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
+			return true
+		}
 	}
 	k := relKey(r.db, r.name)
 	if v.OrReplace && b.w.materialized[k] {
@@ -294,6 +343,12 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 			return true
 		}
 		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		if b.w.oceanBase && v.Select != nil {
+			if col, ok := selectWithoutFromColRef(v.Select); ok {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
+				return true
+			}
+		}
 	}
 	return true
 }
@@ -392,6 +447,9 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	rng := b.anchor()
 	if b.tooLong(spaceTrigger, v.Name, rng) {
+		return true
+	}
+	if b.checkCreateTriggerOB(r, v, rng) {
 		return true
 	}
 	k, ok := b.key(spaceTrigger, v.Name)
@@ -569,6 +627,9 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
+	if b.checkEventScheduleOB(v.Schedule, b.anchor()) {
+		return true
+	}
 	if !v.IfNotExists {
 		b.need(ek, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.Name), "")) // 1537
 	}
@@ -581,18 +642,27 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
-	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
+	if b.checkEventScheduleOB(v.Schedule, b.anchor()) {
+		return true
+	}
 	if v.RenameTo != "" {
 		nk, st := b.event(v.RenameTo)
 		if st != refOK {
 			return st == refFailed
 		}
+		if nk == ek && b.w.oceanBase {
+			b.fail(b.anchor(), nil, review.DuplicateName, "Event "+review.Code(ident(v.Name))+" cannot be renamed to itself.")
+			return true
+		}
+		b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 		if nk != ek {
 			b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
 			b.Set(ek, walk.Absent, "")
 		}
 		b.Set(nk, walk.Present, "")
+		return true
 	}
+	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	return true
 }
 

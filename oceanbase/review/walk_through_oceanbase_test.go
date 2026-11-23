@@ -251,3 +251,160 @@ func TestWalkThroughRejectedAlterActions(t *testing.T) {
 	oneFindingOB(t, "ALTER TABLE t ADD COLUMN c 'int';", 0, "OceanBase refuses a quoted string literal as a column data type.", shop)
 	oneFindingOB(t, "CREATE VIEW v2 TABLE_ID = 1 AS SELECT 1;", 0, "OceanBase refuses TABLE_ID on a view.", shop)
 }
+
+func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
+	// Rich schema with typed columns, index column lists, and FK column lists
+	// matching synced OceanBase metadata.
+	richDB := func() *metadata.DatabaseSchemaMetadata {
+		return &metadata.DatabaseSchemaMetadata{
+			Name: "shop",
+			Schemas: []*metadata.SchemaMetadata{{
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "parent",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "id", Type: "int(11)"},
+						},
+						Indexes: []*metadata.IndexMetadata{
+							{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+						},
+					},
+					{
+						Name: "t",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "id", Type: "int(11)"},
+							{Name: "a", Type: "int(11)"},
+							{Name: "name", Type: "varchar(64)"},
+							{Name: "ts", Type: "datetime"},
+							{Name: "geo", Type: "point"},
+							{Name: "vec", Type: "vector(3)"},
+							{Name: "parent_id", Type: "int(11)"},
+						},
+						Indexes: []*metadata.IndexMetadata{
+							{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+							{Name: "idx_a", Expressions: []string{"a"}},
+						},
+						ForeignKeys: []*metadata.ForeignKeyMetadata{
+							{Name: "fk_parent", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+						},
+						Triggers: []*metadata.TriggerMetadata{
+							{Name: "tr_existing"},
+						},
+					},
+				},
+				Views: []*metadata.ViewMetadata{{Name: "v"}},
+			}},
+		}
+	}
+	target := review.Target{Schema: richDB(), LowerCaseTableNames: 1, ForeignKeyChecks: review.SwitchOn}
+
+	t.Run("ALTER TABLE on view", func(t *testing.T) {
+		noFindingOB(t, "ALTER TABLE v COMMENT 'ok';", target)
+		oneFindingOB(t, "ALTER TABLE v ADD COLUMN c INT;", 0, "`v` is a view, not a table.", target)
+		oneFindingOB(t, "ALTER TABLE v ENGINE = InnoDB;", 0, "`v` is a view, not a table.", target)
+		oneFindingOB(t, "ALTER TABLE v;", 0, "`v` is a view, not a table.", target)
+	})
+
+	t.Run("table options, charsets, column groups, and TTL", func(t *testing.T) {
+		oneFindingOB(t, "ALTER TABLE t FORMAT(ENCODING = 'utf8');", 0, "OceanBase refuses external table option `FORMAT` on a base table.", target)
+		oneFindingOB(t, "ALTER TABLE t TABLE_ID 1;", 0, "OceanBase refuses altering `TABLE_ID`.", target)
+		oneFindingOB(t, "ALTER TABLE t ORGANIZATION INDEX;", 0, "OceanBase refuses `ORGANIZATION` on ALTER TABLE.", target)
+		oneFindingOB(t, "ALTER TABLE t MERGE_ENGINE PARTIAL_UPDATE;", 0, "OceanBase refuses altering `MERGE_ENGINE`.", target)
+		oneFindingOB(t, "ALTER TABLE t AUTO_REFRESH IMMEDIATE;", 0, "OceanBase refuses `AUTO_REFRESH` on ALTER TABLE.", target)
+		oneFindingOB(t, "ALTER TABLE t STORAGE_CACHE_POLICY(GLOBAL = 's');", 0, "OceanBase has no storage cache policy for a table.", target)
+		oneFindingOB(t, "ALTER TABLE t TABLE_MODE 'bad';", 0, "OceanBase refuses `TABLE_MODE` value `bad`.", target)
+		noFindingOB(t, "ALTER TABLE t TABLE_MODE 'queuing';", target)
+		oneFindingOB(t, "ALTER TABLE t DUPLICATE_SCOPE 'bad';", 0, "OceanBase refuses `DUPLICATE_SCOPE` value `bad`.", target)
+		noFindingOB(t, "ALTER TABLE t DUPLICATE_SCOPE 'cluster';", target)
+		oneFindingOB(t, "ALTER TABLE t BLOCK_SIZE 1;", 0, "OceanBase requires `BLOCK_SIZE` between 1024 and 1048576.", target)
+		noFindingOB(t, "ALTER TABLE t BLOCK_SIZE 16384;", target)
+		oneFindingOB(t, "ALTER TABLE t TABLET_SIZE 1;", 0, "OceanBase requires `TABLET_SIZE` to be a multiple of 2 MiB.", target)
+		noFindingOB(t, "ALTER TABLE t TABLET_SIZE 2097152;", target)
+		oneFindingOB(t, "ALTER TABLE t COMPRESSION 'bad';", 0, "OceanBase refuses `COMPRESSION` value `bad`.", target)
+		noFindingOB(t, "ALTER TABLE t COMPRESSION 'zstd_1.3.8';", target)
+		oneFindingOB(t, "ALTER TABLE t KV_ATTRIBUTES 'not-json';", 0, "OceanBase requires valid JSON for `KV_ATTRIBUTES`.", target)
+		noFindingOB(t, `ALTER TABLE t KV_ATTRIBUTES '{"ttl": 1}';`, target)
+		oneFindingOB(t, "ALTER TABLE t CHARSET nosuch;", 0, "OceanBase has no character set `nosuch`.", target)
+		noFindingOB(t, "ALTER TABLE t CHARSET utf8mb4;", target)
+		oneFindingOB(t, "ALTER TABLE t COLLATE nosuch;", 0, "OceanBase has no collation `nosuch`.", target)
+		noFindingOB(t, "ALTER TABLE t COLLATE utf8mb4_general_ci;", target)
+		oneFindingOB(t, "ALTER TABLE t DYNAMIC_PARTITION_POLICY(TIME_ZONE = 'bad');", 0, "OceanBase refuses `TIME_ZONE` value `bad` in `DYNAMIC_PARTITION_POLICY`.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD COLUMN GROUP(ALL COLUMNS) DELAYED;", 0, "OceanBase refuses `DELAYED` on ADD COLUMN GROUP without EACH COLUMN.", target)
+		noFindingOB(t, "ALTER TABLE t ADD COLUMN GROUP(EACH COLUMN) DELAYED;", target)
+		oneFindingOB(t, "ALTER TABLE t TTL(nosuch + INTERVAL 1 DAY);", 0, "Column `nosuch` doesn't exist in `t`.", target)
+		oneFindingOB(t, "ALTER TABLE t TTL(a + INTERVAL 1 DAY);", 0, "OceanBase requires a DATETIME or TIMESTAMP column for TTL, not `a`.", target)
+		noFindingOB(t, "ALTER TABLE t TTL(ts + INTERVAL 1 DAY);", target)
+		noFindingOB(t, "ALTER TABLE t ADD COLUMN created_at DATETIME, TTL(created_at + INTERVAL 1 DAY);", target)
+	})
+
+	t.Run("index options and key parts", func(t *testing.T) {
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(a) WITH(k = 1);", 0, "OceanBase refuses `WITH` index parameters on a non-vector index.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(a) DATA_TABLE_ID 1;", 0, "OceanBase refuses `DATA_TABLE_ID` on an index.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(a) BLOCK_SIZE 1;", 0, "OceanBase requires `BLOCK_SIZE` between 1024 and 1048576.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(a, a);", 0, "This statement names column `a` twice.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", target)
+		oneFindingOB(t, "CREATE INDEX k_missing ON t(nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY((a));", 0, "OceanBase refuses a functional index on bare column `a`.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD KEY(a(1));", 0, "OceanBase refuses a prefix key on non-string column `a`.", target)
+		noFindingOB(t, "ALTER TABLE t ADD KEY(name(10));", target)
+		oneFindingOB(t, "ALTER TABLE t ADD FULLTEXT(a);", 0, "OceanBase refuses a FULLTEXT index on non-string column `a`.", target)
+		noFindingOB(t, "ALTER TABLE t ADD FULLTEXT(name);", target)
+		noFindingOB(t, "ALTER TABLE t MODIFY COLUMN a VARCHAR(32), ADD FULLTEXT(a);", target)
+		oneFindingOB(t, "CREATE SPATIAL INDEX k_sp ON t(a);", 0, "OceanBase refuses a SPATIAL index on non-spatial column `a`.", target)
+		noFindingOB(t, "CREATE SPATIAL INDEX k_sp ON t(geo);", target)
+		oneFindingOB(t, "CREATE VECTOR INDEX k_vec ON t(a);", 0, "OceanBase refuses a VECTOR index on non-vector column `a`.", target)
+		noFindingOB(t, "CREATE VECTOR INDEX k_vec ON t(vec) WITH (distance=l2, type=hnsw, lib=vsag);", target)
+		oneFindingOB(t, "ALTER TABLE t RENAME INDEX idx_a TO idx_a;", 0, "Index `idx_a` already exists in `t`.", target)
+	})
+
+	t.Run("column definitions, CHECK, FK, partitioning, and table statements", func(t *testing.T) {
+		oneFindingOB(t, "CREATE TABLE empty_t (PRIMARY KEY (a));", 0, "Table `empty_t` must have at least one column.", target)
+		oneFindingOB(t, "CREATE TABLE ctas AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", target)
+		oneFindingOB(t, "CREATE TABLE ctas AS SELECT nosuch alias_c;", 0, "Column `nosuch` doesn't exist.", target)
+		noFindingOB(t, "CREATE TABLE ctas AS SELECT 1 AS c;", target)
+		oneFindingOB(t, "CREATE VIEW v_bad AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", target)
+		noFindingOB(t, "CREATE VIEW v_ok AS SELECT TIMESTAMPDIFF(DAY, '2020-01-01', '2020-01-02') AS d;", target)
+		oneFindingOB(t, "ALTER VIEW v AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", target)
+		oneFindingOB(t, "DROP TABLE t, t;", 0, "This statement drops table `t` twice.", target)
+		oneFindingOB(t, "RENAME TABLE t TO t, t TO t;", 0, "Table `t` already exists.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD COLUMN g INT AS (nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", target)
+		noFindingOB(t, "ALTER TABLE t ADD COLUMN (x INT, y INT AS (x + 1));", target)
+		oneFindingOB(t, "ALTER TABLE t ADD COLUMN x TINYINT DEFAULT 'bad';", 0, "Invalid default value for column `x`.", target)
+		noFindingOB(t, "ALTER TABLE t ADD COLUMN x TINYINT DEFAULT '12';", target)
+		noFindingOB(t, "CREATE TABLE huge_dec (a DECIMAL(1000000000) DEFAULT 0);", target)
+		noFindingOB(t, "CREATE TABLE p_inline (a INT);\nALTER TABLE p_inline ADD COLUMN id INT UNIQUE;\nCREATE TABLE c_inline (id INT);\nALTER TABLE c_inline ADD FOREIGN KEY (id) REFERENCES p_inline (id);", target)
+		oneFindingOB(t, "ALTER TABLE t ADD COLUMN x INT ON UPDATE CURRENT_TIMESTAMP;", 0, "OceanBase refuses `ON UPDATE CURRENT_TIMESTAMP` on non-temporal column `x`.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD COLUMN x INT SRID 4326;", 0, "OceanBase refuses `SRID` on non-spatial column `x`.", target)
+		oneFindingOB(t, "ALTER TABLE t ALTER a SET DEFAULT (a);", 0, "OceanBase refuses column references in a default value expression.", target)
+		oneFindingOB(t, "ALTER TABLE t ALTER a SET DEFAULT 'bad';", 0, "Invalid default value for column `a`.", target)
+		oneFindingOB(t, "ALTER TABLE t ADD CHECK (a);", 0, "OceanBase requires a boolean expression for a CHECK constraint.", target)
+		noFindingOB(t, "ALTER TABLE t ADD CHECK (a > 0);", target)
+		oneFindingOB(t, "ALTER TABLE t ALTER CONSTRAINT fk_parent NOT ENFORCED;", 0, "OceanBase refuses altering enforcement on foreign key `fk_parent`.", target)
+		oneFindingOB(t, "ALTER TABLE t DROP COLUMN parent_id;", 0, "Column `parent_id` is used in a foreign key constraint on `t`.", target)
+		oneFindingOB(t, "ALTER TABLE t MODIFY COLUMN parent_id TINYINT;", 0, "Column `parent_id` is used in a foreign key constraint on `t`.", target)
+		noFindingOB(t, "ALTER TABLE t MODIFY COLUMN parent_id INT NOT NULL;", target)
+		noFindingOB(t, "ALTER TABLE t DROP FOREIGN KEY fk_parent, DROP COLUMN parent_id;", target)
+		oneFindingOB(t, "ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t (name);", 0, "OceanBase requires an index on referenced columns of `t` for a foreign key.", target)
+		noFindingOB(t, "ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t (id);", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY HASH(a);", 0, "OceanBase requires the primary key of `t` to include partitioning column `a`.", target)
+		noFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1 (SUBPARTITION s1));", 0, "OceanBase refuses subpartitions without SUBPARTITION BY.", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1, PARTITION p1);", 0, "This statement declares partition `p1` twice.", target)
+		oneFindingOB(t, "ALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 0, "OceanBase has no storage cache policy for a partition.", target)
+		oneFindingOB(t, "ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t WITHOUT VALIDATION;", 0, "OceanBase refuses exchanging a partition of `t` with itself.", target)
+	})
+
+	t.Run("triggers and events", func(t *testing.T) {
+		oneFindingOB(t, "CREATE TRIGGER otherdb.tr_bad BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;", 0, "Trigger `otherdb.tr_bad` and table `t` are in different databases.", target)
+		oneFindingOB(t, "CREATE TRIGGER tr_ord BEFORE INSERT ON t FOR EACH ROW FOLLOWS nosuch SET NEW.a = 1;", 0, "Trigger `nosuch` doesn't exist.", target)
+		noFindingOB(t, "CREATE TRIGGER tr_ord BEFORE INSERT ON t FOR EACH ROW FOLLOWS tr_existing SET NEW.a = 1;", target)
+		oneFindingOB(t, "CREATE TRIGGER tr_old BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.a;", 0, "OceanBase has no OLD row in an INSERT trigger.", target)
+		oneFindingOB(t, "CREATE TRIGGER tr_new BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.a;", 0, "OceanBase has no NEW row in a DELETE trigger.", target)
+		oneFindingOB(t, "CREATE TRIGGER tr_after AFTER INSERT ON t FOR EACH ROW SET NEW.a = 1;", 0, "OceanBase refuses updating NEW row in an AFTER trigger.", target)
+		noFindingOB(t, "CREATE TRIGGER tr_alias BEFORE INSERT ON t FOR EACH ROW BEGIN DECLARE x INT; SELECT old.id INTO x FROM parent AS old LIMIT 1; END;", target)
+		noFindingOB(t, "CREATE TRIGGER tr_implicit_alias BEFORE INSERT ON t FOR EACH ROW BEGIN DECLARE x INT; SELECT old.id INTO x FROM parent old LIMIT 1; END;", target)
+		oneFindingOB(t, "CREATE EVENT ev_bad ON SCHEDULE AT a DO COMMIT;", 0, "OceanBase refuses column reference `a` in an event schedule.", target)
+		noFindingOB(t, "CREATE EVENT ev_ok ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT;", target)
+		oneFindingOB(t, "ALTER EVENT ev_ok RENAME TO ev_ok;", 0, "Event `ev_ok` cannot be renamed to itself.", target)
+	})
+}

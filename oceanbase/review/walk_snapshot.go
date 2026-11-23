@@ -116,6 +116,14 @@ type mysqlSnapshot struct {
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
+	// Optional richer metadata populated when the snapshot provides column
+	// types, index column lists, or foreign key column lists. Entries are
+	// consulted conservatively: missing information leaves checks silent.
+	colTypes        map[string]map[string]string
+	pkCols          map[string][]string
+	indexLeads      map[string][][]string
+	indexLeadsKnown map[string]bool
+	fkCols          map[string]map[string]bool
 	// partial lists the spaces with no name known to be absent, as the
 	// space and its table's key ("" for a space of the database): where the
 	// sync lists a name outside ASCII, and on OceanBase the relations when
@@ -140,6 +148,11 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		ignoresFKs:       make(map[string]bool),
 		materialized:     make(map[string]bool),
 		external:         make(map[string]bool),
+		colTypes:         make(map[string]map[string]string),
+		pkCols:           make(map[string][]string),
+		indexLeads:       make(map[string][][]string),
+		indexLeadsKnown:  make(map[string]bool),
+		fkCols:           make(map[string]map[string]bool),
 		partial:          make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -173,25 +186,76 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 				s.ignoresFKs[tk] = true
 			}
 			cols := make(map[string]bool)
+			types := make(map[string]string)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, tk, c.GetName())
+				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
+					if bt := obBaseTypeFromMetadata(c.GetType()); bt != "" {
+						types[ck] = bt
+					}
+				}
 			}
 			s.columns[tk] = cols
+			if len(types) > 0 {
+				s.colTypes[tk] = types
+			}
 			idx := make(map[string]bool)
+			leadsKnown := true
+			var leads [][]string
 			for _, i := range t.GetIndexes() {
+				exprs := i.GetExpressions()
+				if len(exprs) == 0 {
+					leadsKnown = false
+				} else {
+					var partCols []string
+					for _, e := range exprs {
+						if e != "" {
+							partCols = append(partCols, strings.ToLower(e))
+						}
+					}
+					if len(partCols) > 0 {
+						leads = append(leads, partCols)
+					} else {
+						leadsKnown = false
+					}
+				}
 				if i.GetPrimary() {
 					idx[primaryIndex] = true
+					if i.GetUnique() && len(exprs) > 0 {
+						pk := make([]string, 0, len(exprs))
+						for _, e := range exprs {
+							if e != "" {
+								pk = append(pk, strings.ToLower(e))
+							}
+						}
+						if len(pk) > 0 {
+							s.pkCols[tk] = pk
+						}
+					}
 					continue
 				}
 				set(idx, spaceIndex, tk, i.GetName())
 			}
 			s.indexes[tk] = idx
+			if leadsKnown {
+				s.indexLeadsKnown[tk] = true
+				s.indexLeads[tk] = leads
+			}
 			fks := make(map[string]bool)
+			fkColSet := make(map[string]bool)
 			for _, fk := range t.GetForeignKeys() {
 				set(s.foreignKeys, spaceForeignKey, "", fk.GetName())
 				set(fks, spaceTableForeignKey, tk, fk.GetName())
+				for _, fc := range fk.GetColumns() {
+					if ck, ok := nameKey(spaceColumn, fc, foldTables); ok {
+						fkColSet[ck] = true
+					}
+				}
 			}
 			s.tableForeignKeys[tk] = fks
+			if len(fkColSet) > 0 {
+				s.fkCols[tk] = fkColSet
+			}
 			for _, tr := range t.GetTriggers() {
 				if k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables); ok {
 					// 5.7 keeps case variants apart: a key two triggers
