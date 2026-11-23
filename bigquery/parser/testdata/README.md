@@ -31,13 +31,15 @@ refuses every input (`../../../googlesql/testdata/tokens.tsv`).
 
 ### Comparison with Spanner emulator `1.5.54` (`googlesql/parser/testdata/compat.tsv`)
 
-Spanner emulator `1.5.54` agrees with `googlesql/parser.Parse` (`DialectDefault`)
+At judge revision 2, Spanner emulator `1.5.54` alone agreed with
+`googlesql/parser.Parse` (`DialectDefault`)
 on **7,909 / 9,463 rows (83.58%)** overall (including 626 hand-added `suite:`
 rows), or **7,335 / 8,837 (83.00%)** on the exact same 8,837 generated rows
 (`2,196 / 2,614` alternatives, `5,139 / 6,223` near-misses, `1,093` only Spanner
-accepts, `409` only omni accepts).
+accepts, `409` only omni accepts). That file now uses the BigQuery ∪ Spanner
+union judge (revision 4) and agrees on all 9,463 rows.
 
-Comparing `googlesql/parser.Parse` (Spanner emulator `1.5.54`) with
+Comparing `googlesql/parser.Parse` (Spanner emulator `1.5.54`, judge revision 2) with
 `bigquery/parser.Parse` (`DialectBigQuery`, live BigQuery dry-run) across all
 8,837 generated rows:
 
