@@ -247,7 +247,9 @@ func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode, apply boo
 		q.unpivot(v, inner, sc)
 	case *ast.JoinClause:
 		q.source(v.Left, sc, conds, apply)
-		q.source(v.Right, sc, conds, v.Type == ast.JoinCrossApply || v.Type == ast.JoinOuterApply)
+		// A join under APPLY's right side still sees what APPLY's left
+		// side holds.
+		q.source(v.Right, sc, conds, apply || v.Type == ast.JoinCrossApply || v.Type == ast.JoinOuterApply)
 		if v.Condition != nil {
 			*conds = append(*conds, v.Condition)
 		}
@@ -1539,7 +1541,7 @@ func (q *binder) ungrouped(s *ast.SelectStmt) bool {
 		if rt, ok := item.(*ast.ResTarget); ok {
 			if rt.Name != "" {
 				selected = append(selected, rt.Name)
-			} else if c, ok := rt.Val.(*ast.ColumnRef); ok {
+			} else if c, ok := unparen(rt.Val).(*ast.ColumnRef); ok {
 				selected = append(selected, c.Column)
 			}
 		}

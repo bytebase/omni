@@ -28,10 +28,11 @@ var orderedWindows = map[string]bool{
 	"LAG": true, "LEAD": true, "PERCENT_RANK": true, "CUME_DIST": true,
 }
 
-// builtinArity is how many arguments some system functions take (174 for
-// a fixed count, 189 for a range).
+// builtinArity is how many arguments some system functions take, on any
+// version the walk reviews (174 for a fixed count, 189 for a range):
+// SUBSTRING's length is optional on SQL Server 2025 and Azure SQL.
 var builtinArity = map[string][2]int{
-	"LEN": {1, 1}, "DATALENGTH": {1, 1}, "SUBSTRING": {3, 3}, "LEFT": {2, 2}, "RIGHT": {2, 2},
+	"LEN": {1, 1}, "DATALENGTH": {1, 1}, "SUBSTRING": {2, 3}, "LEFT": {2, 2}, "RIGHT": {2, 2},
 	"REPLACE": {3, 3}, "REVERSE": {1, 1}, "REPLICATE": {2, 2}, "STUFF": {4, 4},
 	"UPPER": {1, 1}, "LOWER": {1, 1}, "ABS": {1, 1}, "CEILING": {1, 1}, "FLOOR": {1, 1},
 	"POWER": {2, 2}, "SQRT": {1, 1}, "SQUARE": {1, 1}, "ROUND": {2, 3}, "CONCAT": {2, 254},
@@ -386,7 +387,7 @@ func orderForm(s *ast.SelectStmt) (ast.Loc, string) {
 			if rt.Name != "" {
 				names = append(names, rt.Name)
 			}
-			if c, ok := rt.Val.(*ast.ColumnRef); ok {
+			if c, ok := unparen(rt.Val).(*ast.ColumnRef); ok {
 				names = append(names, c.Column)
 			}
 		}
@@ -747,6 +748,17 @@ func (b *builder) tableFunction(f *ast.FuncCallExpr) {
 	present := notKind(r.written, "function", kindFunction, kindSynonym)
 	b.ofKind(spaceObject, r.parent, r.n, []string{kindFunction, kindSynonym}, note(r.rng, "", present))
 	b.ofKind(spaceRelation, r.parent, r.n, []string{kindFunction, kindSynonym}, note(r.rng, "", present))
+}
+
+// unparen returns an expression without the parentheses around it.
+func unparen(e ast.ExprNode) ast.ExprNode {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok || p.Expr == nil {
+			return e
+		}
+		e = p.Expr
+	}
 }
 
 // noSources reports whether no block of a scope has a source.
