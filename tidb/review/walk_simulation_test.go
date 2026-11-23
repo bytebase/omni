@@ -23,9 +23,9 @@ func TestWalkSimulation(t *testing.T) {
 		path      string
 		minRecall float64
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.0},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 98.0},
 		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 92.0},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 96.5},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

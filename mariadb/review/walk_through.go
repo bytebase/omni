@@ -49,6 +49,7 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		clear(w.rangeOrList)
 		clear(w.sequences)
 		clear(w.fkTables)
+		clear(w.synced)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -239,6 +240,14 @@ type walker struct {
 	// tables with a foreign key that no statement of the change has
 	// touched yet (fkIndexDropFails).
 	fkTables map[walk.Key]*fkTable
+	// synced holds what the sync says of each base table beyond its
+	// names, for the tables no statement of the change has touched yet;
+	// a statement that may change a table's definition takes it out, as
+	// it does from fkTables.
+	synced map[walk.Key]*syncedTable
+	// sqlModeSet is set once the session assigns sql_mode, which may take
+	// NO_ENGINE_SUBSTITUTION or STRICT_TRANS_TABLES out of it.
+	sqlModeSet bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
@@ -259,6 +268,10 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		fkGeneratedIdx: make(map[walk.Key][]string),
 		sequences:      make(map[walk.Key]sequenceValues),
 		fkTables:       make(map[walk.Key]*fkTable),
+		synced:         make(map[walk.Key]*syncedTable),
+	}
+	for name, st := range snap.tables {
+		w.synced[relKey(snap.db, name)] = st
 	}
 	for name, ft := range snap.fkTables {
 		w.fkTables[relKey(snap.db, name)] = ft
@@ -318,8 +331,16 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 	if on, named := fkOption(w.stmts[i].options); named {
 		w.fkChecks, b.fkOption = on, true
 	}
+	// SET STATEMENT sql_mode holds for this statement alone too.
+	modeSet := w.sqlModeSet
+	for _, a := range w.stmts[i].options {
+		if a.Column != nil && a.Column.Table == "" && strings.EqualFold(a.Column.Column, "sql_mode") {
+			w.sqlModeSet, b.sqlModeOption = true, true
+		}
+	}
 	lowered := b.statement(w.stmts[i].node)
 	w.fkChecks = checks
+	w.sqlModeSet = modeSet
 	if !lowered {
 		return nil
 	}
@@ -333,8 +354,9 @@ type builder struct {
 	l *walk.Ledger
 	s *statement
 	// fkOption is set while the statement runs under a SET STATEMENT that
-	// names foreign_key_checks.
-	fkOption bool
+	// names foreign_key_checks, and sqlModeOption one that names sql_mode.
+	fkOption      bool
+	sqlModeOption bool
 	// fks is set when the statement's table keeps the foreign keys it
 	// names (keepsFKs). Until a lowering sets it, the statement claims
 	// nothing of foreign keys and leaves their names Unknown.

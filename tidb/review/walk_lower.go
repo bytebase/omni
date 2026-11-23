@@ -298,7 +298,7 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 // aside: a session's temporary tables outlive DROP DATABASE of theirs
 // (verified).
 func (b *builder) clearDatabase(d string) {
-	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceTableForeignKey, spacePartitioning, spacePartition, spaceTableCharset, spaceSequenceBounds, spaceAutoRandom} {
+	for _, space := range append([]string{spaceRelation, spaceColumn, spaceIndex, spaceTableForeignKey, spacePartitioning, spacePartition, spaceTableCharset, spaceSequenceBounds, spaceAutoRandom}, shapeSpaces...) {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
 }
@@ -426,7 +426,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		// a note: what it would create may or may not be there.
 		b.Optional()
 	}
-	if b.tableTextFails(v, r) {
+	if b.tableTextFails(v, r) || b.createShapeFails(v, r) {
 		return true
 	}
 	if b.fks {
@@ -567,6 +567,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 		b.setPartitioning(r, v.Partitions)
 		b.createdCharset(v, r)
 		b.createdAutoRandom(v, r)
+		b.createdShape(v, r)
 	}
 	b.Set(colKey(r.db, r.name, rowIDColumn), walk.Unknown, "")
 }

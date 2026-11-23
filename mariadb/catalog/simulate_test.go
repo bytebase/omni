@@ -39,7 +39,7 @@ func TestSimulation(t *testing.T) {
 		Path:     filepath.Join("testdata", "simulate.tsv"),
 		Pins:     testcontainer.Pins,
 		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     rows,
+		Rows:     append(rows, familyRows...),
 		// MariaDB makes up no name that differs between runs: an unnamed
 		// foreign key is <table>_ibfk_<n>, and an unnamed CHECK
 		// CONSTRAINT_<n>.

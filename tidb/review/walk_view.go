@@ -7,6 +7,7 @@ import (
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/catalog"
 )
 
 // viewBodyFails fails a CREATE VIEW whose query TiDB refuses while it plans
@@ -23,8 +24,12 @@ import (
 //   - NTH_VALUE or NTILE reading a column where they take a constant (1210);
 //   - two columns of one name, with no column list to rename them (1060);
 //   - a sequence function on a relation that is no sequence (1347);
-//   - a column the query block reads that its one table does not have, or
-//     any column of a block with no table (1054).
+//   - a function TiDB has no builtin of (1305), or APPROX_PERCENTILE with
+//     other than two arguments (1105);
+//   - a number or a time column read as a JSON document (3146);
+//   - a column the query block reads that its one table does not have, one
+//     qualified by a database and a name the block doesn't give its table,
+//     or any column of a block with no table (1054).
 func (b *builder) viewBodyFails(v *ast.CreateViewStmt) bool {
 	sel := v.Select
 	if sel == nil {
@@ -41,7 +46,7 @@ func (b *builder) viewBodyFails(v *ast.CreateViewStmt) bool {
 			return true
 		}
 	}
-	if b.viewSequenceFails(sel, rng) {
+	if b.viewSequenceFails(sel, rng) || b.viewFunctionsFail(sel, rng) || b.viewJSONArgsFail(sel, rng) {
 		return true
 	}
 	return b.viewColumnsFail(sel, rng)
@@ -446,6 +451,16 @@ func (b *builder) blockColumnsFail(s *ast.SelectStmt, rng review.Range) bool {
 	}
 	collect(s.Where)
 	for _, c := range refs {
+		if c.Schema != "" && table != nil && !c.Star && c.Column != "" {
+			// A name qualified by a database reads a table of the block
+			// of that database, by the name the block gives it: v8.5.5
+			// takes shop.y.a FROM t AS y, and refuses shop.t.a there and
+			// nope.t.a FROM t (1054, verified).
+			if d, ok := b.key(spaceDatabase, c.Schema); ok && (d != table.db || !strings.EqualFold(c.Table, qualifier)) {
+				b.fail(rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(c.Schema)+"."+ident(c.Table)+"."+ident(c.Column))+" doesn't exist in the query.")
+				return true
+			}
+		}
 		if c.Star || c.Schema != "" || c.Column == "" || niladicNames[strings.ToLower(c.Column)] {
 			continue
 		}
@@ -485,4 +500,161 @@ func rowSelectItemFault(sel *ast.SelectStmt) string {
 		}
 	}
 	return ""
+}
+
+// viewFunctionsFail fails a view whose query calls a function TiDB does
+// not have, anywhere in it, a WITH query it never reads included: TiDB has
+// no stored functions, so an unqualified name no builtin has is 1305
+// (verified, POINT among them). APPROX_PERCENTILE takes two arguments
+// (1105), unless written quoted or with a space before its parenthesis,
+// which makes it another call.
+func (b *builder) viewFunctionsFail(sel *ast.SelectStmt, rng review.Range) bool {
+	msg := ""
+	ast.Inspect(sel, func(n ast.Node) bool {
+		f, ok := n.(*ast.FuncCallExpr)
+		if !ok || msg != "" {
+			return msg == ""
+		}
+		name := strings.ToLower(f.Name)
+		switch {
+		case f.Schema != "" || f.Name == "" || sequenceFuncs[name]:
+		case !catalog.IsBuiltinFunction(name):
+			msg = "Function " + review.Code(ident(name)) + " doesn't exist; " + engineName + " has no stored functions."
+		case name == "approx_percentile" && !f.SpacedParen && len(f.Args) != 2 && !quotedAt(b.w.sql, f.Loc.Start):
+			msg = review.Code("APPROX_PERCENTILE") + " takes 2 arguments."
+		}
+		return msg == ""
+	})
+	if msg == "" {
+		return false
+	}
+	b.fail(rng, nil, review.UnsupportedForm, msg)
+	return true
+}
+
+func quotedAt(sql string, pos int) bool {
+	return pos >= 0 && pos < len(sql) && sql[pos] == '`'
+}
+
+// notJSONTypes are the column types TiDB refuses where a function reads a
+// JSON document: a number or a time (3146, verified for int, date, and
+// timestamp). A string is read as JSON text.
+var notJSONTypes = map[string]bool{
+	"tinyint": true, "smallint": true, "mediumint": true, "int": true, "bigint": true,
+	"decimal": true, "float": true, "double": true,
+	"date": true, "datetime": true, "timestamp": true, "time": true, "year": true,
+}
+
+// jsonArgs returns the arguments of an expression that TiDB reads as JSON
+// documents, and the operator's name: the left of -> and ->>, the array of
+// MEMBER OF, and the documents of JSON_EXTRACT, JSON_KEYS, JSON_TYPE, and
+// JSON_CONTAINS (each verified).
+func jsonArgs(n ast.Node) (string, []ast.ExprNode) {
+	switch x := n.(type) {
+	case *ast.BinaryExpr:
+		switch x.Op {
+		case ast.BinOpJsonExtract:
+			return "->", []ast.ExprNode{x.Left}
+		case ast.BinOpJsonUnquote:
+			return "->>", []ast.ExprNode{x.Left}
+		}
+	case *ast.MemberOfExpr:
+		return "MEMBER OF", []ast.ExprNode{x.Array}
+	case *ast.FuncCallExpr:
+		if x.Schema != "" {
+			return "", nil
+		}
+		switch name := strings.ToLower(x.Name); name {
+		case "json_extract", "json_keys", "json_type":
+			if len(x.Args) > 0 {
+				return strings.ToUpper(name), x.Args[:1]
+			}
+		case "json_contains":
+			if len(x.Args) >= 2 {
+				return "JSON_CONTAINS", x.Args[:2]
+			}
+		}
+	}
+	return "", nil
+}
+
+// viewJSONArgsFail fails a view whose query reads a number or a time
+// column as a JSON document (3146). TiDB checks every query block, a WITH
+// query it never reads included (verified); the walk reads a block that
+// reads one table, which no WITH query of the view is named, and a column
+// its select list or WHERE clause names bare or by that table's name or
+// alias.
+func (b *builder) viewJSONArgsFail(sel *ast.SelectStmt, rng review.Range) bool {
+	ctes := make(map[string]bool)
+	ast.Inspect(sel, func(n ast.Node) bool {
+		if c, ok := n.(*ast.CommonTableExpr); ok {
+			ctes[strings.ToLower(c.Name)] = true
+		}
+		return true
+	})
+	failed := false
+	ast.Inspect(sel, func(n ast.Node) bool {
+		if failed {
+			return false
+		}
+		s, ok := n.(*ast.SelectStmt)
+		if !ok || len(s.From) != 1 {
+			return true
+		}
+		tr, ok := s.From[0].(*ast.TableRef)
+		if !ok || tr.Schema == "" && ctes[strings.ToLower(tr.Name)] {
+			return true
+		}
+		r, st := b.ref(tr)
+		if st != refOK {
+			return true
+		}
+		if f, temp, kind := b.resolve(r); temp || f != walk.Present || kind != relTable {
+			return true
+		}
+		qualifier := tr.Name
+		if tr.Alias != "" {
+			qualifier = tr.Alias
+		}
+		// The select list and WHERE only: ORDER BY, GROUP BY, and HAVING may
+		// name a select item's alias.
+		var visit func(ast.Node)
+		roots := []ast.Node{s.Where}
+		for _, e := range s.TargetList {
+			roots = append(roots, e)
+		}
+		visit = func(e ast.Node) {
+			if failed {
+				return
+			}
+			op, args := jsonArgs(e)
+			for _, a := range args {
+				c, ok := unwrapParens(a).(*ast.ColumnRef)
+				if !ok || c.Star || c.Schema != "" || c.Column == "" || c.Table != "" && !strings.EqualFold(c.Table, qualifier) {
+					continue
+				}
+				t, ok := b.typeOf(r.db, r.name, c.Column)
+				if !ok || !notJSONTypes[t.base] {
+					continue
+				}
+				b.fail(rng, nil, review.UnsupportedForm, review.Code(op)+" reads a JSON document or a string, and column "+review.Code(ident(c.Column))+" is "+review.Code(t.String())+".")
+				failed = true
+				return
+			}
+		}
+		for _, root := range roots {
+			if root == nil {
+				continue
+			}
+			ast.Inspect(root, func(n ast.Node) bool {
+				if _, ok := n.(*ast.SelectStmt); ok || failed {
+					return false
+				}
+				visit(n)
+				return !failed
+			})
+		}
+		return !failed
+	})
+	return failed
 }

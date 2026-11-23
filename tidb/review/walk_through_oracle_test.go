@@ -409,6 +409,48 @@ var walkCodes = []struct {
 	match func(m, stmt string) bool
 	codes []string
 }{
+	// The shape and foreign key checks (walk_table_shape.go, walk_fk.go,
+	// walk_columns.go), first: their texts begin as others' do.
+	{func(m, stmt string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " is referenced by foreign key ") && leads(stmt, "TRUNCATE")
+	}, []string{"1701"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " is referenced by foreign key ")
+	}, []string{"3730"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is in foreign key ") && strings.HasSuffix(m, ", and can't be dropped.")
+	}, []string{"1828", "8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is referenced by foreign key ") && strings.HasSuffix(m, ", and can't be dropped.")
+	}, []string{"1829", "8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") && strings.HasSuffix(m, ", and no other index does.")
+	}, []string{"1553"}},
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Foreign key ") || strings.HasPrefix(m, "A foreign key ")) && strings.HasSuffix(m, ", types that don't match.")
+	}, []string{"3780"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB can't drop column ") && strings.Contains(m, ", which is in the primary key of ")
+	}, []string{"8200", "3855"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB can't drop column ") || strings.HasPrefix(m, "TiDB can't change primary key column ") ||
+			strings.HasPrefix(m, "TiDB can't change column ") && strings.Contains(m, ", which rewrites its data, in partitioned table ")
+	}, []string{"8200"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't move `AUTO_ID_CACHE` ") }, []string{"1105"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TTL column ") }, []string{"8148"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Every unique key of ") }, []string{"1503", "8264"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't add an index or a constraint with ") }, []string{"1846"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Collation ") && strings.Contains(m, " isn't one of character set ")
+	}, []string{"1253"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.HasSuffix(m, ", whose value isn't deterministic.")
+	}, []string{"3102", "3106"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "An expression index can't call ")
+	}, []string{"3758"}},
+	{func(m, _ string) bool { return strings.Contains(m, " reads a JSON document or a string, and column ") }, []string{"3146"}},
+	{func(m, _ string) bool { return m == "`APPROX_PERCENTILE` takes 2 arguments." }, []string{"1105"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Temporary table ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1050"}},

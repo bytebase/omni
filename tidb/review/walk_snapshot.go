@@ -105,6 +105,13 @@ type tidbSnapshot struct {
 	// mixed lists the spaces where the sync lists a name outside ASCII, as
 	// the space and its table's key ("" for the database's relations).
 	mixed map[[2]string]bool
+	// colTypes, indexSets, fkDefs, and idCaches hold each table's shape
+	// (walk_table_shape.go), and fkRefs every foreign key the sync lists.
+	colTypes  map[string]map[string]string
+	indexSets map[string]string
+	fkDefs    map[string]map[string]string
+	idCaches  map[string]string
+	fkRefs    []syncedFKRef
 }
 
 func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidbSnapshot {
@@ -119,6 +126,10 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		sequenceBounds:   make(map[string]string),
 		autoRandom:       make(map[string]string),
 		mixed:            make(map[[2]string]bool),
+		colTypes:         make(map[string]map[string]string),
+		indexSets:        make(map[string]string),
+		fkDefs:           make(map[string]map[string]string),
+		idCaches:         make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// set lists a name of a table's space, or of the database's relations
@@ -168,6 +179,7 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 			}
 			s.tableForeignKeys[tk] = fks
 			s.autoRandom[tk] = syncedAutoRandom(t)
+			s.readShape(tk, t)
 			if cs := normalCharset(t.GetCharset()); cs != "" {
 				s.charsets[tk] = cs
 			} else if cs := collationCharset(t.GetCollation()); cs != "" {
@@ -265,6 +277,11 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			}
 		}
 		return walk.Unknown, ""
+	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache:
+		if len(path) != 2 {
+			return walk.Unknown, ""
+		}
+		return s.lookupShape(k, path[1])
 	case spaceColumn, spaceIndex, spaceTableForeignKey, spacePartition:
 		if len(path) != 2 {
 			return walk.Unknown, ""

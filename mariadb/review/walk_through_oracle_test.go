@@ -430,6 +430,98 @@ var walkCodes = []struct {
 	match func(m, stmt string) bool
 	codes []string
 }{
+	// Table options (walk_lower_options.go) and ALGORITHM and LOCK
+	// (walk_lower_algorithm.go).
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Character set ") }, []string{"1115"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Collation ") }, []string{"1253"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "MariaDB has no storage engine ") }, []string{"1286"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "InnoDB can't ") }, []string{"1845", "1846"}},
+	// Foreign keys of other tables (walk_lower_fk.go).
+	{func(m, _ string) bool { return strings.HasSuffix(m, " keeps no foreign keys.") }, []string{"1217"}},
+	{func(m, stmt string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " is referenced by foreign key ") && leads(stmt, "TRUNCATE")
+	}, []string{"1701"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " is referenced by foreign key ")
+	}, []string{"1451"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is referenced by foreign key ") && strings.HasSuffix(m, ", which keeps its type.")
+	}, []string{"1833", "1846"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is in foreign key ") && strings.HasSuffix(m, ", which keeps its type.")
+	}, []string{"1832", "1846"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is referenced by foreign key ")
+	}, []string{"1829"}},
+	// Partitions (walk_lower_partition.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.HasSuffix(m, " already exists.")
+	}, []string{"1517"}},
+	{func(m, _ string) bool { return strings.Contains(m, "'s bound must be greater than ") }, []string{"1493"}},
+	{func(m, _ string) bool { return strings.Contains(m, " comes after the partition of `MAXVALUE`") }, []string{"1481"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, ", which another partition lists.") }, []string{"1495"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"1507", "1735"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`DROP PARTITION` works only on ") }, []string{"1512"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Cannot remove all partitions of ") }, []string{"1508"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`COALESCE PARTITION` must remove ") }, []string{"1515"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`REORGANIZE PARTITION` of `HASH` ") }, []string{"1510"}},
+	{func(m, _ string) bool { return strings.Contains(m, ", and a partition can be exchanged only ") }, []string{"1732"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " can't take `VALUES")
+	}, []string{"1480"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Every unique key of ") }, []string{"1503"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, ", and a partitioned table takes no foreign key.") }, []string{"1506"}},
+	{func(m, _ string) bool { return strings.Contains(m, " take only a partition of it.") }, []string{"1031"}},
+	{func(m, _ string) bool { return strings.Contains(m, " is read by the partitioning function of ") }, []string{"1054", "1072", "1090"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition column ") && strings.HasSuffix(m, ", and the partitioning function must be an integer.")
+	}, []string{"1659"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition column ") && strings.HasSuffix(m, ", which no partitioning can read.")
+	}, []string{"1502"}},
+	// Columns and CHECK constraints (walk_lower_columns.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.Contains(m, " reads column ")
+	}, []string{"1054"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") || saysTwice(m, "check constraint", "adds")
+	}, []string{"1826"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Constraint ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"1091"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, ", whose value isn't deterministic.") || strings.Contains(m, " can't read `AUTO_INCREMENT` column ")
+	}, []string{"1901"}},
+	{func(m, _ string) bool {
+		return strings.Contains(m, " can't change between a `VIRTUAL` generated column ")
+	}, []string{"1907"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.HasSuffix(m, ", defined after it.")
+	}, []string{"4029"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A primary key can't be `IGNORED`") }, []string{"4174"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " must have at least one visible column.") }, []string{"1113"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " twice in its `")
+	}, []string{"1291"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is longer than ")
+	}, []string{"1074"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `EVERY` interval ") }, []string{"1542"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `ENDS` ") }, []string{"1543"}},
+	// A view's query (walk_lower_query.go).
+	{func(m, _ string) bool { return m == "A view's query can't read a variable." }, []string{"1351"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold ") }, []string{"1064"}},
+	{func(m, _ string) bool { return strings.Contains(m, " query in a view needs at least one column.") }, []string{"4141"}},
+	{func(m, _ string) bool { return strings.Contains(m, " query needs the same number of columns.") }, []string{"4099"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " doesn't exist in the query.") }, []string{"1054"}},
+	{func(m, _ string) bool { return strings.Contains(m, " takes geometry values, ") }, []string{"4079"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.HasSuffix(m, " is defined twice.")
+	}, []string{"4010"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "This window frame's bounds ") }, []string{"4014"}},
+	{func(m, _ string) bool { return strings.Contains(m, " `EXCLUDE` in a window frame.") }, []string{"4022"}},
 	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "Temporary table ") || strings.HasPrefix(m, "Temporary sequence ")) && strings.HasSuffix(m, " already exists.")
 	}, []string{"1050"}},
