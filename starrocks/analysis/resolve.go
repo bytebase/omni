@@ -126,15 +126,22 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	}
 	results := syntacticResults(span.Results)
 	var notFound *NotFoundError
+	// An EXPLAIN or a TRACE plans a query: it reads what the query reads,
+	// and answers with a plan or a trace, not the query's columns.
 	query, explained := node, false
-	if explain, ok := node.(*ast.ExplainStmt); ok && isQuery(explain.Query) {
-		query, explained = explain.Query, true
+	switch n := node.(type) {
+	case *ast.ExplainStmt:
+		if isQuery(n.Query) {
+			query, explained = n.Query, true
+		}
+	case *ast.OptimizerTraceStmt:
+		if isQuery(n.Query) {
+			query, explained = n.Query, true
+		}
 	}
 	if opts.Catalog.GetDatabase != nil && isQuery(query) {
 		// The catalog resolves each column to the table columns it reads,
 		// and each view to the tables behind it, which the plan reads too.
-		// An EXPLAIN reads what its query reads, and answers with a plan,
-		// not the query's columns.
 		r := newSpanResolver(opts, single)
 		cols := r.query(query, nil, nil)
 		if r.err != nil {

@@ -210,20 +210,22 @@ func TestResolveQuerySpanLambdaFieldPath(t *testing.T) {
 	}
 }
 
-// An EXPLAIN reads what its query reads, views expanded, and answers with
-// a plan rather than the query's columns.
+// An EXPLAIN or a TRACE reads what its query reads, views expanded, and
+// answers with a plan rather than the query's columns.
 func TestResolveQuerySpanExplain(t *testing.T) {
-	span, err := resolveWithCatalog(t, "EXPLAIN SELECT * FROM big")
-	if err != nil {
-		t.Fatal(err)
+	for _, statement := range []string{"EXPLAIN SELECT * FROM big", "TRACE ALL SELECT * FROM big"} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if !span.SourceColumns[ColumnResource{Database: "shop", Table: "orders"}] || !span.SourceColumns[ColumnResource{Database: "shop", Table: "big"}] {
+			t.Errorf("%s: tables %v, want big and orders", statement, span.SourceColumns)
+		}
+		if len(span.Results) != 0 {
+			t.Errorf("%s: results %+v, want none", statement, span.Results)
+		}
 	}
-	if !span.SourceColumns[ColumnResource{Database: "shop", Table: "orders"}] || !span.SourceColumns[ColumnResource{Database: "shop", Table: "big"}] {
-		t.Errorf("tables %v, want big and orders", span.SourceColumns)
-	}
-	if len(span.Results) != 0 {
-		t.Errorf("results %+v, want none", span.Results)
-	}
-	span, err = resolveWithCatalog(t, "EXPLAIN SELECT nope FROM orders")
+	span, err := resolveWithCatalog(t, "EXPLAIN SELECT nope FROM orders")
 	if err != nil || span.NotFoundError == nil {
 		t.Errorf("EXPLAIN of a missing column: %v, NotFoundError %v; want one", err, span.NotFoundError)
 	}
