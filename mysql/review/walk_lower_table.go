@@ -1408,6 +1408,10 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 	b.MayAdd(walk.Scope{Space: spaceCheckConstraint, Parent: toPath, Prefix: renamedChk})
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
 	fromPath := tablePath(from.db, from.name)
+	// The facts the walk keeps of synced tables alone don't follow a
+	// rename: they go at both ends.
+	b.forgetSynced(from)
+	b.forgetSynced(to)
 	b.Session(func() {
 		if b.w.triggered[fk] {
 			b.w.triggered[tk] = true

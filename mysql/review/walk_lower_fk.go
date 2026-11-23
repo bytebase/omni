@@ -358,3 +358,30 @@ func (b *builder) droppedReferencedColumnFails(r tableRef, v *ast.AlterTableStmt
 	}
 	return false
 }
+
+// forgetSynced records that the walk no longer knows a table's synced
+// generated columns, CHECK expressions, and foreign-key columns, on either
+// side of a foreign key.
+func (b *builder) forgetSynced(r tableRef) {
+	rel := relKey(r.db, r.name)
+	parent := tablePath(r.db, r.name)
+	b.Session(func() {
+		for ck := range b.w.colGen {
+			if ck.Parent == parent {
+				delete(b.w.colGen, ck)
+			}
+		}
+		delete(b.w.checkCols, rel)
+		delete(b.w.fkRefs, rel)
+		for child, fks := range b.w.fkRefs {
+			for name, fr := range fks {
+				if fr.parent == rel {
+					delete(fks, name)
+				}
+			}
+			if len(fks) == 0 {
+				delete(b.w.fkRefs, child)
+			}
+		}
+	})
+}

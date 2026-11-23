@@ -233,9 +233,6 @@ type blockScope struct {
 	known     bool
 	table     *tableRef
 	qualifier string
-	// named is the table's own name, which reaches it qualified only when
-	// it has no alias.
-	named bool
 }
 
 func (b *builder) scopeOf(s *ast.SelectStmt, ctes map[string]bool) blockScope {
@@ -267,9 +264,9 @@ func (b *builder) scopeOf(s *ast.SelectStmt, ctes map[string]bool) blockScope {
 	if temp || f != walk.Present || kind != relTable {
 		return blockScope{}
 	}
-	sc := blockScope{known: true, table: &r, qualifier: tr.Name, named: true}
+	sc := blockScope{known: true, table: &r, qualifier: tr.Name}
 	if tr.Alias != "" {
-		sc.qualifier, sc.named = tr.Alias, false
+		sc.qualifier = tr.Alias
 	}
 	return sc
 }
@@ -422,7 +419,7 @@ const (
 )
 
 // qualifies tells whether a column reference names the block's one table:
-// unqualified, by its alias, or by its name and, when written, its
+// unqualified, or by its alias or its name, and, when written, its
 // database. A qualifier that differs from the table's only in case is taken
 // for a match, which leaves the column checked against the table; a
 // database the walk can't compare leaves it unsure.
@@ -436,9 +433,8 @@ func (b *builder) qualifies(sc blockScope, c *ast.ColumnRef) qualification {
 	if c.Schema == "" {
 		return qualMatch
 	}
-	if !sc.named {
-		return qualMiss
-	}
+	// MySQL matches the table qualifier against the alias, and the
+	// database against the table's, so db.alias.c reads the table too.
 	db, ok := b.key(spaceDatabase, c.Schema)
 	switch {
 	case !ok:

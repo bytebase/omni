@@ -66,7 +66,7 @@ func neverInstant(c *ast.AlterTableCmd) string {
 	case ast.ATDropIndex:
 		return "drop an index"
 	case ast.ATDropConstraint:
-		if strings.EqualFold(c.Name, "PRIMARY") {
+		if dropKindOf(c) == dropPrimaryKey {
 			return "drop the primary key"
 		}
 	case ast.ATRenameIndex:
@@ -134,7 +134,7 @@ func (b *builder) alterAlgorithmFails(v *ast.AlterTableStmt, r tableRef) bool {
 			continue
 		}
 		switch {
-		case (c.Type == ast.ATDropIndex || c.Type == ast.ATDropConstraint) && strings.EqualFold(c.Name, "PRIMARY"):
+		case dropKindOf(c) == dropPrimaryKey:
 			dropsPrimary = true
 		case (c.Type == ast.ATAddConstraint || c.Type == ast.ATAddIndex) && c.Constraint != nil && c.Constraint.Type == ast.ConstrPrimaryKey:
 			addsPrimary = true
