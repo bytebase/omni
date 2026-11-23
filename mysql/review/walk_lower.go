@@ -252,7 +252,7 @@ func (b *builder) use(v *ast.UseStmt) bool {
 // createTable follows CREATE [TEMPORARY] TABLE [IF NOT EXISTS], with a
 // column list, LIKE, or AS SELECT.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
-	if b.namesTooLong(v) {
+	if b.namesTooLong(v) || b.optionTextFails(v.Options, nil, v.Columns) {
 		return true
 	}
 	r, st := b.ref(v.Table)
@@ -341,6 +341,16 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			if n, ok := b.key(spaceForeignKey, c.Name); ok {
 				b.need(objKey(spaceForeignKey, r.db, n), walk.Absent, nil, rangeOf(c.Loc), "", alreadyExists("foreign key", ident(c.Name), "")) // 1826; 1022 on 5.7
 			}
+			if b.fkAddFails(r, c, func(col string) string {
+				for _, cd := range v.Columns {
+					if strings.EqualFold(cd.Name, col) {
+						return astBaseType(cd.TypeName)
+					}
+				}
+				return ""
+			}) {
+				return true
+			}
 			b.foreignKeyTarget(r, c)
 		}
 	}
@@ -420,6 +430,9 @@ func (b *builder) createTableEngine(v *ast.CreateTableStmt) (string, bool) {
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	if len(v.Columns) == 0 && v.Like == nil && v.Select == nil {
 		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
+		return true
+	}
+	if b.createColumnsFail(v, r) {
 		return true
 	}
 	effEngine, engKnown := b.createTableEngine(v)
@@ -622,6 +635,15 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			}
 		}
 	}
+	if v.Partitions != nil && v.Like == nil && v.Select == nil {
+		types := make(map[string]string, len(v.Columns))
+		for _, c := range v.Columns {
+			types[strings.ToLower(c.Name)] = astBaseType(c.TypeName)
+		}
+		if b.partitionClauseTextFails(v.Partitions, func(col string) string { return types[strings.ToLower(col)] }, r.rng) {
+			return true
+		}
+	}
 	if v.Partitions != nil {
 		var uqIdxs map[string]*indexMeta
 		if completeCols {
@@ -675,6 +697,9 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 	b.clearTableFKGenerated(r.db, r.name)
 	if v.Like != nil || v.Select != nil {
 		b.Forget(walk.Scope{Parent: path, Deep: true})
+	}
+	if has, _ := secondaryEngineOption(v.Options); has {
+		b.Set(secondaryKey(r.db, r.name), walk.Present, "")
 	}
 	primary := false
 	for _, c := range v.Columns {

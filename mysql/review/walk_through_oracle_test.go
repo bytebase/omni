@@ -345,6 +345,124 @@ var walkCodes = []struct {
 	match func(m, stmt string) bool
 	codes []string
 }{
+	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `EVERY` interval ") }, []string{"1542"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `ENDS` comes before ") }, []string{"1543"}},
+	// Columns, keys, and CHECK constraints (walk_lower_columns.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.Contains(m, " already exists in ")
+	}, []string{"3822"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " can't change between a virtual generated column and a stored or plain one.")
+	}, []string{"3106"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.HasSuffix(m, " can't take a default.")
+	}, []string{"1221"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.Contains(m, ", whose value isn't deterministic.")
+	}, []string{"3763"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A `CHECK` constraint can't call ") }, []string{"3814"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A functional key part can't call ") }, []string{"3758"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.Contains(m, " can't read `AUTO_INCREMENT` column ")
+	}, []string{"3109"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "A `CHECK` constraint can't read `AUTO_INCREMENT` column ")
+	}, []string{"3818"}},
+	{func(m, _ string) bool { return m == "A primary key can't have a functional key part." }, []string{"3756"}},
+	{func(m, _ string) bool { return m == "A primary key can't be invisible." }, []string{"3522"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " must have at least one visible column.") }, []string{"4028"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, "'s limit for its type; use ")
+	}, []string{"1074"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " twice in its `")
+	}, []string{"1291"}},
+	// A view's query (walk_lower_query.go).
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " literal.") && strings.Contains(m, " isn't a valid ")
+	}, []string{"1525"}},
+	{func(m, _ string) bool { return m == "A view's query can't read a variable." }, []string{"1351"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold an `INTO` clause") }, []string{"1350"}},
+	{func(m, _ string) bool { return strings.Contains(m, " takes a number, not ") }, []string{"1327"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "The locking clause names ") }, []string{"3568"}},
+	// Table options (walk_lower_options.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Character set ") && strings.HasSuffix(m, " doesn't exist.")
+	}, []string{"1115"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "MySQL has no storage engine ") }, []string{"1286"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Collation ") && strings.Contains(m, " isn't one of character set ")
+	}, []string{"1253", "1302"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " has no secondary engine.") }, []string{"3889"}},
+	// Partitioning (walk_lower_partition.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && (strings.Contains(m, " can't take a `VALUES` bound") || strings.Contains(m, " can't take `VALUES "))
+	}, []string{"1480"}},
+	{func(m, _ string) bool { return m == "`MAXVALUE` can only bound the last partition." }, []string{"1481"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, "'s bound must be greater than the partition's before it.")
+	}, []string{"1493"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "The partitions' `VALUES IN` name ") }, []string{"1495"}},
+	{func(m, _ string) bool { return saysTwice(m, "partition", "names") }, []string{"1517"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition column ") && strings.HasSuffix(m, ", and the partitioning function must be an integer.")
+	}, []string{"1659"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, ", which no partitioning can read.") }, []string{"1502"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`DROP PARTITION` works only on ") }, []string{"1512"}},
+	{func(m, stmt string) bool {
+		return partitionNotFound(m) && strings.Contains(strings.ToUpper(stmt), "DROP PARTITION")
+	}, []string{"1507"}},
+	{func(m, _ string) bool { return partitionNotFound(m) }, []string{"1735"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`COALESCE PARTITION` must remove ") }, []string{"1515"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`REORGANIZE PARTITION` of `HASH` or `KEY` ") }, []string{"1510"}},
+	{func(m, _ string) bool {
+		return strings.Contains(m, " is partitioned, and a partition can be exchanged ")
+	}, []string{"1732"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.HasSuffix(m, ", which can't be dropped or renamed.")
+	}, []string{"3959"}},
+	// Foreign keys (walk_lower_fk.go).
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is referenced by foreign key ")
+	}, []string{"1829"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, ", types that don't match.") }, []string{"3780"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Referenced column ") }, []string{"3734"}},
+	{func(m, stmt string) bool {
+		return strings.Contains(m, " is referenced by foreign key ") && leads(stmt, "TRUNCATE")
+	}, []string{"1701"}},
+	{func(m, _ string) bool { return strings.Contains(m, " is referenced by foreign key ") }, []string{"3730"}},
+	{func(m, _ string) bool { return strings.Contains(m, " keeps no foreign keys.") }, []string{"3776"}},
+	// ALGORITHM and LOCK (walk_lower_algorithm.go).
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`ALGORITHM=INSTANT` can't take `LOCK=") }, []string{"1221"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`ALGORITHM=COPY` needs a lock") }, []string{"1846"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "InnoDB can't ") }, []string{"1845", "1846"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold a parameter marker ") }, []string{"1064", "1351"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.HasSuffix(m, " is defined twice.")
+	}, []string{"3591"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.Contains(m, " isn't defined in ")
+	}, []string{"3579"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " takes a constant, not a column.") }, []string{"1210"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`GROUPING()` needs ") }, []string{"1111"}},
+	{func(m, _ string) bool { return strings.Contains(m, " takes geometry values, ") }, []string{"1367"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`JSON_VALUE` reads ") }, []string{"3146"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "`CAST(... AT TIME ZONE ...)` takes a `TIMESTAMP`")
+	}, []string{"3998"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`CAST(... AT TIME ZONE ...)` takes only ") }, []string{"1298", "3998"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A select item can't be a row of ") }, []string{"1241"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A view can't take `DEFAULT(") }, []string{"1143", "1364"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " query needs the same number of columns.") }, []string{"1136"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " needs at least one column.") }, []string{"3942"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " can't take `DEFAULT`.") }, []string{"3943"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " window frame.") && strings.HasPrefix(m, "MySQL doesn't support ")
+	}, []string{"1235"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " can't take an `INTERVAL` bound.") }, []string{"3596"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A window frame can't start at ") }, []string{"3584"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A window frame can't end at ") }, []string{"3585"}},
+	{func(m, _ string) bool { return m == "A window frame can't end before it starts." }, []string{"3586"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Temporary table ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1050"}},
@@ -502,6 +620,12 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "Primary key of ") && strings.HasSuffix(m, " is needed by a foreign key constraint.")
 	}, []string{"1553"}},
 	{func(m, _ string) bool { return strings.Contains(m, "`AUTO_INCREMENT`") }, []string{"1075"}},
+}
+
+// partitionNotFound reports whether a message says a partition doesn't
+// exist.
+func partitionNotFound(m string) bool {
+	return strings.HasPrefix(m, "Partition `") && strings.Contains(m, " doesn't exist in ")
 }
 
 // saysTwice reports whether a message says the statement names kind twice, by

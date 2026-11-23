@@ -102,6 +102,18 @@ type mysqlSnapshot struct {
 	ignoresFKs map[string]bool
 	// engines records each synced table's engine ("" means default/InnoDB).
 	engines map[string]string
+	// colGen holds, for each column of each synced table, genVirtual or
+	// genStored for a generated column and "" for any other.
+	colGen map[string]map[string]string
+	// fkRefs holds each synced foreign key to a table of the database, by
+	// table and foreign key key.
+	fkRefs map[string]map[string]snapFKRef
+	// checkCols holds the columns each synced CHECK constraint reads, by
+	// table and constraint key, where the walk can read its expression.
+	checkCols map[string]map[string][]string
+	// secondary records whether each synced table has a secondary engine,
+	// which CREATE_OPTIONS lists as SECONDARY_ENGINE="...".
+	secondary map[string]bool
 	// colTypes records known base data types for synced columns (omitted when
 	// sync metadata left ColumnMetadata.Type empty).
 	colTypes map[string]map[string]string
@@ -144,6 +156,10 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		triggered:          make(map[string]bool),
 		ignoresFKs:         make(map[string]bool),
 		engines:            make(map[string]string),
+		secondary:          make(map[string]bool),
+		checkCols:          make(map[string]map[string][]string),
+		fkRefs:             make(map[string]map[string]snapFKRef),
+		colGen:             make(map[string]map[string]string),
 		colTypes:           make(map[string]map[string]string),
 		partitionState:     make(map[string]*tablePartitionInfo),
 		tableIndexes:       make(map[string]map[string]*indexMeta),
@@ -175,13 +191,25 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
 			s.engines[tk] = t.GetEngine()
+			s.secondary[tk] = strings.Contains(strings.ToLower(t.GetCreateOptions()), "secondary_engine")
 			if !keepsFKs(t.GetEngine()) {
 				s.ignoresFKs[tk] = true
 			}
 			cols := make(map[string]bool)
 			cTypes := make(map[string]string)
+			gens := make(map[string]string)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, tk, c.GetName())
+				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
+					switch g := c.GetGeneration(); {
+					case g == nil || g.GetExpression() == "":
+						gens[ck] = ""
+					case g.GetType() == metadata.GenerationMetadata_TYPE_STORED:
+						gens[ck] = genStored
+					case g.GetType() == metadata.GenerationMetadata_TYPE_VIRTUAL:
+						gens[ck] = genVirtual
+					}
+				}
 				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
 					if bt := normalizeBaseType(c.GetType()); bt != "" {
 						cTypes[ck] = bt
@@ -189,6 +217,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				}
 			}
 			s.columns[tk] = cols
+			s.colGen[tk] = gens
 			if len(cTypes) > 0 {
 				s.colTypes[tk] = cTypes
 			}
@@ -255,6 +284,12 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 					}
 					if sameDB {
 						if refTbl, ok := nameKey(spaceRelation, fk.GetReferencedTable(), foldTables); ok {
+							if fr, ok := snapshotFKRef(fk, refTbl, foldTables); ok {
+								if s.fkRefs[tk] == nil {
+									s.fkRefs[tk] = make(map[string]snapFKRef)
+								}
+								s.fkRefs[tk][fkKey] = fr
+							}
 							if s.referencedByFK[refTbl] == nil {
 								s.referencedByFK[refTbl] = make(map[[2]string]bool)
 							}
@@ -270,6 +305,16 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			chks := make(map[string]bool)
 			for _, cc := range t.GetCheckConstraints() {
 				set(chks, spaceCheckConstraint, tk, cc.GetName())
+				ck, ok := nameKey(spaceCheckConstraint, cc.GetName(), foldTables)
+				if !ok {
+					continue
+				}
+				if cols, ok := checkColumns(cc.GetExpression(), foldTables); ok {
+					if s.checkCols[tk] == nil {
+						s.checkCols[tk] = make(map[string][]string)
+					}
+					s.checkCols[tk][ck] = cols
+				}
 			}
 			s.checkConstraints[tk] = chks
 			parts := t.GetPartitions()
@@ -285,7 +330,21 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 					pinfo.hasType = true
 					pinfo.partType = pt
 				}
+				switch parts[0].GetType() {
+				case metadata.TablePartitionMetadata_RANGE, metadata.TablePartitionMetadata_LIST:
+					pinfo.single = true
+				case metadata.TablePartitionMetadata_RANGE_COLUMNS, metadata.TablePartitionMetadata_LIST_COLUMNS:
+					pinfo.single = len(extractPartitionExprCols(parts[0].GetExpression())) == 1 && !strings.Contains(parts[0].GetExpression(), ",")
+				}
+				if pinfo.single {
+					for _, p := range parts {
+						pinfo.bounds = append(pinfo.bounds, p.GetValue())
+					}
+				}
 				for _, p := range parts {
+					if len(p.GetSubpartitions()) > 0 {
+						pinfo.subparts = true
+					}
 					if p.GetName() != "" {
 						pinfo.names[strings.ToLower(p.GetName())] = true
 					}
@@ -417,6 +476,15 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Unknown, ""
 		}
 		return in(m)
+	case spaceSecondaryEngine:
+		has, ok := s.secondary[path[len(path)-1]]
+		switch {
+		case len(path) != 2 || !ok:
+			return walk.Unknown, ""
+		case has:
+			return walk.Present, ""
+		}
+		return walk.Absent, ""
 	case spaceForeignKey:
 		return in(s.foreignKeys)
 	case spaceTrigger:
@@ -482,4 +550,30 @@ func fkGeneratedIndexOwners(idx *metadata.IndexMetadata, fks []*metadata.Foreign
 		owners = append(owners, fkKey)
 	}
 	return owners
+}
+
+// snapFKRef is a synced foreign key to a table of the database: the
+// referenced table's key and name, and the columns it pairs, by key.
+type snapFKRef struct {
+	parent   string
+	refTable string
+	cols     []string
+	refCols  []string
+}
+
+func snapshotFKRef(fk *metadata.ForeignKeyMetadata, parent string, foldTables bool) (snapFKRef, bool) {
+	fr := snapFKRef{parent: parent, refTable: fk.GetReferencedTable()}
+	if len(fk.GetColumns()) == 0 || len(fk.GetColumns()) != len(fk.GetReferencedColumns()) {
+		return fr, false
+	}
+	for i, c := range fk.GetColumns() {
+		ck, ok1 := nameKey(spaceColumn, c, foldTables)
+		rk, ok2 := nameKey(spaceColumn, fk.GetReferencedColumns()[i], foldTables)
+		if !ok1 || !ok2 {
+			return fr, false
+		}
+		fr.cols = append(fr.cols, ck)
+		fr.refCols = append(fr.refCols, rk)
+	}
+	return fr, true
 }

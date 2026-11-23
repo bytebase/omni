@@ -36,6 +36,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if b.tooLong(v.IndexName, rng) {
 		return true
 	}
+	if f, temp, kind := b.resolve(r); !temp && f == walk.Present && kind == relTable && b.indexAlgorithmFails(r, v.Algorithm, v.Lock, "add an index") {
+		return true
+	}
 	k, ok := b.key(spaceIndex, v.IndexName)
 	if !ok {
 		return false
@@ -84,6 +87,9 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	}
 	rel := relKey(r.db, r.name)
 	b.fks = !b.w.ignoresFKs[rel]
+	if f, temp, kind := b.resolve(r); !temp && f == walk.Present && kind == relTable && b.indexAlgorithmFails(r, v.Algorithm, v.Lock, "drop an index") {
+		return true
+	}
 	if k, ok := b.key(spaceIndex, v.Name); ok {
 		if b.dropIndexNeededByFK(r, k, nil, nil, nil, nil, nil) {
 			b.fail(b.anchor(), nil, review.IndexBacksConstraint, "Index "+review.Code(ident(v.Name))+" in "+review.Code(r.written)+" is needed by a foreign key constraint.")
@@ -125,8 +131,7 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	} else {
 		b.needFree(k, r.rng, r.written, relView) // 1050
 	}
-	if col, ok := selectFromlessColumn(v.Select); ok {
-		b.fail(r.rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(col))+" doesn't exist in the query.")
+	if b.viewQueryFails(v.Select, v.Columns, r.rng) {
 		return true
 	}
 	b.Set(k, walk.Present, relView)
@@ -143,8 +148,7 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 		f, kind := b.l.Lookup(k)
 		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
 		if f == walk.Present && kind == relView {
-			if col, ok := selectFromlessColumn(v.Select); ok {
-				b.fail(r.rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(col))+" doesn't exist in the query.")
+			if b.viewQueryFails(v.Select, v.Columns, r.rng) {
 				return true
 			}
 		}
@@ -530,6 +534,8 @@ func (b *builder) set(v *ast.SetStmt) bool {
 				b.w.defaultTmpEngine = eng
 				b.w.defaultTmpEngineUnknown = !known
 			})
+		case "sql_mode":
+			b.Session(func() { b.w.sqlModeSet = true })
 		case "innodb_strict_mode":
 			strictOn := false
 			switch x := a.Value.(type) {

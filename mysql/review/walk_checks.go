@@ -19,6 +19,15 @@ type tablePartitionInfo struct {
 	names       map[string]bool // lower-case partition names; nil if unknown
 	count       int             // number of partitions; 0 if unknown
 	cols        map[string]bool // lower-case columns referenced by partition function; nil if unknown
+	// single is set when each partition's bound is one value: RANGE or
+	// LIST of an expression, or of one column.
+	single bool
+	// subparts is set when the table has subpartitions, whose names
+	// TRUNCATE and EXCHANGE PARTITION take too; names holds none of them.
+	subparts bool
+	// bounds holds each partition's bound in order, as
+	// INFORMATION_SCHEMA.PARTITIONS describes it; nil if unknown.
+	bounds []string
 }
 
 func (p *tablePartitionInfo) clone() *tablePartitionInfo {
@@ -26,6 +35,7 @@ func (p *tablePartitionInfo) clone() *tablePartitionInfo {
 		return nil
 	}
 	cp := *p
+	cp.bounds = append([]string(nil), p.bounds...)
 	if p.names != nil {
 		cp.names = make(map[string]bool, len(p.names))
 		for k, v := range p.names {
@@ -149,6 +159,8 @@ func partitionInfoFromClause(pc *ast.PartitionClause) *tablePartitionInfo {
 		hasType:     true,
 		partType:    pc.Type,
 		cols:        make(map[string]bool),
+		single:      len(pc.Columns) <= 1,
+		subparts:    partitionHasSubpartitions(pc),
 	}
 	if len(pc.Partitions) > 0 {
 		info.names = make(map[string]bool, len(pc.Partitions))
@@ -474,7 +486,62 @@ func (b *builder) eventScheduleFails(sched *ast.EventSchedule) bool {
 			return true
 		}
 	}
+	// EVERY takes a positive interval (1542), and ENDS can't come before
+	// STARTS (1543), as literals show them (verified on mysql:8.0.46).
+	every := sched.Every
+	if iv, ok := every.(*ast.IntervalExpr); ok {
+		every = iv.Value
+	}
+	if every != nil {
+		if n, ok := partitionIntBound(every); ok && n <= 0 {
+			b.fail(b.anchor(), nil, review.UnsupportedForm, "An event's "+review.Code("EVERY")+" interval must be positive.")
+			return true
+		}
+	}
+	start, ok1 := literalDatetime(sched.Starts)
+	end, ok2 := literalDatetime(sched.Ends)
+	if ok1 && ok2 && end < start {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, "An event's "+review.Code("ENDS")+" comes before its "+review.Code("STARTS")+".")
+		return true
+	}
 	return false
+}
+
+// literalDatetime returns a datetime a string literal writes in full,
+// 'YYYY-MM-DD hh:mm:ss' or 'YYYY-MM-DD', in a form that orders as text.
+func literalDatetime(e ast.ExprNode) (string, bool) {
+	s, ok := e.(*ast.StringLit)
+	if !ok {
+		return "", false
+	}
+	v := s.Value
+	if len(v) == 10 {
+		v += " 00:00:00"
+	}
+	if len(v) != 19 {
+		return "", false
+	}
+	for i := 0; i < len(v); i++ {
+		switch i {
+		case 4, 7:
+			if v[i] != '-' {
+				return "", false
+			}
+		case 10:
+			if v[i] != ' ' {
+				return "", false
+			}
+		case 13, 16:
+			if v[i] != ':' {
+				return "", false
+			}
+		default:
+			if v[i] < '0' || v[i] > '9' {
+				return "", false
+			}
+		}
+	}
+	return v, true
 }
 
 const maxDisplayWidth = 4294967295
