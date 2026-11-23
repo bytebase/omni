@@ -240,6 +240,9 @@ type TableInfo struct {
 	// storage is what DESCRIBE FORMATTED states about how the table reads its
 	// files, which a dump compares each partition's against.
 	storage dumpStorage
+	// params is the Table Parameters section DESCRIBE FORMATTED states,
+	// unescaped from the formatter's rendering.
+	params map[string]string
 }
 
 const (
@@ -247,6 +250,7 @@ const (
 	tableInfoSection
 	storageSection
 	viewSection
+	otherSection
 )
 
 func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseName string) (
@@ -263,6 +267,7 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	defer rows.Close()
 
 	section := columnSection
+	inTableParams := false
 	storageReader := dumpStorageReader{}
 	// reading is the field the view section states over several rows.
 	var reading *string
@@ -284,15 +289,23 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			continue
 		case strings.HasPrefix(colNameValue, "# Detailed Table Information"):
 			section = tableInfoSection
+			inTableParams = false
 		case strings.HasPrefix(colNameValue, "# Storage Information"):
 			section = storageSection
 		case strings.HasPrefix(colNameValue, "# View Information"):
 			section = viewSection
+			reading = nil
 		case strings.HasPrefix(colNameValue, "# Materialized View Information"):
 			// A materialized view states its query under its own heading, which
 			// is where the definition of the view comes from.
 			section = viewSection
-
+			reading = nil
+		case strings.HasPrefix(colNameValue, "#") && section != columnSection:
+			// Headings after Storage or View (such as # Constraints or
+			// # Materialized View Source table information) end the section so
+			// their rows do not leak into storage or query text.
+			section = otherSection
+			reading = nil
 		default:
 			// No action needed for other cases
 		}
@@ -309,29 +322,46 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 				})
 			}
 		case tableInfoSection:
+			label := trimField(colNameValue)
 			switch {
-			case trimField(colNameValue) == "Database:":
+			case label == "Table Parameters:":
+				inTableParams = true
+				continue
+			case label != "":
+				inTableParams = false
+			}
+			switch {
+			case label == "Database:":
 				// The database as the server stores its name, which a statement
 				// the dump writes qualifies with.
 				tableInfo.database = trimField(dataTypeValue)
-			case trimField(colNameValue) == "Table Type:":
+			case label == "Table Type:":
 				tableInfo.tableType = trimField(dataTypeValue)
-			case trimField(dataTypeValue) == "numRows":
-				n, err := strconv.Atoi(trimField(commentValue))
-				if err != nil {
-					return nil, fmt.Errorf("failed to parse row count: %w", err)
+			case inTableParams && label == "" && trimField(dataTypeValue) != "":
+				key := dumpUnescapeDescribed(trimField(dataTypeValue))
+				val := dumpUnescapeDescribed(trimField(commentValue))
+				if tableInfo.params == nil {
+					tableInfo.params = map[string]string{}
 				}
-				tableInfo.numRows = n
-			case trimField(dataTypeValue) == "totalSize":
-				n, err := strconv.Atoi(trimField(commentValue))
-				if err != nil {
-					return nil, fmt.Errorf("failed to parse row count: %w", err)
+				tableInfo.params[key] = val
+				switch key {
+				case "numRows":
+					n, err := strconv.Atoi(val)
+					if err != nil {
+						return nil, fmt.Errorf("failed to parse row count: %w", err)
+					}
+					tableInfo.numRows = n
+				case "totalSize":
+					n, err := strconv.Atoi(val)
+					if err != nil {
+						return nil, fmt.Errorf("failed to parse row count: %w", err)
+					}
+					tableInfo.totalSize = n
+				case "comment":
+					// The formatter renders a parameter escaped, so a backslash in
+					// the comment is the one it escaped rather than the one stored.
+					tableInfo.comment = val
 				}
-				tableInfo.totalSize = n
-			case trimField(dataTypeValue) == "comment":
-				// The formatter renders a parameter escaped, so a backslash in
-				// the comment is the one it escaped rather than the one stored.
-				tableInfo.comment = dumpUnescapeDescribed(trimField(commentValue))
 			default:
 				// No action needed for other table info fields
 			}
@@ -351,6 +381,7 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			case reading != nil:
 				line, ok := dumpQueryRow(colNameValue, dataType, comment)
 				if !ok {
+					reading = nil
 					continue
 				}
 				*reading += "\n" + line

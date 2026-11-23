@@ -633,17 +633,111 @@ func TestDumpStorageDiff(t *testing.T) {
 		)),
 		"a parameter the partition states another way")
 
-	// A partition reading its files as the table does is the statement the dump
-	// writes; one that states its own storage is what the dump refuses instead of
-	// registering it under the table's.
-	stmt, err := dumpPartitionStatement("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, table)
+	// A partition reading its files as the table does emits ADD PARTITION alone;
+	// one overriding file format or SerDe properties emits the matching ALTER
+	// statements; one overriding an un-alterable storage layout fails the dump.
+	stmts, err := dumpPartitionStatements("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, table)
 	require.NoError(t, err)
-	require.Equal(t,
-		"ALTER TABLE `db`.`t` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/db/t/dt=2024-01-01'", stmt)
-	_, err = dumpPartitionStatement("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, orc)
+	require.Equal(t, []string{
+		"ALTER TABLE `db`.`t` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/db/t/dt=2024-01-01'",
+	}, stmts)
+
+	stmts, err = dumpPartitionStatements("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, orc)
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"ALTER TABLE `db`.`t` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/db/t/dt=2024-01-01'",
+		"ALTER TABLE `db`.`t` PARTITION (`dt`='2024-01-01') SET FILEFORMAT INPUTFORMAT '" + orcIn + "' OUTPUTFORMAT '" + orcOut + "' SERDE '" + orcSerde + "'",
+	}, stmts)
+
+	stmts, err = dumpPartitionStatements("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", csv, storage(
+		[3]string{"SerDe Library:", parquetSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Compressed:", "No"},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "escape.delim", `\\`},
+		[3]string{"", "field.delim", `\t`},
+	))
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"ALTER TABLE `db`.`t` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/db/t/dt=2024-01-01'",
+		"ALTER TABLE `db`.`t` PARTITION (`dt`='2024-01-01') UNSET SERDEPROPERTIES ('serialization.format')",
+		"ALTER TABLE `db`.`t` PARTITION (`dt`='2024-01-01') SET SERDEPROPERTIES ('escape.delim'='\\\\', 'field.delim'='\\t')",
+	}, stmts)
+
+	_, err = dumpPartitionStatements("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, storage(
+		[3]string{"SerDe Library:", parquetSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Compressed:", "No"},
+		[3]string{"Skewed:", "true"},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "serialization.format", "1"},
+	))
 	require.EqualError(t, err,
-		"partition dt=2024-01-01 of db.t states its own SerDe Library "+orcSerde+
-			", InputFormat "+orcIn+", OutputFormat "+orcOut+", which ADD PARTITION does not carry")
+		"partition dt=2024-01-01 of db.t states its own Skewed true, which ADD PARTITION does not carry")
+}
+
+// TestDumpViewStatementAndProperties holds view column-comment restoration and
+// custom view TBLPROPERTIES rendering.
+func TestDumpViewStatementAndProperties(t *testing.T) {
+	// A view with no column comments keeps SHOW CREATE TABLE verbatim.
+	plain := "CREATE VIEW `db`.`v` AS SELECT `t`.`id` FROM `db`.`t`"
+	require.Equal(t, plain, dumpViewStatement("db", "v", plain, []*metadatapb.ColumnMetadata{
+		{Name: "id", Type: "int"},
+	}))
+
+	// A view with column comments restores the column list and unwraps Hive's
+	// outer column-alias projection so dump->restore->dump stays identical.
+	wrapped := "CREATE VIEW `db`.`v` AS SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `t`.`id`, `t`.`name` FROM `db`.`t`) `v`"
+	require.Equal(t,
+		"CREATE VIEW `db`.`v` (`id` COMMENT 'the id', `label` COMMENT 'it\\'s a \\\\label') AS SELECT `t`.`id`, `t`.`name` FROM `db`.`t`",
+		dumpViewStatement("db", "v", wrapped, []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "int", Comment: "the id"},
+			{Name: "label", Type: "string", Comment: `it's a \\label`},
+		}),
+	)
+
+	// Custom view TBLPROPERTIES keep user properties and comment while dropping
+	// Hive-managed bookkeeping parameters.
+	require.Equal(t, "'comment'='documented view', 'team'='core'", dumpViewProperties(map[string]string{
+		"bucketing_version":     "2",
+		"transient_lastDdlTime": "1000000000",
+		"last_modified_by":      "hive",
+		"last_modified_time":    "1000000000",
+		"comment":               "documented view",
+		"team":                  "core",
+	}, "documented view"))
+	require.Equal(t, "", dumpViewProperties(map[string]string{
+		"bucketing_version":     "2",
+		"transient_lastDdlTime": "1000000000",
+	}, ""))
+}
+
+// TestDumpSplitTableStatements holds splitting SHOW CREATE TABLE outputs that
+// append constraint ALTER TABLE lines after CREATE TABLE without a semicolon.
+func TestDumpSplitTableStatements(t *testing.T) {
+	// Plain CREATE TABLE with a multi-line comment mentioning ALTER TABLE stays intact.
+	plain := "CREATE EXTERNAL TABLE `db`.`t`(\n  `id` int COMMENT 'line1\nALTER TABLE fake')\nLOCATION\n  'x'"
+	createStmt, local, fks := dumpSplitTableStatements(plain)
+	require.Equal(t, plain, createStmt)
+	require.Empty(t, local)
+	require.Empty(t, fks)
+
+	// Constraints split into local alters and deferred FK alters.
+	withConstraints := "CREATE EXTERNAL TABLE `db`.`a_child`(\n  `id` int,\n  `pid` int)\nTBLPROPERTIES (\n  'bucketing_version'='2')\n" +
+		"ALTER TABLE `db`.`a_child` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `db`.`z_parent`(`id`) DISABLE NOVALIDATE RELY;\n" +
+		"ALTER TABLE `db`.`a_child` CHANGE COLUMN `id` `id` int CONSTRAINT `nn_id` NOT NULL DISABLE NOVALIDATE RELY;\n" +
+		"ALTER TABLE `db`.`a_child` ADD CONSTRAINT `pk_a` PRIMARY KEY (`id`) DISABLE NOVALIDATE RELY;"
+	createStmt, local, fks = dumpSplitTableStatements(withConstraints)
+	require.Equal(t, "CREATE EXTERNAL TABLE `db`.`a_child`(\n  `id` int,\n  `pid` int)\nTBLPROPERTIES (\n  'bucketing_version'='2')", createStmt)
+	require.Equal(t, []string{
+		"ALTER TABLE `db`.`a_child` ADD CONSTRAINT `pk_a` PRIMARY KEY (`id`) DISABLE NOVALIDATE RELY",
+		"ALTER TABLE `db`.`a_child` CHANGE COLUMN `id` `id` int CONSTRAINT `nn_id` NOT NULL DISABLE NOVALIDATE RELY",
+	}, local)
+	require.Equal(t, []string{
+		"ALTER TABLE `db`.`a_child` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `db`.`z_parent`(`id`) DISABLE NOVALIDATE RELY",
+	}, fks)
 }
 
 // TestDumpUnescapeDescribed holds a value DESCRIBE FORMATTED renders: the
