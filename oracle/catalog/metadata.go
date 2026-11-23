@@ -2901,6 +2901,10 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 			}
 		}
 	}
+	if !n.Materialized && n.IfNotExists && !n.OrReplace && e.views[viewName] != nil {
+		// IF NOT EXISTS keeps the view there, whatever the new query reads.
+		return
+	}
 	// Derive the view's columns and the text Oracle stores, which expands
 	// the outermost *. A query the catalog cannot resolve is refused when
 	// the server configuration validates view queries, and otherwise keeps

@@ -226,7 +226,20 @@ func (a *queryAnalyzer) query(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	}
 	ops, orderBy, fetch := flattenSetOp(sel)
 	if len(ops) == 1 {
-		return a.block(ops[0].sel, outer, ctes, top, true)
+		block := ops[0].sel
+		if (orderBy != nil && orderBy != block.OrderBy) || (fetch != nil && fetch != block.FetchFirst) {
+			// (SELECT ...) ORDER BY ... FETCH ...: the parser keeps the tail
+			// on a wrapper; it is the one block's own.
+			copied := *block
+			if orderBy != nil {
+				copied.OrderBy = orderBy
+			}
+			if fetch != nil {
+				copied.FetchFirst = fetch
+			}
+			block = &copied
+		}
+		return a.block(block, outer, ctes, top, true)
 	}
 	var results []*queryResult
 	for _, op := range ops {

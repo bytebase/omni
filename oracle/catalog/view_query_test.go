@@ -143,6 +143,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"recursive_member_distinct", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT DISTINCT n + 1 FROM r WHERE n < 5) SELECT n FROM r`, "32486"},
 		{"between_incompatible", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE 1 BETWEEN DATE '2020-01-01' AND DATE '2020-01-02'`, "00932"},
 		{"distinct_lpad_lob", `CREATE VIEW v AS SELECT DISTINCT LPAD(doc, 10, 'x') x FROM t`, "22848"},
+		{"parenthesized_order_missing", `CREATE VIEW v AS (SELECT id FROM t) ORDER BY nosuch`, "00904"},
+		{"parenthesized_fetch_bind", `CREATE VIEW v AS (SELECT id FROM t) FETCH FIRST :n ROWS ONLY`, "01027"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -411,5 +413,32 @@ func TestViewQueryTypesRound16(t *testing.T) {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
+	}
+}
+
+func TestViewQueryUnresolvedViews(t *testing.T) {
+	// A view the catalog cannot derive leaves a view over it unexpanded.
+	c, err := LoadSQL(`
+CREATE VIEW a AS SELECT * FROM ext.t;
+CREATE VIEW b AS SELECT * FROM a;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		if v.GetName() == "B" && v.GetDefinition() != "SELECT * FROM a" {
+			t.Errorf("B = %q, want its text unexpanded", v.GetDefinition())
+		}
+	}
+
+	// IF NOT EXISTS keeps an existing view without reading the new query.
+	c, err = LoadSQL(`CREATE TABLE t (id NUMBER); CREATE VIEW v AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	results, err := c.Exec(`CREATE VIEW IF NOT EXISTS v AS SELECT id FROM missing_table`, nil)
+	if err != nil || results[0].Error != nil {
+		t.Fatalf("IF NOT EXISTS on an existing view: %v %+v", err, results)
 	}
 }

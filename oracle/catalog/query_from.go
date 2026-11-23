@@ -197,6 +197,11 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 	}
 	switch {
 	case e.views[target] != nil:
+		if len(e.views[target].Columns) == 0 {
+			// A view whose columns the catalog could not derive: Oracle
+			// would read it only once it compiles.
+			return nil, oraError("04063", "view %q.%q has errors", owner, target)
+		}
 		rel.cols = tableColumns(e.views[target].Columns)
 		rel.view = true
 	case e.materializedViews[target] != nil && e.tables[target] != nil:
