@@ -85922,6 +85922,1181 @@
 |   CONSTRAINT `chk_always` CHECK (1 = 1)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (A) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a, d) REFERENCES a (b, a)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `zz` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS zz (a) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `zz` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b), ADD COLUMN e INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD CONSTRAINT d FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_2` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_2` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD UNIQUE IF NOT EXISTS (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `b` (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   KEY `b` (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS yy (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   KEY `yy` (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS zz (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (a) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `zz` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `zz` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (a) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES parent (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY idx_d (a) REFERENCES parent (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES nosuch (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (b, d) REFERENCES parent (b)
+< error
+| 1239 42000 Incorrect foreign key definition for 'idx_d': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `idx_d` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
@@ -86241,6 +87416,68 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 |  PARTITION BY RANGE (`a`)
 | (PARTITION `a` VALUES LESS THAN (200) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, ADD COLUMN e INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`,`a`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`a`)
+| (PARTITION `p0` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `a` VALUES LESS THAN (200) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP FOREIGN KEY zzz
+< error
+| 1506 HY000 Partitioned tables do not support FOREIGN KEY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP COLUMN zzz
+< error
+| 1091 42000 Can't DROP COLUMN `zzz`; check that it exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES a (b)
+< error
+| 1506 HY000 Partitioned tables do not support FOREIGN KEY
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t

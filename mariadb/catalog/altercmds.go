@@ -275,7 +275,7 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 	// Foreign key operations (ADD FOREIGN KEY, column REFERENCES, DROP FOREIGN
 	// KEY) on a partitioned table are refused with 1506 before column or
 	// constraint lookups (measured on mariadb:11.8.8).
-	if tbl.Partitioning != nil && alterTouchesForeignKey(stmt.Commands) {
+	if tbl.Partitioning != nil && alterTouchesForeignKey(tbl, stmt.Commands) {
 		return errForeignKeyOnPartitioned()
 	}
 	// SYSTEM_TIME partitioning is a versioned table's: measured on
@@ -1247,8 +1247,14 @@ func alterDroppedFKs(cmds []*nodes.AlterTableCmd) map[string]bool {
 }
 
 // alterTouchesForeignKey reports whether any command in an ALTER TABLE adds
-// or drops a foreign key (including inline column REFERENCES).
-func alterTouchesForeignKey(cmds []*nodes.AlterTableCmd) bool {
+// or drops a foreign key (including inline column REFERENCES). A DROP FOREIGN
+// KEY IF EXISTS naming no foreign key of tbl is not one: MariaDB removes it
+// with a note before the statement runs (handle_if_exists_options,
+// sql/sql_table.cc, mariadb-11.8.8), so mariadb:11.8.8 runs `ALTER TABLE a
+// DROP FOREIGN KEY IF EXISTS a` on a partitioned table, and answers 1091 for
+// `DROP FOREIGN KEY IF EXISTS a, DROP COLUMN zzz` where DROP FOREIGN KEY a
+// is 1506.
+func alterTouchesForeignKey(tbl *Table, cmds []*nodes.AlterTableCmd) bool {
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
@@ -1259,7 +1265,7 @@ func alterTouchesForeignKey(cmds []*nodes.AlterTableCmd) bool {
 				return true
 			}
 		case nodes.ATDropConstraint:
-			if cmd.DropForeignKey {
+			if cmd.DropForeignKey && (!cmd.IfExists || foreignKeyNamed(tbl, cmd.Name)) {
 				return true
 			}
 		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
@@ -1282,6 +1288,37 @@ func alterTouchesForeignKey(cmds []*nodes.AlterTableCmd) bool {
 					}
 				}
 			}
+		}
+	}
+	return false
+}
+
+// keepsIndexNamed reports whether tbl has an index called name that a new
+// foreign key's generated key over cols does not replace.
+func keepsIndexNamed(tbl *Table, name string, cols []*IndexColumn) bool {
+	for _, idx := range tbl.Indexes {
+		if idx == nil || toLower(idx.Name) != toLower(name) {
+			continue
+		}
+		if !idx.Implicit {
+			return true
+		}
+		names := make([]string, 0, len(idx.Columns))
+		for _, ic := range idx.Columns {
+			if ic != nil && ic.Name != "" {
+				names = append(names, ic.Name)
+			}
+		}
+		return len(names) != len(idx.Columns) || !indexColsCover(cols, names)
+	}
+	return false
+}
+
+// foreignKeyNamed reports whether tbl has a foreign key called name.
+func foreignKeyNamed(tbl *Table, name string) bool {
+	for _, con := range tbl.Constraints {
+		if con != nil && con.Type == ConForeignKey && toLower(con.Name) == toLower(name) {
+			return true
 		}
 	}
 	return false
@@ -1719,9 +1756,9 @@ func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 //   - a primary key looks for any primary key;
 //   - a CHECK looks for a check constraint of the name;
 //   - a foreign key looks for a foreign key on this table named after the name that follows
-//     FOREIGN KEY or else the symbol. One with neither has nothing to look for and is
-//     always added, and the symbol is not looked at when both are written, so `CONSTRAINT
-//     fky FOREIGN KEY IF NOT EXISTS fkw` on a table with fky is 1005;
+//     FOREIGN KEY, else the symbol, else its first column (see fkIfNotExistsName). The
+//     symbol is not looked at when both are written, so `CONSTRAINT fky FOREIGN KEY IF NOT
+//     EXISTS fkw` on a table with fky is 1005;
 //   - any other key looks for an index of its name, which left out is its first column's:
 //     `ADD UNIQUE IF NOT EXISTS (a)` is a note beside `KEY a (a)`.
 func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) bool {
@@ -1745,28 +1782,37 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 		}
 		return false
 	case nodes.ConstrForeignKey:
-		name := con.IndexName
-		if name == "" {
-			name = con.Name
-		}
-		if name == "" {
-			return false
-		}
 		// A foreign key of the name is what it looks for, on this table. An index of the
 		// name is not: with KEY k on t, ADD FOREIGN KEY IF NOT EXISTS k (b) REFERENCES r (id)
 		// adds it on 11.8.8.
-		for _, existing := range tbl.Constraints {
-			if existing.Type == ConForeignKey && toLower(existing.Name) == toLower(name) {
-				return true
-			}
-		}
-		return false
+		name := fkIfNotExistsName(con, cols)
+		return name != "" && foreignKeyNamed(tbl, name)
 	}
 	name := con.Name
 	if name == "" && len(cols) > 0 {
 		name = cols[0]
 	}
 	return name != "" && indexNameExists(tbl, name)
+}
+
+// fkIfNotExistsName is the name ADD FOREIGN KEY IF NOT EXISTS looks for: the
+// name after FOREIGN KEY, else the symbol, else the first column, which
+// handle_if_exists_options (sql/sql_table.cc, mariadb-11.8.8) takes for an
+// unnamed key of any kind. It is compared with the names of the foreign keys,
+// not with their columns: on mariadb:11.8.8, over a table with CONSTRAINT a
+// FOREIGN KEY (a), ADD FOREIGN KEY IF NOT EXISTS (a) and (a, d) are notes,
+// and ADD FOREIGN KEY IF NOT EXISTS (d) and CONSTRAINT zz FOREIGN KEY IF NOT
+// EXISTS (a) add a key.
+func fkIfNotExistsName(con *nodes.Constraint, cols []string) string {
+	switch {
+	case con.IndexName != "":
+		return con.IndexName
+	case con.Name != "":
+		return con.Name
+	case len(cols) > 0:
+		return cols[0]
+	}
+	return ""
 }
 
 // validateAddedKeyColumns refuses a key part that names a column the table
@@ -1961,6 +2007,26 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateNoRepeatedKeyColumns(fkIdxCols); err != nil {
 			return err
 		}
+		// The key a foreign key brings is generated, as the one an earlier
+		// foreign key left is, and of two generated keys over the same columns
+		// MariaDB keeps the later (mysql_prepare_create_table,
+		// sql/sql_table.cc, mariadb-11.8.8): over a table whose KEY a (a) came
+		// with CONSTRAINT a FOREIGN KEY (a), mariadb:11.8.8 leaves KEY zz (a)
+		// alone after ADD CONSTRAINT zz FOREIGN KEY (a). An explicit key over
+		// the columns still backs it, and no generated one is ever covered by
+		// another, so one that is not over the same columns is longer and kept.
+		covering := findCoveringIndex(tbl, cols)
+		makesKey := covering == nil || covering.Implicit && len(covering.Columns) == len(cols)
+		// A key it makes under a name another key holds is 1061, ahead of the
+		// referenced table and behind a column count that does not match it:
+		// on mariadb:11.8.8 over a table with KEY idx_d (d), ADD CONSTRAINT
+		// idx_d FOREIGN KEY (a) REFERENCES nosuch (b) is 1061, the same over
+		// (b, d) REFERENCES parent (b) is 1239, and over (d) it runs.
+		if makesKey && len(fkCon.RefColumns) == len(cols) {
+			if name := fkName(con); name != "" && keepsIndexNamed(tbl, name, fkIdxCols) {
+				return errDupKeyName(name)
+			}
+		}
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
 		if c.foreignKeyChecks {
@@ -1969,7 +2035,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
-		// Add implicit backing index for FK if needed.
+		if makesKey {
+			dropImplicitFKIndexesCoveredBy(tbl, fkIdxCols, "", false, false, false)
+		}
 		ensureFKBackingIndex(tbl, fkName(con), cols, fkIdxCols)
 
 	case nodes.ConstrCheck:
@@ -3405,6 +3473,14 @@ func computeSkippedAlterAdditions(tbl *Table, cmds []*nodes.AlterTableCmd) (map[
 			seenFKs[toLower(con.Name)] = true
 		}
 	}
+	// fkAutoKeys holds the names of the plain keys the statement's foreign keys
+	// bring with them. MariaDB's parser appends one after each foreign key, and
+	// only a later plain KEY IF NOT EXISTS compares itself with it, a UNIQUE or
+	// FULLTEXT one being of another kind (handle_if_exists_options,
+	// sql/sql_table.cc, mariadb-11.8.8). Measured on mariadb:11.8.8, with
+	// CONSTRAINT zz FOREIGN KEY yy (b) earlier in the statement, ADD KEY IF NOT
+	// EXISTS zz (b) is a note and ADD KEY IF NOT EXISTS yy (b) adds yy.
+	fkAutoKeys := map[string]bool{}
 
 	for _, cmd := range cmds {
 		if cmd == nil {
@@ -3446,18 +3522,31 @@ func computeSkippedAlterAdditions(tbl *Table, cmds []*nodes.AlterTableCmd) (map[
 					skippedKeys[con] = true
 				}
 			case nodes.ConstrForeignKey:
-				name := fkName(con)
+				name := fkIfNotExistsName(con, cols)
 				if con.IfNotExists && name != "" && seenFKs[toLower(name)] {
 					skippedKeys[con] = true
-				} else if name != "" {
+					continue
+				}
+				if name != "" {
 					seenFKs[toLower(name)] = true
+				}
+				// The plain key MariaDB adds with a foreign key is named after the
+				// symbol, else the name after FOREIGN KEY, else the first column, and
+				// a later ADD KEY IF NOT EXISTS of that name finds it (see fkAutoKeys).
+				autoKey := fkName(con)
+				if autoKey == "" && len(cols) > 0 {
+					autoKey = cols[0]
+				}
+				if autoKey != "" {
+					fkAutoKeys[toLower(autoKey)] = true
 				}
 			default:
 				name := con.Name
 				if name == "" && len(cols) > 0 {
 					name = cols[0]
 				}
-				if con.IfNotExists && name != "" && seenIndexes[toLower(name)] {
+				if con.IfNotExists && name != "" && (seenIndexes[toLower(name)] ||
+					con.Type == nodes.ConstrIndex && fkAutoKeys[toLower(name)]) {
 					skippedKeys[con] = true
 				} else if name != "" {
 					seenIndexes[toLower(name)] = true
