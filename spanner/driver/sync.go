@@ -185,9 +185,9 @@ func catalogFor(d dialect) catalog {
 
 // SyncInstance reads the instance's databases with their names and nothing else:
 // Spanner reports no version and no roles, and a database's schema is a
-// SyncDatabase of its own. Every database is listed, whichever dialect it
-// states: the dialect decides the SQL a caller may run, not whether the
-// database is a database.
+// SyncDatabase of its own. Every database is listed by default, whichever
+// dialect it states; when opened with Options.GoogleSQLOnly, PostgreSQL-dialect
+// databases are skipped.
 func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	databases, err := d.client.ListDatabases(ctx)
 	if err != nil {
@@ -195,6 +195,9 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	}
 	metadata := make([]*metadatapb.DatabaseSchemaMetadata, 0, len(databases))
 	for _, database := range databases {
+		if d.googleSQLOnly && dialectOf(database.Dialect) == postgresSQL {
+			continue
+		}
 		// database.Name is of the form
 		// `projects/<project>/instances/<instance>/databases/<database>`, and a
 		// sync reports the last part.
