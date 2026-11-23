@@ -584,8 +584,8 @@ func (r *columnRefResolver) matchesColumnRef(cr *ast.ColumnRef) bool {
 }
 
 type popColScopeVisitor struct {
-	r       *columnRefResolver
-	popCTE  bool
+	r        *columnRefResolver
+	popCTE   bool
 	popScope bool
 }
 
@@ -1572,11 +1572,33 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 // --- CREATE / ALTER VIEW, PROCEDURE, FUNCTION, TRIGGER ---
 
 func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) error {
-	if selectStarWithoutFrom(n.Query) {
-		return mssqlErr(ErrSelectStarWithoutFrom, "Must specify table to select from.")
-	}
 	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
+	// SQL Server binds the query before it looks for the view's name:
+	// CREATE VIEW a AS SELECT * is Msg 263 whatever a names (measured,
+	// testdata/simulate.tsv). A script LoadSQL loads is not bound: it may
+	// define a view before what the view reads.
+	bind := !c.lenientMetadataLoad && !c.loadingScript
+	var cols []qcol
+	if !bind {
+		if selectStarWithoutFrom(n.Query) {
+			return mssqlErr(ErrSelectStarWithoutFrom, "Must specify table to select from.")
+		}
+	} else {
+		var err error
+		if cols, err = c.bindView(n, source, name); err != nil {
+			return err
+		}
+	}
+	keep := func(v *metadata.ViewMetadata) {
+		if c.viewColumns == nil {
+			c.viewColumns = map[*metadata.ViewMetadata][]qcol{}
+		}
+		c.viewColumns[v] = cols
+	}
 	schema := c.GetSchema(schemaName)
+	if schema == nil && bind && !strings.EqualFold(schemaName, defaultSchema) {
+		return mssqlErr(ErrSchemaNotFound, "The specified schema name \"%s\" either does not exist or you do not have permission to use it.", schemaName)
+	}
 	kind := c.lookupSchemaObject(schema, name, false)
 	pureAlter := isPureAlterStmt(n, source)
 
@@ -1600,6 +1622,9 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 
 	schema = c.getOrCreateSchema(schemaName)
 	definition := definitionText(n, source)
+	if n.OrAlter {
+		definition = dropOrAlter(definition)
+	}
 	if kind == kindView {
 		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
 			v := schema.Views[idx]
@@ -1607,13 +1632,20 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER VIEW '%s' because it is being referenced by object '%s'.", v.Name, consumer)
 			}
 			v.Definition = creationDefinition(definition)
+			if bind {
+				keep(v)
+			}
 			return nil
 		}
 		if pureAlter {
 			return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", name)
 		}
 	}
-	schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: name, Definition: definition})
+	view := &metadata.ViewMetadata{Name: name, Definition: definition}
+	if bind {
+		keep(view)
+	}
+	schema.Views = append(schema.Views, view)
 	return nil
 }
 
@@ -3418,8 +3450,35 @@ func isNonNullLiteralExpr(expr ast.ExprNode) bool {
 
 // --- DROP ---
 
+// execCreateFulltextIndex records the table a full-text index is on, which
+// CONTAINS, FREETEXT and their table functions need.
+func (c *Catalog) execCreateFulltextIndex(n *ast.CreateFulltextIndexStmt) {
+	if n.Table == nil {
+		return
+	}
+	schemaName, name := tableRefSchemaObject(n.Table, c.defaultSchema)
+	table := c.GetTable(schemaName, name)
+	if table == nil {
+		return
+	}
+	if c.fulltextTables == nil {
+		c.fulltextTables = map[*metadata.TableMetadata]bool{}
+	}
+	c.fulltextTables[table] = true
+}
+
 func (c *Catalog) execDrop(n *ast.DropStmt) error {
 	switch n.ObjectType {
+	case ast.DropFulltextIndex:
+		if n.Names != nil {
+			for _, item := range n.Names.Items {
+				if ref, ok := item.(*ast.TableRef); ok {
+					schemaName, name := tableRefSchemaObject(ref, c.defaultSchema)
+					delete(c.fulltextTables, c.GetTable(schemaName, name))
+				}
+			}
+		}
+		return nil
 	case ast.DropSchema:
 		return c.execDropSchema(n)
 	case ast.DropIndex:

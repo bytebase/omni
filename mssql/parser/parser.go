@@ -2869,11 +2869,23 @@ func (p *Parser) newParseError(pos int, msg string) *ParseError {
 	}
 }
 
+// newCodedParseError is newParseError for a refusal SQL Server's parser
+// reports with a message number of its own.
+func (p *Parser) newCodedParseError(pos, code int, msg string) *ParseError {
+	e := p.newParseError(pos, msg)
+	e.Code = code
+	return e
+}
+
 // ParseError represents a parse error with position information.
 type ParseError struct {
 	Message  string
 	Position int
 	Source   string // original SQL input (for error context extraction)
+	// Code is the number of SQL Server's message for a refusal its parser
+	// gives a number of its own (Msg 195, 1033, ...); 0 for a plain syntax
+	// error, which SQL Server reports as Msg 102 or 156.
+	Code int
 }
 
 func (e *ParseError) Error() string {
