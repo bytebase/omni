@@ -41,6 +41,7 @@ const (
 	ErrDupObject                  = 2714
 	ErrUnknownColumnType          = 2715
 	ErrIndexNotFound              = 2727
+	ErrMultipleIdentityColumns    = 2744
 	ErrRowguidcolType             = 2761
 	ErrCannotDropNotFound         = 3701
 	ErrCannotDropWrongKind        = 3705
@@ -76,6 +77,7 @@ const (
 	ErrNoResumableIndexOp         = 10638
 	ErrAlterTableIndexDiskTable   = 10785
 	ErrCheckConstraintWrongKind   = 11415
+	ErrSequenceZeroIncrement      = 11717
 	ErrSpatialIndexNonSpatialCol  = 12002
 	ErrSystemTimeInvalidCols      = 13501
 	ErrSystemVersioningNoPeriod   = 13510

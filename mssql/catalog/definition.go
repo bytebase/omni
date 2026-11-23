@@ -721,7 +721,8 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
+				body := qualifyTriggerDefinition(creationDefinition(trigger.Body), schema.Name, table.Name, false)
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(body, ";"))
 			}
 		}
 		for _, view := range schema.Views {
@@ -732,7 +733,8 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
+				body := qualifyTriggerDefinition(creationDefinition(trigger.Body), schema.Name, view.Name, false)
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(body, ";"))
 			}
 		}
 	}

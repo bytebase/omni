@@ -241,6 +241,35 @@ func schemaBoundTableConsumer(c *Catalog, targetSchema, targetTable string) (str
 	return "", false
 }
 
+func schemaBoundColumnConsumer(c *Catalog, targetSchema, targetTable, colName string) (string, bool) {
+	for _, s := range c.schemas {
+		for _, v := range s.Views {
+			if isSchemaBound(v.Definition) && definitionReferencesTable(v.Definition, s.Name, targetSchema, targetTable) &&
+				definitionReferencesColumn(v.Definition, colName) {
+				return v.Name, true
+			}
+		}
+		for _, fn := range s.Functions {
+			if isSchemaBound(fn.Definition) && definitionReferencesTable(fn.Definition, s.Name, targetSchema, targetTable) &&
+				definitionReferencesColumn(fn.Definition, colName) {
+				return fn.Name, true
+			}
+		}
+	}
+	return "", false
+}
+
+func definitionReferencesColumn(definition, colName string) bool {
+	if strings.TrimSpace(definition) == "" || colName == "" {
+		return false
+	}
+	stmts, err := mssql.Parse(creationDefinition(definition))
+	if err != nil || len(stmts) == 0 {
+		return false
+	}
+	return exprReferencesColumn(stmts[0].AST, colName)
+}
+
 func fkMatchesIndex(fk *metadata.ForeignKeyMetadata, idx *metadata.IndexMetadata) bool {
 	if len(fk.ReferencedColumns) == 0 {
 		return idx.Primary
@@ -490,6 +519,9 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 				}
 				targetSchema.Tables = append(targetSchema.Tables, t)
 				c.indexTable(targetSchema.Name, t)
+				for _, tr := range t.Triggers {
+					tr.Body = qualifyTriggerDefinition(tr.Body, targetSchema.Name, t.Name, true)
+				}
 				for _, fk := range inboundFKs {
 					fk.ReferencedSchema = targetSchema.Name
 				}
@@ -501,6 +533,9 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 			if strings.EqualFold(v.Name, objName) {
 				srcSchema.Views = append(srcSchema.Views[:i], srcSchema.Views[i+1:]...)
 				v.Definition = qualifyModuleDefinition(v.Definition, targetSchema.Name, true)
+				for _, tr := range v.Triggers {
+					tr.Body = qualifyTriggerDefinition(tr.Body, targetSchema.Name, v.Name, true)
+				}
 				targetSchema.Views = append(targetSchema.Views, v)
 				return nil
 			}
@@ -1277,6 +1312,9 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) e
 		return mssqlErr(ErrUnknownType, "Type '%s' is not a defined system type.", n.DataType.Name)
 	}
 	schemaName, sequenceName := tableRefSchemaObject(n.Name, c.defaultSchema)
+	if isZeroNumericExpr(n.Increment) {
+		return mssqlErr(ErrSequenceZeroIncrement, "The increment value for sequence object '%s' cannot be zero.", sequenceName)
+	}
 	if schema := c.GetSchema(schemaName); schema != nil {
 		if c.lookupSchemaObject(schema, sequenceName, false) != kindNone {
 			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", sequenceName)
@@ -1325,6 +1363,9 @@ func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) err
 	}
 	if seq == nil {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", sequenceName)
+	}
+	if isZeroNumericExpr(n.Increment) {
+		return mssqlErr(ErrSequenceZeroIncrement, "The increment value for sequence object '%s' cannot be zero.", sequenceName)
 	}
 	if strings.TrimSpace(seq.Start) == "" && (n.Increment != nil || n.NoMinVal || n.MinValue != nil || n.NoMaxVal || n.MaxValue != nil) {
 		seq.Start = normalizeSequenceMetadata(seq).start
@@ -1511,6 +1552,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				typeName = action.Column.DataType.Name
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
+		}
+		if action.Column.Identity != nil && tableHasIdentityColumn(table) {
+			return mssqlErr(ErrMultipleIdentityColumns, "Multiple identity columns specified for table '%s'. Only one identity column per table is allowed.", table.Name)
 		}
 		if action.Column.Constraints != nil {
 			schema := c.GetSchema(schemaName)
@@ -1926,6 +1970,91 @@ func qualifyModuleDefinition(definition, schemaName string, forceQualify bool) s
 	return definition[:nameRef.Loc.Start] + qualified + definition[nameRef.Loc.End:]
 }
 
+// qualifyTriggerDefinition updates a trigger CREATE statement's trigger schema
+// and ON target table/view schema. When forceQualify is false, already-matching
+// or unqualified references are preserved verbatim.
+func qualifyTriggerDefinition(definition, schemaName, parentName string, forceQualify bool) string {
+	if schemaName == "" || strings.TrimSpace(definition) == "" {
+		return definition
+	}
+	stmts, err := mssql.Parse(definition)
+	if err != nil || len(stmts) == 0 {
+		return definition
+	}
+	trig, ok := stmts[0].AST.(*ast.CreateTriggerStmt)
+	if !ok {
+		return definition
+	}
+	type replacement struct {
+		start int
+		end   int
+		text  string
+	}
+	var reps []replacement
+	addRef := func(ref *ast.TableRef, targetObj string) {
+		if ref == nil || ref.Loc.Start < 0 || ref.Loc.End <= ref.Loc.Start || ref.Loc.End > len(definition) {
+			return
+		}
+		if ref.Schema == "" && !forceQualify {
+			return
+		}
+		if ref.Schema != "" && strings.EqualFold(ref.Schema, schemaName) && (targetObj == "" || strings.EqualFold(ref.Object, targetObj)) {
+			return
+		}
+		obj := ref.Object
+		if targetObj != "" {
+			obj = targetObj
+		}
+		reps = append(reps, replacement{
+			start: ref.Loc.Start,
+			end:   ref.Loc.End,
+			text:  quote(schemaName) + "." + quote(obj),
+		})
+	}
+	addRef(trig.Name, "")
+	addRef(trig.Table, parentName)
+	if len(reps) == 0 {
+		return definition
+	}
+	// Apply replacements from right to left so earlier byte offsets remain valid.
+	if len(reps) == 2 && reps[0].start < reps[1].start {
+		reps[0], reps[1] = reps[1], reps[0]
+	}
+	out := definition
+	for _, r := range reps {
+		out = out[:r.start] + r.text + out[r.end:]
+	}
+	return out
+}
+
+func isZeroNumericExpr(expr ast.ExprNode) bool {
+	if expr == nil {
+		return false
+	}
+	switch e := expr.(type) {
+	case *ast.ParenExpr:
+		return isZeroNumericExpr(e.Expr)
+	case *ast.UnaryExpr:
+		return isZeroNumericExpr(e.Operand)
+	case *ast.Literal:
+		s := strings.TrimSpace(e.Str)
+		if s == "" {
+			return false
+		}
+		hasDigit := false
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if c == '0' {
+				hasDigit = true
+			} else if c != '.' {
+				return false
+			}
+		}
+		return hasDigit
+	}
+	return false
+}
+
 func columnInPrimaryKey(table *metadata.TableMetadata, colName string) (string, bool) {
 	for _, idx := range table.Indexes {
 		if !idx.Primary {
@@ -2001,6 +2130,9 @@ func alterColumnTypeDependency(c *Catalog, schemaName string, table *metadata.Ta
 		if computedExprReferencesColumn(other.Type, table.Name, col.Name) {
 			return other.Name, true
 		}
+	}
+	if consumer, bound := schemaBoundColumnConsumer(c, schemaName, table.Name, col.Name); bound {
+		return consumer, true
 	}
 	return "", false
 }
@@ -2124,6 +2256,9 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 				}
 			}
 		}
+	}
+	if consumer, bound := schemaBoundColumnConsumer(c, schemaName, table.Name, col.Name); bound {
+		return consumer, true
 	}
 	return "", false
 }
@@ -2390,12 +2525,16 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		if !ok {
 			continue
 		}
-		var schemaName, tableName, indexName string
+		var dbName, schemaName, tableName, indexName string
 		if n.OnTables != nil && i < len(n.OnTables.Items) && n.OnTables.Items[i] != nil {
 			onRef, _ := n.OnTables.Items[i].(*ast.TableRef)
+			if onRef != nil {
+				dbName = onRef.Database
+			}
 			schemaName, tableName = tableRefSchemaObject(onRef, c.defaultSchema)
 			indexName = ref.Object
 		} else {
+			dbName = ref.Server
 			schemaName = ref.Database
 			tableName = ref.Schema
 			indexName = ref.Object
@@ -2404,7 +2543,14 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 			}
 		}
 
-		table := c.GetTable(schemaName, tableName)
+		targetCat := c
+		if dbName != "" {
+			targetCat = c.DatabaseCatalog(dbName)
+		}
+		var table *metadata.TableMetadata
+		if targetCat != nil {
+			table = targetCat.GetTable(schemaName, tableName)
+		}
 		var foundIdx *metadata.IndexMetadata
 		if table != nil {
 			for _, idx := range table.Indexes {
@@ -2425,7 +2571,7 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		if err := checkDropIndexOptions(n.Options, tableName, indexName, isClustered); err != nil {
 			return err
 		}
-		if _, fkName, referenced := indexReferencedByFK(c, schemaName, table, foundIdx); referenced {
+		if _, fkName, referenced := indexReferencedByFK(targetCat, schemaName, table, foundIdx); referenced {
 			return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", tableName, indexName, fkName)
 		}
 
@@ -2490,32 +2636,49 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 		return nil
 	}
 	type dropTarget struct {
+		cat    *Catalog
 		schema *metadata.SchemaMetadata
 		name   string
 		table  *metadata.TableMetadata
 	}
+	type otherKey struct {
+		cat    *Catalog
+		schema string
+		obj    string
+	}
 	seenTables := make(map[*metadata.TableMetadata]bool)
-	seenOther := make(map[tableKey]bool)
+	seenOther := make(map[otherKey]bool)
 	var targets []dropTarget
 	for _, item := range n.Names.Items {
 		ref, ok := item.(*ast.TableRef)
 		if !ok {
 			continue
 		}
+		targetCat := c
+		if ref.Database != "" {
+			targetCat = c.DatabaseCatalog(ref.Database)
+		}
 		schemaName, objName := tableRefSchemaObject(ref, c.defaultSchema)
-		schema := c.GetSchema(schemaName)
-		kind := c.lookupSchemaObject(schema, objName, false)
+		if targetCat != nil && ref.Schema == "" {
+			schemaName = targetCat.defaultSchema
+		}
+		var schema *metadata.SchemaMetadata
+		kind := kindNone
+		if targetCat != nil {
+			schema = targetCat.GetSchema(schemaName)
+			kind = targetCat.lookupSchemaObject(schema, objName, false)
+		}
 		var resolvedTable *metadata.TableMetadata
 		isDup := false
 		if kind == kindTable {
-			resolvedTable = c.resolveTableInSchema(schema, objName)
+			resolvedTable = targetCat.resolveTableInSchema(schema, objName)
 			if resolvedTable == nil {
 				kind = kindNone
 			} else if seenTables[resolvedTable] {
 				isDup = true
 			}
 		} else if kind != kindNone {
-			if seenOther[tableKey{schema: normalize(schema.Name), table: normalize(objName)}] {
+			if seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] {
 				isDup = true
 			}
 		}
@@ -2529,24 +2692,24 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			return mssqlErr(ErrCannotDropWrongKind, "Cannot use DROP %s with '%s' because '%s' is a %s.", sqlKind, objName, objName, string(kind))
 		}
 		if wantKind == kindTable {
-			if fkName, referenced := hasInboundFKExcludingTables(c, schema.Name, resolvedTable, seenTables); referenced {
+			if fkName, referenced := hasInboundFKExcludingTables(targetCat, schema.Name, resolvedTable, seenTables); referenced {
 				return mssqlErr(ErrDropTableReferencedByFK, "Could not drop object '%s' because it is referenced by a FOREIGN KEY constraint '%s'.", objName, fkName)
 			}
-			if consumer, bound := schemaBoundTableConsumer(c, schema.Name, resolvedTable.Name); bound {
+			if consumer, bound := schemaBoundTableConsumer(targetCat, schema.Name, resolvedTable.Name); bound {
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP TABLE '%s' because it is being referenced by object '%s'.", objName, consumer)
 			}
 			seenTables[resolvedTable] = true
-			targets = append(targets, dropTarget{schema: schema, name: resolvedTable.Name, table: resolvedTable})
+			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: resolvedTable.Name, table: resolvedTable})
 		} else {
-			seenOther[tableKey{schema: normalize(schema.Name), table: normalize(objName)}] = true
-			targets = append(targets, dropTarget{schema: schema, name: objName})
+			seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] = true
+			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: objName})
 		}
 	}
 	for _, target := range targets {
 		if target.table != nil {
-			c.removeTable(target.schema, target.table)
+			target.cat.removeTable(target.schema, target.table)
 		} else {
-			c.removeObject(target.schema, wantKind, target.name)
+			target.cat.removeObject(target.schema, wantKind, target.name)
 		}
 	}
 	return nil

@@ -627,12 +627,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				continue
 			}
 			for _, trigger := range tableDiff.NewTable.Triggers {
-				writeTriggerMigration(&buf, trigger)
+				writeTriggerMigration(&buf, tableDiff.SchemaName, tableDiff.TableName, trigger)
 			}
 		case DiffAlter:
 			for _, triggerDiff := range tableDiff.Triggers {
 				if triggerDiff.Action == DiffCreate || triggerDiff.Action == DiffAlter {
-					writeTriggerMigration(&buf, triggerDiff.NewTrigger)
+					writeTriggerMigration(&buf, tableDiff.SchemaName, tableDiff.TableName, triggerDiff.NewTrigger)
 				}
 			}
 		}
@@ -2138,7 +2138,7 @@ func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates 
 			buf.WriteString(";\nGO\n")
 		}
 		for _, trigger := range viewDiff.NewView.Triggers {
-			writeTriggerMigration(buf, trigger)
+			writeTriggerMigration(buf, viewDiff.SchemaName, viewDiff.ViewName, trigger)
 		}
 	}
 	order, err := g.topologicalSort()
@@ -3028,11 +3028,11 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
-func writeTriggerMigration(buf *strings.Builder, trigger *metadata.TriggerMetadata) {
+func writeTriggerMigration(buf *strings.Builder, schemaName, targetName string, trigger *metadata.TriggerMetadata) {
 	if trigger == nil || trigger.Body == "" {
 		return
 	}
-	buf.WriteString(strings.TrimRight(strings.TrimSpace(creationDefinition(trigger.Body)), ";"))
+	buf.WriteString(strings.TrimRight(strings.TrimSpace(qualifyTriggerDefinition(creationDefinition(trigger.Body), schemaName, targetName, false)), ";"))
 	buf.WriteString("\nGO\n")
 }
 
@@ -3515,7 +3515,7 @@ func createViewsInOrder(diff *SchemaDiff, rebuiltViews []viewWithSchema, buf *st
 			buf.WriteString(";\nGO\n")
 		}
 		for _, trigger := range viewDiff.NewView.Triggers {
-			writeTriggerMigration(buf, trigger)
+			writeTriggerMigration(buf, viewDiff.SchemaName, viewDiff.ViewName, trigger)
 		}
 	}
 	ordered, err := graph.topologicalSort()

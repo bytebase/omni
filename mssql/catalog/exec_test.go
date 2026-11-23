@@ -572,4 +572,61 @@ CREATE FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 1; END;
 	require.NotContains(t, def, "[dbo].[v]")
 	require.NotContains(t, def, "[dbo].[p]")
 	require.NotContains(t, def, "[dbo].[f]")
+
+	// 37. DROP COLUMN rejects columns referenced by WITH SCHEMABINDING views or functions.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL, [b] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v_sb] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrColumnDependentObject)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "a"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`)
+
+	// 38. ALTER SCHEMA TRANSFER updates trigger target/schema definitions on transferred tables.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[t] ([id] INT NOT NULL);
+GO
+CREATE TRIGGER [dbo].[tr_t] ON [dbo].[t] AFTER INSERT AS BEGIN SELECT 1; END;
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[t]`)
+	def, err = c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TRIGGER [app].[tr_t] ON [app].[t]")
+	require.NotContains(t, def, "ON [dbo].[t]")
+	mig = GenerateMigration(New(), c, Diff(New(), c)).SQL()
+	require.Contains(t, mig, "CREATE TRIGGER [app].[tr_t] ON [app].[t]")
+	require.NotContains(t, mig, "ON [dbo].[t]")
+
+	// 39. DROP TABLE honors the database qualifier instead of dropping local tables.
+	primaryMeta, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL);`)
+	require.NoError(t, err)
+	otherMeta, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL);`)
+	require.NoError(t, err)
+	c = New()
+	require.NoError(t, c.LoadMetadataInto(t.Context(), primaryMeta.Metadata(), "appdb"))
+	require.NoError(t, c.LoadMetadataInto(t.Context(), otherMeta.Metadata(), "otherdb"))
+	execExpectCode(t, c, `DROP TABLE [unknown_db].[dbo].[t]`, ErrCannotDropNotFound)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	execExpectOK(t, c, `DROP TABLE [otherdb].[dbo].[t]`)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	require.Nil(t, c.GetDatabaseTable("otherdb", "dbo", "t"))
+
+	// 40. CREATE/ALTER SEQUENCE rejects zero increment without mutating existing metadata.
+	c, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] START WITH 1 INCREMENT BY 1;`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `CREATE SEQUENCE [dbo].[s0] INCREMENT BY 0`, ErrSequenceZeroIncrement)
+	execExpectCode(t, c, `ALTER SEQUENCE [dbo].[s] INCREMENT BY 0 MINVALUE 5`, ErrSequenceZeroIncrement)
+	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].Increment)
+	require.Equal(t, "", c.GetSchema("dbo").Sequences[0].MinValue)
+
+	// 41. ALTER TABLE ADD COLUMN rejects adding a second IDENTITY column.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT IDENTITY(1,1), [v] INT);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [id2] INT IDENTITY(1,1)`, ErrMultipleIdentityColumns)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "id2"))
 }
