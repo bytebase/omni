@@ -1,4 +1,4 @@
-# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0
+# pin: simulate gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0 judge:1
 # columns: omni, expected, source, fixture, rule, statement
 942	942	engine	one_table@missing	statement/alterView	ALTER VIEW a COMPILE
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequence	CREATE SEQUENCE a
@@ -199,7 +199,7 @@ ok:1533a14c2886	ok:1533a14c2886	engine	one_table@missing	createSynonym(PUBLIC)?/
 ok:13bb93e33fb2	ok:13bb93e33fb2	engine	one_table@missing	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@missing	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok:31ba4eae6b75	ok:31ba4eae6b75	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok:d5cf53d4fbfc	ok:d5cf53d4fbfc	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@missing	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@missing	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:757f7e625773	ok:757f7e625773	engine	one_table@missing	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)
@@ -344,7 +344,7 @@ ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	statement/truncateTable	T
 955	955	engine	one_table@table	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause	ALTER TABLE a ADD(a NUMBER)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_drop_column_clause	ALTER TABLE a DROP COLUMN a
-ok:d2b50fcfb2de	ok:d2b50fcfb2de	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
+ok:c28e8ff3b899	ok:c28e8ff3b899	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_rename_column_clause	ALTER TABLE a RENAME COLUMN a TO a
 23292	23292	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/RENAME_CONSTRAINT_ID_TO_ID	ALTER TABLE a RENAME CONSTRAINT a TO a
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/alterTable_drop_constraint_clause	ALTER TABLE a DROP PRIMARY KEY
@@ -359,7 +359,7 @@ ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_add_column_cla
 904	904	engine	one_table@table	alterTable_drop_column_clause(CASCADE_CONSTRAINTS|INVALIDATE)/CASCADE_CONSTRAINTS	ALTER TABLE a DROP COLUMN a CASCADE CONSTRAINTS
 904	904	engine	one_table@table	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
 904	904	engine	one_table@table	alterTable_drop_column_clause(CHECKPOINT_NUMBER)?/CHECKPOINT_NUMBER	ALTER TABLE a DROP COLUMN a CHECKPOINT 1
-ok:c661eb7227a6	ok:c661eb7227a6	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
+ok:0c36db2c4f69	ok:0c36db2c4f69	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
@@ -1126,7 +1126,7 @@ ok:e0586b61b6dc	ok:e0586b61b6dc	engine	one_table@index	createSynonym(PUBLIC)?/PU
 ok:9e4273a3a0ec	ok:9e4273a3a0ec	engine	one_table@index	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@index	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok:2719d266cf7d	ok:2719d266cf7d	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok:00f6bad39148	ok:00f6bad39148	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@index	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@index	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:b221fae9589b	ok:b221fae9589b	engine	one_table@index	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)

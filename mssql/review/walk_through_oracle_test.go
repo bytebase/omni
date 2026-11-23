@@ -413,6 +413,7 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^Sequence `.*` doesn't exist\\.$"), []string{"3701", "15151"}},
 	{regexp.MustCompile("^Type `.*` doesn't exist\\.$"), []string{"218"}},
 	{regexp.MustCompile("^Type `.*` already exists\\.$"), []string{"219"}},
+	{regexp.MustCompile("^Collation `.*` doesn't exist\\.$"), []string{"448"}},
 	{regexp.MustCompile("^`.*` doesn't exist\\.$"), []string{"208", "15225"}},
 	{regexp.MustCompile("^Column `.*` already exists in "), []string{"2705", "15335"}},
 	{regexp.MustCompile("^Column `.*` doesn't exist in "), []string{"4924", "15248", "1911", "1769", "207", "1752"}},
