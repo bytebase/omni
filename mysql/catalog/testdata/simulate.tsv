@@ -3047,37 +3047,37 @@ ok:9129b00acfd1	ok:9129b00acfd1	engine	features@spatial	index:fulltext	CREATE TA
 ok:ea6a0495aeee	ok:ea6a0495aeee	engine	features@spatial	index:fulltext	CREATE TABLE p5 (a VARCHAR(10), FULLTEXT KEY (a) KEY_BLOCK_SIZE = 4)
 ok:a8614beef3b5	ok:a8614beef3b5	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT
 ok:67def2061c91	ok:67def2061c91	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT FIRST, ALGORITHM = INSTANT
-ok	1221	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT, LOCK = NONE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INSTANT
+1221	1221	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT, LOCK = NONE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INSTANT
 ok:39f5452b01e6	ok:39f5452b01e6	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INPLACE, LOCK = NONE
-ok	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = INPLACE
-ok	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, LOCK = NONE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = INPLACE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, LOCK = NONE
 ok:bf5c9c891395	ok:bf5c9c891395	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = SHARED
-ok	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = NONE
-ok	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = NONE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE
 ok:2f8d7d1f9215	ok:2f8d7d1f9215	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = INPLACE
 ok:b6c135c7ef2a	ok:b6c135c7ef2a	engine	one_table@missing	alter:algorithm	ALTER TABLE t RENAME COLUMN c TO c2, ALGORITHM = INSTANT
 ok:3dbbb2d55cee	ok:3dbbb2d55cee	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALTER COLUMN c SET DEFAULT 5, ALGORITHM = INSTANT
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN d, ALGORITHM = INSTANT
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN d, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INSTANT
 ok:99cfd88b6ef1	ok:99cfd88b6ef1	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INPLACE, LOCK = NONE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t RENAME INDEX idx_d TO idx_d2, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t RENAME INDEX idx_d TO idx_d2, ALGORITHM = INSTANT
 ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INPLACE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INSTANT
 ok:2707f3dd8607	ok:2707f3dd8607	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT AUTO_INCREMENT UNIQUE, ALGORITHM = INPLACE
 1072	1072	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
 ok:9e22823c10ad	ok:9e22823c10ad	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e VARCHAR(10), ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
 ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALGORITHM = DEFAULT, LOCK = DEFAULT
 ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALGORITHM = INSTANT
 ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	alter:algorithm	ALTER TABLE t LOCK = EXCLUSIVE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALTER INDEX idx_d INVISIBLE, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALTER INDEX idx_d INVISIBLE, ALGORITHM = INSTANT
 ok:7739373eadc1	ok:7739373eadc1	engine	one_table@missing	alter:algorithm	ALTER TABLE t CONVERT TO CHARACTER SET latin1, ALGORITHM = INPLACE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INPLACE
-ok	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INPLACE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INSTANT
 ok:770cbab160d4	ok:770cbab160d4	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN c, ADD COLUMN c BIGINT, ALGORITHM = INSTANT
 ok:39f5452b01e6	ok:39f5452b01e6	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = INPLACE LOCK = NONE
-ok	1845	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = INSTANT
-ok	1845	engine	one_table@missing	alter:algorithm	DROP INDEX idx_d ON t ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	DROP INDEX idx_d ON t ALGORITHM = INSTANT
 ok:99cfd88b6ef1	ok:99cfd88b6ef1	engine	one_table@missing	alter:algorithm	DROP INDEX idx_d ON t LOCK = NONE
 ok:e7059203d59f	ok:e7059203d59f	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD PARTITION PARTITIONS 2
 ok:83a5694472ab	ok:83a5694472ab	engine	partitioned@hash	partition:hash	ALTER TABLE sessions COALESCE PARTITION 2
@@ -3192,19 +3192,18 @@ ok:c1a4e1cafb09	ok:c1a4e1cafb09	engine	partitioned@range	partition:range	CREATE 
 1659	1659	engine	partitioned@range	partition:range	CREATE TABLE r7 (a VARCHAR(10)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
 ok:84bd8ac65780	ok:84bd8ac65780	engine	partitioned@range	partition:range	CREATE TABLE r8 LIKE orders
 ok:d058c6dc78be	ok:d058c6dc78be	engine	partitioned@range	partition:range	DROP TABLE orders
-ok	ok:d3eea8bde805	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_t_simulation_other.accounts
-ok:b14db738a604	ok:b14db738a604	engine	schemas@cross	rename:schema	RENAME TABLE entries TO omni_t_simulation_other.entries
-ok:e4cfb4db90b5	ok:e4cfb4db90b5	engine	schemas@cross	rename:schema	RENAME TABLE omni_t_simulation_other.archived TO archived
-1450	1450	engine	schemas@cross	rename:schema	RENAME TABLE v_accounts TO omni_t_simulation_other.v_accounts
+ok:a4259c5c287c	ok:a4259c5c287c	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_t_simulation_other.accounts
+ok:a19f7cb20385	ok:a19f7cb20385	engine	schemas@cross	rename:schema	RENAME TABLE entries TO omni_t_simulation_other.entries
+ok:3b7ffaa9db19	ok:3b7ffaa9db19	engine	schemas@cross	rename:schema	RENAME TABLE omni_t_simulation_other.archived TO archived
+1450	1450	engine	schemas@cross	rename:schema	RENAME TABLE v_ledger TO omni_t_simulation_other.v_ledger
 1049	1049	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_t_simulation_nope.accounts
 1050	1050	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_t_simulation_other.archived
-ok	ok:314ce64826e4	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO acc2, acc2 TO omni_t_simulation_other.acc
-ok	ok:5a62bc8be8b2	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO tmp, omni_t_simulation_other.archived TO accounts, tmp TO omni_t_simulation_other.archived
-ok	ok:d3eea8bde805	engine	schemas@cross	rename:schema	ALTER TABLE accounts RENAME TO omni_t_simulation_other.accounts
+ok:22cd1cdc18b3	ok:22cd1cdc18b3	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO acc2, acc2 TO omni_t_simulation_other.acc
+ok:8f7b6cf18fe4	ok:8f7b6cf18fe4	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO tmp, omni_t_simulation_other.archived TO accounts, tmp TO omni_t_simulation_other.archived
+ok:a4259c5c287c	ok:a4259c5c287c	engine	schemas@cross	rename:schema	ALTER TABLE accounts RENAME TO omni_t_simulation_other.accounts
 1050	1050	engine	schemas@cross	rename:schema	ALTER TABLE accounts RENAME TO omni_t_simulation_other.archived
-ok:b14db738a604	ok:b14db738a604	engine	schemas@cross	rename:schema	ALTER TABLE entries RENAME TO omni_t_simulation_other.entries, ADD COLUMN note INT
-ok:643cfad384bb	ok:643cfad384bb	engine	schemas@cross	rename:schema	CREATE TABLE copy LIKE omni_t_simulation_other.archived
-ok:58de32f9f8f6	ok:58de32f9f8f6	engine	schemas@cross	rename:schema	CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_t_simulation_other.archived (id))
-ok:1aeb4119bc32	ok:1aeb4119bc32	engine	schemas@cross	rename:schema	CREATE VIEW v2 AS SELECT id FROM omni_t_simulation_other.archived
-ok	ok:4d64d8d18761	engine	schemas@cross	rename:schema	CREATE TABLE t3 AS SELECT * FROM omni_t_simulation_other.archived
+ok:a19f7cb20385	ok:a19f7cb20385	engine	schemas@cross	rename:schema	ALTER TABLE entries RENAME TO omni_t_simulation_other.entries, ADD COLUMN note INT
+ok:c75c37b7c0c5	ok:c75c37b7c0c5	engine	schemas@cross	rename:schema	CREATE TABLE copy LIKE omni_t_simulation_other.archived
+ok:81b77b5c850c	ok:81b77b5c850c	engine	schemas@cross	rename:schema	CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_t_simulation_other.archived (id))
+ok:3236e22e941b	ok:3236e22e941b	engine	schemas@cross	rename:schema	CREATE VIEW v2 AS SELECT id FROM omni_t_simulation_other.archived
 3730	3730	engine	schemas@cross	rename:schema	DROP TABLE omni_t_simulation_other.archived, accounts

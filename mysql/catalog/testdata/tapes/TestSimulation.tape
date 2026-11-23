@@ -49359,7 +49359,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE accounts TO omni_t_simulation_other.accounts
@@ -49381,7 +49381,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49417,7 +49417,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49425,9 +49425,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49439,7 +49439,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE entries TO omni_t_simulation_other.entries
@@ -49461,7 +49461,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49495,7 +49495,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49503,9 +49503,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49517,7 +49517,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE omni_t_simulation_other.archived TO archived
@@ -49549,7 +49549,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49612,7 +49612,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49620,9 +49620,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49634,10 +49634,10 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
-| RENAME TABLE v_accounts TO omni_t_simulation_other.v_accounts
+| RENAME TABLE v_ledger TO omni_t_simulation_other.v_ledger
 < error
 | 1450 HY000 Changing schema from 'omni_t_simulation' to 'omni_t_simulation_other' is not allowed.
 > exec
@@ -49647,7 +49647,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE accounts TO omni_t_simulation_nope.accounts
@@ -49660,7 +49660,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE accounts TO omni_t_simulation_other.archived
@@ -49673,7 +49673,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE accounts TO acc2, acc2 TO omni_t_simulation_other.acc
@@ -49695,7 +49695,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49731,7 +49731,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`acc` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49739,9 +49739,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49753,7 +49753,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | RENAME TABLE accounts TO tmp, omni_t_simulation_other.archived TO accounts, tmp TO omni_t_simulation_other.archived
@@ -49780,7 +49780,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49829,7 +49829,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49837,9 +49837,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49851,7 +49851,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | ALTER TABLE accounts RENAME TO omni_t_simulation_other.accounts
@@ -49873,7 +49873,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -49909,7 +49909,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -49917,9 +49917,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -49931,7 +49931,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | ALTER TABLE accounts RENAME TO omni_t_simulation_other.archived
@@ -49944,7 +49944,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | ALTER TABLE entries RENAME TO omni_t_simulation_other.entries, ADD COLUMN note INT
@@ -49966,7 +49966,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -50000,7 +50000,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -50008,9 +50008,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -50022,7 +50022,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | CREATE TABLE copy LIKE omni_t_simulation_other.archived
@@ -50054,7 +50054,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -50117,7 +50117,7 @@
 |   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -50125,9 +50125,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -50139,7 +50139,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_t_simulation_other.archived (id))
@@ -50171,7 +50171,7 @@
 | BASE TABLE
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -50235,7 +50235,7 @@
 |   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -50243,9 +50243,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -50257,7 +50257,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | CREATE VIEW v2 AS SELECT id FROM omni_t_simulation_other.archived
@@ -50289,7 +50289,7 @@
 | VIEW
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
 | VIEW
 > query
@@ -50355,7 +50355,7 @@
 : bytes
 | utf8mb4_general_ci
 > query
-| SHOW CREATE VIEW `v_accounts`
+| SHOW CREATE VIEW `v_ledger`
 < result
 < column "View" "VARCHAR" "string"
 < column "Create View" "VARCHAR" "string"
@@ -50363,9 +50363,9 @@
 < column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
-| v_accounts
+| v_ledger
 : bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
 : bytes
 | utf8mb4
 : bytes
@@ -50377,123 +50377,7 @@
 | CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
 | CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
 | CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
-< ok 0 0
-> exec
-| CREATE TABLE t3 AS SELECT * FROM omni_t_simulation_other.archived
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
-< column "Table_type" "ENUM" "string"
-< row
-: bytes
-| accounts
-: bytes
-| BASE TABLE
-< row
-: bytes
-| entries
-: bytes
-| BASE TABLE
-< row
-: bytes
-| ledger
-: bytes
-| BASE TABLE
-< row
-: bytes
-| t3
-: bytes
-| BASE TABLE
-< row
-: bytes
-| v_accounts
-: bytes
-| VIEW
-> query
-| SHOW CREATE TABLE `accounts`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "VARCHAR" "string"
-< row
-: bytes
-| accounts
-: bytes
-| CREATE TABLE `accounts` (
-|   `id` int NOT NULL,
-|   `name` varchar(20) DEFAULT NULL,
-|   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-> query
-| SHOW CREATE TABLE `entries`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "VARCHAR" "string"
-< row
-: bytes
-| entries
-: bytes
-| CREATE TABLE `entries` (
-|   `id` int NOT NULL,
-|   `archived_id` int DEFAULT NULL,
-|   PRIMARY KEY (`id`),
-|   KEY `fk_archived` (`archived_id`),
-|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-> query
-| SHOW CREATE TABLE `ledger`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "VARCHAR" "string"
-< row
-: bytes
-| ledger
-: bytes
-| CREATE TABLE `ledger` (
-|   `id` int NOT NULL,
-|   `account_id` int DEFAULT NULL,
-|   PRIMARY KEY (`id`),
-|   KEY `fk_account` (`account_id`),
-|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-> query
-| SHOW CREATE TABLE `t3`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "VARCHAR" "string"
-< row
-: bytes
-| t3
-: bytes
-| CREATE TABLE `t3` (
-|   `id` int NOT NULL
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-> query
-| SHOW CREATE VIEW `v_accounts`
-< result
-< column "View" "VARCHAR" "string"
-< column "Create View" "VARCHAR" "string"
-< column "character_set_client" "VARCHAR" "string"
-< column "collation_connection" "VARCHAR" "string"
-< row
-: bytes
-| v_accounts
-: bytes
-| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_general_ci
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
-| CREATE DATABASE omni_t_simulation_other;
-| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
-| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
-| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
-| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
-| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
 < ok 0 0
 > exec
 | DROP TABLE omni_t_simulation_other.archived, accounts
