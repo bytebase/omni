@@ -3386,3 +3386,48 @@ func TestTriggersRowsAndReturning(t *testing.T) {
 		}
 	}
 }
+
+// TestTypesConstructorsPipesAndWhen holds four more readings: a variable
+// typed through a synonym reads the type, a constructor returns SELF AS
+// RESULT with a bare RETURN, PIPE ROW's value is checked, and a trigger's
+// WHEN condition reads its column.
+func TestTypesConstructorsPipesAndWhen(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TYPE ty AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION ty (x NUMBER) RETURN SELF AS RESULT);\n/\n" +
+		"CREATE TYPE BODY ty AS CONSTRUCTOR FUNCTION ty (x NUMBER) RETURN SELF AS RESULT IS BEGIN a := x; RETURN; END; END;\n/\n" +
+		"CREATE SYNONYM tys FOR ty;\nCREATE PROCEDURE typed IS v tys; BEGIN NULL; END;\n/\n" +
+		"CREATE TYPE nums AS TABLE OF NUMBER;\n/\n" +
+		"CREATE FUNCTION piped RETURN nums PIPELINED IS BEGIN PIPE ROW (missing_var); RETURN; END;\n/\n" +
+		"CREATE TABLE t (a NUMBER, b NUMBER);\n" +
+		"CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW WHEN (NEW.b > 0) BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{unitType, unitTypeBody} {
+		if got := status(c, kind, "TY"); got != "VALID" {
+			t.Errorf("%s TY with a constructor: %s, want VALID", kind, got)
+		}
+	}
+	if _, err := c.Exec("DROP TYPE ty FORCE", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec("ALTER TABLE t DROP COLUMN b", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "TYPED", "INVALID"},
+		{unitFunction, "PIPED", "INVALID PLS-00201"},
+		{unitTrigger, "TRG", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}

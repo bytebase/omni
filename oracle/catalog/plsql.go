@@ -401,7 +401,7 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 			return
 		}
 		if target := c.e.resolveSynonymTarget(name, ""); c.e.hasType(target) {
-			c.read(name)
+			c.readVia(name, target)
 			return
 		}
 		c.fail("PLS-00201", "identifier '%s' must be declared", name)

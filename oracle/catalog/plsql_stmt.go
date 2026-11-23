@@ -90,6 +90,8 @@ func (c *plChecker) stmt(n ast.StmtNode) {
 		c.stmtSlice(s.Else)
 	case *ast.PLSQLLoop:
 		c.loop(s)
+	case *ast.PLSQLPipeRow:
+		c.expr(s.Row)
 	case *ast.PLSQLExit:
 		c.expr(s.Condition)
 	case *ast.PLSQLContinue:

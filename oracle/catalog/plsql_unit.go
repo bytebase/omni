@@ -118,6 +118,13 @@ func (c *plChecker) trigger(n *ast.CreateTriggerStmt) {
 	}
 	c.row = map[string]map[string]bool{newName: cols, oldName: cols}
 	c.rowTable = table
+	// The WHEN condition reads the row without colons: NEW.b > 0.
+	ast.Inspect(n.When, func(x ast.Node) bool {
+		if ref, ok := x.(*ast.ColumnRef); ok && c.row[ref.Table] != nil && cols[ref.Column] {
+			c.read(table + "." + ref.Column)
+		}
+		return true
+	})
 	c.block(n.Body)
 }
 
@@ -153,7 +160,7 @@ func (c *plChecker) objectType(n *ast.CreateTypeStmt) {
 		case *ast.CreateProcedureStmt:
 			c.subprogram(s.Parameters, nil, nil, false, false)
 		case *ast.CreateFunctionStmt:
-			c.subprogram(s.Parameters, s.ReturnType, nil, true, false)
+			c.subprogram(s.Parameters, memberReturn(m, s), nil, true, false)
 		}
 	}
 }
@@ -192,7 +199,18 @@ func (c *plChecker) typeBody(n *ast.CreateTypeStmt) {
 		case *ast.CreateProcedureStmt:
 			c.subprogram(s.Parameters, nil, s.Body, false, false)
 		case *ast.CreateFunctionStmt:
-			c.subprogram(s.Parameters, s.ReturnType, s.Body, true, false)
+			// A constructor ends with a bare RETURN, as a pipelined
+			// function does.
+			c.subprogram(s.Parameters, memberReturn(m, s), s.Body, true, m.Kind == ast.TYPE_BODY_CONSTRUCTOR)
 		}
 	}
+}
+
+// memberReturn is the return type a type's method declares, or nil for a
+// constructor's RETURN SELF AS RESULT, which names no type.
+func memberReturn(m *ast.TypeBodyMember, f *ast.CreateFunctionStmt) *ast.TypeName {
+	if m.Kind == ast.TYPE_BODY_CONSTRUCTOR {
+		return nil
+	}
+	return f.ReturnType
 }
