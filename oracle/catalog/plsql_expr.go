@@ -176,11 +176,11 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 		target := c.e.resolveSynonymTarget(name, "")
 		if p := c.e.procedures[target]; p != nil {
 			c.readVia(name, target)
-			return savedSignature(p.Definition, false), true
+			return c.e.savedSignature(p.Definition, false), true
 		}
 		if f := c.e.functions[target]; f != nil {
 			c.readVia(name, target)
-			return savedSignature(f.Definition, true), true
+			return c.e.savedSignature(f.Definition, true), true
 		}
 		if c.e.hasType(target) || plsqlFunctions[name] || plsqlValues[name] || c.row != nil && triggerPredicates[name] {
 			return nil, false
@@ -220,7 +220,21 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 
 // savedSignature reads a stored procedure's or function's parameters from
 // its text.
-func savedSignature(text string, function bool) []plSignature {
+func (e *oracleMetadataExtractor) savedSignature(text string, function bool) []plSignature {
+	if sigs, ok := e.signatures[text]; ok {
+		return sigs
+	}
+	sigs := parseSignature(text, function)
+	// Each stored unit is parsed once per statement, however often it is
+	// called.
+	if e.signatures == nil {
+		e.signatures = map[string][]plSignature{}
+	}
+	e.signatures[text] = sigs
+	return sigs
+}
+
+func parseSignature(text string, function bool) []plSignature {
 	if function && !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(text)), "CREATE") {
 		text = "CREATE " + text
 	}

@@ -171,11 +171,14 @@ func (c *plChecker) typeBody(n *ast.CreateTypeStmt) {
 		attrs[a] = true
 		c.declare(a, &plSym{kind: plVariable})
 	}
-	c.declare("SELF", &plSym{kind: plVariable, fields: attrs})
 	methods := map[string]bool{}
 	for _, m := range t.methods {
 		methods[m] = true
+		attrs[m] = true
+		// A method may call another, or itself, without SELF.
+		c.declare(m, &plSym{kind: plSubprogram})
 	}
+	c.declare("SELF", &plSym{kind: plVariable, fields: attrs})
 	for _, item := range listItems(n.Body) {
 		m, ok := item.(*ast.TypeBodyMember)
 		if !ok {

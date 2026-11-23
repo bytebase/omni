@@ -105,6 +105,7 @@ type oracleMetadataExtractor struct {
 	err                         error
 	units                       *unitBook
 	specItems                   map[string]map[string]*plSym
+	signatures                  map[string][]plSignature
 	serverConfig                ServerConfig
 	allowUsingExistingIndex     bool
 	omitMaterializedViewClauses bool

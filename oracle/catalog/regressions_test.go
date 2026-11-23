@@ -3315,3 +3315,36 @@ func TestUnitReadsPackageCursorsAndQuantifiers(t *testing.T) {
 		}
 	}
 }
+
+// TestTypeMethodsCallEachOther holds a type body whose methods call each
+// other, and themselves, without SELF to compiling.
+func TestTypeMethodsCallEachOther(t *testing.T) {
+	c, err := LoadSQL("CREATE TYPE pt AS OBJECT (x NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION g RETURN NUMBER);\n/\n" +
+		"CREATE TYPE BODY pt AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN g() + SELF.g + x; END; MEMBER FUNCTION g RETURN NUMBER IS BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN f; END; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestCallsParseCalleeOnce holds many calls to one stored procedure to one
+// parse of its text per statement.
+func TestCallsParseCalleeOnce(t *testing.T) {
+	var body strings.Builder
+	for range 2000 {
+		body.WriteString("callee(1); ")
+	}
+	c, err := LoadSQL("CREATE PROCEDURE callee (n NUMBER) IS BEGIN NULL; END;\n/\nCREATE PROCEDURE caller IS BEGIN " + body.String() + "END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := newMetadataExtractorFromMetadata(c.meta, "")
+	e.savedSignature(c.meta.Schemas[0].Procedures[0].Definition, false)
+	if len(e.signatures) != 1 {
+		t.Fatalf("signatures cached = %d, want 1", len(e.signatures))
+	}
+}
