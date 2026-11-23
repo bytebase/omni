@@ -65,7 +65,13 @@ func TestFindingCodes(t *testing.T) {
 		{review.WalkThrough, "DROP DATABASE shop;\nDROP VIEW IF EXISTS v;", review.Change{}, walkTarget, codes(review.NoCurrentSchema)},
 		{review.WalkThrough, "CREATE INDEX " + strings.Repeat("x", 65) + " ON t (a);", review.Change{}, walkTarget, codes(review.NameTooLong)},
 		{review.WalkThrough, "CREATE INDEX `PRIMARY` ON nokey (a);", review.Change{}, walkTarget, codes(review.ReservedName)},
+		{review.WalkThrough, "ALTER TABLE t DROP other.t.a;", review.Change{}, walkTarget, codes(review.CrossDatabaseReference)},
 		{review.WalkThrough, "RENAME TABLE v TO other.v;", review.Change{}, walkTarget, codes(review.UnsupportedForm)},
+		{review.WalkThrough, "CREATE TABLE empty_t;", review.Change{}, walkTarget, codes(review.UnsupportedForm)},
+		{review.WalkThrough, "ALTER TABLE t REMOVE PARTITIONING;", review.Change{}, walkTarget, codes(review.UnsupportedForm)},
+		{review.WalkThrough, "ALTER TABLE t DROP SYSTEM VERSIONING;", review.Change{}, walkTarget, codes(review.UnsupportedForm)},
+		{review.WalkThrough, "ALTER SEQUENCE t NOMINVALUE;", review.Change{}, walkTarget, codes(review.WrongObjectKind)},
+		{review.WalkThrough, "ALTER SEQUENCE nosuch NOMINVALUE;", review.Change{}, walkTarget, codes(review.ObjectNotFound)},
 
 		{review.OnlineMigration, "-- gh-ost = {\"no-such-flag\":\"1\"}\nALTER TABLE plain ADD COLUMN m INT;", ghost, shopTarget, codes(review.DirectiveInvalid)},
 		{review.OnlineMigration, "CREATE INDEX i ON t (n);", ghost, shopTarget, codes(review.UnsupportedChange)},

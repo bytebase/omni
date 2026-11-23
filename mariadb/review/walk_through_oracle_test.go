@@ -452,7 +452,16 @@ var walkCodes = []struct {
 		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "View ") || strings.HasPrefix(m, "Sequence ")) && strings.HasSuffix(m, " already exists.") ||
 			strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, " is already taken.")
 	}, []string{"1050"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Sequence ") && strings.HasSuffix(m, " has an out-of-range increment.")
+	}, []string{"4085"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Sequence ") && strings.HasSuffix(m, " operation.")
+	}, []string{"4086"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4091"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, ", not a sequence.") && leads(stmt, "ALTER SEQUENCE")
+	}, []string{"4089"}},
 	{func(m, _ string) bool {
 		return strings.HasSuffix(m, " is a view, not a sequence.") || strings.HasSuffix(m, " is a view, not a table or sequence.")
 	}, []string{"1965"}},
@@ -460,9 +469,30 @@ var walkCodes = []struct {
 	{func(m, stmt string) bool {
 		return strings.HasSuffix(m, ", not a table.") && leads(stmt, "DROP TABLE", "DROP TABLES")
 	}, []string{"1965"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, " is a sequence, not a table.") && leads(stmt, "TRUNCATE")
+	}, []string{"1031"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, " is a sequence, not a table.") && leads(stmt, "CREATE") && strings.Contains(strings.ToUpper(stmt), "INDEX")
+	}, []string{"4086"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, " is a sequence, not a table.") && leads(stmt, "CREATE") && strings.Contains(strings.ToUpper(stmt), "TRIGGER")
+	}, []string{"1361"}},
 	{func(m, stmt string) bool { return strings.HasSuffix(m, ", not a table.") && leads(stmt, "TRUNCATE") }, []string{"1146", "1051"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, " already has a primary key.") }, []string{"1068"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, " has no primary key.") }, []string{"1091"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not partitioned.")
+	}, []string{"1505"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not system-versioned.")
+	}, []string{"4124"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " requires `WITH SYSTEM VERSIONING`")
+	}, []string{"4125"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " must have at least one column.")
+	}, []string{"1113"}},
 	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "`")) && strings.HasSuffix(m, " doesn't exist.")
 	}, []string{"1146", "1051"}},
@@ -475,17 +505,22 @@ var walkCodes = []struct {
 	}, []string{"1007"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "No database is selected for ") }, []string{"1046"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column qualifier ") }, []string{"1102"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Expression for column ") }, []string{"4029"}},
 	{func(m, _ string) bool {
-		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
+		return strings.HasPrefix(m, "Foreign key on ") && strings.HasSuffix(m, " has a mismatched column count.")
+	}, []string{"1239"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops", "names")
 	}, []string{"1060", "1091"}},
-	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091", "1072"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Index ") && strings.Contains(m, " already exists in ") || saysTwice(m, "index", "declares", "adds")
 	}, []string{"1061"}},
 	{func(m, _ string) bool { return m == reservedPrimary }, []string{"1280"}},
 	{func(m, _ string) bool {
-		return strings.HasPrefix(m, "Index ") || saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice."
-	}, []string{"1091"}},
+		return strings.HasPrefix(m, "Index ") || strings.HasPrefix(m, "Constraint ") || strings.HasPrefix(m, "Period ") || saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice."
+	}, []string{"1091", "1176"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1359"}},
@@ -494,6 +529,9 @@ var walkCodes = []struct {
 		return (strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ")) && strings.HasSuffix(m, " already exists.")
 	}, []string{"1304"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ") }, []string{"1305"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " cannot be renamed to itself.")
+	}, []string{"1551"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1537"}},

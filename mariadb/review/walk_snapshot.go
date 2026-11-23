@@ -91,7 +91,9 @@ type mariadbSnapshot struct {
 	db        string
 	relations map[string]string
 	// versioned lists the relation keys of the system-versioned tables.
-	versioned   map[string]bool
+	versioned map[string]bool
+	// partitioned lists the relation keys of the partitioned tables.
+	partitioned map[string]bool
 	columns     map[string]map[string]bool
 	indexes     map[string]map[string]bool
 	foreignKeys map[string]bool
@@ -122,6 +124,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 	s := &mariadbSnapshot{
 		relations:        make(map[string]string),
 		versioned:        make(map[string]bool),
+		partitioned:      make(map[string]bool),
 		columns:          make(map[string]map[string]bool),
 		indexes:          make(map[string]map[string]bool),
 		foreignKeys:      make(map[string]bool),
@@ -160,6 +163,9 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			mark(spaceRelation, "", tk)
 			if strings.Contains(strings.ToUpper(t.GetCreateOptions()), "WITH SYSTEM VERSIONING") {
 				s.versioned[tk] = true
+			}
+			if len(t.GetPartitions()) > 0 {
+				s.partitioned[tk] = true
 			}
 			if !keepsFKs(t.GetEngine()) {
 				s.ignoresFKs[tk] = true

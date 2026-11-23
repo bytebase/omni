@@ -44,6 +44,8 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		snap = nil
 		w.anyTrigger = true
 		w.anyFunction = true
+		clear(w.versioned)
+		clear(w.partitioned)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -208,13 +210,18 @@ type walker struct {
 	anyFunction bool
 	// ignoresFKs lists the tables whose engine may ignore foreign keys.
 	ignoresFKs map[walk.Key]bool
-	// versioned lists the system-versioned tables. Their hidden row_start
-	// and row_end act as absent to every check the walk makes but ADD
-	// COLUMN (1060), and by default an ALTER TABLE of one fails for its
-	// versioning (4119) whatever else the walk would say (verified). So
-	// their columns are Unknown, and an ALTER TABLE of one ends the walk
-	// (MariaDB spec §2.3), as a precaution.
-	versioned map[walk.Key]bool
+	// versioned records whether a base table is certainly system-versioned
+	// (Present), certainly not system-versioned (Absent), or Unknown (absent
+	// from the map). A system-versioned table's hidden row_start and row_end
+	// act as absent to every check the walk makes but ADD COLUMN (1060), and
+	// by default an ALTER TABLE of one fails for its versioning (4119)
+	// whatever else the walk would say (verified). So their columns are
+	// Unknown, and an ALTER TABLE of one ends the walk (MariaDB spec §2.3).
+	versioned map[walk.Key]walk.Fact
+	// partitioned records whether a base table is certainly partitioned
+	// (Present), certainly not partitioned (Absent), or Unknown (absent
+	// from the map).
+	partitioned map[walk.Key]walk.Fact
 	// fkGeneratedIdx lists synced index keys that may be InnoDB auto-generated
 	// foreign-key backing indexes, mapped to their lowercased column names (nil
 	// when unknown). See mariadbSnapshot.fkGeneratedIdx.
@@ -233,7 +240,8 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		fkChecks:       t.ForeignKeyChecks,
 		triggered:      make(map[walk.Key]bool),
 		ignoresFKs:     make(map[walk.Key]bool),
-		versioned:      make(map[walk.Key]bool),
+		versioned:      make(map[walk.Key]walk.Fact),
+		partitioned:    make(map[walk.Key]walk.Fact),
 		fkGeneratedIdx: make(map[walk.Key][]string),
 	}
 	for name := range snap.triggered {
@@ -242,8 +250,21 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	for name := range snap.ignoresFKs {
 		w.ignoresFKs[relKey(snap.db, name)] = true
 	}
-	for name := range snap.versioned {
-		w.versioned[relKey(snap.db, name)] = true
+	for name, kind := range snap.relations {
+		if kind != relTable {
+			continue
+		}
+		k := relKey(snap.db, name)
+		if snap.versioned[name] {
+			w.versioned[k] = walk.Present
+		} else {
+			w.versioned[k] = walk.Absent
+		}
+		if snap.partitioned[name] {
+			w.partitioned[k] = walk.Present
+		} else {
+			w.partitioned[k] = walk.Absent
+		}
 	}
 	for tbl, idxs := range snap.fkGeneratedIdx {
 		for idx, cols := range idxs {
@@ -299,9 +320,14 @@ type builder struct {
 	renames bool
 	// early is set while ALTER TABLE lowers its drops and renames, which
 	// run together against the table as it was; arrived holds the column
-	// and index names they bring in (leave, arrive).
-	early   bool
-	arrived map[walk.Key]bool
+	// and index names they bring in (leave, arrive). addedCols, addedIdxs,
+	// and addedFKs track names already introduced by earlier subcommands of
+	// the same ALTER TABLE so a later IF NOT EXISTS subcommand skips checks.
+	early     bool
+	arrived   map[walk.Key]bool
+	addedCols map[string]bool
+	addedIdxs map[string]bool
+	addedFKs  map[string]bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index
