@@ -1,7 +1,6 @@
 package review
 
 import (
-	"google.golang.org/protobuf/encoding/protojson"
 	"context"
 	"database/sql"
 	"errors"
@@ -79,20 +78,20 @@ func isWalkSimStatement(stmt string) bool {
 
 var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refusal categories in TestWalkSimulation")
 
-const walkSimMinTotalRecallPct = 85.0
+const walkSimMinTotalRecallPct = 85.5
 
 var walkSimMinFixtureRecallPct = map[string]float64{
-	"one_table@missing":     87.0,
-	"one_table@table":       81.0,
-	"one_table@column":      80.0,
-	"objects@partitioned":   87.0,
-	"objects@index_trigger": 90.0,
-	"objects@view":          91.0,
-	"objects@matview":       55.0,
-	"objects@sequence":      92.5,
-	"objects@synonym":       86.0,
-	"objects@function":      92.5,
-	"objects@type":          83.5,
+	"one_table@missing":     88.5,
+	"one_table@table":       82.0,
+	"one_table@column":      80.5,
+	"objects@partitioned":   87.5,
+	"objects@index_trigger": 91.5,
+	"objects@view":          91.5,
+	"objects@matview":       56.0,
+	"objects@sequence":      93.0,
+	"objects@synonym":       87.0,
+	"objects@function":      93.5,
+	"objects@type":          85.0,
 }
 
 const (
@@ -268,11 +267,6 @@ func TestWalkSimulation(t *testing.T) {
 	missedCounts := map[string]int{}
 	missedSample := map[string]string{}
 
-	var dumpMissed *os.File
-	if p := os.Getenv("WALK_SIM_DUMP"); p != "" {
-		dumpMissed, _ = os.Create(p)
-		defer dumpMissed.Close()
-	}
 	for _, fxName := range walkSimFixtures {
 		fxRows := rowsByFixture[fxName]
 		fxPath := filepath.Join("testdata", "fixtures", fxName+".sql")
@@ -289,13 +283,6 @@ func TestWalkSimulation(t *testing.T) {
 			target: review.Target{Schema: walkSync(t, w.adminConn, shop, allNames)},
 		}
 		inventory := simNormalizeInventory(e.Inventory(t, allNames))
-		if os.Getenv("WALK_SIM_DUMP") != "" {
-			jb, _ := protojson.Marshal(e.target.Schema)
-			os.WriteFile(os.Getenv("WALK_SIM_DUMP")+"."+fxName+".json", jb, 0o644)
-			for _, o := range inventory {
-				fmt.Fprintf(dumpMissed, "#INV %s\t%v\n", fxName, o)
-			}
-		}
 
 		var fxOK, fxRefused, fxFound int
 		for _, g := range fxRows {
@@ -345,9 +332,6 @@ func TestWalkSimulation(t *testing.T) {
 			totalRefused++
 			fxRefused++
 			if finding == nil {
-				if dumpMissed != nil {
-					fmt.Fprintf(dumpMissed, "%s\t%s\t%s\t%s\n", verdict, g.Fixture, g.Rule, g.Statement)
-				}
 				if *walkSimShowMissed {
 					words := strings.Fields(g.Statement)
 					prefix := ""

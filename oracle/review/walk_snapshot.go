@@ -16,10 +16,11 @@ import (
 // sequence, and routine spaces repeat what the object space holds for those
 // kinds, so that a statement of one kind can trust the sync where it is
 // complete for that kind. The routine space holds functions, procedures,
-// and packages, which the sync lists in full from ALL_SOURCE. A column, the primary key, and a constraint as DROP
-// CONSTRAINT finds it on its table are keys of the table's path; a
-// constraint name, an index, and a trigger are keys of the schema, each in
-// a namespace of its own, of the kind of the table path they are on. The
+// and packages, which the sync lists in full from ALL_SOURCE. A column, the
+// primary key, and a constraint as DROP CONSTRAINT finds it on its table
+// are keys of the table's path; a constraint name, an index, and a trigger
+// are keys of the schema, each in a namespace of its own, of the kind of
+// the table path they are on. The
 // synonym space holds the synonyms a name resolves through, private ones
 // in their schema and public ones in PUBLIC; only DML reads it (spec §3).
 const (

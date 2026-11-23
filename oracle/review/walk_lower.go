@@ -1051,8 +1051,7 @@ func (b *builder) sequenceOptionsFail(v *ast.CreateSequenceStmt) bool {
 		}
 		inc = n
 	}
-	// min and max are nil when unbounded; known is false when an option
-	// is not an integer literal.
+	// min and max are nil when unbounded.
 	var min, max *big.Int
 	if inc.Sign() > 0 {
 		min = big.NewInt(1)
@@ -1350,7 +1349,7 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 // REWRITE, which no query of a SYS table takes (30354).
 func (b *builder) mviewOptionsFail(v *ast.CreateViewStmt, r objRef) bool {
 	sel, _ := v.Query.(*ast.SelectStmt)
-	if v.Columns != nil && len(v.Columns.Items) > 0 && (v.Constraints == nil || len(v.Constraints.Items) == 0) {
+	if v.Columns != nil && len(v.Columns.Items) > 0 && (v.Constraints == nil || len(v.Constraints.Items) == 0) && !b.isObjectView(v) {
 		if n, ok := selectColumnCount(sel); ok && n != len(v.Columns.Items) {
 			b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" names "+strconv.Itoa(len(v.Columns.Items))+" columns for a query of "+strconv.Itoa(n)+".")
 			return true
@@ -2291,9 +2290,9 @@ func constantCondition(e ast.ExprNode) (holds, known bool) {
 // yieldsRow reports whether a query certainly returns a row: one query
 // block over SYS.DUAL alone, or over a WITH query that certainly returns
 // one, with nothing that filters, groups, or limits its rows. ctes are the
-// WITH queries the block sees, the later of a name first. The walk does not
-// judge what the select list computes: an expression that fails fails the
-// statement all the same.
+// WITH queries the block sees, in the order they are defined, so a name is
+// looked up from the last. The walk does not judge what the select list
+// computes: an expression that fails fails the statement all the same.
 func (b *builder) yieldsRow(n ast.StmtNode, ctes []*ast.CTE, depth int) bool {
 	sel, ok := n.(*ast.SelectStmt)
 	if !ok || sel == nil || depth > 8 {
