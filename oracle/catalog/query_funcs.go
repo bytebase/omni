@@ -285,6 +285,13 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			}
 		}
 		switch name {
+		case "SIN", "COS", "TAN", "SINH", "COSH", "TANH", "ASIN", "ACOS", "ATAN":
+			// BINARY_FLOAT promotes to BINARY_DOUBLE; others keep theirs.
+			switch arg(0).kind {
+			case "BINARY_FLOAT", "BINARY_DOUBLE":
+				return simpleType("BINARY_DOUBLE"), false, nil
+			}
+			return numberType(), false, nil
 		case "ROUND", "TRUNC":
 			// Without a precision a float keeps its type; with one the
 			// result is NUMBER.
@@ -395,22 +402,30 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "NVL2":
 		return widenFirst(args[min(1, len(args)):]), false, nil
 	case "COALESCE":
-		t, err := commonResultType(args, true)
-		if err != nil {
-			return qtype{}, false, err
-		}
-		if t.kind == "NUMBER" {
-			same := true
-			for _, x := range args {
-				if !x.isNull() && !sameType(x, t) {
-					same = false
-				}
+		// One type all arguments share is kept; otherwise the first
+		// argument's family decides, numbers by numeric precedence (a
+		// character argument converts implicitly).
+		var first qtype
+		same := true
+		for _, x := range args {
+			if x.isNull() {
+				continue
 			}
-			if !same {
-				t = numberType()
+			if first.kind == "" {
+				first = x
+				continue
+			}
+			if !sameType(first, x) {
+				same = false
 			}
 		}
-		return t, false, nil
+		if first.kind == "" {
+			return nullType(), false, nil
+		}
+		if same {
+			return first, false, nil
+		}
+		return widenFirst(args), false, nil
 	case "NULLIF":
 		t := arg(0)
 		if t.isNumeric() {
@@ -609,6 +624,7 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 			}
 		}
 	}
+	var orderTypes []qtype
 	for _, item := range listItems(w.OrderBy) {
 		sb, ok := item.(*ast.SortBy)
 		if !ok {
@@ -621,6 +637,7 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		if t.isLOB() {
 			return oraError("22848", "cannot use %s type as comparison key", t.kind)
 		}
+		orderTypes = append(orderTypes, t)
 	}
 	if f := w.Frame; f != nil {
 		for _, b := range []*ast.WindowBound{f.Start, f.End} {
@@ -629,6 +646,20 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 			}
 			if _, _, err := a.expr(b.Value, sc, clauseAggArg); err != nil {
 				return err
+			}
+			if f.Type != ast.WINDOW_RANGE {
+				continue
+			}
+			// A RANGE offset needs one ordering key, numeric or datetime,
+			// to add it to.
+			if len(orderTypes) > 1 {
+				return oraError("30486", "invalid window aggregation group in the window specification")
+			}
+			if len(orderTypes) == 1 {
+				key := orderTypes[0]
+				if typeFamily(key) != "" && !key.isNumeric() && !key.isDatetime() {
+					return oraError("00902", "invalid datatype")
+				}
 			}
 		}
 	}

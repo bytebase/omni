@@ -844,7 +844,7 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	if sel.QualifyClause != nil {
 		// QUALIFY reads the FROM clause's columns and the select list's
 		// aliases.
-		qsc := &qscope{parent: sc.parent, ctes: sc.ctes, windows: sc.windows, aliases: sc.aliases, from: &qfrom{
+		qsc := &qscope{parent: sc.parent, ctes: sc.ctes, windows: sc.windows, aliases: sc.aliases, hierarchical: sc.hierarchical, from: &qfrom{
 			rels: sc.from.rels, items: append([]fromCol{}, sc.from.items...), flat: sc.from.flat,
 		}}
 		for _, c := range cols {
@@ -919,7 +919,7 @@ func (a *queryAnalyzer) model(m *ast.ModelClause, sc *qscope) (*qscope, error) {
 			}
 		}
 	}
-	msc := &qscope{parent: sc.parent, ctes: sc.ctes, from: relFrom(rel), windows: sc.windows}
+	msc := &qscope{parent: sc.parent, ctes: sc.ctes, from: relFrom(rel), windows: sc.windows, hierarchical: sc.hierarchical}
 	if mm != nil && mm.RulesClause != nil {
 		rc := mm.RulesClause
 		for _, x := range []ast.ExprNode{rc.Iterate, rc.Until} {
@@ -1757,3 +1757,7 @@ func groupingSubtotals(list *ast.List) bool {
 	}
 	return false
 }
+
+// inHierarchical reports whether the query block whose scope this is has a
+// CONNECT BY clause.
+func (s *qscope) inHierarchical() bool { return s != nil && s.hierarchical }

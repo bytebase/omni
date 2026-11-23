@@ -150,6 +150,11 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"order_by_position_lob", `CREATE VIEW v AS SELECT doc FROM t ORDER BY 1`, "22848"},
 		{"group_by_lob_alias", `CREATE VIEW v AS SELECT doc x FROM t GROUP BY x`, "22848"},
 		{"simple_case_incompatible", `CREATE VIEW v AS SELECT CASE 1 WHEN DATE '2020-01-01' THEN 1 ELSE 0 END x FROM dual`, "00932"},
+		{"coalesce_implicit_number", `CREATE VIEW v AS SELECT COALESCE(1, '2') x FROM dual`, ""},
+		{"range_offset_character_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY "USER" RANGE 1 PRECEDING) s FROM t`, "00902"},
+		{"range_offset_numeric_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE 1 PRECEDING) s FROM t`, ""},
+		{"level_without_connect_by", `CREATE VIEW v AS SELECT LEVEL lvl FROM dual`, "01788"},
+		{"level_with_connect_by", `CREATE VIEW v AS SELECT LEVEL lvl FROM dual CONNECT BY LEVEL < 3`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -470,6 +475,22 @@ func TestViewQueryReplaceLength(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"VARCHAR2(10 BYTE)", "", "VARCHAR2(10 BYTE)", "VARCHAR2(40 BYTE)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryTypesRound20(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (a NVARCHAR2(10), b NVARCHAR2(20));
+CREATE VIEW v AS SELECT CASE WHEN 1=1 THEN a ELSE b END x, SIN(CAST(1 AS BINARY_FLOAT)) y, COALESCE(1, '2') z FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"NVARCHAR2(20)", "BINARY_DOUBLE", "NUMBER"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])

@@ -100,7 +100,12 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		switch n.Type {
 		case ast.PSEUDO_ROWID:
 			return simpleType("ROWID"), false, nil
-		case ast.PSEUDO_ROWNUM, ast.PSEUDO_LEVEL:
+		case ast.PSEUDO_LEVEL:
+			if !sc.inHierarchical() {
+				return qtype{}, false, oraError("01788", "CONNECT BY clause required in this query block")
+			}
+			return numberType(), false, nil
+		case ast.PSEUDO_ROWNUM:
 			return numberType(), false, nil
 		case ast.PSEUDO_SYSDATE:
 			return simpleType("DATE"), false, nil
@@ -387,6 +392,12 @@ func (a *queryAnalyzer) columnRef(n *ast.ColumnRef, sc *qscope) (qtype, bool, er
 	}
 	if n.Table == "" {
 		if t, ok := keywordValues[n.Column]; ok {
+			switch n.Column {
+			case "LEVEL", "CONNECT_BY_ISLEAF", "CONNECT_BY_ISCYCLE":
+				if !sc.inHierarchical() {
+					return qtype{}, false, oraError("01788", "CONNECT BY clause required in this query block")
+				}
+			}
 			return t, false, nil
 		}
 		return qtype{}, false, oraError("00904", "%q: invalid identifier", n.Column)
@@ -612,6 +623,8 @@ func commonResultType(results []qtype, strict bool) (qtype, error) {
 			continue
 		}
 		switch {
+		case out.isNational() && t.isNational():
+			out = characterType("NVARCHAR2", max(out.chars, t.chars), false)
 		case out.isCharacter() && t.isCharacter():
 			out = varchar2Bytes(max(out.byteLength(), t.byteLength()))
 		case out.isNumeric() && t.isNumeric():
