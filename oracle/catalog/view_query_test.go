@@ -211,6 +211,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"row_number_unordered", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER () x FROM dual`, "30485"},
 		{"row_number_named_ordered", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER w x FROM t WINDOW w AS (ORDER BY id)`, ""},
 		{"extract_tz_from_region_literal", `CREATE VIEW v AS SELECT EXTRACT(TIMEZONE_HOUR FROM TIMESTAMP '2020-01-01 00:00:00 UTC') x FROM dual`, ""},
+		{"interval_times_interval", `CREATE VIEW v AS SELECT INTERVAL '1' DAY * INTERVAL '2' DAY x FROM dual`, "00932"},
+		{"number_over_interval", `CREATE VIEW v AS SELECT 2 / INTERVAL '2' DAY x FROM dual`, "00932"},
+		{"interval_times_number", `CREATE VIEW v AS SELECT INTERVAL '1' DAY * 2 x FROM dual`, ""},
+		{"trim_mode_grouped", `CREATE VIEW v AS SELECT TRIM(BOTH FROM dummy) x, COUNT(*) c FROM dual GROUP BY dummy`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -961,5 +965,17 @@ CREATE VIEW w AS SELECT x FROM s;
 	var refusal *Error
 	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01731" {
 		t.Errorf("cycle through a synonym: %v, want ORA-01731", results[0].Error)
+	}
+}
+
+func TestViewQuerySysDualPastLocalDual(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE dual (x NUMBER);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	results, err := c.Exec(`CREATE VIEW v AS SELECT dummy FROM sys.dual`, nil)
+	if err != nil || results[0].Error != nil {
+		t.Fatalf("SYS.DUAL past a local DUAL: %v %+v", err, results)
 	}
 }

@@ -499,11 +499,15 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 		t, err := arithmeticType(n.Op, lt, rt)
 		return t, false, err
 	case "*", "/", "**":
-		// A datetime neither multiplies nor divides.
+		// A datetime neither multiplies nor divides; an interval multiplies
+		// or divides by a number only, and never divides one.
 		for _, t := range []qtype{lt, rt} {
 			if t.isDatetime() {
 				return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
 			}
+		}
+		if lt.isInterval() && rt.isInterval() || rt.isInterval() && n.Op == "/" {
+			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", rt.kind)
 		}
 		return multiplyType(lt, rt), false, nil
 	case "=", "!=", "<>", "^=", "~=", "<", ">", "<=", ">=":
@@ -972,6 +976,21 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 	switch n := x.(type) {
 	case *ast.FuncCallExpr:
 		if isAggregateCall(n) {
+			return nil
+		}
+		if n.FuncName != nil && n.FuncName.Schema == "" && n.FuncName.Name == "TRIM" {
+			// TRIM's mode word is no column.
+			items := listItems(n.Args)
+			if len(items) > 1 {
+				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) {
+					items = items[1:]
+				}
+			}
+			for _, item := range items {
+				if err := checkGrouped(item, keys, keyOf, owned, hasGroupBy, positional, nested); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 	case *ast.ColumnRef:
