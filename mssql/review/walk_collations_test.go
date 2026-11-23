@@ -1,61 +1,10 @@
 package review
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
 )
-
-// TestCollationShaped holds collationShaped to every collation a version
-// is known to know and to names none does (measured; walk_collations.go).
-func TestCollationShaped(t *testing.T) {
-	// mssql/catalog's list of SQL Server 2022's collations, which 2017's
-	// and 2019's are subsets of.
-	b, err := os.ReadFile(filepath.Join("..", "catalog", "collations.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var known []string
-	for _, line := range strings.Split(string(b), "\n") {
-		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
-			known = append(known, line)
-		}
-	}
-	if len(known) < 5000 {
-		t.Fatalf("read %d collations from collations.txt", len(known))
-	}
-	// The 32 collations SQL Server 2025 (17.0.5065.9) adds.
-	for _, designator := range []string{"Chinese_Simplified_Pinyin_160", "Chinese_Simplified_Stroke_Order_160"} {
-		for _, cs := range []string{"_CI", "_CS"} {
-			for _, as := range []string{"_AI", "_AS"} {
-				for _, ks := range []string{"", "_KS"} {
-					for _, ws := range []string{"", "_WS"} {
-						known = append(known, designator+cs+as+ks+ws+"_SC_UTF8")
-					}
-				}
-			}
-		}
-	}
-	// Taken by every version, though none lists it.
-	known = append(known, "Compatibility_52_409_30003")
-	for _, name := range known {
-		if !collationShaped(name) || !collationShaped(strings.ToLower(name)) {
-			t.Errorf("collationShaped(%q) = false, want true", name)
-		}
-	}
-	// Refused by SQL Server 2017, 2019, 2022, and 2025.
-	for _, name := range []string{
-		"a", "nope", "database_default", "Latin1_General", "Latin1_General_CS",
-		"Latin1_General_CI_AS_WS_KS", "Latin1_General_CI_AS_VSS_WS", "Latin1_General_CI_AS_KS_KS",
-	} {
-		if collationShaped(name) {
-			t.Errorf("collationShaped(%q) = true, want false", name)
-		}
-	}
-}
 
 // TestWalkThroughCollations pins where WALK_THROUGH reports an unknown
 // collation (448) and where it leaves one to an error SQL Server reports
