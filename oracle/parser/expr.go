@@ -1056,20 +1056,27 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 
 	var from, to string
-
-	if p.isIntervalField() {
-		from = p.cur.Str
-		p.advance()
+	fromPrec, toPrec := -1, -1
+	precision := func() int {
 		// Optional precision: ( n )
+		prec := -1
 		if p.cur.Type == '(' {
 			p.advance()
 			if p.cur.Type == tokICONST {
+				prec = int(p.cur.Ival)
 				p.advance()
 			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
 		}
+		return prec
+	}
+
+	if p.isIntervalField() {
+		from = p.cur.Str
+		p.advance()
+		fromPrec = precision()
 	}
 
 	// Optional TO field
@@ -1078,24 +1085,17 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		if p.isIntervalField() {
 			to = p.cur.Str
 			p.advance()
-			// Optional precision: ( n )
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == tokICONST {
-					p.advance()
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
+			toPrec = precision()
 		}
 	}
 
 	return &nodes.IntervalExpr{
-		Value: value,
-		From:  from,
-		To:    to,
-		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		Value:         value,
+		From:          from,
+		FromPrecision: fromPrec,
+		To:            to,
+		ToPrecision:   toPrec,
+		Loc:           nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 

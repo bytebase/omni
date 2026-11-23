@@ -221,6 +221,10 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		return t, false, nil
 	case "LPAD", "RPAD":
 		t := arg(0)
+		if t.isLOB() {
+			// A LOB pads to a LOB.
+			return t, false, nil
+		}
 		if len(args) > 1 {
 			if lit, ok := literalInt(argNode(n, 1)); ok {
 				if t.isNational() {
@@ -346,7 +350,13 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		t := arg(0)
 		return characterType("NVARCHAR2", t.byteLength()*5/2, false), false, nil
 	case "RAWTOHEX":
-		return varchar2Bytes(arg(0).bytes * 2), false, nil
+		// Two hex digits per byte of a RAW or character value; another
+		// type's encoded size is left unknown.
+		switch t := arg(0); {
+		case t.kind == "RAW", t.kind == "VARCHAR2", t.kind == "CHAR":
+			return varchar2Bytes(t.bytes * 2), false, nil
+		}
+		return simpleType("UNKNOWN"), false, nil
 	case "HEXTORAW":
 		t := simpleType("RAW")
 		if s, ok := literalString(argNode(n, 0)); ok {

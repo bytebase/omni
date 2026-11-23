@@ -706,10 +706,12 @@ func (n *NumberLiteral) exprNode() {}
 
 // IntervalExpr represents an INTERVAL expression.
 type IntervalExpr struct {
-	Value ExprNode // expression
-	From  string   // starting field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
-	To    string   // ending field (optional)
-	Loc   Loc
+	Value         ExprNode // expression
+	From          string   // starting field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
+	FromPrecision int      // the starting field's precision, -1 when absent
+	To            string   // ending field (optional)
+	ToPrecision   int      // the ending field's precision, -1 when absent
+	Loc           Loc
 }
 
 func (n *IntervalExpr) nodeTag()  {}

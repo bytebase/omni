@@ -141,6 +141,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"subquery_comparison_types", `CREATE VIEW v AS SELECT id FROM t WHERE id = (SELECT d FROM t)`, "00932"},
 		{"in_subquery_types", `CREATE VIEW v AS SELECT id FROM t WHERE id IN (SELECT d FROM t)`, "00932"},
 		{"recursive_member_distinct", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT DISTINCT n + 1 FROM r WHERE n < 5) SELECT n FROM r`, "32486"},
+		{"between_incompatible", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE 1 BETWEEN DATE '2020-01-01' AND DATE '2020-01-02'`, "00932"},
+		{"distinct_lpad_lob", `CREATE VIEW v AS SELECT DISTINCT LPAD(doc, 10, 'x') x FROM t`, "22848"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -395,6 +397,19 @@ CREATE VIEW w AS SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY grp ORDER BY id M
 		}[v.GetName()]
 		if strings.Join(got, ",") != want {
 			t.Errorf("%s columns = %q, want %q", v.GetName(), strings.Join(got, ","), want)
+		}
+	}
+}
+
+func TestViewQueryTypesRound16(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT INTERVAL '400' DAY(3) a, INTERVAL '1 2:3:4.5' DAY TO SECOND(3) b, INTERVAL '5' YEAR(4) c, RAWTOHEX(123) d, RAWTOHEX(HEXTORAW('AB')) e FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"INTERVAL DAY(3) TO SECOND(6)", "INTERVAL DAY(2) TO SECOND(3)", "INTERVAL YEAR(4) TO MONTH", "", "VARCHAR2(2 BYTE)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
 	}
 }

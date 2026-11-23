@@ -75,13 +75,22 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		}
 		return simpleType(strings.ToUpper(n.TypeName)), false, nil
 	case *ast.IntervalExpr:
+		// A literal's precisions are part of its type; 2 and 6 are the
+		// defaults.
+		lead := 2
+		if n.FromPrecision >= 0 {
+			lead = n.FromPrecision
+		}
 		if strings.EqualFold(n.From, "YEAR") || strings.EqualFold(n.From, "MONTH") {
 			t := simpleType("INTERVAL YEAR TO MONTH")
-			t.lead = 2
+			t.lead = lead
 			return t, false, nil
 		}
 		t := simpleType("INTERVAL DAY TO SECOND")
-		t.lead, t.frac = 2, 6
+		t.lead, t.frac = lead, 6
+		if strings.EqualFold(n.To, "SECOND") && n.ToPrecision >= 0 {
+			t.frac = n.ToPrecision
+		}
 		return t, false, nil
 	case *ast.BindVariable:
 		return qtype{}, false, oraError("01027", "bind variables not allowed for data definition operations")
@@ -130,8 +139,17 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		}
 		return simpleType("BOOLEAN"), false, nil
 	case *ast.BetweenExpr:
+		// BETWEEN is two comparisons of the tested value with the bounds.
+		var types []qtype
 		for _, ex := range []ast.ExprNode{n.Expr, n.Low, n.High} {
-			if _, _, err := a.expr(ex, sc, clause); err != nil {
+			t, _, err := a.expr(ex, sc, clause)
+			if err != nil {
+				return qtype{}, false, err
+			}
+			types = append(types, t)
+		}
+		for _, bound := range types[1:] {
+			if err := comparable(types[0], bound, nil); err != nil {
 				return qtype{}, false, err
 			}
 		}
