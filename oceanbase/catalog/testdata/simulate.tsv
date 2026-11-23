@@ -3983,3 +3983,24 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	opt_empty_table_list/table_lis
 1060	1060	engine	objects@fk	skip_index_type/SUM	ALTER TABLE a ADD a TINYINT SKIP_INDEX(SUM)
 1235	1235	engine	objects@fk	lob_chunk_size/CHUNK_STRING_VALUE	ALTER TABLE a ADD a TINYINT CHUNK 's'
 1210	1210	engine	objects@fk	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends
+ok:ee3bd95fd2d0	ok:ee3bd95fd2d0	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests
+ok:c8062e2c307e	ok:c8062e2c307e	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN nights
+ok:c4159ff4fdf1	ok:c4159ff4fdf1	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN note
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+ok:c42f06ab3ad9	ok:c42f06ab3ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:c42f06ab3ad9	ok:c42f06ab3ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+ok:c42f06ab3ad9	ok:c42f06ab3ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:962cde03b8b7	ok:962cde03b8b7	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN guests TO people
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins
+ok:d51a615fe838	ok:d51a615fe838	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN note TO memo
+ok:0310453a2baa	ok:0310453a2baa	engine	features@check	check:drop	ALTER TABLE bookings CHANGE COLUMN nights stays INT
+ok:0589d0dfbf97	ok:0589d0dfbf97	engine	features@check	check:drop	ALTER TABLE bookings MODIFY COLUMN nights BIGINT
+ok:4e7b95e18745	ok:4e7b95e18745	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
+ok:b551b3697565	ok:b551b3697565	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
