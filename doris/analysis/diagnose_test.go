@@ -43,7 +43,7 @@ func TestDiagnoseFiltersUnsupportedStub(t *testing.T) {
 	}
 }
 
-// Diagnose parses the whole script, so a chunk the splitter drops still
+// Diagnose parses the whole script, so a chunk that holds no statement still
 // reports its lex error. SplitStatements and Classify have no error channel:
 // the first keeps the chunk marked Empty, and the second answers Unknown for
 // text whose first token never arrives, which a permission check denies.

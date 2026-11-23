@@ -109,7 +109,7 @@ func (p *Parser) parsePreparedString() (ast.Node, error) {
 // StarRocks's SqlParser.parseSingleStatement, which counts each extra `;` as an
 // EmptyStmt and rejects more than one singleStatement.
 func hasSinglePreparedSegment(text string) bool {
-	segs := SplitAll(text)
+	segs := Split(text)
 	if len(segs) == 0 || segs[0].Empty() {
 		return false
 	}

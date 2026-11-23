@@ -46,7 +46,7 @@ func TestSplit_Simple(t *testing.T) {
 			{"B", 2, 3},
 			{"C", 4, 5},
 		}},
-		{"trailing whitespace", "SELECT 1;  ", []Segment{{"SELECT 1", 0, 8}}},
+		{"trailing whitespace", "SELECT 1;  ", []Segment{{"SELECT 1", 0, 8}, {"  ", 9, 11}}},
 		{"leading whitespace", "  SELECT 1;", []Segment{{"  SELECT 1", 0, 10}}},
 	}
 	runSplitCases(t, cases)
@@ -58,16 +58,50 @@ func TestSplit_EmptyStatements(t *testing.T) {
 		input string
 		want  []Segment
 	}{
-		{"lone semi", ";", nil},
-		{"triple semi", ";;;", nil},
-		{"leading semi", ";SELECT 1;", []Segment{{"SELECT 1", 1, 9}}},
-		{"trailing semi", "SELECT 1;;", []Segment{{"SELECT 1", 0, 8}}},
+		{"lone semi", ";", []Segment{{"", 0, 0}}},
+		{"double semi", ";;", []Segment{{"", 0, 0}, {"", 1, 1}}},
+		{"triple semi", ";;;", []Segment{{"", 0, 0}, {"", 1, 1}, {"", 2, 2}}},
+		{"spaced semis", " ; ;", []Segment{{" ", 0, 1}, {" ", 2, 3}}},
+		{"leading semi", ";SELECT 1;", []Segment{{"", 0, 0}, {"SELECT 1", 1, 9}}},
+		{"trailing semi", "SELECT 1;;", []Segment{{"SELECT 1", 0, 8}, {"", 9, 9}}},
 		{"embedded semi", "SELECT 1;;SELECT 2;", []Segment{
 			{"SELECT 1", 0, 8},
+			{"", 9, 9},
 			{"SELECT 2", 10, 18},
 		}},
 	}
 	runSplitCases(t, cases)
+}
+
+// TestSplit_EmptyMarked pins which segments Empty() reports: a chunk of
+// whitespace, a comment, or nothing is empty; a statement is not.
+func TestSplit_EmptyMarked(t *testing.T) {
+	cases := []struct {
+		input string
+		empty []bool
+	}{
+		{";", []bool{true}},
+		{";;", []bool{true, true}},
+		{"SELECT 1;;SELECT 2", []bool{false, true, false}},
+		{"-- c\n", []bool{true}},
+		{"/* c */;SELECT 1", []bool{true, false}},
+		{"SELECT 1; -- done", []bool{false, true}},
+		{"SELECT 1;  ", []bool{false, true}},
+		{"SELECT 1;", []bool{false}},
+	}
+	for _, c := range cases {
+		segments := Split(c.input)
+		got := make([]bool, len(segments))
+		for i, segment := range segments {
+			got[i] = segment.Empty()
+			if segment.Text != c.input[segment.ByteStart:segment.ByteEnd] {
+				t.Errorf("Split(%q)[%d].Text = %q, want input[%d:%d]", c.input, i, segment.Text, segment.ByteStart, segment.ByteEnd)
+			}
+		}
+		if !reflect.DeepEqual(got, c.empty) {
+			t.Errorf("Split(%q) Empty() = %v, want %v", c.input, got, c.empty)
+		}
+	}
 }
 
 func TestSplit_Positions(t *testing.T) {
@@ -124,10 +158,19 @@ func TestSplit_Comments(t *testing.T) {
 		{"inline block with semi", "SELECT /* ; */ 1;", []Segment{
 			{"SELECT /* ; */ 1", 0, 16},
 		}},
-		{"comment-only filtered", "-- just a comment\n", nil},
-		{"block comment only filtered", "/* only */", nil},
-		// A buffer of '//' or '#' holds tokens, so it is a statement chunk and
-		// Split keeps it; only the engines' own comment forms are filtered.
+		{"comment-only", "-- just a comment\n", []Segment{{"-- just a comment\n", 0, 18}}},
+		{"block comment only", "/* only */", []Segment{{"/* only */", 0, 10}}},
+		{"comment-only chunk between", "SELECT 1; /* c */; SELECT 2", []Segment{
+			{"SELECT 1", 0, 8},
+			{" /* c */", 9, 17},
+			{" SELECT 2", 18, 27},
+		}},
+		{"comment-only tail without semi", "SELECT 1; -- done", []Segment{
+			{"SELECT 1", 0, 8},
+			{" -- done", 9, 17},
+		}},
+		// A buffer of '//' or '#' holds tokens, so it is a statement chunk,
+		// not an empty one; only the engines' own comment forms are empty.
 		{"slash-slash only kept", "// note\n", []Segment{{"// note\n", 0, 8}}},
 		{"hash only kept", "# note\n", []Segment{{"# note\n", 0, 7}}},
 	}
@@ -320,10 +363,10 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 }
 
 func TestSplit_TrailingWhitespaceAfterSemi(t *testing.T) {
-	// Whitespace-only content after the last `;` should NOT produce a
-	// trailing segment (filtered by Empty()).
+	// Whitespace-only content after the last `;` is a trailing segment that
+	// Empty() reports.
 	got := Split("SELECT 1;   \n\t")
-	want := []Segment{{"SELECT 1", 0, 8}}
+	want := []Segment{{"SELECT 1", 0, 8}, {"   \n\t", 9, 14}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Split mismatch\n got: %+v\nwant: %+v", got, want)
 	}

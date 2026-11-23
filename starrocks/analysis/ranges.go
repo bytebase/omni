@@ -20,19 +20,20 @@ type Range = analysis.ByteRange
 func StatementRanges(script string) []Range {
 	trimmed := strings.TrimRightFunc(script, unicode.IsSpace)
 
-	segments := parser.Split(trimmed)
+	var segments []parser.Segment
+	for _, segment := range parser.Split(trimmed) {
+		if !segment.Empty() {
+			segments = append(segments, segment)
+		}
+	}
 	if len(segments) == 0 {
-		// The splitter drops comment-only buffers entirely. An editor still
-		// wants a range covering the non-whitespace span.
+		// No segment holds a statement. An editor still wants a range
+		// covering the non-whitespace span.
 		return commentOnlyRanges(trimmed)
 	}
 
 	var ranges []Range
 	for _, segment := range segments {
-		// Skip pure whitespace segments, but preserve comment-only segments.
-		if segment.Empty() && !hasNonWhitespace(trimmed[segment.ByteStart:segment.ByteEnd]) {
-			continue
-		}
 		// Skip only leading whitespace — leading comments are kept inside the
 		// range, matching the prior ANTLR-helper behaviour, which includes
 		// hidden-channel tokens but excludes pure whitespace.
@@ -47,7 +48,7 @@ func StatementRanges(script string) []Range {
 		ranges = append(ranges, Range{Start: trimStart, End: end})
 	}
 
-	// Trailing comment-only content: the splitter filters out comment-only
+	// Trailing comment-only content: the loop above skips comment-only
 	// segments, so any non-whitespace bytes between the last segment's end and
 	// the end of the trimmed input would otherwise be lost. Redundant
 	// delimiters open no statement, so a run of them alone adds no range.
@@ -97,18 +98,6 @@ func containsCommentMarker(s string) bool {
 			if c == '/' && s[i+1] == '*' {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// hasNonWhitespace reports whether s contains any non-whitespace character.
-// The splitter treats a comment-only segment as empty since it holds no SQL
-// token, but an editor still wants its range.
-func hasNonWhitespace(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isRangeSpace(s[i]) {
-			return true
 		}
 	}
 	return false
