@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -2224,4 +2225,38 @@ func TestComputedColumnCollationIsNotTheDatabaseDefault(t *testing.T) {
 	require.NoError(t, err)
 	diff := Diff(from, to)
 	require.True(t, diff.IsEmpty(), GenerateMigration(from, to, diff).SQL())
+}
+
+// TestCollateOperandOfCaseDistinctColumns classifies a COLLATE operand by the
+// column of exactly its name: in a case-sensitive database [c] and [C] are two
+// columns, and [c] COLLATE ... reads the NVARCHAR one (measured in a
+// Latin1_General_CS_AS database).
+func TestCollateOperandOfCaseDistinctColumns(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t ([c] NVARCHAR(10), [C] INT, [d] AS ([c] COLLATE Latin1_General_CI_AS))",
+		"CREATE TABLE t ([C] INT, [c] NVARCHAR(10), [d] AS ([c] COLLATE Latin1_General_CI_AS))",
+	} {
+		_, err := LoadSQL(sql)
+		require.NoError(t, err, sql)
+	}
+	c, err := LoadSQL("CREATE TABLE t ([c] NVARCHAR(10), [C] INT)")
+	require.NoError(t, err)
+	for stmt, code := range map[string]int{
+		"ALTER TABLE t ADD [d] AS ([c] COLLATE Latin1_General_CI_AS)": 0,
+		"ALTER TABLE t ADD [d] AS ([C] COLLATE Latin1_General_CI_AS)": ErrCollateInvalidType,
+		"ALTER TABLE t ADD [d] AS ([c] COLLATE a)":                    ErrInvalidCollation,
+	} {
+		results, err := c.Exec(stmt, nil)
+		require.NoError(t, err)
+		got := 0
+		var e *Error
+		if errors.As(results[0].Error, &e) {
+			got = e.Code
+		}
+		require.Equal(t, code, got, stmt)
+		if code == 0 {
+			_, err := c.Exec("ALTER TABLE t DROP COLUMN [d]", nil)
+			require.NoError(t, err)
+		}
+	}
 }

@@ -181,14 +181,12 @@ func columnDefExprs(col *ast.ColumnDef) []ast.Node {
 // checkCreateTableExprCollations checks the COLLATE operators in a CREATE
 // TABLE's column and table constraint expressions.
 func checkCreateTableExprCollations(n *ast.CreateTableStmt) error {
-	classes := map[string]qtype{}
+	var cols []columnClass
 	var exprs []ast.Node
 	if n.Columns != nil {
 		for _, item := range n.Columns.Items {
 			if col, ok := item.(*ast.ColumnDef); ok {
-				if col.Computed == nil {
-					classes[strings.ToLower(col.Name)] = dataTypeClass(col.DataType)
-				}
+				cols = append(cols, columnDefClass(col))
 				exprs = append(exprs, columnDefExprs(col)...)
 			}
 		}
@@ -200,12 +198,7 @@ func checkCreateTableExprCollations(n *ast.CreateTableStmt) error {
 			}
 		}
 	}
-	class := func(column string) qtype {
-		if t, ok := classes[strings.ToLower(column)]; ok {
-			return t
-		}
-		return qtUnknown
-	}
+	class := classOf(cols)
 	for _, expr := range exprs {
 		if err := checkExprCollations(expr, class); err != nil {
 			return err
@@ -217,16 +210,53 @@ func checkCreateTableExprCollations(n *ast.CreateTableStmt) error {
 // tableColumnClass is the class of a column of table, or of added, the column
 // an ALTER TABLE ADD defines.
 func tableColumnClass(table *metadata.TableMetadata, added *ast.ColumnDef) func(string) qtype {
-	return func(column string) qtype {
-		if added != nil && strings.EqualFold(added.Name, column) {
-			if added.Computed != nil {
-				return qtUnknown
+	cols := make([]columnClass, 0, len(table.Columns)+1)
+	for _, col := range table.Columns {
+		t := typeClass(col.Type)
+		if isComputedColumnType(col.Type) {
+			t = qtUnknown
+		}
+		cols = append(cols, columnClass{col.Name, t})
+	}
+	if added != nil {
+		cols = append(cols, columnDefClass(added))
+	}
+	return classOf(cols)
+}
+
+// columnClass is a column's name and the class of its type.
+type columnClass struct {
+	name string
+	typ  qtype
+}
+
+func columnDefClass(col *ast.ColumnDef) columnClass {
+	if col.Computed != nil {
+		return columnClass{col.Name, qtUnknown}
+	}
+	return columnClass{col.Name, dataTypeClass(col.DataType)}
+}
+
+// classOf resolves a column name as SQL Server does in a database of either
+// case sensitivity: a column of exactly that name, or else the one column
+// whose name matches it ignoring case. A name that several columns match
+// ignoring case, [c] and [C] in a case-sensitive database, has no class.
+func classOf(cols []columnClass) func(string) qtype {
+	return func(name string) qtype {
+		for _, col := range cols {
+			if col.name == name {
+				return col.typ
 			}
-			return dataTypeClass(added.DataType)
 		}
-		if col := columnByName(table, column); col != nil && !isComputedColumnType(col.Type) {
-			return typeClass(col.Type)
+		t, found := qtUnknown, false
+		for _, col := range cols {
+			if strings.EqualFold(col.name, name) {
+				if found {
+					return qtUnknown
+				}
+				t, found = col.typ, true
+			}
 		}
-		return qtUnknown
+		return t
 	}
 }
