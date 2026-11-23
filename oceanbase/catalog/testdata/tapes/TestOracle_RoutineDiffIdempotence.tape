@@ -16,12 +16,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_simple.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -37,6 +37,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_simple
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_string_return
 < ok 0 0
@@ -52,12 +65,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_string_return.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -73,6 +86,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_string_return
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_all_characteristics
 < ok 0 0
@@ -88,12 +114,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_all_characteristics.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -112,6 +138,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_all_characteristics
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+| hi
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_no_sql
 < ok 0 0
@@ -127,12 +166,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_no_sql.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -148,6 +187,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_no_sql
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_modifies
 < ok 0 0
@@ -163,12 +215,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_modifies.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -185,6 +237,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_modifies
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_explicit_defaults
 < ok 0 0
@@ -200,12 +265,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_explicit_defaults.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -221,6 +286,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_explicit_defaults
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_language_sql
 < ok 0 0
@@ -236,12 +314,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_language_sql.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -257,6 +335,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_language_sql
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_begin_body
 < ok 0 0
@@ -277,12 +368,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_begin_body.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -302,6 +393,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_begin_body
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_comment_quote
 < ok 0 0
@@ -317,12 +421,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_comment_quote.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -339,6 +443,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_comment_quote
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+| it's here
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_comment_backslash
 < ok 0 0
@@ -354,12 +471,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_comment_backslash.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -376,6 +493,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_comment_backslash
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+| a\b
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_decimal_return
 < ok 0 0
@@ -391,12 +521,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_decimal_return.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -412,6 +542,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_decimal_return
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_fn_enum_return
 < ok 0 0
@@ -427,12 +570,12 @@
 > query
 | SHOW CREATE FUNCTION rtn_idem_fn_enum_return.f
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | f
@@ -448,6 +591,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_fn_enum_return
+: string
+| f
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_enum_set_params
 < ok 0 0
@@ -463,12 +619,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_enum_set_params.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -483,6 +639,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_enum_set_params
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_reserved_param
 < ok 0 0
@@ -498,12 +667,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_reserved_param.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -518,6 +687,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_reserved_param
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_in_out_inout
 < ok 0 0
@@ -533,12 +715,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_in_out_inout.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -553,6 +735,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_in_out_inout
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_no_params
 < ok 0 0
@@ -568,12 +763,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_no_params.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -588,6 +783,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_no_params
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_modifies
 < ok 0 0
@@ -603,12 +811,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_modifies.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -624,6 +832,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_modifies
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_default_in_direction
 < ok 0 0
@@ -639,12 +860,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_default_in_direction.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -659,6 +880,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_default_in_direction
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_all_characteristics
 < ok 0 0
@@ -674,12 +908,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_all_characteristics.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -698,6 +932,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_all_characteristics
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+| pc
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_explicit_defaults
 < ok 0 0
@@ -713,12 +960,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_explicit_defaults.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -733,6 +980,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_explicit_defaults
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS rtn_idem_proc_adjacent_literals
 < ok 0 0
@@ -752,12 +1012,12 @@
 > query
 | SHOW CREATE PROCEDURE rtn_idem_proc_adjacent_literals.p
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | p
@@ -775,3 +1035,16 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| rtn_idem_proc_adjacent_literals
+: string
+| p
+: string
+| PROCEDURE
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|

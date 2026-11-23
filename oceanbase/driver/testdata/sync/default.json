@@ -336,11 +336,12 @@
       "functions":  [
         {
           "name":  "fn_escaped",
-          "definition":  "CREATE FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)\n    NO SQL\n    DETERMINISTIC\nRETURN CONCAT(p, '-escaped')",
+          "definition":  "CREATE FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'it''s C:\\\\path'\nRETURN CONCAT(p, '-escaped')",
           "characterSetClient":  "utf8mb4",
           "collationConnection":  "utf8mb4_general_ci",
           "databaseCollation":  "utf8mb4_general_ci",
-          "sqlMode":  "NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER"
+          "sqlMode":  "NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
+          "comment":  "it's C:\\path"
         },
         {
           "name":  "fn_format_tag",
@@ -355,12 +356,12 @@
       "procedures":  [
         {
           "name":  "sp_touch_order",
-          "definition":  "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    READS SQL DATA\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
+          "definition":  "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    READS SQL DATA\n    COMMENT 'reads an order''s total from C:\\\\orders'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
           "characterSetClient":  "utf8mb4",
           "collationConnection":  "utf8mb4_general_ci",
           "databaseCollation":  "utf8mb4_general_ci",
           "sqlMode":  "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
-          "comment":  "reads order total"
+          "comment":  "reads an order's total from C:\\orders"
         }
       ],
       "materializedViews":  [
