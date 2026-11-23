@@ -692,7 +692,9 @@ func TestWalkThroughMariaDBRecallFamilies(t *testing.T) {
 	oneFinding(t, "CREATE EVENT ev_bad ON SCHEDULE AT nosuch DO COMMIT;", 0, "Column `nosuch` doesn't exist.", shop)
 	oneFinding(t, "ALTER EVENT e ON SCHEDULE EVERY nosuch DAY;", 0, "Column `nosuch` doesn't exist.", shop)
 	oneFinding(t, "ALTER EVENT e RENAME TO e;", 0, "Event `e` cannot be renamed to itself.", shop)
-	noFinding(t, "CREATE VIEW v_ok AS SELECT 1 AS a, CURRENT_TIMESTAMP AS ts, @x AS u, @@version AS ver;", shop)
+	// A variable in a view's query is 1351 (verified on mariadb:11.8.8).
+	oneFinding(t, "CREATE VIEW v_var AS SELECT 1 AS a, CURRENT_TIMESTAMP AS ts, @x AS u, @@version AS ver;", 0, "A view's query can't read a variable.", shop)
+	noFinding(t, "CREATE VIEW v_ok AS SELECT 1 AS a, CURRENT_TIMESTAMP AS ts;", shop)
 	noFinding(t, "CREATE VIEW v_ok2 AS SELECT a FROM t;", shop)
 	noFinding(t, "CREATE VIEW v_ok3 AS SELECT (SELECT a FROM t LIMIT 1) AS x;", shop)
 	noFinding(t, "CREATE TABLE ct_ok AS SELECT 1 AS a;", shop)
