@@ -140,6 +140,12 @@ SELECT region, SUM(LEN(name)) AS l FROM customers GROUP BY ROLLUP (region)
 SELECT * FROM (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new], [paid])) p
 SELECT value FROM STRING_SPLIT('a,b', ',')
 SELECT id FROM orders FOR JSON PATH
+SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+SELECT id, amount FROM orders FOR BROWSE
+SELECT (id), ((amount)) FROM orders
+SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+SELECT x.id FROM (SELECT (id) FROM orders) x
 
 -- Queries SQL Server refuses.
 SELECT nope FROM orders

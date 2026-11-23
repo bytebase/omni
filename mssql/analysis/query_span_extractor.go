@@ -687,17 +687,15 @@ func returnsRows(root ast.Node) bool {
 // extractFromSelectStmt processes a full SELECT statement (including set-ops,
 // WITH clause) and returns the result column set as a PseudoTable.
 func (q *querySpanExtractor) extractFromSelectStmt(sel *ast.SelectStmt) (*pseudoTable, error) {
-	if sel.ForClause != nil {
+	if f := documentClause(sel); f != nil {
 		// FOR XML and FOR JSON return the rows as one document in one column,
 		// which SQL Server names for the mode, so the column holds every
 		// column of the select list.
-		inner := *sel
-		inner.ForClause = nil
-		rows, err := q.extractFromSelectStmt(&inner)
+		rows, err := q.extractFromSelectStmt(withoutDocumentClause(sel))
 		if err != nil {
 			return nil, err
 		}
-		doc := QuerySpanResult{Name: forClauseColumnName(sel.ForClause), SourceColumns: make(ColumnSet)}
+		doc := QuerySpanResult{Name: forClauseColumnName(f), SourceColumns: make(ColumnSet)}
 		for _, c := range rows.Columns {
 			doc.SourceColumns, _ = mergeColumnSet(doc.SourceColumns, c.SourceColumns)
 		}
@@ -758,6 +756,33 @@ func (q *querySpanExtractor) extractFromSelectStmt(sel *ast.SelectStmt) (*pseudo
 	q.populateSelectIntoTempTable(sel, results)
 
 	return &pseudoTable{Columns: results}, nil
+}
+
+// documentClause returns the FOR XML or FOR JSON clause of a query: its own,
+// or, for a set operation, its last operand's, where the parser keeps the
+// clause that serializes the whole result. FOR BROWSE returns the rows as
+// they are, and is not one.
+func documentClause(sel *ast.SelectStmt) *ast.ForClause {
+	last := sel
+	for last.Op != ast.SetOpNone && last.Rarg != nil {
+		last = last.Rarg
+	}
+	if f := last.ForClause; f != nil && (f.Mode == ast.ForXML || f.Mode == ast.ForJSON) {
+		return f
+	}
+	return nil
+}
+
+// withoutDocumentClause copies sel, down to the operand documentClause found
+// the clause on, without it.
+func withoutDocumentClause(sel *ast.SelectStmt) *ast.SelectStmt {
+	cp := *sel
+	if cp.Op != ast.SetOpNone && cp.Rarg != nil {
+		cp.Rarg = withoutDocumentClause(cp.Rarg)
+	} else {
+		cp.ForClause = nil
+	}
+	return &cp
 }
 
 // forClauseColumnName is the name SQL Server gives the one column of a FOR XML
@@ -1790,6 +1815,13 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 func resultName(alias string, val ast.ExprNode, resolved string) string {
 	if alias != "" {
 		return alias
+	}
+	for {
+		paren, ok := val.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		val = paren.Expr
 	}
 	if ref, ok := val.(*ast.ColumnRef); ok {
 		if strings.HasPrefix(ref.Column, "$") {

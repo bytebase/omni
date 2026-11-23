@@ -336,6 +336,24 @@ value	value	engine	shop	shop.dbo	results	SELECT value FROM STRING_SPLIT('a,b', '
 JSON_F52E2B61-18A1-11d1-B105-00805F49916B	JSON_F52E2B61-18A1-11d1-B105-00805F49916B	engine	shop	shop.dbo	results	SELECT id FROM orders FOR JSON PATH
 shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT id FROM orders FOR JSON PATH
 shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders FOR JSON PATH
+JSON_F52E2B61-18A1-11d1-B105-00805F49916B	JSON_F52E2B61-18A1-11d1-B105-00805F49916B	engine	shop	shop.dbo	results	SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+shop.dbo.order_items.order_id shop.dbo.order_items.price shop.dbo.orders.amount shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+shop.dbo.order_items, shop.dbo.orders	shop.dbo.order_items, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+XML_F52E2B61-18A1-11d1-B105-00805F49916B	XML_F52E2B61-18A1-11d1-B105-00805F49916B	engine	shop	shop.dbo	results	SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+shop.dbo.customers.id shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT id, amount FROM orders FOR BROWSE
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT id, amount FROM orders FOR BROWSE
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, amount FROM orders FOR BROWSE
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT (id), ((amount)) FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT (id), ((amount)) FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT (id), ((amount)) FROM orders
+id	id	engine	shop	shop.dbo	results	SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+id	id	engine	shop	shop.dbo	results	SELECT x.id FROM (SELECT (id) FROM orders) x
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT x.id FROM (SELECT (id) FROM orders) x
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT x.id FROM (SELECT (id) FROM orders) x
 error:207	error:207	engine	shop	shop.dbo	results	SELECT nope FROM orders
 error:207	error:207	engine	shop	shop.dbo	lineage	SELECT nope FROM orders
 error:207	error:207	engine	shop	shop.dbo	tables	SELECT nope FROM orders

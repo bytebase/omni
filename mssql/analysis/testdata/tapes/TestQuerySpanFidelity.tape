@@ -9825,6 +9825,438 @@
 < ok 0 -
 > query
 | SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| JSON_F52E2B61-18A1-11d1-B105-00805F49916B
+: null
+: null
+: null
+: null
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH" StatementId="1" StatementCompId="1" StatementType="JSON SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0065664" StatementEstRows="2" SecurityPolicyApplied="false" StatementOptmLevel="FULL" QueryHash="0xCC1328EBDFE299E8" QueryPlanHash="0x488136717F76E3BE" StatementOptmEarlyAbortReason="GoodEnoughPlanFound" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="24" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Concatenation" LogicalOp="Concatenation" EstimateRows="2" EstimateIO="0" EstimateCPU="2e-07" AvgRowSize="20" EstimatedTotalSubtreeCost="0.0065664" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Union1006"></ColumnReference><ColumnReference Column="Union1007"></ColumnReference></OutputList><Concat><DefinedValues><DefinedValue><ColumnReference Column="Union1006"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Column="Union1007"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="price"></ColumnReference></DefinedValue></DefinedValues><RelOp NodeId="1" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="20" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp><RelOp NodeId="2" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="20" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="price"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="price"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[order_items]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></Concat></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| order_items
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| XML_F52E2B61-18A1-11d1-B105-00805F49916B
+: null
+: null
+: null
+: null
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH" StatementId="1" StatementCompId="1" StatementType="XML SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0179308" StatementEstRows="1.5" SecurityPolicyApplied="false" StatementOptmLevel="FULL" QueryHash="0x93873B3448D3C47C" QueryPlanHash="0xF73F73820F7DB4A3" StatementOptmEarlyAbortReason="GoodEnoughPlanFound" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="24" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="512" SerialDesiredMemory="544" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Sort" LogicalOp="Distinct Sort" EstimateRows="1.5" EstimateIO="0.0112613" EstimateCPU="0.000103131" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0179308" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Union1006"></ColumnReference></OutputList><MemoryFractions Input="1" Output="1"></MemoryFractions><Sort Distinct="1"><OrderBy><OrderByColumn Ascending="1"><ColumnReference Column="Union1006"></ColumnReference></OrderByColumn></OrderBy><RelOp NodeId="1" PhysicalOp="Concatenation" LogicalOp="Concatenation" EstimateRows="2" EstimateIO="0" EstimateCPU="2e-07" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0065664" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Union1006"></ColumnReference></OutputList><Concat><DefinedValues><DefinedValue><ColumnReference Column="Union1006"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Column="id"></ColumnReference></DefinedValue></DefinedValues><RelOp NodeId="2" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp><RelOp NodeId="3" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Column="id"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Column="id"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[customers]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></Concat></RelOp></Sort></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT id FROM orders UNION SELECT id FROM customers FOR XML PATH
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| customers
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT id, amount FROM orders FOR BROWSE', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| id
+: null
+< row
+: string
+| amount
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| amount
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT id, amount FROM orders FOR BROWSE
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT id, amount FROM orders FOR BROWSE" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0x06701B425542EC46" QueryPlanHash="0x072A1A6A5ECBBA17" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="20" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT id, amount FROM orders FOR BROWSE
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT (id), ((amount)) FROM orders', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| id
+: null
+< row
+: string
+| amount
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| amount
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT (id), ((amount)) FROM orders
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT (id), ((amount)) FROM orders" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0x06701B425542EC46" QueryPlanHash="0x072A1A6A5ECBBA17" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="20" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT (id), ((amount)) FROM orders
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT x.id FROM (SELECT (id) AS id FROM orders) x', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| id
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT x.id FROM (SELECT (id) AS id FROM orders) x" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0xCFFDC5820041AF57" QueryPlanHash="0x072A1A6A5ECBBA17" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT x.id FROM (SELECT (id) AS id FROM orders) x
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT x.id FROM (SELECT (id) FROM orders) x', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| id
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT x.id FROM (SELECT (id) FROM orders) x
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT x.id FROM (SELECT (id) FROM orders) x" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0xCFFDC5820041AF57" QueryPlanHash="0x072A1A6A5ECBBA17" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT x.id FROM (SELECT (id) FROM orders) x
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
 | FROM sys.dm_exec_describe_first_result_set(N'SELECT nope FROM orders', NULL, 1)
 | WHERE ISNULL(is_hidden, 0) = 0
 | ORDER BY column_ordinal
