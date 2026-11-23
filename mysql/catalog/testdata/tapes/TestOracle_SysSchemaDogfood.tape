@@ -4,7 +4,7 @@
 > query
 | SELECT table_name FROM information_schema.views WHERE table_schema='sys' ORDER BY table_name
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | host_summary
@@ -308,10 +308,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary
@@ -324,10 +324,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_file_io
@@ -340,10 +340,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_file_io_type
@@ -356,10 +356,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_stages
@@ -372,10 +372,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_statement_latency
@@ -388,10 +388,10 @@
 > query
 | SHOW CREATE VIEW sys.`host_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_statement_type
@@ -404,10 +404,10 @@
 > query
 | SHOW CREATE VIEW sys.`innodb_buffer_stats_by_schema`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_buffer_stats_by_schema
@@ -420,10 +420,10 @@
 > query
 | SHOW CREATE VIEW sys.`innodb_buffer_stats_by_table`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_buffer_stats_by_table
@@ -436,10 +436,10 @@
 > query
 | SHOW CREATE VIEW sys.`innodb_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_lock_waits
@@ -452,10 +452,10 @@
 > query
 | SHOW CREATE VIEW sys.`io_by_thread_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_by_thread_by_latency
@@ -468,10 +468,10 @@
 > query
 | SHOW CREATE VIEW sys.`io_global_by_file_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_file_by_bytes
@@ -484,10 +484,10 @@
 > query
 | SHOW CREATE VIEW sys.`io_global_by_file_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_file_by_latency
@@ -500,10 +500,10 @@
 > query
 | SHOW CREATE VIEW sys.`io_global_by_wait_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_wait_by_bytes
@@ -516,10 +516,10 @@
 > query
 | SHOW CREATE VIEW sys.`io_global_by_wait_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_wait_by_latency
@@ -532,10 +532,10 @@
 > query
 | SHOW CREATE VIEW sys.`latest_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | latest_file_io
@@ -548,10 +548,10 @@
 > query
 | SHOW CREATE VIEW sys.`memory_by_host_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_host_by_current_bytes
@@ -564,10 +564,10 @@
 > query
 | SHOW CREATE VIEW sys.`memory_by_thread_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_thread_by_current_bytes
@@ -580,10 +580,10 @@
 > query
 | SHOW CREATE VIEW sys.`memory_by_user_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_user_by_current_bytes
@@ -596,10 +596,10 @@
 > query
 | SHOW CREATE VIEW sys.`memory_global_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_global_by_current_bytes
@@ -612,10 +612,10 @@
 > query
 | SHOW CREATE VIEW sys.`memory_global_total`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_global_total
@@ -628,10 +628,10 @@
 > query
 | SHOW CREATE VIEW sys.`metrics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | metrics
@@ -644,10 +644,10 @@
 > query
 | SHOW CREATE VIEW sys.`processlist`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | processlist
@@ -660,10 +660,10 @@
 > query
 | SHOW CREATE VIEW sys.`ps_check_lost_instrumentation`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | ps_check_lost_instrumentation
@@ -676,10 +676,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_auto_increment_columns`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_auto_increment_columns
@@ -692,10 +692,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_index_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_index_statistics
@@ -708,10 +708,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_object_overview`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_object_overview
@@ -724,10 +724,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_redundant_indexes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_redundant_indexes
@@ -740,10 +740,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_table_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_lock_waits
@@ -756,10 +756,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_table_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_statistics
@@ -772,10 +772,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_table_statistics_with_buffer`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_statistics_with_buffer
@@ -788,10 +788,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_tables_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_tables_with_full_table_scans
@@ -804,10 +804,10 @@
 > query
 | SHOW CREATE VIEW sys.`schema_unused_indexes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_unused_indexes
@@ -820,10 +820,10 @@
 > query
 | SHOW CREATE VIEW sys.`session`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | session
@@ -836,10 +836,10 @@
 > query
 | SHOW CREATE VIEW sys.`session_ssl_status`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | session_ssl_status
@@ -852,10 +852,10 @@
 > query
 | SHOW CREATE VIEW sys.`statement_analysis`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statement_analysis
@@ -868,10 +868,10 @@
 > query
 | SHOW CREATE VIEW sys.`statements_with_errors_or_warnings`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_errors_or_warnings
@@ -884,10 +884,10 @@
 > query
 | SHOW CREATE VIEW sys.`statements_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_full_table_scans
@@ -900,10 +900,10 @@
 > query
 | SHOW CREATE VIEW sys.`statements_with_runtimes_in_95th_percentile`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_runtimes_in_95th_percentile
@@ -916,10 +916,10 @@
 > query
 | SHOW CREATE VIEW sys.`statements_with_sorting`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_sorting
@@ -932,10 +932,10 @@
 > query
 | SHOW CREATE VIEW sys.`statements_with_temp_tables`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_temp_tables
@@ -948,10 +948,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary
@@ -964,10 +964,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_file_io
@@ -980,10 +980,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_file_io_type
@@ -996,10 +996,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_stages
@@ -1012,10 +1012,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_statement_latency
@@ -1028,10 +1028,10 @@
 > query
 | SHOW CREATE VIEW sys.`user_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_statement_type
@@ -1044,10 +1044,10 @@
 > query
 | SHOW CREATE VIEW sys.`version`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | version
@@ -1060,10 +1060,10 @@
 > query
 | SHOW CREATE VIEW sys.`wait_classes_global_by_avg_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | wait_classes_global_by_avg_latency
@@ -1076,10 +1076,10 @@
 > query
 | SHOW CREATE VIEW sys.`wait_classes_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | wait_classes_global_by_latency
@@ -1092,10 +1092,10 @@
 > query
 | SHOW CREATE VIEW sys.`waits_by_host_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_by_host_by_latency
@@ -1108,10 +1108,10 @@
 > query
 | SHOW CREATE VIEW sys.`waits_by_user_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_by_user_by_latency
@@ -1124,10 +1124,10 @@
 > query
 | SHOW CREATE VIEW sys.`waits_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_global_by_latency
@@ -1140,10 +1140,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary
@@ -1156,10 +1156,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_file_io
@@ -1172,10 +1172,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_file_io_type
@@ -1188,10 +1188,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_stages
@@ -1204,10 +1204,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_statement_latency
@@ -1220,10 +1220,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$host_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_statement_type
@@ -1236,10 +1236,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$innodb_buffer_stats_by_schema`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_buffer_stats_by_schema
@@ -1252,10 +1252,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$innodb_buffer_stats_by_table`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_buffer_stats_by_table
@@ -1268,10 +1268,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$innodb_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_lock_waits
@@ -1284,10 +1284,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$io_by_thread_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_by_thread_by_latency
@@ -1300,10 +1300,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$io_global_by_file_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_file_by_bytes
@@ -1316,10 +1316,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$io_global_by_file_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_file_by_latency
@@ -1332,10 +1332,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$io_global_by_wait_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_wait_by_bytes
@@ -1348,10 +1348,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$io_global_by_wait_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_wait_by_latency
@@ -1364,10 +1364,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$latest_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$latest_file_io
@@ -1380,10 +1380,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$memory_by_host_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_host_by_current_bytes
@@ -1396,10 +1396,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$memory_by_thread_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_thread_by_current_bytes
@@ -1412,10 +1412,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$memory_by_user_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_user_by_current_bytes
@@ -1428,10 +1428,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$memory_global_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_global_by_current_bytes
@@ -1444,10 +1444,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$memory_global_total`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_global_total
@@ -1460,10 +1460,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$processlist`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$processlist
@@ -1476,10 +1476,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$ps_digest_95th_percentile_by_avg_us`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_digest_95th_percentile_by_avg_us
@@ -1492,10 +1492,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$ps_digest_avg_latency_distribution`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_digest_avg_latency_distribution
@@ -1508,10 +1508,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$ps_schema_table_statistics_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_schema_table_statistics_io
@@ -1524,10 +1524,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_flattened_keys`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_flattened_keys
@@ -1540,10 +1540,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_index_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_index_statistics
@@ -1556,10 +1556,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_table_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_lock_waits
@@ -1572,10 +1572,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_table_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_statistics
@@ -1588,10 +1588,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_table_statistics_with_buffer`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_statistics_with_buffer
@@ -1604,10 +1604,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$schema_tables_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_tables_with_full_table_scans
@@ -1620,10 +1620,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$session`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$session
@@ -1636,10 +1636,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statement_analysis`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statement_analysis
@@ -1652,10 +1652,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statements_with_errors_or_warnings`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_errors_or_warnings
@@ -1668,10 +1668,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statements_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_full_table_scans
@@ -1684,10 +1684,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statements_with_runtimes_in_95th_percentile`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_runtimes_in_95th_percentile
@@ -1700,10 +1700,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statements_with_sorting`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_sorting
@@ -1716,10 +1716,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$statements_with_temp_tables`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_temp_tables
@@ -1732,10 +1732,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary
@@ -1748,10 +1748,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_file_io
@@ -1764,10 +1764,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_file_io_type
@@ -1780,10 +1780,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_stages
@@ -1796,10 +1796,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_statement_latency
@@ -1812,10 +1812,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$user_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_statement_type
@@ -1828,10 +1828,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$wait_classes_global_by_avg_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$wait_classes_global_by_avg_latency
@@ -1844,10 +1844,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$wait_classes_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$wait_classes_global_by_latency
@@ -1860,10 +1860,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$waits_by_host_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_by_host_by_latency
@@ -1876,10 +1876,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$waits_by_user_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_by_user_by_latency
@@ -1892,10 +1892,10 @@
 > query
 | SHOW CREATE VIEW sys.`x$waits_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_global_by_latency
@@ -2169,60 +2169,60 @@
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$waits_global_by_latency` (`events`,`total`,`total_latency`,`avg_latency`,`max_latency`) AS select `performance_schema`.`events_waits_summary_global_by_event_name`.`EVENT_NAME` AS `event`,`performance_schema`.`events_waits_summary_global_by_event_name`.`COUNT_STAR` AS `total`,`performance_schema`.`events_waits_summary_global_by_event_name`.`SUM_TIMER_WAIT` AS `total_latency`,`performance_schema`.`events_waits_summary_global_by_event_name`.`AVG_TIMER_WAIT` AS `avg_latency`,`performance_schema`.`events_waits_summary_global_by_event_name`.`MAX_TIMER_WAIT` AS `max_latency` from `performance_schema`.`events_waits_summary_global_by_event_name` where ((`performance_schema`.`events_waits_summary_global_by_event_name`.`EVENT_NAME` <> 'idle') and (`performance_schema`.`events_waits_summary_global_by_event_name`.`SUM_TIMER_WAIT` > 0)) order by `performance_schema`.`events_waits_summary_global_by_event_name`.`SUM_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`host_summary` (`host`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_users`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`) AS `host`,sum(`sys`.`stmt`.`total`) AS `statements`,format_pico_time(sum(`sys`.`stmt`.`total_latency`)) AS `statement_latency`,format_pico_time(ifnull((sum(`sys`.`stmt`.`total_latency`) / nullif(sum(`sys`.`stmt`.`total`),0)),0)) AS `statement_avg_latency`,sum(`sys`.`stmt`.`full_scans`) AS `table_scans`,sum(`sys`.`io`.`ios`) AS `file_ios`,format_pico_time(sum(`sys`.`io`.`io_latency`)) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`USER`) AS `unique_users`,format_bytes(sum(`sys`.`mem`.`current_allocated`)) AS `current_memory`,format_bytes(sum(`sys`.`mem`.`total_allocated`)) AS `total_memory_allocated` from (((`performance_schema`.`accounts` join `sys`.`x$host_summary_by_statement_latency` `stmt` on((`performance_schema`.`accounts`.`HOST` = `sys`.`stmt`.`host`))) join `sys`.`x$host_summary_by_file_io` `io` on((`performance_schema`.`accounts`.`HOST` = `sys`.`io`.`host`))) join `sys`.`x$memory_by_host_by_current_bytes` `mem` on((`performance_schema`.`accounts`.`HOST` = `sys`.`mem`.`host`))) group by if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`)
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`host_summary` (`host`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_users`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`) AS `host`,sum(`stmt`.`total`) AS `statements`,format_pico_time(sum(`stmt`.`total_latency`)) AS `statement_latency`,format_pico_time(ifnull((sum(`stmt`.`total_latency`) / nullif(sum(`stmt`.`total`),0)),0)) AS `statement_avg_latency`,sum(`stmt`.`full_scans`) AS `table_scans`,sum(`io`.`ios`) AS `file_ios`,format_pico_time(sum(`io`.`io_latency`)) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`USER`) AS `unique_users`,format_bytes(sum(`mem`.`current_allocated`)) AS `current_memory`,format_bytes(sum(`mem`.`total_allocated`)) AS `total_memory_allocated` from (((`performance_schema`.`accounts` join `x$host_summary_by_statement_latency` `stmt` on((`performance_schema`.`accounts`.`HOST` = `stmt`.`host`))) join `x$host_summary_by_file_io` `io` on((`performance_schema`.`accounts`.`HOST` = `io`.`host`))) join `x$memory_by_host_by_current_bytes` `mem` on((`performance_schema`.`accounts`.`HOST` = `mem`.`host`))) group by if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`)
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`processlist` (`thd_id`,`conn_id`,`user`,`db`,`command`,`state`,`time`,`current_statement`,`execution_engine`,`statement_latency`,`progress`,`lock_latency`,`cpu_latency`,`rows_examined`,`rows_sent`,`rows_affected`,`tmp_tables`,`tmp_disk_tables`,`full_scan`,`last_statement`,`last_statement_latency`,`current_memory`,`last_wait`,`last_wait_latency`,`source`,`trx_latency`,`trx_state`,`trx_autocommit`,`pid`,`program_name`) AS select `pps`.`THREAD_ID` AS `thd_id`,`pps`.`PROCESSLIST_ID` AS `conn_id`,if((`pps`.`NAME` in ('thread/sql/one_connection','thread/thread_pool/tp_one_connection')),concat(`pps`.`PROCESSLIST_USER`,'@',convert(`pps`.`PROCESSLIST_HOST` using utf8mb4)),replace(`pps`.`NAME`,'thread/','')) AS `user`,`pps`.`PROCESSLIST_DB` AS `db`,`pps`.`PROCESSLIST_COMMAND` AS `command`,`pps`.`PROCESSLIST_STATE` AS `state`,`pps`.`PROCESSLIST_TIME` AS `time`,sys.format_statement(`pps`.`PROCESSLIST_INFO`) AS `current_statement`,`pps`.`EXECUTION_ENGINE` AS `execution_engine`,if((`esc`.`END_EVENT_ID` is null),format_pico_time(`esc`.`TIMER_WAIT`),NULL) AS `statement_latency`,if((`esc`.`END_EVENT_ID` is null),round((100 * (`estc`.`WORK_COMPLETED` / `estc`.`WORK_ESTIMATED`)),2),NULL) AS `progress`,format_pico_time(`esc`.`LOCK_TIME`) AS `lock_latency`,format_pico_time(`esc`.`CPU_TIME`) AS `cpu_latency`,`esc`.`ROWS_EXAMINED` AS `rows_examined`,`esc`.`ROWS_SENT` AS `rows_sent`,`esc`.`ROWS_AFFECTED` AS `rows_affected`,`esc`.`CREATED_TMP_TABLES` AS `tmp_tables`,`esc`.`CREATED_TMP_DISK_TABLES` AS `tmp_disk_tables`,if(((`esc`.`NO_GOOD_INDEX_USED` > 0) or (`esc`.`NO_INDEX_USED` > 0)),'YES','NO') AS `full_scan`,if((`esc`.`END_EVENT_ID` is not null),sys.format_statement(`esc`.`SQL_TEXT`),NULL) AS `last_statement`,if((`esc`.`END_EVENT_ID` is not null),format_pico_time(`esc`.`TIMER_WAIT`),NULL) AS `last_statement_latency`,format_bytes(`sys`.`mem`.`current_allocated`) AS `current_memory`,`ewc`.`EVENT_NAME` AS `last_wait`,if(((`ewc`.`END_EVENT_ID` is null) and (`ewc`.`EVENT_NAME` is not null)),'Still Waiting',convert(format_pico_time(`ewc`.`TIMER_WAIT`) using utf8mb4)) AS `last_wait_latency`,`ewc`.`SOURCE` AS `source`,format_pico_time(`etc`.`TIMER_WAIT`) AS `trx_latency`,`etc`.`STATE` AS `trx_state`,`etc`.`AUTOCOMMIT` AS `trx_autocommit`,`conattr_pid`.`ATTR_VALUE` AS `pid`,`conattr_progname`.`ATTR_VALUE` AS `program_name` from (((((((`performance_schema`.`threads` `pps` left join `performance_schema`.`events_waits_current` `ewc` on((`pps`.`THREAD_ID` = `ewc`.`THREAD_ID`))) left join `performance_schema`.`events_stages_current` `estc` on((`pps`.`THREAD_ID` = `estc`.`THREAD_ID`))) left join `performance_schema`.`events_statements_current` `esc` on((`pps`.`THREAD_ID` = `esc`.`THREAD_ID`))) left join `performance_schema`.`events_transactions_current` `etc` on((`pps`.`THREAD_ID` = `etc`.`THREAD_ID`))) left join `sys`.`x$memory_by_thread_by_current_bytes` `mem` on((`pps`.`THREAD_ID` = `sys`.`mem`.`thread_id`))) left join `performance_schema`.`session_connect_attrs` `conattr_pid` on(((`conattr_pid`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_pid`.`ATTR_NAME` = '_pid')))) left join `performance_schema`.`session_connect_attrs` `conattr_progname` on(((`conattr_progname`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_progname`.`ATTR_NAME` = 'program_name')))) order by `pps`.`PROCESSLIST_TIME` desc,`last_wait_latency` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`processlist` (`thd_id`,`conn_id`,`user`,`db`,`command`,`state`,`time`,`current_statement`,`execution_engine`,`statement_latency`,`progress`,`lock_latency`,`cpu_latency`,`rows_examined`,`rows_sent`,`rows_affected`,`tmp_tables`,`tmp_disk_tables`,`full_scan`,`last_statement`,`last_statement_latency`,`current_memory`,`last_wait`,`last_wait_latency`,`source`,`trx_latency`,`trx_state`,`trx_autocommit`,`pid`,`program_name`) AS select `pps`.`THREAD_ID` AS `thd_id`,`pps`.`PROCESSLIST_ID` AS `conn_id`,if((`pps`.`NAME` in ('thread/sql/one_connection','thread/thread_pool/tp_one_connection')),concat(`pps`.`PROCESSLIST_USER`,'@',convert(`pps`.`PROCESSLIST_HOST` using utf8mb4)),replace(`pps`.`NAME`,'thread/','')) AS `user`,`pps`.`PROCESSLIST_DB` AS `db`,`pps`.`PROCESSLIST_COMMAND` AS `command`,`pps`.`PROCESSLIST_STATE` AS `state`,`pps`.`PROCESSLIST_TIME` AS `time`,sys.format_statement(`pps`.`PROCESSLIST_INFO`) AS `current_statement`,`pps`.`EXECUTION_ENGINE` AS `execution_engine`,if((`esc`.`END_EVENT_ID` is null),format_pico_time(`esc`.`TIMER_WAIT`),NULL) AS `statement_latency`,if((`esc`.`END_EVENT_ID` is null),round((100 * (`estc`.`WORK_COMPLETED` / `estc`.`WORK_ESTIMATED`)),2),NULL) AS `progress`,format_pico_time(`esc`.`LOCK_TIME`) AS `lock_latency`,format_pico_time(`esc`.`CPU_TIME`) AS `cpu_latency`,`esc`.`ROWS_EXAMINED` AS `rows_examined`,`esc`.`ROWS_SENT` AS `rows_sent`,`esc`.`ROWS_AFFECTED` AS `rows_affected`,`esc`.`CREATED_TMP_TABLES` AS `tmp_tables`,`esc`.`CREATED_TMP_DISK_TABLES` AS `tmp_disk_tables`,if(((`esc`.`NO_GOOD_INDEX_USED` > 0) or (`esc`.`NO_INDEX_USED` > 0)),'YES','NO') AS `full_scan`,if((`esc`.`END_EVENT_ID` is not null),sys.format_statement(`esc`.`SQL_TEXT`),NULL) AS `last_statement`,if((`esc`.`END_EVENT_ID` is not null),format_pico_time(`esc`.`TIMER_WAIT`),NULL) AS `last_statement_latency`,format_bytes(`mem`.`current_allocated`) AS `current_memory`,`ewc`.`EVENT_NAME` AS `last_wait`,if(((`ewc`.`END_EVENT_ID` is null) and (`ewc`.`EVENT_NAME` is not null)),'Still Waiting',convert(format_pico_time(`ewc`.`TIMER_WAIT`) using utf8mb4)) AS `last_wait_latency`,`ewc`.`SOURCE` AS `source`,format_pico_time(`etc`.`TIMER_WAIT`) AS `trx_latency`,`etc`.`STATE` AS `trx_state`,`etc`.`AUTOCOMMIT` AS `trx_autocommit`,`conattr_pid`.`ATTR_VALUE` AS `pid`,`conattr_progname`.`ATTR_VALUE` AS `program_name` from (((((((`performance_schema`.`threads` `pps` left join `performance_schema`.`events_waits_current` `ewc` on((`pps`.`THREAD_ID` = `ewc`.`THREAD_ID`))) left join `performance_schema`.`events_stages_current` `estc` on((`pps`.`THREAD_ID` = `estc`.`THREAD_ID`))) left join `performance_schema`.`events_statements_current` `esc` on((`pps`.`THREAD_ID` = `esc`.`THREAD_ID`))) left join `performance_schema`.`events_transactions_current` `etc` on((`pps`.`THREAD_ID` = `etc`.`THREAD_ID`))) left join `x$memory_by_thread_by_current_bytes` `mem` on((`pps`.`THREAD_ID` = `mem`.`thread_id`))) left join `performance_schema`.`session_connect_attrs` `conattr_pid` on(((`conattr_pid`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_pid`.`ATTR_NAME` = '_pid')))) left join `performance_schema`.`session_connect_attrs` `conattr_progname` on(((`conattr_progname`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_progname`.`ATTR_NAME` = 'program_name')))) order by `pps`.`PROCESSLIST_TIME` desc,`last_wait_latency` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_redundant_indexes` (`table_schema`,`table_name`,`redundant_index_name`,`redundant_index_columns`,`redundant_index_non_unique`,`dominant_index_name`,`dominant_index_columns`,`dominant_index_non_unique`,`subpart_exists`,`sql_drop_index`) AS select `sys`.`redundant_keys`.`table_schema` AS `table_schema`,`sys`.`redundant_keys`.`table_name` AS `table_name`,`sys`.`redundant_keys`.`index_name` AS `redundant_index_name`,`sys`.`redundant_keys`.`index_columns` AS `redundant_index_columns`,`sys`.`redundant_keys`.`non_unique` AS `redundant_index_non_unique`,`sys`.`dominant_keys`.`index_name` AS `dominant_index_name`,`sys`.`dominant_keys`.`index_columns` AS `dominant_index_columns`,`sys`.`dominant_keys`.`non_unique` AS `dominant_index_non_unique`,if(((0 <> `sys`.`redundant_keys`.`subpart_exists`) or (0 <> `sys`.`dominant_keys`.`subpart_exists`)),1,0) AS `subpart_exists`,concat('ALTER TABLE `',`sys`.`redundant_keys`.`table_schema`,'`.`',`sys`.`redundant_keys`.`table_name`,'` DROP INDEX `',`sys`.`redundant_keys`.`index_name`,'`') AS `sql_drop_index` from (`sys`.`x$schema_flattened_keys` `redundant_keys` join `sys`.`x$schema_flattened_keys` `dominant_keys` on(((`sys`.`redundant_keys`.`table_schema` = `sys`.`dominant_keys`.`table_schema`) and (`sys`.`redundant_keys`.`table_name` = `sys`.`dominant_keys`.`table_name`)))) where ((`sys`.`redundant_keys`.`index_name` <> `sys`.`dominant_keys`.`index_name`) and ((((`sys`.`redundant_keys`.`index_columns` = `sys`.`dominant_keys`.`index_columns`) and ((`sys`.`redundant_keys`.`non_unique` > `sys`.`dominant_keys`.`non_unique`) or ((`sys`.`redundant_keys`.`non_unique` = `sys`.`dominant_keys`.`non_unique`) and (if((`sys`.`redundant_keys`.`index_name` = 'PRIMARY'),'',`sys`.`redundant_keys`.`index_name`) > if((`sys`.`dominant_keys`.`index_name` = 'PRIMARY'),'',`sys`.`dominant_keys`.`index_name`))))) or ((locate(concat(`sys`.`redundant_keys`.`index_columns`,','),`sys`.`dominant_keys`.`index_columns`) = 1) and (`sys`.`redundant_keys`.`non_unique` = 1))) or ((locate(concat(`sys`.`dominant_keys`.`index_columns`,','),`sys`.`redundant_keys`.`index_columns`) = 1) and (`sys`.`dominant_keys`.`non_unique` = 0))))
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_redundant_indexes` (`table_schema`,`table_name`,`redundant_index_name`,`redundant_index_columns`,`redundant_index_non_unique`,`dominant_index_name`,`dominant_index_columns`,`dominant_index_non_unique`,`subpart_exists`,`sql_drop_index`) AS select `redundant_keys`.`table_schema` AS `table_schema`,`redundant_keys`.`table_name` AS `table_name`,`redundant_keys`.`index_name` AS `redundant_index_name`,`redundant_keys`.`index_columns` AS `redundant_index_columns`,`redundant_keys`.`non_unique` AS `redundant_index_non_unique`,`dominant_keys`.`index_name` AS `dominant_index_name`,`dominant_keys`.`index_columns` AS `dominant_index_columns`,`dominant_keys`.`non_unique` AS `dominant_index_non_unique`,if(((0 <> `redundant_keys`.`subpart_exists`) or (0 <> `dominant_keys`.`subpart_exists`)),1,0) AS `subpart_exists`,concat('ALTER TABLE `',`redundant_keys`.`table_schema`,'`.`',`redundant_keys`.`table_name`,'` DROP INDEX `',`redundant_keys`.`index_name`,'`') AS `sql_drop_index` from (`x$schema_flattened_keys` `redundant_keys` join `x$schema_flattened_keys` `dominant_keys` on(((`redundant_keys`.`table_schema` = `dominant_keys`.`table_schema`) and (`redundant_keys`.`table_name` = `dominant_keys`.`table_name`)))) where ((`redundant_keys`.`index_name` <> `dominant_keys`.`index_name`) and ((((`redundant_keys`.`index_columns` = `dominant_keys`.`index_columns`) and ((`redundant_keys`.`non_unique` > `dominant_keys`.`non_unique`) or ((`redundant_keys`.`non_unique` = `dominant_keys`.`non_unique`) and (if((`redundant_keys`.`index_name` = 'PRIMARY'),'',`redundant_keys`.`index_name`) > if((`dominant_keys`.`index_name` = 'PRIMARY'),'',`dominant_keys`.`index_name`))))) or ((locate(concat(`redundant_keys`.`index_columns`,','),`dominant_keys`.`index_columns`) = 1) and (`redundant_keys`.`non_unique` = 1))) or ((locate(concat(`dominant_keys`.`index_columns`,','),`redundant_keys`.`index_columns`) = 1) and (`dominant_keys`.`non_unique` = 0))))
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_table_statistics` (`table_schema`,`table_name`,`total_latency`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,format_pico_time(`pst`.`SUM_TIMER_WAIT`) AS `total_latency`,`pst`.`COUNT_FETCH` AS `rows_fetched`,format_pico_time(`pst`.`SUM_TIMER_FETCH`) AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,format_pico_time(`pst`.`SUM_TIMER_INSERT`) AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,format_pico_time(`pst`.`SUM_TIMER_UPDATE`) AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,format_pico_time(`pst`.`SUM_TIMER_DELETE`) AS `delete_latency`,`sys`.`fsbi`.`count_read` AS `io_read_requests`,format_bytes(`sys`.`fsbi`.`sum_number_of_bytes_read`) AS `io_read`,format_pico_time(`sys`.`fsbi`.`sum_timer_read`) AS `io_read_latency`,`sys`.`fsbi`.`count_write` AS `io_write_requests`,format_bytes(`sys`.`fsbi`.`sum_number_of_bytes_write`) AS `io_write`,format_pico_time(`sys`.`fsbi`.`sum_timer_write`) AS `io_write_latency`,`sys`.`fsbi`.`count_misc` AS `io_misc_requests`,format_pico_time(`sys`.`fsbi`.`sum_timer_misc`) AS `io_misc_latency` from (`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `sys`.`x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`fsbi`.`table_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_table_statistics` (`table_schema`,`table_name`,`total_latency`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,format_pico_time(`pst`.`SUM_TIMER_WAIT`) AS `total_latency`,`pst`.`COUNT_FETCH` AS `rows_fetched`,format_pico_time(`pst`.`SUM_TIMER_FETCH`) AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,format_pico_time(`pst`.`SUM_TIMER_INSERT`) AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,format_pico_time(`pst`.`SUM_TIMER_UPDATE`) AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,format_pico_time(`pst`.`SUM_TIMER_DELETE`) AS `delete_latency`,`fsbi`.`count_read` AS `io_read_requests`,format_bytes(`fsbi`.`sum_number_of_bytes_read`) AS `io_read`,format_pico_time(`fsbi`.`sum_timer_read`) AS `io_read_latency`,`fsbi`.`count_write` AS `io_write_requests`,format_bytes(`fsbi`.`sum_number_of_bytes_write`) AS `io_write`,format_pico_time(`fsbi`.`sum_timer_write`) AS `io_write_latency`,`fsbi`.`count_misc` AS `io_misc_requests`,format_pico_time(`fsbi`.`sum_timer_misc`) AS `io_misc_latency` from (`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `fsbi`.`table_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_table_statistics_with_buffer` (`table_schema`,`table_name`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`,`innodb_buffer_allocated`,`innodb_buffer_data`,`innodb_buffer_free`,`innodb_buffer_pages`,`innodb_buffer_pages_hashed`,`innodb_buffer_pages_old`,`innodb_buffer_rows_cached`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`COUNT_FETCH` AS `rows_fetched`,format_pico_time(`pst`.`SUM_TIMER_FETCH`) AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,format_pico_time(`pst`.`SUM_TIMER_INSERT`) AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,format_pico_time(`pst`.`SUM_TIMER_UPDATE`) AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,format_pico_time(`pst`.`SUM_TIMER_DELETE`) AS `delete_latency`,`sys`.`fsbi`.`count_read` AS `io_read_requests`,format_bytes(`sys`.`fsbi`.`sum_number_of_bytes_read`) AS `io_read`,format_pico_time(`sys`.`fsbi`.`sum_timer_read`) AS `io_read_latency`,`sys`.`fsbi`.`count_write` AS `io_write_requests`,format_bytes(`sys`.`fsbi`.`sum_number_of_bytes_write`) AS `io_write`,format_pico_time(`sys`.`fsbi`.`sum_timer_write`) AS `io_write_latency`,`sys`.`fsbi`.`count_misc` AS `io_misc_requests`,format_pico_time(`sys`.`fsbi`.`sum_timer_misc`) AS `io_misc_latency`,format_bytes(`sys`.`ibp`.`allocated`) AS `innodb_buffer_allocated`,format_bytes(`sys`.`ibp`.`data`) AS `innodb_buffer_data`,format_bytes((`sys`.`ibp`.`allocated` - `sys`.`ibp`.`data`)) AS `innodb_buffer_free`,`sys`.`ibp`.`pages` AS `innodb_buffer_pages`,`sys`.`ibp`.`pages_hashed` AS `innodb_buffer_pages_hashed`,`sys`.`ibp`.`pages_old` AS `innodb_buffer_pages_old`,`sys`.`ibp`.`rows_cached` AS `innodb_buffer_rows_cached` from ((`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `sys`.`x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`fsbi`.`table_name`)))) left join `sys`.`x$innodb_buffer_stats_by_table` `ibp` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`ibp`.`object_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`ibp`.`object_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`schema_table_statistics_with_buffer` (`table_schema`,`table_name`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`,`innodb_buffer_allocated`,`innodb_buffer_data`,`innodb_buffer_free`,`innodb_buffer_pages`,`innodb_buffer_pages_hashed`,`innodb_buffer_pages_old`,`innodb_buffer_rows_cached`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`COUNT_FETCH` AS `rows_fetched`,format_pico_time(`pst`.`SUM_TIMER_FETCH`) AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,format_pico_time(`pst`.`SUM_TIMER_INSERT`) AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,format_pico_time(`pst`.`SUM_TIMER_UPDATE`) AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,format_pico_time(`pst`.`SUM_TIMER_DELETE`) AS `delete_latency`,`fsbi`.`count_read` AS `io_read_requests`,format_bytes(`fsbi`.`sum_number_of_bytes_read`) AS `io_read`,format_pico_time(`fsbi`.`sum_timer_read`) AS `io_read_latency`,`fsbi`.`count_write` AS `io_write_requests`,format_bytes(`fsbi`.`sum_number_of_bytes_write`) AS `io_write`,format_pico_time(`fsbi`.`sum_timer_write`) AS `io_write_latency`,`fsbi`.`count_misc` AS `io_misc_requests`,format_pico_time(`fsbi`.`sum_timer_misc`) AS `io_misc_latency`,format_bytes(`ibp`.`allocated`) AS `innodb_buffer_allocated`,format_bytes(`ibp`.`data`) AS `innodb_buffer_data`,format_bytes((`ibp`.`allocated` - `ibp`.`data`)) AS `innodb_buffer_free`,`ibp`.`pages` AS `innodb_buffer_pages`,`ibp`.`pages_hashed` AS `innodb_buffer_pages_hashed`,`ibp`.`pages_old` AS `innodb_buffer_pages_old`,`ibp`.`rows_cached` AS `innodb_buffer_rows_cached` from ((`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `fsbi`.`table_name`)))) left join `x$innodb_buffer_stats_by_table` `ibp` on(((`pst`.`OBJECT_SCHEMA` = `ibp`.`object_schema`) and (`pst`.`OBJECT_NAME` = `ibp`.`object_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`user_summary` (`user`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_hosts`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) AS `user`,sum(`sys`.`stmt`.`total`) AS `statements`,format_pico_time(sum(`sys`.`stmt`.`total_latency`)) AS `statement_latency`,format_pico_time(ifnull((sum(`sys`.`stmt`.`total_latency`) / nullif(sum(`sys`.`stmt`.`total`),0)),0)) AS `statement_avg_latency`,sum(`sys`.`stmt`.`full_scans`) AS `table_scans`,sum(`sys`.`io`.`ios`) AS `file_ios`,format_pico_time(sum(`sys`.`io`.`io_latency`)) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`HOST`) AS `unique_hosts`,format_bytes(sum(`sys`.`mem`.`current_allocated`)) AS `current_memory`,format_bytes(sum(`sys`.`mem`.`total_allocated`)) AS `total_memory_allocated` from (((`performance_schema`.`accounts` left join `sys`.`x$user_summary_by_statement_latency` `stmt` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`stmt`.`user`))) left join `sys`.`x$user_summary_by_file_io` `io` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`io`.`user`))) left join `sys`.`x$memory_by_user_by_current_bytes` `mem` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`mem`.`user`))) group by if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) order by sum(`sys`.`stmt`.`total_latency`) desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`user_summary` (`user`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_hosts`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) AS `user`,sum(`stmt`.`total`) AS `statements`,format_pico_time(sum(`stmt`.`total_latency`)) AS `statement_latency`,format_pico_time(ifnull((sum(`stmt`.`total_latency`) / nullif(sum(`stmt`.`total`),0)),0)) AS `statement_avg_latency`,sum(`stmt`.`full_scans`) AS `table_scans`,sum(`io`.`ios`) AS `file_ios`,format_pico_time(sum(`io`.`io_latency`)) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`HOST`) AS `unique_hosts`,format_bytes(sum(`mem`.`current_allocated`)) AS `current_memory`,format_bytes(sum(`mem`.`total_allocated`)) AS `total_memory_allocated` from (((`performance_schema`.`accounts` left join `x$user_summary_by_statement_latency` `stmt` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `stmt`.`user`))) left join `x$user_summary_by_file_io` `io` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `io`.`user`))) left join `x$memory_by_user_by_current_bytes` `mem` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `mem`.`user`))) group by if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) order by sum(`stmt`.`total_latency`) desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$host_summary` (`host`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_users`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`) AS `host`,sum(`sys`.`stmt`.`total`) AS `statements`,sum(`sys`.`stmt`.`total_latency`) AS `statement_latency`,(sum(`sys`.`stmt`.`total_latency`) / sum(`sys`.`stmt`.`total`)) AS `statement_avg_latency`,sum(`sys`.`stmt`.`full_scans`) AS `table_scans`,sum(`sys`.`io`.`ios`) AS `file_ios`,sum(`sys`.`io`.`io_latency`) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`USER`) AS `unique_users`,sum(`sys`.`mem`.`current_allocated`) AS `current_memory`,sum(`sys`.`mem`.`total_allocated`) AS `total_memory_allocated` from (((`performance_schema`.`accounts` join `sys`.`x$host_summary_by_statement_latency` `stmt` on((`performance_schema`.`accounts`.`HOST` = `sys`.`stmt`.`host`))) join `sys`.`x$host_summary_by_file_io` `io` on((`performance_schema`.`accounts`.`HOST` = `sys`.`io`.`host`))) join `sys`.`x$memory_by_host_by_current_bytes` `mem` on((`performance_schema`.`accounts`.`HOST` = `sys`.`mem`.`host`))) group by if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`)
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$host_summary` (`host`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_users`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`) AS `host`,sum(`stmt`.`total`) AS `statements`,sum(`stmt`.`total_latency`) AS `statement_latency`,(sum(`stmt`.`total_latency`) / sum(`stmt`.`total`)) AS `statement_avg_latency`,sum(`stmt`.`full_scans`) AS `table_scans`,sum(`io`.`ios`) AS `file_ios`,sum(`io`.`io_latency`) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`USER`) AS `unique_users`,sum(`mem`.`current_allocated`) AS `current_memory`,sum(`mem`.`total_allocated`) AS `total_memory_allocated` from (((`performance_schema`.`accounts` join `x$host_summary_by_statement_latency` `stmt` on((`performance_schema`.`accounts`.`HOST` = `stmt`.`host`))) join `x$host_summary_by_file_io` `io` on((`performance_schema`.`accounts`.`HOST` = `io`.`host`))) join `x$memory_by_host_by_current_bytes` `mem` on((`performance_schema`.`accounts`.`HOST` = `mem`.`host`))) group by if((`performance_schema`.`accounts`.`HOST` is null),'background',`performance_schema`.`accounts`.`HOST`)
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$processlist` (`thd_id`,`conn_id`,`user`,`db`,`command`,`state`,`time`,`current_statement`,`execution_engine`,`statement_latency`,`progress`,`lock_latency`,`cpu_latency`,`rows_examined`,`rows_sent`,`rows_affected`,`tmp_tables`,`tmp_disk_tables`,`full_scan`,`last_statement`,`last_statement_latency`,`current_memory`,`last_wait`,`last_wait_latency`,`source`,`trx_latency`,`trx_state`,`trx_autocommit`,`pid`,`program_name`) AS select `pps`.`THREAD_ID` AS `thd_id`,`pps`.`PROCESSLIST_ID` AS `conn_id`,if((`pps`.`NAME` in ('thread/sql/one_connection','thread/thread_pool/tp_one_connection')),concat(`pps`.`PROCESSLIST_USER`,'@',convert(`pps`.`PROCESSLIST_HOST` using utf8mb4)),replace(`pps`.`NAME`,'thread/','')) AS `user`,`pps`.`PROCESSLIST_DB` AS `db`,`pps`.`PROCESSLIST_COMMAND` AS `command`,`pps`.`PROCESSLIST_STATE` AS `state`,`pps`.`PROCESSLIST_TIME` AS `time`,`pps`.`PROCESSLIST_INFO` AS `current_statement`,`pps`.`EXECUTION_ENGINE` AS `execution_engine`,if((`esc`.`END_EVENT_ID` is null),`esc`.`TIMER_WAIT`,NULL) AS `statement_latency`,if((`esc`.`END_EVENT_ID` is null),round((100 * (`estc`.`WORK_COMPLETED` / `estc`.`WORK_ESTIMATED`)),2),NULL) AS `progress`,`esc`.`LOCK_TIME` AS `lock_latency`,`esc`.`CPU_TIME` AS `cpu_latency`,`esc`.`ROWS_EXAMINED` AS `rows_examined`,`esc`.`ROWS_SENT` AS `rows_sent`,`esc`.`ROWS_AFFECTED` AS `rows_affected`,`esc`.`CREATED_TMP_TABLES` AS `tmp_tables`,`esc`.`CREATED_TMP_DISK_TABLES` AS `tmp_disk_tables`,if(((`esc`.`NO_GOOD_INDEX_USED` > 0) or (`esc`.`NO_INDEX_USED` > 0)),'YES','NO') AS `full_scan`,if((`esc`.`END_EVENT_ID` is not null),`esc`.`SQL_TEXT`,NULL) AS `last_statement`,if((`esc`.`END_EVENT_ID` is not null),`esc`.`TIMER_WAIT`,NULL) AS `last_statement_latency`,`sys`.`mem`.`current_allocated` AS `current_memory`,`ewc`.`EVENT_NAME` AS `last_wait`,if(((`ewc`.`END_EVENT_ID` is null) and (`ewc`.`EVENT_NAME` is not null)),'Still Waiting',`ewc`.`TIMER_WAIT`) AS `last_wait_latency`,`ewc`.`SOURCE` AS `source`,`etc`.`TIMER_WAIT` AS `trx_latency`,`etc`.`STATE` AS `trx_state`,`etc`.`AUTOCOMMIT` AS `trx_autocommit`,`conattr_pid`.`ATTR_VALUE` AS `pid`,`conattr_progname`.`ATTR_VALUE` AS `program_name` from (((((((`performance_schema`.`threads` `pps` left join `performance_schema`.`events_waits_current` `ewc` on((`pps`.`THREAD_ID` = `ewc`.`THREAD_ID`))) left join `performance_schema`.`events_stages_current` `estc` on((`pps`.`THREAD_ID` = `estc`.`THREAD_ID`))) left join `performance_schema`.`events_statements_current` `esc` on((`pps`.`THREAD_ID` = `esc`.`THREAD_ID`))) left join `performance_schema`.`events_transactions_current` `etc` on((`pps`.`THREAD_ID` = `etc`.`THREAD_ID`))) left join `sys`.`x$memory_by_thread_by_current_bytes` `mem` on((`pps`.`THREAD_ID` = `sys`.`mem`.`thread_id`))) left join `performance_schema`.`session_connect_attrs` `conattr_pid` on(((`conattr_pid`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_pid`.`ATTR_NAME` = '_pid')))) left join `performance_schema`.`session_connect_attrs` `conattr_progname` on(((`conattr_progname`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_progname`.`ATTR_NAME` = 'program_name')))) order by `pps`.`PROCESSLIST_TIME` desc,`last_wait_latency` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$processlist` (`thd_id`,`conn_id`,`user`,`db`,`command`,`state`,`time`,`current_statement`,`execution_engine`,`statement_latency`,`progress`,`lock_latency`,`cpu_latency`,`rows_examined`,`rows_sent`,`rows_affected`,`tmp_tables`,`tmp_disk_tables`,`full_scan`,`last_statement`,`last_statement_latency`,`current_memory`,`last_wait`,`last_wait_latency`,`source`,`trx_latency`,`trx_state`,`trx_autocommit`,`pid`,`program_name`) AS select `pps`.`THREAD_ID` AS `thd_id`,`pps`.`PROCESSLIST_ID` AS `conn_id`,if((`pps`.`NAME` in ('thread/sql/one_connection','thread/thread_pool/tp_one_connection')),concat(`pps`.`PROCESSLIST_USER`,'@',convert(`pps`.`PROCESSLIST_HOST` using utf8mb4)),replace(`pps`.`NAME`,'thread/','')) AS `user`,`pps`.`PROCESSLIST_DB` AS `db`,`pps`.`PROCESSLIST_COMMAND` AS `command`,`pps`.`PROCESSLIST_STATE` AS `state`,`pps`.`PROCESSLIST_TIME` AS `time`,`pps`.`PROCESSLIST_INFO` AS `current_statement`,`pps`.`EXECUTION_ENGINE` AS `execution_engine`,if((`esc`.`END_EVENT_ID` is null),`esc`.`TIMER_WAIT`,NULL) AS `statement_latency`,if((`esc`.`END_EVENT_ID` is null),round((100 * (`estc`.`WORK_COMPLETED` / `estc`.`WORK_ESTIMATED`)),2),NULL) AS `progress`,`esc`.`LOCK_TIME` AS `lock_latency`,`esc`.`CPU_TIME` AS `cpu_latency`,`esc`.`ROWS_EXAMINED` AS `rows_examined`,`esc`.`ROWS_SENT` AS `rows_sent`,`esc`.`ROWS_AFFECTED` AS `rows_affected`,`esc`.`CREATED_TMP_TABLES` AS `tmp_tables`,`esc`.`CREATED_TMP_DISK_TABLES` AS `tmp_disk_tables`,if(((`esc`.`NO_GOOD_INDEX_USED` > 0) or (`esc`.`NO_INDEX_USED` > 0)),'YES','NO') AS `full_scan`,if((`esc`.`END_EVENT_ID` is not null),`esc`.`SQL_TEXT`,NULL) AS `last_statement`,if((`esc`.`END_EVENT_ID` is not null),`esc`.`TIMER_WAIT`,NULL) AS `last_statement_latency`,`mem`.`current_allocated` AS `current_memory`,`ewc`.`EVENT_NAME` AS `last_wait`,if(((`ewc`.`END_EVENT_ID` is null) and (`ewc`.`EVENT_NAME` is not null)),'Still Waiting',`ewc`.`TIMER_WAIT`) AS `last_wait_latency`,`ewc`.`SOURCE` AS `source`,`etc`.`TIMER_WAIT` AS `trx_latency`,`etc`.`STATE` AS `trx_state`,`etc`.`AUTOCOMMIT` AS `trx_autocommit`,`conattr_pid`.`ATTR_VALUE` AS `pid`,`conattr_progname`.`ATTR_VALUE` AS `program_name` from (((((((`performance_schema`.`threads` `pps` left join `performance_schema`.`events_waits_current` `ewc` on((`pps`.`THREAD_ID` = `ewc`.`THREAD_ID`))) left join `performance_schema`.`events_stages_current` `estc` on((`pps`.`THREAD_ID` = `estc`.`THREAD_ID`))) left join `performance_schema`.`events_statements_current` `esc` on((`pps`.`THREAD_ID` = `esc`.`THREAD_ID`))) left join `performance_schema`.`events_transactions_current` `etc` on((`pps`.`THREAD_ID` = `etc`.`THREAD_ID`))) left join `x$memory_by_thread_by_current_bytes` `mem` on((`pps`.`THREAD_ID` = `mem`.`thread_id`))) left join `performance_schema`.`session_connect_attrs` `conattr_pid` on(((`conattr_pid`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_pid`.`ATTR_NAME` = '_pid')))) left join `performance_schema`.`session_connect_attrs` `conattr_progname` on(((`conattr_progname`.`PROCESSLIST_ID` = `pps`.`PROCESSLIST_ID`) and (`conattr_progname`.`ATTR_NAME` = 'program_name')))) order by `pps`.`PROCESSLIST_TIME` desc,`last_wait_latency` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$ps_digest_95th_percentile_by_avg_us` (`avg_us`,`percentile`) AS select `sys`.`s2`.`avg_us` AS `avg_us`,ifnull((sum(`sys`.`s1`.`cnt`) / nullif((select count(0) from `performance_schema`.`events_statements_summary_by_digest`),0)),0) AS `percentile` from (`sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` on((`sys`.`s1`.`avg_us` <= `sys`.`s2`.`avg_us`))) group by `sys`.`s2`.`avg_us` having (ifnull((sum(`sys`.`s1`.`cnt`) / nullif((select count(0) from `performance_schema`.`events_statements_summary_by_digest`),0)),0) > 0.95) order by `percentile` limit 1
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$ps_digest_95th_percentile_by_avg_us` (`avg_us`,`percentile`) AS select `s2`.`avg_us` AS `avg_us`,ifnull((sum(`s1`.`cnt`) / nullif((select count(0) from `performance_schema`.`events_statements_summary_by_digest`),0)),0) AS `percentile` from (`x$ps_digest_avg_latency_distribution` `s1` join `x$ps_digest_avg_latency_distribution` `s2` on((`s1`.`avg_us` <= `s2`.`avg_us`))) group by `s2`.`avg_us` having (ifnull((sum(`s1`.`cnt`) / nullif((select count(0) from `performance_schema`.`events_statements_summary_by_digest`),0)),0) > 0.95) order by `percentile` limit 1
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$schema_table_statistics` (`table_schema`,`table_name`,`total_latency`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`SUM_TIMER_WAIT` AS `total_latency`,`pst`.`COUNT_FETCH` AS `rows_fetched`,`pst`.`SUM_TIMER_FETCH` AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,`pst`.`SUM_TIMER_INSERT` AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,`pst`.`SUM_TIMER_UPDATE` AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,`pst`.`SUM_TIMER_DELETE` AS `delete_latency`,`sys`.`fsbi`.`count_read` AS `io_read_requests`,`sys`.`fsbi`.`sum_number_of_bytes_read` AS `io_read`,`sys`.`fsbi`.`sum_timer_read` AS `io_read_latency`,`sys`.`fsbi`.`count_write` AS `io_write_requests`,`sys`.`fsbi`.`sum_number_of_bytes_write` AS `io_write`,`sys`.`fsbi`.`sum_timer_write` AS `io_write_latency`,`sys`.`fsbi`.`count_misc` AS `io_misc_requests`,`sys`.`fsbi`.`sum_timer_misc` AS `io_misc_latency` from (`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `sys`.`x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`fsbi`.`table_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$schema_table_statistics` (`table_schema`,`table_name`,`total_latency`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`SUM_TIMER_WAIT` AS `total_latency`,`pst`.`COUNT_FETCH` AS `rows_fetched`,`pst`.`SUM_TIMER_FETCH` AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,`pst`.`SUM_TIMER_INSERT` AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,`pst`.`SUM_TIMER_UPDATE` AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,`pst`.`SUM_TIMER_DELETE` AS `delete_latency`,`fsbi`.`count_read` AS `io_read_requests`,`fsbi`.`sum_number_of_bytes_read` AS `io_read`,`fsbi`.`sum_timer_read` AS `io_read_latency`,`fsbi`.`count_write` AS `io_write_requests`,`fsbi`.`sum_number_of_bytes_write` AS `io_write`,`fsbi`.`sum_timer_write` AS `io_write_latency`,`fsbi`.`count_misc` AS `io_misc_requests`,`fsbi`.`sum_timer_misc` AS `io_misc_latency` from (`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `fsbi`.`table_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$schema_table_statistics_with_buffer` (`table_schema`,`table_name`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`,`innodb_buffer_allocated`,`innodb_buffer_data`,`innodb_buffer_free`,`innodb_buffer_pages`,`innodb_buffer_pages_hashed`,`innodb_buffer_pages_old`,`innodb_buffer_rows_cached`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`COUNT_FETCH` AS `rows_fetched`,`pst`.`SUM_TIMER_FETCH` AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,`pst`.`SUM_TIMER_INSERT` AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,`pst`.`SUM_TIMER_UPDATE` AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,`pst`.`SUM_TIMER_DELETE` AS `delete_latency`,`sys`.`fsbi`.`count_read` AS `io_read_requests`,`sys`.`fsbi`.`sum_number_of_bytes_read` AS `io_read`,`sys`.`fsbi`.`sum_timer_read` AS `io_read_latency`,`sys`.`fsbi`.`count_write` AS `io_write_requests`,`sys`.`fsbi`.`sum_number_of_bytes_write` AS `io_write`,`sys`.`fsbi`.`sum_timer_write` AS `io_write_latency`,`sys`.`fsbi`.`count_misc` AS `io_misc_requests`,`sys`.`fsbi`.`sum_timer_misc` AS `io_misc_latency`,`sys`.`ibp`.`allocated` AS `innodb_buffer_allocated`,`sys`.`ibp`.`data` AS `innodb_buffer_data`,(`sys`.`ibp`.`allocated` - `sys`.`ibp`.`data`) AS `innodb_buffer_free`,`sys`.`ibp`.`pages` AS `innodb_buffer_pages`,`sys`.`ibp`.`pages_hashed` AS `innodb_buffer_pages_hashed`,`sys`.`ibp`.`pages_old` AS `innodb_buffer_pages_old`,`sys`.`ibp`.`rows_cached` AS `innodb_buffer_rows_cached` from ((`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `sys`.`x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`fsbi`.`table_name`)))) left join `sys`.`x$innodb_buffer_stats_by_table` `ibp` on(((`pst`.`OBJECT_SCHEMA` = `sys`.`ibp`.`object_schema`) and (`pst`.`OBJECT_NAME` = `sys`.`ibp`.`object_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$schema_table_statistics_with_buffer` (`table_schema`,`table_name`,`rows_fetched`,`fetch_latency`,`rows_inserted`,`insert_latency`,`rows_updated`,`update_latency`,`rows_deleted`,`delete_latency`,`io_read_requests`,`io_read`,`io_read_latency`,`io_write_requests`,`io_write`,`io_write_latency`,`io_misc_requests`,`io_misc_latency`,`innodb_buffer_allocated`,`innodb_buffer_data`,`innodb_buffer_free`,`innodb_buffer_pages`,`innodb_buffer_pages_hashed`,`innodb_buffer_pages_old`,`innodb_buffer_rows_cached`) AS select `pst`.`OBJECT_SCHEMA` AS `table_schema`,`pst`.`OBJECT_NAME` AS `table_name`,`pst`.`COUNT_FETCH` AS `rows_fetched`,`pst`.`SUM_TIMER_FETCH` AS `fetch_latency`,`pst`.`COUNT_INSERT` AS `rows_inserted`,`pst`.`SUM_TIMER_INSERT` AS `insert_latency`,`pst`.`COUNT_UPDATE` AS `rows_updated`,`pst`.`SUM_TIMER_UPDATE` AS `update_latency`,`pst`.`COUNT_DELETE` AS `rows_deleted`,`pst`.`SUM_TIMER_DELETE` AS `delete_latency`,`fsbi`.`count_read` AS `io_read_requests`,`fsbi`.`sum_number_of_bytes_read` AS `io_read`,`fsbi`.`sum_timer_read` AS `io_read_latency`,`fsbi`.`count_write` AS `io_write_requests`,`fsbi`.`sum_number_of_bytes_write` AS `io_write`,`fsbi`.`sum_timer_write` AS `io_write_latency`,`fsbi`.`count_misc` AS `io_misc_requests`,`fsbi`.`sum_timer_misc` AS `io_misc_latency`,`ibp`.`allocated` AS `innodb_buffer_allocated`,`ibp`.`data` AS `innodb_buffer_data`,(`ibp`.`allocated` - `ibp`.`data`) AS `innodb_buffer_free`,`ibp`.`pages` AS `innodb_buffer_pages`,`ibp`.`pages_hashed` AS `innodb_buffer_pages_hashed`,`ibp`.`pages_old` AS `innodb_buffer_pages_old`,`ibp`.`rows_cached` AS `innodb_buffer_rows_cached` from ((`performance_schema`.`table_io_waits_summary_by_table` `pst` left join `x$ps_schema_table_statistics_io` `fsbi` on(((`pst`.`OBJECT_SCHEMA` = `fsbi`.`table_schema`) and (`pst`.`OBJECT_NAME` = `fsbi`.`table_name`)))) left join `x$innodb_buffer_stats_by_table` `ibp` on(((`pst`.`OBJECT_SCHEMA` = `ibp`.`object_schema`) and (`pst`.`OBJECT_NAME` = `ibp`.`object_name`)))) order by `pst`.`SUM_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$user_summary` (`user`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_hosts`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) AS `user`,sum(`sys`.`stmt`.`total`) AS `statements`,sum(`sys`.`stmt`.`total_latency`) AS `statement_latency`,ifnull((sum(`sys`.`stmt`.`total_latency`) / nullif(sum(`sys`.`stmt`.`total`),0)),0) AS `statement_avg_latency`,sum(`sys`.`stmt`.`full_scans`) AS `table_scans`,sum(`sys`.`io`.`ios`) AS `file_ios`,sum(`sys`.`io`.`io_latency`) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`HOST`) AS `unique_hosts`,sum(`sys`.`mem`.`current_allocated`) AS `current_memory`,sum(`sys`.`mem`.`total_allocated`) AS `total_memory_allocated` from (((`performance_schema`.`accounts` left join `sys`.`x$user_summary_by_statement_latency` `stmt` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`stmt`.`user`))) left join `sys`.`x$user_summary_by_file_io` `io` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`io`.`user`))) left join `sys`.`x$memory_by_user_by_current_bytes` `mem` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `sys`.`mem`.`user`))) group by if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) order by sum(`sys`.`stmt`.`total_latency`) desc
+| CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$user_summary` (`user`,`statements`,`statement_latency`,`statement_avg_latency`,`table_scans`,`file_ios`,`file_io_latency`,`current_connections`,`total_connections`,`unique_hosts`,`current_memory`,`total_memory_allocated`) AS select if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) AS `user`,sum(`stmt`.`total`) AS `statements`,sum(`stmt`.`total_latency`) AS `statement_latency`,ifnull((sum(`stmt`.`total_latency`) / nullif(sum(`stmt`.`total`),0)),0) AS `statement_avg_latency`,sum(`stmt`.`full_scans`) AS `table_scans`,sum(`io`.`ios`) AS `file_ios`,sum(`io`.`io_latency`) AS `file_io_latency`,sum(`performance_schema`.`accounts`.`CURRENT_CONNECTIONS`) AS `current_connections`,sum(`performance_schema`.`accounts`.`TOTAL_CONNECTIONS`) AS `total_connections`,count(distinct `performance_schema`.`accounts`.`HOST`) AS `unique_hosts`,sum(`mem`.`current_allocated`) AS `current_memory`,sum(`mem`.`total_allocated`) AS `total_memory_allocated` from (((`performance_schema`.`accounts` left join `x$user_summary_by_statement_latency` `stmt` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `stmt`.`user`))) left join `x$user_summary_by_file_io` `io` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `io`.`user`))) left join `x$memory_by_user_by_current_bytes` `mem` on((if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) = `mem`.`user`))) group by if((`performance_schema`.`accounts`.`USER` is null),'background',`performance_schema`.`accounts`.`USER`) order by sum(`stmt`.`total_latency`) desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`session` AS select `sys`.`processlist`.`thd_id` AS `thd_id`,`sys`.`processlist`.`conn_id` AS `conn_id`,`sys`.`processlist`.`user` AS `user`,`sys`.`processlist`.`db` AS `db`,`sys`.`processlist`.`command` AS `command`,`sys`.`processlist`.`state` AS `state`,`sys`.`processlist`.`time` AS `time`,`sys`.`processlist`.`current_statement` AS `current_statement`,`sys`.`processlist`.`execution_engine` AS `execution_engine`,`sys`.`processlist`.`statement_latency` AS `statement_latency`,`sys`.`processlist`.`progress` AS `progress`,`sys`.`processlist`.`lock_latency` AS `lock_latency`,`sys`.`processlist`.`cpu_latency` AS `cpu_latency`,`sys`.`processlist`.`rows_examined` AS `rows_examined`,`sys`.`processlist`.`rows_sent` AS `rows_sent`,`sys`.`processlist`.`rows_affected` AS `rows_affected`,`sys`.`processlist`.`tmp_tables` AS `tmp_tables`,`sys`.`processlist`.`tmp_disk_tables` AS `tmp_disk_tables`,`sys`.`processlist`.`full_scan` AS `full_scan`,`sys`.`processlist`.`last_statement` AS `last_statement`,`sys`.`processlist`.`last_statement_latency` AS `last_statement_latency`,`sys`.`processlist`.`current_memory` AS `current_memory`,`sys`.`processlist`.`last_wait` AS `last_wait`,`sys`.`processlist`.`last_wait_latency` AS `last_wait_latency`,`sys`.`processlist`.`source` AS `source`,`sys`.`processlist`.`trx_latency` AS `trx_latency`,`sys`.`processlist`.`trx_state` AS `trx_state`,`sys`.`processlist`.`trx_autocommit` AS `trx_autocommit`,`sys`.`processlist`.`pid` AS `pid`,`sys`.`processlist`.`program_name` AS `program_name` from `sys`.`processlist` where ((`sys`.`processlist`.`conn_id` is not null) and (`sys`.`processlist`.`command` <> 'Daemon'))
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`session` AS select `processlist`.`thd_id` AS `thd_id`,`processlist`.`conn_id` AS `conn_id`,`processlist`.`user` AS `user`,`processlist`.`db` AS `db`,`processlist`.`command` AS `command`,`processlist`.`state` AS `state`,`processlist`.`time` AS `time`,`processlist`.`current_statement` AS `current_statement`,`processlist`.`execution_engine` AS `execution_engine`,`processlist`.`statement_latency` AS `statement_latency`,`processlist`.`progress` AS `progress`,`processlist`.`lock_latency` AS `lock_latency`,`processlist`.`cpu_latency` AS `cpu_latency`,`processlist`.`rows_examined` AS `rows_examined`,`processlist`.`rows_sent` AS `rows_sent`,`processlist`.`rows_affected` AS `rows_affected`,`processlist`.`tmp_tables` AS `tmp_tables`,`processlist`.`tmp_disk_tables` AS `tmp_disk_tables`,`processlist`.`full_scan` AS `full_scan`,`processlist`.`last_statement` AS `last_statement`,`processlist`.`last_statement_latency` AS `last_statement_latency`,`processlist`.`current_memory` AS `current_memory`,`processlist`.`last_wait` AS `last_wait`,`processlist`.`last_wait_latency` AS `last_wait_latency`,`processlist`.`source` AS `source`,`processlist`.`trx_latency` AS `trx_latency`,`processlist`.`trx_state` AS `trx_state`,`processlist`.`trx_autocommit` AS `trx_autocommit`,`processlist`.`pid` AS `pid`,`processlist`.`program_name` AS `program_name` from `processlist` where ((`processlist`.`conn_id` is not null) and (`processlist`.`command` <> 'Daemon'))
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`statements_with_runtimes_in_95th_percentile` (`query`,`db`,`full_scan`,`exec_count`,`err_count`,`warn_count`,`total_latency`,`max_latency`,`avg_latency`,`rows_sent`,`rows_sent_avg`,`rows_examined`,`rows_examined_avg`,`first_seen`,`last_seen`,`digest`) AS select sys.format_statement(`stmts`.`DIGEST_TEXT`) AS `query`,`stmts`.`SCHEMA_NAME` AS `db`,if(((`stmts`.`SUM_NO_GOOD_INDEX_USED` > 0) or (`stmts`.`SUM_NO_INDEX_USED` > 0)),'*','') AS `full_scan`,`stmts`.`COUNT_STAR` AS `exec_count`,`stmts`.`SUM_ERRORS` AS `err_count`,`stmts`.`SUM_WARNINGS` AS `warn_count`,format_pico_time(`stmts`.`SUM_TIMER_WAIT`) AS `total_latency`,format_pico_time(`stmts`.`MAX_TIMER_WAIT`) AS `max_latency`,format_pico_time(`stmts`.`AVG_TIMER_WAIT`) AS `avg_latency`,`stmts`.`SUM_ROWS_SENT` AS `rows_sent`,round(ifnull((`stmts`.`SUM_ROWS_SENT` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_sent_avg`,`stmts`.`SUM_ROWS_EXAMINED` AS `rows_examined`,round(ifnull((`stmts`.`SUM_ROWS_EXAMINED` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_examined_avg`,`stmts`.`FIRST_SEEN` AS `first_seen`,`stmts`.`LAST_SEEN` AS `last_seen`,`stmts`.`DIGEST` AS `digest` from (`performance_schema`.`events_statements_summary_by_digest` `stmts` join `sys`.`x$ps_digest_95th_percentile_by_avg_us` `top_percentile` on((round((`stmts`.`AVG_TIMER_WAIT` / 1000000),0) >= `sys`.`top_percentile`.`avg_us`))) order by `stmts`.`AVG_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`statements_with_runtimes_in_95th_percentile` (`query`,`db`,`full_scan`,`exec_count`,`err_count`,`warn_count`,`total_latency`,`max_latency`,`avg_latency`,`rows_sent`,`rows_sent_avg`,`rows_examined`,`rows_examined_avg`,`first_seen`,`last_seen`,`digest`) AS select sys.format_statement(`stmts`.`DIGEST_TEXT`) AS `query`,`stmts`.`SCHEMA_NAME` AS `db`,if(((`stmts`.`SUM_NO_GOOD_INDEX_USED` > 0) or (`stmts`.`SUM_NO_INDEX_USED` > 0)),'*','') AS `full_scan`,`stmts`.`COUNT_STAR` AS `exec_count`,`stmts`.`SUM_ERRORS` AS `err_count`,`stmts`.`SUM_WARNINGS` AS `warn_count`,format_pico_time(`stmts`.`SUM_TIMER_WAIT`) AS `total_latency`,format_pico_time(`stmts`.`MAX_TIMER_WAIT`) AS `max_latency`,format_pico_time(`stmts`.`AVG_TIMER_WAIT`) AS `avg_latency`,`stmts`.`SUM_ROWS_SENT` AS `rows_sent`,round(ifnull((`stmts`.`SUM_ROWS_SENT` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_sent_avg`,`stmts`.`SUM_ROWS_EXAMINED` AS `rows_examined`,round(ifnull((`stmts`.`SUM_ROWS_EXAMINED` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_examined_avg`,`stmts`.`FIRST_SEEN` AS `first_seen`,`stmts`.`LAST_SEEN` AS `last_seen`,`stmts`.`DIGEST` AS `digest` from (`performance_schema`.`events_statements_summary_by_digest` `stmts` join `x$ps_digest_95th_percentile_by_avg_us` `top_percentile` on((round((`stmts`.`AVG_TIMER_WAIT` / 1000000),0) >= `top_percentile`.`avg_us`))) order by `stmts`.`AVG_TIMER_WAIT` desc
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$session` AS select `sys`.`x$processlist`.`thd_id` AS `thd_id`,`sys`.`x$processlist`.`conn_id` AS `conn_id`,`sys`.`x$processlist`.`user` AS `user`,`sys`.`x$processlist`.`db` AS `db`,`sys`.`x$processlist`.`command` AS `command`,`sys`.`x$processlist`.`state` AS `state`,`sys`.`x$processlist`.`time` AS `time`,`sys`.`x$processlist`.`current_statement` AS `current_statement`,`sys`.`x$processlist`.`execution_engine` AS `execution_engine`,`sys`.`x$processlist`.`statement_latency` AS `statement_latency`,`sys`.`x$processlist`.`progress` AS `progress`,`sys`.`x$processlist`.`lock_latency` AS `lock_latency`,`sys`.`x$processlist`.`cpu_latency` AS `cpu_latency`,`sys`.`x$processlist`.`rows_examined` AS `rows_examined`,`sys`.`x$processlist`.`rows_sent` AS `rows_sent`,`sys`.`x$processlist`.`rows_affected` AS `rows_affected`,`sys`.`x$processlist`.`tmp_tables` AS `tmp_tables`,`sys`.`x$processlist`.`tmp_disk_tables` AS `tmp_disk_tables`,`sys`.`x$processlist`.`full_scan` AS `full_scan`,`sys`.`x$processlist`.`last_statement` AS `last_statement`,`sys`.`x$processlist`.`last_statement_latency` AS `last_statement_latency`,`sys`.`x$processlist`.`current_memory` AS `current_memory`,`sys`.`x$processlist`.`last_wait` AS `last_wait`,`sys`.`x$processlist`.`last_wait_latency` AS `last_wait_latency`,`sys`.`x$processlist`.`source` AS `source`,`sys`.`x$processlist`.`trx_latency` AS `trx_latency`,`sys`.`x$processlist`.`trx_state` AS `trx_state`,`sys`.`x$processlist`.`trx_autocommit` AS `trx_autocommit`,`sys`.`x$processlist`.`pid` AS `pid`,`sys`.`x$processlist`.`program_name` AS `program_name` from `sys`.`x$processlist` where ((`sys`.`x$processlist`.`conn_id` is not null) and (`sys`.`x$processlist`.`command` <> 'Daemon'))
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$session` AS select `x$processlist`.`thd_id` AS `thd_id`,`x$processlist`.`conn_id` AS `conn_id`,`x$processlist`.`user` AS `user`,`x$processlist`.`db` AS `db`,`x$processlist`.`command` AS `command`,`x$processlist`.`state` AS `state`,`x$processlist`.`time` AS `time`,`x$processlist`.`current_statement` AS `current_statement`,`x$processlist`.`execution_engine` AS `execution_engine`,`x$processlist`.`statement_latency` AS `statement_latency`,`x$processlist`.`progress` AS `progress`,`x$processlist`.`lock_latency` AS `lock_latency`,`x$processlist`.`cpu_latency` AS `cpu_latency`,`x$processlist`.`rows_examined` AS `rows_examined`,`x$processlist`.`rows_sent` AS `rows_sent`,`x$processlist`.`rows_affected` AS `rows_affected`,`x$processlist`.`tmp_tables` AS `tmp_tables`,`x$processlist`.`tmp_disk_tables` AS `tmp_disk_tables`,`x$processlist`.`full_scan` AS `full_scan`,`x$processlist`.`last_statement` AS `last_statement`,`x$processlist`.`last_statement_latency` AS `last_statement_latency`,`x$processlist`.`current_memory` AS `current_memory`,`x$processlist`.`last_wait` AS `last_wait`,`x$processlist`.`last_wait_latency` AS `last_wait_latency`,`x$processlist`.`source` AS `source`,`x$processlist`.`trx_latency` AS `trx_latency`,`x$processlist`.`trx_state` AS `trx_state`,`x$processlist`.`trx_autocommit` AS `trx_autocommit`,`x$processlist`.`pid` AS `pid`,`x$processlist`.`program_name` AS `program_name` from `x$processlist` where ((`x$processlist`.`conn_id` is not null) and (`x$processlist`.`command` <> 'Daemon'))
 < ok 0 0
 > exec
-| CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$statements_with_runtimes_in_95th_percentile` (`query`,`db`,`full_scan`,`exec_count`,`err_count`,`warn_count`,`total_latency`,`max_latency`,`avg_latency`,`rows_sent`,`rows_sent_avg`,`rows_examined`,`rows_examined_avg`,`first_seen`,`last_seen`,`digest`) AS select `stmts`.`DIGEST_TEXT` AS `query`,`stmts`.`SCHEMA_NAME` AS `db`,if(((`stmts`.`SUM_NO_GOOD_INDEX_USED` > 0) or (`stmts`.`SUM_NO_INDEX_USED` > 0)),'*','') AS `full_scan`,`stmts`.`COUNT_STAR` AS `exec_count`,`stmts`.`SUM_ERRORS` AS `err_count`,`stmts`.`SUM_WARNINGS` AS `warn_count`,`stmts`.`SUM_TIMER_WAIT` AS `total_latency`,`stmts`.`MAX_TIMER_WAIT` AS `max_latency`,`stmts`.`AVG_TIMER_WAIT` AS `avg_latency`,`stmts`.`SUM_ROWS_SENT` AS `rows_sent`,round(ifnull((`stmts`.`SUM_ROWS_SENT` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_sent_avg`,`stmts`.`SUM_ROWS_EXAMINED` AS `rows_examined`,round(ifnull((`stmts`.`SUM_ROWS_EXAMINED` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_examined_avg`,`stmts`.`FIRST_SEEN` AS `first_seen`,`stmts`.`LAST_SEEN` AS `last_seen`,`stmts`.`DIGEST` AS `digest` from (`performance_schema`.`events_statements_summary_by_digest` `stmts` join `sys`.`x$ps_digest_95th_percentile_by_avg_us` `top_percentile` on((round((`stmts`.`AVG_TIMER_WAIT` / 1000000),0) >= `sys`.`top_percentile`.`avg_us`))) order by `stmts`.`AVG_TIMER_WAIT` desc
+| CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `tudsdl_sysdf`.`x$statements_with_runtimes_in_95th_percentile` (`query`,`db`,`full_scan`,`exec_count`,`err_count`,`warn_count`,`total_latency`,`max_latency`,`avg_latency`,`rows_sent`,`rows_sent_avg`,`rows_examined`,`rows_examined_avg`,`first_seen`,`last_seen`,`digest`) AS select `stmts`.`DIGEST_TEXT` AS `query`,`stmts`.`SCHEMA_NAME` AS `db`,if(((`stmts`.`SUM_NO_GOOD_INDEX_USED` > 0) or (`stmts`.`SUM_NO_INDEX_USED` > 0)),'*','') AS `full_scan`,`stmts`.`COUNT_STAR` AS `exec_count`,`stmts`.`SUM_ERRORS` AS `err_count`,`stmts`.`SUM_WARNINGS` AS `warn_count`,`stmts`.`SUM_TIMER_WAIT` AS `total_latency`,`stmts`.`MAX_TIMER_WAIT` AS `max_latency`,`stmts`.`AVG_TIMER_WAIT` AS `avg_latency`,`stmts`.`SUM_ROWS_SENT` AS `rows_sent`,round(ifnull((`stmts`.`SUM_ROWS_SENT` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_sent_avg`,`stmts`.`SUM_ROWS_EXAMINED` AS `rows_examined`,round(ifnull((`stmts`.`SUM_ROWS_EXAMINED` / nullif(`stmts`.`COUNT_STAR`,0)),0),0) AS `rows_examined_avg`,`stmts`.`FIRST_SEEN` AS `first_seen`,`stmts`.`LAST_SEEN` AS `last_seen`,`stmts`.`DIGEST` AS `digest` from (`performance_schema`.`events_statements_summary_by_digest` `stmts` join `x$ps_digest_95th_percentile_by_avg_us` `top_percentile` on((round((`stmts`.`AVG_TIMER_WAIT` / 1000000),0) >= `top_percentile`.`avg_us`))) order by `stmts`.`AVG_TIMER_WAIT` desc
 < ok 0 0
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary
@@ -2235,10 +2235,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_file_io
@@ -2251,10 +2251,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_file_io_type
@@ -2267,10 +2267,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_stages
@@ -2283,10 +2283,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_statement_latency
@@ -2299,10 +2299,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`host_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | host_summary_by_statement_type
@@ -2315,10 +2315,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`innodb_buffer_stats_by_schema`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_buffer_stats_by_schema
@@ -2331,10 +2331,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`innodb_buffer_stats_by_table`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_buffer_stats_by_table
@@ -2347,10 +2347,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`innodb_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | innodb_lock_waits
@@ -2363,10 +2363,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`io_by_thread_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_by_thread_by_latency
@@ -2379,10 +2379,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`io_global_by_file_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_file_by_bytes
@@ -2395,10 +2395,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`io_global_by_file_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_file_by_latency
@@ -2411,10 +2411,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`io_global_by_wait_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_wait_by_bytes
@@ -2427,10 +2427,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`io_global_by_wait_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | io_global_by_wait_by_latency
@@ -2443,10 +2443,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`latest_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | latest_file_io
@@ -2459,10 +2459,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`memory_by_host_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_host_by_current_bytes
@@ -2475,10 +2475,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`memory_by_thread_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_thread_by_current_bytes
@@ -2491,10 +2491,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`memory_by_user_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_by_user_by_current_bytes
@@ -2507,10 +2507,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`memory_global_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_global_by_current_bytes
@@ -2523,10 +2523,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`memory_global_total`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | memory_global_total
@@ -2539,10 +2539,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`metrics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | metrics
@@ -2555,10 +2555,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`processlist`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | processlist
@@ -2571,10 +2571,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`ps_check_lost_instrumentation`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | ps_check_lost_instrumentation
@@ -2587,10 +2587,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_auto_increment_columns`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_auto_increment_columns
@@ -2603,10 +2603,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_index_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_index_statistics
@@ -2619,10 +2619,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_object_overview`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_object_overview
@@ -2635,10 +2635,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_redundant_indexes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_redundant_indexes
@@ -2651,10 +2651,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_table_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_lock_waits
@@ -2667,10 +2667,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_table_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_statistics
@@ -2683,10 +2683,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_table_statistics_with_buffer`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_table_statistics_with_buffer
@@ -2699,10 +2699,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_tables_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_tables_with_full_table_scans
@@ -2715,10 +2715,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`schema_unused_indexes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | schema_unused_indexes
@@ -2731,10 +2731,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`session`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | session
@@ -2747,10 +2747,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`session_ssl_status`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | session_ssl_status
@@ -2763,10 +2763,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statement_analysis`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statement_analysis
@@ -2779,10 +2779,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statements_with_errors_or_warnings`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_errors_or_warnings
@@ -2795,10 +2795,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statements_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_full_table_scans
@@ -2811,10 +2811,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statements_with_runtimes_in_95th_percentile`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_runtimes_in_95th_percentile
@@ -2827,10 +2827,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statements_with_sorting`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_sorting
@@ -2843,10 +2843,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`statements_with_temp_tables`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | statements_with_temp_tables
@@ -2859,10 +2859,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary
@@ -2875,10 +2875,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_file_io
@@ -2891,10 +2891,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_file_io_type
@@ -2907,10 +2907,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_stages
@@ -2923,10 +2923,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_statement_latency
@@ -2939,10 +2939,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`user_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | user_summary_by_statement_type
@@ -2955,10 +2955,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`version`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | version
@@ -2971,10 +2971,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`wait_classes_global_by_avg_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | wait_classes_global_by_avg_latency
@@ -2987,10 +2987,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`wait_classes_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | wait_classes_global_by_latency
@@ -3003,10 +3003,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`waits_by_host_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_by_host_by_latency
@@ -3019,10 +3019,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`waits_by_user_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_by_user_by_latency
@@ -3035,10 +3035,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`waits_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | waits_global_by_latency
@@ -3051,10 +3051,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary
@@ -3067,10 +3067,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_file_io
@@ -3083,10 +3083,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_file_io_type
@@ -3099,10 +3099,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_stages
@@ -3115,10 +3115,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_statement_latency
@@ -3131,10 +3131,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$host_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$host_summary_by_statement_type
@@ -3147,10 +3147,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$innodb_buffer_stats_by_schema`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_buffer_stats_by_schema
@@ -3163,10 +3163,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$innodb_buffer_stats_by_table`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_buffer_stats_by_table
@@ -3179,10 +3179,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$innodb_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$innodb_lock_waits
@@ -3195,10 +3195,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$io_by_thread_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_by_thread_by_latency
@@ -3211,10 +3211,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$io_global_by_file_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_file_by_bytes
@@ -3227,10 +3227,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$io_global_by_file_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_file_by_latency
@@ -3243,10 +3243,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$io_global_by_wait_by_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_wait_by_bytes
@@ -3259,10 +3259,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$io_global_by_wait_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$io_global_by_wait_by_latency
@@ -3275,10 +3275,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$latest_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$latest_file_io
@@ -3291,10 +3291,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$memory_by_host_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_host_by_current_bytes
@@ -3307,10 +3307,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$memory_by_thread_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_thread_by_current_bytes
@@ -3323,10 +3323,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$memory_by_user_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_by_user_by_current_bytes
@@ -3339,10 +3339,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$memory_global_by_current_bytes`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_global_by_current_bytes
@@ -3355,10 +3355,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$memory_global_total`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$memory_global_total
@@ -3371,10 +3371,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$processlist`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$processlist
@@ -3387,10 +3387,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$ps_digest_95th_percentile_by_avg_us`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_digest_95th_percentile_by_avg_us
@@ -3403,10 +3403,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$ps_digest_avg_latency_distribution`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_digest_avg_latency_distribution
@@ -3419,10 +3419,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$ps_schema_table_statistics_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$ps_schema_table_statistics_io
@@ -3435,10 +3435,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_flattened_keys`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_flattened_keys
@@ -3451,10 +3451,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_index_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_index_statistics
@@ -3467,10 +3467,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_table_lock_waits`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_lock_waits
@@ -3483,10 +3483,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_table_statistics`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_statistics
@@ -3499,10 +3499,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_table_statistics_with_buffer`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_table_statistics_with_buffer
@@ -3515,10 +3515,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$schema_tables_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$schema_tables_with_full_table_scans
@@ -3531,10 +3531,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$session`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$session
@@ -3547,10 +3547,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statement_analysis`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statement_analysis
@@ -3563,10 +3563,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statements_with_errors_or_warnings`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_errors_or_warnings
@@ -3579,10 +3579,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statements_with_full_table_scans`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_full_table_scans
@@ -3595,10 +3595,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statements_with_runtimes_in_95th_percentile`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_runtimes_in_95th_percentile
@@ -3611,10 +3611,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statements_with_sorting`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_sorting
@@ -3627,10 +3627,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$statements_with_temp_tables`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$statements_with_temp_tables
@@ -3643,10 +3643,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary
@@ -3659,10 +3659,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary_by_file_io`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_file_io
@@ -3675,10 +3675,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary_by_file_io_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_file_io_type
@@ -3691,10 +3691,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary_by_stages`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_stages
@@ -3707,10 +3707,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary_by_statement_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_statement_latency
@@ -3723,10 +3723,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$user_summary_by_statement_type`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$user_summary_by_statement_type
@@ -3739,10 +3739,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$wait_classes_global_by_avg_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$wait_classes_global_by_avg_latency
@@ -3755,10 +3755,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$wait_classes_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$wait_classes_global_by_latency
@@ -3771,10 +3771,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$waits_by_host_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_by_host_by_latency
@@ -3787,10 +3787,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$waits_by_user_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_by_user_by_latency
@@ -3803,10 +3803,10 @@
 > query
 | SHOW CREATE VIEW tudsdl_sysdf.`x$waits_global_by_latency`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | x$waits_global_by_latency

@@ -230,8 +230,10 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 		for _, con := range dstTbl.Constraints {
 			if con.Type == ConCheck {
 				hasCheck = true
-				if con.Name != "chk_age" {
-					t.Errorf("expected check constraint named chk_age, got %q", con.Name)
+				// A CHECK constraint's name is unique in its schema, so
+				// the copy names its own (mysql:8.0.46).
+				if con.Name != "dst_chk_1" {
+					t.Errorf("expected check constraint named dst_chk_1, got %q", con.Name)
 				}
 				break
 			}
@@ -241,7 +243,7 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "dst")
-		if !strings.Contains(ddl, "CONSTRAINT `chk_age` CHECK") {
+		if !strings.Contains(ddl, "CONSTRAINT `dst_chk_1` CHECK") {
 			t.Errorf("expected CHECK constraint in DDL:\n%s", ddl)
 		}
 	})

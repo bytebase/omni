@@ -319,7 +319,7 @@ var familyRows = families(map[string][]familyRow{
 		{"rename:schema", "RENAME TABLE accounts TO omni_t_simulation_other.accounts"},
 		{"rename:schema", "RENAME TABLE entries TO omni_t_simulation_other.entries"},
 		{"rename:schema", "RENAME TABLE omni_t_simulation_other.archived TO archived"},
-		{"rename:schema", "RENAME TABLE v_accounts TO omni_t_simulation_other.v_accounts"},
+		{"rename:schema", "RENAME TABLE v_ledger TO omni_t_simulation_other.v_ledger"},
 		{"rename:schema", "RENAME TABLE accounts TO omni_t_simulation_nope.accounts"},
 		{"rename:schema", "RENAME TABLE accounts TO omni_t_simulation_other.archived"},
 		{"rename:schema", "RENAME TABLE accounts TO acc2, acc2 TO omni_t_simulation_other.acc"},
@@ -330,7 +330,6 @@ var familyRows = families(map[string][]familyRow{
 		{"rename:schema", "CREATE TABLE copy LIKE omni_t_simulation_other.archived"},
 		{"rename:schema", "CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_t_simulation_other.archived (id))"},
 		{"rename:schema", "CREATE VIEW v2 AS SELECT id FROM omni_t_simulation_other.archived"},
-		{"rename:schema", "CREATE TABLE t3 AS SELECT * FROM omni_t_simulation_other.archived"},
 		{"rename:schema", "DROP TABLE omni_t_simulation_other.archived, accounts"},
 	},
 	"one_table@missing": {

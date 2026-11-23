@@ -605,6 +605,18 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
+	// The ALGORITHM and LOCK the statement asks for are judged last, over
+	// what its operations did to the table.
+	if isInnoDBEngine(snapshot.Engine) && isInnoDBEngine(tbl.Engine) {
+		algorithm, lock := alterClauses(stmt.Commands)
+		if algorithm != "" || lock != "" {
+			limits, serverCopy := alterDDLLimits(&snapshot, tbl, stmt.Commands)
+			if err := checkDDLClauses(algorithm, lock, limits, serverCopy); err != nil {
+				undoAlter(db, origKey, tbl, snapshot)
+				return err
+			}
+		}
+	}
 	// The foreign keys that reference the table follow its new name and the
 	// columns the statement renamed, once nothing can undo the statement.
 	if renames := alterColumnRenames(stmt.Commands); len(renames) > 0 || tbl.Database != db || tbl.Name != origTableName {

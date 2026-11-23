@@ -226,7 +226,9 @@ func TestWalkThrough_9_1_ModifyChangeExpression(t *testing.T) {
 func TestWalkThrough_9_1_ModifyGeneratedToRegular(t *testing.T) {
 	// Scenario 10: ALTER TABLE MODIFY generated column to regular column
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL)")
+	// A STORED column becomes an ordinary one; a VIRTUAL one is refused with
+	// 3106 (mysql:8.0.46, TestWalkThrough_9_1_ModifyVirtualToRegularRefused).
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED)")
 	wtExec(t, c, "ALTER TABLE t MODIFY COLUMN c INT")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
@@ -264,5 +266,20 @@ func TestWalkThrough_9_1_ModifyVirtualToStored(t *testing.T) {
 	}
 	if catErr.Code != ErrUnsupportedGeneratedStorageChange {
 		t.Errorf("expected error code %d, got %d: %s", ErrUnsupportedGeneratedStorageChange, catErr.Code, catErr.Message)
+	}
+}
+
+func TestWalkThrough_9_1_ModifyVirtualToRegularRefused(t *testing.T) {
+	// A VIRTUAL generated column does not become an ordinary one: MODIFY is
+	// 3106, 'Changing the STORED status' (mysql:8.0.46).
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL)")
+	results, err := c.Exec("ALTER TABLE t MODIFY COLUMN c INT", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	assertError(t, results[0].Error, 3106)
+	if col := c.GetDatabase("testdb").GetTable("t").GetColumn("c"); col == nil || col.Generated == nil {
+		t.Error("column c should still be generated")
 	}
 }

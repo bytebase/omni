@@ -109,8 +109,8 @@ func TestWalkThrough_10_2_LIKEEdgeCases(t *testing.T) {
 		}
 	})
 
-	// Scenario 3: LIKE does NOT copy partitioning — target table is unpartitioned
-	t.Run("like_does_not_copy_partitioning", func(t *testing.T) {
+	// Scenario 3: LIKE copies partitioning — target table is partitioned as its source
+	t.Run("like_copies_partitioning", func(t *testing.T) {
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE src (
 			id INT NOT NULL,
@@ -129,19 +129,17 @@ func TestWalkThrough_10_2_LIKEEdgeCases(t *testing.T) {
 			t.Fatal("source table should have partitioning")
 		}
 
-		// Destination should NOT have partitioning (MySQL behavior)
+		// The destination is partitioned as its source is (mysql:8.0.46).
 		dstTbl := c.GetDatabase("testdb").GetTable("dst")
 		if dstTbl == nil {
 			t.Fatal("table dst not found")
 		}
-		if dstTbl.Partitioning != nil {
-			t.Error("LIKE should NOT copy partitioning — target table should be unpartitioned")
+		if dstTbl.Partitioning == nil {
+			t.Error("LIKE copies partitioning — target table should be partitioned")
 		}
-
-		// SHOW CREATE TABLE for dst should not mention PARTITION
 		sct := c.ShowCreateTable("testdb", "dst")
-		if strings.Contains(sct, "PARTITION") {
-			t.Errorf("SHOW CREATE TABLE for dst should not contain PARTITION, got:\n%s", sct)
+		if !strings.Contains(sct, "PARTITION pmax VALUES LESS THAN MAXVALUE") {
+			t.Errorf("SHOW CREATE TABLE for dst should hold the source's partitions, got:\n%s", sct)
 		}
 	})
 

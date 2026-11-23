@@ -156,6 +156,15 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 	}
 
+	if isInnoDBEngine(tbl.Engine) {
+		limit := limitNotInstant
+		if idx.Fulltext {
+			limit = limitFulltext
+		}
+		if err := checkDDLClauses(stmt.Algorithm, stmt.Lock, []ddlLimit{limit}, false); err != nil {
+			return rollback(err)
+		}
+	}
 	tbl.Indexes = append(tbl.Indexes, idx)
 	spatialKeysForGeometry(tbl)
 	tbl.ignoredGeneratedIndexes = nil
@@ -239,6 +248,12 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	if err := validateAutoIncrementKeyed(tbl); err != nil {
 		undoAlter(db, tableKey, tbl, snapshot)
 		return err
+	}
+	if isInnoDBEngine(tbl.Engine) {
+		if err := checkDDLClauses(stmt.Algorithm, stmt.Lock, []ddlLimit{limitNotInstant}, false); err != nil {
+			undoAlter(db, tableKey, tbl, snapshot)
+			return err
+		}
 	}
 
 	return nil
