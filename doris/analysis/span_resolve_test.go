@@ -1,0 +1,155 @@
+package analysis
+
+import (
+	"slices"
+	"testing"
+
+	"github.com/bytebase/omni/doris/internal/testcontainer"
+)
+
+// spanFixture is a small stored schema for the resolver's unit tests.
+var spanFixture = testcontainer.SpanFixture{Databases: []testcontainer.SpanDatabase{{
+	Name: "shop",
+	Tables: []testcontainer.SpanRelation{
+		{Name: "customers", Columns: []string{"id", "name"}},
+		{Name: "orders", Columns: []string{"id", "customer_id", "amount"}},
+	},
+	Views: []testcontainer.SpanRelation{
+		{Name: "broken", Columns: []string{"id"}, Definition: "SELECT id FROM orders WHERE"},
+	},
+}}}
+
+func resolveWithCatalog(t *testing.T, statement string) (*ResolvedQuerySpan, error) {
+	t.Helper()
+	return ResolveQuerySpan(statement, ResolveOptions{DefaultDatabase: "shop", Catalog: spanCatalog(spanFixture)})
+}
+
+// A view whose stored definition does not parse fails the span: resolving
+// it without its definition would leave out the tables it reads.
+func TestResolveQuerySpanViewDefinitionFails(t *testing.T) {
+	if span, err := resolveWithCatalog(t, "SELECT * FROM broken"); err == nil {
+		t.Fatalf("ResolveQuerySpan = %+v, want an error", span)
+	}
+}
+
+// A semi or anti join returns one side's columns, and reads both sides.
+func TestResolveQuerySpanSemiJoin(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		{"SELECT * FROM orders o LEFT SEMI JOIN customers c ON o.id = c.id", []string{"id", "customer_id", "amount"}},
+		{"SELECT * FROM orders o LEFT ANTI JOIN customers c ON o.id = c.id", []string{"id", "customer_id", "amount"}},
+		{"SELECT * FROM orders o RIGHT SEMI JOIN customers c ON o.id = c.id", []string{"id", "name"}},
+		{"SELECT * FROM orders o RIGHT ANTI JOIN customers c ON o.id = c.id", []string{"id", "name"}},
+	} {
+		span, err := resolveWithCatalog(t, tc.statement)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.statement, err)
+		}
+		var names []string
+		for _, r := range span.Results {
+			names = append(names, r.Name)
+		}
+		if !slices.Equal(names, tc.want) {
+			t.Errorf("%s: results %v, want %v", tc.statement, names, tc.want)
+		}
+		if len(span.SourceColumns) != 2 {
+			t.Errorf("%s: tables %v, want both", tc.statement, span.SourceColumns)
+		}
+	}
+}
+
+// A leading VALUES arm's WITH scopes over every arm of the set operation.
+func TestResolveQuerySpanValuesWithScopesSetOp(t *testing.T) {
+	span, err := resolveWithCatalog(t, "WITH c AS (SELECT id FROM orders) VALUES (0) UNION ALL SELECT id FROM c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if span.NotFoundError != nil {
+		t.Fatalf("NotFoundError %v", span.NotFoundError)
+	}
+	if len(span.Results) != 1 || !span.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "orders", Column: "id"}] {
+		t.Errorf("results %+v, want orders.id", span.Results)
+	}
+}
+
+// An encryption key, KEY name, is no column.
+func TestResolveQuerySpanEncryptKey(t *testing.T) {
+	span, err := resolveWithCatalog(t, "SELECT aes_encrypt(amount, KEY my_key) FROM orders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if span.NotFoundError != nil {
+		t.Fatalf("NotFoundError %v", span.NotFoundError)
+	}
+	want := SourceColumnSet{ColumnResource{Database: "shop", Table: "orders", Column: "amount"}: true}
+	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 || !span.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "orders", Column: "amount"}] {
+		t.Errorf("results %+v, want %v", span.Results, want)
+	}
+}
+
+// A star names a table of another catalog by its catalog too; the
+// metadata cannot expand it.
+func TestResolveQuerySpanExternalStar(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM ext.shop.orders",
+		"SELECT ext.shop.orders.* FROM ext.shop.orders",
+		"SELECT o.* FROM ext.shop.orders o",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || !span.Results[0].SelectAsterisk {
+			t.Errorf("%s: results %+v, want one unexpanded star", statement, span.Results)
+		}
+	}
+}
+
+// SelectAsterisk marks a star, never a column a star names.
+func TestResolveQuerySpanSelectAsterisk(t *testing.T) {
+	for _, statement := range []string{"SELECT '*'", "SELECT 1 AS '*'", "SELECT id AS 'o.*' FROM orders"} {
+		for _, opts := range []ResolveOptions{
+			{DefaultDatabase: "shop", Catalog: spanCatalog(spanFixture)},
+			{DefaultDatabase: "shop"},
+		} {
+			span, err := ResolveQuerySpan(statement, opts)
+			if err != nil {
+				t.Fatalf("%s: %v", statement, err)
+			}
+			if len(span.Results) != 1 || span.Results[0].SelectAsterisk {
+				t.Errorf("%s (catalog %t): results %+v, want one column", statement, opts.Catalog.GetDatabase != nil, span.Results)
+			}
+		}
+	}
+}
+
+// A star the metadata cannot expand stays one through derived tables,
+// CTEs and set operations.
+func TestResolveQuerySpanStarThroughQueries(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM (SELECT * FROM ext.shop.orders) d",
+		"WITH c AS (SELECT * FROM ext.shop.orders) SELECT * FROM c",
+		"SELECT * FROM ext.shop.orders UNION ALL SELECT * FROM ext.shop.orders",
+		"SELECT * FROM ext.shop.orders UNION ALL SELECT 1",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || !span.Results[0].SelectAsterisk {
+			t.Errorf("%s: results %+v, want one unexpanded star", statement, span.Results)
+		}
+	}
+	span, err := resolveWithCatalog(t, "SELECT d.anything FROM (SELECT * FROM ext.shop.orders) d")
+	if err != nil || span.NotFoundError != nil {
+		t.Fatalf("a column of a derived table over an unexpanded star: %v %v", err, span.NotFoundError)
+	}
+}
