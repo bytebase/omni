@@ -1313,6 +1313,10 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				return
 			}
 			if !cascade {
+				if col := setUnusedMultiColumnConstraintColumn(table, seen); col != "" {
+					e.setError(oraError("12991", "column %q is referenced in a multi-column constraint", col))
+					return
+				}
 				for _, column := range columns {
 					if e.columnReferencedByIncomingForeignKey(table, column) {
 						e.setError(oraError("12992", "cannot drop parent key column %q", column))
@@ -1422,6 +1426,8 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		column.Type = normalizeDataTypeText(e.nodeText(def.TypeName))
 	} else if def.Domain != nil {
 		column.Type = objectName(def.Domain)
+	} else if def.Virtual != nil {
+		column.Type = inferVirtualColumnType(def.Virtual)
 	}
 	if def.Default != nil {
 		column.Default = e.nodeText(def.Default)

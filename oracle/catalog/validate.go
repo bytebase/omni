@@ -1144,7 +1144,7 @@ func virtualColumnEditionRefs(colText string) []string {
 }
 
 func (e *oracleMetadataExtractor) validateVirtualColumnEditions(col *ast.ColumnDef) bool {
-	if col == nil || col.Virtual == nil {
+	if !e.serverConfig.ValidateEditions || col == nil || col.Virtual == nil {
 		return true
 	}
 	for _, ed := range virtualColumnEditionRefs(e.nodeText(col)) {
@@ -1415,6 +1415,76 @@ func extractSetUnusedSpec(actionText, fallbackCol string) (columns []string, cas
 		columns = []string{fallbackCol}
 	}
 	return columns, cascade
+}
+
+// setUnusedMultiColumnConstraintColumn returns the first column in dropSet
+// that is referenced together with at least one remaining column of table in a
+// multi-column CHECK, PRIMARY KEY, UNIQUE, or FOREIGN KEY constraint.
+func setUnusedMultiColumnConstraintColumn(table *metadatapb.TableMetadata, dropSet map[string]bool) string {
+	if table == nil || len(dropSet) == 0 {
+		return ""
+	}
+	checkColList := func(cols []string) string {
+		droppedCol := ""
+		hasRemaining := false
+		for _, raw := range cols {
+			col := strings.Trim(raw, `"`)
+			if dropSet[col] {
+				if droppedCol == "" {
+					droppedCol = col
+				}
+			} else if col != "" {
+				hasRemaining = true
+			}
+		}
+		if droppedCol != "" && hasRemaining {
+			return droppedCol
+		}
+		return ""
+	}
+	for _, idx := range table.Indexes {
+		if !idx.IsConstraint {
+			continue
+		}
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				cols := c.Columns
+				if len(cols) == 0 {
+					cols = idx.Expressions
+				}
+				if hit := checkColList(cols); hit != "" {
+					return hit
+				}
+			}
+		} else if hit := checkColList(idx.Expressions); hit != "" {
+			return hit
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if hit := checkColList(fk.Columns); hit != "" {
+			return hit
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		droppedCol := ""
+		hasRemaining := false
+		for _, col := range table.Columns {
+			if !expressionReferencesColumn(check.Expression, col.Name) {
+				continue
+			}
+			if dropSet[col.Name] {
+				if droppedCol == "" {
+					droppedCol = col.Name
+				}
+			} else {
+				hasRemaining = true
+			}
+		}
+		if droppedCol != "" && hasRemaining {
+			return droppedCol
+		}
+	}
+	return ""
 }
 
 func (e *oracleMetadataExtractor) sequenceInitialCurrent(inc, startVal, minVal, maxVal *big.Int, hasStart, hasMin, hasMax bool) *big.Int {

@@ -43,6 +43,13 @@ type ServerConfig struct {
 	// ORA-00942 instead of preserving unvalidated cross-schema foreign keys.
 	ValidateExternalSchemaRefs bool
 
+	// ValidateEditions, when true, validates named editions referenced by
+	// virtual-column EVALUATE USING / UNUSABLE clauses against the catalog's
+	// tracked editions (seeded with ORA$BASE), returning ORA-38802 when absent.
+	// When false, schema dumps referencing pre-existing database editions load
+	// permissively.
+	ValidateEditions bool
+
 	// ApplySetUnused, when true, executes ALTER TABLE ... SET UNUSED COLUMN by
 	// marking the columns unused (removing them and their dependent indexes
 	// and constraints from visible table metadata). When false, LoadSQL keeps
@@ -53,7 +60,7 @@ type ServerConfig struct {
 // StandardOracle23ServerConfig returns the instance configuration of a default
 // Oracle 23ai Free pluggable database (MAX_STRING_SIZE=STANDARD, non-sharded,
 // non-application-root, TDE keystore closed, isolated schema without external
-// grants, and live SET UNUSED execution).
+// grants, database edition validation, and live SET UNUSED execution).
 func StandardOracle23ServerConfig() ServerConfig {
 	return ServerConfig{
 		MaxStringSize:              "STANDARD",
@@ -61,6 +68,7 @@ func StandardOracle23ServerConfig() ServerConfig {
 		NonApplicationRoot:         true,
 		KeystoreClosed:             true,
 		ValidateExternalSchemaRefs: true,
+		ValidateEditions:           true,
 		ApplySetUnused:             true,
 	}
 }

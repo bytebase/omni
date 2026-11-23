@@ -1229,11 +1229,32 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.Equal(t, "BINARY_FLOAT", tableFindColumn(tbl, "V_MIX_F").Type)
 		require.Equal(t, "BINARY_DOUBLE", tableFindColumn(tbl, "V_MIX_D").Type)
 		require.Equal(t, "", tableFindColumn(tbl, "V_FN").Type)
+
+		// Modifying a virtual column's expression refreshes or clears its inferred type.
+		results, err := c.Exec(`
+			ALTER TABLE t MODIFY (v_lit AS (UPPER(c)));
+			ALTER TABLE t MODIFY (v_fn AS (1.5f));
+		`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+		tbl = tableByName(c.Metadata().Schemas[0])["T"]
+		require.Equal(t, "", tableFindColumn(tbl, "V_LIT").Type)
+		require.Equal(t, "BINARY_FLOAT", tableFindColumn(tbl, "V_FN").Type)
+		def, err := DatabaseDefinition(c.Metadata())
+		require.NoError(t, err)
+		require.NotContains(t, def, `"V_LIT" NUMBER`)
 	})
 
-	t.Run("virtual column edition clauses validate against catalog editions with ORA-38802", func(t *testing.T) {
+	t.Run("virtual column edition clauses validate against catalog editions when ValidateEditions is enabled, while schema dumps stay permissive", func(t *testing.T) {
+		// Schema dumps (GetDatabaseMetadata / default LoadSQL) stay permissive about pre-existing database editions.
+		meta, err := GetDatabaseMetadata(`CREATE TABLE t (id NUMBER, v AS (1) EVALUATE USING EDITION app_v2)`)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas[0].Tables, 1)
+
 		c, err := LoadSQL(`CREATE TABLE t (id NUMBER)`)
 		require.NoError(t, err)
+		c.SetServerConfig(StandardOracle23ServerConfig())
 
 		for _, stmt := range []string{
 			`ALTER TABLE t ADD (v1 AS (1) EVALUATE USING EDITION missing_ed)`,
@@ -1351,6 +1372,55 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, results[0].Error)
 		require.Empty(t, tableByName(c.Metadata().Schemas[0])["CH"].ForeignKeys)
+
+		// Multi-column CHECK, UNIQUE, and FK constraints require CASCADE CONSTRAINTS (ORA-12991)
+		// when another referenced column remains in the table.
+		mc, err := LoadSQL(`
+			CREATE TABLE mp (x NUMBER, y NUMBER, CONSTRAINT mp_pk PRIMARY KEY (x, y));
+			CREATE TABLE mt (
+				id NUMBER,
+				a NUMBER,
+				b NUMBER,
+				c NUMBER,
+				CONSTRAINT mt_ck CHECK (a < b),
+				CONSTRAINT mt_uk UNIQUE (b, c),
+				CONSTRAINT mt_fk FOREIGN KEY (a, c) REFERENCES mp (x, y)
+			);
+		`)
+		require.NoError(t, err)
+		mc.SetServerConfig(StandardOracle23ServerConfig())
+
+		for _, stmt := range []string{
+			`ALTER TABLE mt SET UNUSED COLUMN a`,
+			`ALTER TABLE mt SET UNUSED COLUMN b`,
+			`ALTER TABLE mt SET UNUSED COLUMN c`,
+		} {
+			results, err := mc.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "12991")
+		}
+		// Table remains unchanged after rejected SET UNUSED statements.
+		tblMT := tableByName(mc.Metadata().Schemas[0])["MT"]
+		require.Len(t, tblMT.Columns, 4)
+		require.Len(t, tblMT.CheckConstraints, 1)
+
+		// Setting all columns of a multi-column check unused together succeeds when no
+		// remaining column is referenced, or with CASCADE CONSTRAINTS.
+		results, err = mc.Exec(`ALTER TABLE mt SET UNUSED COLUMN a CASCADE CONSTRAINTS`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tblMT = tableByName(mc.Metadata().Schemas[0])["MT"]
+		require.Nil(t, tableFindColumn(tblMT, "A"))
+		require.Empty(t, tblMT.CheckConstraints)
+		require.Empty(t, tblMT.ForeignKeys)
+
+		// Dropping both B and C together (all columns of mt_uk) succeeds without CASCADE.
+		results, err = mc.Exec(`ALTER TABLE mt SET UNUSED (b, c)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tblMT = tableByName(mc.Metadata().Schemas[0])["MT"]
+		require.Len(t, tblMT.Columns, 1)
+		require.Empty(t, tblMT.Indexes)
 	})
 
 	t.Run("ALTER SEQUENCE enforces ORA-04007 and ORA-04009 against initial sequence current value", func(t *testing.T) {
