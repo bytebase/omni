@@ -36,7 +36,7 @@ func TestSimulationMySQL84(t *testing.T) {
 		Pins:     testcontainer.Pins,
 		PinRole:  testcontainer.MySQL84,
 		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     rows,
+		Rows:     append(rows, familyRows...),
 		Omni:     simulationOmniMySQL84,
 		Engine:   simulationEngineMySQL84,
 	})
@@ -89,6 +89,7 @@ func simulationOmniMySQL84(fx simulate.Fixture, statement string, engine simulat
 	if engine.Refused() {
 		return simulate.Omni{}
 	}
+	onlySimulationDatabase(c)
 
 	var stored strings.Builder
 	stored.WriteString(database)

@@ -40,7 +40,7 @@ func TestProgramSimulation(t *testing.T) {
 		Path:     filepath.Join("testdata", "programs", "simulate.tsv"),
 		Pins:     testcontainer.Pins,
 		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     rows,
+		Rows:     append(rows, eventRows...),
 		Omni:     programSimulationOmni,
 		Engine:   programSimulationEngine,
 	})

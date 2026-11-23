@@ -757,6 +757,7 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 		return errCheckNotBoolean(name)
 	}
 	var invalid bool
+	var named string
 	exprSQL := strings.ToLower(nodeToSQL(expr))
 	if strings.Contains(exprSQL, "select ") || strings.Contains(exprSQL, "(select") {
 		return errCheckConstraintNotAllowed(name)
@@ -774,12 +775,21 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 			// A spaced gated keyword is a generic stored-function call, which a
 			// check constraint forbids: mysql:8.0 answers 3814 for
 			// `CHECK (sum (a) > 0)`.
-			if isNondeterministicFunc(x.Name) || x.SpacedParen {
+			if isNondeterministicFunc(x.Name) && !x.SpacedParen && x.Schema == "" {
+				named = strings.ToLower(x.Name)
+				invalid = true
+			} else if isNondeterministicFunc(x.Name) || x.SpacedParen {
 				invalid = true
 			}
 		}
 		return !invalid
 	})
+	if named != "" {
+		// A function MySQL names in the refusal is 3814: CHECK (age >
+		// RAND()) is "contains disallowed function: rand." (mysql:8.0.46).
+		return &Error{Code: 3814, SQLState: "HY000", Message: fmt.Sprintf(
+			"An expression of a check constraint '%s' contains disallowed function: %s.", name, named)}
+	}
 	if invalid {
 		return errCheckConstraintNotAllowed(name)
 	}

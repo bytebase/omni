@@ -166,20 +166,19 @@ func TestWalkThrough_2_2_RenameTableToExistingTarget(t *testing.T) {
 func TestWalkThrough_2_2_DropTableMultiPartialFailure(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t1 (id INT)")
-	// DROP TABLE t1, t2 — t1 exists, t2 does not.
-	// t1 should be dropped, then error on t2.
+	// DROP TABLE t1, t2 — t1 exists, t2 does not. DROP TABLE is atomic in
+	// MySQL 8.0: it answers 1051 and drops neither (mysql:8.0.46).
 	results, err := c.Exec("DROP TABLE t1, t2", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	assertError(t, results[0].Error, ErrUnknownTable)
 
-	// Verify t1 was actually dropped before the error on t2.
 	db := c.GetDatabase("testdb")
 	if db == nil {
 		t.Fatal("database testdb not found")
 	}
-	if db.GetTable("t1") != nil {
-		t.Error("t1 should have been dropped before error on t2")
+	if db.GetTable("t1") == nil {
+		t.Error("t1 should be kept when DROP TABLE fails on t2")
 	}
 }

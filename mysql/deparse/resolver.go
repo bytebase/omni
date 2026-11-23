@@ -5,6 +5,7 @@ package deparse
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -52,6 +53,18 @@ type Resolver struct {
 	// from the AST, which matches MySQL only for text written the way the
 	// rebuilt name spells it.
 	Source string
+	// DefaultSchema is the schema of the view the statement defines, or ""
+	// outside a view. When it is set, table references are written as MySQL
+	// stores a view (mysql:8.0.46 SHOW CREATE VIEW): a table of DefaultSchema
+	// loses its schema (FROM a.t in a view of a is written from `t`), an
+	// alias equal to its table's name is dropped (FROM t AS t is from `t`),
+	// and a column of an unaliased table of another schema is qualified by
+	// that schema as well (`o`.`x`.`id`).
+	DefaultSchema string
+
+	// shadowing holds the CTEs in scope while a FROM clause is read, keyed
+	// by lowered name.
+	shadowing map[string]*ResolverTable
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
@@ -114,6 +127,8 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
@@ -160,6 +175,8 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 					DefaultWeekFormat:   r.DefaultWeekFormat,
 					NormalizeCastAsYear: r.NormalizeCastAsYear,
 					Source:              r.Source,
+					DefaultSchema:       r.DefaultSchema,
+					shadowing:           r.shadowing,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
@@ -212,6 +229,8 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -229,6 +248,8 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
@@ -240,6 +261,8 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
@@ -269,7 +292,19 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			stmt.TableSource = nil
 		}
 	}
+	// A CTE of a table's name keeps that table's schema (viewTableSchema).
+	// A derived table in the FROM clause is resolved on its own scope, so
+	// the outer one is put back after; the CTEs of the query that holds the
+	// derived table shadow its tables too.
+	outerShadowing := r.shadowing
+	r.shadowing = localCTETables
+	if len(outerShadowing) > 0 {
+		r.shadowing = make(map[string]*ResolverTable, len(outerShadowing)+len(localCTETables))
+		maps.Copy(r.shadowing, outerShadowing)
+		maps.Copy(r.shadowing, localCTETables)
+	}
 	sc := r.buildScope(stmt.From, origLookup)
+	r.shadowing = outerShadowing
 	sc.parent = parentScope
 	sc.ctes = localCTETables
 	r.Lookup = origLookup
@@ -369,11 +404,20 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 		if table == nil {
 			return
 		}
+		schema := r.viewTableSchema(t)
 		effectiveName := t.Name
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
 		sc.add(t, effectiveName, table)
+		if schema != "" {
+			sc.qualify(len(sc.tables)-1, schema)
+		}
+		// A table of the view's own schema under its own name, which no CTE
+		// takes, is the one db.t names; an alias or a CTE is not.
+		if _, shadowed := r.shadowing[strings.ToLower(t.Name)]; r.DefaultSchema != "" && t.Alias == "" && t.Schema == "" && !shadowed {
+			sc.markOwnSchema(len(sc.tables) - 1)
+		}
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc, baseLookup)
 		r.addTableExprToScope(t.Right, sc, baseLookup)
@@ -388,6 +432,29 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 			}
 		}
 	}
+}
+
+// viewTableSchema rewrites a table reference of a view as MySQL stores it
+// (see DefaultSchema) and returns the schema its columns are qualified by, or
+// "" when they are qualified by the table's name or alias alone.
+func (r *Resolver) viewTableSchema(t *ast.TableRef) string {
+	if r.DefaultSchema == "" {
+		return ""
+	}
+	// The schema is kept where a CTE of the table's name would otherwise
+	// take the reference: MySQL drops an unreferenced CTE from a stored view
+	// (WITH t AS (SELECT 2 AS id) SELECT a.t.id FROM a.t is stored as
+	// select `t`.`id` AS `id` from `t`), which the catalog keeps.
+	if _, shadowed := r.shadowing[strings.ToLower(t.Name)]; t.Schema != "" && !shadowed && strings.EqualFold(t.Schema, r.DefaultSchema) {
+		t.Schema = ""
+	}
+	if t.Alias == t.Name {
+		t.Alias = ""
+	}
+	if t.Alias != "" {
+		return ""
+	}
+	return t.Schema
 }
 
 // resolveTargetList resolves all target list entries, expanding qualified stars.
@@ -466,6 +533,7 @@ func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
 		result = append(result, &ast.ResTarget{
 			Name: c.name,
 			Val: &ast.ColumnRef{
+				Schema: c.schema,
 				Table:  c.qualifier,
 				Column: c.name,
 			},
@@ -486,8 +554,10 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 
 	// Find the effective name from scope entries (preserves alias casing)
 	effectiveName := tableName
+	schema := ""
 	if entry, ok := sc.FirstEqualFold(tableName); ok {
 		effectiveName = entry.Name
+		schema = sc.schemaOf(entry)
 	}
 
 	var result []ast.ExprNode
@@ -496,6 +566,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
 			Val: &ast.ColumnRef{
+				Schema: schema,
 				Table:  effectiveName,
 				Column: col.Name,
 			},
@@ -680,12 +751,22 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 // table in scope (or an enclosing correlated scope) contains the column.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
+	if col.Table != "" && col.Schema != "" && r.DefaultSchema != "" {
+		return r.resolveSchemaQualifiedColumn(col, sc)
+	}
 	if col.Table != "" {
 		for cur := sc; cur != nil; cur = cur.parent {
 			if cur.GetTable(col.Table) != nil {
 				// Find the effective name from scope (preserves case)
 				if entry, ok := cur.FirstEqualFold(col.Table); ok {
 					col.Table = entry.Name
+					// A schema the column names stays, since two schemas
+					// may each give the FROM clause a table of its name,
+					// except the view's own, which goes where no CTE of
+					// the name could take the reference.
+					if r.DefaultSchema != "" && col.Schema == "" {
+						col.Schema = cur.schemaOf(entry)
+					}
 				}
 				return col
 			}
@@ -697,7 +778,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// A column a NATURAL or USING join joins on is the one copy the join
 		// keeps, which comes from its right input in a RIGHT join.
 		if c, ok := cur.coalesced[strings.ToLower(col.Column)]; ok {
-			col.Table = c.qualifier
+			col.Schema, col.Table = c.schema, c.qualifier
 			return col
 		}
 
@@ -705,11 +786,61 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
 		// field list is ambiguous. TODO: return error
 		if entry, ok := cur.FirstWithColumn(col.Column); ok {
-			col.Table = entry.Name
+			col.Schema, col.Table = cur.schemaOf(entry), entry.Name
 			return col
 		}
 	}
 	// Column not found — return as-is (could be a literal alias or error)
+	return col
+}
+
+// resolveSchemaQualifiedColumn binds db.t.c in a view to the table of that
+// schema and name, in the nearest query that has one: two schemas may each
+// give a query, or a query and a subquery of it, a table of one name. The
+// view's own schema is then left out where t alone still names that table
+// (no nearer query and no CTE has a t, and no other table of the query is a
+// bare t; another schema's t keeps its own qualifier), as MySQL stores the
+// view, and kept where it would not, so SELECT (SELECT a.t.id FROM o.t ...)
+// FROM a.t keeps reading the outer a.t.
+func (r *Resolver) resolveSchemaQualifiedColumn(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
+	own := strings.EqualFold(col.Schema, r.DefaultSchema)
+	nearest := true // no nearer query has a table of the name
+	for cur := sc; cur != nil; cur = cur.parent {
+		named := cur.entriesNamed(col.Table)
+		unqualified := 0 // tables of the name a bare t could mean
+		for _, e := range named {
+			if cur.schemaOf(e) == "" {
+				unqualified++
+			}
+		}
+		for _, e := range named {
+			if strings.EqualFold(cur.schemaOf(e), col.Schema) || (own && cur.ownSchema[e]) {
+				col.Table = e.Name
+				if own && nearest && unqualified == 1 && !cur.cteNamed(col.Table) {
+					col.Schema = ""
+				}
+				return col
+			}
+		}
+		if len(named) > 0 {
+			nearest = false
+		}
+	}
+	// With no table of the view's schema under the name in any query, the
+	// name is an alias or a CTE of it, which MySQL's stored text qualifies
+	// with the view's schema as well (`sys`.`stmt`.`total` for FROM ...
+	// `stmt`); it binds the nearest one.
+	if own {
+		for cur := sc; cur != nil; cur = cur.parent {
+			if e, ok := cur.FirstEqualFold(col.Table); ok {
+				col.Table = e.Name
+				if !cur.cteNamed(col.Table) {
+					col.Schema = ""
+				}
+				return col
+			}
+		}
+	}
 	return col
 }
 

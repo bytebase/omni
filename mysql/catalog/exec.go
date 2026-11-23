@@ -4346,13 +4346,19 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropTriggerStmt:
 		return c.dropTrigger(s)
 	case *nodes.CreateEventStmt:
-		return c.createEvent(s)
+		return c.createEvent(s, true)
 	case *nodes.AlterEventStmt:
 		return c.alterEvent(s)
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
 	case *nodes.CreateSpatialRefSysStmt:
-		return validateCreateSpatialRefSys(s)
+		if err := validateCreateSpatialRefSys(s); err != nil {
+			return err
+		}
+		c.defineSRS(s)
+		return nil
+	case *nodes.DropSpatialRefSysStmt:
+		return c.dropSRS(s)
 	case *nodes.CreateTablespaceStmt:
 		return c.createTablespace(s)
 	case *nodes.AlterTablespaceStmt:

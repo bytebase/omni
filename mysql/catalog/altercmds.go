@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -69,6 +70,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := validateAlterColumnSources(tbl, stmt.Commands); err != nil {
 		return err
 	}
+	if err := alterCharsetCollationPair(stmt.Commands); err != nil {
+		return err
+	}
+	if err := c.alterChangesEngineUnderForeignKey(tbl, stmt.Commands); err != nil {
+		return err
+	}
 	repartition := alterRepartition(stmt.Commands)
 	if err := c.validateAlterTablespaceOptions(tbl, stmt.Commands, repartition); err != nil {
 		return err
@@ -130,8 +137,25 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		applyAlteredAutoextendSize(tbl, origEngine, hasAutoextendOpt, autoextendBytes)
 		return nil
 	}
+	// The foreign keys that reference the table follow its new name and the
+	// columns the statement renamed, once nothing can undo the statement; a
+	// key the statement adds already names the columns as they end.
+	origDB, origName := db, tbl.Name
+	existing := make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		existing[con] = true
+	}
+	retarget := func() {
+		if renames := alterColumnRenames(stmt.Commands); len(renames) > 0 || tbl.Database != origDB || tbl.Name != origName {
+			c.retargetReferences(tbl, origDB, origName, renames, existing)
+		}
+	}
 	if tbl.Partitioning == nil && repartition == nil {
-		return afterCommands(c.alterTableCommands(db, tbl, key, stmt))
+		if err := afterCommands(c.alterTableCommands(db, tbl, key, stmt)); err != nil {
+			return err
+		}
+		retarget()
+		return nil
 	}
 	// A unique key on a partitioned table must cover the partitioning columns. MySQL
 	// checks the table the statement leaves, after every other error (1060, 1061 and
@@ -157,6 +181,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		// a snapshot's.
 		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
+	retarget()
 	return nil
 }
 
@@ -518,13 +543,47 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	willBePartitioned := (tbl.Partitioning != nil && !removesPartitioning) || hasRepartition
 	deferKeyWidths := alterChangesIndexCapacity(stmt.Commands)
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
+	if err := checkConstraintColumnDeps(tbl, stmt.Commands); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	var droppedIndexes []*Index
+	beforeColumns := make(map[*Column]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		beforeColumns[col] = true
+	}
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths, keepsOldPartitioning, willBePartitioned, preExprs, &droppedIndexes); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
 	}
+	dropChecksOfDroppedColumns(tbl, stmt.Commands, beforeConstraints)
+	if err := c.checkRedefinedForeignKeyColumns(tbl, db, origTableName, beforeColumns); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := checkExprReferences(tbl, alterExprRefs(tbl, stmt.Commands, beforeConstraints)); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	var defs []*nodes.ColumnDef
+	for _, cmd := range stmt.Commands {
+		defs = append(defs, alterColumnDefs(cmd)...)
+	}
+	if err := c.checkColumnSRIDs(defs); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := c.checkOversizeVarchars(defs, tbl.Charset); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := c.checkKeysOverRedefinedColumns(tbl, beforeColumns); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	spatialKeysForGeometry(tbl)
 	tbl.ignoredGeneratedIndexes = nil
 	droppedIndexes = append(droppedIndexes, reconcileGeneratedFKIndexes(tbl, preGen)...)
 	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedIndexes); err != nil {
@@ -549,6 +608,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
+	if err := c.checkRowLengths(tbl); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	if err := validateAutoIncrementTypes(tbl, c.session.Version); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -560,6 +623,18 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	if err := c.validateTableDefaultExpressions(tbl); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
+	}
+	// The ALGORITHM and LOCK the statement asks for are judged last, over
+	// what its operations did to the table.
+	if isInnoDBEngine(snapshot.Engine) && isInnoDBEngine(tbl.Engine) {
+		algorithm, lock := alterClauses(stmt.Commands)
+		if algorithm != "" || lock != "" {
+			limits, serverCopy := alterDDLLimits(&snapshot, tbl, stmt.Commands)
+			if err := checkDDLClauses(algorithm, lock, limits, serverCopy); err != nil {
+				undoAlter(db, origKey, tbl, snapshot)
+				return err
+			}
+		}
 	}
 	// Clear transient cleanup tracking after successful ALTER.
 	tbl.droppedByCleanup = nil
@@ -1114,7 +1189,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
 		}
-		return nil
+		if cmd.AllPartitions || len(cmd.PartitionNames) == 1 && strings.EqualFold(cmd.PartitionNames[0], "ALL") {
+			return nil
+		}
+		return checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "REBUILD")
 	case nodes.ATDiscardPartitionTablespace:
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
@@ -1326,37 +1404,43 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			})
 
 		case nodes.ColConstrCheck:
-			// A column's CHECK is a table constraint like any other, and the
-			// CREATE TABLE path has always built one; the ALTER path dropped
-			// it, so `ADD b INT CONSTRAINT positive_b CHECK (b > 0)` reported
-			// success and installed only the column. MySQL 8.0.46 installs
-			// the constraint -- `CONSTRAINT positive_b CHECK ((b > 0))` reads
-			// back from SHOW CREATE TABLE -- and names an unnamed one
-			// <table>_chk_<n>, continuing the table's run (read on
-			// 2026-11-04).
-			if cc.Expr == nil {
-				break
-			}
-			conName := cc.Name
-			if conName == "" {
-				conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
-			}
-			if checkConstraintNameExists(tbl.Database, nil, conName) {
-				return errCheckConstraintDupName(conName)
-			}
-			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+			if err := c.addColumnCheck(tbl, colDef.Name, cc); err != nil {
 				return err
 			}
-			tbl.Constraints = append(tbl.Constraints, &Constraint{
-				Name:        conName,
-				Type:        ConCheck,
-				Table:       tbl,
-				CheckExpr:   nodeToSQL(cc.Expr),
-				NotEnforced: cc.NotEnforced,
-			})
 		}
 	}
 
+	return nil
+}
+
+// addColumnCheck installs a column's CHECK as the table constraint it is. A
+// column's CHECK is a table constraint like any other, and the CREATE TABLE
+// path has always built one; ADD, MODIFY and CHANGE install it too: MySQL
+// 8.0.46 reads back `CONSTRAINT positive_b CHECK ((b > 0))` after `ADD b INT
+// CONSTRAINT positive_b CHECK (b > 0)` and `people_chk_1` after `MODIFY age
+// INT CHECK (age > 1)`, naming an unnamed one <table>_chk_<n>, continuing the
+// table's run (read on 2026-11-04 and 2026-11-23).
+func (c *Catalog) addColumnCheck(tbl *Table, column string, cc *nodes.ColumnConstraint) error {
+	if cc.Expr == nil {
+		return nil
+	}
+	conName := cc.Name
+	if conName == "" {
+		conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+	}
+	if checkConstraintNameExists(tbl.Database, nil, conName) {
+		return errCheckConstraintDupName(conName)
+	}
+	if err := validateColumnCheckReferences(column, conName, cc.Expr); err != nil {
+		return err
+	}
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:        conName,
+		Type:        ConCheck,
+		Table:       tbl,
+		CheckExpr:   nodeToSQL(cc.Expr),
+		NotEnforced: cc.NotEnforced,
+	})
 	return nil
 }
 
@@ -1405,6 +1489,20 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOld
 						Message:  fmt.Sprintf("Cannot drop column '%s': needed in a foreign key constraint '%s'", cmd.Name, con.Name),
 					}
 				}
+			}
+		}
+	}
+
+	// A column another table's foreign key references is kept (1829), whatever
+	// foreign_key_checks says (mysql:8.0.46).
+	for _, ref := range c.referencingForeignKeys(tbl) {
+		if ref.child == tbl {
+			continue
+		}
+		for _, col := range ref.con.RefColumns {
+			if toLower(col) == colKey {
+				return &Error{Code: 1829, SQLState: "HY000", Message: fmt.Sprintf(
+					"Cannot drop column '%s': needed in a foreign key constraint '%s' of table '%s'", cmd.Name, ref.con.Name, ref.child.Name)}
 			}
 		}
 	}
@@ -1521,6 +1619,23 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
 		}
 	}
+	// The SRID of a column a SPATIAL key reads stays as it is (3644), the
+	// clause's presence included: MODIFY loc POINT NOT NULL on a POINT SRID
+	// 4326 column with a SPATIAL key is refused (mysql:8.0.46).
+	if colDef.TypeName != nil && (colDef.TypeName.HasSRID != oldCol.HasSRID || (colDef.TypeName.HasSRID && colDef.TypeName.SRID != oldCol.SRID)) {
+		for _, index := range tbl.Indexes {
+			if index.Spatial && len(index.Columns) == 1 && toLower(index.Columns[0].Name) == oldKey {
+				return &Error{Code: 3644, SQLState: "HY000", Message: fmt.Sprintf(
+					"The SRID specification on the column '%s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.", oldCol.Name)}
+			}
+		}
+	}
+	// A VIRTUAL column does not become a stored one by losing its expression
+	// either: MODIFY v VARCHAR(10) on a virtual v is 3106, where a STORED one
+	// becomes an ordinary column (mysql:8.0.46).
+	if oldCol.Generated != nil && !oldCol.Generated.Stored && colDef.Generated == nil {
+		return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+	}
 
 	col := c.buildColumnFromDef(tbl, colDef)
 	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
@@ -1543,6 +1658,13 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+	}
+	for _, cc := range colDef.Constraints {
+		if cc != nil && cc.Type == nodes.ColConstrCheck {
+			if err := c.addColumnCheck(tbl, colDef.Name, cc); err != nil {
+				return err
+			}
+		}
 	}
 
 	// SERIAL implies a unique key here too: a replacement keeps the keys the
@@ -1608,6 +1730,14 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 	case nodes.ConstrPrimaryKey:
 		if constraintHasFunctionalKeyPart(con) {
 			return errFunctionalIndexPrimaryKey()
+		}
+		// An invisible primary key is refused before the one the table has:
+		// ADD PRIMARY KEY (id) INVISIBLE on a keyed table is 3522, not 1068
+		// (mysql:8.0.46).
+		probe := &Index{Visible: true}
+		applyIndexOptions(probe, con.IndexOptions)
+		if !probe.Visible {
+			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
 		}
 		// Check for duplicate PK.
 		for _, idx := range tbl.Indexes {
@@ -2131,6 +2261,225 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	return nil
 }
 
+// alterExprRefs returns the expressions an ALTER TABLE defined: its columns'
+// generated expressions and the CHECK constraints it added, named as the
+// table now names them.
+func alterExprRefs(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) []exprRef {
+	var refs []exprRef
+	var checks []nodes.ExprNode
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		generated, columnChecks := columnExprRefs(alterColumnDefs(cmd))
+		refs = append(refs, generated...)
+		checks = append(checks, columnChecks...)
+		if cmd.Type == nodes.ATAddConstraint && cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrCheck && cmd.Constraint.Expr != nil {
+			checks = append(checks, cmd.Constraint.Expr)
+		}
+	}
+	var made []*Constraint
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && !before[con] {
+			made = append(made, con)
+		}
+	}
+	return append(refs, namedChecks(checks, made)...)
+}
+
+// dropChecksOfDroppedColumns drops, once every command has run, the CHECK
+// constraints that read a column the statement dropped: one that reads
+// another column was refused before the statement ran
+// (checkConstraintColumnDeps), and one a later command drops by name is gone
+// already, so DROP COLUMN a, DROP CHECK ck runs whatever the order. A CHECK
+// the statement adds (before holds the constraints the table had) is judged
+// by checkExprReferences instead: DROP COLUMN a, ADD CHECK (a > 1) is 1054.
+func dropChecksOfDroppedColumns(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) {
+	var dropped []string
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATDropColumn && tbl.GetColumn(cmd.Name) == nil {
+			dropped = append(dropped, cmd.Name)
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	kept := tbl.Constraints[:0]
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && before[con] && slices.ContainsFunc(dropped, func(col string) bool { return checkExprReadsColumn(con.CheckExpr, col) }) {
+			continue
+		}
+		kept = append(kept, con)
+	}
+	tbl.Constraints = kept
+}
+
+// checkConstraintColumnDeps refuses dropping or renaming a column a CHECK
+// constraint the statement keeps reads (3959). MySQL judges it before the
+// statement runs and before a generated column's dependency on the column
+// (3108), and lets a constraint go with the columns it reads when the
+// statement drops every one of them: on CHECK (age >= 0), DROP COLUMN age
+// drops the constraint too, RENAME COLUMN age TO years is 3959, and DROP
+// CHECK chk, RENAME COLUMN age TO years runs (mysql:8.0.46).
+func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	droppedChecks := map[string]bool{}
+	droppedCols := map[string]bool{}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATDropConstraint:
+			droppedChecks[toLower(cmd.Name)] = true
+		case nodes.ATDropColumn:
+			if tbl.GetColumn(cmd.Name) != nil {
+				droppedCols[toLower(cmd.Name)] = true
+			}
+		}
+	}
+	reads := func(con *Constraint) []string {
+		var cols []string
+		for _, col := range tbl.Columns {
+			if checkExprReadsColumn(con.CheckExpr, col.Name) {
+				cols = append(cols, toLower(col.Name))
+			}
+		}
+		return cols
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		var column string
+		renames := false
+		switch cmd.Type {
+		case nodes.ATDropColumn:
+			column = cmd.Name
+		case nodes.ATRenameColumn:
+			column, renames = cmd.Name, !strings.EqualFold(cmd.Name, cmd.NewName)
+		case nodes.ATChangeColumn:
+			column, renames = cmd.Name, cmd.Column != nil && !strings.EqualFold(cmd.Name, cmd.Column.Name)
+		}
+		if column == "" || (cmd.Type != nodes.ATDropColumn && !renames) || tbl.GetColumn(column) == nil {
+			continue
+		}
+		for _, con := range tbl.Constraints {
+			if con.Type != ConCheck || droppedChecks[toLower(con.Name)] {
+				continue
+			}
+			cols := reads(con)
+			if !slices.Contains(cols, toLower(column)) {
+				continue
+			}
+			if !renames && !slices.ContainsFunc(cols, func(c string) bool { return !droppedCols[c] }) {
+				continue
+			}
+			return &Error{Code: 3959, SQLState: "HY000", Message: fmt.Sprintf(
+				"Check constraint '%s' uses column '%s', hence column cannot be dropped or renamed.", con.Name, column)}
+		}
+	}
+	return nil
+}
+
+// checkRedefinedForeignKeyColumns holds a column an ALTER TABLE defined anew
+// (MODIFY, CHANGE, ADD) to the foreign keys it is in, on either side: its type
+// must still compare with the column at the other end (3780), and a column a
+// SET NULL action writes stays nullable (1830). MySQL answers both whatever
+// foreign_key_checks says, except that with it off two string columns may
+// differ in character set, so each can be converted on its own
+// (mysql:8.0.46). before holds the table's columns
+// before the statement; a column that is not one of them was defined anew.
+// The table was oldName in oldDB, which its references and the ones to it
+// still name: they follow a rename once the statement ends.
+func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, oldDB *Database, oldName string, before map[*Column]bool) error {
+	redefined := func(col *Column) bool { return col != nil && !before[col] }
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		refDB := oldDB
+		if con.RefDatabase != "" {
+			refDB = c.GetDatabase(con.RefDatabase)
+		}
+		var parent *Table
+		switch {
+		case refDB == oldDB && toLower(con.RefTable) == toLower(oldName):
+			parent = tbl
+		case refDB != nil:
+			parent = refDB.GetTable(con.RefTable)
+		}
+		for i, name := range con.Columns {
+			col := tbl.GetColumn(name)
+			var refCol *Column
+			if parent != nil && i < len(con.RefColumns) {
+				refCol = parent.GetColumn(con.RefColumns[i])
+			}
+			if col == nil || refCol == nil || (!redefined(col) && !(parent == tbl && redefined(refCol))) {
+				continue
+			}
+			if err := fkColumnPairError(con, col, refCol, !c.foreignKeyChecks); err != nil {
+				return err
+			}
+		}
+	}
+	for _, ref := range c.referencingForeignKeysOf(oldDB.Name, oldName) {
+		if ref.child == tbl {
+			continue
+		}
+		for i, name := range ref.con.RefColumns {
+			refCol := tbl.GetColumn(name)
+			if !redefined(refCol) || i >= len(ref.con.Columns) {
+				continue
+			}
+			if col := ref.child.GetColumn(ref.con.Columns[i]); col != nil && !fkTypesCompatibleUnless(col, refCol, !c.foreignKeyChecks) {
+				return errFKIncompatibleColumns(col.Name, refCol.Name, ref.con.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// alterChangesEngineUnderForeignKey refuses moving a table that has a foreign
+// key, or that one references, to an engine without them (3776), whatever
+// foreign_key_checks says (mysql:8.0.46).
+func (c *Catalog) alterChangesEngineUnderForeignKey(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	if !isInnoDBEngine(tbl.Engine) || isInnoDBEngine(alterTargetEngine(tbl, commands)) {
+		return nil
+	}
+	participates := len(c.referencingForeignKeys(tbl)) > 0
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			participates = true
+		}
+	}
+	if participates {
+		return &Error{Code: 3776, SQLState: "HY000", Message: "Cannot change table's storage engine because the table participates in a foreign key constraint."}
+	}
+	return nil
+}
+
+// alterCharsetCollationPair refuses table options that name a character set
+// and a collation of another one (1253): ALTER TABLE t CHARACTER SET = latin1
+// COLLATE = utf8mb4_bin (mysql:8.0.46), as CREATE TABLE refuses them.
+func alterCharsetCollationPair(commands []*nodes.AlterTableCmd) error {
+	var charset, collation string
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		switch toLower(cmd.Option.Name) {
+		case "charset", "character set", "default charset", "default character set":
+			charset = cmd.Option.Value
+		case "collate", "default collate":
+			collation = cmd.Option.Value
+		}
+	}
+	if charset != "" && collation != "" && !strings.EqualFold(charset, "DEFAULT") && !charsetMatchesCollation(charset, collation) {
+		return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", collation, charset)}
+	}
+	return nil
+}
+
 // alterTableOption applies a table option (ENGINE, CHARSET, etc.).
 func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	opt := cmd.Option
@@ -2226,6 +2575,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	col := tbl.Columns[idx]
+	// A generated column takes no default (1221); dropping the one it does
+	// not have is no error (mysql:8.0.46).
+	if cmd.DefaultExpr != nil && col.Generated != nil {
+		return &Error{Code: 1221, SQLState: "HY000", Message: "Incorrect usage of DEFAULT and generated column"}
+	}
 	if cmd.DefaultExpr != nil {
 		if err := validateDefaultExprFuncs(cmd.DefaultExpr, col.Name, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
@@ -2269,6 +2623,9 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			if idx.Primary && !visible {
+				return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			}
 			idx.Visible = visible
 			idx.Generated = false
 			return nil
@@ -2559,6 +2916,9 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		}
 	} else {
 		charset = normalizeCharsetName(cmd.Name)
+		if _, known := defaultCollationForCharset[charset]; !known {
+			return errUnknownCharacterSet(cmd.Name)
+		}
 		collation = cmd.NewName
 		if collation != "" {
 			if !charsetMatchesCollation(charset, collation) {
@@ -2639,9 +2999,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 			}
 		}
 	}
+	if err := checkPartitionDefsKind(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
+	// A HASH or KEY table lists its partitions by name once one was named
+	// (NumParts 0) and counts them otherwise. Naming one it adds lists them
+	// all, and partitions added by number to a named list are named after
+	// their position: ADD PARTITION (PARTITION x) on PARTITIONS 3 stores p0,
+	// p1, p2 and x, and ADD PARTITION PARTITIONS 2 on a and d stores a, d, p2
+	// and p3 (mysql:8.0.46).
+	named := isHashOrKeyPartitioning(tbl.Partitioning) && tbl.Partitioning.NumParts == 0 && len(tbl.Partitioning.Partitions) > 0
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
 		if start == 0 {
@@ -2653,6 +3023,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 			})
 		}
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		if named {
+			tbl.Partitioning.NumParts = 0
+		}
 		return nil
 	}
 	existingNames := make(map[string]bool, len(tbl.Partitioning.Partitions))
@@ -2712,6 +3085,23 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 	}
 	if len(cmd.PartitionDefs) > 0 {
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		if isHashOrKeyPartitioning(tbl.Partitioning) {
+			tbl.Partitioning.NumParts = 0
+		}
+	}
+	return checkPartitionBounds(tbl, tbl.Partitioning)
+}
+
+// checkPartitionDefsKind holds the definitions ADD or REORGANIZE PARTITION
+// writes to the VALUES clause of the table's method (1480).
+func checkPartitionDefsKind(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	for _, pd := range defs {
+		if pd == nil {
+			continue
+		}
+		if err := checkPartitionValuesKind(partitionTypeFromString(pi.Type), len(pi.Columns), pd.Values); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -2721,11 +3111,17 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	if isHashOrKeyPartitioning(tbl.Partitioning) {
+		return errDropOnlyRangeList()
+	}
 	// MySQL counts every name listed in DROP PARTITION against the table's
 	// partition count and answers 1508 when the count would drop all partitions
 	// (including duplicates like `DROP PARTITION p1, p1` on a 2-partition table).
 	if len(tbl.Partitioning.Partitions) > 0 && len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
 		return errDropLastPartition()
+	}
+	if err := checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "DROP"); err != nil {
+		return err
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2757,6 +3153,9 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 		return errTablespaceDiscarded(dbName, tbl.Name)
 	}
 	targetAll := len(cmd.PartitionNames) == 0 || (len(cmd.PartitionNames) == 1 && strings.EqualFold(cmd.PartitionNames[0], "ALL"))
+	if name := firstUnknownPartition(tbl.Partitioning, cmd.PartitionNames); !targetAll && !cmd.AllPartitions && name != "" {
+		return errUnknownPartition(name, tbl.Name)
+	}
 	if targetAll {
 		if tableHasDiscardedTablespace(tbl) {
 			return errTablespaceDiscarded(dbName, tbl.Name)
@@ -2781,19 +3180,28 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if !isHashOrKeyPartitioning(tbl.Partitioning) {
 		return errCoalesceOnlyOnHashPartition()
 	}
+	if cmd.Number == 0 {
+		return errCoalesceNone()
+	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
 	if currentCount == 0 {
 		currentCount = tbl.Partitioning.NumParts
 	}
+	if cmd.Number >= currentCount {
+		return errDropLastPartition()
+	}
 	newCount := currentCount - cmd.Number
 	if newCount < 1 {
 		newCount = 1
 	}
+	named := tbl.Partitioning.NumParts == 0
 	if len(tbl.Partitioning.Partitions) > 0 {
 		tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:newCount]
 	}
-	tbl.Partitioning.NumParts = newCount
+	if !named {
+		tbl.Partitioning.NumParts = newCount
+	}
 	return nil
 }
 
@@ -2805,6 +3213,18 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 && !isHashOrKeyPartitioning(tbl.Partitioning) {
 		return errReorgNoParam()
 	}
+	// REORGANIZE PARTITION with no names rebuilds a HASH or KEY table into its
+	// first partition: PARTITIONS 4 is stored as PARTITIONS 1, and partitions
+	// a, b and c as a alone (mysql:8.0.46).
+	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 {
+		if len(tbl.Partitioning.Partitions) > 0 {
+			tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:1]
+		}
+		if tbl.Partitioning.NumParts > 0 {
+			tbl.Partitioning.NumParts = 1
+		}
+		return nil
+	}
 	if isRangeOrListPartitioning(tbl.Partitioning) {
 		for _, pd := range cmd.PartitionDefs {
 			if pd != nil && pd.Values == nil {
@@ -2812,9 +3232,30 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 			}
 		}
 	}
+	if err := checkPartitionDefsKind(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
+	if err := checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "REORGANIZE"); err != nil {
+		return err
+	}
+	// The partitions of a HASH or KEY table are reorganized into as many
+	// (1510), and those of a RANGE or LIST table must stand next to each other
+	// (1519).
+	if isHashOrKeyPartitioning(tbl.Partitioning) && len(cmd.PartitionDefs) != len(cmd.PartitionNames) {
+		return errReorganizeChangesCount()
+	}
+	first, last := reorganizedSpan(tbl.Partitioning, cmd.PartitionNames)
+	if isRangeOrListPartitioning(tbl.Partitioning) && last-first+1 != len(cmd.PartitionNames) {
+		return errReorganizeNotConsecutive()
+	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
+	var oldBound string
+	if last >= 0 {
+		oldBound = tbl.Partitioning.Partitions[last].ValueExpr
+	}
+	extendsLast := last == len(tbl.Partitioning.Partitions)-1
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2905,7 +3346,37 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 		result = append(result, newParts...)
 	}
 	tbl.Partitioning.Partitions = result
+	if err := checkPartitionBounds(tbl, tbl.Partitioning); err != nil {
+		return err
+	}
+	// The new RANGE partitions cover what the old ones did, up to the same
+	// bound, or past it when they include the table's last partition (1520).
+	if strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && len(newParts) > 0 && oldBound != "" {
+		order, known := rangeBoundOrder(tbl, tbl.Partitioning, newParts[len(newParts)-1].ValueExpr, oldBound)
+		if known && (order < 0 || (order > 0 && !extendsLast)) {
+			return errReorganizeRange()
+		}
+	}
 	return nil
+}
+
+// reorganizedSpan returns the positions of the first and last partitions a
+// REORGANIZE names, or -1 and -1 when it names none the table has.
+func reorganizedSpan(pi *PartitionInfo, names []string) (first, last int) {
+	first, last = -1, -1
+	named := map[string]bool{}
+	for _, name := range names {
+		named[toLower(name)] = true
+	}
+	for i, pd := range pi.Partitions {
+		if named[toLower(pd.Name)] {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
+	return first, last
 }
 
 // alterExchangePartition exchanges a partition with a non-partitioned table.
@@ -2915,6 +3386,7 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 	// the table being altered is judged: mysql:8.0.46 answers 1146 for
 	// `ALTER TABLE a EXCHANGE PARTITION p0 WITH TABLE missing` on a table with no
 	// partitions, and 1505 only when that table exists.
+	var exchTbl *Table
 	if cmd.ExchangeTable != nil {
 		exchDB := db
 		if cmd.ExchangeTable.Schema != "" {
@@ -2923,13 +3395,21 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 				return errNoSuchTable(cmd.ExchangeTable.Schema, cmd.ExchangeTable.Name)
 			}
 		}
-		exchTbl := exchDB.GetTable(cmd.ExchangeTable.Name)
+		exchTbl = exchDB.GetTable(cmd.ExchangeTable.Name)
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
 		}
 	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	// The table a partition is exchanged with has none (1732), and the
+	// partition is one the table has (1735).
+	if exchTbl != nil && exchTbl.Partitioning != nil {
+		return errExchangePartitioned(exchTbl.Name)
+	}
+	if name := firstUnknownPartition(tbl.Partitioning, []string{cmd.Name}); name != "" {
+		return errUnknownPartition(name, tbl.Name)
 	}
 	return nil
 }
@@ -2975,4 +3455,31 @@ func pinInheritedColumnCharsets(tbl *Table) {
 			col.CollationExplicit = true
 		}
 	}
+}
+
+// checkExprReadsColumn reports whether a stored CHECK expression names the
+// column, outside its string literals: CHECK (b <> '`a`') reads b alone.
+func checkExprReadsColumn(expr, colName string) bool {
+	var b strings.Builder
+	var quote byte
+	for i := 0; i < len(expr); i++ {
+		ch := expr[i]
+		switch {
+		case quote != 0:
+			if ch == '\\' {
+				i++
+			} else if ch == quote {
+				if i+1 < len(expr) && expr[i+1] == quote {
+					i++
+				} else {
+					quote = 0
+				}
+			}
+		case ch == '\'' || ch == '"':
+			quote = ch
+		default:
+			b.WriteByte(ch)
+		}
+	}
+	return generatedExprReferencesColumn(b.String(), colName)
 }

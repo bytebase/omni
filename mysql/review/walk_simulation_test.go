@@ -24,7 +24,12 @@ func TestWalkSimulation(t *testing.T) {
 		minPct   float64
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 95.0, 2150},
+		// The ddl floor counts the hand-written family rows (mysql/catalog
+		// simulate_families_test.go), whose refusals are mostly ones the walk
+		// does not model (partition bounds, online DDL clauses, row size): it
+		// finds 39 of their 150. On the compat.tsv rows alone it finds
+		// 2188/2259 (96.9%).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 92.0, 2227},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 95.0, 256},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
