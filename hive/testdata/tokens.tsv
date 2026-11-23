@@ -36,3 +36,9 @@ KW_READONLY	(unreachable)	IdentifiersParser.g:944 stale nonReserved entry, no le
 KW_BATCH	(unreachable)	IdentifiersParser.g:964 stale nonReserved entry, no lexer rule in HiveLexerParent.g
 KW_DAYOFWEEK	(unreachable)	IdentifiersParser.g:965 stale nonReserved entry (lexer uses KW_DOW), no lexer rule in HiveLexerParent.g
 KW_TIMESTAMPTZ	(unreachable)	IdentifiersParser.g:974 stale nonReserved entry, no lexer rule in HiveLexerParent.g
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one site the shortest row reaches. Each names the rule ReadANTLR
+# lowers the group to, <owner>(<group>)?. HiveParser.g gives most statements a
+# rule of their own, so only these two share a clause between alternatives.
+createDatabaseStatement(ifNotExists)?	(every site)	HiveParser.g:1171 createDatabaseStatement: CREATE [REMOTE] DATABASE IF NOT EXISTS
+createTableStatement(ifNotExists)?	(every site)	CreateDDLParser.g:53 createTableStatement: CREATE [MANAGED] TABLE IF NOT EXISTS
