@@ -72,7 +72,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	b.fks = true
-	if b.alterTextFails(v, r) || b.alterTextShapeFails(v) || b.charsetChangeFails(v, r) || b.autoRandomFails(v, r) || b.alterShapeFails(v, r) {
+	if b.alterTextFails(v, r) || b.alterTextShapeFails(v) || b.charsetChangeFails(v, r) || b.autoRandomFails(v, r) || b.alterShapeFails(v, r) || b.checkUsesFails(v, r) {
 		return true
 	}
 	parted := b.partitioning(r)

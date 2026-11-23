@@ -427,6 +427,9 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "Index ") && strings.HasSuffix(m, ", and no other index does.")
 	}, []string{"1553"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.HasSuffix(m, ", which can't be dropped or renamed.")
+	}, []string{"3959"}},
+	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "Foreign key ") || strings.HasPrefix(m, "A foreign key ")) && strings.HasSuffix(m, ", types that don't match.")
 	}, []string{"3780"}},
 	{func(m, _ string) bool {
