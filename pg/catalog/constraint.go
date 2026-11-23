@@ -468,7 +468,7 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 			return err
 		}
 	} else {
-		name = generateConstraintName(rel.Name, def.Columns, ConstraintFK)
+		name = c.chooseFKConstraintName(rel, def.Columns)
 	}
 
 	// Normalize FK action/match defaults.
@@ -1150,6 +1150,21 @@ func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) str
 			return name
 		}
 		name = makePGObjectName(rel.Name, colName, fmt.Sprintf("not_null%d", i))
+	}
+}
+
+// chooseFKConstraintName picks a free generated foreign-key constraint name on
+// rel (<rel>_<cols>_fkey, suffixed with 1, 2, ... on collision).
+//
+// pg: src/backend/commands/tablecmds.c — ChooseConstraintName(..., "fkey", ...)
+func (c *Catalog) chooseFKConstraintName(rel *Relation, columns []string) string {
+	colPart := strings.Join(columns, "_")
+	name := makePGObjectName(rel.Name, colPart, "fkey")
+	for i := 1; ; i++ {
+		if c.checkConstraintNameFree(rel.OID, name) == nil {
+			return name
+		}
+		name = makePGObjectName(rel.Name, colPart, fmt.Sprintf("fkey%d", i))
 	}
 }
 

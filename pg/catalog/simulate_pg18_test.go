@@ -791,6 +791,29 @@ ALTER TABLE ONLY c_dni ALTER COLUMN x SET NOT NULL;
 			t.Fatalf("expected rollback on descendant NO INHERIT conflict (p=%v, c=%v, g=%v)", p.Columns[0].NotNull, ch.Columns[0].NotNull, g.Columns[0].NotNull)
 		}
 	}
+
+	// Unnamed foreign key avoids colliding with an explicit NOT NULL constraint named <rel>_<col>_fkey.
+	fkCollSetup := `
+CREATE TABLE p_fkc (id int PRIMARY KEY);
+CREATE TABLE t_fkc (x int CONSTRAINT t_fkc_x_fkey NOT NULL REFERENCES p_fkc);
+`
+	if got, c := execCodeVersion(t, PG18, fkCollSetup, "ALTER TABLE t_fkc DROP CONSTRAINT t_fkc_x_fkey"); got != "" {
+		t.Fatalf("PG18 drop explicit NOT NULL named t_fkc_x_fkey: got %q, want ok", got)
+	} else {
+		rel := c.GetRelation("public", "t_fkc")
+		if rel.Columns[0].NotNull {
+			t.Fatalf("expected t_fkc.x to become nullable after dropping t_fkc_x_fkey")
+		}
+		var fkName string
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintFK {
+				fkName = con.Name
+			}
+		}
+		if fkName != "t_fkc_x_fkey1" {
+			t.Fatalf("expected unnamed FK to receive name t_fkc_x_fkey1, got %q", fkName)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {
