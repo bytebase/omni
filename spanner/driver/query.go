@@ -93,6 +93,10 @@ func splitScript(script string, d dialect) []string {
 	segments := parser.Split(script)
 	texts := make([]string, 0, len(segments))
 	for _, segment := range segments {
+		// googlesql's Split marks a segment that holds no statement too.
+		if segment.Empty() {
+			continue
+		}
 		texts = append(texts, segment.Text)
 	}
 	return texts

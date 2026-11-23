@@ -698,7 +698,14 @@ func ParseBestEffort(input string) *ParseResult {
 // strictTrailing selects whether parseSingle rejects unconsumed trailing
 // tokens.
 func parseAll(input string, strictTrailing bool) *ParseResult {
-	return parseSegments(input, Split(input), strictTrailing, 0)
+	var segs []Segment
+	for _, seg := range Split(input) {
+		// A lone ';' or a comment holds no statement to parse.
+		if !seg.Empty() {
+			segs = append(segs, seg)
+		}
+	}
+	return parseSegments(input, segs, strictTrailing, 0)
 }
 
 // parseSegments parses segs, the statements of input, and collects their
@@ -721,7 +728,7 @@ func parseSegments(input string, segs []Segment, strictTrailing bool, depth int)
 		result.Errors = append(result.Errors, errs...)
 	}
 
-	// Split drops segments that lex to nothing, and with them their lex
+	// parseAll skips segments that lex to nothing, and with them their lex
 	// errors: Parse("/* unterminated") produced zero segments and zero
 	// errors. Strict mode lexes the whole input once more and promotes any
 	// error the per-segment parses did not already report (matched by
@@ -994,7 +1001,7 @@ func (p *Parser) validateRawQueries(qs []rawQuery) []ParseError {
 // ';' reaches a body only in a routine definition, the one statement Split
 // keeps whole across a ';', and Trino rejects a ';' anywhere in a subquery.
 // Split, the text of `(SELECT 1; )` was the query `SELECT 1` and an empty
-// statement, which Split drops, so strict Parse accepted it. Parsed whole,
+// statement, which parseAll skips, so strict Parse accepted it. Parsed whole,
 // the ';' is a token left over after the query, reported where it is, as
 // Trino reports it.
 func (p *Parser) validateRawQuery(q rawQuery) []ParseError {

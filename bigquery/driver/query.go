@@ -67,11 +67,10 @@ func statements(script string) []string {
 	segments := parser.SplitFlat(script)
 	texts := make([]string, 0, len(segments))
 	for _, segment := range segments {
-		text := strings.TrimSpace(segment.Text)
-		if text == "" {
+		if segment.Empty() {
 			continue
 		}
-		texts = append(texts, text)
+		texts = append(texts, strings.TrimSpace(segment.Text))
 	}
 	return texts
 }
