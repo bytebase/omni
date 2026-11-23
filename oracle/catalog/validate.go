@@ -1487,6 +1487,45 @@ func setUnusedMultiColumnConstraintColumn(table *metadatapb.TableMetadata, dropS
 	return ""
 }
 
+// setUnusedVirtualDependencyColumn returns the first column in dropSet that is
+// referenced by a surviving virtual column's generation expression.
+func setUnusedVirtualDependencyColumn(table *metadatapb.TableMetadata, dropSet map[string]bool) string {
+	if table == nil || len(dropSet) == 0 {
+		return ""
+	}
+	for _, col := range table.Columns {
+		if dropSet[col.Name] || col.GetGeneration() == nil {
+			continue
+		}
+		expr := col.GetGeneration().GetExpression()
+		for _, candidate := range table.Columns {
+			if dropSet[candidate.Name] && expressionReferencesColumn(expr, candidate.Name) {
+				return candidate.Name
+			}
+		}
+	}
+	return ""
+}
+
+// setUnusedLeavesOnlyVirtualColumns reports whether removing dropSet leaves
+// the table with at least one column, all of which are virtual.
+func setUnusedLeavesOnlyVirtualColumns(table *metadatapb.TableMetadata, dropSet map[string]bool) bool {
+	if table == nil || len(dropSet) == 0 {
+		return false
+	}
+	surviving := 0
+	for _, col := range table.Columns {
+		if dropSet[col.Name] {
+			continue
+		}
+		surviving++
+		if col.GetGeneration() == nil {
+			return false
+		}
+	}
+	return surviving > 0
+}
+
 func (e *oracleMetadataExtractor) sequenceInitialCurrent(inc, startVal, minVal, maxVal *big.Int, hasStart, hasMin, hasMax bool) *big.Int {
 	var start *big.Int
 	switch {

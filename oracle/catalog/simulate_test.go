@@ -729,10 +729,7 @@ func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 	return c, nil
 }
 
-var (
-	oracleMadeUpConstraint       = regexp.MustCompile(`^SYS_C\d{6,}$`)
-	oracleMadeUpPeriodConstraint = regexp.MustCompile(`^[A-Z0-9_$#]+[0-9a-f]{6}$`)
-)
+var oracleMadeUpConstraint = regexp.MustCompile(`^SYS_C\d{6,}$`)
 
 func normalizeForSimulation(meta *metadatapb.DatabaseSchemaMetadata) *metadatapb.DatabaseSchemaMetadata {
 	out := cloneMetadata(meta)
@@ -853,7 +850,7 @@ func alignGeneratedConstraintNames(got, want *metadatapb.DatabaseSchemaMetadata)
 		// Check constraints
 		usedGotChk := map[int]bool{}
 		for _, wchk := range wt.CheckConstraints {
-			if !oracleMadeUpConstraint.MatchString(wchk.Name) && !oracleMadeUpPeriodConstraint.MatchString(wchk.Name) {
+			if !oracleMadeUpConstraint.MatchString(wchk.Name) {
 				continue
 			}
 			for j, gchk := range gt.CheckConstraints {

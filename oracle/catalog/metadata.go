@@ -1312,6 +1312,14 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.setError(oraError("12983", "cannot drop all columns in a table"))
 				return
 			}
+			if setUnusedLeavesOnlyVirtualColumns(table, seen) {
+				e.setError(oraError("54037", "table must have at least 1 column that is not virtual"))
+				return
+			}
+			if col := setUnusedVirtualDependencyColumn(table, seen); col != "" {
+				e.setError(oraError("54031", "column %q to be dropped is used in a virtual column expression", col))
+				return
+			}
 			if !cascade {
 				if col := setUnusedMultiColumnConstraintColumn(table, seen); col != "" {
 					e.setError(oraError("12991", "column %q is referenced in a multi-column constraint", col))

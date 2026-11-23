@@ -1333,6 +1333,31 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, results[0].Error)
 		require.True(t, Diff(withPeriod, base).IsEmpty())
+
+		// Synced temporal tables carry Oracle-generated names like Ad6b29a; diffing
+		// against DatabaseDefinition (which re-creates CHK_P2_VT) must converge with no diff.
+		synced := &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{{
+					Name: "P2",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "ID", Type: "NUMBER", Nullable: true, Position: 1},
+						{Name: "S_COL", Type: "TIMESTAMP(6)", Nullable: true, Position: 2},
+						{Name: "E_COL", Type: "TIMESTAMP(6)", Nullable: true, Position: 3},
+					},
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+						Name:       "VTd6b29a",
+						Expression: `"VT_START" < "VT_END"`,
+					}},
+				}},
+			}},
+		}}
+		syncedDef, err := DatabaseDefinition(synced.Metadata())
+		require.NoError(t, err)
+		reloaded, err := LoadSQL(syncedDef)
+		require.NoError(t, err)
+		require.True(t, Diff(synced, reloaded).IsEmpty())
+		require.True(t, Diff(reloaded, synced).IsEmpty())
 	})
 
 	t.Run("SET UNUSED executes when ApplySetUnused is enabled and enforces column/FK/last-column checks", func(t *testing.T) {
@@ -1421,6 +1446,34 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		tblMT = tableByName(mc.Metadata().Schemas[0])["MT"]
 		require.Len(t, tblMT.Columns, 1)
 		require.Empty(t, tblMT.Indexes)
+
+		// Setting a column unused when referenced by a surviving virtual column -> ORA-54031
+		// (even with CASCADE CONSTRAINTS), and leaving only virtual columns -> ORA-54037.
+		vc, err := LoadSQL(`CREATE TABLE vt (a NUMBER, b NUMBER, v AS (a + 1))`)
+		require.NoError(t, err)
+		vc.SetServerConfig(StandardOracle23ServerConfig())
+
+		for _, stmt := range []string{
+			`ALTER TABLE vt SET UNUSED COLUMN a`,
+			`ALTER TABLE vt SET UNUSED COLUMN a CASCADE CONSTRAINTS`,
+		} {
+			results, err := vc.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "54031")
+		}
+		require.Len(t, tableByName(vc.Metadata().Schemas[0])["VT"].Columns, 3)
+
+		results, err = vc.Exec(`ALTER TABLE vt SET UNUSED (a, b)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "54037")
+
+		// Setting both A and its dependent virtual column V unused together succeeds.
+		results, err = vc.Exec(`ALTER TABLE vt SET UNUSED (a, v)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tblVT := tableByName(vc.Metadata().Schemas[0])["VT"]
+		require.Len(t, tblVT.Columns, 1)
+		require.Equal(t, "B", tblVT.Columns[0].Name)
 	})
 
 	t.Run("ALTER SEQUENCE enforces ORA-04007 and ORA-04009 against initial sequence current value", func(t *testing.T) {
