@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -622,11 +621,6 @@ func (e *oracleEngine) Inventory(t testing.TB, change string) []walktest.Object 
 		switch space.String {
 		case spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym:
 			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: walk.Path(owner.String), Name: name.String}, Kind: kind.String})
-			// The routine space repeats the object space's functions,
-			// procedures, and packages.
-			if space.String == spaceObject && slices.Contains(routineKinds, kind.String) {
-				out = append(out, walktest.Object{Key: walk.Key{Space: spaceRoutine, Parent: walk.Path(owner.String), Name: name.String}, Kind: kind.String})
-			}
 		case spaceColumn, spacePrimary, spaceTableConstraint:
 			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: tablePath(owner.String, table.String), Name: name.String}})
 		case spaceConstraint, spaceIndex, spaceTrigger:

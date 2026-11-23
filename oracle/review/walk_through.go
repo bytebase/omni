@@ -466,7 +466,6 @@ func (b *builder) arriveObject(r objRef, kind string) {
 		{spaceTable, []string{kindTable, kindMView}},
 		{spaceView, []string{kindView}},
 		{spaceSequence, []string{kindSequence}},
-		{spaceRoutine, routineKinds},
 		{spaceSynonym, []string{kindSynonym}},
 	} {
 		if contains(s.kinds, kind) {
@@ -481,7 +480,7 @@ func (b *builder) arriveObject(r objRef, kind string) {
 func (b *builder) leaveObject(r objRef) {
 	b.mutateTableAll(r)
 	b.mutateSynonym(r.name)
-	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceRoutine, spaceSynonym} {
+	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Absent, "")
 	}
 }
@@ -491,7 +490,7 @@ func (b *builder) leaveObject(r objRef) {
 func (b *builder) forgetObject(r objRef) {
 	b.mutateTableAll(r)
 	b.mutateSynonym(r.name)
-	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceRoutine, spaceSynonym} {
+	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Unknown, "")
 	}
 }

@@ -724,7 +724,7 @@
 | 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 | 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'geo')
-| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -755,21 +755,6 @@
 : string
 | dbo
 : string
-| mixed_indexes
-: string
-| UQ__mixed_in__standin5
-: string
-| code
-: bool false
-: bool false
-: bool true
-: string
-| NONCLUSTERED
-: null
-< row
-: string
-| dbo
-: string
 | spatial_computed
 : string
 | PK__spatial___standin6
@@ -795,6 +780,21 @@
 : bool false
 : string
 | CLUSTERED
+: null
+< row
+: string
+| dbo
+: string
+| mixed_indexes
+: string
+| UQ__mixed_in__standin5
+: string
+| code
+: bool false
+: bool false
+: bool true
+: string
+| NONCLUSTERED
 : null
 < row
 : string
@@ -2347,15 +2347,12 @@
 < column "" "NVARCHAR"
 < column "" "NVARCHAR"
 > query
-| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+| SELECT SCHEMA_NAME()
 < result
-< column "" "NVARCHAR"
 < column "" "NVARCHAR"
 < row
 : string
 | dbo
-: string
-| SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok
 
@@ -2772,7 +2769,7 @@
 | 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 | 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'geo')
-| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -3882,15 +3879,12 @@
 < column "" "NVARCHAR"
 < column "" "NVARCHAR"
 > query
-| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+| SELECT SCHEMA_NAME()
 < result
-< column "" "NVARCHAR"
 < column "" "NVARCHAR"
 < row
 : string
 | dbo
-: string
-| SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok
 
@@ -4197,7 +4191,7 @@
 | 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 | 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'geo')
-| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -4999,15 +4993,12 @@
 < column "" "NVARCHAR"
 < column "" "NVARCHAR"
 > query
-| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+| SELECT SCHEMA_NAME()
 < result
-< column "" "NVARCHAR"
 < column "" "NVARCHAR"
 < row
 : string
 | dbo
-: string
-| SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok
 
@@ -5579,7 +5570,7 @@
 | 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 | 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'geo')
-| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -5610,21 +5601,6 @@
 : string
 | dbo
 : string
-| mixed_indexes
-: string
-| UQ__mixed_in__standin5
-: string
-| code
-: bool false
-: bool false
-: bool true
-: string
-| NONCLUSTERED
-: null
-< row
-: string
-| dbo
-: string
 | spatial_edge_cases
 : string
 | PK__spatial___standin2
@@ -5635,6 +5611,21 @@
 : bool false
 : string
 | CLUSTERED
+: null
+< row
+: string
+| dbo
+: string
+| mixed_indexes
+: string
+| UQ__mixed_in__standin5
+: string
+| code
+: bool false
+: bool false
+: bool true
+: string
+| NONCLUSTERED
 : null
 < row
 : string
@@ -7038,14 +7029,11 @@
 < column "" "NVARCHAR"
 < column "" "NVARCHAR"
 > query
-| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+| SELECT SCHEMA_NAME()
 < result
-< column "" "NVARCHAR"
 < column "" "NVARCHAR"
 < row
 : string
 | dbo
-: string
-| SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok

@@ -396,45 +396,6 @@ func isIOTPropertySubtype(subtype string) bool {
 	return false
 }
 
-// isExternalPropertyClause reports whether an ALTER TABLE clause alters an
-// external table's properties (alter_external_table): DEFAULT DIRECTORY,
-// ACCESS PARAMETERS, LOCATION, REJECT LIMIT, or PROJECT COLUMN. Any other
-// table refuses them (01735).
-func isExternalPropertyClause(toks []parser.Token) bool {
-	return tokensSay(toks, "DEFAULT", "DIRECTORY") || tokensSay(toks, "ACCESS", "PARAMETERS") ||
-		tokensSay(toks, "LOCATION") || tokensSay(toks, "REJECT", "LIMIT") || tokensSay(toks, "PROJECT", "COLUMN")
-}
-
-// tokensSay reports whether a clause's tokens start with words.
-func tokensSay(toks []parser.Token, words ...string) bool {
-	for i, w := range words {
-		if !tokWord(toks, i, w) {
-			return false
-		}
-	}
-	return true
-}
-
-// notExternal reports whether the walk knows r is a table of the schema
-// that is neither external nor hybrid partitioned: the sync lists it with
-// no partitions, which leaves out only system and reference partitioning,
-// neither of which an external table takes, and with an index that backs
-// no constraint, which no external table has (30657).
-func (b *builder) notExternal(r objRef) bool {
-	if b.syncedPartMeta(r) == nil || b.syncedIndexMeta(r) == nil {
-		return false
-	}
-	if st := b.w.snap.tables[r.name]; st == nil || st.partCount > 0 {
-		return false
-	}
-	for name, table := range b.w.snap.indexes {
-		if table == r.name && !b.w.snap.constraintIndexes[name] {
-			return true
-		}
-	}
-	return false
-}
-
 // checkIOTPartitionClause rejects IOT-only partition clauses (OVERFLOW,
 // MAPPING TABLE, or bare COALESCE without SUBPARTITION) when the table is
 // known to have no primary key (an IOT must have a primary key, ORA-25175).

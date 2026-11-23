@@ -28,7 +28,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/trino/catalog"
 )
 
@@ -37,22 +36,42 @@ import (
 // Trino completer emits: keyword, catalog (database), schema, table, view,
 // column. Functions are categorized by the legacy completer but its function
 // table is never populated, so this package does not emit function candidates.
-type CandidateType = analysis.CandidateType
+type CandidateType int
 
 const (
 	// CandidateKeyword is a SQL keyword (SELECT, FROM, JOIN, ...).
-	CandidateKeyword = analysis.CandidateKeyword
+	CandidateKeyword CandidateType = iota
 	// CandidateCatalog is a Trino catalog name (the top namespace level).
-	CandidateCatalog = analysis.CandidateCatalog
+	CandidateCatalog
 	// CandidateSchema is a schema name within a catalog.
-	CandidateSchema = analysis.CandidateSchema
+	CandidateSchema
 	// CandidateTable is a base-table name.
-	CandidateTable = analysis.CandidateTable
+	CandidateTable
 	// CandidateView is a view (or materialized view) name.
-	CandidateView = analysis.CandidateView
+	CandidateView
 	// CandidateColumn is a column name of an in-scope table/view/CTE.
-	CandidateColumn = analysis.CandidateColumn
+	CandidateColumn
 )
+
+// String returns the lower-case kind name, handy for tests and logging.
+func (t CandidateType) String() string {
+	switch t {
+	case CandidateKeyword:
+		return "keyword"
+	case CandidateCatalog:
+		return "catalog"
+	case CandidateSchema:
+		return "schema"
+	case CandidateTable:
+		return "table"
+	case CandidateView:
+		return "view"
+	case CandidateColumn:
+		return "column"
+	default:
+		return "unknown"
+	}
+}
 
 // Candidate is a single completion suggestion. Text is the completion string
 // (already quoted when the identifier needs quoting, via QuoteIdentifierIfNeeded

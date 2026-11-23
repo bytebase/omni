@@ -12,15 +12,13 @@ import (
 // The walk's spaces (docs/specs/2026-10-26-walk-through-oracle.md §2). The
 // object space is a schema's object namespace, which tables, views,
 // materialized views, sequences, private synonyms, routines, packages, and
-// types share; its key's kind is what the object is. The table, view,
-// sequence, and routine spaces repeat what the object space holds for those
-// kinds, so that a statement of one kind can trust the sync where it is
-// complete for that kind. The routine space holds functions, procedures,
-// and packages, which the sync lists in full from ALL_SOURCE. A column, the
-// primary key, and a constraint as DROP CONSTRAINT finds it on its table
-// are keys of the table's path; a constraint name, an index, and a trigger
-// are keys of the schema, each in a namespace of its own, of the kind of
-// the table path they are on. The
+// types share; its key's kind is what the object is. The table, view, and
+// sequence spaces repeat what the object space holds for those kinds, so
+// that a statement of one kind can trust the sync where it is complete for
+// that kind. A column, the primary key, and a constraint as DROP
+// CONSTRAINT finds it on its table are keys of the table's path; a
+// constraint name, an index, and a trigger are keys of the schema, each in
+// a namespace of its own, of the kind of the table path they are on. The
 // synonym space holds the synonyms a name resolves through, private ones
 // in their schema and public ones in PUBLIC; only DML reads it (spec §3).
 const (
@@ -28,7 +26,6 @@ const (
 	spaceTable           = "table"
 	spaceView            = "view"
 	spaceSequence        = "sequence"
-	spaceRoutine         = "routine"
 	spaceSynonym         = "synonym"
 	spaceColumn          = "column"
 	spacePrimary         = "primary key"
@@ -37,9 +34,6 @@ const (
 	spaceIndex           = "index"
 	spaceTrigger         = "trigger"
 )
-
-// routineKinds are the kinds the routine space holds.
-var routineKinds = []string{kindFunction, kindProcedure, kindPackage}
 
 // publicSchema owns the public synonyms. No user can take its name
 // (01920), so no schema of the walk is named so.
@@ -83,8 +77,7 @@ func tablePath(schema, name string) string { return walk.Path(schema, name) }
 // oracleSnapshot is a target's synced schema as WalkThrough trusts it: one
 // schema, the database the target names (spec §3). It answers Present for
 // what Bytebase's sync lists, and Absent where that sync lists every object
-// of a space: tables and materialized views, views, sequences, and
-// functions, procedures, and packages, whose source ALL_SOURCE holds; the
+// of a space: tables and materialized views, views, and sequences; the
 // columns of a table whose columns it lists in full; whether a table has a
 // primary key; and the synonyms a name resolves through, the schema's and
 // the public ones. Constraint names, indexes, and triggers it lists only
@@ -523,13 +516,12 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, kind
 		}
 		return walk.Unknown, ""
-	case spaceTable, spaceView, spaceSequence, spaceRoutine:
+	case spaceTable, spaceView, spaceSequence:
 		kind := s.objects[k.Name]
 		switch {
 		case k.Space == spaceTable && (kind == kindTable || kind == kindMView),
 			k.Space == spaceView && kind == kindView,
-			k.Space == spaceSequence && kind == kindSequence,
-			k.Space == spaceRoutine && slices.Contains(routineKinds, kind):
+			k.Space == spaceSequence && kind == kindSequence:
 			return walk.Present, kind
 		case generated(k.Space, k.Name):
 			return walk.Unknown, ""

@@ -276,7 +276,7 @@ func filterTo(synced, wanted *metadata.DatabaseSchemaMetadata) *metadata.Databas
 	for _, schema := range wanted.Schemas {
 		names[strings.ToLower(schema.Name)] = true
 	}
-	filtered := &metadata.DatabaseSchemaMetadata{Name: synced.Name, DefaultSchema: synced.DefaultSchema, Collation: synced.Collation}
+	filtered := &metadata.DatabaseSchemaMetadata{Name: synced.Name, DefaultSchema: synced.DefaultSchema}
 	for _, schema := range synced.Schemas {
 		if names[strings.ToLower(schema.Name)] {
 			filtered.Schemas = append(filtered.Schemas, schema)
@@ -618,65 +618,4 @@ GO
 
 	diff := catalog.Diff(from, to)
 	require.True(t, diff.IsEmpty(), "unexpected diff against live SQL Server snapshot: %s", catalog.GenerateMigration(from, to, diff).SQL())
-}
-
-// TestOmittedCollationFidelity migrates a synced table to a desired state
-// written as SQL text, where a column without COLLATE takes the database's
-// default. The synced database's collation decides which columns change: one
-// losing its explicit collation, one gaining another, and none whose explicit
-// collation is the default. After the migration runs, the server holds the
-// desired state exactly.
-func TestOmittedCollationFidelity(t *testing.T) {
-	db := testcontainer.Open(t)
-	ctx := context.Background()
-	execScript(t, db, `CREATE SCHEMA [fid_collate];
-GO
-CREATE TABLE [fid_collate].[t] (
-    [id] INT NOT NULL,
-    [a] VARCHAR(20) COLLATE Latin1_General_CS_AS NULL,
-    [b] VARCHAR(20) NULL,
-    [c] VARCHAR(20) NULL,
-    CONSTRAINT [PK_t] PRIMARY KEY ([id])
-);
-GO
-CREATE INDEX [IX_t_b] ON [fid_collate].[t] ([b]);
-GO
-`)
-	stored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
-	require.NoError(t, err)
-	require.NotEmpty(t, stored.Collation)
-	require.NotEqual(t, "Latin1_General_CI_AS", stored.Collation)
-
-	desired, err := catalog.GetDatabaseMetadata(fmt.Sprintf(`CREATE SCHEMA [fid_collate];
-GO
-CREATE TABLE [fid_collate].[t] (
-    [id] INT NOT NULL,
-    [a] VARCHAR(20) NULL,
-    [b] VARCHAR(20) COLLATE Latin1_General_CI_AS NULL,
-    [c] VARCHAR(20) COLLATE %s NULL,
-    CONSTRAINT [PK_t] PRIMARY KEY ([id])
-);
-GO
-CREATE INDEX [IX_t_b] ON [fid_collate].[t] ([b]);
-GO
-`, stored.Collation))
-	require.NoError(t, err)
-	to := catalog.New()
-	require.NoError(t, to.LoadMetadata(ctx, desired))
-
-	from := catalog.New()
-	require.NoError(t, from.LoadMetadata(ctx, filterTo(stored, desired)))
-	plan := catalog.GenerateMigration(from, to, catalog.Diff(from, to))
-	sql := plan.SQL()
-	require.Contains(t, sql, "ALTER COLUMN [a] VARCHAR(20) NULL;")
-	require.Contains(t, sql, "ALTER COLUMN [b] VARCHAR(20) COLLATE Latin1_General_CI_AS NULL;")
-	require.NotContains(t, sql, "ALTER COLUMN [c]")
-
-	execScript(t, db, sql)
-	restored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
-	require.NoError(t, err)
-	got := catalog.New()
-	require.NoError(t, got.LoadMetadata(ctx, filterTo(restored, desired)))
-	diff := catalog.Diff(got, to)
-	require.True(t, diff.IsEmpty(), "after %q the server still differs: %s", sql, catalog.GenerateMigration(got, to, diff).SQL())
 }

@@ -30,13 +30,9 @@ const (
 // syncs, so the catalog holds metadata.DatabaseSchemaMetadata and applies DDL to
 // it.
 type Catalog struct {
-	database              string
-	defaultSchema         string
-	metadataDefaultSchema string
-	// collation is the database's default collation, which a character
-	// column written without COLLATE takes. Empty when unknown, as for a
-	// catalog loaded from SQL text.
-	collation                         string
+	database                          string
+	defaultSchema                     string
+	metadataDefaultSchema             string
 	schemas                           []*metadata.SchemaMetadata
 	schemaByName                      map[string]*metadata.SchemaMetadata
 	schemasByFold                     map[string][]*metadata.SchemaMetadata
@@ -249,7 +245,6 @@ func (c *Catalog) Metadata() *metadata.DatabaseSchemaMetadata {
 	meta := &metadata.DatabaseSchemaMetadata{
 		Name:          c.database,
 		DefaultSchema: c.metadataDefaultSchema,
-		Collation:     c.collation,
 		Schemas:       make([]*metadata.SchemaMetadata, 0, len(c.schemas)),
 	}
 	for _, schema := range c.schemas {
@@ -275,7 +270,6 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	c.database = database
 	c.defaultSchema = defaultSchema
 	c.metadataDefaultSchema = meta.GetDefaultSchema()
-	c.collation = meta.GetCollation()
 	if meta.GetDefaultSchema() != "" {
 		c.defaultSchema = meta.GetDefaultSchema()
 	}

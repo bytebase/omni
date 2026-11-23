@@ -4,29 +4,28 @@ package completion
 import (
 	"strings"
 
-	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oceanbase/catalog"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
 
 // CandidateType classifies a completion candidate.
-type CandidateType = analysis.CandidateType
+type CandidateType int
 
 const (
-	CandidateKeyword   = analysis.CandidateKeyword   // SQL keyword
-	CandidateDatabase  = analysis.CandidateDatabase  // database name
-	CandidateTable     = analysis.CandidateTable     // table name
-	CandidateView      = analysis.CandidateView      // view name
-	CandidateColumn    = analysis.CandidateColumn    // column name
-	CandidateFunction  = analysis.CandidateFunction  // function name
-	CandidateProcedure = analysis.CandidateProcedure // procedure name
-	CandidateIndex     = analysis.CandidateIndex     // index name
-	CandidateTrigger   = analysis.CandidateTrigger   // trigger name
-	CandidateEvent     = analysis.CandidateEvent     // event name
-	CandidateVariable  = analysis.CandidateVariable  // variable name
-	CandidateCharset   = analysis.CandidateCharset   // charset name
-	CandidateEngine    = analysis.CandidateEngine    // engine name
-	CandidateType_     = analysis.CandidateType_     // SQL type name
+	CandidateKeyword   CandidateType = iota // SQL keyword
+	CandidateDatabase                       // database name
+	CandidateTable                          // table name
+	CandidateView                           // view name
+	CandidateColumn                         // column name
+	CandidateFunction                       // function name
+	CandidateProcedure                      // procedure name
+	CandidateIndex                          // index name
+	CandidateTrigger                        // trigger name
+	CandidateEvent                          // event name
+	CandidateVariable                       // variable name
+	CandidateCharset                        // charset name
+	CandidateEngine                         // engine name
+	CandidateType_                          // SQL type name
 )
 
 // Candidate is a single completion suggestion.

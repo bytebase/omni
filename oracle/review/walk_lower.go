@@ -1,9 +1,7 @@
 package review
 
 import (
-	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -36,9 +34,6 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.AlterMaterializedViewStmt:
 		return b.alterMaterializedView(v)
 	case *ast.CreateSequenceStmt:
-		if b.sequenceOptionsFail(v) {
-			return true
-		}
 		return b.createObject(v.Name, kindSequence, v.IfNotExists, false)
 	case *ast.AlterSequenceStmt:
 		return b.alterSequence(v)
@@ -89,8 +84,9 @@ func (b *builder) statement(n ast.Node) bool {
 		}
 		return b.createObject(v.Name, kindPackage, v.IfNotExists, v.OrReplace)
 	case *ast.AlterPackageStmt:
-		// COMPILE BODY needs the package too (04043); the body itself is
-		// in a namespace of its own.
+		if v.CompileTarget == "BODY" {
+			return true
+		}
 		return b.alterObject(v.Name, kindPackage, v.IfExists, func(w string) string { return missingKind(kindPackage, w) }, kindWord(kindPackage))
 	case *ast.CreateProcedureStmt:
 		return b.createObject(v.Name, kindProcedure, v.IfNotExists, v.OrReplace)
@@ -536,7 +532,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		return false
 	}
 	switch v.ObjectType {
-	case ast.OBJECT_TYPE_BODY:
+	case ast.OBJECT_PACKAGE_BODY, ast.OBJECT_TYPE_BODY:
 		return true
 	case ast.OBJECT_SYNONYM:
 		if b.publicSynonym(v.Loc) {
@@ -594,24 +590,14 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			return true
 		}
 		b.leaveObject(r)
-	case ast.OBJECT_PACKAGE_BODY:
-		// The body has a namespace of its own, which the sync does not
-		// list, but it needs its package (04043).
-		if !v.IfExists {
-			b.routineExists(r, kindPackage, false)
-		}
-	case ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION:
+	case ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION, ast.OBJECT_TYPE:
 		kind := map[ast.ObjectType]string{
 			ast.OBJECT_PACKAGE:   kindPackage,
 			ast.OBJECT_PROCEDURE: kindProcedure,
 			ast.OBJECT_FUNCTION:  kindFunction,
+			ast.OBJECT_TYPE:      kindType,
 		}[v.ObjectType]
-		if !b.routineExists(r, kind, v.IfExists) {
-			return true
-		}
-		b.leaveObject(r)
-	case ast.OBJECT_TYPE:
-		if !b.exists(r.key(spaceObject), []string{kindType}, v.IfExists, r.rng, missingKind(kindType, r.written), notKind(r.written, kindWord(kindType))) {
+		if !b.exists(r.key(spaceObject), []string{kind}, v.IfExists, r.rng, missingKind(kind, r.written), notKind(r.written, kindWord(kind))) {
 			return true
 		}
 		b.leaveObject(r)
@@ -1029,104 +1015,6 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 	return true
 }
 
-// sequenceOptionsFail fails a CREATE SEQUENCE whose options contradict
-// each other, from integer literals and Oracle's defaults: a CACHE below 2
-// (04010), a MINVALUE not below the MAXVALUE (04004), and a CYCLE with no
-// bound to cycle at (04015). The defaults hang on the direction of
-// INCREMENT BY, 1 when not given: MINVALUE 1 and no MAXVALUE ascending,
-// MAXVALUE -1 and no MINVALUE descending.
-func (b *builder) sequenceOptionsFail(v *ast.CreateSequenceStmt) bool {
-	rng := b.anchor()
-	if v.Cache != nil {
-		if n, ok := intLiteral(v.Cache); ok && n.Cmp(big.NewInt(2)) < 0 {
-			b.fail(rng, review.UnsupportedForm, "A sequence must CACHE more than 1 value.")
-			return true
-		}
-	}
-	inc := big.NewInt(1)
-	if v.IncrementBy != nil {
-		n, ok := intLiteral(v.IncrementBy)
-		if !ok || n.Sign() == 0 {
-			return false
-		}
-		inc = n
-	}
-	// min and max are nil when unbounded.
-	var min, max *big.Int
-	if inc.Sign() > 0 {
-		min = big.NewInt(1)
-	} else {
-		max = big.NewInt(-1)
-	}
-	if v.MinValue != nil {
-		n, ok := intLiteral(v.MinValue)
-		if !ok {
-			return false
-		}
-		min = n
-	} else if v.NoMinValue {
-		min = nil
-		if inc.Sign() > 0 {
-			min = big.NewInt(1)
-		}
-	}
-	if v.MaxValue != nil {
-		n, ok := intLiteral(v.MaxValue)
-		if !ok {
-			return false
-		}
-		max = n
-	} else if v.NoMaxValue {
-		max = nil
-		if inc.Sign() < 0 {
-			max = big.NewInt(-1)
-		}
-	}
-	if min != nil && max != nil && min.Cmp(max) >= 0 {
-		b.fail(rng, review.UnsupportedForm, "A sequence's MINVALUE must be less than its MAXVALUE.")
-		return true
-	}
-	if v.Cycle && (inc.Sign() > 0 && v.MaxValue == nil || inc.Sign() < 0 && v.MinValue == nil) {
-		b.fail(rng, review.UnsupportedForm, "A sequence that CYCLEs must give the bound it cycles at, MAXVALUE ascending and MINVALUE descending.")
-		return true
-	}
-	return false
-}
-
-// intLiteral reads an integer literal, signed or not.
-func intLiteral(e ast.ExprNode) (*big.Int, bool) {
-	neg := false
-	for {
-		switch x := e.(type) {
-		case *ast.ParenExpr:
-			e = x.Expr
-			continue
-		case *ast.UnaryExpr:
-			if x.Op != "-" && x.Op != "+" {
-				return nil, false
-			}
-			if x.Op == "-" {
-				neg = !neg
-			}
-			e = x.Operand
-			continue
-		}
-		break
-	}
-	lit, ok := e.(*ast.NumberLiteral)
-	if !ok || lit.IsFloat {
-		return nil, false
-	}
-	n, ok := new(big.Int).SetString(lit.Val, 10)
-	if !ok {
-		return nil, false
-	}
-	if neg {
-		n.Neg(n)
-	}
-	return n, true
-}
-
 // alterObject follows ALTER of a procedure, function, package, type, or
 // private synonym: the object must exist of that kind in the object namespace.
 func (b *builder) alterObject(name *ast.ObjectName, kind string, ifExists bool, missing func(string) string, needed string) bool {
@@ -1138,27 +1026,8 @@ func (b *builder) alterObject(name *ast.ObjectName, kind string, ifExists bool, 
 		return true
 	}
 	b.Order = walk.Lookups
-	if slices.Contains(routineKinds, kind) {
-		b.routineExists(r, kind, ifExists)
-		return true
-	}
 	b.exists(r.key(spaceObject), []string{kind}, ifExists, r.rng, missing(r.written), notKind(r.written, needed))
 	return true
-}
-
-// routineExists adds the check that a function, procedure, or package
-// exists of its kind, and reports whether the statement does anything.
-// The routine space is complete where the object space is not: the sync
-// lists every function, procedure, and package, and none of the types and
-// other objects that share the namespace, so a name no routine holds is
-// refused (04043) whatever else may hold it. A name the walk knows another
-// kind holds is said to be of that kind.
-func (b *builder) routineExists(r objRef, kind string, ifExists bool) bool {
-	k := r.key(spaceRoutine)
-	if !ifExists && b.heldByOther(k, r, kind) {
-		return true
-	}
-	return b.exists(k, []string{kind}, ifExists, r.rng, missingKind(kind, r.written), notKind(r.written, kindWord(kind)))
 }
 
 // alterIndex follows ALTER INDEX: the index must exist (01418); RENAME TO
@@ -1277,9 +1146,6 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 				b.fail(r.rng, review.DuplicateName, twice("declares", "column", dup))
 				return true
 			}
-			if b.mviewOptionsFail(v, r) {
-				return true
-			}
 			b.checkSelectFromTables(v.Query, nil)
 			if !b.checkCreateMviewExtra(v, r) {
 				b.checkMviewColumnRefs(v, r)
@@ -1339,44 +1205,6 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 		b.Set(r.schemaKey(spaceConstraint, n), walk.Present, r.path())
 	}
 	return true
-}
-
-// mviewOptionsFail fails a CREATE MATERIALIZED VIEW whose text Oracle
-// refuses: a column alias list of another length than the query's select
-// list (01730); a START WITH or NEXT of a number, where Oracle needs a date
-// (00932); and, on a query of SYS.DUAL alone, REFRESH FAST, which needs a
-// master table with a primary key or a log (12014), and ENABLE QUERY
-// REWRITE, which no query of a SYS table takes (30354).
-func (b *builder) mviewOptionsFail(v *ast.CreateViewStmt, r objRef) bool {
-	sel, _ := v.Query.(*ast.SelectStmt)
-	if v.Columns != nil && len(v.Columns.Items) > 0 && (v.Constraints == nil || len(v.Constraints.Items) == 0) && !b.isObjectView(v) {
-		if n, ok := selectColumnCount(sel); ok && n != len(v.Columns.Items) {
-			b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" names "+strconv.Itoa(len(v.Columns.Items))+" columns for a query of "+strconv.Itoa(n)+".")
-			return true
-		}
-	}
-	for _, e := range []ast.ExprNode{v.StartWith, v.Next} {
-		if _, ok := e.(*ast.NumberLiteral); ok {
-			b.fail(rangeOf(e.(*ast.NumberLiteral).Loc), review.UnsupportedForm, "START WITH and NEXT take a date, not a number.")
-			return true
-		}
-	}
-	if sel == nil || sel.WithClause != nil || sel.Op != ast.SETOP_NONE || sel.Larg != nil || sel.FromClause == nil || len(sel.FromClause.Items) != 1 {
-		return false
-	}
-	tr, ok := sel.FromClause.Items[0].(*ast.TableRef)
-	if !ok || tr.Dblink != "" || !b.isSysDual(tr.Name) {
-		return false
-	}
-	switch {
-	case strings.EqualFold(v.RefreshMethod, "FAST"):
-		b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" cannot REFRESH FAST from SYS.DUAL.")
-		return true
-	case v.EnableQuery:
-		b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" cannot ENABLE QUERY REWRITE on SYS.DUAL.")
-		return true
-	}
-	return false
 }
 
 // isObjectView reports whether a CREATE VIEW declares an object or XMLType
@@ -2114,8 +1942,7 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 		if sel, ok := v.Subquery.(*ast.SelectStmt); ok {
 			subSel = sel
 		}
-		inserts := b.multiInsertsRow(v, subSel)
-		for i, item := range v.MultiTable.Items {
+		for _, item := range v.MultiTable.Items {
 			into, ok := item.(*ast.InsertIntoClause)
 			if !ok || into.Table == nil {
 				continue
@@ -2136,7 +1963,7 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 				b.fail(rangeOf(into.Loc), review.UnsupportedForm, "INSERT column count does not match VALUES count.")
 				return
 			}
-			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, inserts[i], rangeOf(into.Loc)) {
+			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, false, rangeOf(into.Loc)) {
 				return
 			}
 		}
@@ -2187,159 +2014,12 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 		}
 	}
 	if v.ValuesRecord == nil && v.SetClauses == nil {
-		guaranteedRow := v.ErrorLog == nil && (v.Values != nil && len(v.Values.Items) > 0 && v.Select == nil ||
-			v.Select != nil && b.yieldsRow(v.Select, nil, 0))
+		guaranteedRow := v.Values != nil && len(v.Values.Items) > 0 && v.Select == nil && v.ErrorLog == nil
 		if b.dmlCheckInsertTableMeta(v.Table, r, v.Columns, v.Values, v.Select, v.ByName, guaranteedRow, b.anchor()) {
 			return
 		}
 	}
 	b.dmlErrorLog(v.ErrorLog, r)
-}
-
-// multiInsertsRow reports, for each INTO clause of a multi-table INSERT,
-// whether it certainly inserts a row: its subquery certainly returns one,
-// and the clause takes it. INSERT ALL without WHEN takes it in every
-// clause; with WHEN, a clause whose condition certainly holds does. INSERT
-// FIRST takes it in the clauses of the first condition that holds when
-// every condition before it certainly fails, and in the ELSE clauses when
-// every condition certainly fails.
-func (b *builder) multiInsertsRow(v *ast.InsertStmt, sub *ast.SelectStmt) []bool {
-	out := make([]bool, len(v.MultiTable.Items))
-	if sub == nil || !b.yieldsRow(sub, nil, 0) {
-		return out
-	}
-	conditional := false
-	for _, item := range v.MultiTable.Items {
-		if into, ok := item.(*ast.InsertIntoClause); ok && into.When != nil {
-			conditional = true
-		}
-	}
-	// taken is the condition FIRST takes the row in, once one holds.
-	var taken ast.ExprNode
-	allFail := true
-	for i, item := range v.MultiTable.Items {
-		into, ok := item.(*ast.InsertIntoClause)
-		if !ok {
-			return make([]bool, len(v.MultiTable.Items))
-		}
-		holds, known := constantCondition(into.When)
-		switch {
-		case !conditional:
-			out[i] = true
-		case into.When == nil:
-			// ELSE.
-			out[i] = allFail
-		case v.InsertType == ast.INSERT_FIRST:
-			switch {
-			case taken != nil:
-				out[i] = into.When == taken
-			case !allFail:
-			case known && holds:
-				taken = into.When
-				out[i] = true
-			}
-			if !known || holds {
-				allFail = false
-			}
-		default:
-			out[i] = known && holds
-			if !known || holds {
-				allFail = false
-			}
-		}
-	}
-	return out
-}
-
-// constantCondition evaluates a WHEN condition that compares two integer
-// literals, and reports whether it could.
-func constantCondition(e ast.ExprNode) (holds, known bool) {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		e = p.Expr
-	}
-	be, ok := e.(*ast.BinaryExpr)
-	if !ok {
-		return false, false
-	}
-	l, lok := be.Left.(*ast.NumberLiteral)
-	r, rok := be.Right.(*ast.NumberLiteral)
-	if !lok || !rok || l.IsFloat || r.IsFloat || l.Val != strconv.FormatInt(l.Ival, 10) || r.Val != strconv.FormatInt(r.Ival, 10) {
-		return false, false
-	}
-	switch be.Op {
-	case "=":
-		return l.Ival == r.Ival, true
-	case "!=", "<>", "^=":
-		return l.Ival != r.Ival, true
-	case "<":
-		return l.Ival < r.Ival, true
-	case ">":
-		return l.Ival > r.Ival, true
-	case "<=":
-		return l.Ival <= r.Ival, true
-	case ">=":
-		return l.Ival >= r.Ival, true
-	}
-	return false, false
-}
-
-// yieldsRow reports whether a query certainly returns a row: one query
-// block over SYS.DUAL alone, or over a WITH query that certainly returns
-// one, with nothing that filters, groups, or limits its rows. ctes are the
-// WITH queries the block sees, in the order they are defined, so a name is
-// looked up from the last. The walk does not judge what the select list
-// computes: an expression that fails fails the statement all the same.
-func (b *builder) yieldsRow(n ast.StmtNode, ctes []*ast.CTE, depth int) bool {
-	sel, ok := n.(*ast.SelectStmt)
-	if !ok || sel == nil || depth > 8 {
-		return false
-	}
-	if sel.Op != ast.SETOP_NONE || sel.Larg != nil || sel.Rarg != nil || sel.Into != nil || sel.IntoVars != nil ||
-		sel.WhereClause != nil || sel.Hierarchical != nil || sel.GroupClause != nil || sel.HavingClause != nil ||
-		sel.ModelClause != nil || sel.QualifyClause != nil || sel.FetchFirst != nil || sel.ForUpdate != nil {
-		return false
-	}
-	if w := sel.WithClause; w != nil {
-		if w.PLSQLDeclarations != nil && len(w.PLSQLDeclarations.Items) > 0 || w.Recursive {
-			return false
-		}
-		scope := slices.Clone(ctes)
-		if w.CTEs != nil {
-			for _, item := range w.CTEs.Items {
-				c, ok := item.(*ast.CTE)
-				if !ok {
-					return false
-				}
-				scope = append(scope, c)
-			}
-		}
-		ctes = scope
-	}
-	if sel.FromClause == nil || len(sel.FromClause.Items) != 1 {
-		return false
-	}
-	tr, ok := sel.FromClause.Items[0].(*ast.TableRef)
-	if !ok || tr.Name == nil || tr.Sample != nil || tr.Flashback != nil || tr.PartitionExt != nil || tr.Dblink != "" {
-		return false
-	}
-	if tr.Name.Schema == "" && tr.Name.DBLink == "" {
-		for i := len(ctes) - 1; i >= 0; i-- {
-			c := ctes[i]
-			if c.Name != tr.Name.Name {
-				continue
-			}
-			if c.Query == nil || c.Search != nil || c.Cycle != nil {
-				return false
-			}
-			// A WITH query sees the ones before it, not itself.
-			return b.yieldsRow(c.Query, ctes[:i], depth+1)
-		}
-	}
-	return b.isSysDual(tr.Name)
 }
 
 // dmlUpdate checks READ ONLY inline view targets, DUAL/constant inline views,

@@ -14,8 +14,9 @@ import (
 )
 
 // TestWalkSimulation holds MySQL's WALK_THROUGH to mysql/catalog's
-// simulate.tsv and programs/simulate.tsv offline: each fixture is built once
-// in the in-memory catalog, and every row is checked with no server started.
+// simulate.tsv, programs/simulate.tsv, queries/simulate.tsv and
+// mysql84/simulate.tsv offline: each fixture is built once in the in-memory
+// catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&mysqlEngine{fold: false}).Same
 	for _, suite := range []struct {
@@ -25,12 +26,18 @@ func TestWalkSimulation(t *testing.T) {
 		minFound int
 	}{
 		// The ddl floor counts the hand-written family rows (mysql/catalog
-		// simulate_families_test.go), whose refusals are mostly ones the walk
-		// does not model (partition bounds, online DDL clauses, row size): it
-		// finds 39 of their 150. On the compat.tsv rows alone it finds
-		// 2188/2259 (96.9%).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 92.0, 2227},
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 95.0, 256},
+		// simulate_families_test.go): the walk finds 122 of their 150 and
+		// 2219 of the 2259 compat.tsv rows. 30 of the refusals the walk
+		// misses are rows the parser already refuses (1273, 1504, 1064),
+		// which reach the review as a syntax finding.
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.0, 2341},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 96.5, 267},
+		// compat.tsv's queries in a view on one_table@column; 4 refusals
+		// are syntax findings.
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 93.5, 220},
+		// The ddl rows on mysql:8.4.13, with seven 8.4-only refusals (6125,
+		// 1063) the walk doesn't model: it judges every server alike.
+		{"mysql84", filepath.Join("..", "catalog", "testdata", "mysql84", "simulate.tsv"), 96.5, 2341},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

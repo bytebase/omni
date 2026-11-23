@@ -15,6 +15,9 @@ import (
 // are lowered first, then the rest, then a RENAME TO of the table itself,
 // each subcommand a part of its own (walk.Passes).
 func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
+	if b.alterOptionTextFails(v) {
+		return true
+	}
 	r, st := b.ref(v.Table)
 	switch st {
 	case refFailed:
@@ -49,6 +52,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	// changes the engine claims nothing of them.
 	rel := relKey(r.db, r.name)
 	engine, sets := alterEngine(v)
+	if sets && b.engineChangeFails(r, engine) {
+		return true
+	}
 	b.fks = !sets && !b.w.ignoresFKs[rel]
 	if sets {
 		ignores := !keepsFKs(engine)
@@ -61,8 +67,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			b.w.engines[rel] = engine
 		})
 	}
+	b.forgetGenerated(r)
 	delta := b.buildAlterDelta(r, v, engine, sets)
-	if b.alterTextFails(v, r, delta) {
+	if b.alterTextFails(v, r, delta) || b.alterAlgorithmFails(v, r) || b.uniqueKeyPartitionFails(r, v, delta) || b.checkUsesFails(r, v) || b.generatedChangeFails(r, v) || b.alterKeysFail(r, v) || b.droppedReferencedColumnFails(r, v) || b.exprColumnsFail(r, v, delta) || b.fkTypeChangeFails(r, b.changedType(r, delta)) {
 		return true
 	}
 	var rename *ast.AlterTableCmd
@@ -301,6 +308,26 @@ func (d *alterDelta) recordAddedConstraint(con *ast.Constraint) {
 	))
 }
 
+// changedType returns, for a column of the table as it was, the type an
+// ALTER TABLE gives it when that differs from the type the walk knows it
+// had, "" otherwise.
+func (b *builder) changedType(r tableRef, d *alterDelta) func(string) string {
+	return func(col string) string {
+		k := col
+		if to, ok := d.renamedFrom[col]; ok {
+			k = to
+		}
+		now, ok := d.modifiedCols[k]
+		if !ok || now == "" {
+			return ""
+		}
+		if old := b.w.colTypes[colKey(r.db, r.name, col)]; old != "" && old != now {
+			return now
+		}
+		return ""
+	}
+}
+
 func (b *builder) alterFinalCol(r tableRef, d *alterDelta, colName string) (walk.Fact, string, bool) {
 	k, ok := b.key(spaceColumn, colName)
 	if !ok {
@@ -439,6 +466,9 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 			if b.w.tableFKs[rel] != nil {
 				delete(b.w.tableFKs[rel], k)
 			}
+			if b.w.fkRefs[rel] != nil {
+				delete(b.w.fkRefs[rel], k)
+			}
 			for pRel, refs := range b.w.referencedByFK {
 				delete(refs, fkRefKey{child: rel, fk: k})
 				if len(refs) == 0 {
@@ -481,6 +511,7 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 				b.w.partitionState[rel] = &tablePartitionInfo{partitioned: false}
 			case ast.ATAddPartition:
 				if pi := b.w.partitionState[rel]; pi != nil && pi.partitioned {
+					pi.bounds = nil
 					if len(c.PartitionDefs) == 0 {
 						pi.names = nil
 						if c.Number > 0 && pi.count > 0 {
@@ -501,6 +532,7 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 				}
 			case ast.ATDropPartition:
 				if pi := b.w.partitionState[rel]; pi != nil && pi.partitioned {
+					pi.bounds = nil
 					for _, name := range c.PartitionNames {
 						if pi.names != nil {
 							delete(pi.names, strings.ToLower(name))
@@ -514,6 +546,7 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 				if pi := b.w.partitionState[rel]; pi != nil && pi.partitioned {
 					pi.names = nil
 					pi.count = 0
+					pi.bounds = nil
 				}
 			}
 		}
@@ -853,6 +886,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 			b.fail(rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not partitioned.") // 1505
 			return true
 		}
+		if b.partitionOpFails(r, b.w.partitionState[rel], c, rng) {
+			return true
+		}
 	case ast.ATAddPartition, ast.ATDropPartition, ast.ATCoalescePartition, ast.ATReorganizePartition,
 		ast.ATTruncatePartition, ast.ATRebuildPartition, ast.ATDiscardPartitionTablespace,
 		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning:
@@ -913,9 +949,18 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 					return true
 				}
 			}
+			if b.partitionOpFails(r, pi, c, rng) {
+				return true
+			}
 		}
 	case ast.ATPartitionBy:
 		if c.PartitionBy == nil {
+			return true
+		}
+		if b.partitionClauseTextFails(c.PartitionBy, func(col string) string {
+			_, t, _ := b.alterFinalCol(r, d, col)
+			return t
+		}, rng) {
 			return true
 		}
 		if b.fks && b.tableHasSurvivingFK(rel, d.droppedFKs) {
@@ -941,6 +986,19 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 		}, uqIdxs, idxComplete) {
 			return true
 		}
+	case ast.ATSecondaryLoad, ast.ATSecondaryUnload:
+		// A table with no secondary engine has nothing to load (3889).
+		b.need(secondaryKey(r.db, r.name), walk.Present, nil, rng, "Table "+review.Code(r.written)+" has no secondary engine.", "")
+		return true
+	case ast.ATTableOption:
+		if has, set := secondaryEngineOption([]*ast.TableOption{c.Option}); set {
+			f := walk.Absent
+			if has {
+				f = walk.Present
+			}
+			b.Set(secondaryKey(r.db, r.name), f, "")
+		}
+		return true
 	default:
 		return alterNoFacts(c)
 	}
@@ -1249,6 +1307,12 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint, d *alterDelta) {
 		if k, ok := b.key(spaceForeignKey, c.Name); ok {
 			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(c.Name), "")) // 1826; 1022 on 5.7
 		}
+		if b.fkAddFails(r, c, func(col string) string {
+			_, t, _ := b.alterFinalCol(r, d, col)
+			return t
+		}) {
+			return
+		}
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
@@ -1498,6 +1562,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 // the base table.
 func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 	b.Order = walk.Lookups
+	// dropped lists the tables the statement drops, while the walk knows
+	// what each name is; known is false once it doesn't.
+	var dropped []tableRef
+	known := !v.Temporary
 	for _, t := range v.Tables {
 		b.Next()
 		r, st := b.ref(t)
@@ -1533,6 +1601,13 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			continue
 		}
 		f, kind := b.l.Lookup(k)
+		switch {
+		case f == walk.Present && kind == relTable:
+			dropped = append(dropped, r)
+		case f == walk.Absent && v.IfExists:
+		default:
+			known = false
+		}
 		if !v.IfExists {
 			// A view is no table to DROP TABLE (1051).
 			b.needKind(k, []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
@@ -1551,6 +1626,9 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.droppedOwned(r)
 			b.clearTableFKGenerated(r.db, r.name)
 		}
+	}
+	if known {
+		b.dropTablesReferencedFail(dropped)
 	}
 	return true
 }
@@ -1573,8 +1651,11 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		case refUnknown:
 			continue
 		}
-		if f, temp, _ := b.resolve(r); !temp && f != walk.Unknown {
+		if f, temp, kind := b.resolve(r); !temp && f != walk.Unknown {
 			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
+			if f == walk.Present && kind == relTable && b.truncateReferencedFails(r) {
+				return true
+			}
 		}
 	}
 	return true

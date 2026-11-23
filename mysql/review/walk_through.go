@@ -220,6 +220,9 @@ type walker struct {
 	// innodbStrictOff is set when the session turns innodb_strict_mode off or
 	// to an unknown value, which downgrades InnoDB ROW_FORMAT=FIXED to a warning.
 	innodbStrictOff bool
+	// sqlModeSet is set once the session assigns sql_mode, which may leave
+	// NO_ENGINE_SUBSTITUTION out and make an unknown engine a warning.
+	sqlModeSet bool
 	// triggered lists the relations with a trigger, synced or created;
 	// anyTrigger is set when any table may have one the walk does not
 	// know. anyFunction is set when a call may run a stored function the
@@ -242,6 +245,15 @@ type walker struct {
 	engines map[walk.Key]string
 	// colTypes records known base data types keyed by colKey(db, tbl, col).
 	colTypes map[walk.Key]string
+	// colGen records, keyed by colKey, whether each column of a synced table
+	// is generated, until a statement changes the table.
+	colGen map[walk.Key]string
+	// fkRefs records the foreign keys the sync lists, keyed by the child's
+	// relKey and the foreign key's key.
+	fkRefs map[walk.Key]map[string]fkRef
+	// checkCols records the columns each CHECK constraint the sync lists
+	// reads, keyed by relKey(db, tbl) and the constraint's key.
+	checkCols map[walk.Key]map[string][]string
 	// partitionState records known partitioning state keyed by relKey(db, tbl).
 	partitionState map[walk.Key]*tablePartitionInfo
 	// tableIndexes records known index column lists keyed by relKey(db, tbl).
@@ -270,6 +282,9 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		fkGeneratedIndexes:   make(map[walk.Key]map[string]bool),
 		engines:              make(map[walk.Key]string),
 		colTypes:             make(map[walk.Key]string),
+		checkCols:            make(map[walk.Key]map[string][]string),
+		fkRefs:               make(map[walk.Key]map[string]fkRef),
+		colGen:               make(map[walk.Key]string),
 		partitionState:       make(map[walk.Key]*tablePartitionInfo),
 		tableIndexes:         make(map[walk.Key]map[string]*indexMeta),
 		tableIndexesComplete: make(map[walk.Key]bool),
@@ -289,6 +304,21 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		for col, bt := range cols {
 			w.colTypes[colKey(snap.db, tbl, col)] = bt
 		}
+	}
+	for tbl, cols := range snap.colGen {
+		for col, g := range cols {
+			w.colGen[colKey(snap.db, tbl, col)] = g
+		}
+	}
+	for tbl, fks := range snap.fkRefs {
+		m := make(map[string]fkRef, len(fks))
+		for name, fr := range fks {
+			m[name] = fkRef{parent: relKey(snap.db, fr.parent), cols: fr.cols, refCols: fr.refCols, refTable: fr.refTable}
+		}
+		w.fkRefs[relKey(snap.db, tbl)] = m
+	}
+	for tbl, checks := range snap.checkCols {
+		w.checkCols[relKey(snap.db, tbl)] = checks
 	}
 	for tbl, pi := range snap.partitionState {
 		w.partitionState[relKey(snap.db, tbl)] = pi.clone()
@@ -768,6 +798,13 @@ func (b *builder) clearTableFKGenerated(db, name string) {
 		delete(b.w.tableIndexes, rel)
 		delete(b.w.tableIndexesComplete, rel)
 		delete(b.w.tableFKs, rel)
+		delete(b.w.checkCols, rel)
+		delete(b.w.fkRefs, rel)
+		for ck := range b.w.colGen {
+			if ck.Parent == parent {
+				delete(b.w.colGen, ck)
+			}
+		}
 		for ck := range b.w.colTypes {
 			if ck.Parent == parent {
 				delete(b.w.colTypes, ck)

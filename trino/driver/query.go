@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 	trinodb "github.com/trinodb/trino-go-client/trino"
 
 	"github.com/bytebase/omni/driver"
-	trinoanalysis "github.com/bytebase/omni/trino/analysis"
+	"github.com/bytebase/omni/trino/ast"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -203,18 +204,104 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
 // its structured plan (FORMAT JSON); any other format gets the engine's own
 // text plan.
 func explainStatement(statement string, format string) (string, error) {
-	return trinoanalysis.ExplainStatement(statement, strings.EqualFold(format, "JSON"))
+	node, err := singleStatement(statement)
+	if err != nil {
+		return "", err
+	}
+	planned := statement
+	if explain, ok := node.(*parser.ExplainStmt); ok {
+		if explain.Analyze {
+			return "", errExplainAnalyzeExecutes
+		}
+		if inner, ok := explainedText(explain, statement); ok {
+			planned = inner
+		} else {
+			// Nothing to rebuild around: run what the user wrote rather than
+			// plan a plan.
+			return statement, nil
+		}
+	}
+	if strings.EqualFold(format, "JSON") {
+		return "EXPLAIN (FORMAT JSON) " + planned, nil
+	}
+	return "EXPLAIN " + planned, nil
 }
 
 // describeExplain reports the plan a statement answered with, when it is one:
 // an explain request rewrites the statement, and a caller's own EXPLAIN runs as
-// written.
+// written. Trino states the plan's format in the statement, and only EXPLAIN
+// ANALYZE runs what it plans.
 func describeExplain(statement string) *driver.Plan {
-	format, executed, ok := trinoanalysis.DescribeExplain(statement)
+	file, err := parser.Parse(statement)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return nil
+	}
+	explain, ok := file.Stmts[0].(*parser.ExplainStmt)
 	if !ok {
 		return nil
 	}
-	return &driver.Plan{Format: format, Executed: executed}
+	// TYPE VALIDATE answers whether the statement validates, which is one boolean
+	// column and not a plan of anything.
+	if explain.Type == parser.ExplainTypeValidate {
+		return nil
+	}
+	format := "TEXT"
+	switch explain.Format {
+	case parser.ExplainFormatJSON:
+		format = "JSON"
+	case parser.ExplainFormatGraphviz:
+		format = "GRAPHVIZ"
+	case parser.ExplainFormatUnset:
+		// The IO plan is a JSON document unless a FORMAT option says otherwise.
+		if explain.Type == parser.ExplainTypeIO {
+			format = "JSON"
+		}
+	}
+	return &driver.Plan{Format: format, Executed: explain.Analyze}
+}
+
+// errExplainAnalyzeExecutes is what an EXPLAIN ANALYZE request gets: planning it
+// without the ANALYZE would answer a question the caller did not ask.
+var errExplainAnalyzeExecutes = errors.New("EXPLAIN ANALYZE executes the statement it plans, which an explain request never does: run it as a query, or drop ANALYZE to plan the statement")
+
+// singleStatement returns the one statement in text.
+func singleStatement(text string) (ast.Node, error) {
+	file, err := parser.Parse(text)
+	if err != nil {
+		return nil, err
+	}
+	if file == nil || len(file.Stmts) == 0 || file.Stmts[0] == nil {
+		return nil, fmt.Errorf("EXPLAIN needs a statement to plan")
+	}
+	if len(file.Stmts) > 1 {
+		return nil, fmt.Errorf("EXPLAIN plans a single statement")
+	}
+	return file.Stmts[0], nil
+}
+
+// explainedText returns the text within text of the statement explain plans,
+// and whether it could be located.
+func explainedText(explain *parser.ExplainStmt, text string) (string, bool) {
+	inner, ok := nodeSpan(explain.Statement)
+	if !ok {
+		return "", false
+	}
+	// The plan ends where the EXPLAIN does, which is past clauses that the
+	// planned statement's own location can leave out.
+	if inner.Start < 0 || inner.Start >= explain.Loc.End || explain.Loc.End > len(text) {
+		return "", false
+	}
+	return text[inner.Start:explain.Loc.End], true
+}
+
+func nodeSpan(node ast.Node) (ast.Loc, bool) {
+	if query, ok := node.(*parser.QueryStmt); ok {
+		return query.Loc, true
+	}
+	if spanned, ok := node.(interface{ Span() ast.Loc }); ok {
+		return spanned.Span(), true
+	}
+	return ast.Loc{}, false
 }
 
 // codeEnd returns the offset just past statement's last token, before any

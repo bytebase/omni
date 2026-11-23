@@ -4,26 +4,25 @@ package completion
 import (
 	"strings"
 
-	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mongo/catalog"
 	"github.com/bytebase/omni/mongo/parser"
 )
 
 // CandidateType classifies a completion candidate.
-type CandidateType = analysis.CandidateType
+type CandidateType int
 
 const (
-	CandidateKeyword       = analysis.CandidateKeyword       // top-level keywords (db, rs, sh, show, ...)
-	CandidateCollection    = analysis.CandidateCollection    // collection name from catalog
-	CandidateMethod        = analysis.CandidateMethod        // collection method (find, insertOne, ...)
-	CandidateCursorMethod  = analysis.CandidateCursorMethod  // cursor modifier (sort, limit, ...)
-	CandidateAggStage      = analysis.CandidateAggStage      // aggregation stage ($match, $group, ...)
-	CandidateQueryOperator = analysis.CandidateQueryOperator // query operator ($gt, $in, ...)
-	CandidateBSONHelper    = analysis.CandidateBSONHelper    // BSON constructor (ObjectId, NumberLong, ...)
-	CandidateShowTarget    = analysis.CandidateShowTarget    // show command target (dbs, collections, ...)
-	CandidateDbMethod      = analysis.CandidateDbMethod      // database method (getName, runCommand, ...)
-	CandidateRsMethod      = analysis.CandidateRsMethod      // replica set method (status, conf, ...)
-	CandidateShMethod      = analysis.CandidateShMethod      // sharding method (addShard, status, ...)
+	CandidateKeyword       CandidateType = iota // top-level keywords (db, rs, sh, show, ...)
+	CandidateCollection                          // collection name from catalog
+	CandidateMethod                              // collection method (find, insertOne, ...)
+	CandidateCursorMethod                        // cursor modifier (sort, limit, ...)
+	CandidateAggStage                            // aggregation stage ($match, $group, ...)
+	CandidateQueryOperator                       // query operator ($gt, $in, ...)
+	CandidateBSONHelper                          // BSON constructor (ObjectId, NumberLong, ...)
+	CandidateShowTarget                          // show command target (dbs, collections, ...)
+	CandidateDbMethod                            // database method (getName, runCommand, ...)
+	CandidateRsMethod                            // replica set method (status, conf, ...)
+	CandidateShMethod                            // sharding method (addShard, status, ...)
 )
 
 // Candidate is a single completion suggestion.
