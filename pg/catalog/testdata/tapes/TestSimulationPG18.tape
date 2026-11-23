@@ -9496,6 +9496,846 @@
 | CREATE INDEX t_d_idx ON t (d);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+| CREATE INDEX t_d_idx ON public.t USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+| CREATE INDEX t_d_idx ON public.t USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+| CREATE INDEX t_d_idx ON public.t USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+| CREATE INDEX t_d_idx ON public.t USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < error
 | 42P01 table "a" does not exist
@@ -9737,6 +10577,216 @@
 < ok 0 -
 > exec
 | DROP POLICY IF EXISTS a ON a CASCADE
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+| CREATE INDEX t_d_idx ON public.t USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| DROP TRIGGER IF EXISTS a ON a
 < ok 0 -
 > query
 | WITH rel AS (
@@ -11056,216 +12106,6 @@
 | CREATE INDEX t_d_idx ON t (d);
 < ok 0 -
 > exec
-| DROP INDEX IF EXISTS a
-< ok 0 -
-> query
-| WITH rel AS (
-| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
-| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
-| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
-| 	FROM pg_catalog.pg_class c
-| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
-| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
-| ), comments AS (
-| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
-| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
-| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
-| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
-| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
-| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k
-| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
-| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
-| 	FROM rel r
-| ), indexes AS (
-| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
-| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
-| 	GROUP BY r.oid
-| ), triggers AS (
-| 	SELECT r.oid, coalesce(string_agg(
-| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
-| 			|| CASE tg.tgenabled
-| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
-| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
-| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
-| 				ELSE '' END
-| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
-| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
-| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
-| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
-| 	GROUP BY r.oid
-| ), policies AS (
-| 	SELECT r.oid, coalesce(string_agg(
-| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
-| 				pol.polname, r.relname,
-| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
-| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
-| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
-| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
-| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
-| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
-| 			|| E';\n'
-| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
-| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
-| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
-| 	GROUP BY r.oid
-| )
-| SELECT kind, relname, text FROM (
-| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
-| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
-| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
-| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
-| 		WHERE r.relkind = 'S'
-| 	UNION ALL
-| 	SELECT 'TABLE', r.relname,
-| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
-| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
-| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
-| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
-| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
-| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
-| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
-| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
-| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
-| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
-| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
-| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
-| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
-| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
-| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
-| 		END
-| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
-| 		|| r.options || E';\n'
-| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
-| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '')
-| 		|| CASE r.relreplident
-| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
-| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
-| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
-| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
-| 			ELSE '' END
-| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
-| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
-| 		|| m.text
-| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
-| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
-| 		|| coalesce(tr.text, '')
-| 		|| coalesce(po.text, '')
-| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
-| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
-| 		WHERE r.relkind IN ('r', 'p')
-| 	UNION ALL
-| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
-| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
-| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
-| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
-| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
-| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
-| 			LEFT JOIN triggers tr ON tr.oid = r.oid
-| 		WHERE r.relkind IN ('v', 'm')
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
-| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
-| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
-| 	UNION ALL
-| 	SELECT 'DOMAIN', t.typname,
-| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
-| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
-| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
-| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
-| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
-| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
-| 		|| E';\n'
-| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
-| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
-| 	UNION ALL
-| 	SELECT 'TYPE', c.relname,
-| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
-| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
-| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
-| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
-| 					', ' ORDER BY a.attnum)
-| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
-| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
-| 		FROM pg_catalog.pg_class c
-| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I;\n', t.typname)
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
-| 	UNION ALL
-| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
-| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
-| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
-| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
-| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
-| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
-| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
-| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_proc p
-| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
-| ) o ORDER BY relname COLLATE "C", kind
-< result
-< column "kind" "TEXT"
-< column "relname" "NAME"
-< column "text" "TEXT"
-< row
-: string
-| TABLE
-: string
-| t
-: string
-| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
-| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
-| CREATE INDEX t_d_idx ON public.t USING btree (d);
-|
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
-| CREATE INDEX t_d_idx ON t (d);
-< ok 0 -
-> exec
 | DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 < error
 | 0A000 DROP INDEX CONCURRENTLY does not support CASCADE
@@ -11396,6 +12236,46 @@
 | CREATE INDEX t_d_idx ON t (d);
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -11467,6 +12347,16 @@
 < ok 0 -
 > exec
 | COMMENT ON POLICY a ON a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX t_d_idx ON t (d);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
 < error
 | 42P01 relation "a" does not exist
 > exec
@@ -31288,6 +32178,50 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < ok 0 -
 > query
@@ -31928,6 +32862,216 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because table a requires it
@@ -32034,17 +33178,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP TABLE to remove a table.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
-| CREATE INDEX a_d_idx ON a (d);
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP TABLE to remove a table.
@@ -32980,6 +34113,46 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -33254,6 +34427,16 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -55264,6 +56447,50 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < ok 0 -
 > query
@@ -55904,6 +57131,216 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because table a requires it
@@ -56010,17 +57447,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP TABLE to remove a table.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
-| CREATE INDEX a_d_idx ON a (d);
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP TABLE to remove a table.
@@ -56956,6 +58382,46 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -57230,6 +58696,16 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -70892,6 +72368,248 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t;
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP VIEW to remove a view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP VIEW to remove a view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP VIEW to remove a view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < error
 | 42809 "a" is not a table
@@ -71363,6 +73081,226 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t;
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| VIEW
+: string
+| a
+: string
+| CREATE VIEW a AS SELECT b,
+|     a,
+|     d
+|    FROM t;
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because view a requires it
@@ -71469,17 +73407,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP VIEW to remove a view.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
-| CREATE VIEW a AS SELECT b, a, d FROM t;
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP VIEW to remove a view.
@@ -71824,6 +73751,257 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t;
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| VIEW
+: string
+| a
+: string
+| CREATE VIEW a AS SELECT b,
+|     a,
+|     d
+|    FROM t;
+| COMMENT ON VIEW a IS 's';
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -72108,6 +74286,16 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE VIEW a AS SELECT b, a, d FROM t;
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -85538,6 +87726,252 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP MATERIALIZED VIEW to remove a materialized view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP MATERIALIZED VIEW to remove a materialized view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP MATERIALIZED VIEW to remove a materialized view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < error
 | 42809 "a" is not a table
@@ -86016,6 +88450,228 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| MATERIALIZED VIEW
+: string
+| a
+: string
+| CREATE MATERIALIZED VIEW a AS SELECT b,
+|     a,
+|     d
+|    FROM t;
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because materialized view a requires it
@@ -86132,18 +88788,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP MATERIALIZED VIEW to remove a materialized view.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
-| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
-| CREATE INDEX a_d_idx ON a (d);
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP MATERIALIZED VIEW to remove a materialized view.
@@ -86502,6 +89146,262 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| MATERIALIZED VIEW
+: string
+| a
+: string
+| CREATE MATERIALIZED VIEW a AS SELECT b,
+|     a,
+|     d
+|    FROM t;
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+| COMMENT ON MATERIALIZED VIEW a IS 's';
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -86794,6 +89694,17 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -101883,6 +104794,248 @@
 | CREATE SEQUENCE a;
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP SEQUENCE to remove a sequence.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP SEQUENCE to remove a sequence.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP SEQUENCE to remove a sequence.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < error
 | 42809 "a" is not a table
@@ -102132,6 +105285,223 @@
 < ok 0 -
 > exec
 | DROP POLICY IF EXISTS a ON a CASCADE
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| SEQUENCE
+: string
+| a
+: string
+| CREATE SEQUENCE a AS bigint INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1;
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| DROP TRIGGER IF EXISTS a ON a
 < ok 0 -
 > query
 | WITH rel AS (
@@ -103288,17 +106658,6 @@
 | CREATE SEQUENCE a;
 < ok 0 -
 > exec
-| DROP INDEX IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP SEQUENCE to remove a sequence.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
-| CREATE SEQUENCE a;
-< ok 0 -
-> exec
 | DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 < error
 | 0A000 DROP INDEX CONCURRENTLY does not support CASCADE
@@ -103632,6 +106991,254 @@
 | CREATE SEQUENCE a;
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| SEQUENCE
+: string
+| a
+: string
+| CREATE SEQUENCE a AS bigint INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1;
+| COMMENT ON SEQUENCE a IS 's';
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -103705,6 +107312,16 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE SEQUENCE a;
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -123802,6 +127419,50 @@
 | CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < ok 0 -
 > query
@@ -124456,6 +128117,223 @@
 | CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, a integer NOT NULL, d integer) PARTITION BY RANGE (a);
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b, a);
+|
+< row
+: string
+| TABLE
+: string
+| a_p1
+: string
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because table a requires it
@@ -124562,17 +128440,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP TABLE to remove a table.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
-| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP TABLE to remove a table.
@@ -125529,6 +129396,46 @@
 | CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 < ok 0 -
 > exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
 | COMMENT ON COLUMN a IS 's'
 < error
 | 42601 column name must be qualified
@@ -125810,6 +129717,16 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int, a int, d int, PRIMARY KEY (b, a)) PARTITION BY RANGE (a);
+| CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -151038,6 +154955,54 @@
 | CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< error
+| 42809 "a" is not a sequence
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< error
+| 42809 "a" is not a view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< error
+| 42809 "a" is not a materialized view
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< error
+| 42809 "a" is not an index
+| hint: Use DROP TABLE to remove a table.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < ok 0 -
 > query
@@ -151741,6 +155706,237 @@
 | CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
 < ok 0 -
 > exec
+| DROP TRIGGER IF EXISTS a ON a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY (a) REFERENCES p(b);
+| ALTER TABLE a ADD CONSTRAINT a_chk CHECK ((d > 0));
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
+|
+< row
+: string
+| TABLE
+: string
+| ch
+: string
+| CREATE TABLE ch (b integer NOT NULL, a_b integer);
+| ALTER TABLE ch ADD CONSTRAINT ch_a_b_fkey FOREIGN KEY (a_b) REFERENCES a(b);
+| ALTER TABLE ch ADD CONSTRAINT ch_pkey PRIMARY KEY (b);
+|
+< row
+: string
+| TABLE
+: string
+| p
+: string
+| CREATE TABLE p (b integer NOT NULL, d integer);
+| ALTER TABLE p ADD CONSTRAINT p_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
 | DROP TYPE a
 < error
 | 2BP01 cannot drop type a because table a requires it
@@ -151857,18 +156053,6 @@
 < ok 0 -
 > exec
 | DROP INDEX CONCURRENTLY IF EXISTS a
-< error
-| 42809 "a" is not an index
-| hint: Use DROP TABLE to remove a table.
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE p (b int PRIMARY KEY, d int);
-| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
-| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
-< ok 0 -
-> exec
-| DROP INDEX IF EXISTS a
 < error
 | 42809 "a" is not an index
 | hint: Use DROP TABLE to remove a table.
@@ -152028,6 +156212,50 @@
 | 0A000 cannot truncate a table referenced in a foreign key constraint
 | detail: Table "ch" references "a".
 | hint: Truncate table "ch" at the same time, or use TRUNCATE ... CASCADE.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42809 "a" is not a sequence
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42809 "a" is not a view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
+< error
+| 42809 "a" is not an index
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -152558,6 +156786,17 @@
 | COMMENT ON POLICY a ON a IS 's'
 < error
 | 42704 policy "a" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE p (b int PRIMARY KEY, d int);
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b int PRIMARY KEY, a_b int REFERENCES a (b));
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
+< error
+| 42704 trigger "a" for table "a" does not exist
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -167009,6 +171248,878 @@
 | CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
 < ok 0 -
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| DOMAIN
+: string
+| a
+: string
+| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
+| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| DOMAIN
+: string
+| a
+: string
+| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
+| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| DROP MATERIALIZED VIEW IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| DOMAIN
+: string
+| a
+: string
+| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
+| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| DROP INDEX IF EXISTS a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| DOMAIN
+: string
+| a
+: string
+| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
+| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
 | DROP TABLE a CASCADE
 < error
 | 42P01 table "a" does not exist
@@ -167258,6 +172369,224 @@
 < ok 0 -
 > exec
 | DROP POLICY IF EXISTS a ON a CASCADE
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k
+| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
+| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| ), triggers AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
+| 			|| CASE tg.tgenabled
+| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
+| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
+| 				ELSE '' END
+| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
+| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
+| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
+| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
+| 	GROUP BY r.oid
+| ), policies AS (
+| 	SELECT r.oid, coalesce(string_agg(
+| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
+| 				pol.polname, r.relname,
+| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
+| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
+| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
+| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
+| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
+| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
+| 			|| E';\n'
+| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
+| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
+| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		|| coalesce(tr.text, '')
+| 		|| coalesce(po.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 			LEFT JOIN triggers tr ON tr.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
+| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
+| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
+| 	UNION ALL
+| 	SELECT 'DOMAIN', t.typname,
+| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
+| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
+| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
+| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
+| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
+| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
+| 		|| E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
+| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
+| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
+| 	UNION ALL
+| 	SELECT 'TYPE', c.relname,
+| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
+| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
+| 					', ' ORDER BY a.attnum)
+| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
+| 		FROM pg_catalog.pg_class c
+| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
+| 	UNION ALL
+| 	SELECT 'TYPE', t.typname,
+| 		format(E'CREATE TYPE %I;\n', t.typname)
+| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
+| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_type t
+| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
+| 	UNION ALL
+| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
+| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
+| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
+| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
+| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
+| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
+| 		FROM pg_catalog.pg_proc p
+| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| DOMAIN
+: string
+| a
+: string
+| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
+| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
+|
+< row
+: string
+| TABLE
+: string
+| t
+: string
+| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
+| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| DROP TRIGGER IF EXISTS a ON a
 < ok 0 -
 > query
 | WITH rel AS (
@@ -169385,224 +174714,6 @@
 | CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
 < ok 0 -
 > exec
-| DROP INDEX IF EXISTS a
-< ok 0 -
-> query
-| WITH rel AS (
-| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
-| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity, c.reltype,
-| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
-| 	FROM pg_catalog.pg_class c
-| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
-| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
-| ), comments AS (
-| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
-| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
-| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
-| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
-| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
-| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON %I IS %L;\n', k.conname, r.relname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k
-| 			WHERE k.conrelid = r.oid AND k.conislocal AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', r.relname, pg_catalog.obj_description(r.reltype, 'pg_type'))
-| 			WHERE r.reltype <> 0 AND pg_catalog.obj_description(r.reltype, 'pg_type') IS NOT NULL), '') AS text
-| 	FROM rel r
-| ), indexes AS (
-| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
-| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
-| 	GROUP BY r.oid
-| ), triggers AS (
-| 	SELECT r.oid, coalesce(string_agg(
-| 			pg_catalog.pg_get_triggerdef(tg.oid) || E';\n'
-| 			|| CASE tg.tgenabled
-| 				WHEN 'D' THEN format(E'ALTER TABLE %I DISABLE TRIGGER %I;\n', r.relname, tg.tgname)
-| 				WHEN 'A' THEN format(E'ALTER TABLE %I ENABLE ALWAYS TRIGGER %I;\n', r.relname, tg.tgname)
-| 				WHEN 'R' THEN format(E'ALTER TABLE %I ENABLE REPLICA TRIGGER %I;\n', r.relname, tg.tgname)
-| 				ELSE '' END
-| 			|| coalesce((SELECT format(E'COMMENT ON TRIGGER %I ON %I IS %L;\n', tg.tgname, r.relname, pg_catalog.obj_description(tg.oid, 'pg_trigger'))
-| 				WHERE pg_catalog.obj_description(tg.oid, 'pg_trigger') IS NOT NULL), ''),
-| 			'' ORDER BY tg.tgname COLLATE "C"), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_trigger tg ON tg.tgrelid = r.oid
-| 	WHERE NOT tg.tgisinternal AND tg.tgparentid = 0
-| 	GROUP BY r.oid
-| ), policies AS (
-| 	SELECT r.oid, coalesce(string_agg(
-| 			format('CREATE POLICY %I ON %I AS %s FOR %s TO %s',
-| 				pol.polname, r.relname,
-| 				CASE WHEN pol.polpermissive THEN 'PERMISSIVE' ELSE 'RESTRICTIVE' END,
-| 				CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE 'ALL' END,
-| 				(SELECT string_agg(CASE WHEN u = 0 THEN 'PUBLIC' ELSE format('%I', (SELECT rolname FROM pg_catalog.pg_roles WHERE oid = u)) END, ', ' ORDER BY ord)
-| 					FROM unnest(pol.polroles) WITH ORDINALITY AS t(u, ord)))
-| 			|| CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_catalog.pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END
-| 			|| CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END
-| 			|| E';\n'
-| 			|| coalesce((SELECT format(E'COMMENT ON POLICY %I ON %I IS %L;\n', pol.polname, r.relname, pg_catalog.obj_description(pol.oid, 'pg_policy'))
-| 				WHERE pg_catalog.obj_description(pol.oid, 'pg_policy') IS NOT NULL), ''),
-| 			'' ORDER BY pol.polname COLLATE "C"), '') AS text
-| 	FROM rel r JOIN pg_catalog.pg_policy pol ON pol.polrelid = r.oid
-| 	GROUP BY r.oid
-| )
-| SELECT kind, relname, text FROM (
-| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
-| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
-| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
-| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
-| 		WHERE r.relkind = 'S'
-| 	UNION ALL
-| 	SELECT 'TABLE', r.relname,
-| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
-| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
-| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
-| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
-| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
-| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
-| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
-| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
-| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
-| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
-| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
-| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
-| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
-| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
-| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
-| 		END
-| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
-| 		|| r.options || E';\n'
-| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
-| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '')
-| 		|| CASE r.relreplident
-| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
-| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
-| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
-| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
-| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
-| 			ELSE '' END
-| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
-| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
-| 		|| m.text
-| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
-| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
-| 		|| coalesce(tr.text, '')
-| 		|| coalesce(po.text, '')
-| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
-| 			LEFT JOIN triggers tr ON tr.oid = r.oid LEFT JOIN policies po ON po.oid = r.oid
-| 		WHERE r.relkind IN ('r', 'p')
-| 	UNION ALL
-| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
-| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
-| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
-| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
-| 		|| coalesce(x.text, '') || m.text || coalesce(tr.text, '')
-| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
-| 			LEFT JOIN triggers tr ON tr.oid = r.oid
-| 		WHERE r.relkind IN ('v', 'm')
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I AS ENUM (%s);\n', t.typname,
-| 			coalesce((SELECT string_agg(format('%L', e.enumlabel), ', ' ORDER BY e.enumsortorder)
-| 				FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid), ''))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'e'
-| 	UNION ALL
-| 	SELECT 'DOMAIN', t.typname,
-| 		format('CREATE DOMAIN %I AS %s', t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod))
-| 		|| CASE WHEN t.typcollation <> 0 AND t.typcollation <> bt.typcollation
-| 			THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = t.typcollation) ELSE '' END
-| 		|| CASE WHEN t.typdefaultbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(t.typdefaultbin, 0)
-| 			WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END
-| 		|| CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END
-| 		|| E';\n'
-| 		|| coalesce((SELECT string_agg(format(E'ALTER DOMAIN %I ADD CONSTRAINT %I %s;\n', t.typname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND k.contype = 'c'), '')
-| 		|| coalesce((SELECT format(E'COMMENT ON DOMAIN %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON CONSTRAINT %I ON DOMAIN %I IS %L;\n', k.conname, t.typname, pg_catalog.obj_description(k.oid, 'pg_constraint')), '' ORDER BY k.conname COLLATE "C")
-| 			FROM pg_catalog.pg_constraint k WHERE k.contypid = t.oid AND pg_catalog.obj_description(k.oid, 'pg_constraint') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_type bt ON bt.oid = t.typbasetype
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'd'
-| 	UNION ALL
-| 	SELECT 'TYPE', c.relname,
-| 		format(E'CREATE TYPE %I AS (%s);\n', c.relname,
-| 			coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
-| 					|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
-| 						THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END,
-| 					', ' ORDER BY a.attnum)
-| 				FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-| 				WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped), ''))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', c.relname, pg_catalog.obj_description(c.reltype, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(c.reltype, 'pg_type') IS NOT NULL), '')
-| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', c.relname, a.attname, pg_catalog.col_description(c.oid, a.attnum)), '' ORDER BY a.attnum)
-| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL), '')
-| 		FROM pg_catalog.pg_class c
-| 		WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind = 'c'
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I AS RANGE (subtype = %s);\n', t.typname, pg_catalog.format_type(rg.rngsubtype, NULL))
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t JOIN pg_catalog.pg_range rg ON rg.rngtypid = t.oid
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'r'
-| 	UNION ALL
-| 	SELECT 'TYPE', t.typname,
-| 		format(E'CREATE TYPE %I;\n', t.typname)
-| 		|| coalesce((SELECT format(E'COMMENT ON TYPE %I IS %L;\n', t.typname, pg_catalog.obj_description(t.oid, 'pg_type'))
-| 			WHERE pg_catalog.obj_description(t.oid, 'pg_type') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_type t
-| 		WHERE t.typnamespace = 'public'::pg_catalog.regnamespace AND t.typtype = 'p' AND NOT t.typisdefined
-| 	UNION ALL
-| 	SELECT CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
-| 		p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
-| 		rtrim(pg_catalog.pg_get_functiondef(p.oid), E' \t\r\n') || E';\n'
-| 		|| coalesce((SELECT format(E'COMMENT ON %s %I(%s) IS %L;\n',
-| 				CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END,
-| 				p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid),
-| 				pg_catalog.obj_description(p.oid, 'pg_proc'))
-| 			WHERE pg_catalog.obj_description(p.oid, 'pg_proc') IS NOT NULL), '')
-| 		FROM pg_catalog.pg_proc p
-| 		WHERE p.pronamespace = 'public'::pg_catalog.regnamespace AND p.prokind IN ('f', 'p')
-| ) o ORDER BY relname COLLATE "C", kind
-< result
-< column "kind" "TEXT"
-< column "relname" "NAME"
-< column "text" "TEXT"
-< row
-: string
-| DOMAIN
-: string
-| a
-: string
-| CREATE DOMAIN a AS integer DEFAULT 1 NOT NULL;
-| ALTER DOMAIN a ADD CONSTRAINT a CHECK ((VALUE > 0));
-|
-< row
-: string
-| TABLE
-: string
-| t
-: string
-| CREATE TABLE t (b integer NOT NULL, c integer, d integer);
-| ALTER TABLE t ADD CONSTRAINT t_pkey PRIMARY KEY (b);
-|
-> exec
-| DROP SCHEMA IF EXISTS public CASCADE;
-| CREATE SCHEMA public;
-| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
-| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
-< ok 0 -
-> exec
 | DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 < error
 | 0A000 DROP INDEX CONCURRENTLY does not support CASCADE
@@ -169923,6 +175034,46 @@
 < ok 0 -
 > exec
 | TRUNCATE a RESTART IDENTITY
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| COMMENT ON SEQUENCE a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| COMMENT ON VIEW a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| COMMENT ON MATERIALIZED VIEW a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| COMMENT ON INDEX a IS 's'
 < error
 | 42P01 relation "a" does not exist
 > exec
@@ -170630,6 +175781,16 @@
 < ok 0 -
 > exec
 | COMMENT ON POLICY a ON a IS 's'
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int);
+| CREATE DOMAIN a AS int DEFAULT 1 NOT NULL CONSTRAINT a CHECK (VALUE > 0);
+< ok 0 -
+> exec
+| COMMENT ON TRIGGER a ON a IS 's'
 < error
 | 42P01 relation "a" does not exist
 > exec
