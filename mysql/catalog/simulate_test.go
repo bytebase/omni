@@ -170,13 +170,19 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 
 // parseCode is the code the server answers a statement it does not read with:
 // the parser's own lookup refusal where it made one (1273 for a collation no
-// server of the pin has), and 1064 for a syntax error.
+// server of the pin has), the code of a refusal MySQL's parser actions raise
+// with their own number (3980, 1504), and 1064 for a syntax error.
 func parseCode(pe *mysqlparser.ParseError) string {
 	if pe.Code != 0 {
 		return strconv.Itoa(pe.Code)
 	}
 	if pe.Message == "Invalid json attribute" {
 		return "3980"
+	}
+	// PARTITIONS 0 and SUBPARTITIONS 0 are refused while MySQL parses, with
+	// 1504 (mysql/parser parsePartitionCount).
+	if strings.HasPrefix(pe.Message, "Number of ") && strings.HasSuffix(pe.Message, " = 0 is not an allowed value") {
+		return "1504"
 	}
 	return "1064"
 }

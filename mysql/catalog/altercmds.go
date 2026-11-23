@@ -69,6 +69,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := validateAlterColumnSources(tbl, stmt.Commands); err != nil {
 		return err
 	}
+	if err := alterCharsetCollationPair(stmt.Commands); err != nil {
+		return err
+	}
+	if err := c.alterChangesEngineUnderForeignKey(tbl, stmt.Commands); err != nil {
+		return err
+	}
 	repartition := alterRepartition(stmt.Commands)
 	if err := c.validateAlterTablespaceOptions(tbl, stmt.Commands, repartition); err != nil {
 		return err
@@ -519,11 +525,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	deferKeyWidths := alterChangesIndexCapacity(stmt.Commands)
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
 	var droppedIndexes []*Index
+	beforeColumns := make(map[*Column]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		beforeColumns[col] = true
+	}
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths, keepsOldPartitioning, willBePartitioned, preExprs, &droppedIndexes); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
+	}
+	if err := c.checkRedefinedForeignKeyColumns(tbl, beforeColumns); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
 	}
 	tbl.ignoredGeneratedIndexes = nil
 	droppedIndexes = append(droppedIndexes, reconcileGeneratedFKIndexes(tbl, preGen)...)
@@ -546,6 +560,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return errTableMustHaveColumns()
 	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeIndexes, beforeConstraints); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := c.checkRowLengths(tbl); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -1417,6 +1435,20 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOld
 		}
 	}
 
+	// A column another table's foreign key references is kept (1829), whatever
+	// foreign_key_checks says (mysql:8.0.46).
+	for _, ref := range c.referencingForeignKeys(tbl) {
+		if ref.child == tbl {
+			continue
+		}
+		for _, col := range ref.con.RefColumns {
+			if toLower(col) == colKey {
+				return &Error{Code: 1829, SQLState: "HY000", Message: fmt.Sprintf(
+					"Cannot drop column '%s': needed in a foreign key constraint '%s' of table '%s'", cmd.Name, ref.con.Name, ref.child.Name)}
+			}
+		}
+	}
+
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
 
@@ -2139,6 +2171,98 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	return nil
 }
 
+// checkRedefinedForeignKeyColumns holds a column an ALTER TABLE defined anew
+// (MODIFY, CHANGE, ADD) to the foreign keys it is in, on either side: its type
+// must still compare with the column at the other end (3780), and a column a
+// SET NULL action writes stays nullable (1830). MySQL answers both whatever
+// foreign_key_checks says (mysql:8.0.46). before holds the table's columns
+// before the statement; a column that is not one of them was defined anew.
+func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, before map[*Column]bool) error {
+	redefined := func(col *Column) bool { return col != nil && !before[col] }
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		refDB := tbl.Database
+		if con.RefDatabase != "" {
+			refDB = c.GetDatabase(con.RefDatabase)
+		}
+		var parent *Table
+		if refDB != nil {
+			parent = refDB.GetTable(con.RefTable)
+		}
+		for i, name := range con.Columns {
+			col := tbl.GetColumn(name)
+			var refCol *Column
+			if parent != nil && i < len(con.RefColumns) {
+				refCol = parent.GetColumn(con.RefColumns[i])
+			}
+			if col == nil || refCol == nil || (!redefined(col) && !(parent == tbl && redefined(refCol))) {
+				continue
+			}
+			if err := fkColumnPairError(con, col, refCol); err != nil {
+				return err
+			}
+		}
+	}
+	for _, ref := range c.referencingForeignKeys(tbl) {
+		if ref.child == tbl {
+			continue
+		}
+		for i, name := range ref.con.RefColumns {
+			refCol := tbl.GetColumn(name)
+			if !redefined(refCol) || i >= len(ref.con.Columns) {
+				continue
+			}
+			if col := ref.child.GetColumn(ref.con.Columns[i]); col != nil && !fkTypesCompatible(col, refCol) {
+				return errFKIncompatibleColumns(col.Name, refCol.Name, ref.con.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// alterChangesEngineUnderForeignKey refuses moving a table that has a foreign
+// key, or that one references, to an engine without them (3776), whatever
+// foreign_key_checks says (mysql:8.0.46).
+func (c *Catalog) alterChangesEngineUnderForeignKey(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	if !isInnoDBEngine(tbl.Engine) || isInnoDBEngine(alterTargetEngine(tbl, commands)) {
+		return nil
+	}
+	participates := len(c.referencingForeignKeys(tbl)) > 0
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			participates = true
+		}
+	}
+	if participates {
+		return &Error{Code: 3776, SQLState: "HY000", Message: "Cannot change table's storage engine because the table participates in a foreign key constraint."}
+	}
+	return nil
+}
+
+// alterCharsetCollationPair refuses table options that name a character set
+// and a collation of another one (1253): ALTER TABLE t CHARACTER SET = latin1
+// COLLATE = utf8mb4_bin (mysql:8.0.46), as CREATE TABLE refuses them.
+func alterCharsetCollationPair(commands []*nodes.AlterTableCmd) error {
+	var charset, collation string
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		switch toLower(cmd.Option.Name) {
+		case "charset", "character set", "default charset", "default character set":
+			charset = cmd.Option.Value
+		case "collate", "default collate":
+			collation = cmd.Option.Value
+		}
+	}
+	if charset != "" && collation != "" && !strings.EqualFold(charset, "DEFAULT") && !charsetMatchesCollation(charset, collation) {
+		return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", collation, charset)}
+	}
+	return nil
+}
+
 // alterTableOption applies a table option (ENGINE, CHARSET, etc.).
 func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	opt := cmd.Option
@@ -2567,6 +2691,9 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		}
 	} else {
 		charset = normalizeCharsetName(cmd.Name)
+		if _, known := defaultCollationForCharset[charset]; !known {
+			return errUnknownCharacterSet(cmd.Name)
+		}
 		collation = cmd.NewName
 		if collation != "" {
 			if !charsetMatchesCollation(charset, collation) {

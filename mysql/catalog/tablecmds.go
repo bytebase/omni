@@ -1034,6 +1034,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if declared {
 		if !c.loadingSDL {
+			if err := c.checkRowLengths(tbl); err != nil {
+				return err
+			}
 			if err := validateAutoIncrementTypes(tbl, c.session.Version); err != nil {
 				return err
 			}
@@ -1044,6 +1047,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := c.validateTableDefaultExpressions(tbl); err != nil {
 			return err
 		}
+	}
+
+	// An engine without foreign keys parses the clause and keeps no key, but
+	// the index the clause made stays: CREATE TABLE c (id INT, FOREIGN KEY (id)
+	// REFERENCES p (id)) ENGINE=MyISAM stores KEY `id` (`id`) alone, even when
+	// p is not there (mysql:8.0.46).
+	if declared && !isInnoDBEngine(tbl.Engine) {
+		kept := tbl.Constraints[:0]
+		for _, con := range tbl.Constraints {
+			if con.Type != ConForeignKey {
+				kept = append(kept, con)
+			}
+		}
+		tbl.Constraints = kept
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -2245,6 +2262,12 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	if refTbl == nil {
 		return errFKNoRefTable(con.RefTable)
 	}
+	for _, name := range con.RefColumns {
+		if refTbl.GetColumn(name) == nil {
+			return &Error{Code: 3734, SQLState: "HY000", Message: fmt.Sprintf(
+				"Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'", name, con.Name, con.RefTable)}
+		}
+	}
 
 	// Check that referenced columns have a suitable parent index.
 	// On MySQL 8.4 with restrict_fk_on_non_standard_key=ON (the default), InnoDB
@@ -2268,20 +2291,43 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if col == nil || refCol == nil {
 			continue
 		}
-		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
-			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
-		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
-		if refCol.Generated != nil && !refCol.Generated.Stored {
-			return errFKCannotUseVirtualColumn(con.RefColumns[i])
-		}
-		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+		if err := fkColumnPairError(con, col, refCol); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// fkColumnPairError judges one column of a foreign key against the column it
+// references, in the order mysql:8.0.46 answers: a SET NULL action on a NOT
+// NULL column (1830), a virtual column on either side (3733), a cascading or
+// nulling action on a stored generated column (3104, ON UPDATE CASCADE, ON
+// UPDATE SET NULL and ON DELETE SET NULL), and two types the key cannot
+// compare (3780).
+func fkColumnPairError(con *Constraint, col, refCol *Column) error {
+	if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
+		return &Error{Code: 1830, SQLState: "HY000", Message: fmt.Sprintf(
+			"Column '%s' cannot be NOT NULL: needed in a foreign key constraint '%s' SET NULL", col.Name, con.Name)}
+	}
+	if col.Generated != nil && !col.Generated.Stored {
+		return errFKCannotUseVirtualColumn(con.Name, col.Name)
+	}
+	if refCol.Generated != nil && !refCol.Generated.Stored {
+		return errFKCannotUseVirtualColumn(con.Name, refCol.Name)
+	}
+	if col.Generated != nil {
+		for _, clause := range []struct{ on, action string }{{"UPDATE", con.OnUpdate}, {"DELETE", con.OnDelete}} {
+			action := strings.ToUpper(clause.action)
+			if action == "SET NULL" || action == "SET DEFAULT" || (clause.on == "UPDATE" && action == "CASCADE") {
+				return &Error{Code: 3104, SQLState: "HY000", Message: fmt.Sprintf(
+					"Cannot define foreign key with ON %s %s clause on a generated column.", clause.on, action)}
+			}
+		}
+	}
+	if !fkTypesCompatible(col, refCol) {
+		return errFKIncompatibleColumns(col.Name, refCol.Name, con.Name)
+	}
 	return nil
 }
 
@@ -4209,6 +4255,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			AutoIncrement:                srcCol.AutoIncrement,
 			Charset:                      srcCol.Charset,
 			Collation:                    srcCol.Collation,
+			CharsetExplicit:              srcCol.CharsetExplicit,
+			CollationExplicit:            srcCol.CollationExplicit,
+			NullExplicit:                 srcCol.NullExplicit,
 			Comment:                      srcCol.Comment,
 			OnUpdate:                     srcCol.OnUpdate,
 			OnUpdateKind:                 srcCol.OnUpdateKind,
@@ -4271,13 +4320,21 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		tbl.Indexes = append(tbl.Indexes, idx)
 	}
 
-	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE).
+	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE). A
+	// CHECK constraint's name is unique in its schema, so the copy names its
+	// own <table>_chk_<n> in the source's order (mysql:8.0.46).
+	checks := 0
 	for _, srcCon := range srcTbl.Constraints {
 		if srcCon.Type == ConForeignKey {
 			continue
 		}
+		name := srcCon.Name
+		if srcCon.Type == ConCheck {
+			checks++
+			name = fmt.Sprintf("%s_chk_%d", tableName, checks)
+		}
 		con := &Constraint{
-			Name:        srcCon.Name,
+			Name:        name,
 			Type:        srcCon.Type,
 			Table:       tbl,
 			Columns:     append([]string{}, srcCon.Columns...),

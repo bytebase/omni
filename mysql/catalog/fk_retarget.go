@@ -77,6 +77,38 @@ func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string
 	}
 }
 
+// fkRef is one foreign key, con, of the table child.
+type fkRef struct {
+	child *Table
+	con   *Constraint
+}
+
+// referencingForeignKeys returns the foreign keys of every table, parent
+// itself included, that reference parent.
+func (c *Catalog) referencingForeignKeys(parent *Table) []fkRef {
+	if parent == nil || parent.Database == nil {
+		return nil
+	}
+	var refs []fkRef
+	for _, db := range c.databases {
+		for _, child := range db.Tables {
+			for _, con := range child.Constraints {
+				if con.Type != ConForeignKey {
+					continue
+				}
+				refDB := con.RefDatabase
+				if refDB == "" && child.Database != nil {
+					refDB = child.Database.Name
+				}
+				if toLower(refDB) == toLower(parent.Database.Name) && toLower(con.RefTable) == toLower(parent.Name) {
+					refs = append(refs, fkRef{child, con})
+				}
+			}
+		}
+	}
+	return refs
+}
+
 // alterColumnRenames maps each column an ALTER TABLE renames, by lowered old
 // name, to its last new name: RENAME COLUMN and CHANGE, followed through a
 // later command that renames the new name again.
