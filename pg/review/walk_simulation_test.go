@@ -224,8 +224,11 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 			sm.Sequences = append(sm.Sequences, &metadata.SequenceMetadata{Name: name})
 		}
 		for _, typ := range c.QueryPgType(s.Name) {
-			if typ.TypType == 'e' {
+			switch typ.TypType {
+			case 'e':
 				sm.EnumTypes = append(sm.EnumTypes, &metadata.EnumTypeMetadata{Name: typ.TypName})
+			case 'r':
+				sm.RangeTypes = append(sm.RangeTypes, &metadata.RangeTypeMetadata{Name: typ.TypName})
 			}
 		}
 		for _, proc := range c.QueryPgProc(s.Name) {
@@ -235,7 +238,10 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 			if proc.ProKind == 'p' {
 				sm.Procedures = append(sm.Procedures, &metadata.ProcedureMetadata{Name: proc.ProName})
 			} else {
-				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{Name: proc.ProName})
+				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{
+					Name:       proc.ProName,
+					Definition: "CREATE OR REPLACE FUNCTION " + ident(s.Name) + "." + ident(proc.ProName) + "() RETURNS void LANGUAGE sql AS ''",
+				})
 			}
 		}
 		db.Schemas = append(db.Schemas, sm)

@@ -3882,9 +3882,23 @@ func (b *builder) checkSequenceOptions(opts *ast.List, isIdentity bool) {
 			if !isIdentity {
 				if list, ok := de.Arg.(*ast.List); ok {
 					parts := nameParts(list)
-					if !(len(parts) == 1 && strings.EqualFold(parts[0], "none")) && len(parts) != 2 && len(parts) != 3 {
-						b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("unqualified `OWNED BY` in sequence statement")) // 42601
-						return
+					switch len(parts) {
+					case 1:
+						if !strings.EqualFold(parts[0], "none") {
+							b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("unqualified `OWNED BY` in sequence statement")) // 42601
+							return
+						}
+					case 2, 3:
+					case 4:
+						if b.w.crossDatabase(parts[0]) {
+							b.fail(nil, walk.Absent, review.CrossDatabaseReference, crossDatabaseMessage(qualified(parts))) // 0A000
+							return
+						}
+					default:
+						if len(parts) > 4 {
+							b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`OWNED BY` target "+review.Code(qualified(parts))+" in sequence statement")) // 42601
+							return
+						}
 					}
 				}
 			}
@@ -3935,14 +3949,14 @@ func atAllowedKinds(sub ast.AlterTableType) ([]string, string) {
 	case ast.AT_AddColumn, ast.AT_DropColumn, ast.AT_AlterColumnType,
 		ast.AT_SetNotNull, ast.AT_DropNotNull,
 		ast.AT_AddConstraint, ast.AT_DropConstraint, ast.AT_ValidateConstraint,
-		ast.AT_AddInherit, ast.AT_DropInherit,
+		ast.AT_AddInherit, ast.AT_DropInherit, ast.AT_DropOids,
 		ast.AT_EnableTrig, ast.AT_EnableAlwaysTrig, ast.AT_EnableReplicaTrig, ast.AT_DisableTrig,
 		ast.AT_EnableTrigAll, ast.AT_DisableTrigAll, ast.AT_EnableTrigUser, ast.AT_DisableTrigUser:
 		return []string{relTable, relForeign}, relTable
 	case ast.AT_AlterConstraint, ast.AT_SetExpression, ast.AT_DropExpression,
 		ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity, ast.AT_ForceRowSecurity, ast.AT_NoForceRowSecurity,
 		ast.AT_DetachPartition, ast.AT_DetachPartitionFinalize,
-		ast.AT_AddOf, ast.AT_DropOf, ast.AT_DropOids,
+		ast.AT_AddOf, ast.AT_DropOf,
 		ast.AT_EnableRule, ast.AT_EnableAlwaysRule, ast.AT_EnableReplicaRule, ast.AT_DisableRule:
 		return []string{relTable}, relTable
 	case ast.AT_AttachPartition:
@@ -3989,11 +4003,11 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 			b.need(trigKey(r.key, tn), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("trigger", ident(cmd.Name), relation(rv))}) // 42704
 		}
 	case ast.AT_SetRelOptions, ast.AT_ReplaceRelOptions:
-		if r.kind == relTable && b.w.partitioned[r.key] {
-			b.failAt(rng, []walk.Key{r.key}, review.WrongObjectKind, unsupported("storage parameters on partitioned table "+review.Code(relation(rv)))) // 42809
-			return
-		}
 		if opts, ok := cmd.Def.(*ast.List); ok {
+			if r.kind == relTable && b.w.partitioned[r.key] && hasNonToastRelOption(opts) {
+				b.failAt(rng, []walk.Key{r.key}, review.WrongObjectKind, unsupported("storage parameters on partitioned table "+review.Code(relation(rv)))) // 42809
+				return
+			}
 			b.checkRelOptions(r.kind, opts, rng)
 		}
 	case ast.AT_SetOptions:
@@ -4580,7 +4594,10 @@ func (b *builder) dropRoutine(obj ast.Node, objType ast.ObjectType, missingOK bo
 }
 
 func (b *builder) weakenRoutine(r resolved, parts []string, objType ast.ObjectType) {
-	if r.fact == walk.Present {
+	// An unqualified routine name may resolve to an overload in a later
+	// search-path schema than the first schema that holds the name, so weaken
+	// across all schemas rather than only r.key's schema.
+	if len(parts) >= 2 && r.fact == walk.Present {
 		b.set(r.key, walk.Unknown, "")
 		if objType == ast.OBJECT_ROUTINE {
 			s := schemaOfKey(r.key)
@@ -4620,7 +4637,7 @@ func (b *builder) renameRoutine(v *ast.RenameStmt) bool {
 	}
 	b.weakenRoutine(r, parts, v.RenameType)
 	newName, ok := walkName(v.Newname)
-	if r.fact == walk.Present && ok {
+	if len(parts) >= 2 && r.fact == walk.Present && ok && v.RenameType != ast.OBJECT_ROUTINE {
 		s := schemaOfKey(r.key)
 		var nk walk.Key
 		if r.key.Space == spaceProcedure {
@@ -4635,14 +4652,22 @@ func (b *builder) renameRoutine(v *ast.RenameStmt) bool {
 		if ok {
 			prefix = newName
 		}
+		scope := walk.Scope{Deep: true, Prefix: prefix}
+		if len(parts) >= 2 && r.fact == walk.Present {
+			scope = walk.Scope{Parent: walk.Path(schemaOfKey(r.key)), Prefix: prefix}
+		}
 		switch v.RenameType {
 		case ast.OBJECT_FUNCTION:
-			b.mayAdd(walk.Scope{Space: spaceFunction, Deep: true, Prefix: prefix})
+			scope.Space = spaceFunction
+			b.mayAdd(scope)
 		case ast.OBJECT_PROCEDURE:
-			b.mayAdd(walk.Scope{Space: spaceProcedure, Deep: true, Prefix: prefix})
+			scope.Space = spaceProcedure
+			b.mayAdd(scope)
 		default:
-			b.mayAdd(walk.Scope{Space: spaceFunction, Deep: true, Prefix: prefix})
-			b.mayAdd(walk.Scope{Space: spaceProcedure, Deep: true, Prefix: prefix})
+			scope.Space = spaceFunction
+			b.mayAdd(scope)
+			scope.Space = spaceProcedure
+			b.mayAdd(scope)
 		}
 	}
 	return true
@@ -4665,7 +4690,7 @@ func (b *builder) setSchemaRoutine(v *ast.AlterObjectSchemaStmt) bool {
 	}
 	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(v.Newschema)}) // 3F000
 	b.weakenRoutine(r, parts, v.ObjectType)
-	if r.fact == walk.Present {
+	if r.fact == walk.Present && v.ObjectType != ast.OBJECT_ROUTINE {
 		var nk walk.Key
 		if r.key.Space == spaceProcedure {
 			nk = procKey(ns, r.key.Name)
@@ -4829,6 +4854,25 @@ func (b *builder) checkAttrOptions(opts *ast.List, rng review.Range) {
 // ADD/SET GENERATED AS IDENTITY / RESTART (42601 / 22P02 / 55000).
 func (b *builder) checkIdentityOptions(opts *ast.List, _ review.Range) {
 	b.checkSequenceOptions(opts, true)
+}
+
+// hasNonToastRelOption reports whether opts contains at least one option that
+// is not in the "toast" namespace. PostgreSQL filters toast.* options out of
+// the parent relation's reloptions before checking partitioned tables, so
+// toast-only SET (...) on a partitioned table succeeds as a no-op.
+//
+// pg: src/backend/access/common/reloptions.c — transformRelOptions;
+// src/backend/commands/tablecmds.c — ATExecSetRelOptions
+func hasNonToastRelOption(opts *ast.List) bool {
+	if opts == nil {
+		return false
+	}
+	for _, item := range opts.Items {
+		if de, ok := item.(*ast.DefElem); ok && !strings.EqualFold(de.Defnamespace, "toast") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkRelOptions validates duplicate reloptions (rejected for all relation

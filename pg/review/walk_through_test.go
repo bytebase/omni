@@ -692,8 +692,30 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
 	schema.Schemas[0].CompositeTypes = []*metadata.CompositeTypeMetadata{{Name: "pair"}}
 	schema.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
-	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{{Name: "fn_existing"}, {Name: "trig_fn"}}
+	schema.Schemas[0].RangeTypes = []*metadata.RangeTypeMetadata{
+		{Name: "myrange"},
+		{Name: "customrange", MultirangeName: "custom_mr"},
+	}
+	schema.Schemas[0].ExternalTables = []*metadata.ExternalTableMetadata{{Name: "ft"}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{
+		{Name: "fn_existing", Definition: "CREATE OR REPLACE FUNCTION public.fn_existing() RETURNS void LANGUAGE sql AS ''"},
+		{Name: "trig_fn", Definition: "CREATE OR REPLACE FUNCTION public.trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+		{Name: "synced_proc", Definition: "CREATE OR REPLACE PROCEDURE public.synced_proc() LANGUAGE sql AS ''"},
+		{Name: "ambig_routine"},
+	}
 	schema.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "proc_existing"}}
+	schema.Schemas = append(schema.Schemas, &metadata.SchemaMetadata{
+		Name: "s1",
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "ov_fn", Definition: "CREATE OR REPLACE FUNCTION s1.ov_fn(text) RETURNS void LANGUAGE sql AS ''"},
+		},
+	}, &metadata.SchemaMetadata{
+		Name: "s2",
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "ov_fn", Definition: "CREATE OR REPLACE FUNCTION s2.ov_fn(int) RETURNS void LANGUAGE sql AS ''"},
+		},
+	})
+	schema.Name = "mydb"
 	target := review.Target{Schema: schema, SessionUser: "u"}
 
 	for sql, wantCode := range map[string]review.FindingCode{
@@ -772,10 +794,13 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER TABLE t ADD EXCLUDE (missing_col WITH =);":       review.ObjectNotFound,
 		"ALTER TYPE pair DROP ATTRIBUTE x, DROP ATTRIBUTE x;":   review.DuplicateName,
 		"ALTER SEQUENCE q OWNED BY col_only;":                   review.UnsupportedForm,
+		"ALTER SEQUENCE q OWNED BY otherdb.public.t.a;":         review.CrossDatabaseReference,
+		"ALTER SEQUENCE q OWNED BY a.b.c.d.e;":                  review.UnsupportedForm,
 		"ALTER SEQUENCE q SEQUENCE NAME s2;":                    review.UnsupportedForm,
 		"ALTER SEQUENCE q LOGGED;":                              review.UnsupportedForm,
 		"ALTER SEQUENCE q UNLOGGED;":                            review.UnsupportedForm,
 		"ALTER SEQUENCE q AS text;":                             review.UnsupportedForm,
+		"ALTER FUNCTION synced_proc STRICT;":                    review.ObjectNotFound,
 	} {
 		got := walkFindings(t, sql, target)
 		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
@@ -790,6 +815,11 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		// Synced routines & routine creation/overloads.
 		"ALTER FUNCTION fn_existing STRICT;",
 		"ALTER PROCEDURE proc_existing SET search_path = public;",
+		"ALTER PROCEDURE synced_proc SET search_path = public;",
+		"ALTER ROUTINE synced_proc SET search_path = public;",
+		"ALTER FUNCTION ambig_routine STRICT;",
+		"ALTER PROCEDURE ambig_routine SET search_path = public;",
+		"ALTER ROUTINE ambig_routine RENAME TO ambig_renamed;\nALTER PROCEDURE ambig_renamed SET search_path = public;",
 		"ALTER ROUTINE fn_existing STRICT;",
 		"ALTER ROUTINE proc_existing SET search_path = public;",
 		"DROP FUNCTION fn_existing;",
@@ -797,16 +827,22 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"DROP PROCEDURE IF EXISTS missing_proc;",
 		"DROP ROUTINE IF EXISTS missing_rtn;",
 		"CREATE FUNCTION f_ov(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION f_ov(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION f_ov(int);\nDROP FUNCTION f_ov(text);",
+		"SET search_path = s1, s2;\nALTER FUNCTION ov_fn(int) RENAME TO ov_renamed;\nDROP FUNCTION s2.ov_renamed(int);",
+		"SET search_path = s1, s2;\nDROP FUNCTION ov_fn(int);\nDROP FUNCTION s1.ov_fn(text);",
 		"CREATE FUNCTION pg_temp.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;\nCREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION tf();",
-		// Built-in pg_catalog & Bytebase-excluded routine names (never falsely absent).
+		// Built-in pg_catalog, Bytebase-excluded, and range constructor routines (never falsely absent).
 		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();",
 		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION pg_custom_trig();",
 		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION hypopg_trig();",
 		"ALTER FUNCTION lower(text) IMMUTABLE;",
 		"ALTER FUNCTION pg_catalog.abs(int) IMMUTABLE;",
+		"ALTER FUNCTION public.cbrt(double precision) IMMUTABLE;",
+		"COMMENT ON FUNCTION public.myrange(int, int) IS 'range ctor';",
+		"COMMENT ON FUNCTION public.myrange_multirange() IS 'multirange ctor';",
+		"COMMENT ON FUNCTION public.custom_mr() IS 'custom multirange ctor';",
 		"DROP FUNCTION pg_my_ext_fn();",
 		"DROP FUNCTION hypopg_reset();",
-		// Trigger WHEN valid forms (OLD/NEW/subquery) and RI internal trigger.
+		// Trigger WHEN valid forms (OLD/NEW/subquery) and PostgreSQL internal constraint triggers.
 		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD.a IS DISTINCT FROM NEW.a) EXECUTE FUNCTION trig_fn();",
 		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD IS DISTINCT FROM NEW) EXECUTE FUNCTION trig_fn();",
 		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW WHEN (EXISTS (SELECT 1 FROM t WHERE a = 1)) EXECUTE FUNCTION trig_fn();",
@@ -814,6 +850,8 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER TABLE t ENABLE TRIGGER ALL;",
 		"ALTER TABLE t ENABLE TRIGGER USER;",
 		"ALTER TABLE t ENABLE TRIGGER \"RI_ConstraintTrigger_c_1234\";",
+		"ALTER TABLE t ENABLE TRIGGER \"Unique_ConstraintTrigger_1234\";",
+		"ALTER TABLE t ENABLE TRIGGER \"PK_ConstraintTrigger_1234\";",
 		// Valid self-named types against pg_catalog built-in or another schema on search_path.
 		"CREATE DOMAIN text AS text;",
 		"CREATE TABLE text (a text);",
@@ -838,11 +876,14 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"ALTER TABLE v SET (security_barrier = true, security_invoker = false);",
 		"ALTER TABLE v ALTER COLUMN a DROP IDENTITY IF EXISTS;",
 		"ALTER TABLE t SET (fillfactor = 80);",
+		"ALTER TABLE parted SET (toast.autovacuum_enabled = false);",
+		"ALTER FOREIGN TABLE ft SET WITHOUT OIDS;",
 		"ALTER TABLE t ADD EXCLUDE (a WITH =);",
 		"ALTER SEQUENCE q SET LOGGED;",
 		"ALTER SEQUENCE q SET UNLOGGED;",
 		"ALTER SEQUENCE q OWNED BY NONE;",
 		"ALTER SEQUENCE q OWNED BY t.a;",
+		"ALTER SEQUENCE q OWNED BY mydb.public.t.a;",
 		"ALTER SEQUENCE q AS bigint;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {

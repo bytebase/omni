@@ -1090,6 +1090,7 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept conflicting or redundant options "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SEQUENCE NAME` in "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept unqualified `OWNED BY` in "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `OWNED BY` target "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `PARALLEL "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept unqualified column name in `COMMENT ON COLUMN`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept more column names than columns in `CREATE VIEW`"),

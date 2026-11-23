@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	pganalysis "github.com/bytebase/omni/pg/analysis"
 	"github.com/bytebase/omni/pg/ast"
 	pgcatalog "github.com/bytebase/omni/pg/catalog"
 	"github.com/bytebase/omni/pg/parser"
@@ -111,7 +112,15 @@ type pgSnapshot struct {
 	triggers    map[[2]string]map[string]bool
 	functions   map[[2]string]bool
 	procedures  map[[2]string]bool
-	viewCols    map[[2]string]int
+	// ambigRoutines marks entries from SchemaMetadata.Functions with an
+	// empty Definition whose kind (function vs procedure) is uncertain, so
+	// both spaceFunction and spaceProcedure stay Unknown rather than assuming
+	// one kind or claiming the other absent.
+	ambigRoutines map[[2]string]bool
+	// rangeConstructors marks pre-existing range and multirange constructor
+	// names omitted from SchemaMetadata.Functions by pg/driver/sync.go.
+	rangeConstructors map[[2]string]bool
+	viewCols          map[[2]string]int
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
@@ -126,18 +135,20 @@ type pgSnapshot struct {
 // snapshot that knows nothing.
 func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 	s := &pgSnapshot{
-		schemas:     make(map[string]bool),
-		relations:   make(map[[2]string]string),
-		types:       make(map[[2]string]bool),
-		columns:     make(map[[2]string]map[string]bool),
-		constraints: make(map[[2]string]map[string]string),
-		primaryKeys: make(map[[2]string]bool),
-		triggers:    make(map[[2]string]map[string]bool),
-		functions:   make(map[[2]string]bool),
-		procedures:  make(map[[2]string]bool),
-		viewCols:    make(map[[2]string]int),
-		anywhere:    make(map[string]bool),
-		inSchema:    make(map[string][]walk.Key),
+		schemas:           make(map[string]bool),
+		relations:         make(map[[2]string]string),
+		types:             make(map[[2]string]bool),
+		columns:           make(map[[2]string]map[string]bool),
+		constraints:       make(map[[2]string]map[string]string),
+		primaryKeys:       make(map[[2]string]bool),
+		triggers:          make(map[[2]string]map[string]bool),
+		functions:         make(map[[2]string]bool),
+		procedures:        make(map[[2]string]bool),
+		ambigRoutines:     make(map[[2]string]bool),
+		rangeConstructors: make(map[[2]string]bool),
+		viewCols:          make(map[[2]string]int),
+		anywhere:          make(map[string]bool),
+		inSchema:          make(map[string][]walk.Key),
 	}
 	if db == nil {
 		return s
@@ -225,9 +236,40 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, e := range schema.GetEnumTypes() {
 			rowType(e.GetName())
 		}
+		for _, rt := range schema.GetRangeTypes() {
+			rowType(rt.GetName())
+			s.rangeConstructors[[2]string{name, rt.GetName()}] = true
+			if mr := rt.GetMultirangeName(); mr != "" {
+				mrParts := identifierParts(mr)
+				switch len(mrParts) {
+				case 1:
+					rowType(mrParts[0])
+					s.rangeConstructors[[2]string{name, mrParts[0]}] = true
+				case 2:
+					s.types[[2]string{mrParts[0], mrParts[1]}] = true
+					s.rangeConstructors[[2]string{mrParts[0], mrParts[1]}] = true
+				}
+			} else {
+				s.rangeConstructors[[2]string{name, rt.GetName() + "_multirange"}] = true
+			}
+		}
 		for _, fn := range schema.GetFunctions() {
-			s.functions[[2]string{name, fn.GetName()}] = true
-			s.inSchema[name] = append(s.inSchema[name], funcKey(name, fn.GetName()))
+			// pg/driver/sync.go stores procedures in SchemaMetadata.Functions
+			// with their pg_get_functiondef() text (CREATE OR REPLACE PROCEDURE).
+			// Classify them via kindOf; an empty Definition may be either kind.
+			k := kindOf(fn)
+			if k == kindFunction|kindProcedure {
+				s.ambigRoutines[[2]string{name, fn.GetName()}] = true
+				continue
+			}
+			if k&kindFunction != 0 {
+				s.functions[[2]string{name, fn.GetName()}] = true
+				s.inSchema[name] = append(s.inSchema[name], funcKey(name, fn.GetName()))
+			}
+			if k&kindProcedure != 0 {
+				s.procedures[[2]string{name, fn.GetName()}] = true
+				s.inSchema[name] = append(s.inSchema[name], procKey(name, fn.GetName()))
+			}
 		}
 		for _, pr := range schema.GetProcedures() {
 			s.procedures[[2]string{name, pr.GetName()}] = true
@@ -324,19 +366,26 @@ func trustedRelationName(name string) bool {
 
 // trustedRoutineName reports whether Bytebase's sync lists a routine of this
 // name in a synced schema whenever it exists: every name except system/built-in
-// names and extension prefixes that IsSystemFunction drops.
+// names and extension prefixes that pg/analysis.IsSystemFunction drops.
 //
 // bytebase: backend/plugin/parser/pg/system_objects.go — IsSystemFunction
 func trustedRoutineName(name string) bool {
-	if builtinCalls[strings.ToLower(name)] {
+	if builtinCalls[strings.ToLower(name)] || pganalysis.IsSystemFunction(name, "") {
 		return false
 	}
-	for _, prefix := range []string{"pg_", "g_columnar_", "google_columnar_", "google_db_advisor_", "g_agg_stat_", "hypopg"} {
-		if strings.HasPrefix(name, prefix) {
-			return false
-		}
-	}
-	return true
+	return !strings.HasPrefix(name, "pg_")
+}
+
+// isInternalConstraintTrigger reports whether name matches one of PostgreSQL's
+// system-generated internal constraint trigger prefixes (tgisinternal = true),
+// which pg/driver/sync.go omits from TableMetadata.Triggers.
+//
+// pg: src/backend/commands/tablecmds.c — createForeignKeyCheckTriggers;
+// src/backend/catalog/index.c — index_constraint_create
+func isInternalConstraintTrigger(name string) bool {
+	return strings.HasPrefix(name, "RI_ConstraintTrigger_") ||
+		strings.HasPrefix(name, "Unique_ConstraintTrigger_") ||
+		strings.HasPrefix(name, "PK_ConstraintTrigger_")
 }
 
 // builtinCatalogFunctions holds every built-in function name in PostgreSQL's
@@ -392,6 +441,9 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if s.functions[[2]string{schema, k.Name}] {
 			return walk.Present, ""
 		}
+		if s.ambigRoutines[[2]string{schema, k.Name}] || s.rangeConstructors[[2]string{schema, k.Name}] {
+			return walk.Unknown, ""
+		}
 		if s.schemas[schema] && trustedRoutineName(k.Name) {
 			return walk.Absent, ""
 		}
@@ -402,6 +454,9 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		}
 		if s.procedures[[2]string{schema, k.Name}] {
 			return walk.Present, ""
+		}
+		if s.ambigRoutines[[2]string{schema, k.Name}] {
+			return walk.Unknown, ""
 		}
 		if s.schemas[schema] && trustedRoutineName(k.Name) {
 			return walk.Absent, ""
@@ -435,7 +490,7 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 				if trigs[k.Name] {
 					return walk.Present, ""
 				}
-				if !strings.HasPrefix(k.Name, "RI_ConstraintTrigger_") {
+				if !isInternalConstraintTrigger(k.Name) {
 					return walk.Absent, ""
 				}
 			}
