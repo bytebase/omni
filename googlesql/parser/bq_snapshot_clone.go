@@ -16,7 +16,7 @@ import (
 // SNAPSHOT object.)
 //
 //	create_snapshot_statement:
-//	  CREATE opt_or_replace? SNAPSHOT (TABLE | schema_object_kind) opt_if_not_exists?
+//	  CREATE opt_or_replace? SNAPSHOT (TABLE | SCHEMA) opt_if_not_exists?
 //	    maybe_dashed_path CLONE clone_data_source opt_options_list?
 //	  clone_data_source: maybe_dashed_path opt_at_system_time? where_clause?
 //	  opt_at_system_time: FOR SYSTEM_TIME AS OF expr   (also `FOR SYSTEM TIME AS OF`)
@@ -28,7 +28,7 @@ import (
 // against the legacy .g4 + BigQuery truth1 (DDL-008/045); proven by the unit
 // tests in bq_snapshot_clone_test.go.
 
-// parseCreateSnapshot parses a CREATE SNAPSHOT TABLE statement. The shared CREATE
+// parseCreateSnapshot parses a CREATE SNAPSHOT TABLE|SCHEMA statement. The shared CREATE
 // prefix (OR REPLACE) has been consumed by parseCreateStmt; cur is at SNAPSHOT.
 func (p *Parser) parseCreateSnapshot(create Token, orReplace bool) (ast.Node, error) {
 	p.advance() // SNAPSHOT
@@ -36,10 +36,18 @@ func (p *Parser) parseCreateSnapshot(create Token, orReplace bool) (ast.Node, er
 	stmt := &ast.CreateSnapshotStmt{OrReplace: orReplace}
 	stmt.Loc.Start = create.Loc.Start
 
-	// SNAPSHOT (TABLE | schema_object_kind) — the documented form is SNAPSHOT TABLE;
-	// the grammar also admits a schema_object_kind, but TABLE is the BigQuery form.
-	if _, err := p.expect(kwTABLE); err != nil {
-		return nil, err
+	// SNAPSHOT (TABLE | schema_object_kind). googlesql.tm:2963 admits only the
+	// kinds SchemaObjectAllowedForSnapshot allows, and refuses every other
+	// ("CREATE SNAPSHOT <kind> is not supported"); BigQuery parses SNAPSHOT
+	// SCHEMA and answers "Statement not supported: CreateSnapshotStatement".
+	switch p.cur.Type {
+	case kwTABLE:
+		p.advance()
+	case kwSCHEMA:
+		p.advance()
+		stmt.Schema = true
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	ifNotExists, err := p.parseIfNotExists()
