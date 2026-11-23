@@ -92,6 +92,16 @@ type tidbSnapshot struct {
 	indexes   map[string]map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
 	tableForeignKeys map[string]map[string]bool
+	// partitioning holds each table's partitioning kind, where the walk
+	// knows it, and partitions each table's partitions.
+	partitioning map[string]string
+	partitions   map[string]map[string]bool
+	// charsets holds each table's character set, where the sync gives it.
+	charsets map[string]string
+	// sequenceBounds holds each sequence's bounds, where the sync gives them.
+	sequenceBounds map[string]string
+	// autoRandom holds whether each table has an AUTO_RANDOM column.
+	autoRandom map[string]string
 	// mixed lists the spaces where the sync lists a name outside ASCII, as
 	// the space and its table's key ("" for the database's relations).
 	mixed map[[2]string]bool
@@ -103,6 +113,11 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		columns:          make(map[string]map[string]bool),
 		indexes:          make(map[string]map[string]bool),
 		tableForeignKeys: make(map[string]map[string]bool),
+		partitioning:     make(map[string]string),
+		partitions:       make(map[string]map[string]bool),
+		charsets:         make(map[string]string),
+		sequenceBounds:   make(map[string]string),
+		autoRandom:       make(map[string]string),
 		mixed:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -152,12 +167,30 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 				set(fks, spaceTableForeignKey, tk, fk.GetName())
 			}
 			s.tableForeignKeys[tk] = fks
+			s.autoRandom[tk] = syncedAutoRandom(t)
+			if cs := normalCharset(t.GetCharset()); cs != "" {
+				s.charsets[tk] = cs
+			} else if cs := collationCharset(t.GetCollation()); cs != "" {
+				s.charsets[tk] = cs
+			}
+			if kind, ok := syncedPartitioning(t.GetPartitions()); ok {
+				s.partitioning[tk] = kind
+				parts := make(map[string]bool)
+				for _, p := range t.GetPartitions() {
+					set(parts, spacePartition, tk, p.GetName())
+				}
+				s.partitions[tk] = parts
+			}
 		}
 		for _, v := range schema.GetViews() {
 			relation(v.GetName(), relView)
 		}
 		for _, q := range schema.GetSequences() {
-			relation(q.GetName(), relSequence)
+			if qk, ok := relation(q.GetName(), relSequence); ok {
+				if bounds, ok := syncedSequenceBounds(q); ok {
+					s.sequenceBounds[qk] = bounds
+				}
+			}
 		}
 	}
 	return s
@@ -204,7 +237,35 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, kind
 		}
 		return absent()
-	case spaceColumn, spaceIndex, spaceTableForeignKey:
+	case spacePartitioning:
+		if len(path) == 2 {
+			if kind, ok := s.partitioning[path[1]]; ok && k.Name == partitioningName {
+				return walk.Present, kind
+			}
+		}
+		return walk.Unknown, ""
+	case spaceAutoRandom:
+		if len(path) == 2 {
+			if has, ok := s.autoRandom[path[1]]; ok && k.Name == autoRandomName {
+				return walk.Present, has
+			}
+		}
+		return walk.Unknown, ""
+	case spaceSequenceBounds:
+		if len(path) == 2 {
+			if bounds, ok := s.sequenceBounds[path[1]]; ok && k.Name == sequenceBoundsName {
+				return walk.Present, bounds
+			}
+		}
+		return walk.Unknown, ""
+	case spaceTableCharset:
+		if len(path) == 2 {
+			if cs, ok := s.charsets[path[1]]; ok && k.Name == tableCharsetName {
+				return walk.Present, cs
+			}
+		}
+		return walk.Unknown, ""
+	case spaceColumn, spaceIndex, spaceTableForeignKey, spacePartition:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
@@ -215,6 +276,7 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			spaceColumn:          s.columns,
 			spaceIndex:           s.indexes,
 			spaceTableForeignKey: s.tableForeignKeys,
+			spacePartition:       s.partitions,
 		}[k.Space][path[1]]
 		if !ok {
 			return walk.Unknown, ""
