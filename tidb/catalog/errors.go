@@ -193,10 +193,13 @@ const (
 	// View query / expression validation errors (measured on TiDB v8.5.5).
 	ErrNonuniqTable            = 1066
 	ErrSyntax                  = 1149
+	ErrNotSupportedYet         = 1235
 	ErrOperandColumns          = 1241
+	ErrTruncatedWrongValue     = 1292
 	ErrViewSelectClause        = 1350
 	ErrViewSelectVariable      = 1351
 	ErrWrongParamCount         = 1582
+	ErrInvalidTypeForJSON      = 3146
 	ErrWindowNoSuchWindow      = 3579
 	ErrWindowFrameStartIllegal = 3584
 	ErrWindowFrameEndIllegal   = 3585
@@ -285,10 +288,13 @@ var sqlStateMap = map[int]string{
 	ErrAnalyzeIndexNotFound:                "HY000",
 	ErrNonuniqTable:                        "42000",
 	ErrSyntax:                              "42000",
+	ErrNotSupportedYet:                     "42000",
 	ErrOperandColumns:                      "21000",
+	ErrTruncatedWrongValue:                 "22007",
 	ErrViewSelectClause:                    "HY000",
 	ErrViewSelectVariable:                  "HY000",
 	ErrWrongParamCount:                     "42000",
+	ErrInvalidTypeForJSON:                  "22032",
 	ErrWindowNoSuchWindow:                  "HY000",
 	ErrWindowFrameStartIllegal:             "HY000",
 	ErrWindowFrameEndIllegal:               "HY000",
