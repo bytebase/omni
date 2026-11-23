@@ -34,6 +34,13 @@ import (
 //	|   `a` int DEFAULT NULL
 //	| )
 //
+// A value a client answers in a Go type of its own, such as ClickHouse's
+// Array, Tuple and Map, is ": go" and the type's spelling, then its literal as
+// one text (see Type):
+//
+//	: go map[string][]int32
+//	| {"a": [1, 2], "b": []}
+//
 // A column may name the Go type its rows scan into (a quoted string after the
 // database type), its precision ("precision <digits>" after that) and its
 // scale ("scale <digits>" after the precision); all are optional, so a tape
@@ -111,9 +118,13 @@ type column struct {
 // database/sql converts them; the tape keeps the type so a replay hands the
 // driver the same one. A request's argument over digestOver holds sum, its
 // digest, in place of text.
+//
+// A value of any other type the session's types know is kind "go": typ is its
+// type's spelling and text its literal (types.write). Only an answer holds one.
 type value struct {
 	kind, text string
 	sum        string
+	typ        string
 }
 
 // digestOver is the size above which a request's text and its text
@@ -242,6 +253,8 @@ func (v value) driver() (driver.Value, error) {
 		return []byte(v.text), nil
 	case "string":
 		return v.text, nil
+	case "go":
+		return nil, fmt.Errorf("a %s value, which only a replay that knows its type reads", v.typ)
 	}
 	return nil, fmt.Errorf("a value of kind %q", v.kind)
 }
@@ -354,6 +367,9 @@ func writeValue(b *strings.Builder, v value) {
 		writeTextOrSum(b, v.text, v.sum)
 	case "null":
 		b.WriteString(": null\n")
+	case "go":
+		b.WriteString(": go " + v.typ + "\n")
+		writeText(b, v.text)
 	default:
 		b.WriteString(": " + v.kind + " " + v.text + "\n")
 	}
@@ -674,6 +690,19 @@ func (p *parser) value(argument bool) (value, error) {
 		return v, err
 	case "null":
 		return v, nil
+	case "go":
+		// The type and its literal are read when a replay answers with
+		// them, which knows the Server's types.
+		if argument {
+			return v, p.errorf("a typed value as an argument: only answers hold one")
+		}
+		if text == "" {
+			return v, p.errorf("a typed value with no type")
+		}
+		v.typ, v.text = text, ""
+		t, err := p.text()
+		v.text = t
+		return v, err
 	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool", "time":
 		if _, err := v.driver(); err != nil {
 			return v, p.errorf("a %s value: %v", kind, err)

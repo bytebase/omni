@@ -15,7 +15,12 @@
 |   fixed FixedString(4),
 |   flag Bool,
 |   level Enum8('info' = 1, 'warn' = 2),
-|   seen Date DEFAULT '2026-01-02'
+|   seen Date DEFAULT '2026-01-02',
+|   ref UUID DEFAULT generateUUIDv4(),
+|   price Decimal(18, 4) DEFAULT 1.5,
+|   point Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL),
+|   matrix Array(Array(Nullable(Decimal(9, 3)))),
+|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)
@@ -283,6 +288,96 @@
 |
 < row
 : string
+| events
+: string
+| ref
+: uint64 11
+: string
+| generateUUIDv4()
+: string
+| 0
+: string
+| UUID
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| events
+: string
+| price
+: uint64 12
+: string
+| 1.5
+: string
+| 0
+: string
+| Decimal(18, 4)
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| events
+: string
+| point
+: uint64 13
+: string
+| (0, NULL)
+: string
+| 0
+: string
+| Tuple(x Float64, y Nullable(Float64))
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| events
+: string
+| matrix
+: uint64 14
+: string
+|
+: string
+| 0
+: string
+| Array(Array(Nullable(Decimal(9, 3))))
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| events
+: string
+| counts
+: uint64 15
+: string
+| map('a', [1, 2])
+: string
+| 0
+: string
+| Map(LowCardinality(String), Array(UInt64))
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | skipped
 : string
 | url
@@ -365,7 +460,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testsyncdatabase.events (`id` UInt64, `name` String COMMENT 'the event name', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `fixed` FixedString(4), `flag` Bool, `level` Enum8('info' = 1, 'warn' = 2), `seen` Date DEFAULT '2026-01-02') ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events the sync reads'
+| CREATE TABLE omni_testsyncdatabase.events (`id` UInt64, `name` String COMMENT 'the event name', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `fixed` FixedString(4), `flag` Bool, `level` Enum8('info' = 1, 'warn' = 2), `seen` Date DEFAULT '2026-01-02', `ref` UUID DEFAULT generateUUIDv4(), `price` Decimal(18, 4) DEFAULT 1.5, `point` Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL), `matrix` Array(Array(Nullable(Decimal(9, 3)))), `counts` Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events the sync reads'
 : string
 | events the sync reads
 : string
