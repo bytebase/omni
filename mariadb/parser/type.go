@@ -368,6 +368,19 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		kwGEOMETRYCOLLECTION:
 		dt.Name = p.cur.Str
 		p.advance()
+		// srid_option (sql_yacc.yy): REF_SYSTEM_ID = NUM, once and right after
+		// the type. mariadb:11.8.8 refuses it after NOT NULL, twice, on a
+		// non-spatial type and with a sign (1064), and SHOW CREATE TABLE does
+		// not print it.
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "REF_SYSTEM_ID") && !p.backtickQuotedAt(p.cur.Loc) && p.peekNext().Type == '=' {
+			p.advance()
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			dt.RefSystemID = int(p.cur.Ival)
+			p.advance()
+		}
 
 	// SERIAL → BIGINT UNSIGNED AUTO_INCREMENT UNIQUE
 	case kwSERIAL:

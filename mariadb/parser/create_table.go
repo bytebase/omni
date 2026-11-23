@@ -1652,7 +1652,7 @@ func (p *Parser) parseTableConstraint(place constraintPlace) (*nodes.Constraint,
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
-		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
+		idxCols, err := p.parseParenSpatialKeyPart(false)
 		if err != nil {
 			return nil, err
 		}
@@ -2236,6 +2236,11 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// any future plain option. The '=' is required (a bare option name is 1064),
 	// which also guards against consuming a trailing clause.
 	if next := p.peekNext().Type; p.cur.Type == tokIDENT && (next == '=' || next == tokAssign) {
+		// REF_SYSTEM_ID is a keyword and no ident_options name: mariadb:11.8.8
+		// answers 1064 for it unquoted (see parseEngineIndexOption).
+		if strings.EqualFold(p.cur.Str, "REF_SYSTEM_ID") && !p.backtickQuotedAt(p.cur.Loc) {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		return p.parseEngineDefinedOption(start)
 	}
 

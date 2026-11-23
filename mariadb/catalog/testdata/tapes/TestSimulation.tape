@@ -85043,6 +85043,942 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET latin1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb3
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET nope
+< error
+| 1115 42000 Unknown character set: 'nope'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE latin1_swedish_ci
+< error
+| 1253 42000 COLLATION 'latin1_swedish_ci' is not valid for CHARACTER SET 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET binary
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varbinary(100) DEFAULT NULL,
+|   `body` blob DEFAULT NULL,
+|   `code` binary(10) DEFAULT NULL,
+|   `tag` varbinary(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=binary
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext DEFAULT NULL,
+|   `code` char(10) DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes DEFAULT CHARSET = utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `body` text CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `body` text CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes COLLATE = latin1_bin
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `body` text CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CHARACTER SET = latin1 COLLATE = utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) COLLATE utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET latin1 COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY body TEXT CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY code CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY tag VARCHAR(20)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10) CHARACTER SET binary
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varbinary(10) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra ENUM('a', 'b') CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` enum('a','b') CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra NATIONAL VARCHAR(10)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_uca1400_ai_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n2 (a VARCHAR(10)) CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| n2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`n2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n2
+: bytes
+| CREATE TABLE `n2` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n3 (a VARCHAR(20000)) CHARSET = utf8mb4
+< error
+| 1074 42000 Column length too big for column 'a' (max = 16383); use BLOB or TEXT instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n4 (a VARCHAR(70000)) CHARSET = latin1
+< error
+| 1074 42000 Column length too big for column 'a' (max = 65532); use BLOB or TEXT instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n5 (a VARCHAR(16383), b VARCHAR(10)) CHARSET = utf8mb4
+< error
+| 1118 42000 Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n6 (a VARCHAR(10) CHARACTER SET latin1 COLLATE utf8mb4_bin)
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n7 LIKE notes
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| n7
+: bytes
+| BASE TABLE
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`n7`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n7
+: bytes
+| CREATE TABLE `n7` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int(11) NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text DEFAULT NULL,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_note CHECK (note <> ''));
 | CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
 < ok 0 0
@@ -85921,6 +86857,5551 @@
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `chk_always` CHECK (1 = 1)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_email FOREIGN KEY (email) REFERENCES customers (email)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   KEY `fk_email` (`email`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_email` FOREIGN KEY (`email`) REFERENCES `customers` (`email`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD FOREIGN KEY (email) REFERENCES customers (email)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   KEY `email` (`email`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`email`) REFERENCES `customers` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (email) REFERENCES customers (email)
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 121 "Duplicate key on write or update")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES nope (id)
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (nope)
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (email) REFERENCES customers (id)
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE SET NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `fk_x` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES customers (id) ON DELETE SET NULL
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON UPDATE CASCADE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `fk_x` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON UPDATE CASCADE
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id, email) REFERENCES customers (id, email)
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`orders` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id, email)
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_x': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD COLUMN v INT AS (customer_id + 1) STORED, ADD CONSTRAINT fk_v FOREIGN KEY (v) REFERENCES customers (id) ON UPDATE CASCADE
+< error
+| 1905 HY000 Cannot define foreign key with ON UPDATE CASCADE clause on a generated column
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY fk_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY nope
+< error
+| 1091 42000 Can't DROP FOREIGN KEY `nope`; check that it exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP CONSTRAINT fk_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP INDEX idx_customer
+< error
+| 1553 HY000 Cannot drop index 'idx_customer': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY fk_customer, DROP INDEX idx_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE items DROP PRIMARY KEY
+< error
+| 1025 HY000 Error on rename of './omni_simulation/#sql-alter-1-5' to './omni_simulation/items' (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers DROP INDEX uk_email
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE customers
+< error
+| 1451 23000 Cannot delete or update a parent row: a foreign key constraint fails
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE orders
+< error
+| 1451 23000 Cannot delete or update a parent row: a foreign key constraint fails
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE items, orders, customers
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE customers, orders, items
+< error
+| 1451 23000 Cannot delete or update a parent row: a foreign key constraint fails
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| TRUNCATE TABLE customers
+< error
+| 1701 42000 Cannot truncate a table referenced in a foreign key constraint (`omni_simulation`.`orders`, CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `omni_simulation`.`customers` (`id`))
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| TRUNCATE TABLE items
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| RENAME TABLE customers TO clients
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| clients
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`clients`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| clients
+: bytes
+| CREATE TABLE `clients` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME TO purchases
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| purchases
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `purchases` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`purchases`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| purchases
+: bytes
+| CREATE TABLE `purchases` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `purchases` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers RENAME COLUMN id TO cid
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `cid` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`cid`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`cid`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME COLUMN customer_id TO client_id
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `client_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`client_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`client_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers MODIFY id BIGINT
+< error
+| 1833 HY000 Cannot change column 'id': used in a foreign key constraint 'fk_customer' of table 'omni_simulation.orders'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY customer_id BIGINT
+< error
+| 1832 HY000 Cannot change column 'customer_id': used in a foreign key constraint 'fk_customer'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY customer_id INT NOT NULL
+< error
+| 1830 HY000 Column 'customer_id' cannot be NOT NULL: needed in a foreign key constraint 'fk_customer' SET NULL
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN customer_id
+< error
+| 1553 HY000 Cannot drop index 'idx_customer': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers DROP COLUMN id
+< error
+| 1829 HY000 Cannot drop column 'id': needed in a foreign key constraint 'omni_simulation/fk_customer' of table `omni_simulation`.`orders`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN parent_id
+< error
+| 1553 HY000 Cannot drop index 'fk_parent': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ENGINE = MyISAM
+< error
+| 1217 23000 Cannot delete or update a parent row: a foreign key constraint fails
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers ENGINE = MyISAM
+< error
+| 1217 23000 Cannot delete or update a parent row: a foreign key constraint fails
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE RESTRICT)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int(11) NOT NULL,
+|   `order_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`),
+|   CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id BIGINT, FOREIGN KEY (order_id) REFERENCES orders (id))
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`refunds` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (customer_id))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int(11) NOT NULL,
+|   `order_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`),
+|   CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`customer_id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, CONSTRAINT fk_customer FOREIGN KEY (order_id) REFERENCES orders (id))
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`refunds` (errno: 121 "Duplicate key on write or update")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, email VARCHAR(50) CHARACTER SET latin1, FOREIGN KEY (email) REFERENCES customers (email))
+< error
+| 1005 HY000 Can't create table `omni_simulation`.`refunds` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE self_ref (id INT PRIMARY KEY, p INT, FOREIGN KEY (p) REFERENCES self_ref (id) ON DELETE CASCADE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| self_ref
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`self_ref`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| self_ref
+: bytes
+| CREATE TABLE `self_ref` (
+|   `id` int(11) NOT NULL,
+|   `p` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `p` (`p`),
+|   CONSTRAINT `self_ref_ibfk_1` FOREIGN KEY (`p`) REFERENCES `self_ref` (`id`) ON DELETE CASCADE
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id)) ENGINE = MyISAM
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int(11) NOT NULL,
+|   `order_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds LIKE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int(11) NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int(11) NOT NULL,
+|   `line` int(11) NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int(11) NOT NULL,
+|   `customer_id` int(11) DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN initials VARCHAR(2) AS (CONCAT(LEFT(first_name, 1), LEFT(last_name, 1))) VIRTUAL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `initials` varchar(2) GENERATED ALWAYS AS (concat(left(`first_name`,1),left(`last_name`,1))) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) PERSISTENT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `age2` int(11) GENERATED ALWAYS AS (`age` * 2) STORED,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) STORED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `age2` int(11) GENERATED ALWAYS AS (`age` * 2) STORED,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (nope + 1)
+< error
+| 1054 42S22 Unknown column 'nope' in 'GENERATED ALWAYS AS'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND())
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `g` double GENERATED ALWAYS AS (rand()) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND()) PERSISTENT
+< error
+| 1901 HY000 Function or expression 'rand()' cannot be used in the GENERATED ALWAYS AS clause of `g`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (g + 1)
+< error
+| 4029 01000 Expression for field `g` is referring to uninitialized field `g`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL NOT NULL
+< error
+| 1064 42000 …near 'NOT NULL' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (age + 1) PERSISTENT, ADD INDEX idx_g (g)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `g` int(11) GENERATED ALWAYS AS (`age` + 1) STORED,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   KEY `idx_g` (`g`),
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL, ADD INDEX idx_g (g)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `g` int(11) GENERATED ALWAYS AS (`age` + 1) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   KEY `idx_g` (`g`),
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN first_name
+< error
+| 1054 42S22 Unknown column 'first_name' in 'CHECK'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN full_name
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN full_name, DROP COLUMN name_len, DROP COLUMN first_name
+< error
+| 1054 42S22 Unknown column 'first_name' in 'CHECK'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(200) GENERATED ALWAYS AS (concat(`last_name`,', ',`first_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) PERSISTENT
+< error
+| 1907 HY000 This is not yet supported for generated columns
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY name_len INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) DEFAULT NULL,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(101)
+< error
+| 1907 HY000 This is not yet supported for generated columns
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY age INT AS (id + 1) PERSISTENT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) GENERATED ALWAYS AS (`id` + 1) STORED,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people RENAME COLUMN first_name TO given_name
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `given_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`given_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`given_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`given_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `given_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`given_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`given_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`given_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER COLUMN full_name SET DEFAULT 'x'
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE gc2 (a INT, b INT AS (a + 1), c INT AS (b * 2) PERSISTENT)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| gc2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`gc2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| gc2
+: bytes
+| CREATE TABLE `gc2` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL,
+|   `c` int(11) GENERATED ALWAYS AS (`b` * 2) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
+< error
+| 4029 01000 Expression for field `b` is referring to uninitialized field `c`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| gc4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`gc4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| gc4
+: bytes
+| CREATE TABLE `gc4` (
+|   `a` int(11) NOT NULL AUTO_INCREMENT,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE gc5 (a INT, b INT AS (a + 1) VIRTUAL, KEY (b))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| gc5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`gc5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| gc5
+: bytes
+| CREATE TABLE `gc5` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL,
+|   KEY `b` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE gc6 (a TEXT, b TEXT AS (a) VIRTUAL, UNIQUE KEY (b))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| gc6
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`gc6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| gc6
+: bytes
+| CREATE TABLE `gc6` (
+|   `a` text DEFAULT NULL,
+|   `b` text GENERATED ALWAYS AS (`a`) VIRTUAL,
+|   UNIQUE KEY `b` (`b`) USING HASH
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX idx_age NOT IGNORED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`),
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX idx_full IGNORED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`) IGNORED,
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX `PRIMARY` IGNORED
+< error
+| 4174 HY000 A primary key cannot be marked as IGNORE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX nope IGNORED
+< error
+| 1176 42000 Key 'nope' doesn't exist in table 'people'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD UNIQUE KEY uk_age (age) IGNORED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_age` (`age`) IGNORED,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD PRIMARY KEY (id) IGNORED
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE INDEX idx_name ON people (first_name) IGNORED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   KEY `idx_name` (`first_name`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_doc (doc)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   KEY `idx_doc` (`doc`(768)),
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_doc (doc(20))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   KEY `idx_doc` (`doc`(20)),
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE inv (a INT NOT NULL, UNIQUE KEY u (a) IGNORED)
+< error
+| 4174 HY000 A primary key cannot be marked as IGNORE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE inv (a INT NOT NULL PRIMARY KEY, b INT, KEY k (b) IGNORED)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| inv
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`inv`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| inv
+: bytes
+| CREATE TABLE `inv` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`a`),
+|   KEY `k` (`b`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY secret INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY age INT INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL INVISIBLE,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY secret BIGINT INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` bigint(20) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN hidden2 INT INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `hidden2` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN hidden2 INT NOT NULL INVISIBLE
+< error
+| 4108 HY000 Invisible column `hidden2` must have a default value
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN hidden2 INT NOT NULL DEFAULT 0 INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   `hidden2` int(11) NOT NULL DEFAULT 0 INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE allinv (a INT INVISIBLE)
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE someinv (a INT INVISIBLE, b INT)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+< row
+: bytes
+| someinv
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`someinv`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| someinv
+: bytes
+| CREATE TABLE `someinv` (
+|   `a` int(11) DEFAULT NULL INVISIBLE,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CONSTRAINT chk_names
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CONSTRAINT chk_age, DROP CONSTRAINT chk_names
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_age CHECK (age < 200)
+< error
+| 1826 HY000 Duplicate CHECK constraint name 'chk_age'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_max CHECK (age < 200)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`),
+|   CONSTRAINT `chk_max` CHECK (`age` < 200)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT IF NOT EXISTS chk_age CHECK (age < 200)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CHECK (age < 200)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`),
+|   CONSTRAINT `CONSTRAINT_1` CHECK (`age` < 200)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CHECK (age < nope)
+< error
+| 1054 42S22 Unknown column 'nope' in 'CHECK'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_rand CHECK (age > RAND())
+< error
+| 1901 HY000 Function or expression 'rand()' cannot be used in the CHECK clause of `chk_rand`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_now CHECK (age < YEAR(NOW()))
+< error
+| 1901 HY000 Function or expression 'current_timestamp()' cannot be used in the CHECK clause of `chk_now`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN age
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people RENAME COLUMN age TO years
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `years` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`years`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`years` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY age INT CHECK (age > 1)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL CHECK (`age` > 1),
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CONSTRAINT nope
+< error
+| 1091 42000 Can't DROP CONSTRAINT `nope`; check that it exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE chk2 (a INT CHECK (a > 0), b INT, CHECK (a < b))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| chk2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`chk2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| chk2
+: bytes
+| CREATE TABLE `chk2` (
+|   `a` int(11) DEFAULT NULL CHECK (`a` > 0),
+|   `b` int(11) DEFAULT NULL,
+|   CONSTRAINT `CONSTRAINT_1` CHECK (`a` < `b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE chk3 (a INT, CONSTRAINT chk_age CHECK (a > 0))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| chk3
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`chk3`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| chk3
+: bytes
+| CREATE TABLE `chk3` (
+|   `a` int(11) DEFAULT NULL,
+|   CONSTRAINT `chk_age` CHECK (`a` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE chk4 (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a > 0))
+< error
+| 1901 HY000 Function or expression 'AUTO_INCREMENT' cannot be used in the CHECK clause of `a`
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| CREATE TABLE chk5 LIKE people
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| chk5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`chk5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| chk5
+: bytes
+| CREATE TABLE `chk5` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) PERSISTENT, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_age (age) IGNORED, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name))
+< ok 0 0
+> exec
+| RENAME TABLE people TO persons
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| persons
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`persons`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| persons
+: bytes
+| CREATE TABLE `persons` (
+|   `id` int(11) NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) VIRTUAL,
+|   `name_len` int(11) GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`doc`)),
+|   `age` int(11) DEFAULT NULL,
+|   `secret` int(11) DEFAULT NULL INVISIBLE,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_age` (`age`) IGNORED,
+|   CONSTRAINT `chk_age` CHECK (`age` >= 0),
+|   CONSTRAINT `chk_names` CHECK (`first_name` <> `last_name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_area (area)
+< error
+| 1252 42000 All parts of a SPATIAL index must be NOT NULL
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY area POLYGON NOT NULL, ADD SPATIAL INDEX sp_area (area)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   SPATIAL KEY `sp_area` (`area`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_name (name)
+< error
+| 1210 HY000 Incorrect arguments to SPATIAL INDEX
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE SPATIAL INDEX sp_loc2 ON places (loc)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   SPATIAL KEY `sp_loc2` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD INDEX idx_loc (loc)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   KEY `idx_loc` (`loc`(25)),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD INDEX idx_loc (loc(10))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   KEY `idx_loc` (`loc`(25)),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc POINT NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc POINT NULL
+< error
+| 1252 42000 All parts of a SPATIAL index must be NOT NULL
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc GEOMETRY REF_SYSTEM_ID = 3857 NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` geometry NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP INDEX sp_loc
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD COLUMN g GEOMETRY REF_SYSTEM_ID = 9999
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   `g` geometry DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD COLUMN g GEOMETRY REF_SYSTEM_ID = 3857 NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   `g` geometry NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_multi (loc, area)
+< error
+| 1064 42000 …near ' area)' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p2 (g GEOMETRY NOT NULL, SPATIAL KEY (g))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| p2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`p2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p2
+: bytes
+| CREATE TABLE `p2` (
+|   `g` geometry NOT NULL,
+|   SPATIAL KEY `g` (`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p3 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE = MyISAM
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| p3
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`p3`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p3
+: bytes
+| CREATE TABLE `p3` (
+|   `g` geometry NOT NULL,
+|   SPATIAL KEY `g` (`g`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p6 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE = Aria
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| p6
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`p6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p6
+: bytes
+| CREATE TABLE `p6` (
+|   `g` geometry NOT NULL,
+|   SPATIAL KEY `g` (`g`)
+| ) ENGINE=Aria DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=1
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_descr (descr)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`),
+|   FULLTEXT KEY `ft_descr` (`descr`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_both (name, descr)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`),
+|   FULLTEXT KEY `ft_both` (`name`,`descr`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX ft_descr ON places (descr) WITH PARSER ngram
+< error
+| 1128 HY000 Function 'ngram' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_id (id)
+< error
+| 1283 HY000 Column 'id' cannot be part of FULLTEXT index
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_name (descr)
+< error
+| 1061 42000 Duplicate key name 'ft_name'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP INDEX ft_name
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP COLUMN name
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY name VARCHAR(200) NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(200) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY name INT NOT NULL
+< error
+| 1283 HY000 Column 'name' cannot be part of FULLTEXT index
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p4 (a TEXT, FULLTEXT KEY (a)) ENGINE = MyISAM
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| p4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`p4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p4
+: bytes
+| CREATE TABLE `p4` (
+|   `a` text DEFAULT NULL,
+|   FULLTEXT KEY `a` (`a`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT REF_SYSTEM_ID = 4326 NOT NULL, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p5 (a VARCHAR(10), FULLTEXT KEY (a) KEY_BLOCK_SIZE = 4)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| p5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`p5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p5
+: bytes
+| CREATE TABLE `p5` (
+|   `a` varchar(10) DEFAULT NULL,
+|   FULLTEXT KEY `a` (`a`) KEY_BLOCK_SIZE=4
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text DEFAULT NULL,
+|   `loc` point NOT NULL,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a RENAME TO cleanup
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| cleanup
+> query
+| SHOW CREATE EVENT omni_simulation.`cleanup`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| cleanup
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `cleanup` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a ON SCHEDULE AT '2031-01-01 00:00:00'
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE AT '2031-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a DISABLE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE DISABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a DISABLE ON SLAVE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a ON COMPLETION NOT PRESERVE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a COMMENT 'nightly'
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'nightly' DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a DO SELECT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+< error
+| 1543 HY000 ENDS is either invalid or before STARTS
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT a RENAME TO a
+< error
+| 1551 HY000 Same old and new event name
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| ALTER EVENT nope DISABLE
+< error
+| 1539 HY000 Unknown event 'nope'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+< error
+| 1537 HY000 Event 'a' already exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| CREATE EVENT IF NOT EXISTS a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| CREATE OR REPLACE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| DROP EVENT a
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS nope
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| DROP EVENT nope
+< error
+| 1539 HY000 Unknown event 'nope'
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -88048,3 +94529,8091 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT FIRST, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `e` int(11) DEFAULT NULL,
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INSTANT
+< error
+| 1846 0A000 ALGORITHM=INSTANT is not supported. Reason: ADD INDEX. Try ALGORITHM=NOCOPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = NOCOPY
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INPLACE, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = INPLACE
+< error
+| 1846 0A000 ALGORITHM=INPLACE is not supported. Reason: Cannot change column type. Try ALGORITHM=COPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = NOCOPY
+< error
+| 1846 0A000 ALGORITHM=NOCOPY is not supported. Reason: Cannot change column type. Try ALGORITHM=COPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` bigint(20) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = SHARED
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` bigint(20) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` bigint(20) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c INT NOT NULL, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c INT NOT NULL, ALGORITHM = NOCOPY
+< error
+| 1845 0A000 ALGORITHM=NOCOPY is not supported for this operation. Try ALGORITHM=INPLACE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE
+< error
+| 1846 0A000 ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key is not allowed without also adding a new primary key. Try ALGORITHM=COPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) NOT NULL,
+|   PRIMARY KEY (`b`,`d`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = NOCOPY
+< error
+| 1845 0A000 ALGORITHM=NOCOPY is not supported for this operation. Try ALGORITHM=INPLACE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME COLUMN c TO c2, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c2` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALTER COLUMN c SET DEFAULT 5, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT 5,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP COLUMN d, ALGORITHM = INSTANT
+< error
+| 1846 0A000 ALGORITHM=INSTANT is not supported. Reason: DROP INDEX. Try ALGORITHM=NOCOPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP COLUMN c, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INSTANT
+< error
+| 1846 0A000 ALGORITHM=INSTANT is not supported. Reason: DROP INDEX. Try ALGORITHM=NOCOPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INPLACE, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME INDEX idx_d TO idx_d2, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d2` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE = InnoDB, ALGORITHM = NOCOPY
+< error
+| 1845 0A000 ALGORITHM=NOCOPY is not supported for this operation. Try ALGORITHM=INPLACE
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT AUTO_INCREMENT UNIQUE, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `e` (`e`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+< error
+| 1072 42000 Key column 'e' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e VARCHAR(10), ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` varchar(10) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   FULLTEXT KEY `ft` (`e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALGORITHM = DEFAULT, LOCK = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t LOCK = EXCLUSIVE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALTER INDEX idx_d IGNORED, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) IGNORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t CONVERT TO CHARACTER SET latin1, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INPLACE
+< error
+| 1845 0A000 ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP COLUMN c, ADD COLUMN c BIGINT, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `c` bigint(20) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX idx_c ON t (c) ALGORITHM = INPLACE LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX idx_c ON t (c) ALGORITHM = INSTANT
+< error
+| 1846 0A000 ALGORITHM=INSTANT is not supported. Reason: ADD INDEX. Try ALGORITHM=NOCOPY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX idx_c ON t (c) ALGORITHM = NOCOPY
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX idx_d ON t ALGORITHM = INSTANT
+< error
+| 1064 42000 …near 'ALGORITHM = INSTANT' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX idx_d ON t LOCK = NONE
+< error
+| 1064 42000 …near 'LOCK = NONE' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO DELETE FROM t WHERE c < 0
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY 1 HOUR STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM t WHERE c < 0
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+< error
+| 1543 HY000 ENDS is either invalid or before STARTS
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY ON COMPLETION PRESERVE DISABLE COMMENT 'later' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE AT '2030-01-02 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'later' DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+< error
+| 1542 HY000 INTERVAL is either not positive or too big
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE OR REPLACE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION PARTITIONS 2
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 6
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 2
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 2
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 4
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 5
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 0
+< error
+| 1515 HY000 At least one partition must be coalesced
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions DROP PARTITION p0
+< error
+| 1512 HY000 DROP PARTITION can only be used on RANGE/LIST partitions
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p9 VALUES LESS THAN (10))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p4)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| (PARTITION `p0` ENGINE = InnoDB,
+|  PARTITION `p1` ENGINE = InnoDB,
+|  PARTITION `p2` ENGINE = InnoDB,
+|  PARTITION `p3` ENGINE = InnoDB,
+|  PARTITION `p4` ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p0)
+< error
+| 1517 HY000 Duplicate partition name p0
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REORGANIZE PARTITION
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 1
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REORGANIZE PARTITION p0, p1 INTO (PARTITION p01)
+< error
+| 1510 HY000 REORGANIZE PARTITION can only be used to reorganize partitions not to change their numbers
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions TRUNCATE PARTITION p1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions TRUNCATE PARTITION ALL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REBUILD PARTITION ALL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions PARTITION BY KEY (id) PARTITIONS 8
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY (`id`)
+| PARTITIONS 8
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions PARTITION BY HASH (user_id) PARTITIONS 2
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD COLUMN x INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   `x` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD UNIQUE KEY uk_user (user_id)
+< error
+| 1503 HY000 A UNIQUE INDEX must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens ADD PARTITION PARTITIONS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 3
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens COALESCE PARTITION 1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens MODIFY id VARCHAR(64) NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(64) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PARTITION PARTITIONS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics COALESCE PARTITION 1
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 2
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PRIMARY KEY (id)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PRIMARY KEY (host)
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD UNIQUE KEY uk_id_host (id, host)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL,
+|   UNIQUE KEY `uk_id_host` (`id`,`host`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h2 (a INT) PARTITION BY HASH (a) PARTITIONS 0
+< error
+| 1504 HY000 Number of partitions = 0 is not an allowed value
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h3 (a VARCHAR(10)) PARTITION BY HASH (a)
+< error
+| 1659 HY000 Field 'a' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h4 (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 3
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| h4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`h4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h4
+: bytes
+| CREATE TABLE `h4` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY (`a`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h5 (a INT, b INT) PARTITION BY KEY (a, b) PARTITIONS 3
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| h5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`h5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h5
+: bytes
+| CREATE TABLE `h5` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY (`a`,`b`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h6 (a INT, b INT) PARTITION BY HASH (a + b) PARTITIONS 2
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| h6
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`h6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h6
+: bytes
+| CREATE TABLE `h6` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a` + `b`)
+| PARTITIONS 2
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h7 (a INT) PARTITION BY HASH (a) PARTITIONS 2 (PARTITION x, PARTITION y)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| h7
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`h7`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h7
+: bytes
+| CREATE TABLE `h7` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`a`)
+| (PARTITION `x` ENGINE = InnoDB,
+|  PARTITION `y` ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int(11) NOT NULL,
+|   `host` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3
+> query
+| SHOW CREATE TABLE omni_simulation.`sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int(11) NOT NULL,
+|   `user_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE omni_simulation.`tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY KEY ()
+| PARTITIONS 2
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h8 (a INT) PARTITION BY HASH (a) PARTITIONS 3 (PARTITION x, PARTITION y)
+< error
+| 1064 42000 Wrong number of partitions defined, mismatch with previous setting near ')' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h9 (a TEXT) PARTITION BY KEY (a)
+< error
+| 1502 HY000 A BLOB field is not allowed in partition function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (5, 6))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB,
+|  PARTITION `pwest` VALUES IN (5,6) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (2, 5))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES LESS THAN (10))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pnorth VALUES IN (9))
+< error
+| 1517 HY000 Duplicate partition name pnorth
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pnull VALUES IN (NULL))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB,
+|  PARTITION `pnull` VALUES IN (NULL) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn1 VALUES IN (1), PARTITION pn2 VALUES IN (2))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pn1` VALUES IN (1) ENGINE = InnoDB,
+|  PARTITION `pn2` VALUES IN (2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth, psouth INTO (PARTITION pall VALUES IN (1, 2, 3, 4))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pall` VALUES IN (1,2,3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn VALUES IN (1, 2, 7))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pn` VALUES IN (1,2,7) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores DROP PARTITION psouth
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores DROP PARTITION pnorth, psouth
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores TRUNCATE PARTITION pnorth, psouth
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores COALESCE PARTITION 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores PARTITION BY LIST (id) (PARTITION p VALUES IN (1))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`id`)
+| (PARTITION `p` VALUES IN (1) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores PARTITION BY RANGE (region) (PARTITION p0 VALUES LESS THAN (3), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`region`)
+| (PARTITION `p0` VALUES LESS THAN (3) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores MODIFY region BIGINT NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` bigint(20) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('JP'))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB,
+|  PARTITION `pas` VALUES IN ('JP') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('US'))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities REORGANIZE PARTITION peu INTO (PARTITION pde VALUES IN ('DE'), PARTITION pfr VALUES IN ('FR'))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `pde` VALUES IN ('DE') ENGINE = InnoDB,
+|  PARTITION `pfr` VALUES IN ('FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l2 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1), PARTITION p1 VALUES IN (1))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l3 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES LESS THAN (1))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l4 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL, 1))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| l4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`l4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| l4
+: bytes
+| CREATE TABLE `l4` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`a`)
+| (PARTITION `p0` VALUES IN (NULL,1) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l5 (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 1), (2, 2)), PARTITION p1 VALUES IN ((3, 3)))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| l5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int(11) NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`country`)
+| (PARTITION `peu` VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION `pna` VALUES IN ('US','CA') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`l5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| l5
+: bytes
+| CREATE TABLE `l5` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`a`,`b`)
+| (PARTITION `p0` VALUES IN ((1,1),(2,2)) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES IN ((3,3)) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int(11) NOT NULL,
+|   `region` int(11) NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`region`)
+| (PARTITION `pnorth` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `psouth` VALUES IN (3,4) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l6 (a INT) PARTITION BY LIST (a)
+< error
+| 1492 HY000 For LIST partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION `p2026` VALUES LESS THAN (2027) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027), PARTITION p2027 VALUES LESS THAN (2028))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION `p2026` VALUES LESS THAN (2027) ENGINE = InnoDB,
+|  PARTITION `p2027` VALUES LESS THAN (2028) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2022 VALUES LESS THAN (2023))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2024 VALUES LESS THAN (2030))
+< error
+| 1517 HY000 Duplicate partition name p2024
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION pmax VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION px VALUES IN (2030))
+< error
+| 1480 HY000 Only LIST PARTITIONING can use VALUES IN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION PARTITIONS 2
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023, p2024
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p1999
+< error
+| 1507 HY000 Wrong partition name or partition list
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023, p2024, p2025
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2025 INTO (PARTITION p2025 VALUES LESS THAN (2026), PARTITION p2026 VALUES LESS THAN (2027))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION `p2026` VALUES LESS THAN (2027) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023, p2024 INTO (PARTITION p_old VALUES LESS THAN (2025))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p_old` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2024 INTO (PARTITION p2024 VALUES LESS THAN (2030))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023, p2025 INTO (PARTITION p VALUES LESS THAN (2026))
+< error
+| 1519 HY000 When reorganizing a set of partitions they must be in consecutive order
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023 INTO (PARTITION p2024 VALUES LESS THAN (2024))
+< error
+| 1517 HY000 Duplicate partition name p2024
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive WITHOUT VALIDATION
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE logs
+< error
+| 1732 HY000 Table to exchange with partition is partitioned: 'logs'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p1999 WITH TABLE orders_archive
+< error
+| 1735 HY000 Unknown partition 'p1999' in table 'orders'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive EXCHANGE PARTITION p2024 WITH TABLE orders
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders TRUNCATE PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders TRUNCATE PARTITION p2023, p1999
+< error
+| 1735 HY000 Unknown partition 'p1999' in table 'orders'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ANALYZE PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REBUILD PARTITION p2023, p2024
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders COALESCE PARTITION 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive REMOVE PARTITIONING
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders PARTITION BY RANGE (YEAR(created)) (PARTITION p0 VALUES LESS THAN (2025), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p0` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY HASH (id) PARTITIONS 4
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`id`)
+| (PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE COLUMNS (created) (PARTITION p0 VALUES LESS THAN ('2025-01-01'), PARTITION p1 VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`created`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01') ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY HASH (amount) PARTITIONS 2
+< error
+| 1659 HY000 Field 'amount' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY KEY (amount) PARTITIONS 2
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD COLUMN note VARCHAR(20)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   `note` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PRIMARY KEY
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD UNIQUE KEY uk_amount (amount)
+< error
+| 1503 HY000 A UNIQUE INDEX must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD UNIQUE KEY uk_id_created (created, id)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`),
+|   UNIQUE KEY `uk_id_created` (`created`,`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY created DATETIME NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` datetime NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN created
+< error
+| 1072 42000 Key column 'created' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME COLUMN created TO created_at
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created_at` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created_at`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created_at`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_archive FOREIGN KEY (id, created) REFERENCES orders_archive (id, created)
+< error
+| 1506 HY000 Partitioned tables do not support FOREIGN KEY
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs ADD PARTITION (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs REORGANIZE PARTITION pmax INTO (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN ('2026-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs DROP PARTITION pmax
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r2 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r3 (a INT, b INT, PRIMARY KEY (a)) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r4 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))
+< error
+| 1481 HY000 MAXVALUE can only be used in last partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r5 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p0 VALUES LESS THAN (20))
+< error
+| 1517 HY000 Duplicate partition name p0
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r6 (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+< row
+: bytes
+| r6
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`r6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| r6
+: bytes
+| CREATE TABLE `r6` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`a`)
+| SUBPARTITION BY HASH (`b`)
+| SUBPARTITIONS 2
+| (PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r7 (a VARCHAR(10)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< error
+| 1659 HY000 Field 'a' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r8 LIKE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+< row
+: bytes
+| r8
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`r8`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| r8
+: bytes
+| CREATE TABLE `r8` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (year(`created`))
+| (PARTITION `p2023` VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION `p2024` VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION `p2025` VALUES LESS THAN (2026) ENGINE = InnoDB)
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| DROP TABLE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int(11) NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE  COLUMNS(`ts`)
+| (PARTITION `p0` VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION `pmax` VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int(11) NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_simulation_other.accounts
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_simulation_other`.`accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE entries TO omni_simulation_other.entries
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE omni_simulation_other.archived TO archived
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| archived
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`archived`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| archived
+: bytes
+| CREATE TABLE `archived` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE v_ledger TO omni_simulation_other.v_ledger
+< error
+| 1450 HY000 Changing schema from 'omni_simulation' to 'omni_simulation_other' is not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_simulation_nope.accounts
+< error
+| 1025 HY000 Error on rename of './omni_simulation/accounts' to './omni_simulation_nope/accounts' (errno: 168 "Unknown (generic) error from engine")
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_simulation_other.archived
+< error
+| 1050 42S01 Table 'archived' already exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO acc2, acc2 TO omni_simulation_other.acc
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_simulation_other`.`acc` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO tmp, omni_simulation_other.archived TO accounts, tmp TO omni_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| ALTER TABLE accounts RENAME TO omni_simulation_other.accounts
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_simulation_other`.`accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| ALTER TABLE accounts RENAME TO omni_simulation_other.archived
+< error
+| 1050 42S01 Table 'archived' already exists
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| ALTER TABLE entries RENAME TO omni_simulation_other.entries, ADD COLUMN note INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| CREATE TABLE copy LIKE omni_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| copy
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`copy`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| copy
+: bytes
+| CREATE TABLE `copy` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_simulation_other.archived (id))
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t2
+: bytes
+| CREATE TABLE `t2` (
+|   `id` int(11) DEFAULT NULL,
+|   KEY `id` (`id`),
+|   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| CREATE VIEW v2 AS SELECT id FROM omni_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v2
+: bytes
+| VIEW
+< row
+: bytes
+| v_ledger
+: bytes
+| VIEW
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int(11) NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int(11) NOT NULL,
+|   `archived_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int(11) NOT NULL,
+|   `account_id` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v2`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v2
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `omni_simulation_other`.`archived`.`id` AS `id` from `omni_simulation_other`.`archived`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE VIEW omni_simulation.`v_ledger`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_ledger
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_ledger` AS select `ledger`.`id` AS `id`,`ledger`.`account_id` AS `account_id` from `ledger`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; DROP DATABASE IF EXISTS omni_simulation_other;
+| CREATE DATABASE omni_simulation_other;
+| CREATE TABLE omni_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_simulation_other.archived (id));
+| CREATE VIEW v_ledger AS SELECT id, account_id FROM ledger
+< ok 0 0
+> exec
+| DROP TABLE omni_simulation_other.archived, accounts
+< error
+| 1451 23000 Cannot delete or update a parent row: a foreign key constraint fails

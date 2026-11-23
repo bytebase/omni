@@ -29,7 +29,8 @@ func TestWalkThrough_2_4_CreateTableFKUnknownColumn(t *testing.T) {
 }
 
 // TestWalkThrough_2_4_DropTableReferencedByFK tests that DROP TABLE on a table
-// referenced by a FK returns ErrFKCannotDropParent (3730) when fk_checks=1.
+// referenced by a FK returns ErrRowIsReferenced (1451) when fk_checks=1, as
+// mariadb:11.8.8 answers.
 func TestWalkThrough_2_4_DropTableReferencedByFK(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -39,7 +40,7 @@ func TestWalkThrough_2_4_DropTableReferencedByFK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKCannotDropParent)
+	assertError(t, results[0].Error, ErrRowIsReferenced)
 }
 
 // TestWalkThrough_2_4_DropTableReferencedByFKWithChecksOff tests that DROP TABLE

@@ -66,19 +66,21 @@ type Table struct {
 
 // PartitionInfo holds partition metadata for a table.
 type PartitionInfo struct {
-	Type        string   // RANGE, LIST, HASH, KEY
-	Linear      bool     // LINEAR HASH or LINEAR KEY
-	Expr        string   // partition expression (for RANGE/LIST/HASH)
-	Columns     []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
-	Algorithm   int      // ALGORITHM={1|2} for KEY partitioning
-	NumParts    int      // PARTITIONS num
+	Type        string      // RANGE, LIST, HASH, KEY
+	Linear      bool        // LINEAR HASH or LINEAR KEY
+	Expr        string      // partition expression (for RANGE/LIST/HASH)
+	exprSrc     *exprSource // the AST Expr was written from, nil where none was kept
+	Columns     []string    // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
+	Algorithm   int         // ALGORITHM={1|2} for KEY partitioning
+	NumParts    int         // PARTITIONS num
 	Partitions  []*PartitionDefInfo
-	SubType     string   // subpartition type (HASH or KEY, "" if none)
-	SubLinear   bool     // LINEAR for subpartition
-	SubExpr     string   // subpartition expression
-	SubColumns  []string // subpartition columns
-	SubAlgo     int      // subpartition ALGORITHM
-	NumSubParts int      // actual subpartition count per partition
+	SubType     string      // subpartition type (HASH or KEY, "" if none)
+	SubLinear   bool        // LINEAR for subpartition
+	SubExpr     string      // subpartition expression
+	subExprSrc  *exprSource // the AST SubExpr was written from
+	SubColumns  []string    // subpartition columns
+	SubAlgo     int         // subpartition ALGORITHM
+	NumSubParts int         // actual subpartition count per partition
 	// MySQL tracks subpartition defaulting separately from NumSubParts.
 	// These mirror partition_info::use_default_subpartitions and
 	// partition_info::use_default_num_subpartitions.
@@ -170,7 +172,11 @@ const (
 )
 
 type GeneratedColumnInfo struct {
-	Expr   string
+	Expr string
+	// source is the AST Expr was written from (exprSource), nil where none was
+	// kept.
+	source *exprSource
+
 	Stored bool
 	// Nondeterministic names the non-deterministic function the expression
 	// calls, spelled as MariaDB spells it in its 1901 message, or "" where it
@@ -355,26 +361,31 @@ func cloneTable(src *Table) Table {
 		dst.Constraints[i] = &con
 	}
 
-	// Deep copy partitioning.
-	if src.Partitioning != nil {
-		pi := *src.Partitioning
-		pi.Columns = append([]string{}, src.Partitioning.Columns...)
-		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
-		pi.keyColumns = append([]string(nil), src.Partitioning.keyColumns...)
-		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
-		for i, sp := range src.Partitioning.Partitions {
-			pd := *sp
-			pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
-			for j, ss := range sp.SubPartitions {
-				sd := *ss
-				pd.SubPartitions[j] = &sd
-			}
-			pi.Partitions[i] = &pd
-		}
-		dst.Partitioning = &pi
-	}
+	dst.Partitioning = clonePartitionInfo(src.Partitioning)
 
 	return dst
+}
+
+// clonePartitionInfo deep-copies a table's partitioning, nil for none.
+func clonePartitionInfo(src *PartitionInfo) *PartitionInfo {
+	if src == nil {
+		return nil
+	}
+	pi := *src
+	pi.Columns = append([]string{}, src.Columns...)
+	pi.SubColumns = append([]string{}, src.SubColumns...)
+	pi.keyColumns = append([]string(nil), src.keyColumns...)
+	pi.Partitions = make([]*PartitionDefInfo, len(src.Partitions))
+	for i, sp := range src.Partitions {
+		pd := *sp
+		pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
+		for j, ss := range sp.SubPartitions {
+			sd := *ss
+			pd.SubPartitions[j] = &sd
+		}
+		pi.Partitions[i] = &pd
+	}
+	return &pi
 }
 
 func (t *Table) GetColumn(name string) *Column {

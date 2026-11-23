@@ -197,10 +197,19 @@ func TestWalkThrough_9_1_ModifyChangeExpression(t *testing.T) {
 }
 
 func TestWalkThrough_9_1_ModifyGeneratedToRegular(t *testing.T) {
-	// Scenario 10: ALTER TABLE MODIFY generated column to regular column
+	// Scenario 10: ALTER TABLE MODIFY generated column to regular column. A
+	// PERSISTENT one becomes a plain column; a VIRTUAL one is 1907 on
+	// mariadb:11.8.8.
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL)")
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) PERSISTENT, v INT AS (a) VIRTUAL)")
 	wtExec(t, c, "ALTER TABLE t MODIFY COLUMN c INT")
+	results, _ := c.Exec("ALTER TABLE t MODIFY COLUMN v INT", nil)
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("expected 1907 for a VIRTUAL column made plain")
+	}
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1907 {
+		t.Errorf("expected error code 1907, got %v", results[0].Error)
+	}
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	col := tbl.GetColumn("c")
@@ -212,15 +221,14 @@ func TestWalkThrough_9_1_ModifyGeneratedToRegular(t *testing.T) {
 	}
 
 	got := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(got, "GENERATED ALWAYS AS") {
-		t.Errorf("expected no GENERATED ALWAYS AS after MODIFY to regular column\ngot:\n%s", got)
+	if strings.Contains(got, "`c` int(11) GENERATED ALWAYS AS") {
+		t.Errorf("expected no GENERATED ALWAYS AS on c after MODIFY to regular column\ngot:\n%s", got)
 	}
 }
 
 func TestWalkThrough_9_1_ModifyVirtualToStored(t *testing.T) {
-	// Scenario 11: ALTER TABLE MODIFY VIRTUAL to STORED — MySQL 8.0 error
-	// MySQL 8.0 does not allow changing VIRTUAL to STORED in-place.
-	// Error 3106 (HY000): 'Changing the STORED status' is not supported for generated columns.
+	// Scenario 11: ALTER TABLE MODIFY VIRTUAL to STORED. mariadb:11.8.8
+	// answers 1907: This is not yet supported for generated columns.
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL)")
 
@@ -235,7 +243,7 @@ func TestWalkThrough_9_1_ModifyVirtualToStored(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *catalog.Error, got %T", results[0].Error)
 	}
-	if catErr.Code != ErrUnsupportedGeneratedStorageChange {
-		t.Errorf("expected error code %d, got %d: %s", ErrUnsupportedGeneratedStorageChange, catErr.Code, catErr.Message)
+	if catErr.Code != 1907 {
+		t.Errorf("expected error code 1907, got %d: %s", catErr.Code, catErr.Message)
 	}
 }

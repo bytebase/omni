@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // TestScenario_C22 covers Section C22 "ALTER TABLE algorithm / lock defaults"
@@ -287,16 +290,8 @@ func TestScenario_C22(t *testing.T) {
 			!strings.Contains(oracleErr.Error(), "not supported") {
 			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
-		// omni must at least parse and (per catalog contract) apply the change.
-		results, err := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on MODIFY + ALGORITHM=INPLACE: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		// The catalog refuses it with MariaDB's code (alter_algorithm.go).
+		requireSameRefusal(t, c, oracleErr, "ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;")
 
 		// 22.6c: MODIFY with a genuine type change + LOCK=NONE. MariaDB takes
 		// it: the clause caps the locking it may use rather than requiring
@@ -340,17 +335,9 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
 
-		// omni: parser must accept; catalog applies PK swap regardless.
-		results, err := c.Exec(
-			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on PK rebuild + ALGORITHM=INSTANT: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		// The catalog refuses it with MariaDB's code (alter_algorithm.go).
+		requireSameRefusal(t, c, oracleErr,
+			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;")
 	})
 
 	// -----------------------------------------------------------------
@@ -412,4 +399,25 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("omni 22.8c: column c should be added")
 		}
 	})
+}
+
+// requireSameRefusal holds the catalog to the refusal MariaDB gave a statement:
+// the same error number.
+func requireSameRefusal(t *testing.T, c *Catalog, oracleErr error, sql string) {
+	t.Helper()
+	var myErr *gomysql.MySQLError
+	if !errors.As(oracleErr, &myErr) {
+		t.Fatalf("oracle gave no verdict for %q: %v", sql, oracleErr)
+	}
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("omni: parse error on %q: %v", sql, err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatalf("omni: %q ran, MariaDB answered %d", sql, myErr.Number)
+	}
+	var catErr *Error
+	if !errors.As(results[0].Error, &catErr) || catErr.Code != int(myErr.Number) {
+		t.Errorf("omni: %q answered %v, MariaDB %d (%s)", sql, results[0].Error, myErr.Number, myErr.Message)
+	}
 }

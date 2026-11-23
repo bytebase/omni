@@ -77,7 +77,11 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 	stmt.Table = tbl
 
 	// (key_part, ...) — WITHOUT OVERLAPS allowed only on a UNIQUE index.
-	cols, err := p.parseParenIndexKeyParts(stmt.Unique)
+	parseParts := p.parseParenIndexKeyParts
+	if spatial {
+		parseParts = p.parseParenSpatialKeyPart
+	}
+	cols, err := parseParts(stmt.Unique)
 	if err != nil {
 		return nil, err
 	}
@@ -356,6 +360,24 @@ func (p *Parser) parseParenIndexKeyParts(allowOverlaps bool) ([]*nodes.IndexColu
 	return cols, nil
 }
 
+// parseParenSpatialKeyPart parses the one key part a SPATIAL key takes:
+// mariadb:11.8.8 answers 1064 at the comma of `SPATIAL INDEX (loc, area)` and
+// of `CREATE SPATIAL INDEX i ON t (g, g)`. allowOverlaps is
+// parseParenIndexKeyParts' and is not read.
+func (p *Parser) parseParenSpatialKeyPart(bool) ([]*nodes.IndexColumn, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	col, err := p.parseIndexKeyPart()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return []*nodes.IndexColumn{col}, nil
+}
+
 // validateOverlapsParts enforces the WITHOUT OVERLAPS grammar rules (1064): it
 // is valid only on a UNIQUE/PRIMARY KEY, appearing exactly once as the last key
 // part, alongside at least one ordinary key part.
@@ -560,6 +582,12 @@ func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, er
 	}
 	if next := p.peekNext(); next.Type != '=' && next.Type != tokAssign {
 		return nil, false, nil
+	}
+	// REF_SYSTEM_ID is a keyword, and engine_option's name an IDENT_sys:
+	// mariadb:11.8.8 answers 1064 for it unquoted on a column, a key and a
+	// table, and 1911 for `REF_SYSTEM_ID`.
+	if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "REF_SYSTEM_ID") && !p.backtickQuotedAt(p.cur.Loc) {
+		return nil, false, p.syntaxErrorAtCur()
 	}
 	opt := &nodes.IndexOption{Name: p.cur.Str, Engine: true}
 	p.advance() // consume the name

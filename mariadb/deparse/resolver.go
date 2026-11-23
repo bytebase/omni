@@ -434,6 +434,13 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			effectiveName = t.Alias
 		}
 		sc.addWithSchema(t, schema, effectiveName, table)
+		// In a view, the columns of a table of another schema read under its
+		// own name are qualified by the schema as well: measured on
+		// mariadb:11.8.8, SELECT id FROM o.ar and FROM o.ar AS ar are stored
+		// as select `o`.`ar`.`id`, and FROM o.ar x as select `x`.`id`.
+		if r.DefaultDB != "" && t.Schema != "" && effectiveName == t.Name && !strings.EqualFold(t.Schema, r.DefaultDB) {
+			sc.qualifyColumns(len(sc.tables)-1, t.Schema)
+		}
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -531,6 +538,7 @@ func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
 		result = append(result, &ast.ResTarget{
 			Name: c.name,
 			Val: &ast.ColumnRef{
+				Schema: c.schema,
 				Table:  c.qualifier,
 				Column: c.name,
 			},
@@ -551,8 +559,10 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 
 	// Find the effective name from scope entries (preserves alias casing)
 	effectiveName := tableName
+	schema := ""
 	if entry, ok := sc.FirstEqualFold(tableName); ok {
 		effectiveName = entry.Name
+		schema = sc.columnSchemaOf(entry)
 	}
 
 	var result []ast.ExprNode
@@ -561,6 +571,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
 			Val: &ast.ColumnRef{
+				Schema: schema,
 				Table:  effectiveName,
 				Column: col.Name,
 			},
@@ -736,6 +747,9 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 			if cur.GetTable(col.Table) != nil {
 				if entry, ok := cur.FirstEqualFold(col.Table); ok {
 					col.Table = entry.Name
+					if col.Schema == "" {
+						col.Schema = cur.columnSchemaOf(entry)
+					}
 				}
 				return col
 			}
@@ -746,7 +760,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	// A column a NATURAL or USING join joins on is the one copy the join
 	// keeps, which comes from its right input in a RIGHT join.
 	if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
-		col.Table = c.qualifier
+		col.Schema, col.Table = c.schema, c.qualifier
 		return col
 	}
 
@@ -784,18 +798,18 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// Walk enclosing query scopes for correlated subquery references.
 		for p := sc.parent; p != nil; p = p.parent {
 			if c, ok := p.coalesced[strings.ToLower(col.Column)]; ok {
-				col.Table = c.qualifier
+				col.Schema, col.Table = c.schema, c.qualifier
 				return col
 			}
 			if e, ok := p.FirstWithColumn(col.Column); ok {
-				col.Table = e.Name
+				col.Schema, col.Table = p.columnSchemaOf(e), e.Name
 				return col
 			}
 		}
 		// Otherwise as-is: a literal alias HAVING keeps, or an error.
 		return col
 	}
-	col.Table = entry.Name
+	col.Schema, col.Table = sc.columnSchemaOf(entry), entry.Name
 	return col
 }
 

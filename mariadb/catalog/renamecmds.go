@@ -1,6 +1,10 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/mariadb/ast"
+import (
+	"fmt"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
+)
 
 func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 	for _, pair := range stmt.Pairs {
@@ -23,6 +27,14 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 
 		newDB, err := c.resolveDatabase(pair.New.Schema)
 		if err != nil {
+			// A table moved to a schema that does not exist fails where InnoDB
+			// renames its file: measured on mariadb:11.8.8, RENAME TABLE fp TO
+			// nodb.fp answers 1025 (errno: 168), not 1049.
+			if tbl != nil && pair.New.Schema != "" && c.GetDatabase(pair.New.Schema) == nil {
+				return &Error{Code: 1025, SQLState: "HY000", Message: fmt.Sprintf(
+					"Error on rename of './%s/%s' to './%s/%s' (errno: 168 \"Unknown (generic) error from engine\")",
+					oldDB.Name, tbl.Name, pair.New.Schema, pair.New.Name)}
+			}
 			return err
 		}
 		newKey := toLower(pair.New.Name)
@@ -47,10 +59,15 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			continue
 		}
 
+		oldName := tbl.Name
 		delete(oldDB.Tables, oldKey)
 		tbl.Name = pair.New.Name
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
+		// The foreign keys that reference the table follow it, and one that
+		// moves to another schema keeps naming the parents it left
+		// (mariadb:11.8.8, schemas@cross).
+		c.retargetReferences(tbl, oldDB, oldName, nil, nil)
 	}
 	return nil
 }

@@ -764,6 +764,9 @@ type DataType struct {
 	EnumValues []string // for ENUM and SET types
 	ArrayDim   int      // not used in MySQL, but here for consistency
 	SRID       int      // Spatial Reference ID for spatial types (0 = not set)
+	// RefSystemID is MariaDB's srid_option, REF_SYSTEM_ID = n after a spatial
+	// type (0 = not written).
+	RefSystemID int
 }
 
 func (t *DataType) nodeTag() {}

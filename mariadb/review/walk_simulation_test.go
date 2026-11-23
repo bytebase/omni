@@ -24,7 +24,12 @@ func TestWalkSimulation(t *testing.T) {
 		minPct   float64
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.9, 4208},
+		// The partitioned@, features@ and schemas@ rows and the alter:algorithm
+		// and event: ones hold 142 refusals the walk finds 100 of: it does not
+		// model partition bounds and names, InnoDB's foreign key and row-size
+		// refusals, ALGORITHM, or invisible and spatial column rules. The rows
+		// before them keep 4,208/4,340 (97.0%).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 4308},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 68.0, 135},
 	} {
 		t.Run(suite.name, func(t *testing.T) {

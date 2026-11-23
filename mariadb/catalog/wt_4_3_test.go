@@ -164,7 +164,7 @@ CREATE TABLE child (
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKCannotDropParent)
+	assertError(t, results[0].Error, ErrRowIsReferenced)
 
 	// Parent should still exist.
 	if c.GetDatabase("testdb").GetTable("parent") == nil {

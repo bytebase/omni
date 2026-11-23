@@ -3,11 +3,15 @@ package catalog
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
-func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
+// createEvent installs the event stmt defines. authored is true for a
+// statement a user runs, false for an event a snapshot already holds, whose
+// times MariaDB judged when it was created.
+func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error {
 	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
@@ -19,15 +23,29 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 	if err := validateEventSchedule(stmt.Schedule); err != nil {
 		return err
 	}
+	if authored {
+		now := time.Now()
+		if c.loadingSDL {
+			now = time.Time{}
+		}
+		if err := validateEventTimes(stmt.Schedule, now); err != nil {
+			return err
+		}
+	}
 
 	name := stmt.Name
 	key := toLower(name)
 
 	if _, exists := db.Events[key]; exists {
-		if !stmt.IfNotExists {
+		// CREATE OR REPLACE EVENT replaces it (mariadb:11.8.8).
+		switch {
+		case stmt.OrReplace:
+			delete(db.Events, key)
+		case stmt.IfNotExists:
+			return nil
+		default:
 			return errDupEvent(name)
 		}
-		return nil
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -36,10 +54,21 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		definer = "`root`@`%`"
 	}
 
-	// Extract raw schedule text from the AST.
-	schedule := ""
-	if stmt.Schedule != nil {
-		schedule = stmt.Schedule.RawText
+	schedule, at, timed := eventScheduleText(stmt.Schedule)
+	enable := stmt.Enable
+	// A one-time event whose time has passed is dropped as soon as it is
+	// created, or kept DISABLE (DISABLE ON SLAVE stays) ON COMPLETION PRESERVE:
+	// measured on mariadb:11.8.8, CREATE EVENT e ON SCHEDULE AT '2000-01-01
+	// 00:00:00' DO COMMIT leaves no event. A declarative schema states what
+	// should exist rather than running it, so loading one keeps the event as
+	// written.
+	if authored && !c.loadingSDL && timed && at.Before(time.Now().Add(-eventZoneMargin)) {
+		if !strings.EqualFold(stmt.OnCompletion, "PRESERVE") {
+			return nil
+		}
+		if enable == "" || strings.EqualFold(enable, "ENABLE") {
+			enable = "DISABLE"
+		}
 	}
 
 	event := &Event{
@@ -48,7 +77,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		Definer:      definer,
 		Schedule:     schedule,
 		OnCompletion: stmt.OnCompletion,
-		Enable:       stmt.Enable,
+		Enable:       enable,
 		Comment:      stmt.Comment,
 		Body:         strings.TrimSpace(stmt.BodyText),
 	}
@@ -67,6 +96,9 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	// (1054), and rejects renaming an event to its own name (1551) even when
 	// the event does not exist (measured on mariadb:11.8.8).
 	if err := validateEventSchedule(stmt.Schedule); err != nil {
+		return err
+	}
+	if err := validateEventTimes(stmt.Schedule, time.Now()); err != nil {
 		return err
 	}
 
@@ -102,6 +134,20 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 		}
 	}
 
+	// A schedule time that has passed is refused while the event is not kept
+	// after it runs (mariadb:11.8.8: ALTER EVENT e ON SCHEDULE AT
+	// '2000-01-01 00:00:00' is 1589), before anything changes.
+	schedule, at, timed := eventScheduleText(stmt.Schedule)
+	if stmt.Schedule != nil {
+		onCompletion := event.OnCompletion
+		if stmt.OnCompletion != "" {
+			onCompletion = stmt.OnCompletion
+		}
+		if timed && at.Before(time.Now().Add(-eventZoneMargin)) && !strings.EqualFold(onCompletion, "PRESERVE") {
+			return &Error{Code: 1589, SQLState: "HY000", Message: "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future"}
+		}
+	}
+
 	// Update definer if specified.
 	if stmt.Definer != "" {
 		event.Definer = stmt.Definer
@@ -109,7 +155,7 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 
 	// Update schedule if specified.
 	if stmt.Schedule != nil {
-		event.Schedule = stmt.Schedule.RawText
+		event.Schedule = schedule
 	}
 
 	// Update ON COMPLETION if specified.

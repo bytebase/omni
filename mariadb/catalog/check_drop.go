@@ -121,54 +121,79 @@ func checkColumnRefs(expr string) (refs map[string]bool, ok bool) {
 // reading `people`, and RENAME COLUMN note TO memo the table's chk_note
 // reading `memo`. An expression the parser does not take is left as it is.
 func renameCheckColumnRefs(tbl *Table, oldName, newName string) {
-	const prefix = "SELECT ("
-	oldKey := toLower(oldName)
 	for _, con := range tbl.Constraints {
 		if con.Type != ConCheck || con.Implicit {
 			continue
 		}
-		list, err := mariadbparser.Parse(prefix + con.CheckExpr + ")")
-		if err != nil || len(list.Items) != 1 {
-			continue
+		if next, text, ok := con.checkSrc.rename(oldName, newName); ok {
+			con.checkSrc, con.CheckExpr = next, text
+		} else if con.checkSrc == nil {
+			// A CHECK the catalog kept no AST of (one loaded by another way
+			// than a statement it ran) is rewritten from its text.
+			con.CheckExpr = renameColumnInExprText(con.CheckExpr, oldName, newName)
 		}
-		type span struct {
-			start, end int
-			name       string
-		}
-		var spans []span
-		nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-			ref, ok := n.(*nodes.ColumnRef)
-			if !ok || ref.Star || toLower(ref.Column) != oldKey {
-				return true
+		if con.checkRefs[toLower(oldName)] {
+			// A fresh map rather than a write through this one, which a
+			// snapshot of the table may still be sharing.
+			refs := make(map[string]bool, len(con.checkRefs))
+			for name := range con.checkRefs {
+				refs[name] = true
 			}
-			start, end := ref.Loc.Start-len(prefix), ref.Loc.End-len(prefix)
-			if start < 0 || end > len(con.CheckExpr) || start >= end {
-				return true
-			}
-			name := backtickIDQ(newName)
-			if ref.Table != "" {
-				name = backtickIDQ(ref.Table) + "." + name
-				if ref.Schema != "" {
-					name = backtickIDQ(ref.Schema) + "." + name
-				}
-			}
-			spans = append(spans, span{start, end, name})
-			return true
-		})
-		slices.SortFunc(spans, func(a, b span) int { return a.start - b.start })
-		var b strings.Builder
-		prev := 0
-		for _, sp := range spans {
-			if sp.start < prev {
-				break
-			}
-			b.WriteString(con.CheckExpr[prev:sp.start])
-			b.WriteString(sp.name)
-			prev = sp.end
-		}
-		if len(spans) > 0 {
-			b.WriteString(con.CheckExpr[prev:])
-			con.CheckExpr = b.String()
+			delete(refs, toLower(oldName))
+			refs[toLower(newName)] = true
+			con.checkRefs = refs
 		}
 	}
+}
+
+// renameColumnInExprText returns expr, an expression's stored text, with every
+// reference to the column oldName naming newName instead. Text the parser does
+// not take comes back as it is.
+func renameColumnInExprText(expr, oldName, newName string) string {
+	const prefix = "SELECT ("
+	oldKey := toLower(oldName)
+	list, err := mariadbparser.Parse(prefix + expr + ")")
+	if err != nil || len(list.Items) != 1 {
+		return expr
+	}
+	type span struct {
+		start, end int
+		name       string
+	}
+	var spans []span
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		ref, ok := n.(*nodes.ColumnRef)
+		if !ok || ref.Star || toLower(ref.Column) != oldKey {
+			return true
+		}
+		start, end := ref.Loc.Start-len(prefix), ref.Loc.End-len(prefix)
+		if start < 0 || end > len(expr) || start >= end {
+			return true
+		}
+		name := backtickIDQ(newName)
+		if ref.Table != "" {
+			name = backtickIDQ(ref.Table) + "." + name
+			if ref.Schema != "" {
+				name = backtickIDQ(ref.Schema) + "." + name
+			}
+		}
+		spans = append(spans, span{start, end, name})
+		return true
+	})
+	if len(spans) == 0 {
+		return expr
+	}
+	slices.SortFunc(spans, func(a, b span) int { return a.start - b.start })
+	var b strings.Builder
+	prev := 0
+	for _, sp := range spans {
+		if sp.start < prev {
+			break
+		}
+		b.WriteString(expr[prev:sp.start])
+		b.WriteString(sp.name)
+		prev = sp.end
+	}
+	b.WriteString(expr[prev:])
+	return b.String()
 }

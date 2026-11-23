@@ -24,6 +24,13 @@ type Constraint struct {
 	CheckExpr     string
 	NotEnforced   bool
 	CheckAnalyzed AnalyzedExpr // Phase 3: analyzed CHECK expression body
+	// checkRefs holds the lowered names of the columns a CHECK reads, taken
+	// from the expression it was declared with (checkExprRefs) and following
+	// renames; nil where the catalog did not read them.
+	checkRefs map[string]bool
+	// checkSrc is the AST CheckExpr was written from (exprSource), nil where
+	// none was kept.
+	checkSrc *exprSource
 	// Implicit marks a constraint the catalog made rather than one the
 	// statement declared: the json_valid check a JSON column carries. It goes
 	// with its column instead of standing on its own, and no statement can

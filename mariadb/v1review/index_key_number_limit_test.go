@@ -113,7 +113,7 @@ func TestIndexKeyNumberLimit(t *testing.T) {
 			limit: 1,
 			want:  []indexFinding{exceeded("t", "idx", v1review.KeyIndex, "CREATE OR REPLACE INDEX idx ON t (a, b) WAIT 5")},
 		},
-		{name: "fulltext and spatial are not judged", sql: "CREATE TABLE t (a TEXT, b TEXT, FULLTEXT KEY ft (a, b), SPATIAL KEY sp (a, b))", limit: 1},
+		{name: "fulltext and spatial are not judged", sql: "CREATE TABLE t (a TEXT, b TEXT, g POINT NOT NULL, FULLTEXT KEY ft (a, b), SPATIAL KEY sp (g))", limit: 1},
 		{name: "create fulltext index is not judged", sql: "CREATE FULLTEXT INDEX ft ON t (a, b)", limit: 1},
 		{name: "a column's own key is not judged", sql: "CREATE TABLE t (a INT PRIMARY KEY, b INT UNIQUE)", limit: 0},
 		{name: "limit 0 reports nothing", sql: "CREATE INDEX idx ON t (a, b, c)", limit: 0},
