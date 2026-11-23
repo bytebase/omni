@@ -7291,38 +7291,20 @@ func TestParseOrderByWithRollup(t *testing.T) {
 	ParseAndCheck(t, "SELECT a, SUM(b) FROM t ORDER BY a WITH ROLLUP LIMIT 10")
 }
 
-// TestParseLateralDerivedTable tests LATERAL derived tables in FROM clause.
-func TestParseLateralDerivedTable(t *testing.T) {
-	// LATERAL with AS alias
-	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS lat")
-
-	// LATERAL with implicit alias
-	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2) lat")
-
-	// LATERAL without alias
-	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT 1)")
-
-	// LATERAL in JOIN
-	ParseAndCheck(t, "SELECT * FROM t1 JOIN LATERAL (SELECT * FROM t2 WHERE t2.a = t1.a) AS sub ON 1=1")
-
-	// LATERAL with correlated subquery
-	ParseAndCheck(t, "SELECT * FROM t1 LEFT JOIN LATERAL (SELECT * FROM t2 WHERE t2.fk = t1.pk LIMIT 3) AS top3 ON TRUE")
-
-	// Verify SubqueryExpr has Lateral flag set
-	result := ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS lat")
-	sel := result.Items[0].(*ast.SelectStmt)
-	if len(sel.From) != 2 {
-		t.Fatalf("from count = %d, want 2", len(sel.From))
-	}
-	sub, ok := sel.From[1].(*ast.SubqueryExpr)
-	if !ok {
-		t.Fatalf("from[1] type = %T, want *SubqueryExpr", sel.From[1])
-	}
-	if !sub.Lateral {
-		t.Error("expected Lateral = true")
-	}
-	if sub.Alias != "lat" {
-		t.Errorf("alias = %q, want %q", sub.Alias, "lat")
+// TestParseRefusesLateralDerivedTable holds that TiDB has no LATERAL derived
+// table: its TableFactor (parser.y, v8.5.5) has no such arm, and TiDB v8.5.5
+// answers each of these 1064 (tidb/analysis/testdata/span.tsv).
+func TestParseRefusesLateralDerivedTable(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS lat",
+		"SELECT * FROM t1, LATERAL (SELECT * FROM t2) lat",
+		"SELECT * FROM t1, LATERAL (SELECT 1)",
+		"SELECT * FROM t1 JOIN LATERAL (SELECT * FROM t2 WHERE t2.a = t1.a) AS sub ON 1=1",
+		"SELECT * FROM t1 LEFT JOIN LATERAL (SELECT * FROM t2 WHERE t2.fk = t1.pk LIMIT 3) AS top3 ON TRUE",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted a LATERAL derived table", sql)
+		}
 	}
 }
 
@@ -7374,9 +7356,8 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"EXPLAIN SELECT 1",
 		"EXPLAIN FORMAT=JSON SELECT 1",
 
-		// GROUP BY WITH ROLLUP, LATERAL (batch 41)
+		// GROUP BY WITH ROLLUP (batch 41)
 		"SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP",
-		"SELECT * FROM t1, LATERAL (SELECT * FROM t2) AS sub",
 
 		// XA, CALL, HANDLER
 		"XA START 'xid1'",

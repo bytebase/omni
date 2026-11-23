@@ -515,8 +515,11 @@ func (p *Parser) parseMergeIntoTable() (Statement, error) {
 	return &ParsedStmt{Kind: StmtMerge, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
+// isNotAt reports whether the token at offset is MERGE's errorCapturingNot
+// (SqlBaseParser.g4:1127): NOT or !, which Spark v4.0.5 takes in WHEN NOT
+// MATCHED (see isErrorCapturingNot).
 func (p *Parser) isNotAt(offset int) bool {
-	return p.peek(offset).Kind == kwNOT
+	return p.peek(offset).Kind == kwNOT || p.peek(offset).Kind == tokBang
 }
 
 func (p *Parser) parseMatchedAction() error {

@@ -639,6 +639,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 	case *ShowRoutineLoadTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

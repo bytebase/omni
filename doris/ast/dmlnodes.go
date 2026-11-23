@@ -472,13 +472,14 @@ var _ Node = (*StopRoutineLoadStmt)(nil)
 
 // ShowRoutineLoadStmt represents a SHOW ROUTINE LOAD statement:
 //
-//	SHOW [ALL] ROUTINE LOAD [FOR [db.]name | LIKE 'pattern' | FROM db]
+//	SHOW [ALL] ROUTINE LOAD [FOR [db.]name | LIKE 'pattern' | WHERE expr | FROM db]
 type ShowRoutineLoadStmt struct {
-	Name *ObjectName // optional FOR [db.]name
-	All  bool        // true for SHOW ALL ROUTINE LOAD
-	Like string      // optional LIKE 'pattern'
-	From string      // optional FROM db
-	Loc  Loc
+	Name  *ObjectName // optional FOR [db.]name
+	All   bool        // true for SHOW ALL ROUTINE LOAD
+	Like  string      // optional LIKE 'pattern'
+	Where Node        // optional WHERE condition
+	From  string      // optional FROM db
+	Loc   Loc
 }
 
 // Tag implements Node.

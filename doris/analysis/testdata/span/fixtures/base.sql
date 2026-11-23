@@ -1,0 +1,18 @@
+CREATE DATABASE shop;
+CREATE DATABASE hr;
+CREATE TABLE shop.customers (id INT, name VARCHAR(20), region VARCHAR(10), email VARCHAR(40)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE shop.orders (id INT, customer_id INT, amount DECIMAL(10,2), status VARCHAR(10), created_at DATE) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE shop.items (order_id INT, sku VARCHAR(10), qty INT) DUPLICATE KEY(order_id) DISTRIBUTED BY HASH(order_id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE shop.`MixedCase` (`Id` INT, `CamelCol` VARCHAR(10), lower_col VARCHAR(10)) DUPLICATE KEY(`Id`) DISTRIBUTED BY HASH(`Id`) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE shop.mixedcase (id INT, note VARCHAR(10)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE hr.staff (id INT, name VARCHAR(20), salary INT, dept_id INT) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE TABLE hr.depts (id INT, name VARCHAR(20)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES ("replication_num" = "1");
+CREATE VIEW shop.big_orders AS SELECT id, amount * 2 AS doubled, status, customer_id FROM shop.orders WHERE amount > 5;
+CREATE VIEW shop.customer_totals AS SELECT customer_id, SUM(amount) AS total, COUNT(*) AS n FROM shop.orders GROUP BY customer_id;
+CREATE VIEW shop.order_names AS SELECT b.id, b.doubled, c.name FROM shop.big_orders b JOIN shop.customers c ON c.id = b.customer_id;
+CREATE VIEW shop.renamed (a, b) AS SELECT id, name FROM shop.customers;
+CREATE VIEW shop.all_ids AS SELECT id FROM shop.orders UNION SELECT id FROM shop.customers;
+CREATE VIEW shop.staff_pay AS SELECT s.id, s.salary, d.name AS dept FROM hr.staff s JOIN hr.depts d ON d.id = s.dept_id;
+CREATE VIEW hr.rich AS SELECT name, salary FROM hr.staff WHERE salary > 120;
+CREATE VIEW hr.`Rich_Names` AS SELECT name AS `VipName` FROM hr.rich;
+CREATE MATERIALIZED VIEW shop.order_sums BUILD DEFERRED REFRESH COMPLETE ON MANUAL DISTRIBUTED BY RANDOM BUCKETS 1 PROPERTIES ("replication_num" = "1") AS SELECT customer_id, SUM(amount) AS total FROM shop.orders GROUP BY customer_id;

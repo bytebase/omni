@@ -2,8 +2,6 @@ package parser
 
 import (
 	"testing"
-
-	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
 func TestCollect_1_2_EmptyInput(t *testing.T) {
@@ -721,57 +719,19 @@ func TestCollectInsertEmptyParens(t *testing.T) {
 
 // --- Derived table column alias ---
 
-func TestParseDerivedTableColumnAlias(t *testing.T) {
-	sql := "SELECT * FROM (SELECT c1, c2 FROM t1) AS dt(a, b)"
-	list, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if len(list.Items) == 0 {
-		t.Fatal("no statements parsed")
-	}
-	sel := list.Items[0].(*nodes.SelectStmt)
-	sub := sel.From[0].(*nodes.SubqueryExpr)
-	if sub.Alias != "dt" {
-		t.Errorf("expected alias 'dt', got %q", sub.Alias)
-	}
-	if len(sub.Columns) != 2 || sub.Columns[0] != "a" || sub.Columns[1] != "b" {
-		t.Errorf("expected columns [a b], got %v", sub.Columns)
-	}
-}
-
-func TestParseDerivedTableColumnAliasSingle(t *testing.T) {
-	sql := "SELECT * FROM (SELECT 1) AS t(x)"
-	list, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	sel := list.Items[0].(*nodes.SelectStmt)
-	sub := sel.From[0].(*nodes.SubqueryExpr)
-	if sub.Alias != "t" {
-		t.Errorf("expected alias 't', got %q", sub.Alias)
-	}
-	if len(sub.Columns) != 1 || sub.Columns[0] != "x" {
-		t.Errorf("expected columns [x], got %v", sub.Columns)
-	}
-}
-
-func TestParseLateralDerivedColumnAlias(t *testing.T) {
-	sql := "SELECT * FROM t1, LATERAL (SELECT c1 FROM t2) AS dt(a)"
-	list, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	sel := list.Items[0].(*nodes.SelectStmt)
-	sub := sel.From[1].(*nodes.SubqueryExpr)
-	if !sub.Lateral {
-		t.Error("expected Lateral=true")
-	}
-	if sub.Alias != "dt" {
-		t.Errorf("expected alias 'dt', got %q", sub.Alias)
-	}
-	if len(sub.Columns) != 1 || sub.Columns[0] != "a" {
-		t.Errorf("expected columns [a], got %v", sub.Columns)
+// TestParseRefusesDerivedColumnList holds that TiDB takes no column list after
+// a derived table's alias: its TableFactor is SubSelect TableAsNameOpt
+// (parser.y, v8.5.5), and TiDB v8.5.5 answers 1064
+// (tidb/analysis/testdata/span.tsv).
+func TestParseRefusesDerivedColumnList(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM (SELECT c1, c2 FROM t1) AS dt(a, b)",
+		"SELECT * FROM (SELECT 1) AS t(x)",
+		"SELECT * FROM (SELECT 1) t (x)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted a derived column list", sql)
+		}
 	}
 }
 

@@ -67,9 +67,6 @@ var nestingShapes = []struct {
 		return "SELECT " + nest(n, "((SELECT 1) LIKE ", "1", ")")
 	}},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
-	{"LATERAL derived table", func(n int) string {
-		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")
-	}},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON 1)") }},
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},

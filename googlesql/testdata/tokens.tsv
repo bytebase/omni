@@ -40,3 +40,35 @@ opt_create_scope	(every site)	googlesql.tm:11875 TEMP, TEMPORARY, PUBLIC or PRIV
 opt_access	(every site)	googlesql.tm:12448 ACCESS in ROW ACCESS POLICY
 opt_unique	(every site)	googlesql.tm:11886 UNIQUE
 opt_options_list	(every site)	googlesql.tm:11946 OPTIONS (...)
+
+# Keyword choices written in each of their forms at every site that names
+# them, and not only where the rule's own alternatives are reached (see
+# grammar.EveryAlternative).
+schema_object_kind	(every alternative)	googlesql.tm:1776 the object kinds ALTER, DROP, UNDROP and CREATE SNAPSHOT take
+table_or_table_function	(every alternative)	googlesql.tm:4074 TABLE or TABLE FUNCTION
+privileges	(every alternative)	googlesql.tm:4345 ALL [PRIVILEGES] or a privilege list
+all_or_distinct	(every alternative)	googlesql.tm:4621 ALL or DISTINCT
+query_set_operation_type	(every alternative)	googlesql.tm:4647 UNION, EXCEPT or INTERSECT
+asc_or_desc	(every alternative)	googlesql.tm:8726 ASC or DESC
+null_order	(every alternative)	googlesql.tm:8744 NULLS FIRST or NULLS LAST
+comparative_operator	(every alternative)	googlesql.tm:8957 a comparison operator
+any_some_all	(every alternative)	googlesql.tm:9035 ANY, SOME or ALL
+like_operator	(every alternative)	googlesql.tm:9057 LIKE or NOT LIKE
+between_operator	(every alternative)	googlesql.tm:9072 BETWEEN or NOT BETWEEN
+in_operator	(every alternative)	googlesql.tm:9101 IN or NOT IN
+is_operator	(every alternative)	googlesql.tm:9116 IS or IS NOT
+preceding_or_following	(every alternative)	googlesql.tm:11117 PRECEDING or FOLLOWING
+frame_unit	(every alternative)	googlesql.tm:11156 ROWS or RANGE
+boolean_literal	(every alternative)	googlesql.tm:11317 TRUE or FALSE
+generated_mode	(every alternative)	googlesql.tm:3474 GENERATED [ALWAYS | BY DEFAULT] AS, or AS
+foreign_key_action	(every alternative)	googlesql.tm:4023 NO ACTION, RESTRICT, CASCADE or SET NULL
+constraint_enforcement	(every alternative)	googlesql.tm:4061 ENFORCED or NOT ENFORCED
+index_type	(every alternative)	googlesql.tm:12630 SEARCH or VECTOR
+function_name_from_keyword	(every alternative)	googlesql.tm:10731 a keyword that names a function
+plus_or_star_quantifier	(every alternative)	googlesql.tm:6540 * or +
+slashed_identifier_separator	(every alternative)	googlesql.tm:9878 -, / or : in a slashed path
+expression_or_default	(every alternative)	googlesql.tm:12152 an expression or DEFAULT
+possibly_empty_grantee_list	(every alternative)	googlesql.tm:4543 a grantee list or ()
+possibly_unbounded_int_literal_or_parameter	(every alternative)	googlesql.tm:8578 a count or UNBOUNDED
+on_or_using_clause	(every alternative)	googlesql.tm:7930 ON or USING
+dynamic_label_or_properties	(every alternative)	googlesql.tm:2835 DYNAMIC LABEL or DYNAMIC PROPERTIES

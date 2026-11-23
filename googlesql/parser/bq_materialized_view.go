@@ -208,6 +208,21 @@ func (p *Parser) parseBQAlterMaterializedView(alter Token) (ast.Node, error) {
 	if _, err := p.expect(kwSET); err != nil {
 		return nil, err
 	}
+	if kind == ast.BQAlterApproxView && p.cur.Type == kwAS {
+		// SET AS generic_entity_body (googlesql.tm:1462). BigQuery parses it on
+		// ALTER APPROX VIEW and answers "Statement not supported:
+		// AlterApproxViewStatement"; on MATERIALIZED VIEW it answers "ALTER
+		// MATERIALIZED VIEW SET AS is not supported", which the judge reads
+		// as a refusal.
+		p.advance() // AS
+		body, err := p.parseGenericEntityBody()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SetAsBody = body
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
 	if p.cur.Type != kwOPTIONS {
 		return nil, p.syntaxErrorAtCur()
 	}

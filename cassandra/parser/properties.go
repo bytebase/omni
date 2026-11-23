@@ -67,11 +67,11 @@ func (p *Parser) parsePropertyValue() (ast.ExprNode, error) {
 
 // isLiteralStart reports whether a token starts a constant (Parser.g:1527)
 // that is a Constants.Literal: a string, a number, a boolean, a UUID, a blob,
-// NaN or Infinity, with or without '-'. NULL is no such literal.
+// a duration, NaN or Infinity, with or without '-'. NULL is no such literal.
 func isLiteralStart(typ int) bool {
 	switch typ {
 	case tokSTRING, tokCODEBLOCK, tokINTEGER, tokFLOAT, tokUUID, tokHEX,
-		tokTRUE, tokFALSE, tokNAN, tokINFINITY, tokMINUS:
+		tokTRUE, tokFALSE, tokNAN, tokINFINITY, tokDURATIONLIT, tokMINUS:
 		return true
 	}
 	return false

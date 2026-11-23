@@ -335,6 +335,32 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"insert select star without from", "INSERT INTO dbo.nokey SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
 		{"inline tvf select star without from", "CREATE FUNCTION dbo.tvf() RETURNS TABLE RETURN SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
 		{"create schema inline view select star", "CREATE SCHEMA s2 CREATE VIEW s2.v2 AS SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"view with TABLESAMPLE", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t TABLESAMPLE (10 PERCENT);", 0, "SQL Server doesn't accept `TABLESAMPLE` in a view."},
+		{"view with NEXT VALUE FOR", "CREATE VIEW dbo.v2 AS SELECT NEXT VALUE FOR dbo.sq AS n;", 0, "SQL Server doesn't accept `NEXT VALUE FOR` in a view."},
+		{"view with SELECT INTO", "CREATE VIEW dbo.v2 AS SELECT a INTO dbo.x FROM dbo.t;", 0, "SQL Server doesn't accept `SELECT INTO` in a view."},
+		{"ROW_NUMBER without ORDER BY", "CREATE VIEW dbo.v2 AS SELECT ROW_NUMBER() OVER () AS rn FROM dbo.t;", 0, "SQL Server's `ROW_NUMBER` needs an `OVER` clause with `ORDER BY`."},
+		{"aggregate in WHERE", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t WHERE SUM(b) > 1;", 0, "SQL Server doesn't accept an aggregate in `WHERE`."},
+		{"aggregate of an outer column in a subquery's WHERE", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t GROUP BY a HAVING EXISTS (SELECT 1 FROM dbo.r WHERE SUM(t.b) > 1);", -1, ""},
+		{"subquery of two columns", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t WHERE a IN (SELECT id, id FROM dbo.r);", 0, "SQL Server doesn't accept a subquery of 2 columns in an expression."},
+		{"FROM exposes a name twice", "CREATE VIEW dbo.v2 AS SELECT x.a FROM dbo.t x JOIN dbo.r x ON 1 = 1;", 0, "This query exposes `x` twice in its `FROM` clause."},
+		{"derived table column list", "CREATE VIEW dbo.v2 AS SELECT x.a FROM (SELECT a FROM dbo.t) x (n);", 0, "Column `a` doesn't exist in `x`."},
+		{"CTE column list", "CREATE VIEW dbo.v2 AS WITH x (n) AS (SELECT a FROM dbo.t) SELECT a FROM x;", 0, "Column `a` doesn't exist in `x`."},
+		{"CTE name a later CTE takes reads the table", "CREATE VIEW dbo.v2 AS WITH x AS (SELECT id FROM r), r AS (SELECT 1 AS m) SELECT id FROM x;", -1, ""},
+		{"CTE name of another statement reads the table", "CREATE PROCEDURE dbo.p AS BEGIN WITH r AS (SELECT 1 AS m) SELECT m FROM r; SELECT id FROM r; END;", -1, ""},
+		{"PIVOT consumes its value column", "CREATE VIEW dbo.v2 AS SELECT p.b FROM (SELECT id, a, b FROM dbo.t) AS src PIVOT (SUM(b) FOR a IN ([x])) AS p;", 0, "Column `b` doesn't exist in `p`."},
+		{"derived table reads a sibling under APPLY", "CREATE VIEW dbo.v2 AS SELECT t.a, x.n FROM dbo.t CROSS APPLY (SELECT t.b AS n) x;", -1, ""},
+		{"derived tables of a join under APPLY read its left side", "CREATE VIEW dbo.v2 AS SELECT d.a, e.b FROM dbo.t CROSS APPLY ((SELECT t.a AS a) d CROSS JOIN (SELECT t.b AS b) e);", -1, ""},
+		{"DISTINCT orders by a parenthesized selected column", "CREATE VIEW dbo.v2 AS SELECT DISTINCT TOP 10 (a) AS x FROM dbo.t ORDER BY a;", -1, ""},
+		{"SUBSTRING without a length", "CREATE VIEW dbo.v2 AS SELECT SUBSTRING(a, 2) AS s FROM dbo.t;", -1, ""},
+		{"derived table reads a sibling under JOIN", "CREATE VIEW dbo.v2 AS SELECT t.a FROM dbo.t JOIN (SELECT t.b AS n) x ON 1 = 1;", 0, "`t` is not a table or alias of the query."},
+		{"table called as a function", "CREATE VIEW dbo.v2 AS SELECT * FROM dbo.t(1);", 0, "`dbo.t` is a table, not a function."},
+		{"table with an old-style hint", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t(NOLOCK);", -1, ""},
+		{"NOEXPAND on a table", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t WITH (NOEXPAND);", 0, "`dbo.t` is a table, not a view."},
+		{"LEN of two arguments", "CREATE VIEW dbo.v2 AS SELECT LEN(a, 1) AS l FROM dbo.t;", 0, "SQL Server's `LEN` takes 1 argument."},
+		{"unknown datepart", "CREATE VIEW dbo.v2 AS SELECT DATEADD(nope, 1, a) AS d FROM dbo.t;", 0, "`nope` is not a datepart of `DATEADD`."},
+		{"HAVING names an ungrouped column", "CREATE VIEW dbo.v2 AS SELECT a FROM dbo.t GROUP BY a HAVING b = 1;", 0, "SQL Server doesn't accept column `b` in `HAVING`, which is neither grouped nor aggregated."},
+		{"TRIM of an int column", "CREATE VIEW dbo.v2 AS SELECT TRIM(i) AS x FROM dbo.typed;", 0, "SQL Server's `TRIM` doesn't accept an argument of type `int`."},
+		{"COLLATE on an int column", "CREATE VIEW dbo.v2 AS SELECT i COLLATE Latin1_General_BIN2 AS x FROM dbo.typed;", 0, "SQL Server doesn't accept `COLLATE` on an expression of type `int`."},
 		{"select count star without from valid", "SELECT COUNT(*) AS c INTO dbo.x;", -1, ""},
 		{"scalar function returning select data", "CREATE FUNCTION dbo.f2() RETURNS int AS BEGIN SELECT 1 END;", 0, "SELECT statements inside a function cannot return data to a client."},
 		{"scalar function variable select assign valid", "CREATE FUNCTION dbo.f2() RETURNS int AS BEGIN DECLARE @x int; SELECT @x = 1; RETURN @x; END;", -1, ""},
@@ -426,7 +452,8 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"view reads a column of either source", "CREATE VIEW dbo.w AS SELECT b FROM dbo.r JOIN dbo.t ON t.id = r.id;", -1, ""},
 		{"view reads a column of no source", "CREATE VIEW dbo.w AS SELECT nope FROM dbo.r JOIN dbo.t ON t.id = r.id;", 0, "Column `nope` doesn't exist in `dbo.r`."},
 		{"view reads a column of a view", "CREATE VIEW dbo.w AS SELECT nope FROM dbo.v;", -1, ""},
-		{"view reads a column of a derived table", "CREATE VIEW dbo.w AS SELECT nope FROM (SELECT id FROM dbo.t) AS d;", -1, ""},
+		{"view reads a column of a derived table", "CREATE VIEW dbo.w AS SELECT nope FROM (SELECT id FROM dbo.t) AS d;", 0, "Column `nope` doesn't exist in `d`."},
+		{"view reads a column of a derived table's star", "CREATE VIEW dbo.w AS SELECT nope FROM (SELECT * FROM dbo.t) AS d;", -1, ""},
 		{"view reads a column with no FROM", "CREATE VIEW dbo.w AS SELECT a;", 0, "Column `a` doesn't exist."},
 		{"view reads a column of a name no source has", "CREATE VIEW dbo.w AS SELECT x.a FROM dbo.t;", 0, "`x` is not a table or alias of the query."},
 		{"view reads a table its alias hides", "CREATE VIEW dbo.w AS SELECT t.a FROM dbo.t AS x;", 0, "`t` is not a table or alias of the query."},
@@ -556,7 +583,8 @@ func TestWalkThroughFindings(t *testing.T) {
 				"create primary xml index on int column", "create primary xml index on xml column valid",
 				"create index on xml key column", "create index include xml column valid",
 				"create index on geography key column", "alter column invalidates synced column type",
-				"ROWGUIDCOL on an int column", "HIDDEN on an xml column", "PERSISTED on a column that is not computed":
+				"ROWGUIDCOL on an int column", "HIDDEN on an xml column", "PERSISTED on a column that is not computed",
+				"TRIM of an int column", "COLLATE on an int column":
 				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{
 					Name: "typed",
 					Columns: []*metadata.ColumnMetadata{
@@ -791,4 +819,103 @@ func TestWalkThroughLowersEveryForm(t *testing.T) {
 		}
 		return len(stmts), len(stmts), false
 	})
+}
+
+// TestWalkThroughSyncedFacts pins the refusals the walk reads from facts
+// of the synced schema other than names, and that it stops reading them
+// once the change alters the object they describe.
+func TestWalkThroughSyncedFacts(t *testing.T) {
+	col := func(name, typ string) *metadata.ColumnMetadata {
+		return &metadata.ColumnMetadata{Name: name, Type: typ}
+	}
+	schema := func() *metadata.DatabaseSchemaMetadata {
+		k := &metadata.TableMetadata{
+			Name:    "k",
+			Columns: []*metadata.ColumnMetadata{col("id", "int"), col("a", "int"), col("n", "nvarchar(10)")},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "pk_k", Primary: true, Unique: true, IsConstraint: true, Type: "CLUSTERED", Expressions: []string{"id"}},
+				{Name: "ix_k", Type: "NONCLUSTERED", Expressions: []string{"a"}},
+			},
+		}
+		k.Columns[0].IsIdentity = true
+		return &metadata.DatabaseSchemaMetadata{
+			Name: "shop",
+			Schemas: []*metadata.SchemaMetadata{{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					k,
+					{Name: "temporal", Columns: []*metadata.ColumnMetadata{col("id", "int"), col("vf", "datetime2(7)"), col("vt", "datetime2(7)")}},
+					{Name: "ft", Columns: []*metadata.ColumnMetadata{col("stream_id", "uniqueidentifier"), col("path_locator", "hierarchyid")}},
+					{Name: "p", Columns: []*metadata.ColumnMetadata{col("id", "int")}, Indexes: []*metadata.IndexMetadata{{Name: "pk_p", Primary: true, Unique: true, IsConstraint: true, Type: "CLUSTERED"}}},
+					{
+						Name:        "c",
+						Columns:     []*metadata.ColumnMetadata{col("id", "int"), col("pid", "int")},
+						ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_c_p", Columns: []string{"pid"}, ReferencedSchema: "dbo", ReferencedTable: "p", ReferencedColumns: []string{"id"}}},
+						Triggers:    []*metadata.TriggerMetadata{{Name: "tr_c"}},
+					},
+				},
+				Views: []*metadata.ViewMetadata{
+					{Name: "uv", Definition: "CREATE VIEW dbo.uv AS SELECT id FROM dbo.k"},
+					{Name: "bv", Definition: "CREATE VIEW dbo.bv WITH SCHEMABINDING AS SELECT id FROM dbo.k"},
+				},
+			}},
+		}
+	}
+	tests := []struct {
+		name      string
+		sql       string
+		statement int // -1 for no finding
+		message   string
+	}{
+		{"CTAS", "CREATE TABLE dbo.x WITH (HEAP) AS SELECT 1 AS a;", 0, "SQL Server doesn't accept `CREATE TABLE AS SELECT`."},
+		{"drop a column and a constraint of one name", "ALTER TABLE dbo.k DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a;", 0, "This statement drops `a` twice."},
+		{"index on an unbound view", "CREATE INDEX ix ON dbo.uv (id);", 0, "SQL Server doesn't accept an index on view `dbo.uv`, which isn't schema-bound."},
+		{"index on a schema-bound view", "CREATE UNIQUE CLUSTERED INDEX ix ON dbo.bv (id);", -1, ""},
+		{"index on a view the change binds", "ALTER VIEW dbo.uv WITH SCHEMABINDING AS SELECT id FROM dbo.k;\nGO\nCREATE UNIQUE CLUSTERED INDEX ix ON dbo.uv (id);", -1, ""},
+		{"alter an index of an unbound view", "ALTER INDEX ix ON dbo.uv DISABLE;", 0, "Index `ix` doesn't exist in `dbo.uv`."},
+		{"drop an index of an unbound view", "DROP INDEX ix ON dbo.uv;", 0, "Index `ix` doesn't exist in `dbo.uv`."},
+		{"drop an index of a schema-bound view", "DROP INDEX ix ON dbo.bv;", -1, ""},
+		{"second clustered index", "CREATE CLUSTERED INDEX cx ON dbo.k (a);", 0, "Table `dbo.k` already has clustered index `pk_k`."},
+		{"second clustered columnstore index", "CREATE CLUSTERED COLUMNSTORE INDEX cx ON dbo.k;", 0, "Table `dbo.k` already has clustered index `pk_k`."},
+		{"nonclustered index beside a clustered one", "CREATE INDEX nx ON dbo.k (a);", -1, ""},
+		{"clustered index once the key is gone", "ALTER TABLE dbo.k DROP CONSTRAINT pk_k;\nCREATE CLUSTERED INDEX cx ON dbo.k (a);", -1, ""},
+		{"system versioning without a period", "ALTER TABLE dbo.k SET (SYSTEM_VERSIONING = OFF);", 0, "Table `dbo.k` has no `SYSTEM_TIME` period."},
+		{"drop a period that can't exist", "ALTER TABLE dbo.k DROP PERIOD FOR SYSTEM_TIME;", 0, "Table `dbo.k` has no `SYSTEM_TIME` period."},
+		{"system versioning of a table with datetime2 columns", "ALTER TABLE dbo.temporal SET (SYSTEM_VERSIONING = OFF);", -1, ""},
+		{"FileTable directory of a plain table", "ALTER TABLE dbo.k SET (FILETABLE_DIRECTORY = N'd');", 0, "Table `dbo.k` isn't a FileTable."},
+		{"FileTable directory of a FileTable", "ALTER TABLE dbo.ft SET (FILETABLE_DIRECTORY = N'd');", -1, ""},
+		{"drop a referenced table", "DROP TABLE dbo.p;", 0, "Table `dbo.p` is referenced by a foreign key of `dbo.c`."},
+		{"truncate a referenced table", "TRUNCATE TABLE dbo.p;", 0, "Table `dbo.p` is referenced by a foreign key of `dbo.c`."},
+		{"drop the referencing table first", "DROP TABLE dbo.c, dbo.p;", -1, ""},
+		{"drop a table once its reference is gone", "ALTER TABLE dbo.c DROP CONSTRAINT fk_c_p;\nDROP TABLE dbo.p;", -1, ""},
+		{"drop a foreign key's column", "ALTER TABLE dbo.c DROP COLUMN pid;", 0, "Foreign key `fk_c_p` depends on column `pid`."},
+		{"drop a foreign key and its column", "ALTER TABLE dbo.c DROP CONSTRAINT fk_c_p, COLUMN pid;", -1, ""},
+		{"NOT FOR REPLICATION on a plain column", "ALTER TABLE dbo.k ALTER COLUMN a ADD NOT FOR REPLICATION;", 0, "Column `a` isn't an identity column."},
+		{"NOT FOR REPLICATION on an identity column", "ALTER TABLE dbo.k ALTER COLUMN id ADD NOT FOR REPLICATION;", -1, ""},
+		{"drop a nonclustered index online", "DROP INDEX ix_k ON dbo.k WITH (ONLINE = ON);", 0, "Index `ix_k` isn't clustered, so it can't be dropped with `ONLINE = ON`."},
+		{"drop a nonclustered index with MAXDOP", "DROP INDEX ix_k ON dbo.k WITH (MAXDOP = 1);", 0, "Index `ix_k` isn't clustered, so it can't be dropped with `MAXDOP`."},
+		{"drop a nonclustered index", "DROP INDEX ix_k ON dbo.k WITH (ONLINE = OFF);", -1, ""},
+		{"alter a trigger onto another table", "ALTER TRIGGER dbo.tr_c ON dbo.p AFTER INSERT AS SELECT 1;", 0, "Trigger `dbo.tr_c` is on `dbo.c`, not `dbo.p`."},
+		{"alter a trigger on a marked name of its table", "ALTER TRIGGER dbo.tr_c ON dbo.[ç] AFTER INSERT AS SELECT 1;", -1, ""},
+		{"alter a trigger on its table", "ALTER TRIGGER dbo.tr_c ON dbo.c AFTER INSERT AS SELECT 1;", -1, ""},
+		{"RETURN of a value in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN 1; END;", 0, "SQL Server doesn't accept `RETURN` of a value in a table-valued function."},
+		{"RETURN in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN; END;", -1, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := walkFindings(t, tt.sql, review.Target{Schema: schema(), DefaultSchema: "dbo"})
+			if tt.statement < 0 {
+				if len(got) != 0 {
+					t.Errorf("findings = %+v, want none", got)
+				}
+				return
+			}
+			if len(got) != 1 || got[0].Statement != tt.statement || got[0].Message != tt.message {
+				t.Errorf("findings = %+v, want statement %d: %q", got, tt.statement, tt.message)
+			}
+			if (&walkEngine{}).Codes(tt.message) == nil {
+				t.Errorf("walkCodes maps no error to %q", tt.message)
+			}
+		})
+	}
 }

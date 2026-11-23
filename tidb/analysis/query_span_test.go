@@ -160,9 +160,11 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualError(t, span.NotFoundError, "resource not found: database: mysql, schema: , table: db")
 
+	// The tables behind a view are among the tables a query reads, so a
+	// view over user and system tables mixes them in the query itself.
 	_, err = resolve(t, "SELECT * FROM mixed")
 	require.ErrorIs(t, err, analysis.ErrMixUserSystemTables)
-	require.EqualError(t, err, "failed to extract table source from FROM clause: cannot access user and system tables at the same time")
+	require.EqualError(t, err, "cannot access user and system tables at the same time")
 
 	_, err = resolve(t, "SELECT * FROM cycle1")
 	require.ErrorContains(t, err, `cyclic view reference detected while resolving "cycle1"`)

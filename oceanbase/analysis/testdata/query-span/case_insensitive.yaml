@@ -38,6 +38,6 @@
         - server: ""
           database: db
           schema: ""
-          table: T
+          table: t
           column: ""
     predicatecolumns: []

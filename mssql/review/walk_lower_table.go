@@ -174,6 +174,32 @@ func (b *builder) checkIndexColList(r objRef, path string, list *ast.List, check
 	}
 }
 
+// columnsPresent reports whether every column an index's lists name is
+// certainly on the table.
+func (b *builder) columnsPresent(path string, lists ...*ast.List) bool {
+	for _, list := range lists {
+		if list == nil {
+			continue
+		}
+		for _, item := range list.Items {
+			var col string
+			switch v := item.(type) {
+			case *ast.IndexColumn:
+				col = v.Name
+			case *ast.String:
+				col = v.Str
+			default:
+				return false
+			}
+			cn, ok := keyed(col)
+			if !ok || b.see(spaceColumn, path, cn).fact != walk.Present {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // constraintPrefixes are the generated names of unnamed constraints,
 // PK__<table>__<hex> and the like (verified), as class prefixes.
 var constraintPrefixes = map[ast.ConstraintType]string{
@@ -612,7 +638,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 // given twice, two primary keys, and names too long.
 func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool {
 	d := &tableDef{}
-	dropped := map[ast.AlterTableActionType]map[string]bool{}
+	// A column and a constraint are one namespace here (8168).
+	dropped := map[ast.AlterTableActionType]map[string]string{}
 	for _, a := range actions {
 		switch a.Type {
 		case ast.ATAddColumn:
@@ -639,14 +666,21 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 				kind = "index"
 				nm = a.IndexName
 			}
-			if dropped[a.Type] == nil {
-				dropped[a.Type] = map[string]bool{}
+			space := a.Type
+			if space == ast.ATDropConstraint {
+				space = ast.ATDropColumn
 			}
-			if dropped[a.Type][nm] {
+			if dropped[space] == nil {
+				dropped[space] = map[string]string{}
+			}
+			if prev, twice := dropped[space][nm]; twice {
+				if prev != kind {
+					kind = ""
+				}
 				b.fail(rangeOf(a.Loc), review.DuplicateName, msgTwice("drops", kind, ident(nm)))
 				return true
 			}
-			dropped[a.Type][nm] = true
+			dropped[space][nm] = kind
 		}
 	}
 	return b.defTextFails(r, d, "adds")
@@ -656,6 +690,11 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 // not follow.
 func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTableAction) bool {
 	rng := rangeOf(a.Loc)
+	switch a.Type {
+	case ast.ATAddIndex, ast.ATDropIndex, ast.ATAddConstraint, ast.ATDropConstraint:
+		// The table's indexes may change.
+		b.markTableDirty(path)
+	}
 	switch a.Type {
 	case ast.ATAddColumn:
 		if a.Column == nil {
@@ -765,6 +804,12 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
+		// A foreign key's column can't be dropped (5074), unless the
+		// statement drops the key too, which the walk does not judge.
+		if st := b.syncedTable(r); st != nil && st.fkColumns[a.ColName] != "" && b.singleAction() {
+			b.fail(rng, review.UnsupportedForm, "Foreign key "+review.Code(ident(st.fkColumns[a.ColName]))+" depends on column "+review.Code(ident(a.ColName))+".")
+			return true
+		}
 		b.leave(spaceColumn, path, cn)
 		b.markTableDirty(path)
 	case ast.ATDropConstraint:
@@ -842,14 +887,42 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 	case ast.ATSet:
 		if a.Options != nil {
 			for _, item := range a.Options.Items {
-				if s, ok := item.(*ast.String); ok && strings.Contains(strings.ToUpper(s.Str), "SYSTEM_VERSIONING") {
+				s, ok := item.(*ast.String)
+				if !ok {
+					continue
+				}
+				opt := strings.ToUpper(s.Str)
+				if opt == "FILETABLE_DIRECTORY" {
+					if st := b.syncedTable(r); st != nil && !st.fileTable {
+						b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" isn't a FileTable.")
+						return true
+					}
+				}
+				if strings.Contains(opt, "SYSTEM_VERSIONING") {
+					if opt == "SYSTEM_VERSIONING" && b.periodless(r, rng) {
+						return true
+					}
 					return false
 				}
 			}
 		}
+	case ast.ATDropPeriod:
+		return b.periodless(r, rng)
 	default:
 		return false
 	}
+	return true
+}
+
+// periodless fails a statement that needs the table's SYSTEM_TIME period,
+// or system versioning, which needs the period, on a synced table no
+// column of which can be a period column (13510, 13591, 13593).
+func (b *builder) periodless(r objRef, rng review.Range) bool {
+	st := b.syncedTable(r)
+	if st == nil || !st.noPeriod {
+		return false
+	}
+	b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no `SYSTEM_TIME` period.")
 	return true
 }
 
@@ -958,6 +1031,12 @@ func (b *builder) dropTables(v *ast.DropStmt) bool {
 			}
 			if b.see(space, parent, r.n).fact == walk.Unknown {
 				b.maybe()
+			}
+		}
+		if len(v.Names.Items) == 1 {
+			if from := b.referencer(r); from != "" {
+				b.fail(r.rng, review.UnsupportedForm, msgReferenced(r.written, from))
+				return true
 			}
 		}
 		known := b.knownTable(r)
@@ -1072,7 +1151,15 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		return true
 	}
 	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), notKind(r.written, "table", kindTable))
+	if from := b.referencer(r); from != "" {
+		b.fail(b.anchor(), review.UnsupportedForm, msgReferenced(r.written, from))
+	}
 	return true
+}
+
+// msgReferenced says that another table's foreign key references a table.
+func msgReferenced(table, from string) string {
+	return "Table " + review.Code(table) + " is referenced by a foreign key of " + review.Code(from) + "."
 }
 
 // indexOn resolves the table of an index statement and adds the check
@@ -1117,9 +1204,14 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	known := b.knownTable(r)
 	if !known {
+		if !rebuild && b.unboundView(r) {
+			b.fail(b.anchor(), review.UnsupportedForm, "SQL Server doesn't accept an index on view "+review.Code(r.written)+", which isn't schema-bound.")
+			return true
+		}
 		if r.where == placed {
 			b.forgetMeant(r, spaceIndex)
 		}
+		b.markAllTablesDirty()
 		return true
 	}
 	path := r.tablePath()
@@ -1127,6 +1219,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	b.checkIndexColList(r, path, v.Columns, true)
 	b.checkIndexColList(r, path, v.IncludeCols, false)
 	b.checkIndexColList(r, path, v.OrderCols, true)
+	b.markTableDirty(path)
 	if rebuild {
 		// The index is rebuilt under its name, and a PK's or UQ's keeps
 		// its constraint.
@@ -1134,6 +1227,13 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(v.Name), r.written))))
+	// A table has one clustered index, rowstore or columnstore (1902,
+	// 35372), which SQL Server checks once the columns are found (1911).
+	if st := b.syncedTable(r); st != nil && st.clustered != "" && v.Clustered != nil && *v.Clustered &&
+		b.see(spaceIndex, path, in).fact == walk.Absent && b.columnsPresent(path, v.Columns, v.IncludeCols, v.OrderCols) {
+		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" already has clustered index "+review.Code(ident(st.clustered))+".")
+		return true
+	}
 	b.arrive(spaceIndex, path, in, kindIndex)
 	return true
 }
@@ -1170,10 +1270,12 @@ func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, colNa
 		if r.where == placed {
 			b.forgetMeant(r, spaceIndex)
 		}
+		b.markAllTablesDirty()
 		return true
 	}
 	path := r.tablePath()
 	rng := b.anchor()
+	b.markTableDirty(path)
 	if colName != "" && !isPseudoCol(colName) {
 		if cn, ok := keyed(colName); ok {
 			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(colName), r.written), nil))
@@ -1299,7 +1401,7 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	if !ok {
 		return false
 	}
-	if strings.EqualFold(v.IndexName, "ALL") || !b.knownTable(r) {
+	if strings.EqualFold(v.IndexName, "ALL") || !b.knownTable(r) && !b.unboundView(r) {
 		return true
 	}
 	in, ok := keyed(v.IndexName)
@@ -1362,6 +1464,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 		if r.where == unplaced {
 			b.forgetTable(r)
+			b.markAllTablesDirty()
 			if v.IfExists {
 				b.maybe()
 			}
@@ -1371,21 +1474,31 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		if !v.IfExists {
 			b.tableNeeds(r, []string{kindTable, kindView}, msgMissingIn("index", ident(ix.Object), r.written), notKind(r.written, "table or view", kindTable, kindView))
 		}
-		known := b.knownTable(r)
+		known := b.knownTable(r) || b.unboundView(r)
 		if !known {
 			if v.IfExists {
 				b.maybe()
 			}
 			b.forgetMeant(r, spaceIndex)
+			b.markAllTablesDirty()
 			continue
 		}
 		path := r.tablePath()
+		b.markTableDirty(path)
 		s := b.see(spaceIndex, path, in)
 		switch {
 		case !v.IfExists:
 			b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(ix.Object), r.written), nil))
 		case s.fact == walk.Unknown:
 			b.maybe()
+		}
+		// Only a clustered index is dropped ONLINE (3745) or with MAXDOP or
+		// MOVE TO (3748).
+		if st := b.syncedTable(r); st != nil && len(v.Names.Items) == 1 && s.fact == walk.Present && st.nonclustered[in.class] {
+			if opt := clusteredDropOption(v.Options); opt != "" {
+				b.fail(rng, review.UnsupportedForm, "Index "+review.Code(ident(ix.Object))+" isn't clustered, so it can't be dropped with "+review.Code(opt)+".")
+				return true
+			}
 		}
 		// A key's index has the name of the constraint it enforces.
 		ixName := review.Code(ident(ix.Object))
@@ -1397,6 +1510,28 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 	}
 	return true
+}
+
+// clusteredDropOption returns the first DROP INDEX option only a clustered
+// index takes: ONLINE = ON, MAXDOP, or MOVE TO.
+func clusteredDropOption(opts *ast.List) string {
+	if opts == nil {
+		return ""
+	}
+	for _, item := range opts.Items {
+		s, ok := item.(*ast.String)
+		if !ok {
+			continue
+		}
+		k, val, _ := strings.Cut(s.Str, "=")
+		switch k = strings.ToUpper(strings.TrimSpace(k)); {
+		case k == "ONLINE" && strings.EqualFold(strings.TrimSpace(val), "ON"):
+			return "ONLINE = ON"
+		case k == "MAXDOP", k == "MOVE TO":
+			return k
+		}
+	}
+	return ""
 }
 
 // maskingFunctions are the functions dynamic data masking takes.
@@ -1430,6 +1565,9 @@ func (b *builder) columnOptions(r objRef, a *ast.AlterTableAction, rng review.Ra
 				b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept the masking function "+review.Code(o.MaskFunction)+".")
 				return
 			}
+		case opt == "NOT FOR REPLICATION" && typ != "" && !b.syncedTable(r).identity[a.ColName]:
+			b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(a.ColName))+" isn't an identity column.")
+			return
 		case opt == "ROWGUIDCOL" && system && typ != "uniqueidentifier",
 			add && opt == "HIDDEN" && system && typ != "datetime2",
 			add && opt == "PERSISTED" && typ != "":
@@ -1437,6 +1575,13 @@ func (b *builder) columnOptions(r objRef, a *ast.AlterTableAction, rng review.Ra
 			return
 		}
 	}
+}
+
+// singleAction reports whether the statement is an ALTER TABLE of one
+// action.
+func (b *builder) singleAction() bool {
+	at, ok := b.s.node.(*ast.AlterTableStmt)
+	return ok && at.Actions != nil && len(at.Actions.Items) == 1
 }
 
 // addsColumn reports whether the statement, an ALTER TABLE, may add a

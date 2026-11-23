@@ -22,6 +22,10 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterSchema(v)
 	case *ast.CreateTableStmt:
 		return b.createTable(v)
+	case *ast.CreateTableAsSelectStmt:
+		// Azure Synapse's CTAS: SQL Server has none (102, 173).
+		b.fail(b.anchor(), review.UnsupportedForm, "SQL Server doesn't accept `CREATE TABLE AS SELECT`.")
+		return true
 	case *ast.AlterTableStmt:
 		return b.alterTable(v)
 	case *ast.TruncateStmt:
@@ -636,6 +640,12 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 		b.fail(selRng, review.UnsupportedForm, "SELECT statements inside a function cannot return data to a client.")
 		return true
 	}
+	if rt := v.ReturnsTable; rt != nil && rt.Variable != "" {
+		if rng, bad := returnsValue(v.Body); bad {
+			b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept `RETURN` of a value in a table-valued function.")
+			return true
+		}
+	}
 	if b.functionBody(v.Body) {
 		return true
 	}
@@ -745,6 +755,34 @@ func functionBodyReturnsData(n ast.Node) (review.Range, bool) {
 					return rangeOf(v.Loc), true
 				}
 			}
+		}
+	}
+	return review.Range{}, false
+}
+
+// returnsValue finds a RETURN of a value in a module body (178 in a
+// table-valued function).
+func returnsValue(n ast.Node) (review.Range, bool) {
+	switch v := n.(type) {
+	case *ast.BeginEndStmt:
+		if v.Stmts == nil {
+			return review.Range{}, false
+		}
+		for _, item := range v.Stmts.Items {
+			if rng, bad := returnsValue(item); bad {
+				return rng, true
+			}
+		}
+	case *ast.IfStmt:
+		if rng, bad := returnsValue(v.Then); bad {
+			return rng, true
+		}
+		return returnsValue(v.Else)
+	case *ast.WhileStmt:
+		return returnsValue(v.Body)
+	case *ast.ReturnStmt:
+		if v.Value != nil {
+			return rangeOf(v.Loc), true
 		}
 	}
 	return review.Range{}, false
