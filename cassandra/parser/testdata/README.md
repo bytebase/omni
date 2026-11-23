@@ -50,7 +50,16 @@ fresh container (`OMNI_RECORD=verify`).
   EXISTS in `ALTER TABLE` and `ALTER TYPE` (on the object and on a column or
   field), `STATIC` and `MASKED WITH` on an added column, the `PERMISSION`
   noise word, and a selector's field or element. They added 38 rows, all
-  agreeing with `cassandra:5.0.9` (2,979 / 2,979).
+  agreeing with `cassandra:5.0.9` (2,979 / 2,979). Rows of the form `(every
+  alternative)` name choices each of whose forms gets a row at every
+  alternative naming them: a permission and a resource in GRANT, REVOKE and
+  LIST, PASSWORD or HASHED PASSWORD, a relation's operator, CAST's native
+  type, a constant, an `intValue`, a marker after IN and a column mask. They
+  added 206 rows (3,185 / 3,185 after the fixes they led to): bind markers
+  in `USING TIMESTAMP` and `TTL`, a table named `role` after `ON`, and a
+  duration as a property value were refused, and a GRANT or REVOKE none of
+  whose permissions the resource takes (`GRANT CREATE ON a`, which
+  filterPermissions refuses at Parser.g:149) was accepted.
 
 After a parser fix, commit the rows that now agree:
 

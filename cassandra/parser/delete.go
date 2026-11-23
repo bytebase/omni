@@ -39,7 +39,7 @@ func (p *Parser) parseDelete() (*ast.DeleteStmt, error) {
 	stmt.From = table
 
 	// Optional USING TIMESTAMP clause
-	using, err := p.parseUsingClause()
+	using, err := p.parseUsingClause(true)
 	if err != nil {
 		return nil, err
 	}
