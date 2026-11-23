@@ -4,27 +4,28 @@ package completion
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/redshift/catalog"
 	"github.com/bytebase/omni/redshift/parser"
 )
 
 // CandidateType classifies a completion candidate.
-type CandidateType int
+type CandidateType = analysis.CandidateType
 
 const (
-	CandidateKeyword          CandidateType = iota // SQL keyword
-	CandidateSchema                                // schema name
-	CandidateTable                                 // table name
-	CandidateView                                  // view name
-	CandidateMaterializedView                      // materialized view name
-	CandidateColumn                                // column name
-	CandidateFunction                              // function name
-	CandidateSequence                              // sequence name
-	CandidateIndex                                 // index name
-	CandidateType_                                 // SQL type name
-	CandidateTrigger                               // trigger name
-	CandidatePolicy                                // policy name
-	CandidateExtension                             // extension name
+	CandidateKeyword          = analysis.CandidateKeyword          // SQL keyword
+	CandidateSchema           = analysis.CandidateSchema           // schema name
+	CandidateTable            = analysis.CandidateTable            // table name
+	CandidateView             = analysis.CandidateView             // view name
+	CandidateMaterializedView = analysis.CandidateMaterializedView // materialized view name
+	CandidateColumn           = analysis.CandidateColumn           // column name
+	CandidateFunction         = analysis.CandidateFunction         // function name
+	CandidateSequence         = analysis.CandidateSequence         // sequence name
+	CandidateIndex            = analysis.CandidateIndex            // index name
+	CandidateType_            = analysis.CandidateType_            // SQL type name
+	CandidateTrigger          = analysis.CandidateTrigger          // trigger name
+	CandidatePolicy           = analysis.CandidatePolicy           // policy name
+	CandidateExtension        = analysis.CandidateExtension        // extension name
 )
 
 // Candidate is a single completion suggestion.

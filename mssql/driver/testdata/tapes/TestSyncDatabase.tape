@@ -760,7 +760,7 @@
 | 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 | 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'app',N'dbo')
-| 	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -791,16 +791,16 @@
 : string
 | app
 : string
-| orders
+| accounts
 : string
-| PK__orders__standin2
+| uk_accounts_email
 : string
-| id
+| email
+: bool false
 : bool false
 : bool true
-: bool false
 : string
-| CLUSTERED
+| NONCLUSTERED
 : null
 < row
 : string
@@ -821,16 +821,16 @@
 : string
 | app
 : string
-| accounts
+| orders
 : string
-| uk_accounts_email
+| PK__orders__standin2
 : string
-| email
-: bool false
+| id
 : bool false
 : bool true
+: bool false
 : string
-| NONCLUSTERED
+| CLUSTERED
 : null
 > query
 |
@@ -1671,11 +1671,14 @@
 : string
 | accounts
 > query
-| SELECT SCHEMA_NAME()
+| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
 < result
+< column "" "NVARCHAR"
 < column "" "NVARCHAR"
 < row
 : string
 | dbo
+: string
+| SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok

@@ -429,7 +429,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 						oldDefault := getColumnDefaultValue(colDiff.OldColumn)
 						alterColumn := !typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) ||
 							colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable ||
-							colDiff.OldColumn.Collation != colDiff.NewColumn.Collation
+							colDiff.collationChanged
 						if expressionsEqual(oldDefault, newDefault) && !alterColumn {
 							continue
 						}
@@ -848,7 +848,7 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 				}
 			}
 			for _, colDiff := range tableDiff.Columns {
-				if colDiff.Action == DiffAlter && (!typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) || colDiff.OldColumn.Collation != colDiff.NewColumn.Collation) {
+				if colDiff.Action == DiffAlter && (!typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) || colDiff.collationChanged) {
 					droppedKey = true
 				}
 			}
@@ -1009,7 +1009,7 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults, droppedCheck
 	}
 	for _, colDiff := range tableDiff.Columns {
 		if colDiff.Action != DiffAlter || columnRequiresRebuild(colDiff) ||
-			(typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) && colDiff.OldColumn.Collation == colDiff.NewColumn.Collation) {
+			(typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) && !colDiff.collationChanged) {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
@@ -3166,7 +3166,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry,
 	newDefault := getColumnDefaultValue(colDiff.NewColumn)
 	alterColumn := !typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) ||
 		colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable ||
-		colDiff.OldColumn.Collation != colDiff.NewColumn.Collation
+		colDiff.collationChanged
 	droppedDefaultForAlter := false
 	if alterColumn {
 		// SQL Server refuses ALTER COLUMN while a default is bound to the
