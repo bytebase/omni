@@ -383,6 +383,15 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 				Message:  "Incorrect arguments to nth_value",
 			}
 		}
+		// OceanBase 4.3.5.6 validates CALC_PARTITION_ID's first argument as a
+		// constant before resolving column references (1054).
+		if lower == "calc_partition_id" && (len(fc.Args) < 2 || len(fc.Args) > 3 || exprContainsColumnRef(fc.Args[0])) {
+			return nil, &Error{
+				Code:     ErrWrongArguments,
+				SQLState: sqlState(ErrWrongArguments),
+				Message:  "Invalid argument",
+			}
+		}
 		// Zero-argument calls to built-in functions that always require at least
 		// one argument fail with ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT (1582).
 		if len(fc.Args) == 0 && builtinRequiresArgs(lower) {

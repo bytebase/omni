@@ -11,6 +11,7 @@ type Catalog struct {
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
+	loadingSDL       bool // true while LoadSDLWithVersion executes statements
 	session          SessionState
 	madeUpNames      int // names made for constraints written without one (madeUpConstraintName)
 }

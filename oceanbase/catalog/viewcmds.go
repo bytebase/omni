@@ -29,7 +29,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	var analyzedQuery *Query
 	analyzed := false
 	if checkBody {
-		q, err := c.resolveQueryFirst(stmt.Select, true)
+		q, err := c.resolveQueryFirst(stmt.Select, true, db)
 		if err != nil {
 			return err
 		}
@@ -399,7 +399,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err != nil {
 		return err
 	}
-	analyzedQuery, err := c.resolveQueryFirst(stmt.Select, true)
+	analyzedQuery, err := c.resolveQueryFirst(stmt.Select, true, db)
 	if err != nil {
 		return err
 	}
@@ -1936,7 +1936,7 @@ func showCreateView(v *View) string {
 // The analyzer's other errors are left alone, as createView has always left them:
 // it does not yet read every query OceanBase takes. The analyzed query is returned,
 // or nil when analysis did not finish, so the caller need not analyze it again.
-func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool) (*Query, error) {
+func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool, targetDB *Database) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
@@ -1953,7 +1953,7 @@ func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool) (*Query,
 			return nil, refusal
 		}
 	}
-	if postErr := c.validateViewQueryPostAnalysis(blocks, isView); postErr != nil {
+	if postErr := c.validateViewQueryPostAnalysis(blocks, isView, targetDB); postErr != nil {
 		return nil, postErr
 	}
 	if err != nil {
@@ -2021,6 +2021,11 @@ func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
 
 func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 	for _, block := range blocks {
+		for _, hint := range block.OptimizerHints {
+			if err := validateOptimizerHint(hint); err != nil {
+				return err
+			}
+		}
 		if block.CalcFoundRows {
 			return errWrongUsage("SQL_CALC_FOUND_ROWS")
 		}
@@ -2080,6 +2085,17 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 								Code:     ErrWrongArguments,
 								SQLState: sqlState(ErrWrongArguments),
 								Message:  "Incorrect arguments to nth_value",
+							}
+							return false
+						}
+					case "calc_partition_id":
+						// OceanBase 4.3.5.6 validates CALC_PARTITION_ID's first
+						// argument as a constant before resolving column references.
+						if len(e.Args) < 2 || len(e.Args) > 3 || exprContainsColumnRef(e.Args[0]) {
+							err = &Error{
+								Code:     ErrWrongArguments,
+								SQLState: sqlState(ErrWrongArguments),
+								Message:  "Invalid argument",
 							}
 							return false
 						}
@@ -2187,7 +2203,7 @@ func isValidJSONPathLit(s string) bool {
 	return len(s) > 0 && s[0] == '$'
 }
 
-func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isView bool) error {
+func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isView bool, targetDB *Database) error {
 	for _, block := range blocks {
 		if block.Approx && !hasVectorSortExpr(block.OrderBy) {
 			return &Error{Code: ErrNotSupportedYet, SQLState: "0A000", Message: "Using vector index without vector_sort_expr is not supported"}
@@ -2197,7 +2213,12 @@ func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isVi
 			if err != nil {
 				return false
 			}
-			switch n.(type) {
+			switch e := n.(type) {
+			case *nodes.FuncCallExpr:
+				if ferr := c.validateViewFuncExists(e, targetDB); ferr != nil {
+					err = ferr
+					return false
+				}
 			case *nodes.VariableRef:
 				if isView {
 					err = errViewSelectVariable()
@@ -2214,6 +2235,34 @@ func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isVi
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) validateViewFuncExists(fc *nodes.FuncCallExpr, targetDB *Database) error {
+	if fc == nil || fc.Name == "" || c.loadingSDL {
+		return nil
+	}
+	lower := toLower(fc.Name)
+	if fc.Schema != "" {
+		if isSystemDatabaseName(fc.Schema) {
+			return nil
+		}
+		db := c.GetDatabase(fc.Schema)
+		if db == nil || db.Functions[lower] == nil {
+			return errNoSuchFunction(fc.Name)
+		}
+		return nil
+	}
+	if isBuiltinOceanBaseFunction(lower) {
+		return nil
+	}
+	curDB := c.GetDatabase(c.CurrentDatabase())
+	if curDB == nil {
+		curDB = targetDB
+	}
+	if curDB != nil && curDB.Functions[lower] != nil {
+		return nil
+	}
+	return errNoSuchFunction(fc.Name)
 }
 
 func hasVectorSortExpr(orderBy []*nodes.OrderByItem) bool {

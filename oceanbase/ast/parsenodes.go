@@ -8,6 +8,7 @@ package ast
 type SelectStmt struct {
 	Loc               Loc
 	CTEs              []*CommonTableExpr // WITH clause (CTEs)
+	OptimizerHints    []string           // /*+ ... */ optimizer hint bodies immediately after SELECT
 	DistinctKind      DistinctKind       // DISTINCT, ALL, or none
 	CalcFoundRows     bool               // SQL_CALC_FOUND_ROWS
 	HighPriority      bool               // HIGH_PRIORITY
