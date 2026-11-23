@@ -14,6 +14,34 @@
 # alternatives that need it get no generated row.
 # columns: token, form, note
 
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite). gram.y
+# spells IF_P EXISTS and IF_P NOT EXISTS inline in most statements, in an
+# alternative of its own that already gets a row; opt_if_exists and
+# opt_if_not_exists are the sites that name the clause instead.
+opt_if_exists	(every site)	IF EXISTS
+opt_if_not_exists	(every site)	IF NOT EXISTS
+opt_or_replace	(every site)	OR REPLACE
+OptTemp	(every site)	TEMPORARY and its spellings
+opt_concurrently	(every site)	CONCURRENTLY
+opt_drop_behavior	(every site)	CASCADE or RESTRICT
+OptNoLog	(every site)	UNLOGGED
+opt_unique	(every site)	UNIQUE
+opt_nowait	(every site)	NOWAIT
+opt_verbose	(every site)	VERBOSE
+opt_with_data	(every site)	WITH DATA or WITH NO DATA
+opt_unique_null_treatment	(every site)	NULLS [NOT] DISTINCT
+opt_column	(every site)	COLUMN
+opt_table	(every site)	TABLE
+opt_transaction	(every site)	WORK or TRANSACTION
+opt_with	(every site)	WITH
+opt_from_in	(every site)	FROM or IN
+opt_no	(every site)	NO
+opt_granted_by	(every site)	GRANTED BY
+opt_as	(every site)	AS
+opt_procedural	(every site)	PROCEDURAL
+opt_transaction_chain	(every site)	AND [NO] CHAIN
+
 # Literals, operators and the tokens the filter forms from other text.
 IDENT	a	scan.l {identifier}: folded to lower case, so a is itself
 UIDENT	(unreachable)	scan.l {xuistart}, U&"...": base_yylex turns it into IDENT before the grammar reads it

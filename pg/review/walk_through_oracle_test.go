@@ -1077,7 +1077,6 @@ func walkStates(msg string) []string {
 	case strings.HasSuffix(msg, " refers to another database, which PostgreSQL doesn't allow."),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` "),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE OR REPLACE CONSTRAINT TRIGGER`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `INSTEAD OF` trigger without `FOR EACH ROW`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `REFERENCING ... ROW` in `CREATE TRIGGER`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `FOR EACH ROW` trigger with transition tables"),

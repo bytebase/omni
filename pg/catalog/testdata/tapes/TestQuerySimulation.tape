@@ -898,6 +898,16 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT INTO TEMPORARY TABLE a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT INTO TEMP a
 < error
 | 0A000 views must not contain SELECT INTO
@@ -918,7 +928,27 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT INTO TEMP TABLE a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY TABLE a
 < error
 | 0A000 views must not contain SELECT INTO
 > exec
@@ -938,6 +968,16 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT INTO LOCAL TEMP TABLE a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY a
 < error
 | 0A000 views must not contain SELECT INTO
@@ -948,7 +988,27 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY TABLE a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT INTO GLOBAL TEMP a
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT INTO GLOBAL TEMP TABLE a
 < error
 | 0A000 views must not contain SELECT INTO
 > exec
@@ -969,6 +1029,16 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT INTO UNLOGGED
+< error
+| 0A000 views must not contain SELECT INTO
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT INTO UNLOGGED TABLE a
 < error
 | 0A000 views must not contain SELECT INTO
 > exec

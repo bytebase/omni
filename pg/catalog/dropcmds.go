@@ -84,6 +84,17 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	// DROP INDEX CONCURRENTLY takes one index and no CASCADE, refused
+	// before any name is looked up.
+	// pg: src/backend/commands/tablecmds.c — RemoveRelations (drop->concurrent)
+	if stmt.Concurrent {
+		if len(stmt.Objects.Items) != 1 {
+			return &Error{Code: CodeFeatureNotSupported, Message: "DROP INDEX CONCURRENTLY does not support dropping multiple objects"}
+		}
+		if stmt.Behavior == int(nodes.DROP_CASCADE) {
+			return &Error{Code: CodeFeatureNotSupported, Message: "DROP INDEX CONCURRENTLY does not support CASCADE"}
+		}
+	}
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
 	type target struct {
 		schema *Schema

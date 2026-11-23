@@ -86,6 +86,13 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
+	// pg: src/backend/commands/indexcmds.c — DefineIndex (partitioned:
+	// stmt->concurrent is refused, even for a temporary table)
+	if rel.RelKind == 'p' && stmt.Concurrent {
+		return &Error{Code: CodeFeatureNotSupported,
+			Message: fmt.Sprintf("cannot create index on partitioned table %q concurrently", rv.Relname)}
+	}
+
 	effectiveTablespace := c.effectiveIndexTablespace(stmt.TableSpace, rel)
 	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
 		return err

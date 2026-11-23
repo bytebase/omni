@@ -4,7 +4,7 @@
 
 `compat.tsv` holds a statement for each alternative of each rule in
 PostgreSQL 17's grammar (`../../../../pg/testdata/gram.y` and
-`../../../../pg/testdata/tokens.tsv`), followed by its near-misses (13,700
+`../../../../pg/testdata/tokens.tsv`), followed by its near-misses (13,971
 generated rows total), plus the `suite:spanner-pg-ddl` corpus (143 hand-curated
 Cloud Spanner PostgreSQL DDL extension statements and near-misses), with omni's
 verdict (`spanner/parser.ParsePostgres`, delegating to
@@ -23,10 +23,10 @@ access** in offline replay. Recorded live against the pinned Spanner emulator
 
 | Rows | Total | Agree | Only Spanner-PG accepts | Only omni/pg accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 3,394 | 3,394 | 0 | 0 | 100.00% |
-| Near-misses | 10,306 | 10,306 | 0 | 0 | 100.00% |
+| One per alternative | 3,591 | 3,591 | 0 | 0 | 100.00% |
+| Near-misses | 10,380 | 10,380 | 0 | 0 | 100.00% |
 | `suite:spanner-pg-ddl` | 143 | 143 | 0 | 0 | 100.00% |
-| **All** | **13,843** | **13,843** | **0** | **0** | **100.00%** |
+| **All** | **14,114** | **14,114** | **0** | **0** | **100.00%** |
 
 13 `gram.y` alternatives get no generated row (same as `pg/parser`): the five
 internal `MODE_*` entry points (`MODE_TYPE_NAME`, `MODE_PLPGSQL_EXPR`,
@@ -143,7 +143,7 @@ Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`:
 OMNI_RECORD=1 go test -v -timeout 30m ./spanner/parser/ -run '^TestPostgresCompatibility$'
 ```
 
-Read-only live verification against the pinned emulator (re-judges all 13,843
+Read-only live verification against the pinned emulator (re-judges all 14,114
 rows, writes nothing, fails on any diff):
 
 ```bash
