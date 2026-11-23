@@ -42,6 +42,13 @@ opt_as	(every site)	AS
 opt_procedural	(every site)	PROCEDURAL
 opt_transaction_chain	(every site)	AND [NO] CHAIN
 
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative).
+object_type_any_name	(every alternative)	gram.y:6950 object types taking any_name
+object_type_name	(every alternative)	gram.y:6972 object types taking name
+drop_type_name	(every alternative)	gram.y:6980 object types DROP takes by name
+object_type_name_on_any_name	(every alternative)	gram.y:6992 object types attached to a table
+
 # Literals, operators and the tokens the filter forms from other text.
 IDENT	a	scan.l {identifier}: folded to lower case, so a is itself
 UIDENT	(unreachable)	scan.l {xuistart}, U&"...": base_yylex turns it into IDENT before the grammar reads it
