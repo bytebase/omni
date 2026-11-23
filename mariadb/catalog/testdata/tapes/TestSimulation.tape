@@ -86691,3 +86691,123 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_e` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE t ALTER COLUMN IF EXISTS x SET DEFAULT (zzz), ADD COLUMN e INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE VIEW omni_simulation.`a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `a` AS select `t`.`b` AS `b`,`t`.`a` AS `a`,`t`.`d` AS `d` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE t CHANGE IF EXISTS x y INT AS (zzz), ADD COLUMN e INT
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE VIEW omni_simulation.`a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `a` AS select `t`.`b` AS `b`,`t`.`a` AS `a`,`t`.`d` AS `d` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci

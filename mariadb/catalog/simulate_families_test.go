@@ -50,6 +50,8 @@ var familyRows = families(map[string][]familyRow{
 		{"exists:column", "ALTER TABLE t CHANGE IF EXISTS x y INT, MODIFY IF EXISTS a BIGINT"},
 		{"exists:column", "ALTER TABLE t RENAME COLUMN IF EXISTS x TO y, ALTER COLUMN IF EXISTS d SET DEFAULT 1"},
 		{"exists:column", "ALTER TABLE t RENAME KEY IF EXISTS x TO y, RENAME KEY IF EXISTS idx_d TO idx_e"},
+		{"exists:column", "ALTER TABLE t ALTER COLUMN IF EXISTS x SET DEFAULT (zzz), ADD COLUMN e INT"},
+		{"exists:column", "ALTER TABLE t CHANGE IF EXISTS x y INT AS (zzz), ADD COLUMN e INT"},
 	},
 	"objects@partitioned": {
 		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p2 VALUES LESS THAN (300))"},

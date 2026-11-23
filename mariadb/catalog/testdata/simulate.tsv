@@ -5515,3 +5515,5 @@ ok:fa92d0134015	ok:fa92d0134015	engine	objects@view	exists:rename	RENAME TABLE I
 ok:2b6d3007504a	ok:2b6d3007504a	engine	objects@view	exists:column	ALTER TABLE t CHANGE IF EXISTS x y INT, MODIFY IF EXISTS a BIGINT
 ok:e184fc087533	ok:e184fc087533	engine	objects@view	exists:column	ALTER TABLE t RENAME COLUMN IF EXISTS x TO y, ALTER COLUMN IF EXISTS d SET DEFAULT 1
 ok:39a17cd763f3	ok:39a17cd763f3	engine	objects@view	exists:column	ALTER TABLE t RENAME KEY IF EXISTS x TO y, RENAME KEY IF EXISTS idx_d TO idx_e
+ok:a803a12b2bae	ok:a803a12b2bae	engine	objects@view	exists:column	ALTER TABLE t ALTER COLUMN IF EXISTS x SET DEFAULT (zzz), ADD COLUMN e INT
+ok:a803a12b2bae	ok:a803a12b2bae	engine	objects@view	exists:column	ALTER TABLE t CHANGE IF EXISTS x y INT AS (zzz), ADD COLUMN e INT

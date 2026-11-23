@@ -63,7 +63,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	return c.alterTableKeepingOptions(db, tbl, key, stmt)
+	return c.alterTableKeepingOptions(db, tbl, key, withoutAbsentIfExists(tbl, stmt))
 }
 
 // alterTableKeepingOptions runs the ALTER and then drops PAGE_CHECKSUM unless the
@@ -390,7 +390,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	if err != nil {
 		return err
 	}
-	skip = skipAbsentIfExists(tbl, stmt.Commands, skip)
 
 	charsetPlan, err := c.planAlterCharset(tbl, stmt.Commands)
 	if err != nil {
@@ -3331,35 +3330,43 @@ func (c *Catalog) planAlterCharset(tbl *Table, cmds []*nodes.AlterTableCmd) (alt
 	return plan, nil
 }
 
-// skipAbsentIfExists adds to skip the CHANGE, MODIFY, ALTER [COLUMN], RENAME
-// COLUMN and RENAME KEY commands whose IF EXISTS names a column or key the
-// table did not begin the statement with. MariaDB drops them with a note
-// before the ALTER runs (handle_if_exists_options, sql/sql_table.cc,
-// mariadb-11.8.8): mariadb:11.8.8 runs `ALTER TABLE a CHANGE IF EXISTS a a
-// INT` over a table with no column a and changes nothing.
-func skipAbsentIfExists(tbl *Table, cmds []*nodes.AlterTableCmd, skip map[*nodes.AlterTableCmd]bool) map[*nodes.AlterTableCmd]bool {
-	for _, cmd := range cmds {
-		if cmd == nil || !cmd.IfExists {
-			continue
+// withoutAbsentIfExists returns stmt without the CHANGE, MODIFY, ALTER
+// [COLUMN], RENAME COLUMN and RENAME KEY commands whose IF EXISTS names a
+// column or key the table did not begin the statement with. MariaDB drops
+// them with a note before the ALTER runs (handle_if_exists_options,
+// sql/sql_table.cc, mariadb-11.8.8), so nothing after reads them:
+// mariadb:11.8.8 runs `ALTER TABLE a CHANGE IF EXISTS a a INT` over a table
+// with no column a and changes nothing.
+func withoutAbsentIfExists(tbl *Table, stmt *nodes.AlterTableStmt) *nodes.AlterTableStmt {
+	var kept []*nodes.AlterTableCmd
+	for i, cmd := range stmt.Commands {
+		absent := false
+		if cmd != nil && cmd.IfExists {
+			switch cmd.Type {
+			case nodes.ATChangeColumn, nodes.ATModifyColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
+				name := cmd.Name
+				if name == "" && cmd.Column != nil {
+					name = cmd.Column.Name
+				}
+				_, present := tbl.colByName[toLower(name)]
+				absent = !present
+			case nodes.ATRenameIndex:
+				absent = !indexNameExists(tbl, cmd.Name)
+			}
 		}
-		var present bool
-		switch cmd.Type {
-		case nodes.ATChangeColumn, nodes.ATModifyColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
-			_, present = tbl.colByName[toLower(cmd.Name)]
-		case nodes.ATRenameIndex:
-			present = indexNameExists(tbl, cmd.Name)
-		default:
-			continue
+		if absent && kept == nil {
+			kept = append([]*nodes.AlterTableCmd{}, stmt.Commands[:i]...)
 		}
-		if present {
-			continue
+		if !absent && kept != nil {
+			kept = append(kept, cmd)
 		}
-		if skip == nil {
-			skip = map[*nodes.AlterTableCmd]bool{}
-		}
-		skip[cmd] = true
 	}
-	return skip
+	if kept == nil {
+		return stmt
+	}
+	out := *stmt
+	out.Commands = kept
+	return &out
 }
 
 // dropsPartitionIfExists reports whether an ALTER TABLE holds DROP PARTITION
