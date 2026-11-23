@@ -865,6 +865,40 @@ func checkAutoIncrementInChecks(tbl *Table, stmt *nodes.CreateTableStmt) error {
 	return nil
 }
 
+// checkAutoIncrementInTableChecks holds the table an ALTER TABLE leaves to
+// checkAutoIncrementInChecks' rule, whichever clause brought the CHECK or the
+// AUTO_INCREMENT in: measured on mariadb:11.8.8 over (id INT AUTO_INCREMENT
+// PRIMARY KEY, b INT, CHECK (b > 0)), MODIFY id INT AUTO_INCREMENT CHECK (id >
+// 0), ADD COLUMN x INT CHECK (x > id) and MODIFY id INT, MODIFY b INT
+// AUTO_INCREMENT UNIQUE each answer 1901. The CHECKs the table holds are
+// stored as text, which is read as DROP COLUMN reads it (checkColumnRefs).
+func checkAutoIncrementInTableChecks(tbl *Table) error {
+	var auto []*Column
+	for _, col := range tbl.Columns {
+		if col.AutoIncrement {
+			auto = append(auto, col)
+		}
+	}
+	if len(auto) == 0 {
+		return nil
+	}
+	for _, con := range tbl.Constraints {
+		if con.Type != ConCheck || con.Implicit {
+			continue
+		}
+		refs, ok := checkColumnRefs(con.CheckExpr)
+		if !ok {
+			continue
+		}
+		for _, col := range auto {
+			if refs[toLower(col.Name)] {
+				return errUnusableInCheck("AUTO_INCREMENT", col.Name)
+			}
+		}
+	}
+	return nil
+}
+
 // checkAutoIncrementInCheckExpr refuses one CHECK expression that reads an
 // AUTO_INCREMENT column of tbl (checkAutoIncrementInChecks); an ALTER TABLE
 // asks it of a CHECK it adds, before the CHECK is added.

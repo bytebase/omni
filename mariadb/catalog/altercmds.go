@@ -140,6 +140,10 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 			undoAlter(db, key, tbl, snapshot)
 			return err
 		}
+		if err := checkAutoIncrementInTableChecks(tbl); err != nil {
+			undoAlter(db, key, tbl, snapshot)
+			return err
+		}
 	}
 	if inForeignKey {
 		if err := c.checkForeignKeyColumnChanges(tbl, origDB, origName, beforeColumns, renames, existing); err != nil {

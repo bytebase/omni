@@ -98,6 +98,8 @@ func TestFamilyFixes(t *testing.T) {
 	}
 }
 
+const aiSetup = "CREATE TABLE ai (id INT AUTO_INCREMENT PRIMARY KEY, b INT, CONSTRAINT cb CHECK (b > 0))"
+
 const ftSetup = "CREATE TABLE f (id INT PRIMARY KEY, name VARCHAR(10) NOT NULL, g POINT NOT NULL, FULLTEXT KEY ft (name), SPATIAL KEY sg (g))"
 
 const fkSetup = "CREATE TABLE p (id INT PRIMARY KEY, n INT); CREATE TABLE c (id INT PRIMARY KEY, p INT, CONSTRAINT fk FOREIGN KEY (p) REFERENCES p (id) ON UPDATE SET NULL)"
@@ -131,6 +133,10 @@ func TestReviewRoundOne(t *testing.T) {
 		{"skipped key under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT, KEY k (c))", "ALTER TABLE t ADD INDEX IF NOT EXISTS k (c), ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
 		{"absent key dropped under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT)", "ALTER TABLE t DROP INDEX IF EXISTS k, ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
 		{"column CHECK on AUTO_INCREMENT", "", "CREATE TABLE k (a INT AUTO_INCREMENT PRIMARY KEY CHECK (a > 0))", 1901},
+		{"column CHECK made on an AUTO_INCREMENT column", aiSetup, "ALTER TABLE ai MODIFY id INT AUTO_INCREMENT CHECK (id > 0)", 1901},
+		{"added column CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD COLUMN x INT CHECK (x > id)", 1901},
+		{"CHECKed column made AUTO_INCREMENT", aiSetup, "ALTER TABLE ai MODIFY id INT, MODIFY b INT AUTO_INCREMENT UNIQUE", 1901},
+		{"added CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD CONSTRAINT cx CHECK (id > 0)", 1901},
 		{"FULLTEXT key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY name INT, DROP INDEX ft", 0},
 		{"SPATIAL key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY g POINT NULL, DROP INDEX sg", 0},
 		{"FULLTEXT key kept", ftSetup, "ALTER TABLE f MODIFY name INT", 1283},
