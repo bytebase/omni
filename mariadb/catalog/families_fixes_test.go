@@ -98,6 +98,8 @@ func TestFamilyFixes(t *testing.T) {
 	}
 }
 
+const ftSetup = "CREATE TABLE f (id INT PRIMARY KEY, name VARCHAR(10) NOT NULL, g POINT NOT NULL, FULLTEXT KEY ft (name), SPATIAL KEY sg (g))"
+
 const fkSetup = "CREATE TABLE p (id INT PRIMARY KEY, n INT); CREATE TABLE c (id INT PRIMARY KEY, p INT, CONSTRAINT fk FOREIGN KEY (p) REFERENCES p (id) ON UPDATE SET NULL)"
 
 // TestDropTableGoesOn pins DROP TABLE's dropping the tables it can when one is
@@ -129,6 +131,11 @@ func TestReviewRoundOne(t *testing.T) {
 		{"skipped key under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT, KEY k (c))", "ALTER TABLE t ADD INDEX IF NOT EXISTS k (c), ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
 		{"absent key dropped under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT)", "ALTER TABLE t DROP INDEX IF EXISTS k, ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
 		{"column CHECK on AUTO_INCREMENT", "", "CREATE TABLE k (a INT AUTO_INCREMENT PRIMARY KEY CHECK (a > 0))", 1901},
+		{"FULLTEXT key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY name INT, DROP INDEX ft", 0},
+		{"SPATIAL key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY g POINT NULL, DROP INDEX sg", 0},
+		{"FULLTEXT key kept", ftSetup, "ALTER TABLE f MODIFY name INT", 1283},
+		{"VARCHAR widened under a foreign key", "CREATE TABLE p (s VARCHAR(10), UNIQUE KEY (s)); CREATE TABLE c (s VARCHAR(10), FOREIGN KEY (s) REFERENCES p (s))", "ALTER TABLE c MODIFY s VARCHAR(20)", 1832},
+		{"engine moved with the foreign keys dropped", fkSetup, "ALTER TABLE c DROP FOREIGN KEY fk, ENGINE = MyISAM", 1217},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			c := wtSetup(t)

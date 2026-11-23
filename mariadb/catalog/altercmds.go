@@ -481,6 +481,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		dropsPK:        alterDropsPrimaryKey(stmt.Commands),
 		droppedColumns: alterDroppedColumns(stmt.Commands),
 		droppedFKs:     alterDroppedFKs(stmt.Commands),
+		droppedKeys:    alterDroppedIndexNames(stmt.Commands),
 		declaredChecks: alterDeclaredCheckNames(stmt.Commands),
 		skippedColumns: skippedColumns,
 		skippedKeys:    skippedKeys,
@@ -674,6 +675,7 @@ type alterExecCtx struct {
 	dropsPK        bool
 	droppedColumns map[string]bool
 	droppedFKs     map[string]bool
+	droppedKeys    map[string]bool // lowered names of the indexes the statement drops
 	checksGone     map[*Constraint]bool
 	droppedIndexes []string
 	declaredChecks map[string]bool
@@ -1261,6 +1263,18 @@ func alterDropsPrimaryKey(cmds []*nodes.AlterTableCmd) bool {
 	return false
 }
 
+// alterDroppedIndexNames returns the lowered names of the indexes the
+// statement drops with DROP INDEX or DROP KEY.
+func alterDroppedIndexNames(cmds []*nodes.AlterTableCmd) map[string]bool {
+	names := map[string]bool{}
+	for _, cmd := range cmds {
+		if cmd != nil && cmd.Type == nodes.ATDropIndex {
+			names[toLower(cmd.Name)] = true
+		}
+	}
+	return names
+}
+
 // alterDroppedColumns returns the columns the statement drops, which is what
 // decides whether a composite primary key survives it.
 // alterDeclaredCheckNames collects the names this statement's added CHECK
@@ -1642,8 +1656,12 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// The keys over the column hold its new definition to what they take, as
 	// they hold a column they are added over: measured on mariadb:11.8.8,
 	// MODIFY loc POINT NULL under a SPATIAL key is 1252, and MODIFY name INT
-	// under a FULLTEXT one 1283.
+	// under a FULLTEXT one 1283. A key the statement drops, in either order,
+	// holds it to nothing: MODIFY name INT, DROP INDEX ft runs.
 	for _, idx := range tbl.Indexes {
+		if actx.droppedKeys[toLower(idx.Name)] {
+			continue
+		}
 		for _, ic := range idx.Columns {
 			if ic == nil || !strings.EqualFold(ic.Name, oldName) {
 				continue
