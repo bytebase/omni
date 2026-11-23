@@ -471,6 +471,320 @@ func TestWalkThroughMySQLFKGeneratedIndex(t *testing.T) {
 	oneFinding(t, "RENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nCREATE INDEX pid ON kid (pid);", 2, "Index `pid` already exists in `kid`.", targetIbfk)
 }
 
+// TestWalkThroughMySQLRefusalFamilies pins every MySQL 8.0.46 refusal family
+// added for DDL and stored-program simulation recall alongside valid accepted
+// controls.
+func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				{
+					Name:   "parent",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name:   "plain",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "n", Type: "int"},
+						{Name: "s", Type: "varchar(64)"},
+						{Name: "g", Type: "point"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "idx_n", Type: "BTREE", Expressions: []string{"n"}},
+					},
+					CheckConstraints: []*metadata.CheckConstraintMetadata{
+						{Name: "chk_n", Expression: "(`n` > 0)"},
+					},
+				},
+				{
+					Name:   "child",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+						{Name: "other", Type: "int"},
+						{Name: "label", Type: "varchar(50)"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk_pid", Type: "BTREE", Expressions: []string{"pid"}},
+						{Name: "idx_other", Type: "BTREE", Expressions: []string{"other"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_pid", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+				{
+					Name:   "parent2",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name:   "child_two_fk",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk1", Type: "BTREE", Expressions: []string{"pid"}},
+						{Name: "i", Type: "BTREE", Expressions: []string{"pid", "id"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk1", Columns: []string{"pid"}, ReferencedTable: "parent2", ReferencedColumns: []string{"id"}},
+						{Name: "fk2", Columns: []string{"pid"}, ReferencedTable: "parent2", ReferencedColumns: []string{"id"}},
+					},
+				},
+				{
+					Name:   "parted",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pcol", Type: "int"},
+						{Name: "txt", Type: "text"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id", "pcol"}},
+					},
+					Partitions: []*metadata.TablePartitionMetadata{
+						{Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "`pcol`"},
+						{Name: "p1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "`pcol`"},
+					},
+				},
+				{
+					Name:   "my",
+					Engine: "MyISAM",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+				},
+				{
+					Name:   "self_fk",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk_self", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_self", Columns: []string{"pid"}, ReferencedTable: "self_fk", ReferencedColumns: []string{"id"}},
+					},
+				},
+				{
+					Name:   "other_db_parent",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name:   "other_db_child",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk_other", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_other", Columns: []string{"pid"}, ReferencedSchema: "Shop", ReferencedTable: "other_db_parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+			},
+			Views:  []*metadata.ViewMetadata{{Name: "v"}},
+			Events: []*metadata.EventMetadata{{Name: "ev"}},
+		}},
+	}
+	target := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+
+	// Refusals: every newly covered family produces a finding.
+	refusals := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		// Partitioning management & clauses (1505, 1066, 1492, 1500, 1479, 1517, 1508, 1509, 1511, 1506, 1488, 1652, 1503, 3855, 1054).
+		{"1505 add partition on non-partitioned", "ALTER TABLE plain ADD PARTITION (PARTITION p0 VALUES LESS THAN (10));", "Table `plain` is not partitioned."},
+		{"1505 remove partitioning on non-partitioned", "ALTER TABLE plain REMOVE PARTITIONING;", "Table `plain` is not partitioned."},
+		{"1066 exchange partition with self", "ALTER TABLE parted EXCHANGE PARTITION p0 WITH TABLE parted;", "Table `parted` cannot exchange a partition with itself."},
+		{"1492 partition by range without defs", "ALTER TABLE plain PARTITION BY RANGE (id);", "Each partition must be defined for `RANGE` or `LIST` partitioning."},
+		{"1492 add partition without defs on range", "ALTER TABLE parted ADD PARTITION PARTITIONS 1;", "Each partition must be defined for `RANGE` or `LIST` partitioning."},
+		{"1500 subpartition on key", "ALTER TABLE plain PARTITION BY KEY () SUBPARTITION BY HASH (id);", "`SUBPARTITION BY` is only supported with `RANGE` or `LIST` partitioning."},
+		{"1479 add partition missing values on range", "ALTER TABLE parted ADD PARTITION (PARTITION p2);", "Partition `p2` requires a `VALUES` definition."},
+		{"1517 duplicate partition name", "ALTER TABLE parted ADD PARTITION (PARTITION p0 VALUES LESS THAN (300));", "Partition `p0` already exists in `parted`."},
+		{"1508 drop all partitions", "ALTER TABLE parted DROP PARTITION p0, p1;", "Cannot remove all partitions from `parted`."},
+		{"1509 coalesce on range", "ALTER TABLE parted COALESCE PARTITION 1;", "`COALESCE PARTITION` is only valid for `HASH` or `KEY` partitioning."},
+		{"1511 reorganize without params on range", "ALTER TABLE parted REORGANIZE PARTITION;", "`REORGANIZE PARTITION` without parameters is only valid for `HASH` or `KEY` partitioning."},
+		{"1506 partition table with fk", "ALTER TABLE child PARTITION BY KEY ();", "Partitioned table `child` cannot have foreign keys."},
+		{"1506 add fk on partitioned table", "ALTER TABLE parted ADD FOREIGN KEY (id) REFERENCES parent (id);", "Partitioned table `parted` cannot define foreign keys."},
+		{"1488 partition by key missing col", "ALTER TABLE plain PARTITION BY KEY (nosuch);", "Partition column `nosuch` doesn't exist in `plain`."},
+		{"1652 duplicate partition key col", "ALTER TABLE plain PARTITION BY KEY (id, id);", "This statement lists partition column `id` twice."},
+		{"1503 unique key missing partition col", "ALTER TABLE plain PARTITION BY HASH (n);", "Every unique key of `plain` must include all columns in its partitioning function."},
+		{"3855 drop partition col", "ALTER TABLE parted DROP COLUMN pcol;", "Column `pcol` in `parted` is used by the table's partitioning function."},
+		{"3855 rename partition col to self", "ALTER TABLE parted RENAME COLUMN pcol TO pcol;", "Column `pcol` in `parted` is used by the table's partitioning function."},
+		{"1054 partition bound colref", "ALTER TABLE parted ADD PARTITION (PARTITION p2 VALUES LESS THAN (badcol));", "Column `badcol` doesn't exist in the partition function."},
+		{"1054 partition hash missing col", "ALTER TABLE plain PARTITION BY HASH (nosuch);", "Column `nosuch` doesn't exist in the partition function."},
+
+		// Index & FK columns / types / backing (1072, 1060, 3762, 1214, 1283, 1687, 1089, 1239, 1553, 1828).
+		{"1072 create table missing key col", "CREATE TABLE x (a INT, KEY (missing));", "Key column `missing` doesn't exist in `x`."},
+		{"1072 create index missing col", "CREATE INDEX idx_m ON plain (missing);", "Key column `missing` doesn't exist in `plain`."},
+		{"1072 alter add key missing col", "ALTER TABLE plain ADD KEY (missing);", "Key column `missing` doesn't exist in `plain`."},
+		{"1072 alter drop col then index it", "ALTER TABLE plain DROP COLUMN n, ADD KEY k_n (n);", "Key column `n` doesn't exist in `plain`."},
+		{"1060 duplicate key col", "ALTER TABLE plain ADD KEY (n, n);", "This statement names column `n` twice."},
+		{"3762 functional index on bare col", "ALTER TABLE plain ADD KEY ((n));", "Functional index key part cannot be a bare column reference."},
+		{"1214 fulltext on partitioned table", "ALTER TABLE parted ADD FULLTEXT (txt);", "Partitioned table `parted` doesn't support `FULLTEXT` indexes."},
+		{"1283 fulltext on int col", "ALTER TABLE plain ADD FULLTEXT (n);", "Column `n` cannot be part of a `FULLTEXT` index."},
+		{"1687 spatial on int col", "ALTER TABLE plain ADD SPATIAL (n);", "Column `n` cannot be part of a `SPATIAL` index."},
+		{"1687 rtree on int col", "ALTER TABLE plain ADD KEY USING RTREE (n);", "Column `n` cannot be part of a `SPATIAL` index."},
+		{"1089 prefix on int col", "ALTER TABLE plain ADD KEY (n(1));", "Column `n` cannot use an index prefix length."},
+		{"1239 fk missing ref cols", "ALTER TABLE plain ADD FOREIGN KEY (n) REFERENCES parent;", "Foreign key in `plain` must name matching referenced columns."},
+		{"1553 drop index needed by fk", "DROP INDEX fk_pid ON child;", "Index `fk_pid` in `child` is needed by a foreign key constraint."},
+		{"1553 alter drop index needed by fk", "ALTER TABLE child DROP INDEX fk_pid;", "Index `fk_pid` in `child` is needed by a foreign key constraint."},
+		{"1828 drop col needed by fk", "ALTER TABLE child DROP COLUMN pid;", "Column `pid` in `child` is needed by a foreign key constraint."},
+
+		// CHECK & general constraints (3812, 3821, 3940, 3941).
+		{"3812 non-boolean check", "ALTER TABLE plain ADD CHECK (n);", "Check constraint in `plain` must be a boolean expression."},
+		{"3812 non-boolean col check", "ALTER TABLE plain ADD COLUMN x INT CHECK (x);", "Check constraint on `x` must be a boolean expression."},
+		{"3821 drop missing check", "ALTER TABLE plain DROP CHECK nosuch;", "Check constraint `nosuch` doesn't exist in `plain`."},
+		{"3821 alter missing check", "ALTER TABLE plain ALTER CHECK nosuch NOT ENFORCED;", "Check constraint `nosuch` doesn't exist in `plain`."},
+		{"3940 drop missing constraint", "ALTER TABLE plain DROP CONSTRAINT idx_n;", "Constraint `idx_n` doesn't exist in `plain`."},
+		{"3940 alter missing constraint", "ALTER TABLE plain ALTER CONSTRAINT nosuch ENFORCED;", "Constraint `nosuch` doesn't exist in `plain`."},
+		{"3941 alter non-check constraint", "ALTER TABLE child ALTER CONSTRAINT fk_pid ENFORCED;", "Constraint `fk_pid` in `child` is not a check constraint."},
+
+		// Columns, defaults, table options, empty table, SRS, RENAME self (1439, 1221, 1294, 1067, 3107, 3767, 1075, 4028, 3979, 3184, 1478, 4025, 3708, 1050/1146).
+		{"1439 int display width", "ALTER TABLE plain ADD COLUMN x INT(256);", "Column `x` has a display width or length past MySQL's limit."},
+		{"1439 bit width", "ALTER TABLE plain ADD COLUMN x BIT(65);", "Column `x` has a display width or length past MySQL's limit."},
+		{"1221 srid on non-geometry", "ALTER TABLE plain ADD COLUMN x INT SRID 1;", "Column `x` cannot declare `SRID` on a non-geometry type."},
+		{"1221 standalone with validation", "ALTER TABLE plain WITH VALIDATION;", "`WITH/WITHOUT VALIDATION` requires a column modification or `EXCHANGE PARTITION`."},
+		{"1294 on update on int", "ALTER TABLE plain ADD COLUMN x INT ON UPDATE CURRENT_TIMESTAMP;", "Column `x` cannot use `ON UPDATE` with type `int`."},
+		{"1067 bare now default on int", "ALTER TABLE plain ADD COLUMN x INT DEFAULT CURRENT_TIMESTAMP;", "Column `x` has an invalid default value."},
+		{"1067 non-numeric string default on int", "ALTER TABLE plain ALTER COLUMN n SET DEFAULT 'abc';", "Column `n` has an invalid default value."},
+		{"3107 generated self ref", "ALTER TABLE plain ADD COLUMN x INT AS (x);", "Generated column `x` cannot refer to itself."},
+		{"3767 expr default self ref", "ALTER TABLE plain ALTER COLUMN n SET DEFAULT (n);", "Default expression of column `n` cannot refer to itself."},
+		{"1075 unindexed auto_increment", "ALTER TABLE plain ADD COLUMN x INT AUTO_INCREMENT;", "Column `x` is `AUTO_INCREMENT` and must be defined as a key."},
+		{"4028 empty create table", "CREATE TABLE empty_tbl;", "Table `empty_tbl` must have at least one column."},
+		{"3979 start transaction option", "ALTER TABLE plain START TRANSACTION;", "MySQL doesn't accept `START TRANSACTION` as a table option."},
+		{"3184 invalid encryption", "ALTER TABLE plain ENCRYPTION = 'X';", "Invalid `ENCRYPTION` option value `X`."},
+		{"1478 innodb invalid compression", "ALTER TABLE plain COMPRESSION = 'bad';", "InnoDB doesn't support `COMPRESSION` value `bad`."},
+		{"1478 innodb row_format fixed", "ALTER TABLE plain ROW_FORMAT = FIXED;", "InnoDB doesn't support `ROW_FORMAT = FIXED`."},
+		{"4025 innodb autoextend_size out of range", "ALTER TABLE plain AUTOEXTEND_SIZE = 1;", "`AUTOEXTEND_SIZE` value `1` is out of range for InnoDB."},
+		{"3708 srs missing name", "CREATE SPATIAL REFERENCE SYSTEM 1;", "Spatial reference system requires a `NAME` attribute."},
+		{"3708 srs missing definition", "CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';", "Spatial reference system requires a `DEFINITION` attribute."},
+		{"1050 rename table to self", "RENAME TABLE plain TO plain;", "Table `plain` already exists."},
+		{"1146 rename missing table to self", "RENAME TABLE missing TO missing;", "`missing` doesn't exist."},
+
+		// Views / CTAS / Events (1054, 1551).
+		{"1054 view from-less colref", "CREATE VIEW v2 AS SELECT badcol;", "Column `badcol` doesn't exist in the query."},
+		{"1054 alter view from-less colref", "ALTER VIEW v AS SELECT badcol;", "Column `badcol` doesn't exist in the query."},
+		{"1054 ctas from-less colref", "CREATE TABLE t2 AS SELECT badcol;", "Column `badcol` doesn't exist in the query."},
+		{"1054 create event schedule colref", "CREATE EVENT ev2 ON SCHEDULE AT badcol DO COMMIT;", "Column `badcol` doesn't exist in the event schedule."},
+		{"1054 alter event schedule colref", "ALTER EVENT ev ON SCHEDULE EVERY badcol DAY;", "Column `badcol` doesn't exist in the event schedule."},
+		{"1551 alter event rename to self", "ALTER EVENT ev RENAME TO ev;", "Event `ev` cannot be renamed to the same name."},
+	}
+	for _, tc := range refusals {
+		t.Run("refuse/"+tc.name, func(t *testing.T) {
+			oneFinding(t, tc.sql, 0, tc.want, target)
+		})
+	}
+
+	// Valid accepted controls: none of these may produce a finding.
+	accepted := []struct {
+		name string
+		sql  string
+	}{
+		{"fulltext on varchar", "ALTER TABLE plain ADD FULLTEXT (s);"},
+		{"spatial on geometry", "ALTER TABLE plain ADD SPATIAL (g);"},
+		{"prefix on varchar", "ALTER TABLE plain ADD KEY (s(10));"},
+		{"functional index on expr", "ALTER TABLE plain ADD KEY ((n + 1));"},
+		{"boolean check", "ALTER TABLE plain ADD CHECK (n > 0);"},
+		{"drop existing check", "ALTER TABLE plain DROP CHECK chk_n;"},
+		{"alter existing check", "ALTER TABLE plain ALTER CHECK chk_n NOT ENFORCED;"},
+		{"alter constraint on existing check", "ALTER TABLE plain ALTER CONSTRAINT chk_n NOT ENFORCED;"},
+		{"drop index with fk dropped in same alter", "ALTER TABLE child DROP FOREIGN KEY fk_pid, DROP INDEX fk_pid;"},
+		{"drop index with replacement index in same alter", "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX fk_pid2 (pid);"},
+		{"drop index with inline unique in same alter", "ALTER TABLE child DROP INDEX fk_pid, MODIFY COLUMN pid INT UNIQUE;"},
+		{"drop col with fk dropped in same alter", "ALTER TABLE child DROP FOREIGN KEY fk_pid, DROP COLUMN pid;"},
+		{"partition by hash covering pk", "ALTER TABLE plain PARTITION BY HASH (id);"},
+		{"add valid range partition", "ALTER TABLE parted ADD PARTITION (PARTITION p2 VALUES LESS THAN (300));"},
+		{"drop one of two partitions", "ALTER TABLE parted DROP PARTITION p0;"},
+		{"remove partitioning then drop col", "ALTER TABLE parted REMOVE PARTITIONING;\nALTER TABLE parted DROP COLUMN pcol;"},
+		{"myisam row_format fixed", "ALTER TABLE my ROW_FORMAT = FIXED;"},
+		{"alter to myisam with row_format fixed", "ALTER TABLE plain ENGINE = MyISAM, ROW_FORMAT = FIXED;"},
+		{"innodb valid compression", "ALTER TABLE plain COMPRESSION = 'ZLIB';"},
+		{"innodb valid encryption", "ALTER TABLE plain ENCRYPTION = 'Y';"},
+		{"innodb valid autoextend_size", "ALTER TABLE plain AUTOEXTEND_SIZE = 4M;"},
+		{"innodb zero autoextend_size", "ALTER TABLE plain AUTOEXTEND_SIZE = 0;"},
+		{"numeric string default on int", "ALTER TABLE plain ALTER COLUMN n SET DEFAULT '42';"},
+		{"decimal string default on int", "CREATE TABLE x (a INT DEFAULT '1.5');"},
+		{"scientific string default on int", "CREATE TABLE x (a INT DEFAULT '1e2');"},
+		{"drop self fk and partition in same alter", "ALTER TABLE self_fk DROP FOREIGN KEY fk_self PARTITION BY HASH (id);"},
+		{"partition table whose namesake in different-case db is referenced", "ALTER TABLE other_db_parent PARTITION BY HASH (id);"},
+		{"drop pk col and repartition in same alter", "CREATE TABLE x (a INT PRIMARY KEY, b INT);\nALTER TABLE x DROP COLUMN a PARTITION BY HASH (b);"},
+		{"rename fk col drop old index add replacement index", "ALTER TABLE child RENAME COLUMN pid TO newpid, DROP INDEX fk_pid, ADD INDEX fk_pid2 (newpid);"},
+		{"set session default_storage_engine myisam with row_format fixed", "SET SESSION default_storage_engine = MyISAM;\nCREATE TABLE x (a INT) ROW_FORMAT = FIXED;"},
+		{"set session innodb_strict_mode off with row_format fixed", "SET SESSION innodb_strict_mode = 0;\nALTER TABLE plain ROW_FORMAT = FIXED;"},
+		{"swap index names then drop non-fk index", "ALTER TABLE child RENAME INDEX fk_pid TO idx_other, RENAME INDEX idx_other TO fk_pid;\nDROP INDEX fk_pid ON child;"},
+		{"view with IN subquery in from-less select", "CREATE VIEW v2 AS SELECT 1 IN (SELECT id FROM plain) AS x;"},
+		{"overridden default attribute uses last default", "CREATE TABLE x (a INT DEFAULT 'abc' DEFAULT 0);"},
+		{"modify col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x MODIFY COLUMN a VARCHAR(10), ALTER COLUMN a SET DEFAULT 'abc';"},
+		{"change col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x CHANGE COLUMN a b VARCHAR(10), ALTER COLUMN b SET DEFAULT 'abc';"},
+		{"drop fk index with replacement having trailing prefix", "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX fk_pid2 (pid, label(10));"},
+		{"drop constraint on fk preserves backing index in same alter", "ALTER TABLE child_two_fk DROP CONSTRAINT fk1, DROP INDEX i;"},
+		{"drop constraint on fk preserves backing index across stmts", "ALTER TABLE child_two_fk DROP CONSTRAINT fk1;\nDROP INDEX i ON child_two_fk;"},
+		{"rename table rewrites generated check prefix", "CREATE TABLE x (a INT, CONSTRAINT x_chk_1 CHECK (a > 0));\nRENAME TABLE x TO y;\nALTER TABLE y DROP CHECK y_chk_1;"},
+		{"expr default referencing other col", "ALTER TABLE plain ADD COLUMN x INT DEFAULT (n + 1);"},
+		{"generated col referencing other col", "ALTER TABLE plain ADD COLUMN x INT AS (n + 1);"},
+		{"auto_increment with key in same alter", "ALTER TABLE plain ADD COLUMN x INT AUTO_INCREMENT, ADD KEY (x);"},
+		{"on update on timestamp", "ALTER TABLE plain ADD COLUMN ts TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;"},
+		{"srid on point", "ALTER TABLE plain ADD COLUMN pt POINT SRID 4326;"},
+		{"view with literal and builtins", "CREATE VIEW v2 AS SELECT 1, CURRENT_TIMESTAMP, TIMESTAMPDIFF(DAY, '2020-01-01', '2020-01-02');"},
+		{"view with subquery", "CREATE VIEW v2 AS SELECT (SELECT id FROM plain LIMIT 1) AS x;"},
+		{"event with interval schedule", "CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS TIMESTAMPADD(HOUR, 1, NOW()) DO COMMIT;"},
+		{"event rename to new name", "ALTER EVENT ev RENAME TO ev2;"},
+		{"valid srs", "CREATE SPATIAL REFERENCE SYSTEM 4326 NAME 'WGS 84' DEFINITION 'GEOGCS[\"WGS 84\"]';"},
+		{"alter table rename col then partition by it", "ALTER TABLE plain RENAME COLUMN id TO id2 PARTITION BY HASH (id2);"},
+		{"rename pk col then partition in next stmt", "CREATE TABLE x (a INT PRIMARY KEY);\nALTER TABLE x RENAME COLUMN a TO b;\nALTER TABLE x PARTITION BY HASH (b);"},
+		{"swap cols then partition by renamed pk", "CREATE TABLE x (a INT PRIMARY KEY, b INT);\nALTER TABLE x RENAME COLUMN a TO b, RENAME COLUMN b TO a;\nALTER TABLE x PARTITION BY HASH (b);"},
+		{"rename child drop child then partition parent", "RENAME TABLE child TO child2;\nDROP TABLE child2;\nALTER TABLE parent PARTITION BY HASH (id);"},
+		{"rename child drop fk then partition parent", "RENAME TABLE child TO child2;\nALTER TABLE child2 DROP FOREIGN KEY fk_pid;\nALTER TABLE parent PARTITION BY HASH (id);"},
+		{"other specs ignores snapshot partitioning", "ALTER TABLE plain ADD PARTITION (PARTITION p0 VALUES LESS THAN (10));"},
+		{"other specs optional create table preserves partition uncertainty", "DROP TEMPORARY TABLE IF EXISTS x;\nCREATE TABLE IF NOT EXISTS x (a INT);\nALTER TABLE x ADD PARTITION (PARTITION p1 VALUES LESS THAN (20));"},
+	}
+	for _, tc := range accepted {
+		t.Run("accept/"+tc.name, func(t *testing.T) {
+			tgt := target
+			if strings.HasPrefix(tc.name, "other specs ") {
+				tgt.OtherSpecs = true
+			}
+			noFinding(t, tc.sql, tgt)
+		})
+	}
+}
+
 // formLowering walks a form on the schema, as walktest.Coverage asks.
 func formLowering(schema *metadata.DatabaseSchemaMetadata) func(t *testing.T, sql string) (n, lowered int, last bool) {
 	return func(t *testing.T, sql string) (n, lowered int, last bool) {

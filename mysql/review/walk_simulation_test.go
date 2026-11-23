@@ -19,14 +19,16 @@ import (
 func TestWalkSimulation(t *testing.T) {
 	same := (&mysqlEngine{fold: false}).Same
 	for _, suite := range []struct {
-		name string
-		path string
+		name     string
+		path     string
+		minPct   float64
+		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv")},
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv")},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 95.0, 2150},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 95.0, 256},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
-			walktest.CheckSimulation(t, walktest.Simulation{
+			res := walktest.CheckSimulation(t, walktest.Simulation{
 				Path:     suite.path,
 				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 				Setup:    mysqlSimFixture,
@@ -40,6 +42,14 @@ func TestWalkSimulation(t *testing.T) {
 				},
 				Same: same,
 			})
+			pct := 0.0
+			if res.Refused > 0 {
+				pct = 100 * float64(res.Found) / float64(res.Refused)
+			}
+			if res.Found < suite.minFound || pct < suite.minPct {
+				t.Errorf("%s recall regressed: got %d/%d (%.1f%%), want at least %d (%.1f%%)",
+					suite.name, res.Found, res.Refused, pct, suite.minFound, suite.minPct)
+			}
 		})
 	}
 }
@@ -129,10 +139,15 @@ func mysqlCatalogInventory(c *mysqlcatalog.Catalog, dbName string) []walktest.Ob
 			})
 		}
 		for _, con := range tbl.Constraints {
-			if con.Type == mysqlcatalog.ConForeignKey {
+			switch con.Type {
+			case mysqlcatalog.ConForeignKey:
 				objects = append(objects,
 					walktest.Object{Key: walk.Key{Space: spaceForeignKey, Parent: walk.Path(db.Name), Name: con.Name}},
 					walktest.Object{Key: walk.Key{Space: spaceTableForeignKey, Parent: walk.Path(db.Name, tbl.Name), Name: con.Name}},
+				)
+			case mysqlcatalog.ConCheck:
+				objects = append(objects,
+					walktest.Object{Key: walk.Key{Space: spaceCheckConstraint, Parent: walk.Path(db.Name, tbl.Name), Name: con.Name}},
 				)
 			}
 		}

@@ -11,8 +11,11 @@
 // either. The statements are the server's own, so each names its object in the
 // database it was read from and a dump restores into a database of that name;
 // the database itself is the caller's to create, since only SHOW CREATE
-// DATABASE states its comment, owner and location. SHOW CREATE TABLE states a
-// materialized view as a plain CREATE TABLE, which is what the dump writes.
+// DATABASE states its comment, owner and location. DESCRIBE FORMATTED supplies
+// what SHOW CREATE TABLE leaves out — managed-table status, partition locations
+// and storage overrides, view column comments and table properties, and
+// materialized view queries — so the dump completes each statement before
+// writing it.
 //
 // Hive has no transaction the client controls. Only ACID tables are
 // transactional, and HiveServer2 4.0 refuses BEGIN, COMMIT and ROLLBACK, so

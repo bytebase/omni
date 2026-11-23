@@ -54,11 +54,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -589,11 +589,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1124,11 +1124,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1659,11 +1659,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -2194,11 +2194,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -2729,11 +2729,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3264,11 +3264,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3844,7 +3844,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -3852,8 +3852,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -3875,77 +3875,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000007PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -4005,59 +4197,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000007PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -4103,28 +4247,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -4143,10 +4287,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -4158,10 +4302,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',ADD,ALTER,F,LOGGING,MV,NOSUCH,NUMBER,PUBT,PV,SQ,SYN,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUBT
@@ -4257,11 +4401,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -4772,11 +4916,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5287,11 +5431,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5802,11 +5946,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6317,11 +6461,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6832,11 +6976,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -7347,11 +7491,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -7862,11 +8006,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8356,11 +8500,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8850,11 +8994,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -9389,7 +9533,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -9397,8 +9541,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -9420,77 +9564,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000009PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -9550,59 +9886,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000009PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -9648,28 +9936,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -9688,10 +9976,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -9703,10 +9991,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,B,C1,CHECK,CK_N,CONSTRAINT,DROP,KEY,MODIFY,N,NOKEY,NOSUCH,NOT,NULL,NUMBER,OTHER,PRIMARY,T,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t ADD (x NUMBER) MODIFY (x NUMBER)
 < error
@@ -9796,11 +10084,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -10311,11 +10599,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -10769,7 +11057,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -10777,8 +11065,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -10800,77 +11088,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000025PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -10930,59 +11410,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000025PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -11028,28 +11460,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -11068,10 +11500,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -11083,10 +11515,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CASCADE,CHECK,CONSTRAINT,CONSTRAINTS,DROP,FK_P,NOKEY,P,TABLE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | DROP TABLE p CASCADE CONSTRAINTS
 < ok 0 0
@@ -11139,11 +11571,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -11684,11 +12116,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12229,586 +12661,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER
-: string
-| T
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| OTHER
-: string
-| X
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| OTHER
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13379,11 +13236,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13954,11 +13811,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14529,11 +14386,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15104,11 +14961,586 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER
+: string
+| T
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| OTHER
+: string
+| X
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| OTHER
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15727,7 +16159,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -15735,8 +16167,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -15758,77 +16190,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000044PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -15888,59 +16512,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000044PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -15986,28 +16562,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -16026,10 +16602,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -16041,10 +16617,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ALTER,CREATE,CURRENT_SCHEMA,NUMBER,OTHER,SESSION,SET,SHOP,T,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER SESSION SET CURRENT_SCHEMA = other
 < ok 0 0
@@ -16119,11 +16695,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16634,11 +17210,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17149,11 +17725,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17664,11 +18240,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18179,11 +18755,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18694,11 +19270,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -19209,11 +19785,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -19769,7 +20345,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -19777,8 +20353,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -19800,77 +20376,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000055PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -19930,59 +20698,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000055PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -20028,28 +20748,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -20068,10 +20788,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -20083,10 +20803,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,DELETE,FROM,ID,INSERT,INTO,MATCHED,MERGE,N,NOKEY,NOT,NOTE,NUMBER,ON,P,SELECT,SET,T,TABLE,THEN,UPDATE,UPPER,USING,VALUES,WHEN,WHERE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | INSERT INTO nokey VALUES (1)
 < ok 1 0
@@ -20153,11 +20873,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -20748,11 +21468,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -21343,11 +22063,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -21938,11 +22658,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -22533,11 +23253,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -23128,11 +23848,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -23723,11 +24443,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -24318,11 +25038,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -24913,11 +25633,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -25508,11 +26228,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26103,11 +26823,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26668,11 +27388,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -27287,7 +28007,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -27295,8 +28015,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -27318,77 +28038,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000037PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -27448,59 +28360,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000037PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -27546,28 +28410,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -27586,10 +28450,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -27609,10 +28473,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ALL,DELETE,DROP,DUAL,FROM,ID,INSERT,INTO,K,MATCHED,MERGE,NOKEY,NOSUCH,ON,P,PR,PUBT,SELECT,SET,SHOP,SQ,S_GONE,S_OTHER,TABLE,THEN,TY,UPDATE,USING,VALUES,WHEN,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -27731,11 +28595,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28256,11 +29120,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28826,7 +29690,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -28834,8 +29698,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -28857,77 +29721,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000038PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -28987,59 +30043,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000038PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -29085,28 +30093,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -29125,10 +30133,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -29140,10 +30148,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ID,INSERT,INTO,PUBLIC,PUBT,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUBT
@@ -29204,11 +30212,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -29739,11 +30747,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -30274,11 +31282,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -30809,11 +31817,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -31344,11 +32352,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -31879,11 +32887,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32414,11 +33422,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32949,11 +33957,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -33484,11 +34492,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -34019,11 +35027,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -34554,11 +35562,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35089,11 +36097,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35594,11 +36602,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -36099,11 +37107,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -36649,7 +37657,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -36657,8 +37665,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -36680,77 +37688,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000016PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -36810,59 +38010,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000016PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -36908,28 +38060,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -36948,10 +38100,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -36963,10 +38115,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,DROP,EXISTS,IF,MV,NOKEY,NOSUCH,NUMBER,PUBT,PV,SQ,SYN,TABLE,TY,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUBT
@@ -37087,11 +38239,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37674,11 +38826,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -38261,11 +39413,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -38796,11 +39948,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -39341,11 +40493,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -39958,7 +41110,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -39966,8 +41118,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -39994,87 +41146,308 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | TT
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | TT
 : string
 | O
+: string
+| TY
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000021PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| TT_IX
+: string
+| "O"."X"
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -40143,66 +41516,11 @@
 : string
 | o.x > 0
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000021PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| TT_IX
-: string
-| "O"."X"
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -40255,28 +41573,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -40295,10 +41613,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -40310,10 +41628,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CHECK,CK_O,CONSTRAINT,CREATE,DROP,FORCE,INDEX,NOKEY,NUMBER,O,ON,TABLE,TT,TT_IX,TY,TYPE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | DROP TYPE ty
 < error
@@ -40377,11 +41695,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -40892,11 +42210,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41407,11 +42725,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41922,11 +43240,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -42437,11 +43755,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -42952,11 +44270,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -43467,11 +44785,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -44027,7 +45345,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -44035,8 +45353,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -44058,77 +45376,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000028PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -44188,59 +45698,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000028PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -44286,28 +45748,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -44326,10 +45788,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -44341,10 +45803,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',DROP,INDEX,NOSUCH,PROCEDURE,PUBLIC,SYNONYM,TRIGGER,TYPE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | DROP SYNONYM nosuch
 < error
@@ -44421,11 +45883,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -44946,11 +46408,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -45471,11 +46933,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -45996,11 +47458,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -46521,11 +47983,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -47046,11 +48508,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -47571,11 +49033,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -48096,11 +49558,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -48621,11 +50083,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49146,11 +50608,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49671,11 +51133,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -50196,11 +51658,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -50721,11 +52183,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51246,11 +52708,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51771,11 +53233,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52256,11 +53718,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52741,11 +54203,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53206,11 +54668,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53671,11 +55133,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -54116,11 +55578,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -54561,11 +56023,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -54996,11 +56458,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55431,11 +56893,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55856,11 +57318,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -56326,7 +57788,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -56334,8 +57796,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -56357,77 +57819,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000027PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -56487,59 +58141,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000027PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -56585,28 +58191,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -56625,10 +58231,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -56640,10 +58246,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',ALTER,BY,DROP,EXISTS,F,FUNCTION,IF,INCREMENT,NOSUCH,PACKAGE,PKG,PR,PROCEDURE,PV,SEQUENCE,SQ,SYN,SYNONYM,T,TYPE,VIEW,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -56794,11 +58400,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57309,11 +58915,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57824,11 +59430,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58339,11 +59945,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58854,11 +60460,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59369,11 +60975,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59884,11 +61490,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60399,11 +62005,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60914,11 +62520,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61459,11 +63065,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62049,7 +63655,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -62057,8 +63663,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -62080,77 +63686,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000003PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -62210,59 +64008,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000003PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -62308,28 +64058,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -62348,10 +64098,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -62363,10 +64113,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,B,CHECK,CK_N,CONSTRAINT,CREATE,EXISTS,ID,IF,INDEX,IX_N,NOKEY,NOT,NUMBER,ON,PV,SEQUENCE,SQ,T,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE IF NOT EXISTS t (a NUMBER)
 < ok 0 0
@@ -62446,11 +64196,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62961,11 +64711,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -63476,11 +65226,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -63991,11 +65741,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64516,11 +66266,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65086,7 +66836,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -65094,8 +66844,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -65117,77 +66867,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000054PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -65247,59 +67189,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000054PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -65345,28 +67239,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -65385,10 +67279,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -65400,10 +67294,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,BEGIN,CREATE,END,EXISTS,F,FUNCTION,G,IF,IS,NOKEY,NOT,NUMBER,RETURN,TABLE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE FUNCTION IF NOT EXISTS f RETURN NUMBER IS BEGIN RETURN 7; END;
 < ok 0 0
@@ -65464,11 +67358,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65999,11 +67893,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66524,11 +68418,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67049,11 +68943,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67574,11 +69468,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68099,11 +69993,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68679,7 +70573,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -68687,8 +70581,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -68710,77 +70604,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000002PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -68840,59 +70926,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000002PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -68938,28 +70976,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -68978,10 +71016,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -68993,10 +71031,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,AS,B,BEGIN,CREATE,DUAL,END,F,FOR,FROM,FUNCTION,NUMBER,OBJECT,OR,P,PACKAGE,PKG,PV,REPLACE,RETURN,SELECT,SYN,SYNONYM,TY2,TYPE,VIEW,Y,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -69077,11 +71115,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -69602,11 +71640,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70127,11 +72165,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70652,11 +72690,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71177,11 +73215,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71702,11 +73740,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72227,11 +74265,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72752,536 +74790,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV2
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV2
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV2
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ2
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ2
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV2
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73802,11 +75315,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -74135,7 +75648,7 @@
 | SHOP
 : null
 : string
-| SYN2
+| SYN
 : string
 | SYNONYM
 < row
@@ -74212,7 +75725,7 @@
 | SHOP
 : null
 : string
-| SYN2
+| SYN
 : string
 | SYNONYM
 < row
@@ -74327,11 +75840,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -74852,11 +76365,536 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV2
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV2
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV2
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ2
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN2
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ2
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN2
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV2
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -75377,11 +77415,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -75902,11 +77940,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76472,7 +78510,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -76480,8 +78518,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -76503,77 +78541,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000034PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -76633,59 +78863,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000034PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -76731,28 +78913,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -76771,10 +78953,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -76786,10 +78968,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CREATE,DROP,F,G,MV,NK,NOKEY,NUMBER,PV,PV2,RENAME,SEQUENCE,SQ,SQ2,SYN,SYN2,SYNONYM,T,TABLE,TO,VIEW,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -76901,11 +79083,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77416,11 +79598,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77931,11 +80113,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78446,11 +80628,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78961,11 +81143,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79466,11 +81648,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79971,11 +82153,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80476,11 +82658,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80981,11 +83163,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81526,11 +83708,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -82050,11 +84232,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -82619,7 +84801,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -82627,8 +84809,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -82650,77 +84832,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000015PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -82780,59 +85154,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000015PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -82878,28 +85204,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -82918,10 +85244,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -82933,10 +85259,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CK_N,CODE,COLUMN,CONSTRAINT,CREATE,DROP,NUMBER,P,PV,RENAME,T,T2,TABLE,TO,X,ZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t RENAME TO p
 < error
@@ -83026,11 +85352,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -83541,11 +85867,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84056,11 +86382,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84571,11 +86897,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85131,7 +87457,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -85139,8 +87465,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -85162,77 +87488,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000035PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -85292,59 +87810,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000035PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -85390,28 +87860,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -85430,10 +87900,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -85445,10 +87915,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',NK,NOKEY,NOSUCH,PV,RENAME,T,TO,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | RENAME nosuch TO x
 < error
@@ -85510,11 +87980,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86045,11 +88515,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86580,11 +89050,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87115,11 +89585,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87650,11 +90120,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -88185,11 +90655,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -88720,11 +91190,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -89255,11 +91725,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -89790,11 +92260,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -90370,7 +92840,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -90378,8 +92848,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -90401,77 +92871,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000026PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -90531,59 +93193,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000026PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -90629,28 +93243,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -90669,10 +93283,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -90684,10 +93298,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',F,MV,NOKEY,NOSUCH,PUBT,PV,SQ,SYN,TABLE,TRUNCATE,TY,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUBT
@@ -90791,11 +93405,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91385,11 +93999,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91979,11 +94593,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92573,11 +95187,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93167,11 +95781,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93761,11 +96375,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94345,11 +96959,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94929,11 +97543,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95561,7 +98175,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -95569,8 +98183,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | JCT
@@ -95597,92 +98211,324 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | JCT
 : string
 | DATA
+: string
+| JSON
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | JCT
 : string
 | ETAG
+: string
+| RAW
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: string
+| CASE  WHEN "DATA" IS NULL THEN SYS_GUID() ELSE SYS_GUID() END 
 < row
 : string
 | JCT
 : string
 | RESID
+: string
+| RAW
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| JSON_VALUE("DATA" FORMAT OSON , '$._id' RETURNING ANY ORA_RAWCOMPARE(2000) NO ARRAY ERROR ON ERROR TYPE(LAX) )
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C9000022
+: string
+| RESID
+: string
+| 1
+< row
+: string
+| SYS_C_SNAP$_9000023PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | JCT
@@ -95750,66 +98596,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C9000022
-: string
-| RESID
-: string
-| 1
-< row
-: string
-| SYS_C_SNAP$_9000023PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | JCT
@@ -95869,28 +98660,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -95909,10 +98700,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -95932,10 +98723,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',ADD,ALTER,COLUMN,DATA,DROP,ETAG,JCT,JCT2,NUMBER,RENAME,RESID,TABLE,TO,ZZ,jct,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE jct ADD (data NUMBER)
 < error
@@ -96016,11 +98807,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96541,11 +99332,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -97066,11 +99857,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -97591,11 +100382,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -98167,7 +100958,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -98175,8 +100966,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -98198,77 +100989,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000053PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -98328,59 +101311,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000053PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -98426,28 +101361,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -98471,10 +101406,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -98486,10 +101421,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,INSERT,INTO,NEXTVAL,NOKEY,NUMBER,P,SET,SQ,TABLE,UPDATE,VALUES,WHERE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | UPDATE nokey SET a = 2 WHERE a = 1
 < ok 1 0
@@ -98547,11 +101482,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99062,11 +101997,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99535,11 +102470,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -100029,11 +102964,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -100568,7 +103503,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -100576,8 +103511,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -100599,77 +103534,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000013PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -100729,59 +103856,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000013PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -100827,28 +103906,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -100867,10 +103946,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -100882,10 +103961,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CHECK,CK_N,COLUMN,CONSTRAINT,DROP,N,NOKEY,T,TABLE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t DROP COLUMN n
 < ok 0 0
@@ -100943,11 +104022,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101458,11 +104537,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101941,505 +105020,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -102661,6 +105246,17 @@
 | SHOP
 < row
 : string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
 | object
 : string
 | SHOP
@@ -102918,11 +105514,494 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -103446,7 +106525,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -103454,8 +106533,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -103477,77 +106556,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000014PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -103607,59 +106878,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000014PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -103705,28 +106928,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -103745,10 +106968,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -103760,10 +106983,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ALTER,CONSTRAINT,CREATE,DISABLE,DROP,ENABLE,INDEX,NOKEY,ON,PK_T,T,TABLE,UK_CODE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t DROP CONSTRAINT uk_code
 < ok 0 0
@@ -103827,11 +107050,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104342,11 +107565,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104630,11 +107853,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104929,11 +108152,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105249,11 +108472,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105609,11 +108832,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105969,11 +109192,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -106374,7 +109597,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -106382,8 +109605,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -106405,77 +109628,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000017PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -106535,59 +109950,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000017PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -106633,28 +110000,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -106673,10 +110040,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -106688,10 +110055,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CASCADE,CHECK,CK_N,CODE,COLUMN,CONSTRAINT,CONSTRAINTS,CREATE,DROP,INDEX,IX_N,NOKEY,NUMBER,ON,T,TABLE,Z,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | DROP TABLE t CASCADE CONSTRAINTS
 < ok 0 0
@@ -106760,11 +110127,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -107285,11 +110652,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -107831,7 +111198,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -107839,8 +111206,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -107862,77 +111229,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000048PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -107992,59 +111551,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000048PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -108090,28 +111601,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | DROPT
@@ -108135,10 +111646,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -108150,10 +111661,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,AND,B,CREATE,DROPT,ID,NOKEY,NOTE,NUMBER,P,SET,TABLE,UPDATE,WHERE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | UPDATE p SET note = 'b' WHERE id = 1 AND dropt = 1
 < ok 1 0
@@ -108206,11 +111717,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -108731,11 +112242,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -109274,7 +112785,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -109282,8 +112793,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -109305,77 +112816,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000047PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -109435,59 +113138,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000047PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -109533,28 +113188,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | DROPT
@@ -109578,10 +113233,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -109593,10 +113248,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,DROPT,ID,INSERT,INTO,NOKEY,NOTE,NUMBER,P,TABLE,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | INSERT INTO p (id, note) VALUES (9, dropt)
 < ok 1 0
@@ -109649,11 +113304,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -110184,11 +113839,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -110719,576 +114374,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MADE
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MADE
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MKF
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MADE
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -111849,11 +114939,576 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MADE
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MADE
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MKF
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MADE
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -112432,7 +116087,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -112440,8 +116095,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -112463,77 +116118,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000046PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -112593,59 +116440,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000046PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -112691,28 +116490,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -112736,10 +116535,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -112751,10 +116550,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,AS,CREATE,DROP,DUAL,FROM,MADE,MKF,NUMBER,SELECT,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -112827,11 +116626,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -113482,11 +117281,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -114137,11 +117936,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -114652,11 +118451,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -115248,7 +119047,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -115256,8 +119055,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | ML
@@ -115289,117 +119088,411 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | ML
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | ML
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | SNAPTIME$$
+: string
+| DATE
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | DMLTYPE$$
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | OLD_NEW$$
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | CHANGE_VECTOR$$
+: string
+| RAW
+: string
+| Y
+: string
+| 5
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MLOG$_ML
 : string
 | XID$$
+: string
+| NUMBER
+: string
+| Y
+: string
+| 6
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| I_MLOG$_ML
+: string
+| XID$$
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C9000019
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000020PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | ML
@@ -115467,73 +119560,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| I_MLOG$_ML
-: string
-| XID$$
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C9000019
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000020PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | ML
@@ -115593,28 +119624,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -115633,10 +119664,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -115648,10 +119679,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,DROP,INDEX,I_MLOG$_ML,ML,MLOG$_ML,NOKEY,NUMBER,ON,TABLE,Z,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE mlog$_ml (z NUMBER)
 < error
@@ -115712,11 +119743,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -116357,11 +120388,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -117002,11 +121033,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -117587,626 +121618,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| CHILD
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PARENT2
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PARENT2
-: string
-| C
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| CHILD
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| CHILD2
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NT_TY
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PARENT2
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| CHILD
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| CHILD2
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| PARENT2
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -118817,11 +122233,626 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| CHILD
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PARENT2
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PARENT2
+: string
+| C
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| CHILD
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| CHILD2
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NT_TY
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PARENT2
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| CHILD
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| CHILD2
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| PARENT2
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -119402,11 +123433,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -120017,11 +124048,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -120662,11 +124693,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -121361,7 +125392,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -121369,8 +125400,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | CHILD
@@ -121412,102 +125443,366 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PARENT
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PARENT
 : string
 | C
+: string
+| NT_TY
+: string
+| Y
+: string
+| 2
+: string
+| YES
+: string
+| NO
+: null
 < row
 : string
 | PARENT2
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PARENT2
 : string
 | C
+: string
+| NT_TY
+: string
+| Y
+: string
+| 2
+: string
+| YES
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C9000050
+: string
+| C
+: string
+| 0
+< row
+: string
+| SYS_C9000051
+: string
+| C
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000052PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_FK0000089060N00002$
+: string
+| NESTED_TABLE_ID
+: string
+| 0
+< row
+: string
+| SYS_FK0000089064N00002$
+: string
+| NESTED_TABLE_ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000050PK_P
+| SYS_C_SNAP$_9000052PK_P
 : string
 | P
 : null
@@ -121523,7 +125818,7 @@
 : string
 | PARENT
 : string
-| SYS_C9000051
+| SYS_C9000050
 : string
 | U
 : null
@@ -121531,7 +125826,7 @@
 : string
 | PARENT2
 : string
-| SYS_C9000052
+| SYS_C9000051
 : string
 | U
 : null
@@ -121578,99 +125873,23 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C9000051
-: string
-| C
-: string
-| 0
-< row
-: string
-| SYS_C9000052
-: string
-| C
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000050PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_FK0000074276N00002$
-: string
-| NESTED_TABLE_ID
-: string
-| 0
-< row
-: string
-| SYS_FK0000074280N00002$
-: string
-| NESTED_TABLE_ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | CHILD
 : string
-| SYS_FK0000074276N00002$
+| SYS_FK0000089060N00002$
 : string
 | NORMAL
 < row
 : string
 | CHILD2
 : string
-| SYS_FK0000074280N00002$
+| SYS_FK0000089064N00002$
 : string
 | NORMAL
 < row
@@ -121684,7 +125903,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000050PK_P
+| SYS_C_SNAP$_9000052PK_P
 : string
 | NORMAL
 < row
@@ -121698,14 +125917,14 @@
 : string
 | PARENT
 : string
-| SYS_C9000051
+| SYS_C9000050
 : string
 | NORMAL
 < row
 : string
 | PARENT2
 : string
-| SYS_C9000052
+| SYS_C9000051
 : string
 | NORMAL
 < row
@@ -121732,28 +125951,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -121772,10 +125991,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -121787,10 +126006,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,C,CHILD,CHILD2,CHILD3,COLUMN,CREATE,DROP,NESTED,NOKEY,NT_TY,NUMBER,PARENT,PARENT2,STORE,TABLE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE child (a NUMBER)
 < error
@@ -121866,11 +126085,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -122381,11 +126600,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -122896,11 +127115,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -123411,11 +127630,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -123926,11 +128145,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -124441,11 +128660,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -124956,11 +129175,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -125516,7 +129735,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -125524,8 +129743,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -125547,77 +129766,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000004PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -125677,59 +130088,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000004PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -125775,28 +130138,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -125815,10 +130178,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -125830,10 +130193,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,B,C1,CHECK,CK_N,CONSTRAINT,CREATE,FK_P,FOREIGN,ID,KEY,NN_CODE,NOT,NULL,NUMBER,P,PRIMARY,REFERENCES,TABLE,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE x (a NUMBER, a NUMBER)
 < error
@@ -125910,11 +130273,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -126425,659 +130788,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| X
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| X
-: string
-| B
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| X
-: string
-| ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| X
-: string
-| CK_B
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| X
-: string
-| NN_A
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| X
-: string
-| PK_X
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| X
-: string
-| PK_X
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| X
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| X
-: string
-| CK_B
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| X
-: string
-| NN_A
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| X
-: string
-| PK_X
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -127721,11 +131436,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -128369,11 +132084,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -129017,11 +132732,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -129665,11 +133380,659 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| X
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| X
+: string
+| B
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| X
+: string
+| ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| X
+: string
+| CK_B
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| X
+: string
+| NN_A
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| X
+: string
+| PK_X
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| X
+: string
+| PK_X
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| X
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| X
+: string
+| CK_B
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| X
+: string
+| NN_A
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| X
+: string
+| PK_X
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -130292,11 +134655,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -130919,11 +135282,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -131576,11 +135939,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -132278,7 +136641,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -132286,8 +136649,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -132309,77 +136672,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000005PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -132439,59 +136994,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000005PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -132537,28 +137044,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -132577,10 +137084,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -132592,10 +137099,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,B,CHECK,CK_B,COLUMN,CONSTRAINT,CREATE,DROP,ID,KEY,NN_A,NOKEY,NOT,NULL,NUMBER,PK_X,PRIMARY,TABLE,X,Y,ZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE x (id NUMBER CONSTRAINT pk_x PRIMARY KEY, a NUMBER CONSTRAINT nn_a NOT NULL, b NUMBER CONSTRAINT ck_b CHECK (b > 0))
 < ok 0 0
@@ -132680,11 +137187,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -133235,11 +137742,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -133811,7 +138318,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -133819,8 +138326,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -133842,77 +138349,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000039PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -133972,59 +138671,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000039PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -134070,28 +138721,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -134110,10 +138761,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -134125,10 +138776,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',DROP,INSERT,INTO,NOKEY,TABLE,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | NOKEY
@@ -134189,11 +138840,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -134714,11 +139365,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -135257,7 +139908,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -135265,8 +139916,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -135288,77 +139939,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000049PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -135418,59 +140261,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000049PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -135516,28 +140311,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | EXTRACT
@@ -135561,10 +140356,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -135576,10 +140371,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,EXTRACT,ID,INSERT,INTO,NOKEY,NOTE,NUMBER,P,TABLE,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | INSERT INTO p (id, note) VALUES (9, "EXTRACT"(1))
 < ok 1 0
@@ -135632,11 +140427,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -136167,11 +140962,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -136702,11 +141497,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -137285,7 +142080,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -137293,8 +142088,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -137316,77 +142111,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000043PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -137446,59 +142433,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000043PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -137544,28 +142483,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -137584,10 +142523,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SHOP_SYN
@@ -137607,10 +142546,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',CODE,ID,INSERT,INTO,RENAME,SHOP,SHOP_SYN,SHOP_SYN2,TO,VALUES,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 
 == TestWalkThroughAgainstOracle/a_renamed_synonym default#3
 > exec
@@ -137668,11 +142607,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -138203,586 +143142,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| LATER_T
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| LATER_T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| S_LATER
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| PUB_LATER
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| S_LATER
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| LATER_T
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -139353,11 +143717,586 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| LATER_T
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| LATER_T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| S_LATER
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| PUB_LATER
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| S_LATER
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| LATER_T
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -140009,7 +144948,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -140017,8 +144956,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -140040,77 +144979,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000041PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -140170,59 +145301,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000041PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -140268,28 +145351,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -140308,10 +145391,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -140323,10 +145406,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,INSERT,INTO,LATER_T,NUMBER,OTHER,PUB_LATER,S_LATER,TABLE,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUB_LATER
@@ -140393,11 +145476,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -140908,11 +145991,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -141453,11 +146536,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -142029,11 +147112,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -142626,11 +147709,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -143244,11 +148327,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -143904,11 +148987,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -144609,7 +149692,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -144617,8 +149700,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -144640,77 +149723,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000010PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -144770,59 +150045,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000010PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -144868,28 +150095,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -144908,10 +150135,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -144923,10 +150150,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,C5,C8,C9,CHECK,CONSTRAINT,CREATE,DISABLE,ENABLE,MODIFY,NN_A,NOT,NULL,NUMBER,TABLE,U3,UNIQUE,X,Z,Z2,Z3,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE x (a NUMBER)
 < ok 0 0
@@ -144993,11 +150220,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -145529,11 +150756,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -146095,11 +151322,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -146712,7 +151939,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -146720,8 +151947,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -146743,77 +151970,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000045PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -146873,59 +152292,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000045PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -146971,16 +152342,16 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 < row
 : string
 | MK_TR
@@ -146991,15 +152362,15 @@
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -147023,10 +152394,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -147038,10 +152409,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,CREATE,INSERT,INTO,MADE,NOKEY,NUMBER,TABLE,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | INSERT INTO nokey VALUES (1)
 < ok 1 0
@@ -147096,11 +152467,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -147621,11 +152992,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -148156,11 +153527,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -148796,7 +154167,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -148804,8 +154175,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -148827,77 +154198,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000031PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -148957,59 +154520,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000031PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -149055,28 +154570,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -149095,10 +154610,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -149110,10 +154625,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A1,ADD,AFTER,ALTER,AUTONOMOUS_TRANSACTION,B1,BEGIN,COMMIT,CREATE,DECLARE,END,EXECUTE,IF,IMMEDIATE,MK,NUMBER,ON,ORA_DICT_OBJ_NAME,PRAGMA,SCHEMA,SHOP,TABLE,THEN,TRIGGER,X,Y,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | ORA_DICT_OBJ_NAME
@@ -149182,11 +154697,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -149697,11 +155212,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -150223,11 +155738,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -150794,7 +156309,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -150802,8 +156317,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -150825,77 +156340,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000032PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -150955,59 +156662,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000032PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -151053,28 +156712,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -151093,10 +156752,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -151108,10 +156767,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',BEFORE,BEGIN,CREATE,EACH,END,FOR,INSERT,NOKEY,NOSUCH_CALL,NULL,ON,ROW,TR,TRIGGER,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW BEGIN nosuch_call; END;
 < ok 0 0
@@ -151166,11 +156825,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -151681,577 +157340,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| V2
-: string
-| ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| V2
-: string
-| VCK
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| V2
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| V2
-: string
-| VCK
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| V2
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -152793,17 +157886,6 @@
 : null
 < row
 : string
-| trigger
-: string
-| SHOP
-: string
-| V2
-: string
-| VTR
-: string
-| SHOP
-< row
-: string
 | view
 : string
 | SHOP
@@ -152824,11 +157906,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -153401,11 +158483,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -153978,11 +159060,588 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| V2
+: string
+| ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| V2
+: string
+| VCK
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| V2
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| V2
+: string
+| VCK
+: null
+< row
+: string
+| trigger
+: string
+| SHOP
+: string
+| V2
+: string
+| VTR
+: string
+| SHOP
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| V2
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -154523,11 +160182,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -155134,7 +160793,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -155142,8 +160801,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -155165,77 +160824,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000033PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -155295,59 +161146,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000033PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -155393,28 +161196,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -155433,10 +161236,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -155448,10 +161251,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,BEFORE,BEGIN,CHECK,CONSTRAINT,CREATE,EACH,END,FOR,FROM,ID,INSERT,INSTEAD,NOKEY,NULL,OF,ON,OPTION,OR,P,REPLACE,ROW,SELECT,TABLE,TRIGGER,V2,VCK,VIEW,VTR,WITH,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE VIEW v2 AS SELECT id FROM p WITH CHECK OPTION CONSTRAINT vck
 < ok 0 0
@@ -155523,11 +161326,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -156068,567 +161871,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER
-: string
-| O
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| O
-: string
-| OI
-: string
-| OTHER
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| OTHER
-: null
-: string
-| O
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER
-: null
-: string
-| O
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -157170,17 +162417,6 @@
 : null
 < row
 : string
-| trigger
-: string
-| SHOP
-: string
-| O
-: string
-| OTR
-: string
-| OTHER
-< row
-: string
 | view
 : string
 | SHOP
@@ -157191,11 +162427,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -157758,11 +162994,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -158325,11 +163561,578 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER
+: string
+| O
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| O
+: string
+| OI
+: string
+| OTHER
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| OTHER
+: null
+: string
+| O
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER
+: null
+: string
+| O
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| trigger
+: string
+| SHOP
+: string
+| O
+: string
+| OTR
+: string
+| OTHER
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -158840,11 +164643,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -159414,7 +165217,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -159422,8 +165225,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -159445,77 +165248,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000018PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -159575,59 +165570,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000018PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -159673,28 +165620,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -159713,10 +165660,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -159728,10 +165675,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,BEFORE,BEGIN,CREATE,DROP,EACH,END,FOR,INDEX,INSERT,NOKEY,NULL,O,OI,ON,OTHER,OTR,ROW,TABLE,TRIGGER,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE INDEX oi ON other.o (a)
 < ok 0 0
@@ -159803,11 +165750,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -160318,11 +166265,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -160833,11 +166780,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -161348,11 +167295,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -161863,11 +167810,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -162378,11 +168325,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -162893,11 +168840,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -163408,11 +169355,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -163923,11 +169870,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -164438,11 +170385,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -164953,11 +170900,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -165458,11 +171405,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -166008,7 +171955,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -166016,8 +171963,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -166039,77 +171986,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000008PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -166169,59 +172308,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000008PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -166267,28 +172358,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -166307,10 +172398,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -166322,10 +172413,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',ADD,ALTER,CODE,COLUMN,DROP,H,MODIFY,N,NUMBER,RENAME,SET,T,TABLE,TO,UNUSED,Z2,ZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t ADD (code NUMBER)
 < error
@@ -166424,11 +172515,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -166939,11 +173030,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -167433,11 +173524,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -167927,526 +174018,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -168957,11 +174533,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -169090,7 +174666,7 @@
 : string
 | NOKEY
 : string
-| CK_M
+| CK_N
 : string
 | SHOP
 < row
@@ -169408,7 +174984,7 @@
 : string
 | NOKEY
 : string
-| CK_M
+| CK_N
 : null
 < row
 : string
@@ -169472,11 +175048,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -169987,11 +175563,526 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| CK_M
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| CK_M
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -170523,588 +176614,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| CK_M
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| PK_NOKEY
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| PK_NOKEY
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| NOKEY
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| CK_M
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| PK_NOKEY
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -171677,11 +177191,588 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| CK_M
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| PK_NOKEY
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| PK_NOKEY
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| NOKEY
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| CK_M
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| PK_NOKEY
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -172213,11 +178304,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -172794,7 +178885,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -172802,8 +178893,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -172825,77 +178916,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000012PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -172955,59 +179238,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000012PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -173053,28 +179288,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -173093,10 +179328,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -173108,10 +179343,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,CHECK,CK_M,CK_N,CONSTRAINT,DROP,ID,KEY,NOKEY,P,PK_NOKEY,PRIMARY,RENAME,T,TABLE,TO,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE t DROP CONSTRAINT ck_n
 < ok 0 0
@@ -173199,11 +179434,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -173714,11 +179949,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -174229,11 +180464,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -174744,11 +180979,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -175259,11 +181494,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -175774,11 +182009,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -176289,11 +182524,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -176804,11 +183039,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -177319,11 +183554,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -177834,11 +184069,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -178349,11 +184584,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -178864,11 +185099,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -179379,11 +185614,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -179894,11 +186129,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -180454,7 +186689,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -180462,8 +186697,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -180485,77 +186720,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000011PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -180615,59 +187042,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000011PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -180713,28 +187092,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -180753,10 +187132,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -180768,10 +187147,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,B,CHECK,CK_M,CK_N,CONSTRAINT,DISABLE,DROP,ENABLE,FK_P,KEY,MODIFY,N,NN_CODE,NOKEY,NOT,NULL,NUMBER,P,PK_P,PRIMARY,RENAME,T,TABLE,TO,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | ALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0)
 < error
@@ -180883,11 +187262,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -181408,11 +187787,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -181933,11 +188312,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -182458,11 +188837,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -182983,11 +189362,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -183508,11 +189887,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -184033,11 +190412,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -184569,11 +190948,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -185116,11 +191495,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -185652,11 +192031,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -186188,11 +192567,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -186724,11 +193103,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -187260,11 +193639,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -187796,11 +194175,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -188332,11 +194711,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -188868,11 +195247,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -189449,7 +195828,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -189457,8 +195836,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -189480,77 +195859,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000029PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -189610,59 +196181,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000029PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -189708,28 +196231,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -189748,10 +196271,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -189763,10 +196286,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ALTER,CREATE,DROP,F,I,I2,I3,ID,INDEX,IX_N,MV_IX,NOKEY,NOTE,ON,P,PV,P_ID,REBUILD,RENAME,SQ,SYN,TO,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -189885,11 +196408,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -190400,11 +196923,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -190915,11 +197438,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -191430,11 +197953,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -191990,7 +198513,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -191998,8 +198521,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -192021,77 +198544,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000006PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -192151,59 +198866,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000006PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -192249,28 +198916,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -192289,10 +198956,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -192304,10 +198971,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,ADD,ALTER,BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB,CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC,CREATE,DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD,DROP,NOKEY,NUMBER,TABLE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (a NUMBER)
 < error
@@ -192372,11 +199039,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -192907,11 +199574,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -193422,11 +200089,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -193937,11 +200604,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -194520,7 +201187,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -194528,8 +201195,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -194551,77 +201218,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000042PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -194681,59 +201540,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000042PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -194779,28 +201590,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -194819,10 +201630,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SHOP_SYN
@@ -194842,10 +201653,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',CODE,CREATE,DROP,FOR,ID,INSERT,INTO,NOKEY,SHOP_SYN,SYNONYM,VALUES,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | DROP SYNONYM shop_syn
 < ok 0 0
@@ -194906,11 +201717,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -195461,11 +202272,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -196006,11 +202817,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -196551,11 +203362,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -197157,7 +203968,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -197165,8 +203976,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -197188,77 +203999,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000040PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -197318,59 +204321,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000040PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -197416,28 +204371,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -197456,10 +204411,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -197471,10 +204426,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',CREATE,DROP,FOR,INSERT,INTO,OT,OTHER,PUBLIC,PUB_OT,SYNONYM,VALUES,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PUB_OT
@@ -197543,11 +204498,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -198078,11 +205033,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -198613,11 +205568,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -199148,11 +206103,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -199683,11 +206638,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -200218,11 +207173,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -200753,11 +207708,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -201288,11 +208243,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -201823,11 +208778,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -202358,11 +209313,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -202893,11 +209848,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -203428,11 +210383,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -203963,576 +210918,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| X
-: string
-| A
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| X
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -205093,11 +211483,576 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| X
+: string
+| A
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| X
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -205714,7 +212669,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -205722,8 +212677,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -205745,77 +212700,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000001PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -205875,59 +213022,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000001PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -205973,28 +213072,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -206013,10 +213112,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -206028,10 +213127,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,AS,BEFORE,BEGIN,CREATE,DUAL,EACH,END,F,FOR,FROM,INDEX,INSERT,MV,NOKEY,NULL,NUMBER,OBJECT,ON,OR,PKG,PR,PROCEDURE,PV,REPLACE,ROW,SELECT,SEQUENCE,SQ,SYN,SYNONYM,T,TABLE,TRIGGER,TYPE,VIEW,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -206162,11 +213261,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -206677,537 +213776,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| trigger
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| TR
-: string
-| SHOP
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -207729,11 +214302,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -208255,11 +214828,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -208781,11 +215354,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -209307,11 +215880,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -209833,11 +216406,537 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| trigger
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| TR
+: string
+| SHOP
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -210359,11 +217458,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -210885,11 +217984,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -211400,11 +218499,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -211960,7 +219059,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -211968,8 +219067,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -211991,77 +219090,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000030PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -212121,59 +219412,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000030PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -212219,28 +219462,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -212259,10 +219502,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -212274,10 +219517,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',ALTER,BEFORE,BEGIN,CREATE,DISABLE,DROP,EACH,ENABLE,END,FOR,INSERT,NOKEY,NULL,ON,OR,P,RENAME,REPLACE,ROW,TO,TR,TR2,TRIGGER,UPDATE,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > exec
 | CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
@@ -212363,11 +219606,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -212918,11 +220161,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -213473,11 +220716,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -214028,11 +221271,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -214583,11 +221826,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -215138,11 +222381,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -215693,11 +222936,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -216248,11 +223491,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -216803,11 +224046,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -217358,11 +224601,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -217913,11 +225156,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -218468,11 +225711,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -219023,11 +226266,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -219626,7 +226869,7 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -219634,8 +226877,8 @@
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | MV
@@ -219657,77 +226900,269 @@
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | MV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | MV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | NOKEY
 : string
 | A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | P
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | PV
 : string
 | NOTE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | CODE
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | P_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | T
 : string
 | H
+: string
+| NUMBER
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| IX_N
+: string
+| N
+: string
+| 0
+< row
+: string
+| MV_IX
+: string
+| NOTE
+: string
+| 0
+< row
+: string
+| PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| PK_T
+: string
+| ID
+: string
+| 0
+< row
+: string
+| SYS_C_SNAP$_9000036PK_P
+: string
+| ID
+: string
+| 0
+< row
+: string
+| UK_CODE
+: string
+| CODE
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | MV
@@ -219787,59 +227222,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| IX_N
-: string
-| N
-: string
-| 0
-< row
-: string
-| MV_IX
-: string
-| NOTE
-: string
-| 0
-< row
-: string
-| PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| PK_T
-: string
-| ID
-: string
-| 0
-< row
-: string
-| SYS_C_SNAP$_9000036PK_P
-: string
-| ID
-: string
-| 0
-< row
-: string
-| UK_CODE
-: string
-| CODE
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -219885,28 +227272,28 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | PV
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | SQ
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 < row
 : string
 | F
@@ -219925,10 +227312,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN
@@ -219940,10 +227327,10 @@
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ALTER,CK_N,COLUMN,COMMENT,CONSTRAINT,CREATE,CURRENT_SCHEMA,DROP,G,GRANT,I,INDEX,IS,N,NOSUCH,NUMBER,ON,OTHER,PK_T,PUBLIC,RENAME,SELECT,SESSION,SET,SHOP,SYN,T,TABLE,TO,TY,X,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | SYN

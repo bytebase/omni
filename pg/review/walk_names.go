@@ -65,6 +65,14 @@ func polKey(t walk.Key, name string) walk.Key {
 	return walk.Key{Space: spacePolicy, Parent: tableOf(t), Name: name}
 }
 
+func funcKey(schema, name string) walk.Key {
+	return walk.Key{Space: spaceFunction, Parent: walk.Path(schema), Name: name}
+}
+
+func procKey(schema, name string) walk.Key {
+	return walk.Key{Space: spaceProcedure, Parent: walk.Path(schema), Name: name}
+}
+
 // tableOf is the parent path of what a relation holds: its columns,
 // constraints, and primary key.
 func tableOf(rel walk.Key) string {
@@ -368,6 +376,209 @@ func (b *builder) typeInSchema(schema, typ string) resolved {
 	}
 	f, kind := b.l.Lookup(k)
 	return resolved{fact: f, key: k, kind: kind, keys: []walk.Key{sk, k}}
+}
+
+// resolveRoutine resolves a function, procedure, or routine name (1-, 2-, or
+// 3-part) in spaceFunction / spaceProcedure following PostgreSQL's search path.
+// Unqualified lookup stops at the first Unknown schema so an unsynced or
+// built-in routine is never bypassed.
+//
+// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates
+func (b *builder) resolveRoutine(parts []string, objType ast.ObjectType) resolved {
+	var catalog, schema, name string
+	switch len(parts) {
+	case 1:
+		name = parts[0]
+	case 2:
+		schema, name = parts[0], parts[1]
+	case 3:
+		catalog, schema, name = parts[0], parts[1], parts[2]
+	default:
+		if len(parts) > 3 {
+			return resolved{fail: crossDatabaseMessage(qualified(parts))}
+		}
+		return resolved{}
+	}
+	if b.w.crossDatabase(catalog) {
+		return resolved{fail: crossDatabaseMessage(qualified(parts))}
+	}
+	fn, ok := walkName(name)
+	if !ok || !b.w.currentDatabase(catalog) {
+		return resolved{}
+	}
+	if schema != "" {
+		s, ok := walkName(schema)
+		if !ok || s == "pg_catalog" {
+			return resolved{}
+		}
+		return b.routineInSchema(s, fn, objType)
+	}
+	path, ok := b.w.searchPath()
+	if !ok {
+		return resolved{}
+	}
+	var keys []walk.Key
+	order := make([]string, 0, len(path)+2)
+	for _, implicit := range []string{tempSchema, "pg_catalog"} {
+		if !containsString(path, implicit) {
+			order = append(order, implicit)
+		}
+	}
+	order = append(order, path...)
+	for _, s := range order {
+		r := b.routineInSchema(s, fn, objType)
+		keys = append(keys, r.keys...)
+		switch r.fact {
+		case walk.Present:
+			r.keys = keys
+			return r
+		case walk.Unknown:
+			return resolved{}
+		}
+	}
+	return resolved{fact: walk.Absent, keys: keys}
+}
+
+// routineInSchema resolves a routine in one schema. Like inSchema for
+// relations, pg_catalog is never synced: PostgreSQL refuses to create user
+// objects in pg_catalog unless allow_system_table_mods is enabled
+// (pg: src/backend/catalog/namespace.c — QualifiedNameGetCreationNamespace).
+// Assuming that developer setting is off, implicit pg_catalog lookup treats
+// built-in/system routine names (pg_*, builtinCatalogFunctions, builtinCalls,
+// IsSystemFunction) as Unknown and other names as Absent, while names
+// explicitly qualified with pg_catalog are never judged (see resolveRoutine).
+func (b *builder) routineInSchema(schema, name string, objType ast.ObjectType) resolved {
+	if schema == "pg_catalog" {
+		if strings.HasPrefix(name, "pg_") {
+			return resolved{}
+		}
+		if objType == ast.OBJECT_PROCEDURE {
+			return resolved{fact: walk.Absent}
+		}
+		if builtinCatalogFunctions[name] || !trustedRoutineName(name) {
+			return resolved{}
+		}
+		return resolved{fact: walk.Absent}
+	}
+	if schema == tempSchema {
+		return b.routineKeysInSchema(tempSchema, name, objType, nil)
+	}
+	sk := schemaKey(schema)
+	switch f, _ := b.l.Lookup(sk); f {
+	case walk.Absent:
+		return resolved{fact: walk.Absent, missingSchema: schema, keys: []walk.Key{sk}}
+	case walk.Unknown:
+		r := b.routineKeysInSchema(schema, name, objType, []walk.Key{sk})
+		if r.fact == walk.Present {
+			return r
+		}
+		return resolved{keys: []walk.Key{sk}}
+	}
+	return b.routineKeysInSchema(schema, name, objType, []walk.Key{sk})
+}
+
+func (b *builder) routineKeysInSchema(schema, name string, objType ast.ObjectType, baseKeys []walk.Key) resolved {
+	fk := funcKey(schema, name)
+	pk := procKey(schema, name)
+	switch objType {
+	case ast.OBJECT_FUNCTION:
+		f, _ := b.l.Lookup(fk)
+		return resolved{fact: f, key: fk, keys: append(baseKeys, fk)}
+	case ast.OBJECT_PROCEDURE:
+		f, _ := b.l.Lookup(pk)
+		return resolved{fact: f, key: pk, keys: append(baseKeys, pk)}
+	default: // OBJECT_ROUTINE
+		ff, _ := b.l.Lookup(fk)
+		if ff == walk.Present {
+			return resolved{fact: walk.Present, key: fk, keys: append(baseKeys, fk)}
+		}
+		pf, _ := b.l.Lookup(pk)
+		if pf == walk.Present {
+			return resolved{fact: walk.Present, key: pk, keys: append(baseKeys, pk)}
+		}
+		keys := append(baseKeys, fk, pk)
+		if ff == walk.Absent && pf == walk.Absent {
+			return resolved{fact: walk.Absent, keys: keys}
+		}
+		return resolved{keys: keys}
+	}
+}
+
+// selfTypeImpossible reports whether a statement creating an object whose type
+// occupies (schema, name) while also resolving tn as an existing type is
+// impossible regardless of whether (schema, name) exists: if (schema, name)
+// exists, the creation conflicts (42710/42P07/42809); if it does not exist, tn
+// resolves nowhere (42704). It returns true only when every other schema where
+// tn could be found is certainly devoid of it.
+func (b *builder) selfTypeImpossible(schema, name string, tn *ast.TypeName) (bool, []walk.Key) {
+	if tn == nil {
+		return false, nil
+	}
+	parts := nameParts(tn.Names)
+	var catalog, tSchema, tName string
+	switch len(parts) {
+	case 1:
+		tName = parts[0]
+	case 2:
+		tSchema, tName = parts[0], parts[1]
+	case 3:
+		catalog, tSchema, tName = parts[0], parts[1], parts[2]
+	default:
+		return false, nil
+	}
+	if !b.w.currentDatabase(catalog) {
+		return false, nil
+	}
+	norm, ok := walkName(tName)
+	if !ok || norm != name {
+		return false, nil
+	}
+	if tSchema != "" {
+		s, ok := walkName(tSchema)
+		return ok && s == schema, nil
+	}
+	path, ok := b.w.searchPath()
+	if !ok {
+		return false, nil
+	}
+	var keys []walk.Key
+	order := make([]string, 0, len(path)+2)
+	for _, implicit := range []string{tempSchema, "pg_catalog"} {
+		if !containsString(path, implicit) {
+			order = append(order, implicit)
+		}
+	}
+	order = append(order, path...)
+	for _, s := range order {
+		if s == schema {
+			continue
+		}
+		if s == "pg_catalog" {
+			if builtinCatalogTypes[norm] || strings.HasPrefix(norm, "pg_") || strings.HasPrefix(norm, "_") {
+				return false, nil
+			}
+			continue
+		}
+		if s == tempSchema {
+			k := typeKey(tempSchema, norm)
+			keys = append(keys, k)
+			if f, _ := b.l.Lookup(k); f != walk.Absent {
+				return false, nil
+			}
+			continue
+		}
+		sk := schemaKey(s)
+		keys = append(keys, sk)
+		if sf, _ := b.l.Lookup(sk); sf == walk.Absent {
+			continue
+		}
+		tk := typeKey(s, norm)
+		keys = append(keys, tk)
+		if tf, _ := b.l.Lookup(tk); tf != walk.Absent {
+			return false, nil
+		}
+	}
+	return true, keys
 }
 
 // created is the schema a new object goes to. fail is set when the

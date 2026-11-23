@@ -53,7 +53,10 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		// an ordinary one; anyPartitioned stays, as it only stops more.
 		snap = nil
 		w.triggered = true
+		w.allDirty = true
 		w.partitioned = make(map[walk.Key]bool)
+		w.rangeMultirange = make(map[walk.Key]walk.Key)
+		w.pg.viewCols = nil
 	}
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
 	if v != nil {
@@ -264,25 +267,43 @@ type walker struct {
 	// typmodTypes marks user-defined base types in this change that accept
 	// type modifiers (defined or altered with TYPMOD_IN).
 	typmodTypes map[walk.Key]bool
+	// rangeMultirange maps each range type key to its companion multirange
+	// type key so dropping the range invalidates its companion multirange.
+	rangeMultirange map[walk.Key]walk.Key
+	// modifiedViews marks synced views whose column count may have changed
+	// earlier in this change (replaced, dropped, renamed, or moved).
+	modifiedViews map[walk.Key]bool
+	// dirtyTables, dirtyRoutines, dirtyTypes, and allDirty invalidate synced
+	// detail maps (column properties, PK/partition keys, FK refs, function
+	// signatures, composite attributes) once the object has been altered.
+	dirtyTables   map[walk.Key]bool
+	dirtyRoutines map[walk.Key]bool
+	dirtyTypes    map[walk.Key]bool
+	allDirty      bool
 }
 
 func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	db := target.Schema
 	w := &walker{
-		stmts:       stmts,
-		run:         plan,
-		pg:          newPgSnapshot(db),
-		database:    db.GetName(),
-		triggers:    enabledTriggers(db),
-		user:        target.SessionUser,
-		session:     target.SessionUser,
-		owner:       db.GetOwner(),
-		inBlock:     !plan.autocommit,
-		routines:    make(map[string]bool),
-		partitioned: make(map[walk.Key]bool),
-		partitions:  make(map[walk.Key][]walk.Key),
-		shellTypes:  make(map[walk.Key]bool),
-		typmodTypes: make(map[walk.Key]bool),
+		stmts:         stmts,
+		run:           plan,
+		pg:            newPgSnapshot(db),
+		database:      db.GetName(),
+		triggers:      enabledTriggers(db),
+		user:          target.SessionUser,
+		session:       target.SessionUser,
+		owner:         db.GetOwner(),
+		inBlock:       !plan.autocommit,
+		routines:      make(map[string]bool),
+		partitioned:   make(map[walk.Key]bool),
+		partitions:    make(map[walk.Key][]walk.Key),
+		shellTypes:      make(map[walk.Key]bool),
+		typmodTypes:     make(map[walk.Key]bool),
+		rangeMultirange: make(map[walk.Key]walk.Key),
+		modifiedViews:   make(map[walk.Key]bool),
+		dirtyTables:   make(map[walk.Key]bool),
+		dirtyRoutines: make(map[walk.Key]bool),
+		dirtyTypes:    make(map[walk.Key]bool),
 	}
 	if w.user != "" && w.user == w.owner {
 		w.tenant = true
@@ -290,6 +311,9 @@ func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	}
 	if path := parseSearchPath(db.GetSearchPath()); len(path) > 0 {
 		w.path = path
+	}
+	for rk, mr := range w.pg.rangeMultirange {
+		w.rangeMultirange[typeKey(rk[0], rk[1])] = typeKey(mr[0], mr[1])
 	}
 	for _, schema := range db.GetSchemas() {
 		for _, t := range schema.GetTables() {
@@ -326,6 +350,30 @@ func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 		}
 	}
 	return w
+}
+
+func (w *walker) isTableDirty(k walk.Key) bool {
+	return w.allDirty || w.dirtyTables[k]
+}
+
+func (w *walker) isRoutineDirty(k walk.Key) bool {
+	return w.allDirty || w.dirtyRoutines[k]
+}
+
+func (w *walker) isTypeDirty(k walk.Key) bool {
+	return w.allDirty || w.dirtyTypes[k]
+}
+
+func (w *walker) syncedCol(t walk.Key, col string) (syncedCol, bool) {
+	if w.isTableDirty(t) || w.pg == nil {
+		return syncedCol{}, false
+	}
+	cols := w.pg.colMeta[[2]string{schemaOfKey(t), t.Name}]
+	if cols == nil {
+		return syncedCol{}, false
+	}
+	sc, ok := cols[col]
+	return sc, ok
 }
 
 // lower implements walk.Lower for the i-th statement Bytebase runs.
@@ -496,8 +544,14 @@ type builder struct {
 	// drops lists, by storedKey, the columns an ALTER TABLE drops, which
 	// are gone before any column is added (passOrder); added lists the
 	// columns its ADD COLUMN subcommands so far add, in the order written.
-	drops map[string]bool
-	added map[string]bool
+	// colAltered and conDropped mark columns/constraints modified elsewhere
+	// in the same ALTER TABLE so synced-column checks never race with sibling
+	// subcommands.
+	drops      map[string]bool
+	added      map[string]bool
+	colTouch   map[string]int
+	conDropped bool
+	pkChanged  bool
 }
 
 // next starts the statement's next part.

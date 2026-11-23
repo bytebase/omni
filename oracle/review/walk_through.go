@@ -44,6 +44,7 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		// added triggers the sync does not show.
 		snap = nil
 		w.triggers = true
+		w.otherSpecs = true
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -96,16 +97,32 @@ type walker struct {
 	// have. A trigger can run DDL through an autonomous transaction, and a
 	// cascaded delete fires the triggers of other tables (verified).
 	triggers bool
+	// otherSpecs disables rich snapshot lookups (partitions, column types,
+	// synonym targets, index column lists) when another spec may have
+	// altered the schema first.
+	otherSpecs bool
+	// Per-table/synonym invalidation sets updated via b.Session when DDL
+	// mutates synced metadata during a multi-statement change.
+	mutatedPartitions map[[2]string]bool
+	mutatedColMeta    map[[2]string]bool
+	mutatedIndexes    map[[2]string]bool
+	mutatedSynonyms   map[string]bool
+	mutatedAllTables  bool
+	mutatedAllIndexes bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	snap := newOracleSnapshot(t.Schema)
 	return &walker{
-		sql:      sql,
-		stmts:    stmts,
-		snap:     snap,
-		current:  snap.schema,
-		triggers: len(snap.triggers) > 0,
+		sql:               sql,
+		stmts:             stmts,
+		snap:              snap,
+		current:           snap.schema,
+		triggers:          len(snap.triggers) > 0,
+		mutatedPartitions: make(map[[2]string]bool),
+		mutatedColMeta:    make(map[[2]string]bool),
+		mutatedIndexes:    make(map[[2]string]bool),
+		mutatedSynonyms:   make(map[string]bool),
 	}
 }
 
@@ -309,12 +326,137 @@ func (b *builder) refTooLong(o *ast.ObjectName, r objRef) bool {
 // look reads a key as the statements before this one left it.
 func (b *builder) look(k walk.Key) (walk.Fact, string) { return b.l.Lookup(k) }
 
+// syncedTable returns the synced non-mview table metadata for r if r still
+// names that synced table in the snapshot's schema and no prior spec could
+// have altered it.
+func (b *builder) syncedTable(r objRef) *syncedTable {
+	if b.w.otherSpecs || b.w.mutatedAllTables || r.schema != b.w.snap.schema {
+		return nil
+	}
+	f, kind := b.look(r.key(spaceTable))
+	if f != walk.Present || kind != kindTable {
+		return nil
+	}
+	st := b.w.snap.tables[r.name]
+	if st == nil || st.mview {
+		return nil
+	}
+	return st
+}
+
+// syncedColMeta returns the synced table metadata for r when its column types
+// and attributes (from oracle/driver/sync.go) are still valid and unmutated.
+func (b *builder) syncedColMeta(r objRef) *syncedTable {
+	st := b.syncedTable(r)
+	if st == nil || !st.hasRichSync || b.w.mutatedColMeta[[2]string{r.schema, r.name}] {
+		return nil
+	}
+	return st
+}
+
+// syncedPartMeta returns the synced table metadata for r when its partition
+// metadata (from oracle/driver/sync.go) is still valid and unmutated.
+func (b *builder) syncedPartMeta(r objRef) *syncedTable {
+	st := b.syncedTable(r)
+	if st == nil || !st.hasRichSync || b.w.mutatedPartitions[[2]string{r.schema, r.name}] {
+		return nil
+	}
+	return st
+}
+
+// syncedIndexMeta returns the synced table metadata for r when its index
+// column lists are still valid and unmutated.
+func (b *builder) syncedIndexMeta(r objRef) *syncedTable {
+	if b.w.mutatedAllIndexes {
+		return nil
+	}
+	st := b.syncedTable(r)
+	if st == nil || !st.hasRichSync || b.w.mutatedIndexes[[2]string{r.schema, r.name}] {
+		return nil
+	}
+	return st
+}
+
+// resolveSynonymTable resolves a private (or unqualified public) synonym to
+// its target table in the snapshot's schema when the synonym has not been
+// mutated by earlier statements in the change.
+func (b *builder) resolveSynonymTable(o *ast.ObjectName, r objRef) (objRef, *syncedTable, bool) {
+	if b.w.otherSpecs || b.w.mutatedAllTables || o == nil || o.DBLink != "" {
+		return objRef{}, nil, false
+	}
+	var target [2]string
+	var ok bool
+	if r.schema == b.w.snap.schema {
+		if f, kind := b.look(r.key(spaceObject)); f == walk.Present && kind == kindSynonym {
+			if !b.w.mutatedSynonyms[r.name] {
+				target, ok = b.w.snap.synonymTargets[r.name]
+			}
+		}
+	}
+	if !ok && o.Schema == "" && !b.w.mutatedSynonyms[publicSchema+"."+r.name] {
+		if f, _ := b.look(r.key(spaceObject)); f != walk.Present {
+			target, ok = b.w.snap.publicSynonymTargets[r.name]
+		}
+	}
+	if !ok || target[0] != b.w.snap.schema || target[1] == "" {
+		return objRef{}, nil, false
+	}
+	tr := objRef{schema: target[0], name: target[1], written: r.written, rng: r.rng}
+	st := b.syncedTable(tr)
+	if st == nil {
+		return objRef{}, nil, false
+	}
+	return tr, st, true
+}
+
+func (b *builder) mutateTableAll(r objRef) {
+	key := [2]string{r.schema, r.name}
+	b.Session(func() {
+		b.w.mutatedPartitions[key] = true
+		b.w.mutatedColMeta[key] = true
+		b.w.mutatedIndexes[key] = true
+	})
+}
+
+func (b *builder) mutatePartitions(r objRef) {
+	key := [2]string{r.schema, r.name}
+	b.Session(func() { b.w.mutatedPartitions[key] = true })
+}
+
+func (b *builder) mutateColMeta(r objRef) {
+	key := [2]string{r.schema, r.name}
+	b.Session(func() { b.w.mutatedColMeta[key] = true })
+}
+
+func (b *builder) mutateIndexes(r objRef) {
+	key := [2]string{r.schema, r.name}
+	b.Session(func() { b.w.mutatedIndexes[key] = true })
+}
+
+func (b *builder) mutateSynonym(name string) {
+	b.Session(func() { b.w.mutatedSynonyms[name] = true })
+}
+
+func (b *builder) mutateAllTables() {
+	b.Session(func() { b.w.mutatedAllTables = true })
+}
+
+func (b *builder) mutateAllIndexes() {
+	b.Session(func() { b.w.mutatedAllIndexes = true })
+}
+
 // arriveObject records that an object of a kind holds a reference's name:
 // it is Present in the object space and, for a table, a materialized
 // view, a view, a sequence, or a synonym, in that space, and Absent in the
 // others, since the namespace is shared. The new object may be what a
 // synonym the sync leaves out stands for (mayRestoreSynonyms).
 func (b *builder) arriveObject(r objRef, kind string) {
+	if kind == kindTable {
+		b.mutateTableAll(r)
+	}
+	if kind == kindSynonym {
+		b.mutateSynonym(r.name)
+	}
 	b.mayRestoreSynonyms()
 	b.Set(r.key(spaceObject), walk.Present, kind)
 	for _, s := range []struct {
@@ -336,6 +478,8 @@ func (b *builder) arriveObject(r objRef, kind string) {
 
 // leaveObject records that no object holds a reference's name.
 func (b *builder) leaveObject(r objRef) {
+	b.mutateTableAll(r)
+	b.mutateSynonym(r.name)
 	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Absent, "")
 	}
@@ -344,6 +488,8 @@ func (b *builder) leaveObject(r objRef) {
 // forgetObject records that the statement may have done anything to a
 // reference's name.
 func (b *builder) forgetObject(r objRef) {
+	b.mutateTableAll(r)
+	b.mutateSynonym(r.name)
 	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Unknown, "")
 	}
@@ -376,6 +522,7 @@ func (b *builder) dropOwned(r objRef) {
 // dropIndexes records that a table's indexes may be gone, in any schema:
 // an index, and a trigger, may be in another schema than its table.
 func (b *builder) dropIndexes(r objRef) {
+	b.mutateIndexes(r)
 	b.MayRemove(walk.Scope{Space: spaceIndex, Deep: true, Kinds: []string{r.path()}})
 }
 
@@ -423,6 +570,7 @@ func (b *builder) forgetTables(r objRef, names []string) {
 // any schema, which become unused, and their constraints and indexes
 // (verified).
 func (b *builder) forgetTypeDependents() {
+	b.mutateAllTables()
 	for _, space := range []string{spaceColumn, spacePrimary, spaceTableConstraint, spaceConstraint, spaceIndex} {
 		b.MayRemove(walk.Scope{Space: space, Deep: true})
 	}

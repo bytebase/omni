@@ -4,14 +4,17 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	pganalysis "github.com/bytebase/omni/pg/analysis"
 	"github.com/bytebase/omni/pg/ast"
+	pgcatalog "github.com/bytebase/omni/pg/catalog"
 	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review/walk"
 )
 
-// The spaces WalkThrough keeps facts in. A relation and a type are held by
-// a schema, a column, a constraint, and the primary key by a table; the
-// primary key space has one key per table, named "".
+// The spaces WalkThrough keeps facts in. A relation, type, function, and
+// procedure are held by a schema, a column, constraint, trigger, policy, and
+// the primary key by a table; the primary key space has one key per table,
+// named "".
 const (
 	spaceSchema     = "schema"
 	spaceRelation   = "relation"
@@ -21,6 +24,8 @@ const (
 	spacePrimaryKey = "primary key"
 	spaceTrigger    = "trigger"
 	spacePolicy     = "policy"
+	spaceFunction   = "function"
+	spaceProcedure  = "procedure"
 )
 
 // The kinds of a relation: every name in pg_class's namespace of a schema.
@@ -94,7 +99,12 @@ var systemColumns = map[string]bool{
 // index, partition, trigger, or rule, which the sync drops with it. Such
 // a relation is a table named like a system catalog, a view or
 // materialized view named like an extension's, or a partition placed in a
-// system schema.
+// system schema. Likewise, pg/driver/sync.go omits routines for which
+// pg/analysis.IsSystemFunction(name, definition) is true, including any
+// definition containing "$libdir/timescaledb"; when a TimescaleDB extension
+// or schema is present in the synced metadata, lostRoutines disables routine
+// absence and signature-completeness claims across all synced schemas, and
+// otherwise ordinary user routines are assumed not to embed "$libdir/timescaledb".
 type pgSnapshot struct {
 	schemas   map[string]bool
 	relations map[[2]string]string
@@ -105,35 +115,124 @@ type pgSnapshot struct {
 	constraints map[[2]string]map[string]string
 	primaryKeys map[[2]string]bool
 	triggers    map[[2]string]map[string]bool
+	functions   map[[2]string]bool
+	procedures  map[[2]string]bool
+	// ambigRoutines marks entries from SchemaMetadata.Functions with an
+	// empty Definition whose kind (function vs procedure) is uncertain, so
+	// both spaceFunction and spaceProcedure stay Unknown rather than assuming
+	// one kind or claiming the other absent.
+	ambigRoutines map[[2]string]bool
+	// rangeConstructors marks pre-existing range and multirange constructor
+	// names omitted from SchemaMetadata.Functions by pg/driver/sync.go.
+	rangeConstructors map[[2]string]bool
+	// rangeMultirange maps each synced range type (schema, name) to its
+	// companion multirange type (schema, name), which DROP TYPE on the range
+	// drops automatically (pg: src/backend/catalog/dependency.c).
+	rangeMultirange map[[2]string][2]string
+	viewCols        map[[2]string]int
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
 	// lost is true when the sync may have lost partitions, of any name in
 	// any schema: no relation's absence is trusted then.
 	lost bool
-	// inSchema lists the relations and types each schema holds.
+	// lostRoutines is true when a TimescaleDB extension or schema is present
+	// in the synced metadata, so pg/driver/sync.go's definition-based
+	// "$libdir/timescaledb" exclusion may have omitted routines of any name:
+	// no routine's absence or overload completeness is trusted then.
+	lostRoutines bool
+	// inSchema lists the relations, types, and routines each schema holds.
 	inSchema map[string][]walk.Key
+
+	// Synced detail maps populated from pg/driver/sync.go metadata (cleared
+	// under OtherSpecs and invalidated per-object when altered in the change).
+	colMeta     map[[2]string]map[string]syncedCol
+	pkCols      map[[2]string][]string
+	partKeyCols map[[2]string]map[string]bool
+	fkRefs      map[[2]string][]syncedFKRef
+	compAttrs   map[[2]string]map[string]bool
+	indexDefs   map[[2]string]*syncedIndex
+	funcSigs    map[[2]string]*syncedFuncInfo
+	trigFuncs   map[[2]string][]syncedTrigRef
+}
+
+type syncedCol struct {
+	typ       string // normalized lowercase ColumnMetadata.Type
+	nullable  bool
+	identity  bool
+	generated bool
+}
+
+type syncedFKRef struct {
+	fromSchema string
+	fromTable  string
+	conName    string
+}
+
+type syncedIndex struct {
+	colNames     []string
+	isExpr       []bool
+	nkey         int
+	hasExpr      bool
+	accessMethod string
+}
+
+type syncedFuncInfo struct {
+	complete             bool
+	arities              map[int]bool
+	anySetof             bool
+	zeroArg              bool
+	hasDefaultOrVariadic bool
+}
+
+type syncedTrigRef struct {
+	tableSchema string
+	tableName   string
+	trigName    string
 }
 
 // newPgSnapshot reads a target's synced schema. A nil schema gives a
 // snapshot that knows nothing.
 func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 	s := &pgSnapshot{
-		schemas:     make(map[string]bool),
-		relations:   make(map[[2]string]string),
-		types:       make(map[[2]string]bool),
-		columns:     make(map[[2]string]map[string]bool),
-		constraints: make(map[[2]string]map[string]string),
-		primaryKeys: make(map[[2]string]bool),
-		triggers:    make(map[[2]string]map[string]bool),
-		anywhere:    make(map[string]bool),
-		inSchema:    make(map[string][]walk.Key),
+		schemas:           make(map[string]bool),
+		relations:         make(map[[2]string]string),
+		types:             make(map[[2]string]bool),
+		columns:           make(map[[2]string]map[string]bool),
+		constraints:       make(map[[2]string]map[string]string),
+		primaryKeys:       make(map[[2]string]bool),
+		triggers:          make(map[[2]string]map[string]bool),
+		functions:         make(map[[2]string]bool),
+		procedures:        make(map[[2]string]bool),
+		ambigRoutines:     make(map[[2]string]bool),
+		rangeConstructors: make(map[[2]string]bool),
+		rangeMultirange:   make(map[[2]string][2]string),
+		viewCols:          make(map[[2]string]int),
+		anywhere:          make(map[string]bool),
+		inSchema:          make(map[string][]walk.Key),
+		colMeta:           make(map[[2]string]map[string]syncedCol),
+		pkCols:            make(map[[2]string][]string),
+		partKeyCols:       make(map[[2]string]map[string]bool),
+		fkRefs:            make(map[[2]string][]syncedFKRef),
+		compAttrs:         make(map[[2]string]map[string]bool),
+		indexDefs:         make(map[[2]string]*syncedIndex),
+		funcSigs:          make(map[[2]string]*syncedFuncInfo),
+		trigFuncs:         make(map[[2]string][]syncedTrigRef),
 	}
 	if db == nil {
 		return s
 	}
+	for _, ext := range db.GetExtensions() {
+		if strings.Contains(strings.ToLower(ext.GetName()), "timescaledb") {
+			s.lostRoutines = true
+			break
+		}
+	}
 	for _, schema := range db.GetSchemas() {
 		name := schema.GetName()
+		if strings.Contains(strings.ToLower(name), "timescaledb") {
+			s.lostRoutines = true
+		}
 		if trustedSchemaName(name) {
 			s.schemas[name] = true
 		}
@@ -150,13 +249,34 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			rel(t.GetName(), relTable)
 			rowType(t.GetName())
 			cols := make(map[string]bool, len(t.GetColumns()))
+			var cmeta map[string]syncedCol
 			for _, c := range t.GetColumns() {
 				cols[c.GetName()] = true
+				if c.GetType() != "" && c.GetPosition() > 0 {
+					if cmeta == nil {
+						cmeta = make(map[string]syncedCol, len(t.GetColumns()))
+					}
+					cmeta[c.GetName()] = syncedCol{
+						typ:       strings.ToLower(strings.TrimSpace(c.GetType())),
+						nullable:  c.GetNullable(),
+						identity:  c.GetIdentityGeneration() != metadata.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED,
+						generated: c.GetGeneration() != nil,
+					}
+				}
 			}
 			s.columns[key] = cols
+			if len(cmeta) > 0 {
+				s.colMeta[key] = cmeta
+			}
 			cons := make(map[string]string)
 			for _, idx := range t.GetIndexes() {
 				rel(idx.GetName(), relIndex)
+				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
+					s.indexDefs[[2]string{name, idx.GetName()}] = idxInfo
+					if idx.GetPrimary() && !idxInfo.hasExpr && idxInfo.nkey > 0 {
+						s.pkCols[key] = idxInfo.colNames[:idxInfo.nkey]
+					}
+				}
 				switch {
 				case idx.GetPrimary():
 					cons[idx.GetName()] = conPrimary
@@ -167,6 +287,20 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			}
 			for _, fk := range t.GetForeignKeys() {
 				cons[fk.GetName()] = conForeign
+				if fk.GetReferencedTable() != "" {
+					refSchema := fk.GetReferencedSchema()
+					if refSchema == "" {
+						refSchema = name
+					}
+					refKey := [2]string{refSchema, fk.GetReferencedTable()}
+					if refKey != key {
+						s.fkRefs[refKey] = append(s.fkRefs[refKey], syncedFKRef{
+							fromSchema: name,
+							fromTable:  t.GetName(),
+							conName:    fk.GetName(),
+						})
+					}
+				}
 			}
 			for _, c := range t.GetCheckConstraints() {
 				cons[c.GetName()] = conCheck
@@ -175,12 +309,23 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				cons[x.GetName()] = conExclusion
 			}
 			s.constraints[key] = cons
-			if len(t.GetTriggers()) > 0 {
-				trigs := make(map[string]bool, len(t.GetTriggers()))
-				for _, tr := range t.GetTriggers() {
-					trigs[tr.GetName()] = true
+			trigs := make(map[string]bool, len(t.GetTriggers()))
+			for _, tr := range t.GetTriggers() {
+				trigs[tr.GetName()] = true
+				if fSchema, fName, ok := parseTriggerFunc(tr.GetBody()); ok {
+					s.trigFuncs[[2]string{fSchema, fName}] = append(s.trigFuncs[[2]string{fSchema, fName}], syncedTrigRef{
+						tableSchema: name,
+						tableName:   t.GetName(),
+						trigName:    tr.GetName(),
+					})
 				}
-				s.triggers[key] = trigs
+			}
+			s.triggers[key] = trigs
+			for _, p := range t.GetPartitions() {
+				if pcols := parsePartKeyCols(p.GetExpression()); len(pcols) > 0 {
+					s.partKeyCols[key] = pcols
+					break
+				}
 			}
 			s.addPartitions(name, t.GetPartitions())
 		}
@@ -196,12 +341,18 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, v := range schema.GetViews() {
 			rel(v.GetName(), relView)
 			rowType(v.GetName())
+			if len(v.GetColumns()) > 0 {
+				s.viewCols[[2]string{name, v.GetName()}] = len(v.GetColumns())
+			}
 		}
 		for _, v := range schema.GetMaterializedViews() {
 			rel(v.GetName(), relMatview)
 			rowType(v.GetName())
 			for _, idx := range v.GetIndexes() {
 				rel(idx.GetName(), relIndex)
+				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
+					s.indexDefs[[2]string{name, idx.GetName()}] = idxInfo
+				}
 			}
 		}
 		for _, q := range schema.GetSequences() {
@@ -210,9 +361,92 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, c := range schema.GetCompositeTypes() {
 			rel(c.GetName(), relComposite)
 			rowType(c.GetName())
+			if len(c.GetAttributes()) > 0 {
+				attrs := make(map[string]bool, len(c.GetAttributes()))
+				for _, a := range c.GetAttributes() {
+					attrs[a.GetName()] = true
+				}
+				s.compAttrs[[2]string{name, c.GetName()}] = attrs
+			}
 		}
 		for _, e := range schema.GetEnumTypes() {
 			rowType(e.GetName())
+		}
+		for _, rt := range schema.GetRangeTypes() {
+			rowType(rt.GetName())
+			s.rangeConstructors[[2]string{name, rt.GetName()}] = true
+			if mr := rt.GetMultirangeName(); mr != "" {
+				mrParts := identifierParts(mr)
+				switch len(mrParts) {
+				case 1:
+					rowType(mrParts[0])
+					s.rangeConstructors[[2]string{name, mrParts[0]}] = true
+					s.rangeMultirange[[2]string{name, rt.GetName()}] = [2]string{name, mrParts[0]}
+				case 2:
+					s.types[[2]string{mrParts[0], mrParts[1]}] = true
+					s.inSchema[mrParts[0]] = append(s.inSchema[mrParts[0]], typeKey(mrParts[0], mrParts[1]))
+					s.rangeConstructors[[2]string{mrParts[0], mrParts[1]}] = true
+					s.rangeMultirange[[2]string{name, rt.GetName()}] = [2]string{mrParts[0], mrParts[1]}
+				}
+			} else {
+				s.rangeConstructors[[2]string{name, rt.GetName() + "_multirange"}] = true
+			}
+		}
+		for _, fn := range schema.GetFunctions() {
+			// pg/driver/sync.go stores procedures in SchemaMetadata.Functions
+			// with their pg_get_functiondef() text (CREATE OR REPLACE PROCEDURE).
+			// Classify from the declaration header (not body literals/comments);
+			// an empty or unrecognized Definition stays ambiguous.
+			k := routineKindFromDef(fn.GetDefinition())
+			fk := [2]string{name, fn.GetName()}
+			if k == kindFunction|kindProcedure {
+				s.ambigRoutines[fk] = true
+				if fi := s.funcSigs[fk]; fi != nil {
+					fi.complete = false
+				} else {
+					s.funcSigs[fk] = &syncedFuncInfo{complete: false}
+				}
+				continue
+			}
+			if k&kindFunction != 0 {
+				s.functions[fk] = true
+				s.inSchema[name] = append(s.inSchema[name], funcKey(name, fn.GetName()))
+				fi := s.funcSigs[fk]
+				if fi == nil {
+					fi = &syncedFuncInfo{complete: true, arities: make(map[int]bool)}
+					s.funcSigs[fk] = fi
+				}
+				if fi.complete {
+					if arity, setof, defOrVar, ok := parseFuncDef(fn.GetDefinition()); ok {
+						fi.arities[arity] = true
+						if arity == 0 {
+							fi.zeroArg = true
+						}
+						if setof {
+							fi.anySetof = true
+						}
+						if defOrVar {
+							fi.hasDefaultOrVariadic = true
+						}
+					} else {
+						fi.complete = false
+					}
+				}
+			}
+			if k&kindProcedure != 0 {
+				s.procedures[fk] = true
+				s.inSchema[name] = append(s.inSchema[name], procKey(name, fn.GetName()))
+			}
+		}
+		// Mark any range/multirange constructor names incomplete in funcSigs.
+		for rk := range s.rangeConstructors {
+			if fi := s.funcSigs[rk]; fi != nil {
+				fi.complete = false
+			}
+		}
+		for _, pr := range schema.GetProcedures() {
+			s.procedures[[2]string{name, pr.GetName()}] = true
+			s.inSchema[name] = append(s.inSchema[name], procKey(name, pr.GetName()))
 		}
 	}
 	return s
@@ -303,6 +537,268 @@ func trustedRelationName(name string) bool {
 	return true
 }
 
+// trustedRoutineName reports whether Bytebase's sync lists a routine of this
+// name in a synced schema whenever it exists: every name except system/built-in
+// names and extension prefixes that pg/analysis.IsSystemFunction drops.
+//
+// bytebase: backend/plugin/parser/pg/system_objects.go — IsSystemFunction
+func trustedRoutineName(name string) bool {
+	if builtinCalls[strings.ToLower(name)] || pganalysis.IsSystemFunction(name, "") {
+		return false
+	}
+	return !strings.HasPrefix(name, "pg_")
+}
+
+// isInternalConstraintTrigger reports whether name matches one of PostgreSQL's
+// system-generated internal constraint trigger prefixes (tgisinternal = true),
+// which pg/driver/sync.go omits from TableMetadata.Triggers.
+//
+// pg: src/backend/commands/tablecmds.c — createForeignKeyCheckTriggers;
+// src/backend/catalog/index.c — index_constraint_create
+func isInternalConstraintTrigger(name string) bool {
+	return strings.HasPrefix(name, "RI_ConstraintTrigger_") ||
+		strings.HasPrefix(name, "Unique_ConstraintTrigger_") ||
+		strings.HasPrefix(name, "PK_ConstraintTrigger_")
+}
+
+// parseSyncedIndex parses a pg_get_indexdef() CREATE INDEX definition and
+// extracts its column names and expression flags.
+func parseSyncedIndex(def string) *syncedIndex {
+	if def == "" {
+		return nil
+	}
+	list, err := parser.Parse(def)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return nil
+	}
+	stmt, ok := raw.Stmt.(*ast.IndexStmt)
+	if !ok || stmt.IndexParams == nil || len(stmt.IndexParams.Items) == 0 {
+		return nil
+	}
+	info := &syncedIndex{
+		colNames:     make([]string, 0, len(stmt.IndexParams.Items)),
+		isExpr:       make([]bool, 0, len(stmt.IndexParams.Items)),
+		nkey:         len(stmt.IndexParams.Items),
+		accessMethod: strings.ToLower(stmt.AccessMethod),
+	}
+	for _, item := range stmt.IndexParams.Items {
+		elem, ok := item.(*ast.IndexElem)
+		if !ok {
+			return nil
+		}
+		if elem.Expr != nil {
+			info.colNames = append(info.colNames, "")
+			info.isExpr = append(info.isExpr, true)
+			info.hasExpr = true
+		} else {
+			name, ok := walkName(elem.Name)
+			if !ok {
+				return nil
+			}
+			info.colNames = append(info.colNames, name)
+			info.isExpr = append(info.isExpr, false)
+		}
+	}
+	if stmt.IndexIncludingParams != nil {
+		for _, item := range stmt.IndexIncludingParams.Items {
+			elem, ok := item.(*ast.IndexElem)
+			if !ok || elem.Name == "" {
+				return nil
+			}
+			name, ok := walkName(elem.Name)
+			if !ok {
+				return nil
+			}
+			info.colNames = append(info.colNames, name)
+			info.isExpr = append(info.isExpr, false)
+		}
+	}
+	return info
+}
+
+// parsePartKeyCols extracts plain column names from pg_get_partkeydef()
+// (e.g. "RANGE (a)" or "HASH (a, b)") via the PostgreSQL parser.
+func parsePartKeyCols(expr string) map[string]bool {
+	if expr == "" {
+		return nil
+	}
+	list, err := parser.Parse("CREATE TABLE _t (_ int) PARTITION BY " + expr)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return nil
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateStmt)
+	if !ok || stmt.Partspec == nil || stmt.Partspec.PartParams == nil {
+		return nil
+	}
+	var out map[string]bool
+	for _, item := range stmt.Partspec.PartParams.Items {
+		pe, ok := item.(*ast.PartitionElem)
+		if !ok || pe.Name == "" || pe.Expr != nil {
+			continue
+		}
+		if name, ok := walkName(pe.Name); ok {
+			if out == nil {
+				out = make(map[string]bool)
+			}
+			out[name] = true
+		}
+	}
+	return out
+}
+
+// parseTriggerFunc parses a pg_get_triggerdef() CREATE TRIGGER definition and
+// returns the schema and name of the executed trigger function when qualified.
+func parseTriggerFunc(body string) (schema, name string, ok bool) {
+	if body == "" {
+		return "", "", false
+	}
+	list, err := parser.Parse(body)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return "", "", false
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return "", "", false
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateTrigStmt)
+	if !ok || stmt.Funcname == nil {
+		return "", "", false
+	}
+	parts := nameParts(stmt.Funcname)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	s, ok1 := walkName(parts[0])
+	fn, ok2 := walkName(parts[1])
+	if !ok1 || !ok2 {
+		return "", "", false
+	}
+	return s, fn, true
+}
+
+// routineKindFromDef classifies a synced routine from the leading keywords of
+// its DDL declaration (CREATE [OR REPLACE] FUNCTION vs PROCEDURE), ignoring
+// anything inside the routine body, string literals, or leading comments.
+// An empty or unrecognized definition returns kindFunction|kindProcedure.
+func routineKindFromDef(def string) routineKind {
+	if def == "" {
+		return kindFunction | kindProcedure
+	}
+	var words []string
+	for i := 0; i < len(def) && len(words) < 4; {
+		c := def[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f':
+			i++
+		case c == '-' && i+1 < len(def) && def[i+1] == '-':
+			i += 2
+			for i < len(def) && def[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < len(def) && def[i+1] == '*':
+			depth := 1
+			i += 2
+			for i < len(def) && depth > 0 {
+				if def[i] == '/' && i+1 < len(def) && def[i+1] == '*' {
+					depth++
+					i += 2
+				} else if def[i] == '*' && i+1 < len(def) && def[i+1] == '/' {
+					depth--
+					i += 2
+				} else {
+					i++
+				}
+			}
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_':
+			start := i
+			for i < len(def) && ((def[i] >= 'a' && def[i] <= 'z') || (def[i] >= 'A' && def[i] <= 'Z') || (def[i] >= '0' && def[i] <= '9') || def[i] == '_') {
+				i++
+			}
+			words = append(words, strings.ToUpper(def[start:i]))
+		default:
+			return kindFunction | kindProcedure
+		}
+	}
+	if len(words) >= 2 && words[0] == "CREATE" {
+		idx := 1
+		if len(words) >= 4 && words[1] == "OR" && words[2] == "REPLACE" {
+			idx = 3
+		}
+		switch words[idx] {
+		case "PROCEDURE":
+			return kindProcedure
+		case "FUNCTION":
+			return kindFunction
+		}
+	}
+	return kindFunction | kindProcedure
+}
+
+// parseFuncDef parses a pg_get_functiondef() CREATE FUNCTION definition and
+// returns its input argument count (IN/INOUT/VARIADIC), whether it returns
+// a set (SETOF or TABLE(...)), and whether any parameter has a DEFAULT value
+// or is VARIADIC.
+func parseFuncDef(def string) (arity int, setof, defOrVar, ok bool) {
+	if def == "" {
+		return 0, false, false, false
+	}
+	list, err := parser.Parse(def)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return 0, false, false, false
+	}
+	raw, ok := list.Items[0].(*ast.RawStmt)
+	if !ok {
+		return 0, false, false, false
+	}
+	stmt, ok := raw.Stmt.(*ast.CreateFunctionStmt)
+	if !ok {
+		return 0, false, false, false
+	}
+	if stmt.ReturnType != nil && stmt.ReturnType.Setof {
+		setof = true
+	}
+	if stmt.Parameters != nil {
+		for _, item := range stmt.Parameters.Items {
+			fp, ok := item.(*ast.FunctionParameter)
+			if !ok {
+				return 0, false, false, false
+			}
+			if fp.Defexpr != nil || fp.Mode == ast.FUNC_PARAM_VARIADIC {
+				defOrVar = true
+			}
+			switch fp.Mode {
+			case ast.FUNC_PARAM_OUT:
+			case ast.FUNC_PARAM_TABLE:
+				setof = true
+			default:
+				arity++
+			}
+		}
+	}
+	return arity, setof, defOrVar, true
+}
+
+// builtinCatalogFunctions holds every built-in function name in PostgreSQL's
+// pg_catalog (from pg_proc.dat via pg/catalog.BuiltinProcs). None of these
+// names is ever claimed absent on an unqualified search path.
+var builtinCatalogFunctions = func() map[string]bool {
+	m := make(map[string]bool, len(pgcatalog.BuiltinProcs))
+	for i := range pgcatalog.BuiltinProcs {
+		if pgcatalog.BuiltinProcs[i].Kind != 'p' {
+			m[pgcatalog.BuiltinProcs[i].Name] = true
+		}
+	}
+	return m
+}()
+
 // Lookup implements walk.Snapshot.
 func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	switch k.Space {
@@ -335,6 +831,34 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			// The sync lists no domain.
 			return walk.Present, typOther
 		}
+	case spaceFunction:
+		schema := k.Parent
+		if schema == tempSchema {
+			return walk.Absent, ""
+		}
+		if s.functions[[2]string{schema, k.Name}] {
+			return walk.Present, ""
+		}
+		if s.ambigRoutines[[2]string{schema, k.Name}] || s.rangeConstructors[[2]string{schema, k.Name}] {
+			return walk.Unknown, ""
+		}
+		if !s.lostRoutines && s.schemas[schema] && trustedRoutineName(k.Name) {
+			return walk.Absent, ""
+		}
+	case spaceProcedure:
+		schema := k.Parent
+		if schema == tempSchema {
+			return walk.Absent, ""
+		}
+		if s.procedures[[2]string{schema, k.Name}] {
+			return walk.Present, ""
+		}
+		if s.ambigRoutines[[2]string{schema, k.Name}] {
+			return walk.Unknown, ""
+		}
+		if !s.lostRoutines && s.schemas[schema] && trustedRoutineName(k.Name) {
+			return walk.Absent, ""
+		}
 	case spaceColumn:
 		table, ok := splitTable(k.Parent)
 		if !ok || systemColumns[k.Name] {
@@ -359,8 +883,15 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, ""
 		}
 	case spaceTrigger:
-		if table, ok := splitTable(k.Parent); ok && s.triggers[table][k.Name] {
-			return walk.Present, ""
+		if table, ok := splitTable(k.Parent); ok {
+			if trigs, synced := s.triggers[table]; synced {
+				if trigs[k.Name] {
+					return walk.Present, ""
+				}
+				if !isInternalConstraintTrigger(k.Name) {
+					return walk.Absent, ""
+				}
+			}
 		}
 	}
 	return walk.Unknown, ""

@@ -78,6 +78,22 @@ func isWalkSimStatement(stmt string) bool {
 
 var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refusal categories in TestWalkSimulation")
 
+const walkSimMinTotalRecallPct = 85.0
+
+var walkSimMinFixtureRecallPct = map[string]float64{
+	"one_table@missing":     87.0,
+	"one_table@table":       81.0,
+	"one_table@column":      80.0,
+	"objects@partitioned":   87.0,
+	"objects@index_trigger": 90.0,
+	"objects@view":          91.0,
+	"objects@matview":       55.0,
+	"objects@sequence":      92.5,
+	"objects@synonym":       86.0,
+	"objects@function":      92.5,
+	"objects@type":          83.5,
+}
+
 const (
 	walkSimVerdictsPath = "testdata/walk_simulation_verdicts.tsv"
 	walkSimVerdictsHdr  = "# columns: expected, fixture, rule, statement"
@@ -349,6 +365,9 @@ func TestWalkSimulation(t *testing.T) {
 		}
 		t.Logf("fixture %-22s: %4d rows (%4d ok, %4d refused), caught %4d/%4d (%.1f%%)",
 			fxName, len(fxRows), fxOK, fxRefused, fxFound, fxRefused, pct)
+		if minPct, ok := walkSimMinFixtureRecallPct[fxName]; ok && pct < minPct {
+			t.Errorf("fixture %s recall %.1f%% (%d/%d) dropped below floor %.1f%%", fxName, pct, fxFound, fxRefused, minPct)
+		}
 	}
 
 	if recording {
@@ -379,6 +398,9 @@ func TestWalkSimulation(t *testing.T) {
 	}
 	t.Logf("TOTAL: %d rows (%d ok, %d refused); false positives: %d; caught %d/%d refusals (%.1f%%)",
 		totalRows, totalOK, totalRefused, totalFP, totalFound, totalRefused, pct)
+	if pct < walkSimMinTotalRecallPct {
+		t.Errorf("total WALK_THROUGH refusal recall %.1f%% (%d/%d) dropped below floor %.1f%%", pct, totalFound, totalRefused, walkSimMinTotalRecallPct)
+	}
 	if *walkSimShowMissed {
 		type kv struct {
 			k string

@@ -21,6 +21,7 @@ const (
 	spaceIndex           = "index"
 	spaceForeignKey      = "foreign key"
 	spaceTableForeignKey = "table foreign key"
+	spaceCheckConstraint = "check constraint"
 	spaceTrigger         = "trigger"
 	spaceProcedure       = "procedure"
 	spaceFunction        = "function"
@@ -88,6 +89,8 @@ type mysqlSnapshot struct {
 	foreignKeys map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
 	tableForeignKeys map[string]map[string]bool
+	// checkConstraints holds each table's CHECK constraints.
+	checkConstraints map[string]map[string]bool
 	triggers         map[string]string // key → the spelling the sync lists
 	procedures       map[string]bool
 	functions        map[string]bool
@@ -97,6 +100,21 @@ type mysqlSnapshot struct {
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
+	// engines records each synced table's engine ("" means default/InnoDB).
+	engines map[string]string
+	// colTypes records known base data types for synced columns (omitted when
+	// sync metadata left ColumnMetadata.Type empty).
+	colTypes map[string]map[string]string
+	// partitionState records partitioning facts for each synced table.
+	partitionState map[string]*tablePartitionInfo
+	// tableIndexes records index metadata per synced table when every synced
+	// index on the table has known expressions.
+	tableIndexes map[string]map[string]*indexMeta
+	// tableFKs records each synced table's foreign key column lists.
+	tableFKs map[string]map[string][]string
+	// referencedByFK records synced tables referenced by a foreign key in this
+	// database, mapped to the referencing (childTableKey, fkKey) pairs.
+	referencedByFK map[string]map[[2]string]bool
 	// fkGeneratedIndexes lists synced indexes that could be implicitly
 	// generated foreign-key backing indexes (MySQL's HA_GENERATED_KEY), keyed
 	// by table key then index key, mapping to the keys of the synced foreign
@@ -119,11 +137,18 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		foreignKeys:        make(map[string]bool),
 		triggers:           make(map[string]string),
 		tableForeignKeys:   make(map[string]map[string]bool),
+		checkConstraints:   make(map[string]map[string]bool),
 		procedures:         make(map[string]bool),
 		functions:          make(map[string]bool),
 		events:             make(map[string]bool),
 		triggered:          make(map[string]bool),
 		ignoresFKs:         make(map[string]bool),
+		engines:            make(map[string]string),
+		colTypes:           make(map[string]map[string]string),
+		partitionState:     make(map[string]*tablePartitionInfo),
+		tableIndexes:       make(map[string]map[string]*indexMeta),
+		tableFKs:           make(map[string]map[string][]string),
+		referencedByFK:     make(map[string]map[[2]string]bool),
 		fkGeneratedIndexes: make(map[string]map[string][]string),
 		partial:            make(map[[2]string]bool),
 	}
@@ -149,29 +174,136 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			}
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
+			s.engines[tk] = t.GetEngine()
 			if !keepsFKs(t.GetEngine()) {
 				s.ignoresFKs[tk] = true
 			}
 			cols := make(map[string]bool)
+			cTypes := make(map[string]string)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, tk, c.GetName())
+				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
+					if bt := normalizeBaseType(c.GetType()); bt != "" {
+						cTypes[ck] = bt
+					}
+				}
 			}
 			s.columns[tk] = cols
+			if len(cTypes) > 0 {
+				s.colTypes[tk] = cTypes
+			}
 			idx := make(map[string]bool)
+			idxMeta := make(map[string]*indexMeta)
+			allIdxHaveExprs := true
 			for _, i := range t.GetIndexes() {
-				if i.GetPrimary() {
+				ik := primaryIndex
+				if !i.GetPrimary() {
+					var ok bool
+					if ik, ok = nameKey(spaceIndex, i.GetName(), foldTables); ok {
+						idx[ik] = true
+						mark(spaceIndex, tk, ik)
+					} else {
+						allIdxHaveExprs = false
+						continue
+					}
+				} else {
 					idx[primaryIndex] = true
+				}
+				exprs := i.GetExpressions()
+				if len(exprs) == 0 {
+					allIdxHaveExprs = false
 					continue
 				}
-				set(idx, spaceIndex, tk, i.GetName())
+				im := &indexMeta{
+					unique:   i.GetUnique() || i.GetPrimary(),
+					primary:  i.GetPrimary(),
+					fulltext: strings.EqualFold(i.GetType(), "FULLTEXT"),
+					spatial:  isSpatialIndexType(i.GetType()),
+				}
+				keyLengths := i.GetKeyLength()
+				for pos, ex := range exprs {
+					trimmed := strings.TrimSpace(ex)
+					if strings.HasPrefix(trimmed, "(") {
+						break
+					}
+					im.cols = append(im.cols, strings.ToLower(strings.Trim(trimmed, "`")))
+					im.colPrefixes = append(im.colPrefixes, pos < len(keyLengths) && keyLengths[pos] > 0)
+				}
+				idxMeta[ik] = im
 			}
 			s.indexes[tk] = idx
+			if allIdxHaveExprs {
+				s.tableIndexes[tk] = idxMeta
+			}
 			fks := make(map[string]bool)
+			fkCols := make(map[string][]string)
 			for _, fk := range t.GetForeignKeys() {
 				set(s.foreignKeys, spaceForeignKey, "", fk.GetName())
 				set(fks, spaceTableForeignKey, tk, fk.GetName())
+				if fkKey, ok := nameKey(spaceForeignKey, fk.GetName(), foldTables); ok {
+					var colsLower []string
+					for _, fc := range fk.GetColumns() {
+						colsLower = append(colsLower, strings.ToLower(fc))
+					}
+					fkCols[fkKey] = colsLower
+					refSchema := fk.GetReferencedSchema()
+					sameDB := refSchema == ""
+					if !sameDB {
+						if refDB, ok := nameKey(spaceDatabase, refSchema, foldTables); ok && refDB == s.db {
+							sameDB = true
+						}
+					}
+					if sameDB {
+						if refTbl, ok := nameKey(spaceRelation, fk.GetReferencedTable(), foldTables); ok {
+							if s.referencedByFK[refTbl] == nil {
+								s.referencedByFK[refTbl] = make(map[[2]string]bool)
+							}
+							s.referencedByFK[refTbl][[2]string{tk, fkKey}] = true
+						}
+					}
+				}
 			}
 			s.tableForeignKeys[tk] = fks
+			if len(fkCols) > 0 {
+				s.tableFKs[tk] = fkCols
+			}
+			chks := make(map[string]bool)
+			for _, cc := range t.GetCheckConstraints() {
+				set(chks, spaceCheckConstraint, tk, cc.GetName())
+			}
+			s.checkConstraints[tk] = chks
+			parts := t.GetPartitions()
+			if len(parts) == 0 {
+				s.partitionState[tk] = &tablePartitionInfo{partitioned: false}
+			} else {
+				pinfo := &tablePartitionInfo{
+					partitioned: true,
+					names:       make(map[string]bool, len(parts)),
+					cols:        make(map[string]bool),
+				}
+				if pt, ok := partitionProtoType(parts[0].GetType()); ok {
+					pinfo.hasType = true
+					pinfo.partType = pt
+				}
+				for _, p := range parts {
+					if p.GetName() != "" {
+						pinfo.names[strings.ToLower(p.GetName())] = true
+					}
+					for _, col := range extractPartitionExprCols(p.GetExpression()) {
+						pinfo.cols[col] = true
+					}
+					for _, sp := range p.GetSubpartitions() {
+						for _, col := range extractPartitionExprCols(sp.GetExpression()) {
+							pinfo.cols[col] = true
+						}
+					}
+				}
+				pinfo.count = len(pinfo.names)
+				if len(pinfo.cols) == 0 {
+					pinfo.cols = nil
+				}
+				s.partitionState[tk] = pinfo
+			}
 			if keepsFKs(t.GetEngine()) && len(t.GetForeignKeys()) > 0 {
 				var fkGen map[string][]string
 				for _, i := range t.GetIndexes() {
@@ -264,7 +396,7 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, kind
 		}
 		return absent()
-	case spaceColumn, spaceIndex, spaceTableForeignKey:
+	case spaceColumn, spaceIndex, spaceTableForeignKey, spaceCheckConstraint:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
@@ -279,6 +411,7 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			spaceColumn:          s.columns,
 			spaceIndex:           s.indexes,
 			spaceTableForeignKey: s.tableForeignKeys,
+			spaceCheckConstraint: s.checkConstraints,
 		}[k.Space][path[1]]
 		if !ok {
 			return walk.Unknown, ""

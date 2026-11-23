@@ -630,7 +630,7 @@ CREATE VIEW APP.V AS SELECT * FROM T;
 		}))
 		toExprOnly, err := LoadSQL(`
 CREATE VIEW APP.V AS SELECT * FROM T;
-CREATE VIEW APP.V_EXPR AS SELECT ID + 1 FROM T;
+CREATE FORCE VIEW APP.V_EXPR AS SELECT ID + 1 FROM T;
 `)
 		require.NoError(t, err)
 		require.Empty(t, GenerateMigration(fromExprOnly, toExprOnly, nil).SQL())
