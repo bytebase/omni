@@ -37,7 +37,17 @@ func (p *Parser) parseQuery() error {
 	if err := p.parseQueryTerm(); err != nil {
 		return err
 	}
-	return p.parseQueryOrganization(false, p.queryDepth == 1)
+	beforeOrg := p.pos
+	if err := p.parseQueryOrganization(false, p.queryDepth == 1); err != nil {
+		return err
+	}
+	if p.queryDepth == 1 && p.pos > beforeOrg {
+		// An outer queryOrganization clause (ORDER BY, SORT BY, WINDOW, etc.)
+		// follows any pipe stages, so a trailing LIMIT must be a regular LIMIT
+		// rather than a `|> LIMIT` pipe stage.
+		p.hasPipe = false
+	}
+	return nil
 }
 
 func (p *Parser) looksLikeQueryStart() bool {
@@ -317,6 +327,9 @@ func (p *Parser) parseQueryTerm() error {
 		switch p.cur().Kind {
 		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
 			op := p.advance().Kind
+			if p.queryDepth == 1 {
+				p.hasPipe = false
+			}
 			p.match(kwDISTINCT, kwALL)
 			// Databricks SQL UNION [ALL | DISTINCT] BY NAME extension.
 			if op == kwUNION && p.cur().Kind == kwBY && isWord(p.peek(1), "NAME") {

@@ -97,10 +97,82 @@ func Split(script string) []Segment {
 	pendingLabel := ""
 	atBodyStmtStart := false
 	stmtHead := tokEOF
+	prevTokKind := tokEOF
 	parenDepth := 0
 	caseExprDepth := 0
 	sawHandler := false
 	sawHandlerFor := false
+
+	isCaseExprStart := func(prevKind TokenKind) bool {
+		if prevKind == tokDot {
+			return false
+		}
+		first := peekTok(0).Kind
+		if first == kwWHEN {
+			if prevKind == kwCASE {
+				// Disambiguate `CASE case WHEN ... END` (identifier operand named `case`)
+				// from `CASE CASE WHEN ... END WHEN ... END` (nested searched CASE).
+				relDepth := 0
+				for off := 1; ; off++ {
+					k := peekTok(off).Kind
+					switch k {
+					case tokEOF, tokSemicolon:
+						return false
+					case tokLParen, tokLBracket:
+						relDepth++
+					case tokRParen, tokRBracket:
+						if relDepth == 0 {
+							return false
+						}
+						relDepth--
+					case kwEND:
+						if relDepth == 0 {
+							return peekTok(off+1).Kind == kwWHEN
+						}
+					}
+				}
+			}
+			return true
+		}
+		switch first {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokDot, tokLBracket, tokDoubleColon, tokColon,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			kwTHEN, kwDO, kwEND, kwELSE, kwELSEIF, kwUNTIL, kwFROM, kwWHERE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwAS:
+			return false
+		}
+		// Simple CASE expression (`CASE <operand> WHEN ...`): must reach WHEN at
+		// relative paren depth 0 before any enclosing clause boundary.
+		relDepth := 0
+		for off := 0; ; off++ {
+			k := peekTok(off).Kind
+			switch k {
+			case tokEOF, tokSemicolon:
+				return false
+			case tokLParen, tokLBracket:
+				relDepth++
+			case tokRParen, tokRBracket:
+				if relDepth == 0 {
+					return false
+				}
+				relDepth--
+			case kwWHEN:
+				if relDepth == 0 {
+					return true
+				}
+			case kwCASE:
+				if relDepth == 0 && off > 0 {
+					return false
+				}
+			case kwTHEN, kwDO, kwEND, kwELSE, kwELSEIF, kwUNTIL:
+				if relDepth == 0 {
+					return false
+				}
+			}
+		}
+	}
 
 	enterBeginBlock := func(label string) {
 		stack = append(stack, compoundFrame{kind: compoundBegin, label: label})
@@ -148,6 +220,8 @@ func Split(script string) []Segment {
 		if tok.Kind == tokEOF {
 			break
 		}
+		prevKind := prevTokKind
+		prevTokKind = tok.Kind
 
 		// Top-level semicolon outside any compound block.
 		if tok.Kind == tokSemicolon && len(stack) == 0 {
@@ -308,8 +382,10 @@ func Split(script string) []Segment {
 		case kwCASE:
 			// Track nested SQL CASE expressions inside IF/ELSEIF/WHEN/UNTIL headers so
 			// `IF CASE WHEN ... THEN ... END THEN` doesn't treat the expression's
-			// THEN as the IF body start.
-			if stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL {
+			// THEN as the IF body start, while preserving non-reserved identifiers
+			// named `case` (e.g. `IF case = 1 THEN ...`).
+			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL) &&
+				isCaseExprStart(prevKind) {
 				caseExprDepth++
 			}
 		case kwEND:

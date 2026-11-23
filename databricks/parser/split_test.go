@@ -245,6 +245,30 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "case variable identifier inside IF condition with nested IF",
+			script: "BEGIN DECLARE case INT DEFAULT 1; IF case = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; IF case = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "case variable and SQL CASE expression combined inside IF condition",
+			script: "BEGIN DECLARE case INT DEFAULT 1; IF case = 1 AND CASE WHEN true THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; IF case = 1 AND CASE WHEN true THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "qualified case column inside IF condition",
+			script: "BEGIN IF t.case = 1 THEN SELECT 1; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF t.case = 1 THEN SELECT 1; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "case variable as simple CASE operand inside compound block",
+			script: "BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:    "unclosed block comment stays non-empty",
 			script:  "/* unclosed",
 			want:    []string{"/* unclosed"},
