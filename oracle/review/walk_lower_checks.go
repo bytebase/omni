@@ -2513,10 +2513,9 @@ func (b *builder) dmlCheckInsertSetNotNull(o *ast.ObjectName, r objRef, setClaus
 	return false
 }
 
-// checkFlashbackVersionsPeriod rejects AS OF / VERSIONS PERIOD FOR <p> on a
-// synced complete table (valid-time periods add hidden *_START/*_END columns
-// and a check constraint, which makes columnsComplete return false) or with
-// numeric literal bounds (ORA-55603 / ORA-00932).
+// checkFlashbackVersionsPeriod rejects AS OF / VERSIONS PERIOD FOR <p> with
+// numeric literal bounds (ORA-55603 / ORA-00932: valid-time period bounds must
+// be date or timestamp expressions).
 func (b *builder) checkFlashbackVersionsPeriod(fb *ast.FlashbackClause, name *ast.ObjectName, dblink string) bool {
 	if fb == nil || !fb.IsPeriodFor {
 		return false
@@ -2536,15 +2535,6 @@ func (b *builder) checkFlashbackVersionsPeriod(fb *ast.FlashbackClause, name *as
 	if _, isNum := fb.VersionsHigh.(*ast.NumberLiteral); isNum {
 		b.fail(rng, review.UnsupportedForm, "VERSIONS PERIOD FOR requires date or timestamp bounds, not a number.")
 		return true
-	}
-	if name != nil && dblink == "" {
-		if r, ok := b.ref(name); ok {
-			_, st := b.dmlResolveTable(name, r)
-			if st != nil && st.complete {
-				b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no valid-time period.")
-				return true
-			}
-		}
 	}
 	return false
 }

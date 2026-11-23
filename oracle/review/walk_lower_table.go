@@ -125,12 +125,6 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Index-organized table clause is not allowed on non-IOT table "+review.Code(r.written)+".")
 					return true
 				}
-				if c.Action == ast.AT_DROP_PERIOD {
-					if st := b.syncedColMeta(r); st != nil && st.complete {
-						b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Table "+review.Code(r.written)+" has no valid-time period.")
-						return true
-					}
-				}
 				if b.checkAlterTableAddRefOnScalar(r, c.Loc, rangeOf(c.Loc)) {
 					return true
 				}

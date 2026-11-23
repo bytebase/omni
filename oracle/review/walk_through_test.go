@@ -1040,6 +1040,12 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	// RENAME COLUMN invalidates partition and index metadata so reusing the old name succeeds.
 	noFinding(t, "ALTER TABLE part_range RENAME COLUMN a TO a_new;\nALTER TABLE part_range ADD (a NUMBER);\nALTER TABLE part_range DROP COLUMN a;", rich)
 	noFinding(t, "ALTER TABLE plain RENAME COLUMN val TO val_new;\nALTER TABLE plain ADD (val NUMBER);\nCREATE INDEX ix_reused_val ON plain (val);", rich)
+	// Dropping a column implicitly removes its index and invalidates cached index type before recreation.
+	noFinding(t, "ALTER TABLE plain DROP COLUMN val;\nCREATE INDEX ix_plain_val ON plain (ABS(id));\nALTER INDEX ix_plain_val DISABLE;", rich)
+	// Valid-time period backed by explicit columns and extra unmanaged columns in prebuilt MVs.
+	noFinding(t, "ALTER TABLE plain DROP (PERIOD FOR vt);", rich)
+	noFinding(t, "CREATE MATERIALIZED VIEW nokey_rich ON PREBUILT TABLE AS SELECT a FROM nokey_rich;", rich)
+	oneFinding(t, "CREATE MATERIALIZED VIEW nokey_rich ON PREBUILT TABLE AS SELECT 1 FROM dual;", 0, "Prebuilt table `NOKEY_RICH` is missing materialized view query column `\"1\"`.", rich)
 	// Local table named DUAL or quoted "dual" shadows PUBLIC.DUAL and allows inline-view DML.
 	localDualSchema := walkRichSchema()
 	localDualSchema.Schemas[0].Tables = append(localDualSchema.Schemas[0].Tables,

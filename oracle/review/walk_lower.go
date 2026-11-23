@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -1052,8 +1053,8 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	if !b.exists(k, nil, v.IfExists, r.rng, missingIndex(r.written), "") {
 		return true
 	}
-	if !v.IfExists && !b.w.otherSpecs && !b.w.mutatedAllIndexes && r.schema == b.w.snap.schema {
-		if b.w.snap.indexTypes[r.name] == "NORMAL" {
+	if !v.IfExists && !b.w.otherSpecs && !b.w.mutatedAllIndexes && !b.w.mutatedAllTables && r.schema == b.w.snap.schema {
+		if tbl, ok := b.w.snap.indexes[r.name]; ok && !b.w.mutatedIndexes[[2]string{r.schema, tbl}] && b.w.snap.indexTypes[r.name] == "NORMAL" {
 			if v.Action == "ENABLE" || v.Action == "DISABLE" {
 				b.fail(r.rng, review.UnsupportedForm, v.Action+" is only allowed on a function-based index, not "+review.Code(r.written)+".")
 				return true
@@ -1113,8 +1114,21 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 				b.need(k, walk.Present, []string{kindTable}, r.rng, missingTable(r.written), wrongKind(r.written, kindMView, kindWord(kindTable)))
 				if st := b.syncedColMeta(r); st != nil && st.complete {
 					if sel, ok := v.Query.(*ast.SelectStmt); ok {
-						if nSel, ok := selectColumnCount(sel); ok && nSel != st.visibleInsCols {
-							b.fail(r.rng, review.UnsupportedForm, "Prebuilt table "+review.Code(r.written)+" column count does not match materialized view query.")
+						if nSel, ok := selectColumnCount(sel); ok && nSel > len(st.columns) {
+							b.fail(r.rng, review.UnsupportedForm, "Prebuilt table "+review.Code(r.written)+" has fewer columns than the materialized view query.")
+							return true
+						}
+					}
+					if cols, complete := mvKnownColumns(v); complete {
+						var missing []string
+						for col := range cols {
+							if !generated(spaceColumn, col) && !st.columns[col] {
+								missing = append(missing, col)
+							}
+						}
+						if len(missing) > 0 {
+							slices.Sort(missing)
+							b.fail(r.rng, review.UnsupportedForm, "Prebuilt table "+review.Code(r.written)+" is missing materialized view query column "+review.Code(ident(missing[0]))+".")
 							return true
 						}
 					}
