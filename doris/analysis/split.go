@@ -14,7 +14,7 @@ type Statement = analysis.Statement
 // whitespace, a comment — is reported with Empty set, so a caller that
 // accounts for every delimiter sees one entry per ';'.
 func SplitStatements(script string) []Statement {
-	segments := parser.SplitAll(script)
+	segments := parser.Split(script)
 	if len(segments) == 0 {
 		return nil
 	}

@@ -231,7 +231,7 @@ func TestStrictParseRejectsMalformedShowClauses(t *testing.T) {
 }
 
 func TestStrictParsePromotesFilteredSegmentLexErrors(t *testing.T) {
-	// Split drops comment-only segments, and their lex errors with them; the
+	// parseAll skips comment-only segments, and their lex errors with them; the
 	// strict full-input sweep has to bring those diagnostics back.
 	for _, sql := range []string{"/* unterminated", "SELECT 1; /* unterminated"} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {

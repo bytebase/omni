@@ -182,7 +182,7 @@ func TestDescribeExplain(t *testing.T) {
 }
 
 // A buffer that cannot lex is not read-only anything: the chunk it sits in
-// holds no statement, so parser.Split drops it and a per-segment parse never
+// holds no statement, so parseStatements skips it and a per-segment parse never
 // sees it. The check runs on the whole text before splitting.
 func TestValidateQueryFailsClosedOnLexError(t *testing.T) {
 	for _, script := range []string{"/*", "SELECT 1; /*"} {

@@ -17,12 +17,13 @@ type Segment struct {
 // that is, only whitespace and comments. It works by re-lexing Text and
 // checking whether the first token is tokEOF.
 //
-// Empty segments are filtered out by Split and kept by SplitAll.
+// Split returns empty segments; a caller that parses or executes statements
+// skips them.
 func (s Segment) Empty() bool {
 	return NewLexer(s.Text).NextToken().Kind == tokEOF
 }
 
-// splitState is the state machine state for Split and SplitAll.
+// splitState is the state machine state for Split.
 type splitState int
 
 const (
@@ -32,9 +33,12 @@ const (
 
 // Split extracts top-level SQL statements from input.
 //
-// The returned slice contains one Segment per non-empty statement. Empty
-// statements (lone semicolons, comment-only chunks) are filtered out;
-// SplitAll returns them marked Empty.
+// The returned slice contains one Segment per delimiter-separated chunk,
+// including the chunks that hold no statement — a lone semicolon, whitespace,
+// a comment, or comment-only text after the last `;` — which Segment.Empty
+// reports. A caller that accounts for every delimiter
+// (analysis.SplitStatements) needs them; a caller that parses or executes
+// statements skips them.
 //
 // Split is infallible — it always returns a result, even for malformed
 // input. Lexing errors are suppressed internally; callers who need them
@@ -51,25 +55,6 @@ const (
 // Split does NOT handle:
 //   - DELIMITER directive (MySQL-specific)
 func Split(input string) []Segment {
-	segments := SplitAll(input)
-	kept := segments[:0]
-	for _, segment := range segments {
-		if !segment.Empty() {
-			kept = append(kept, segment)
-		}
-	}
-	if len(kept) == 0 {
-		return nil
-	}
-	return kept
-}
-
-// SplitAll is Split without the filtering: it returns one Segment per
-// delimiter-separated chunk, including the chunks that hold no statement — a
-// lone semicolon, whitespace, a comment — which Segment.Empty reports. A
-// caller that must account for every delimiter (analysis.SplitStatements)
-// needs them; a caller that executes statements wants Split.
-func SplitAll(input string) []Segment {
 	if len(input) == 0 {
 		return nil
 	}
