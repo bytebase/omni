@@ -121,6 +121,9 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 		if n.FromPrecision >= 0 {
 			lead = n.FromPrecision
 		}
+		if lit, ok := unparen(n.Value).(*ast.StringLiteral); ok && leadingDigits(lit.Val) > lead {
+			return qtype{}, false, oraError("01873", "the leading precision of the interval is too small")
+		}
 		if strings.EqualFold(n.From, "YEAR") || strings.EqualFold(n.From, "MONTH") {
 			t := simpleType("INTERVAL YEAR TO MONTH")
 			t.lead = lead
@@ -166,6 +169,10 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 		case "NOT":
 			return simpleType("BOOLEAN"), false, nil
 		case "-", "+":
+			if t.isDatetime() {
+				// A datetime has no sign.
+				return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+			}
 			if t.kind == "NUMBER" || t.isCharacter() || t.isNull() {
 				return numberType(), nn, nil
 			}
@@ -1112,4 +1119,16 @@ func extractFieldOf(field string, t qtype) bool {
 		return field == "DAY" || field == "HOUR" || field == "MINUTE" || field == "SECOND"
 	}
 	return true
+}
+
+// leadingDigits counts the digits an interval literal's leading field
+// holds: the first run of digits after an optional sign.
+func leadingDigits(val string) int {
+	val = strings.TrimSpace(val)
+	val = strings.TrimLeft(val, "+-")
+	n := 0
+	for n < len(val) && val[n] >= '0' && val[n] <= '9' {
+		n++
+	}
+	return n
 }

@@ -76,7 +76,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE, nv NVARCHAR2(10), vc VARCHAR2(10)); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -180,6 +180,11 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"qualified_star_merged_not_grouped", `CREATE VIEW v AS SELECT t.* FROM t JOIN w USING (id) GROUP BY n`, "00979"},
 		{"stddev_interval", `CREATE VIEW v AS SELECT STDDEV(INTERVAL '1' DAY) s FROM dual`, "00932"},
 		{"sum_interval", `CREATE VIEW v AS SELECT SUM(INTERVAL '1' DAY) s FROM dual`, ""},
+		{"negated_date", `CREATE VIEW v AS SELECT -DATE '2020-01-01' x FROM dual`, "00932"},
+		{"interval_leading_precision", `CREATE VIEW v AS SELECT INTERVAL '123' YEAR x FROM dual`, "01873"},
+		{"interval_leading_precision_given", `CREATE VIEW v AS SELECT INTERVAL '123' YEAR(3) x FROM dual`, ""},
+		{"compound_charset_mismatch", `CREATE VIEW v AS SELECT nv FROM t UNION ALL SELECT vc FROM t`, "12704"},
+		{"subset_unknown_member", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a) SUBSET s = (missing) DEFINE a AS id > 0)`, "62503"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {

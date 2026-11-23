@@ -860,6 +860,21 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 		if varSet[rt.Name] || subsets[rt.Name] {
 			return nil, oraError("62503", "illegal variable definition")
 		}
+		// Its members are distinct primary pattern variables.
+		members := map[string]bool{}
+		var bad bool
+		walkExpr(rt.Expr, func(x ast.Node) bool {
+			if ref, ok := x.(*ast.ColumnRef); ok {
+				if !varSet[ref.Column] || members[ref.Column] {
+					bad = true
+				}
+				members[ref.Column] = true
+			}
+			return true
+		})
+		if bad {
+			return nil, oraError("62503", "illegal variable definition")
+		}
 		subsets[rt.Name] = true
 	}
 	defined := map[string]bool{}

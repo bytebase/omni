@@ -362,6 +362,11 @@ func mergeSetOpTypes(a, b qtype) (qtype, error) {
 	}
 	switch {
 	case a.isCharacter() && b.isCharacter():
+		if a.isNational() != b.isNational() {
+			// The national and the database character set need an
+			// explicit conversion.
+			return qtype{}, oraError("12704", "character set mismatch")
+		}
 		if a.isNational() || b.isNational() {
 			n := max(a.chars, b.chars)
 			return characterType("NVARCHAR2", n, false), nil
