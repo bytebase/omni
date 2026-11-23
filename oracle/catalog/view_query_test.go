@@ -198,6 +198,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"subset_two_members", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a b) SUBSET s = (a, b) DEFINE a AS id > 0, b AS id > 0)`, ""},
 		{"qualified_star_only_key_not_grouped", `CREATE VIEW v AS SELECT w.* FROM w JOIN t USING (id) GROUP BY t.n`, "00979"},
 		{"scalar_with_over", `CREATE VIEW v AS SELECT UPPER('x') OVER () x FROM dual`, "00923"},
+		{"extract_from_number", `CREATE VIEW v AS SELECT EXTRACT(YEAR FROM 1) x FROM dual`, "30076"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -849,6 +850,17 @@ CREATE VIEW v AS SELECT t.* FROM t JOIN u USING (id) CROSS JOIN w;
 	}
 	v := c.Metadata().GetSchemas()[0].GetViews()[0]
 	if want := "SELECT t.* FROM t JOIN u USING (id) CROSS JOIN w"; v.GetDefinition() != want {
+		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
+	}
+}
+
+func TestViewQueryStarOverUnnamedDuplicates(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v (a, b) AS SELECT * FROM (SELECT 1 id FROM dual), (SELECT 2 id FROM dual);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Metadata().GetSchemas()[0].GetViews()[0]
+	if want := "SELECT * FROM (SELECT 1 id FROM dual), (SELECT 2 id FROM dual)"; v.GetDefinition() != want {
 		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
 	}
 }

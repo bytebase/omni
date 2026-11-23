@@ -1312,19 +1312,25 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 			count[sc.from.itemCol(it).name]++
 		}
 		var names []string
+		expandable := true
 		for _, it := range items {
 			c := sc.from.itemCol(it)
 			c.expr = false
 			cols = append(cols, c)
 			name := quoteIdent(c.name)
-			if count[c.name] > 1 && it.rel != nil && it.rel.name != "" {
+			if count[c.name] > 1 {
 				// A name * lists twice is written with its item, so the
-				// stored text reads the same columns.
-				name = quoteIdent(it.rel.name) + "." + name
+				// stored text reads the same columns; an item without a
+				// name leaves the star as written.
+				if it.rel == nil || it.rel.name == "" {
+					expandable = false
+				} else {
+					name = quoteIdent(it.rel.name) + "." + name
+				}
 			}
 			names = append(names, name)
 		}
-		if top {
+		if top && expandable {
 			a.edits = append(a.edits, textEdit{start: x.Loc.Start, end: x.Loc.End, text: strings.Join(names, ",")})
 		}
 		return cols, nil

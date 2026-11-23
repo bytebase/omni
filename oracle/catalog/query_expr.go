@@ -1124,7 +1124,9 @@ func extractFieldOf(field string, t qtype) bool {
 	case "INTERVAL DAY TO SECOND":
 		return field == "DAY" || field == "HOUR" || field == "MINUTE" || field == "SECOND"
 	}
-	return true
+	// A number, LOB, RAW or boolean holds no datetime field; a character
+	// value or an unmodeled type is not refused.
+	return !(t.isNumeric() || t.isLOB() || t.kind == "RAW" || t.kind == "BOOLEAN")
 }
 
 // leadingDigits counts the digits an interval literal's leading field
