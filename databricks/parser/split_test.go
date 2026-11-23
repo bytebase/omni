@@ -159,6 +159,19 @@ func TestSplit(t *testing.T) {
 			empty:   []bool{false, false},
 		},
 		{
+			name:    "nested BEGIN block with keyword label loop",
+			script:  "BEGIN loop: BEGIN SELECT 1; END loop; END; SELECT 2;",
+			want:    []string{"BEGIN loop: BEGIN SELECT 1; END loop; END;", " SELECT 2;"},
+			offsets: [][2]int{{0, 42}, {42, 52}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:   "nested BEGIN block with keyword label if and while",
+			script: "BEGIN if: BEGIN while: BEGIN SELECT 1; END while; END if; END; SELECT 2;",
+			want:   []string{"BEGIN if: BEGIN while: BEGIN SELECT 1; END while; END if; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name: "nested compound blocks with IF CASE WHILE REPEAT LOOP FOR and SQL CASE expression",
 			script: strings.Join([]string{
 				"BEGIN",

@@ -92,6 +92,20 @@ func TestStatementWithResultLimit(t *testing.T) {
 			verifyParse: true,
 		},
 		{
+			name:        "from-first branch limit before union gets outer cap",
+			statement:   "FROM t SELECT * LIMIT 1 UNION ALL SELECT * FROM u",
+			limit:       10,
+			want:        "FROM t SELECT * LIMIT 1 UNION ALL SELECT * FROM u LIMIT 10",
+			verifyParse: true,
+		},
+		{
+			name:        "from-first branch limit before pipe cross join gets outer pipe limit",
+			statement:   "FROM t SELECT * LIMIT 1 |> CROSS JOIN u",
+			limit:       10,
+			want:        "FROM t SELECT * LIMIT 1 |> CROSS JOIN u |> LIMIT 10",
+			verifyParse: true,
+		},
+		{
 			name:        "from-first pipe query",
 			statement:   "FROM t |> WHERE x > 1 |> SELECT *",
 			limit:       25,

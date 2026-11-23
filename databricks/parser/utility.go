@@ -484,6 +484,23 @@ func (p *Parser) parseShow() (Statement, error) {
 		return p.parseShowFunctionsTail(start)
 
 	default:
+		// Databricks SQL: SHOW GRANTS [principal] ON <securable>
+		if p.cur().Kind == tokIdent && isWord(p.cur(), "GRANTS") {
+			p.advance()
+			if p.cur().Kind != kwON && !p.isStatementEnd() {
+				if p.isStringLit() {
+					p.advance()
+				} else if _, err := p.parseIdentifier(); err != nil {
+					return nil, err
+				}
+			}
+			if p.match(kwON) {
+				if err := p.parseGrantSecurableObject(); err != nil {
+					return nil, err
+				}
+			}
+			return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		}
 		// SHOW (USER | SYSTEM | ALL) FUNCTIONS ...
 		if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFUNCTIONS {
 			scope := p.advance().Text

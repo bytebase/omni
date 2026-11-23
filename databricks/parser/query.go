@@ -37,7 +37,7 @@ func (p *Parser) parseQuery() error {
 	if err := p.parseQueryTerm(); err != nil {
 		return err
 	}
-	return p.parseQueryOrganization(false)
+	return p.parseQueryOrganization(false, p.queryDepth == 1)
 }
 
 func (p *Parser) looksLikeQueryStart() bool {
@@ -545,7 +545,7 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 	default:
 		// queryOrganization in a pipe operator forbids WINDOW and combining
 		// ORDER/CLUSTER/DISTRIBUTE/SORT BY with LIMIT/OFFSET in one pipe stage.
-		return p.parseQueryOrganization(true)
+		return p.parseQueryOrganization(true, false)
 	}
 }
 
@@ -630,7 +630,7 @@ func (p *Parser) parseFromStatementBody() error {
 				return err
 			}
 		}
-		return p.parseQueryOrganization(false)
+		return p.parseQueryOrganization(false, false)
 	}
 	if err := p.parseSelectClause(); err != nil {
 		return err
@@ -660,7 +660,7 @@ func (p *Parser) parseFromStatementBody() error {
 			return err
 		}
 	}
-	return p.parseQueryOrganization(false)
+	return p.parseQueryOrganization(false, false)
 }
 
 func (p *Parser) parseQuerySpecification() error {
@@ -3000,7 +3000,7 @@ func (p *Parser) parseSortItem() error {
 	return nil
 }
 
-func (p *Parser) parseQueryOrganization(inPipe bool) error {
+func (p *Parser) parseQueryOrganization(inPipe bool, recordOutermost bool) error {
 	hasOrder := false
 	hasCluster := false
 	hasDistributeOrSort := false
@@ -3061,7 +3061,7 @@ func (p *Parser) parseQueryOrganization(inPipe bool) error {
 		limStart := p.cur().Start
 		if p.isStandaloneLimitAll() {
 			tok := p.advance()
-			if p.queryDepth == 1 && !inPipe {
+			if recordOutermost {
 				p.limitLoc = Loc{Start: tok.Start, End: tok.End}
 				p.limitAll = true
 			}
@@ -3069,7 +3069,7 @@ func (p *Parser) parseQueryOrganization(inPipe bool) error {
 			if err := p.parseExpression(); err != nil {
 				return err
 			}
-			if p.queryDepth == 1 && !inPipe {
+			if recordOutermost {
 				p.limitLoc = Loc{Start: limStart, End: p.prevEnd()}
 				p.limitAll = false
 			}
@@ -3083,7 +3083,7 @@ func (p *Parser) parseQueryOrganization(inPipe bool) error {
 		if err := p.parseExpression(); err != nil {
 			return err
 		}
-		if p.queryDepth == 1 && !inPipe {
+		if recordOutermost {
 			p.offsetLoc = Loc{Start: offTok.Start, End: offTok.End}
 		}
 	}

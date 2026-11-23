@@ -19,6 +19,8 @@ func TestValidateQuery(t *testing.T) {
 		{name: "select star no space", sql: "select* from t", readOnly: true, returnsData: true},
 		{name: "select paren no space", sql: "SELECT(1)", readOnly: true, returnsData: true},
 		{name: "select with catalog and schema", sql: "SELECT a, b FROM main.app.t WHERE a > 1 ORDER BY b LIMIT 10;", readOnly: true, returnsData: true},
+		{name: "select variant colon path", sql: "SELECT payload:customer.id, payload:items[0].name::STRING, payload:['a.b'], payload:`my key`, payload:[*] FROM events", readOnly: true, returnsData: true},
+		{name: "show grants on table", sql: "SHOW GRANTS ON TABLE main.app.t", readOnly: true, returnsData: true},
 		{name: "with cte select", sql: "WITH c AS (SELECT 1 AS n) SELECT n FROM c", readOnly: true, returnsData: true},
 		{name: "with cte column list", sql: "WITH c (a, b) AS (SELECT 1, 2) SELECT a, b FROM c", readOnly: true, returnsData: true},
 		{name: "with backtick cte name", sql: "WITH `my cte` AS (SELECT 1) SELECT * FROM `my cte`", readOnly: true, returnsData: true},

@@ -33,16 +33,34 @@ func (s Segment) Empty() bool {
 	}
 }
 
+type compoundKind uint8
+
+const (
+	compoundBegin compoundKind = iota + 1
+	compoundIf
+	compoundCase
+	compoundWhile
+	compoundRepeat
+	compoundLoop
+	compoundFor
+)
+
+type compoundFrame struct {
+	kind  compoundKind
+	label string // normalized begin label, or empty
+}
+
 // Split splits a Databricks/Spark SQL script into segments at top-level
 // semicolons using the Spark 4.0.5 lexer. Semicolons inside single-quoted
 // strings, double-quoted strings, raw strings (R'...' / R"..."),
 // backtick-quoted identifiers, line comments (`--` including Spark's `\` + LF
 // continuation), nested block comments (`/* /* ... */ */`), optimizer hints
 // (`/*+ ... */`), and compound `BEGIN [NOT ATOMIC] ... END` scripting blocks
-// (including nested `BEGIN...END`, `IF...END IF`, `CASE...END CASE`,
-// `WHILE...END WHILE`, `REPEAT...END REPEAT`, `LOOP...END LOOP`,
-// `FOR...END FOR`, and `DECLARE EXIT HANDLER FOR ... BEGIN...END`) do not
-// split statements.
+// (including nested `BEGIN...END`, labeled blocks whose labels may be
+// non-reserved keywords such as `loop` or `if`, `IF...END IF`,
+// `CASE...END CASE`, `WHILE...END WHILE`, `REPEAT...END REPEAT`,
+// `LOOP...END LOOP`, `FOR...END FOR`, and `DECLARE EXIT HANDLER FOR ...
+// BEGIN...END`) do not split statements.
 //
 // Byte spans are contiguous across [0, len(script)) with
 // Text == script[ByteStart:ByteEnd]. Empty segments (lone semicolons,
@@ -75,7 +93,8 @@ func Split(script string) []Segment {
 	var segments []Segment
 	start := 0
 	stmtStart := true
-	beginDepth := 0
+	var stack []compoundFrame
+	pendingLabel := ""
 	atBodyStmtStart := false
 	stmtHead := tokEOF
 	parenDepth := 0
@@ -83,12 +102,13 @@ func Split(script string) []Segment {
 	sawHandler := false
 	sawHandlerFor := false
 
-	enterBeginBlock := func() {
-		beginDepth++
+	enterBeginBlock := func(label string) {
+		stack = append(stack, compoundFrame{kind: compoundBegin, label: label})
 		if peekTok(0).Kind == kwNOT && peekTok(1).Kind == kwATOMIC {
 			nextTok()
 			nextTok()
 		}
+		pendingLabel = ""
 		atBodyStmtStart = true
 		stmtHead = tokEOF
 		parenDepth = 0
@@ -97,14 +117,40 @@ func Split(script string) []Segment {
 		sawHandlerFor = false
 	}
 
+	consumeMatchingEndLabel := func(label string) {
+		if label == "" {
+			return
+		}
+		next := peekTok(0)
+		if next.Kind.isIdentifier() && normalizeIdentName(next.Text) == label {
+			nextTok()
+		}
+	}
+
+	popControlEnd := func(wantKind compoundKind, wantKw TokenKind) bool {
+		if len(stack) == 0 {
+			return false
+		}
+		top := stack[len(stack)-1]
+		if top.kind != wantKind || peekTok(0).Kind != wantKw {
+			return false
+		}
+		nextTok() // consume IF/CASE/WHILE/REPEAT/LOOP/FOR
+		stack = stack[:len(stack)-1]
+		consumeMatchingEndLabel(top.label)
+		atBodyStmtStart = false
+		stmtHead = tokEOF
+		return true
+	}
+
 	for {
 		tok := nextTok()
 		if tok.Kind == tokEOF {
 			break
 		}
 
-		// Top-level semicolon outside any BEGIN ... END compound block.
-		if tok.Kind == tokSemicolon && beginDepth == 0 {
+		// Top-level semicolon outside any compound block.
+		if tok.Kind == tokSemicolon && len(stack) == 0 {
 			segEnd := extendSameLineTrailingComment(script, tok.End)
 			if segEnd > tok.End {
 				buf = buf[:0]
@@ -121,19 +167,20 @@ func Split(script string) []Segment {
 			continue
 		}
 
-		if beginDepth == 0 {
+		if len(stack) == 0 {
 			if stmtStart {
 				if tok.Kind == kwBEGIN {
 					stmtStart = false
-					enterBeginBlock()
+					enterBeginBlock("")
 					continue
 				}
 				// Labeled top-level compound block: `label: BEGIN ... END label;`
 				if tok.Kind.isIdentifier() && peekTok(0).Kind == tokColon && peekTok(1).Kind == kwBEGIN {
+					label := normalizeIdentName(tok.Text)
 					nextTok() // consume ':'
 					nextTok() // consume 'BEGIN'
 					stmtStart = false
-					enterBeginBlock()
+					enterBeginBlock(label)
 					continue
 				}
 				stmtStart = false
@@ -141,9 +188,10 @@ func Split(script string) []Segment {
 			continue
 		}
 
-		// Inside a compound BEGIN ... END block (beginDepth > 0).
+		// Inside a compound BEGIN ... END block (len(stack) > 0).
 		if tok.Kind == tokSemicolon {
 			atBodyStmtStart = true
+			pendingLabel = ""
 			stmtHead = tokEOF
 			parenDepth = 0
 			caseExprDepth = 0
@@ -155,32 +203,77 @@ func Split(script string) []Segment {
 		if atBodyStmtStart {
 			// Labeled compound block or loop: `label: BEGIN/WHILE/REPEAT/LOOP/FOR`
 			if tok.Kind.isIdentifier() && peekTok(0).Kind == tokColon {
+				pendingLabel = normalizeIdentName(tok.Text)
 				nextTok() // consume ':'
 				continue
 			}
 			switch tok.Kind {
 			case kwBEGIN:
-				enterBeginBlock()
+				enterBeginBlock(pendingLabel)
+				continue
+			case kwIF:
+				stack = append(stack, compoundFrame{kind: compoundIf})
+				pendingLabel = ""
+				stmtHead = kwIF
+				atBodyStmtStart = false
+				continue
+			case kwCASE:
+				stack = append(stack, compoundFrame{kind: compoundCase})
+				pendingLabel = ""
+				stmtHead = kwCASE
+				atBodyStmtStart = false
+				continue
+			case kwWHILE:
+				stack = append(stack, compoundFrame{kind: compoundWhile, label: pendingLabel})
+				pendingLabel = ""
+				stmtHead = kwWHILE
+				atBodyStmtStart = false
+				continue
+			case kwREPEAT:
+				stack = append(stack, compoundFrame{kind: compoundRepeat, label: pendingLabel})
+				pendingLabel = ""
+				// Body follows REPEAT immediately without a semicolon.
+				continue
+			case kwLOOP:
+				stack = append(stack, compoundFrame{kind: compoundLoop, label: pendingLabel})
+				pendingLabel = ""
+				// Body follows LOOP immediately without a semicolon.
+				continue
+			case kwFOR:
+				stack = append(stack, compoundFrame{kind: compoundFor, label: pendingLabel})
+				pendingLabel = ""
+				stmtHead = kwFOR
+				atBodyStmtStart = false
+				continue
+			case kwELSE:
+				// Body follows ELSE immediately without a semicolon.
+				pendingLabel = ""
 				continue
 			case kwEND:
-				// Compound statement terminators (`END IF`, `END CASE`, `END WHILE`,
-				// `END REPEAT`, `END LOOP`, `END FOR`) do not close a BEGIN block.
-				switch peekTok(0).Kind {
-				case kwIF, kwCASE, kwWHILE, kwREPEAT, kwLOOP, kwFOR:
-					nextTok()
+				pendingLabel = ""
+				top := stack[len(stack)-1]
+				switch top.kind {
+				case compoundBegin:
+					stack = stack[:len(stack)-1]
+					consumeMatchingEndLabel(top.label)
 					atBodyStmtStart = false
 					stmtHead = tokEOF
-					continue
-				default:
-					beginDepth--
-					atBodyStmtStart = false
-					stmtHead = tokEOF
-					continue
+				case compoundIf:
+					popControlEnd(compoundIf, kwIF)
+				case compoundCase:
+					popControlEnd(compoundCase, kwCASE)
+				case compoundWhile:
+					popControlEnd(compoundWhile, kwWHILE)
+				case compoundRepeat:
+					popControlEnd(compoundRepeat, kwREPEAT)
+				case compoundLoop:
+					popControlEnd(compoundLoop, kwLOOP)
+				case compoundFor:
+					popControlEnd(compoundFor, kwFOR)
 				}
-			case kwELSE, kwLOOP, kwREPEAT:
-				// Body follows immediately without a semicolon.
 				continue
 			default:
+				pendingLabel = ""
 				stmtHead = tok.Kind
 				atBodyStmtStart = false
 				parenDepth = 0
@@ -210,18 +303,21 @@ func Split(script string) []Segment {
 		case kwBEGIN:
 			// `DECLARE EXIT HANDLER FOR <cond> BEGIN ... END;`
 			if stmtHead == kwDECLARE && sawHandlerFor {
-				enterBeginBlock()
+				enterBeginBlock("")
 			}
 		case kwCASE:
-			// Track nested SQL CASE expressions inside IF/ELSEIF/WHEN headers so
+			// Track nested SQL CASE expressions inside IF/ELSEIF/WHEN/UNTIL headers so
 			// `IF CASE WHEN ... THEN ... END THEN` doesn't treat the expression's
 			// THEN as the IF body start.
-			if stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE {
+			if stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL {
 				caseExprDepth++
 			}
 		case kwEND:
 			if caseExprDepth > 0 {
 				caseExprDepth--
+			} else if stmtHead == kwUNTIL && parenDepth == 0 {
+				// `REPEAT ... UNTIL <cond> END REPEAT [label];` has no semicolon before END REPEAT.
+				popControlEnd(compoundRepeat, kwREPEAT)
 			}
 		case kwWHEN:
 			if stmtHead == kwCASE && parenDepth == 0 && caseExprDepth == 0 {
@@ -241,9 +337,10 @@ func Split(script string) []Segment {
 			// `DECLARE EXIT HANDLER FOR <cond> label: BEGIN ... END label;`
 			if stmtHead == kwDECLARE && sawHandlerFor && tok.Kind.isIdentifier() &&
 				peekTok(0).Kind == tokColon && peekTok(1).Kind == kwBEGIN {
+				label := normalizeIdentName(tok.Text)
 				nextTok() // consume ':'
 				nextTok() // consume 'BEGIN'
-				enterBeginBlock()
+				enterBeginBlock(label)
 			}
 		}
 	}
