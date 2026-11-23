@@ -212,7 +212,7 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 	// ALTER SEQUENCE checks target existence, kind, and signed 64-bit increment bounds.
 	noFinding(t, "ALTER SEQUENCE s NOMINVALUE RESTART 1;", shop)
 	noFinding(t, "ALTER SEQUENCE IF EXISTS nosuch NOMINVALUE;", shop)
-	noFinding(t, "ALTER SEQUENCE IF EXISTS t NOMINVALUE;", shop)
+	oneFinding(t, "ALTER SEQUENCE IF EXISTS t NOMINVALUE;", 0, "`t` is a table, not a sequence.", shop)
 	oneFinding(t, "ALTER SEQUENCE nosuch NOMINVALUE;", 0, "Sequence `nosuch` doesn't exist.", shop)
 	oneFinding(t, "ALTER SEQUENCE t NOMINVALUE;", 0, "`t` is a table, not a sequence.", shop)
 	oneFinding(t, "ALTER SEQUENCE v NOMINVALUE;", 0, "`v` is a view, not a sequence.", shop)
@@ -894,4 +894,89 @@ func TestWalkThroughMariaDBTypesAndQueries(t *testing.T) {
 	noFinding(t, "CREATE VIEW vw AS SELECT nosuch FROM v;", shop)
 	noFinding(t, "CREATE TABLE nt (q INT);\nCREATE VIEW vw AS SELECT q FROM nt;", shop)
 	noFinding(t, "ALTER TABLE t ADD COLUMN q INT;\nCREATE VIEW vw AS SELECT q FROM t;", shop)
+}
+
+func TestWalkThroughMariaDBForeignKeysAndChecks(t *testing.T) {
+	schema := walkSchema()
+	typed := func(name, typ string) *metadata.ColumnMetadata {
+		return &metadata.ColumnMetadata{Name: name, Type: typ}
+	}
+	pk := &metadata.IndexMetadata{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}
+	idxD := &metadata.IndexMetadata{Name: "idx_d", Expressions: []string{"d"}}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables,
+		&metadata.TableMetadata{
+			Name:       "pa",
+			Columns:    []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("x", "int(11)")},
+			Indexes:    []*metadata.IndexMetadata{pk},
+			Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "`id`"}},
+		},
+		&metadata.TableMetadata{
+			Name:        "fc",
+			Columns:     []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("a", "int(11)"), typed("d", "int(11)")},
+			Indexes:     []*metadata.IndexMetadata{pk, idxD, {Name: "a", Expressions: []string{"a"}}},
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "a", Columns: []string{"a"}, ReferencedTable: "r", ReferencedColumns: []string{"id"}}},
+		},
+		&metadata.TableMetadata{
+			Name:    "nk",
+			Columns: []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("a", "int(11)"), typed("d", "int(11)")},
+			Indexes: []*metadata.IndexMetadata{pk, idxD, {Name: "a", Expressions: []string{"d", "a"}}},
+		},
+		&metadata.TableMetadata{
+			Name:             "bk",
+			Columns:          []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("s", "date"), typed("e", "date"), typed("g", "int(11)")},
+			Indexes:          []*metadata.IndexMetadata{pk},
+			CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "chk", Expression: "`s` <= `e`"}},
+		},
+	)
+	schema.Schemas[0].Sequences = append(schema.Schemas[0].Sequences, &metadata.SequenceMetadata{Name: "sq", Start: "1", MinValue: "1", MaxValue: "100", Increment: "1"})
+	shop := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+	unchecked := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOff}
+
+	// ALTER SEQUENCE IF EXISTS skips a missing name, not a table (4089), and
+	// reads a decimal MINVALUE as the widest value (4085).
+	oneFinding(t, "ALTER SEQUENCE IF EXISTS t NOMINVALUE;", 0, "`t` is a table, not a sequence.", shop)
+	noFinding(t, "ALTER SEQUENCE IF EXISTS nosuch NOMINVALUE;\nALTER SEQUENCE IF EXISTS sq NOMINVALUE;", shop)
+	oneFinding(t, "ALTER SEQUENCE sq MINVALUE 1.5;", 0, "Sequence `sq` has invalid values.", shop)
+	oneFinding(t, "ALTER SEQUENCE sq MAXVALUE -1.5;", 0, "Sequence `sq` has invalid values.", shop)
+	noFinding(t, "ALTER SEQUENCE sq MAXVALUE 1.5;\nALTER SEQUENCE sq MINVALUE -1.5;", shop)
+
+	// A partitioned table's column dropped IF EXISTS (1072), and a foreign
+	// key added IF NOT EXISTS (1506).
+	oneFinding(t, "ALTER TABLE pa DROP COLUMN IF EXISTS id;", 0, "Column `id` is read by the partitioning function of `pa`.", shop)
+	oneFinding(t, "ALTER TABLE pa ADD FOREIGN KEY IF NOT EXISTS (x) REFERENCES r (id);", 0, "Table `pa` is partitioned, and a partitioned table takes no foreign key.", shop)
+	noFinding(t, "ALTER TABLE pa DROP COLUMN IF EXISTS zz;\nALTER TABLE pa ADD CONSTRAINT c FOREIGN KEY IF NOT EXISTS (x) REFERENCES r (id);", shop)
+
+	// A CHECK constraint keeps a column renamed, and reads a column dropped
+	// and added back (1054).
+	oneFinding(t, "ALTER TABLE bk RENAME COLUMN s TO s2, DROP COLUMN e;", 0, "Check constraint `chk` reads column `e`, and keeps column `s`.", shop)
+	oneFinding(t, "ALTER TABLE bk CHANGE s s2 DATE, DROP COLUMN e;", 0, "Check constraint `chk` reads column `e`, and keeps column `s`.", shop)
+	oneFinding(t, "ALTER TABLE bk DROP COLUMN s, ADD COLUMN s DATE;", 0, "Check constraint `chk` reads column `s`, and keeps column `e`.", shop)
+	noFinding(t, "ALTER TABLE bk RENAME COLUMN s TO s2, DROP COLUMN g;", shop)
+	noFinding(t, "ALTER TABLE bk DROP COLUMN e, RENAME COLUMN s TO e;", shop)
+	noFinding(t, "ALTER TABLE bk DROP COLUMN s, ADD COLUMN IF NOT EXISTS s DATE;", shop)
+
+	// A foreign key's index of a name an index holds on other columns (1061).
+	oneFinding(t, "ALTER TABLE fc ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES r (id);", 0, "Index `idx_d` already exists in `fc`.", shop)
+	oneFinding(t, "ALTER TABLE fc ADD FOREIGN KEY idx_d (a) REFERENCES r (id);", 0, "Index `idx_d` already exists in `fc`.", shop)
+	noFinding(t, "ALTER TABLE fc ADD CONSTRAINT idx_d FOREIGN KEY (d) REFERENCES r (id);", shop)
+	noFinding(t, "ALTER TABLE fc ADD CONSTRAINT zz FOREIGN KEY (a) REFERENCES r (id);", shop)
+	noFinding(t, "ALTER TABLE fc ADD CONSTRAINT idx_d FOREIGN KEY IF NOT EXISTS (a) REFERENCES r (id);", shop)
+	oneFinding(t, "ALTER TABLE fc ADD CONSTRAINT idx_d FOREIGN KEY (a, d) REFERENCES r (id);", 0, "Foreign key on `fc` has a mismatched column count.", shop)
+	noFinding(t, "ALTER TABLE fc DROP INDEX idx_d;\nALTER TABLE fc ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES r (id);", shop)
+
+	// A foreign key that references its own table checks the table as it
+	// was (1005).
+	const noIndex = "Table `nk` has no index on the columns its foreign key references."
+	oneFinding(t, "ALTER TABLE nk ADD FOREIGN KEY (a) REFERENCES nk;", 0, noIndex, shop)
+	oneFinding(t, "ALTER TABLE nk ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES nk;", 0, noIndex, shop)
+	oneFinding(t, "ALTER TABLE nk ADD z INT REFERENCES nk;", 0, noIndex, shop)
+	oneFinding(t, "ALTER TABLE nk ADD z INT REFERENCES nk (z);", 0, noIndex, shop)
+	noFinding(t, "ALTER TABLE nk ADD FOREIGN KEY (d) REFERENCES nk;", shop)
+	noFinding(t, "ALTER TABLE nk ADD FOREIGN KEY (a) REFERENCES nk (id);", shop)
+	noFinding(t, "ALTER TABLE nk ADD z INT REFERENCES nk (id);", shop)
+	noFinding(t, "ALTER TABLE fc ADD FOREIGN KEY (a) REFERENCES fc;", shop)
+	noFinding(t, "ALTER TABLE fc ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES fc (zz);", shop)
+	noFinding(t, "ALTER TABLE nk ADD FOREIGN KEY (a) REFERENCES nk;", unchecked)
+	noFinding(t, "ALTER TABLE nk ADD KEY (a);\nALTER TABLE nk ADD FOREIGN KEY (a) REFERENCES nk;", shop)
+	noFinding(t, "ALTER TABLE nk ADD z INT, ADD KEY (z), ADD FOREIGN KEY (a) REFERENCES nk (z);", shop)
 }
