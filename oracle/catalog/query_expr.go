@@ -165,6 +165,9 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 		}
 		switch strings.ToUpper(n.Op) {
 		case "PRIOR", "CONNECT_BY_ROOT":
+			if !sc.inHierarchical() {
+				return qtype{}, false, oraError("01788", "CONNECT BY clause required in this query block")
+			}
 			return t, false, nil
 		case "NOT":
 			return simpleType("BOOLEAN"), false, nil
@@ -506,6 +509,9 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 				return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
 			}
 		}
+		if err := numericOperands(lt, rt); err != nil {
+			return qtype{}, false, err
+		}
 		if lt.isInterval() && rt.isInterval() || rt.isInterval() && n.Op == "/" {
 			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", rt.kind)
 		}
@@ -618,6 +624,9 @@ func arithmeticType(op string, l, r qtype) (qtype, error) {
 	if op == "-" && r.isDatetime() && (l.isNumeric() || l.isInterval()) {
 		// A datetime subtracts only from a datetime.
 		return qtype{}, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", r.kind)
+	}
+	if err := numericOperands(l, r); err != nil {
+		return qtype{}, err
 	}
 	return arithmeticResult(op, l, r), nil
 }
@@ -1236,4 +1245,16 @@ func zonedTimestampLiteral(val string) bool {
 		}) >= 0
 	}
 	return false
+}
+
+// numericOperands refuses an arithmetic operand no number converts from:
+// a BLOB, RAW or boolean.
+func numericOperands(types ...qtype) error {
+	for _, t := range types {
+		switch t.kind {
+		case "BLOB", "RAW", "BOOLEAN", "BFILE":
+			return oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+		}
+	}
+	return nil
 }

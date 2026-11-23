@@ -102,6 +102,8 @@ type qscope struct {
 	hierarchical bool
 	// windows are the block's WINDOW clause definitions, by name.
 	windows map[string]*ast.WindowSpec
+	// grouped reports a GROUP BY clause, which GROUPING needs.
+	grouped bool
 	// patternMatch marks a MATCH_RECOGNIZE clause's MEASURES and DEFINE,
 	// where FIRST, LAST, PREV and NEXT navigate the matched rows.
 	patternMatch bool
@@ -429,8 +431,17 @@ func mergeSetOpTypes(a, b qtype) (qtype, error) {
 		bytes := max(a.bytes, b.bytes)
 		t := varchar2Bytes(bytes)
 		if a.charSem || b.charSem {
-			t.charSem = true
-			t.chars = bytes / dbCharBytes
+			// In characters: a CHAR-semantics operand's own length, a
+			// BYTE one's bytes (each may be a one-byte character).
+			chars := 0
+			for _, x := range []qtype{a, b} {
+				if x.charSem {
+					chars = max(chars, x.chars)
+				} else {
+					chars = max(chars, x.bytes)
+				}
+			}
+			t = characterType("VARCHAR2", chars, true)
 		}
 		return t, nil
 	case a.kind == "NUMBER" && b.kind == "NUMBER":
@@ -785,6 +796,9 @@ func (a *queryAnalyzer) analyzeBlock(sel *ast.SelectStmt, outer *qscope, ctes *c
 
 	// Oracle's (+) outer joins in WHERE null-extend the tables they mark.
 	if sel.WhereClause != nil {
+		if hasANSIJoin(sel.FromClause) && hasPlusJoin(sel.WhereClause) {
+			return nil, oraError("25156", "old style outer join (+) cannot be used with ANSI joins")
+		}
 		if err := a.plusJoins(sel.WhereClause, sc); err != nil {
 			return nil, err
 		}
@@ -805,6 +819,7 @@ func (a *queryAnalyzer) analyzeBlock(sel *ast.SelectStmt, outer *qscope, ctes *c
 		}
 	}
 
+	sc.grouped = len(listItems(sel.GroupClause)) > 0
 	// A MODEL clause's partition, dimension and measure columns are what
 	// the select list reads.
 	tsc := sc
@@ -2094,4 +2109,38 @@ func countTableRefs(sel *ast.SelectStmt, table string) int {
 		return true
 	})
 	return n
+}
+
+// hasANSIJoin reports a JOIN in a FROM clause.
+func hasANSIJoin(from *ast.List) bool {
+	found := false
+	for _, item := range listItems(from) {
+		walkExpr(item, func(n ast.Node) bool {
+			switch n.(type) {
+			case *ast.JoinClause:
+				found = true
+			case *ast.SubqueryExpr, *ast.SubqueryRef, *ast.LateralRef, *ast.SelectStmt:
+				return false
+			}
+			return !found
+		})
+	}
+	return found
+}
+
+// hasPlusJoin reports a (+) in a condition outside subqueries.
+func hasPlusJoin(x ast.Node) bool {
+	found := false
+	walkExpr(x, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.ColumnRef:
+			if v.OuterJoin {
+				found = true
+			}
+		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt:
+			return false
+		}
+		return !found
+	})
+	return found
 }

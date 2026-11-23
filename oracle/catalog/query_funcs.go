@@ -105,6 +105,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 	}
 	aggregate := isAggregateCall(n)
+	if aggregate && (name == "GROUPING" || name == "GROUPING_ID" || name == "GROUP_ID") && !sc.grouped {
+		return qtype{}, false, oraError("30481", "GROUPING function only supported with GROUP BY CUBE or ROLLUP")
+	}
 	if n.Over != nil && n.FuncName.Schema == "" && !aggregateNames[name] && !rankingNames[name] && !analyticOnly[name] {
 		if _, scalar := builtinArity[name]; scalar {
 			// A scalar function takes no OVER: Oracle reads OVER as an alias.
@@ -479,6 +482,16 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "USERENV":
 		return varchar2Bytes(52), false, nil
 	case "SYS_CONTEXT":
+		// A third argument sets the length, 1 to 4000; 256 otherwise.
+		if len(args) > 2 {
+			n, ok := literalInt(argNode(n, 2))
+			if !ok {
+				return simpleType("UNKNOWN"), false, nil
+			}
+			if n >= 1 && n <= maxVarchar2Bytes {
+				return varchar2Bytes(n), false, nil
+			}
+		}
 		return varchar2Bytes(256), false, nil
 	case "SYS_CONNECT_BY_PATH":
 		return varchar2Bytes(longestVarchar2), false, nil

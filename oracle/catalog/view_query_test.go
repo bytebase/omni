@@ -77,7 +77,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE, nv NVARCHAR2(10), vc VARCHAR2(10), "CURRENT_DATE" DATE); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
+	const fixture = `CREATE TABLE bl (b BLOB); CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE, nv NVARCHAR2(10), vc VARCHAR2(10), "CURRENT_DATE" DATE); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -223,6 +223,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"rowid_of_simple_view", `CREATE VIEW v AS SELECT q.ROWID rid FROM (SELECT id FROM t) q`, ""},
 		{"xmlelement_tag_grouped", `CREATE VIEW v AS SELECT XMLELEMENT("tag", COUNT(*)) x FROM dual`, ""},
 		{"sum_of_lob", `CREATE VIEW v AS SELECT SUM(doc) x FROM t`, "00932"},
+		{"blob_plus_number", `CREATE VIEW v AS SELECT b + 1 x FROM bl`, "00932"},
+		{"grouping_without_group_by", `CREATE VIEW v AS SELECT GROUPING(id) g FROM t`, "30481"},
+		{"ansi_join_with_plus", `CREATE VIEW v AS SELECT a.id FROM t a LEFT JOIN t b ON a.id=b.id WHERE a.id=b.id(+)`, "25156"},
+		{"prior_without_connect_by", `CREATE VIEW v AS SELECT PRIOR id x FROM t`, "01788"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1029,5 +1033,22 @@ func TestViewQueryUnknownThroughConcat(t *testing.T) {
 	}
 	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "" {
 		t.Errorf("type = %q, want unknown", got)
+	}
+}
+
+func TestViewQueryTypesRound48(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (a VARCHAR2(1 CHAR), b VARCHAR2(5 BYTE));
+CREATE VIEW v AS SELECT a x FROM t UNION ALL SELECT b FROM t;
+CREATE VIEW w AS SELECT SYS_CONTEXT('USERENV', 'AUTHENTICATION_DATA', 4000) x FROM dual;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"V": "VARCHAR2(5 CHAR)", "W": "VARCHAR2(4000 BYTE)"}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		if got := v.GetColumns()[0].GetType(); got != want[v.GetName()] {
+			t.Errorf("%s.X type = %q, want %q", v.GetName(), got, want[v.GetName()])
+		}
 	}
 }
