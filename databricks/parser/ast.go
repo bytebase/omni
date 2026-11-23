@@ -79,12 +79,47 @@ const (
 	StmtHiveNative       StmtKind = "HIVE_NATIVE"
 )
 
+// TableRef identifies a table or view referenced by a parsed statement.
+// Parts holds the unquoted identifier components in source order
+// ([table], [schema, table], or [catalog, schema, table]).
+type TableRef struct {
+	Parts []string
+	Loc   Loc
+}
+
 // ParsedStmt is a concrete parsed Databricks SQL statement node carrying its
 // statement kind, optional target name/text metadata, and source span.
 type ParsedStmt struct {
 	Kind   StmtKind
 	Target string
-	Loc    Loc
+	// TargetLoc records the source byte span of Target when applicable (e.g.
+	// CREATE VIEW / ALTER VIEW target name).
+	TargetLoc Loc
+	Loc       Loc
+
+	// Materialized is true for CREATE [OR REPLACE] MATERIALIZED VIEW.
+	Materialized bool
+	// ExplainMode records the EXPLAIN modifier ("FORMATTED", "EXTENDED",
+	// "CODEGEN", "COST") when Kind == StmtExplain.
+	ExplainMode string
+	// Inner holds the explained statement when Kind == StmtExplain.
+	Inner Statement
+	// HasTransform is true when a query contains a Hive/Spark script transform
+	// (MAP, REDUCE, or SELECT TRANSFORM(...) USING ...).
+	HasTransform bool
+	// HasEmptyPipe is true when a query ends with an empty `|>` pipe stage.
+	HasEmptyPipe bool
+	// LimitLoc records the byte span of the outermost query's LIMIT expression
+	// (or ALL keyword when LimitAll is true). Zero when no top-level LIMIT is
+	// present.
+	LimitLoc Loc
+	LimitAll bool
+	// OffsetLoc records the byte span of the outermost query's OFFSET keyword
+	// when present.
+	OffsetLoc Loc
+	// TableRefs holds table and view references encountered in the statement's
+	// query/view body (excluding CTE names in scope and dynamic IDENTIFIER(...)).
+	TableRefs []TableRef
 }
 
 func (s *ParsedStmt) statementNode() {}

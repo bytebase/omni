@@ -614,7 +614,8 @@ func (p *Parser) parseBitOrExpression() error {
 	if err := p.parseBitXorExpression(); err != nil {
 		return err
 	}
-	for p.match(tokPipe) {
+	for p.cur().Kind == tokPipe && !p.isSingleBarPipeStart() {
+		p.advance()
 		if err := p.parseBitXorExpression(); err != nil {
 			return err
 		}

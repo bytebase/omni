@@ -2,92 +2,150 @@ package analysis
 
 import (
 	"errors"
-	"fmt"
-	"strings"
+
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/databricks/parser"
 )
 
-// ClassifyStatement reports whether statement is expected to return rows.
-// SELECT, WITH (unless it writes), SHOW, DESCRIBE, DESC, EXPLAIN, TABLE, and
-// VALUES are reads; everything else (or an unlexable statement) is a command.
-func ClassifyStatement(statement string) bool {
-	text, err := sanitizeSQL(statement)
-	if err != nil {
-		return false
+// QueryType is the permission class of a statement.
+type QueryType = analysis.QueryType
+
+// Classify parses a single Databricks SQL statement and returns its QueryType.
+// Empty, whitespace-only, comment-only, or semicolon-only input returns
+// QueryTypeUnknown with a nil error; multi-statement input or lexical/syntax
+// errors return an error with statement-relative byte offsets.
+func Classify(statement string) (QueryType, error) {
+	if err := firstLexError(statement); err != nil {
+		return analysis.QueryTypeUnknown, err
 	}
-	fields := strings.Fields(strings.ToUpper(strings.TrimSpace(text)))
-	if len(fields) == 0 {
-		return false
-	}
-	first := strings.TrimLeft(fields[0], "(")
-	switch first {
-	case "SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "TABLE", "VALUES":
-		return true
-	case "WITH":
-		for _, keyword := range []string{"INSERT", "UPDATE", "DELETE", "MERGE"} {
-			for _, field := range fields[1:] {
-				if strings.Trim(field, "(),;") == keyword {
-					return false
-				}
-			}
+	var nonEmpty []parser.Segment
+	for _, seg := range parser.Split(statement) {
+		if !seg.Empty() {
+			nonEmpty = append(nonEmpty, seg)
 		}
+	}
+	if len(nonEmpty) == 0 {
+		return analysis.QueryTypeUnknown, nil
+	}
+	if len(nonEmpty) > 1 {
+		return analysis.QueryTypeUnknown, errors.New("expected a single Databricks SQL statement")
+	}
+	seg := nonEmpty[0]
+	if body, off, ok := explainAnalyzeBody(seg.Text); ok {
+		res, err := parser.Parse(body)
+		if err != nil {
+			return analysis.QueryTypeUnknown, offsetParseError(err, seg.ByteStart+off)
+		}
+		if res == nil || len(res.Statements) != 1 {
+			return analysis.QueryTypeUnknown, errors.New("expected a single Databricks SQL statement")
+		}
+		return analysis.Explain, nil
+	}
+	res, err := parser.Parse(seg.Text)
+	if err != nil {
+		return analysis.QueryTypeUnknown, offsetParseError(err, seg.ByteStart)
+	}
+	if res == nil || len(res.Statements) != 1 {
+		return analysis.QueryTypeUnknown, errors.New("expected a single Databricks SQL statement")
+	}
+	return classifyParsedStatement(res.Statements[0]), nil
+}
+
+// StatementReadsRows reports whether the server answers statement with rows.
+// SELECT, WITH (when its main statement is a query), FROM-first queries,
+// SHOW, DESCRIBE/DESC, EXPLAIN (including EXPLAIN ANALYZE), TABLE, and VALUES
+// return rows. Empty/comment-only inputs or multi-statement scripts return
+// (false, nil). Lexical and syntax errors from databricks/parser are propagated
+// with statement-relative byte offsets.
+func StatementReadsRows(statement string) (bool, error) {
+	if err := firstLexError(statement); err != nil {
+		return false, err
+	}
+	seg, ok := singleNonEmptySegment(statement)
+	if !ok {
+		return false, nil
+	}
+	if body, off, isEA := explainAnalyzeBody(seg.Text); isEA {
+		res, err := parser.Parse(body)
+		if err != nil {
+			return false, offsetParseError(err, seg.ByteStart+off)
+		}
+		return res != nil && len(res.Statements) == 1, nil
+	}
+	res, err := parser.Parse(seg.Text)
+	if err != nil {
+		return false, offsetParseError(err, seg.ByteStart)
+	}
+	if res == nil || len(res.Statements) != 1 {
+		return false, nil
+	}
+	return astReadsRows(res.Statements[0]), nil
+}
+
+// ClassifyStatement reports whether statement is expected to return rows.
+// SELECT, WITH (unless it writes), FROM-first queries, SHOW, DESCRIBE, DESC,
+// EXPLAIN, TABLE, and VALUES are reads; everything else (or an unparseable
+// statement) is a command.
+func ClassifyStatement(statement string) bool {
+	reads, err := StatementReadsRows(statement)
+	return err == nil && reads
+}
+
+func singleNonEmptySegment(script string) (parser.Segment, bool) {
+	var found parser.Segment
+	count := 0
+	for _, seg := range parser.Split(script) {
+		if seg.Empty() {
+			continue
+		}
+		found = seg
+		count++
+		if count > 1 {
+			return parser.Segment{}, false
+		}
+	}
+	return found, count == 1
+}
+
+func astReadsRows(stmt parser.Statement) bool {
+	ps, ok := stmt.(*parser.ParsedStmt)
+	if !ok || ps == nil {
+		return false
+	}
+	switch ps.Kind {
+	case parser.StmtQuery, parser.StmtShow, parser.StmtDescribe, parser.StmtExplain:
 		return true
 	default:
 		return false
 	}
 }
 
-// sanitizeSQL replaces string literals, quoted identifiers, and comments with
-// placeholders/spaces, keeping the bytes that carry statement keywords.
-func sanitizeSQL(statement string) (string, error) {
-	var out strings.Builder
-	i := 0
-	for i < len(statement) {
-		switch {
-		case strings.HasPrefix(statement[i:], "--"):
-			i += 2
-			for i < len(statement) && statement[i] != '\n' {
-				i++
-			}
-			out.WriteByte(' ')
-		case strings.HasPrefix(statement[i:], "/*"):
-			i += 2
-			for {
-				if i >= len(statement) {
-					return "", errors.New("invalid comment: not found */, but found EOF")
-				}
-				if strings.HasPrefix(statement[i:], "*/") {
-					i += 2
-					break
-				}
-				i++
-			}
-			out.WriteByte(' ')
-		case statement[i] == '\'' || statement[i] == '"' || statement[i] == '`':
-			quote := statement[i]
-			i++
-			for {
-				if i >= len(statement) {
-					return "", fmt.Errorf("invalid quoted text: not found %c, but found EOF", quote)
-				}
-				if statement[i] == '\\' && quote == '\'' {
-					i += 2
-					continue
-				}
-				if statement[i] == quote {
-					if i+1 < len(statement) && statement[i+1] == quote {
-						i += 2
-						continue
-					}
-					i++
-					break
-				}
-				i++
-			}
-			out.WriteString(" x ")
-		default:
-			out.WriteByte(statement[i])
-			i++
-		}
+func classifyParsedStatement(stmt parser.Statement) QueryType {
+	ps, ok := stmt.(*parser.ParsedStmt)
+	if !ok || ps == nil {
+		return analysis.QueryTypeUnknown
 	}
-	return out.String(), nil
+	switch ps.Kind {
+	case parser.StmtQuery:
+		return analysis.Select
+	case parser.StmtExplain:
+		return analysis.Explain
+	case parser.StmtShow, parser.StmtDescribe:
+		return analysis.SelectInfoSchema
+	case parser.StmtInsert, parser.StmtMultiInsert, parser.StmtUpdate,
+		parser.StmtDelete, parser.StmtMerge, parser.StmtLoadData:
+		return analysis.DML
+	case parser.StmtCreateNamespace, parser.StmtAlterNamespace, parser.StmtDropNamespace,
+		parser.StmtCreateTable, parser.StmtCreateTableLike, parser.StmtReplaceTable,
+		parser.StmtAlterTable, parser.StmtDropTable,
+		parser.StmtCreateView, parser.StmtAlterView, parser.StmtDropView,
+		parser.StmtCreateFunction, parser.StmtDropFunction,
+		parser.StmtCreateIndex, parser.StmtDropIndex,
+		parser.StmtTruncate, parser.StmtRepair, parser.StmtComment,
+		parser.StmtAnalyze, parser.StmtRefresh,
+		parser.StmtCache, parser.StmtUncache, parser.StmtClearCache:
+		return analysis.DDL
+	default:
+		return analysis.QueryTypeUnknown
+	}
 }

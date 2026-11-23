@@ -7,7 +7,7 @@ func (p *Parser) parseUse() (Statement, error) {
 	if _, err := p.expect(kwUSE); err != nil {
 		return nil, err
 	}
-	if p.isNamespace() && !p.isStatementEndAt(1) {
+	if (p.isNamespace() || p.cur().Kind == kwCATALOG) && !p.isStatementEndAt(1) {
 		cp := p.save()
 		p.advance()
 		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
@@ -321,11 +321,21 @@ func (p *Parser) parseExplain() (Statement, error) {
 	if p.cur().Kind == kwLOGICAL {
 		return nil, p.errorf("EXPLAIN LOGICAL is not valid")
 	}
-	p.match(kwFORMATTED, kwEXTENDED, kwCODEGEN, kwCOST)
-	if _, err := p.parseStatementOrSetReset(); err != nil {
+	mode := ""
+	switch p.cur().Kind {
+	case kwFORMATTED, kwEXTENDED, kwCODEGEN, kwCOST:
+		mode = strings.ToUpper(p.advance().Text)
+	}
+	inner, err := p.parseStatementOrSetReset()
+	if err != nil {
 		return nil, err
 	}
-	return &ParsedStmt{Kind: StmtExplain, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	return &ParsedStmt{
+		Kind:        StmtExplain,
+		ExplainMode: mode,
+		Inner:       inner,
+		Loc:         Loc{Start: start, End: p.prevEnd()},
+	}, nil
 }
 
 func (p *Parser) parseShow() (Statement, error) {

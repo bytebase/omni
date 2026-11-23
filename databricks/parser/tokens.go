@@ -448,12 +448,84 @@ const (
 	kwEnd
 )
 
+// Exported TokenKind constants for lexer and analysis consumers.
+const (
+	TokEOF          = tokEOF
+	TokInvalid      = tokInvalid
+	TokIdent        = tokIdent
+	TokRawWord      = tokRawWord
+	TokBackquoted   = tokBackquoted
+	TokString       = tokString
+	TokDoubleQuoted = tokDoubleQuoted
+	TokInt          = tokInt
+	TokDecimal      = tokDecimal
+	TokExponent     = tokExponent
+	TokBigInt       = tokBigInt
+	TokSmallInt     = tokSmallInt
+	TokTinyInt      = tokTinyInt
+	TokFloat        = tokFloat
+	TokDouble       = tokDouble
+	TokBigDecimal   = tokBigDecimal
+	TokSemicolon    = tokSemicolon
+	TokLParen       = tokLParen
+	TokRParen       = tokRParen
+	TokComma        = tokComma
+	TokDot          = tokDot
+	TokPipe         = tokPipe
+	TokOperatorPipe = tokOperatorPipe
+	TokColon        = tokColon
+
+	KwAnalyze   = kwANALYZE
+	KwAs        = kwAS
+	KwBegin     = kwBEGIN
+	KwCodegen   = kwCODEGEN
+	KwCost      = kwCOST
+	KwCreate    = kwCREATE
+	KwDesc      = kwDESC
+	KwDescribe  = kwDESCRIBE
+	KwEnd       = kwEND
+	KwExists    = kwEXISTS
+	KwExplain   = kwEXPLAIN
+	KwExtended  = kwEXTENDED
+	KwFormatted = kwFORMATTED
+	KwFrom      = kwFROM
+	KwGlobal    = kwGLOBAL
+	KwIf        = kwIF
+	KwNot       = kwNOT
+	KwOr        = kwOR
+	KwQuery     = kwQUERY
+	KwReplace   = kwREPLACE
+	KwSelect    = kwSELECT
+	KwShow      = kwSHOW
+	KwTable     = kwTABLE
+	KwTables    = kwTABLES
+	KwTemporary = kwTEMPORARY
+	KwValues    = kwVALUES
+	KwView      = kwVIEW
+	KwWith      = kwWITH
+)
+
 // Token represents a single lexed token with byte offsets.
 type Token struct {
 	Kind  TokenKind
 	Text  string
 	Start int
 	End   int
+}
+
+// IsKeyword reports whether k is a Databricks/Spark SQL keyword token.
+func (k TokenKind) IsKeyword() bool {
+	return k.isKeyword()
+}
+
+// IsIdentifier reports whether k can appear as an identifier in Databricks SQL.
+func (k TokenKind) IsIdentifier() bool {
+	return k.isIdentifier()
+}
+
+// IsStrictIdentifier reports whether k can appear as a strict identifier.
+func (k TokenKind) IsStrictIdentifier() bool {
+	return k.isStrictIdentifier()
 }
 
 func (k TokenKind) isKeyword() bool {

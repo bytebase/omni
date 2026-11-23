@@ -39,6 +39,11 @@ func (p *Parser) parseCreateStatement() (Statement, error) {
 		i++
 	}
 
+	// Databricks SQL CREATE [OR REPLACE] MATERIALIZED VIEW ... AS <query>.
+	if isWord(p.peek(i), "MATERIALIZED") && p.peek(i+1).Kind == kwVIEW {
+		return p.parseCreateMaterializedView()
+	}
+
 	switch p.peek(i).Kind {
 	case kwTABLE:
 		// Try CREATE TABLE ... LIKE first if LIKE appears after table name, else regular CREATE TABLE.
@@ -502,7 +507,7 @@ func (p *Parser) parseCreateView() (Statement, error) {
 	if isTemp && ifNotExists {
 		return nil, p.errorf("CREATE TEMPORARY VIEW cannot specify IF NOT EXISTS")
 	}
-	target, err := p.parseIdentifierReference()
+	target, _, targetLoc, _, err := p.parseIdentifierReferenceParts()
 	if err != nil {
 		return nil, err
 	}
@@ -568,12 +573,105 @@ expectAs:
 	}
 	prevDisallow := p.disallowParamMarkers
 	p.disallowParamMarkers = true
+	p.resetQueryMeta()
 	err = p.parseQuery()
 	p.disallowParamMarkers = prevDisallow
 	if err != nil {
 		return nil, err
 	}
-	return &ParsedStmt{Kind: StmtCreateView, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	return &ParsedStmt{
+		Kind:      StmtCreateView,
+		Target:    target,
+		TargetLoc: targetLoc,
+		TableRefs: p.takeTableRefs(),
+		Loc:       Loc{Start: start, End: p.prevEnd()},
+	}, nil
+}
+
+// parseCreateMaterializedView parses Databricks SQL Unity Catalog
+// CREATE [OR REPLACE] MATERIALIZED VIEW [IF NOT EXISTS] target [(cols)]
+// [COMMENT ...] [TBLPROPERTIES ...] [CLUSTER BY ...] AS <query>.
+func (p *Parser) parseCreateMaterializedView() (Statement, error) {
+	start := p.cur().Start
+	if _, err := p.expect(kwCREATE); err != nil {
+		return nil, err
+	}
+	if p.match(kwOR) {
+		if _, err := p.expect(kwREPLACE); err != nil {
+			return nil, err
+		}
+	}
+	if !isWord(p.cur(), "MATERIALIZED") {
+		return nil, p.errorf("expected MATERIALIZED, got %q", p.cur().Text)
+	}
+	p.advance()
+	if _, err := p.expect(kwVIEW); err != nil {
+		return nil, err
+	}
+	p.matchIfNotExists()
+	target, _, targetLoc, _, err := p.parseIdentifierReferenceParts()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur().Kind == tokLParen {
+		cp := p.save()
+		p.advance()
+		if err := p.parseColDefinitionList(); err == nil && p.match(tokRParen) {
+			// typed column definitions
+		} else {
+			p.restore(cp)
+			if err := p.parseIdentifierCommentList(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for {
+		switch p.cur().Kind {
+		case kwCOMMENT:
+			if err := p.parseCommentSpec(); err != nil {
+				return nil, err
+			}
+		case kwTBLPROPERTIES:
+			p.advance()
+			if err := p.parsePropertyList(); err != nil {
+				return nil, err
+			}
+		case kwPARTITIONED:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			if err := p.parseIdentifierList(); err != nil {
+				return nil, err
+			}
+		case kwCLUSTER:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			if err := p.parseIdentifierList(); err != nil {
+				return nil, err
+			}
+		default:
+			goto expectMVAs
+		}
+	}
+expectMVAs:
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	p.resetQueryMeta()
+	if err := p.parseQuery(); err != nil {
+		return nil, err
+	}
+	return &ParsedStmt{
+		Kind:         StmtCreateView,
+		Target:       target,
+		TargetLoc:    targetLoc,
+		Materialized: true,
+		TableRefs:    p.takeTableRefs(),
+		Loc:          Loc{Start: start, End: p.prevEnd()},
+	}, nil
 }
 
 func (p *Parser) parseCreateTempViewUsing() (Statement, error) {
@@ -860,7 +958,7 @@ func (p *Parser) parseAlterView() (Statement, error) {
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-	target, err := p.parseIdentifierReference()
+	target, _, targetLoc, _, err := p.parseIdentifierReferenceParts()
 	if err != nil {
 		return nil, err
 	}
@@ -932,23 +1030,29 @@ func (p *Parser) parseAlterView() (Statement, error) {
 		// Could be WITH SCHEMA ... (schemaBinding) or WITH cte ... (alterViewQuery)!
 		cp := p.save()
 		if err := p.parseSchemaBinding(); err == nil && p.isStatementEnd() {
-			return &ParsedStmt{Kind: StmtAlterView, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+			return &ParsedStmt{Kind: StmtAlterView, Target: target, TargetLoc: targetLoc, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
 		p.restore(cp)
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
+		return &ParsedStmt{Kind: StmtAlterView, Target: target, TargetLoc: targetLoc, TableRefs: p.takeTableRefs(), Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	case kwAS:
 		p.advance()
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
+		return &ParsedStmt{Kind: StmtAlterView, Target: target, TargetLoc: targetLoc, TableRefs: p.takeTableRefs(), Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	default:
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
+		return &ParsedStmt{Kind: StmtAlterView, Target: target, TargetLoc: targetLoc, TableRefs: p.takeTableRefs(), Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
-	return &ParsedStmt{Kind: StmtAlterView, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	return &ParsedStmt{Kind: StmtAlterView, Target: target, TargetLoc: targetLoc, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }
 
 func (p *Parser) parseAlterTable() (Statement, error) {

@@ -10,12 +10,9 @@
 // the gate; set and naming no catalog, it fails, so a recording cannot write no
 // tape and read as a pass.
 //
-// The tree is driver-only. Bytebase dispatches Databricks through
-// parser/standard's lexical splitter and its EXPLAIN FORMATTED rewrite, and
-// omni has no databricks tree and no standard tree to call, so the driver
-// carries that splitter and rewrite itself, as clickhouse/driver and
-// hive/driver carry theirs until their engine trees exist. When a databricks
-// tree lands, those two pieces belong there and this package should call them.
+// Statement splitting, EXPLAIN rewriting and inspection, row-returning
+// statement classification, and view DDL target qualification live in
+// databricks/analysis, backed by databricks/parser.
 //
 // # What it implements
 //

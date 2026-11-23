@@ -17,6 +17,18 @@ func (p *Parser) parseQuery() error {
 	p.windowSpecSeen = false
 	defer func() { p.windowSpecSeen = prevWindowSeen }()
 
+	p.queryDepth++
+	defer func() { p.queryDepth-- }()
+	prevQueryParen := p.queryParenDepth
+	p.queryParenDepth = p.parenDepth
+	defer func() { p.queryParenDepth = prevQueryParen }()
+	prevCTEScopes := len(p.cteScopes)
+	defer func() {
+		if len(p.cteScopes) > prevCTEScopes {
+			p.cteScopes = p.cteScopes[:prevCTEScopes]
+		}
+	}()
+
 	if p.cur().Kind == kwWITH {
 		if err := p.parseCTEs(); err != nil {
 			return err
@@ -211,17 +223,21 @@ func (p *Parser) parseCTEs() error {
 	// RECURSIVE is non-reserved, so `WITH recursive AS (...)` and
 	// `WITH recursive(x) AS (...)` name the CTE `recursive` rather than
 	// using the RECURSIVE modifier.
+	isRecursive := false
 	if p.cur().Kind == kwRECURSIVE && p.peek(1).Kind != kwAS && p.peek(1).Kind != tokLParen {
 		p.advance()
+		isRecursive = true
 	}
+	scope := make(map[string]struct{})
+	p.cteScopes = append(p.cteScopes, scope)
 	seen := make(map[string]struct{})
-	name, err := p.parseNamedQuery()
+	name, err := p.parseNamedQuery(isRecursive, scope)
 	if err != nil {
 		return err
 	}
 	seen[exactIdentName(name)] = struct{}{}
 	for p.match(tokComma) {
-		name, err := p.parseNamedQuery()
+		name, err := p.parseNamedQuery(isRecursive, scope)
 		if err != nil {
 			return err
 		}
@@ -234,16 +250,16 @@ func (p *Parser) parseCTEs() error {
 	return nil
 }
 
-func (p *Parser) parseNamedQuery() (string, error) {
+func (p *Parser) parseNamedQuery(isRecursive bool, scope map[string]struct{}) (string, error) {
 	name, err := p.parseErrorCapturingIdentifier()
 	if err != nil {
 		return "", err
 	}
 	if p.cur().Kind == tokLParen {
-		// Could be optional columnAliases=identifierList followed by AS? (query), OR directly (query)!
+		// Could be optional columnAliases=identifierList followed by AS? / MAX RECURSION LEVEL / (query), OR directly (query)!
 		cp := p.save()
 		if err := p.parseIdentifierList(); err == nil {
-			if p.cur().Kind == kwAS || p.cur().Kind == tokLParen {
+			if p.cur().Kind == kwAS || p.cur().Kind == tokLParen || p.isMaxRecursionLevelStart() {
 				// Yes, it was columnAliases!
 				goto afterAliases
 			}
@@ -251,19 +267,48 @@ func (p *Parser) parseNamedQuery() (string, error) {
 		p.restore(cp)
 	}
 afterAliases:
-	p.match(kwAS)
+	// Databricks Runtime 17.0+ MAX RECURSION LEVEL <n> clause.
+	if p.isMaxRecursionLevelStart() {
+		p.advance()
+		p.advance()
+		p.advance()
+		p.advance()
+	}
+	if p.match(kwAS) {
+		// Databricks SQL / SQL-standard AS [NOT] MATERIALIZED CTE hint.
+		if p.cur().Kind == kwNOT && isWord(p.peek(1), "MATERIALIZED") && p.peek(2).Kind == tokLParen {
+			p.advance()
+			p.advance()
+		} else if isWord(p.cur(), "MATERIALIZED") && p.peek(1).Kind == tokLParen {
+			p.advance()
+		}
+	}
 	if _, err := p.expect(tokLParen); err != nil {
 		return "", err
+	}
+	normName := normalizeIdentName(name)
+	if isRecursive {
+		scope[normName] = struct{}{}
 	}
 	if err := p.parseQuery(); err != nil {
 		return "", err
 	}
-	_, err = p.expect(tokRParen)
-	return name, err
+	if _, err := p.expect(tokRParen); err != nil {
+		return "", err
+	}
+	scope[normName] = struct{}{}
+	return name, nil
+}
+
+func (p *Parser) isMaxRecursionLevelStart() bool {
+	return isWord(p.cur(), "MAX") &&
+		isWord(p.peek(1), "RECURSION") &&
+		isWord(p.peek(2), "LEVEL") &&
+		p.peek(3).Kind == tokInt
 }
 
 // parseQueryTerm parses queryPrimary, set operations (UNION/INTERSECT/EXCEPT/MINUS),
-// and the Spark 4.0 SQL pipe operator (|> operatorPipeRightSide).
+// and the Spark 4.0 / Databricks SQL pipe operator (|> / single-bar |).
 func (p *Parser) parseQueryTerm() error {
 	if err := p.parseQueryPrimary(); err != nil {
 		return err
@@ -271,12 +316,29 @@ func (p *Parser) parseQueryTerm() error {
 	for {
 		switch p.cur().Kind {
 		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-			p.advance()
+			op := p.advance().Kind
 			p.match(kwDISTINCT, kwALL)
+			// Databricks SQL UNION [ALL | DISTINCT] BY NAME extension.
+			if op == kwUNION && p.cur().Kind == kwBY && isWord(p.peek(1), "NAME") {
+				p.advance()
+				p.advance()
+			}
 			if err := p.parseQueryPrimary(); err != nil {
 				return err
 			}
 		case tokOperatorPipe:
+			p.advance()
+			beforePos := p.pos
+			if err := p.parseOperatorPipeRightSide(); err != nil {
+				return err
+			}
+			if p.pos == beforePos {
+				p.hasEmptyPipe = true
+			}
+		case tokPipe:
+			if !p.isSingleBarPipeStart() {
+				return nil
+			}
 			p.advance()
 			if err := p.parseOperatorPipeRightSide(); err != nil {
 				return err
@@ -284,6 +346,37 @@ func (p *Parser) parseQueryTerm() error {
 		default:
 			return nil
 		}
+	}
+}
+
+// isSingleBarPipeStart reports whether `|` at p.cur() introduces a Databricks
+// Runtime 18.0+ single-bar pipe stage rather than a bitwise OR operator.
+func (p *Parser) isSingleBarPipeStart() bool {
+	return p.queryDepth > 0 && p.cur().Kind == tokPipe &&
+		p.parenDepth == p.queryParenDepth && p.isSingleBarPipeStageAt(1)
+}
+
+func (p *Parser) isSingleBarPipeStageAt(off int) bool {
+	k := p.peek(off).Kind
+	next := p.peek(off + 1).Kind
+	switch k {
+	case kwSELECT, kwWHERE, kwEXTEND, kwDROP, kwAGGREGATE, kwLIMIT, kwOFFSET,
+		kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwTABLESAMPLE, kwPIVOT, kwUNPIVOT:
+		return next != tokEOF && next != tokSemicolon && next != tokRParen && next != tokComma
+	case kwAS:
+		return next.isIdentifier()
+	case kwSET:
+		return next.isIdentifier() && p.peek(off+2).Kind == tokEq
+	case kwORDER, kwSORT, kwCLUSTER, kwDISTRIBUTE:
+		return next == kwBY
+	case kwJOIN, kwNATURAL:
+		return next != tokEOF && next != tokSemicolon && next != tokRParen
+	case kwINNER, kwCROSS, kwSEMI, kwANTI:
+		return next == kwJOIN
+	case kwLEFT, kwRIGHT, kwFULL:
+		return next == kwJOIN || ((next == kwOUTER || next == kwSEMI || next == kwANTI) && p.peek(off+2).Kind == kwJOIN)
+	default:
+		return false
 	}
 }
 
@@ -370,7 +463,7 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 		if p.cur().Kind == kwGROUP && p.peek(1).Kind == kwBY {
 			cpAgg := p.save()
 			p.windowSpecSeen = false
-			if err := p.parseAggregationClause(true); err == nil && (p.isStatementEnd() || p.cur().Kind == tokRParen || p.cur().Kind == tokOperatorPipe || p.isQueryOrgStart()) {
+			if err := p.parseAggregationClause(true); err == nil && (p.isStatementEnd() || p.cur().Kind == tokRParen || p.cur().Kind == tokOperatorPipe || p.isSingleBarPipeStart() || p.isQueryOrgStart()) {
 				if p.windowSpecSeen {
 					return p.errorf("window expressions are not allowed in pipe AGGREGATE with GROUP BY")
 				}
@@ -381,7 +474,7 @@ func (p *Parser) parseOperatorPipeRightSide() error {
 		hasAggExprs := false
 		aggHasWindow := false
 		if p.cur().Kind != tokEOF && p.cur().Kind != tokSemicolon &&
-			p.cur().Kind != tokRParen && p.cur().Kind != tokOperatorPipe && !p.isQueryOrgStart() {
+			p.cur().Kind != tokRParen && p.cur().Kind != tokOperatorPipe && !p.isSingleBarPipeStart() && !p.isQueryOrgStart() {
 			p.windowSpecSeen = false
 			if err := p.parseNamedExpressionSeq(); err != nil {
 				return err
@@ -448,8 +541,14 @@ func (p *Parser) parseQueryPrimary() error {
 		return p.parseFromStatement()
 	case kwTABLE:
 		p.advance()
-		_, err := p.parseIdentifierReference()
-		return err
+		_, parts, loc, isDyn, err := p.parseIdentifierReferenceParts()
+		if err != nil {
+			return err
+		}
+		if !isDyn {
+			p.recordTableRef(parts, loc)
+		}
+		return nil
 	case kwVALUES:
 		return p.parseInlineTable()
 	case tokLParen:
@@ -603,6 +702,7 @@ func (p *Parser) hasTransformClauseAfterParens(lparenOffset int) bool {
 }
 
 func (p *Parser) parseTransformClause() error {
+	p.hasTransform = true
 	if p.match(kwSELECT) {
 		if _, err := p.expect(kwTRANSFORM); err != nil {
 			return err
@@ -1176,8 +1276,12 @@ func (p *Parser) parseRelationPrimary() (bool, error) {
 	}
 
 	// tableName: identifierReference temporalClause? optionsClause? sample? tableAlias
-	if _, err := p.parseIdentifierReference(); err != nil {
+	_, parts, loc, isDyn, err := p.parseIdentifierReferenceParts()
+	if err != nil {
 		return false, err
+	}
+	if !isDyn {
+		p.recordTableRef(parts, loc)
 	}
 	if p.isTemporalClauseStart() {
 		if err := p.parseTemporalClause(); err != nil {
@@ -2905,20 +3009,33 @@ func (p *Parser) parseQueryOrganization(inPipe bool) error {
 		if inPipe && hasOrdering {
 			return p.errorf("cannot combine ORDER/CLUSTER/DISTRIBUTE/SORT BY with LIMIT in the same pipe operator")
 		}
+		limStart := p.cur().Start
 		if p.isStandaloneLimitAll() {
-			p.advance()
+			tok := p.advance()
+			if p.queryDepth == 1 && !inPipe {
+				p.limitLoc = Loc{Start: tok.Start, End: tok.End}
+				p.limitAll = true
+			}
 		} else {
 			if err := p.parseExpression(); err != nil {
 				return err
 			}
+			if p.queryDepth == 1 && !inPipe {
+				p.limitLoc = Loc{Start: limStart, End: p.prevEnd()}
+				p.limitAll = false
+			}
 		}
 	}
-	if p.match(kwOFFSET) {
+	if p.cur().Kind == kwOFFSET {
+		offTok := p.advance()
 		if inPipe && hasOrdering {
 			return p.errorf("cannot combine ORDER/CLUSTER/DISTRIBUTE/SORT BY with OFFSET in the same pipe operator")
 		}
 		if err := p.parseExpression(); err != nil {
 			return err
+		}
+		if p.queryDepth == 1 && !inPipe {
+			p.offsetLoc = Loc{Start: offTok.Start, End: offTok.End}
 		}
 	}
 	return nil
