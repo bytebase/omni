@@ -464,8 +464,10 @@ func TestSelectStarExcept(t *testing.T) {
 			t.Errorf("%s parsed, want an error", sql)
 		}
 	}
-	if _, errs := parseForTest("SELECT * FROM t EXCEPT (SELECT * FROM u)"); len(errs) > 0 {
-		t.Errorf("a set operation: %v", errs)
+	for _, sql := range []string{"SELECT * FROM t EXCEPT (SELECT * FROM u)", "SELECT * EXCEPT (VALUES(1))", "SELECT * EXCEPT ((VALUES(1)))"} {
+		if _, errs := parseForTest(sql); len(errs) > 0 {
+			t.Errorf("%s, a set operation: %v", sql, errs)
+		}
 	}
 }
 

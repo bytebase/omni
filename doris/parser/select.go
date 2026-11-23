@@ -624,8 +624,8 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 // whole select list: ASTERISK EXCEPT LEFT_PAREN namedExpressionSeq
 // RIGHT_PAREN (DorisParser.g4), which Doris refuses over a one-row
 // relation, so a FROM must follow. It reports false, consuming nothing,
-// when the parenthesis opens a query, SELECT * EXCEPT (SELECT ...) or
-// ((WITH ...)): that is a set operation. The choice looks through the
+// when the parenthesis opens a query, SELECT * EXCEPT (SELECT ...),
+// ((WITH ...)) or (VALUES ...): that is a set operation. The choice looks through the
 // leading parentheses only, so it costs one token per parenthesis and
 // never parses an operand twice.
 func (p *Parser) parseStarExcept() (*ast.SelectItem, bool, error) {
@@ -643,7 +643,7 @@ func (p *Parser) parseStarExcept() (*ast.SelectItem, bool, error) {
 	for p.cur.Kind == int('(') {
 		p.advance()
 	}
-	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH || p.cur.Kind == kwVALUES {
 		p.restore(cp)
 		return nil, false, nil
 	}
