@@ -26,6 +26,7 @@ func (p *Parser) parseExpression() (ast.Node, error) {
 	// took time quadratic in n (40,000 took seconds).
 	var name strings.Builder
 	var last *ast.MethodCall
+	chainedCall := false
 	for p.cur.Type == '.' {
 		// Check that what follows is identifier + '(' (a method call)
 		next := p.peekNext()
@@ -38,7 +39,12 @@ func (p *Parser) parseExpression() (ast.Node, error) {
 			return nil, err
 		}
 		if last == nil {
+			if _, isCall := node.(*ast.HelperCall); isCall {
+				chainedCall = true
+			}
 			name.WriteString(nodeToName(node))
+		} else {
+			chainedCall = true
 		}
 		name.WriteByte('.')
 		name.WriteString(mc.Name)
@@ -47,9 +53,10 @@ func (p *Parser) parseExpression() (ast.Node, error) {
 	if last != nil {
 		// Wrap as a HelperCall with qualified name
 		node = &ast.HelperCall{
-			Name: name.String(),
-			Args: last.Args,
-			Loc:  ast.Loc{Start: node.GetLoc().Start, End: last.Loc.End},
+			Name:        name.String(),
+			Args:        last.Args,
+			ChainedCall: chainedCall,
+			Loc:         ast.Loc{Start: node.GetLoc().Start, End: last.Loc.End},
 		}
 	}
 

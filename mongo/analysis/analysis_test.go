@@ -721,6 +721,12 @@ func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
 	if sa := mustAnalyze(t, `db.users.find({}).sort({a: 1}).limit(5).toArray()`); sa.Operation != analysis.OpFind {
 		t.Errorf("find().sort().limit().toArray() Operation = %v, want OpFind", sa.Operation)
 	}
+	if sa := mustAnalyze(t, `db.users.find({_id: ObjectId(db.dropDatabase()).createFromHexString("507f1f77bcf86cd799439011")})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with chained call on ObjectId() = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.users.find({x: EJSON.stringify({a: 1}, mutatingCallback)})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with EJSON.stringify replacer callback = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
 }
 
 // ---------------------------------------------------------------------------

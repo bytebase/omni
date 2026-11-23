@@ -94,6 +94,8 @@ func TestClassifyStatement(t *testing.T) {
 		// Safe BSON constructors vs mutating/unrecognized calls inside arguments.
 		{name: "find with ObjectId and ISODate", statement: `db.users.find({_id: ObjectId("507f1f77bcf86cd799439011"), ts: ISODate("2024-01-01")})`, want: Select},
 		{name: "find with static BSON factory", statement: `db.users.find({bin: Binary.createFromBase64("AA=="), oid: ObjectId.createFromHexString("507f1f77bcf86cd799439011")})`, want: Select},
+		{name: "find with EJSON.stringify safe forms", statement: `db.users.find({a: EJSON.stringify({k: 1}), b: EJSON.stringify({k: 1}, null, 2), c: EJSON.stringify({k: 1}, ["k"]), d: EJSON.stringify({k: 1}, {relaxed: true})})`, want: Select},
+		{name: "find with EJSON.stringify replacer callback", statement: `db.users.find({x: EJSON.stringify({a: 1}, mutatingCallback)})`, want: DML},
 		{name: "find with nested deleteMany in filter", statement: `db.users.find({deleted: db.getCollection("audit").deleteMany({})})`, want: DML},
 		{name: "find with nested mutation inside ObjectId arg", statement: `db.users.find({_id: ObjectId(db.dropDatabase())})`, want: DML},
 		{name: "find with mutation hidden before static factory", statement: `db.users.find({_id: ObjectId(db.dropDatabase()).createFromHexString("507f1f77bcf86cd799439011")})`, want: DML},

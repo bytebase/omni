@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mongo/ast"
@@ -172,17 +171,17 @@ func hasUnsafeCursorChain(s *ast.CollectionStatement) bool {
 
 // hasUnsafeStatementArgs reports whether a statement's argument expressions or
 // chained method calls invoke callbacks or anything outside safe allowlists.
-func hasUnsafeStatementArgs(node ast.Node, source string) bool {
+func hasUnsafeStatementArgs(node ast.Node) bool {
 	switch n := node.(type) {
 	case *ast.CollectionStatement:
 		if hasUnsafeCursorChain(n) {
 			return true
 		}
-		if hasUnsafeNodes(n.Args, source) || hasUnsafeNodes(n.ExplainArgs, source) {
+		if hasUnsafeNodes(n.Args) || hasUnsafeNodes(n.ExplainArgs) {
 			return true
 		}
 		for _, cm := range n.CursorMethods {
-			if hasUnsafeNodes(cm.Args, source) {
+			if hasUnsafeNodes(cm.Args) {
 				return true
 			}
 		}
@@ -191,17 +190,17 @@ func hasUnsafeStatementArgs(node ast.Node, source string) bool {
 		if len(n.ChainedMethods) > 0 {
 			return true
 		}
-		return hasUnsafeNodes(n.Args, source)
+		return hasUnsafeNodes(n.Args)
 	case *ast.RsStatement:
-		return hasUnsafeNodes(n.Args, source)
+		return hasUnsafeNodes(n.Args)
 	case *ast.ShStatement:
-		return hasUnsafeNodes(n.Args, source)
+		return hasUnsafeNodes(n.Args)
 	default:
 		return false
 	}
 }
 
-func hasUnsafeNodes(nodes []ast.Node, source string) bool {
+func hasUnsafeNodes(nodes []ast.Node) bool {
 	stack := make([]ast.Node, 0, len(nodes))
 	stack = append(stack, nodes...)
 	for len(stack) > 0 {
@@ -221,10 +220,10 @@ func hasUnsafeNodes(nodes []ast.Node, source string) bool {
 		case *ast.Array:
 			stack = append(stack, v.Elements...)
 		case *ast.HelperCall:
-			if !safeBSONHelpers[v.Name] {
+			if v.ChainedCall || !safeBSONHelpers[v.Name] {
 				return true
 			}
-			if source != "" && strings.Contains(v.Name, ".") && !isPlainStaticCall(source, v) {
+			if v.Name == "EJSON.stringify" && !hasSafeStringifyReplacer(v.Args) {
 				return true
 			}
 			stack = append(stack, v.Args...)
@@ -235,29 +234,20 @@ func hasUnsafeNodes(nodes []ast.Node, source string) bool {
 	return false
 }
 
-// isPlainStaticCall verifies that a dotted HelperCall (e.g.
-// ObjectId.createFromHexString("...")) does not hide an earlier parenthesized
-// call in its receiver (e.g. ObjectId(mut()).createFromHexString("...")), which
-// mongo/parser collapses into a single HelperCall keeping only the last args.
-func isPlainStaticCall(source string, call *ast.HelperCall) bool {
-	if call.Loc.Start < 0 || call.Loc.End > len(source) || call.Loc.Start >= call.Loc.End {
+// hasSafeStringifyReplacer reports whether EJSON.stringify's optional second
+// argument (replacer/options) cannot be a callback function.
+func hasSafeStringifyReplacer(args []ast.Node) bool {
+	if len(args) < 2 {
+		return true
+	}
+	switch r := args[1].(type) {
+	case *ast.NullLiteral, *ast.Array, *ast.Document:
+		return true
+	case *ast.Identifier:
+		return r.Name == "undefined"
+	default:
 		return false
 	}
-	text := source[call.Loc.Start:call.Loc.End]
-	openIdx := strings.IndexByte(text, '(')
-	if openIdx < 0 {
-		return false
-	}
-	var b strings.Builder
-	b.Grow(openIdx)
-	for i := range openIdx {
-		switch text[i] {
-		case ' ', '\t', '\n', '\r':
-		default:
-			b.WriteByte(text[i])
-		}
-	}
-	return b.String() == call.Name
 }
 
 // QueryTypeOf maps a StatementAnalysis to its QueryType.
@@ -336,9 +326,5 @@ func ClassifyStatement(statement string) (QueryType, error) {
 	if len(nodes) > 1 {
 		return DML, errors.New("expected a single MongoDB statement")
 	}
-	qt := QueryTypeOf(Analyze(nodes[0]))
-	if (qt == Select || qt == SelectInfoSchema || qt == Explain) && hasUnsafeStatementArgs(nodes[0], statement) {
-		return DML, nil
-	}
-	return qt, nil
+	return QueryTypeOf(Analyze(nodes[0])), nil
 }

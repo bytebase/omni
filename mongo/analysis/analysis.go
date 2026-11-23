@@ -140,7 +140,7 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpInfo
 	}
-	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s, "") {
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
 	return a
@@ -204,7 +204,7 @@ func analyzeRs(s *ast.RsStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpWrite
 	}
-	if hasUnsafeStatementArgs(s, "") {
+	if hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
 	return a
@@ -218,7 +218,7 @@ func analyzeSh(s *ast.ShStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpWrite
 	}
-	if hasUnsafeStatementArgs(s, "") {
+	if hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
 	return a
@@ -331,7 +331,7 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 		a.Operation = OpUnknown
 	}
 
-	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s, "") {
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 		a.PredicateFields = nil
 		a.ShapePreserving = false
