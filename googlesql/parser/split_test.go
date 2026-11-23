@@ -57,21 +57,101 @@ func TestSplit_Basic(t *testing.T) {
 			},
 		},
 		{
-			name:  "lone_semicolons_filtered",
+			name:  "lone_semicolons_kept",
 			input: ";;;",
-			want:  nil,
+			want: []Segment{
+				{Text: "", ByteStart: 0, ByteEnd: 0},
+				{Text: "", ByteStart: 1, ByteEnd: 1},
+				{Text: "", ByteStart: 2, ByteEnd: 2},
+			},
 		},
 		{
-			name:  "blank_between_filtered",
+			name:  "blank_between_kept",
 			input: "SELECT 1;;SELECT 2",
 			want: []Segment{
 				{Text: "SELECT 1", ByteStart: 0, ByteEnd: 8},
+				{Text: "", ByteStart: 9, ByteEnd: 9},
 				{Text: "SELECT 2", ByteStart: 10, ByteEnd: 18},
 			},
 		},
 	}
 	t.Run("Split", func(t *testing.T) { runSplitCases(t, Split, cases) })
 	t.Run("SplitFlat", func(t *testing.T) { runSplitCases(t, SplitFlat, cases) })
+}
+
+// TestSplit_EmptySegments pins the segments that hold no statement: both
+// splitters return one per delimiter-separated chunk, with its byte range.
+func TestSplit_EmptySegments(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []Segment
+	}{
+		{"lone_semi", ";", []Segment{{"", 0, 0}}},
+		{"double_semi", ";;", []Segment{{"", 0, 0}, {"", 1, 1}}},
+		{"spaced_semis", " ; ;", []Segment{{" ", 0, 1}, {" ", 2, 3}}},
+		{"leading_semi", ";SELECT 1;", []Segment{{"", 0, 0}, {"SELECT 1", 1, 9}}},
+		{"trailing_semi", "SELECT 1;;", []Segment{{"SELECT 1", 0, 8}, {"", 9, 9}}},
+		{"trailing_whitespace", "SELECT 1;  \n", []Segment{{"SELECT 1", 0, 8}, {"  \n", 9, 12}}},
+		{"dash_comment_only", "-- c\n", []Segment{{"-- c\n", 0, 5}}},
+		{"pound_comment_only", "# c\n", []Segment{{"# c\n", 0, 4}}},
+		{"block_comment_only", "/* c */", []Segment{{"/* c */", 0, 7}}},
+		{"comment_chunk_between", "SELECT 1; /* c */; SELECT 2", []Segment{
+			{"SELECT 1", 0, 8},
+			{" /* c */", 9, 17},
+			{" SELECT 2", 18, 27},
+		}},
+		{"comment_tail_without_semi", "SELECT 1; -- done", []Segment{
+			{"SELECT 1", 0, 8},
+			{" -- done", 9, 17},
+		}},
+		{"unterminated_comment_tail", "SELECT 1; /* open", []Segment{
+			{"SELECT 1", 0, 8},
+			{" /* open", 9, 17},
+		}},
+	}
+	t.Run("Split", func(t *testing.T) { runSplitCases(t, Split, cases) })
+	t.Run("SplitFlat", func(t *testing.T) { runSplitCases(t, SplitFlat, cases) })
+}
+
+// TestSplit_EmptyMarked pins which segments Empty() reports: a chunk of
+// whitespace, a comment, or nothing is empty; a statement is not.
+func TestSplit_EmptyMarked(t *testing.T) {
+	cases := []struct {
+		input string
+		empty []bool
+	}{
+		{";", []bool{true}},
+		{";;", []bool{true, true}},
+		{"SELECT 1;;SELECT 2", []bool{false, true, false}},
+		{"-- c\n", []bool{true}},
+		{"/* c */;SELECT 1", []bool{true, false}},
+		{"SELECT 1; -- done", []bool{false, true}},
+		{"SELECT 1;  ", []bool{false, true}},
+		{"SELECT 1;", []bool{false}},
+		{"BEGIN SELECT 1; END;; SELECT 2", []bool{false, true, false}},
+	}
+	for _, c := range cases {
+		for _, variant := range []struct {
+			name  string
+			split func(string) []Segment
+		}{{"Split", Split}, {"SplitFlat", SplitFlat}} {
+			if variant.name == "SplitFlat" && strings.Contains(c.input, "BEGIN") {
+				continue // SplitFlat splits inside the block.
+			}
+			segments := variant.split(c.input)
+			got := make([]bool, len(segments))
+			for i, segment := range segments {
+				got[i] = segment.Empty()
+				if segment.Text != c.input[segment.ByteStart:segment.ByteEnd] {
+					t.Errorf("%s(%q)[%d].Text = %q, want input[%d:%d]", variant.name, c.input, i, segment.Text, segment.ByteStart, segment.ByteEnd)
+				}
+			}
+			if !reflect.DeepEqual(got, c.empty) {
+				t.Errorf("%s(%q) Empty() = %v, want %v", variant.name, c.input, got, c.empty)
+			}
+		}
+	}
 }
 
 // Semicolons hidden inside strings/bytes/backtick-identifiers/comments must NOT
@@ -450,6 +530,7 @@ func TestSplit_OffsetsAreLossless(t *testing.T) {
 		"  SELECT 1 ;\n SELECT 2 ;",
 		"SELECT ';' ; SELECT `a;b`",
 		"CREATE PROCEDURE p() BEGIN SELECT 1; END; SELECT 2",
+		";; -- c\n; /* d */",
 	}
 	for _, in := range inputs {
 		for _, variant := range []struct {

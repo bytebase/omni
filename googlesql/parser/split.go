@@ -42,7 +42,8 @@ type Segment struct {
 
 // Empty reports whether the segment contains no meaningful SQL content — only
 // whitespace and comments. It re-lexes Text and checks whether the first token
-// is tokEOF. Empty segments are filtered out by both splitters.
+// is tokEOF. Both splitters return empty segments; a caller that parses or
+// executes statements skips them.
 func (s Segment) Empty() bool {
 	return NewLexer(s.Text).NextToken().Type == tokEOF
 }
@@ -61,9 +62,11 @@ const (
 // ';' inside a procedural body WOULD split (BigQuery's wired surface does not
 // rely on block-aware splitting at this layer).
 //
-// The returned slice contains one Segment per non-empty statement; empty
-// statements (lone semicolons, comment-only chunks) are filtered out. SplitFlat
-// is infallible — lexing errors are suppressed here; callers who need them use
+// The returned slice contains one Segment per delimiter-separated chunk,
+// including the chunks that hold no statement — a lone semicolon, whitespace, a
+// comment, or comment-only text after the last ';' — which Segment.Empty
+// reports. A caller that accounts for every delimiter needs them; a caller that
+// parses or executes statements skips them. SplitFlat is infallible — lexing errors are suppressed here; callers who need them use
 // NewLexer(input).Errors() or Parse, which promotes lex errors to diagnostics.
 func SplitFlat(input string) []Segment {
 	if len(input) == 0 {
@@ -74,10 +77,7 @@ func SplitFlat(input string) []Segment {
 	stmtStart := 0
 
 	emit := func(end int) {
-		seg := Segment{Text: input[stmtStart:end], ByteStart: stmtStart, ByteEnd: end}
-		if !seg.Empty() {
-			segments = append(segments, seg)
-		}
+		segments = append(segments, Segment{Text: input[stmtStart:end], ByteStart: stmtStart, ByteEnd: end})
 	}
 
 	for {
@@ -101,9 +101,9 @@ func SplitFlat(input string) []Segment {
 // parse-tree-split semantics. A ';' that separates control statements inside a
 // stored-procedure body does not split the enclosing statement.
 //
-// The returned slice contains one Segment per non-empty statement; empty
-// statements (lone semicolons, comment-only chunks) are filtered out. Split is
-// infallible (lexing errors are suppressed here, as in SplitFlat).
+// The returned slice contains one Segment per delimiter-separated chunk,
+// including the chunks that hold no statement, which Segment.Empty reports (see
+// SplitFlat). Split is infallible (lexing errors are suppressed here, as in SplitFlat).
 //
 // Block model (GoogleSQLParser.g4 procedural statements):
 //   - Openers: BEGIN, IF, CASE, LOOP, WHILE, REPEAT, FOR.
@@ -195,10 +195,7 @@ func Split(input string) []Segment {
 	}
 
 	emit := func(end int) {
-		seg := Segment{Text: input[stmtStart:end], ByteStart: stmtStart, ByteEnd: end}
-		if !seg.Empty() {
-			segments = append(segments, seg)
-		}
+		segments = append(segments, Segment{Text: input[stmtStart:end], ByteStart: stmtStart, ByteEnd: end})
 	}
 
 	for {

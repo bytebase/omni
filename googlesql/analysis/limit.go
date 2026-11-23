@@ -61,7 +61,13 @@ func wrapResultLimit(statement string, limit int) string {
 	// each statement with the ';' and anything after it excluded, so a trailing
 	// comment that follows the terminator does not end up inside the CTE.
 	inner := trimStatement(statement)
-	if segments := parser.Split(statement); len(segments) == 1 {
+	var segments []parser.Segment
+	for _, segment := range parser.Split(statement) {
+		if !segment.Empty() {
+			segments = append(segments, segment)
+		}
+	}
+	if len(segments) == 1 {
 		inner = strings.TrimSpace(statement[segments[0].ByteStart:segments[0].ByteEnd])
 	}
 
