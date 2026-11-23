@@ -57,6 +57,7 @@
 | CREATE TABLE hr.employees (id int, name nvarchar(50), salary decimal(10,2), manager_id int, dept_id int, ssn char(11))
 | CREATE TABLE hr.departments (id int, name nvarchar(50))
 | CREATE TABLE hr.customers (id int, nickname nvarchar(20))
+| CREATE TABLE dbo.tickets (ticket_no int IDENTITY(1, 1), subject nvarchar(50))
 |
 < ok 0 -
 > exec
@@ -108,7 +109,7 @@
 : string
 | shop
 > query
-| SELECT s.name, o.name, o.type, c.name, m.definition
+| SELECT s.name, o.name, o.type, c.name, m.definition, c.is_identity
 | FROM [archive].sys.schemas AS s
 | LEFT JOIN [archive].sys.objects AS o ON o.schema_id = s.schema_id AND o.type IN ('U', 'V') AND o.is_ms_shipped = 0
 | LEFT JOIN [archive].sys.columns AS c ON c.object_id = o.object_id
@@ -121,6 +122,7 @@
 < column "type" "CHAR"
 < column "name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "is_identity" "BIT"
 < row
 : string
 | dbo
@@ -131,6 +133,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -141,6 +144,7 @@
 : string
 | customer_id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -151,6 +155,7 @@
 : string
 | amount
 : null
+: bool false
 < row
 : string
 | dbo
@@ -164,6 +169,7 @@
 |
 | CREATE VIEW dbo.recent AS SELECT o.id, o.amount FROM dbo.old_orders AS o WHERE o.id > 100
 |
+: bool false
 < row
 : string
 | dbo
@@ -177,6 +183,7 @@
 |
 | CREATE VIEW dbo.recent AS SELECT o.id, o.amount FROM dbo.old_orders AS o WHERE o.id > 100
 |
+: bool false
 > exec
 | USE [archive]
 < ok 0 -
@@ -201,7 +208,7 @@
 | USE [omni_TestQuerySpanFidelity]
 < ok 0 -
 > query
-| SELECT s.name, o.name, o.type, c.name, m.definition
+| SELECT s.name, o.name, o.type, c.name, m.definition, c.is_identity
 | FROM [shop].sys.schemas AS s
 | LEFT JOIN [shop].sys.objects AS o ON o.schema_id = s.schema_id AND o.type IN ('U', 'V') AND o.is_ms_shipped = 0
 | LEFT JOIN [shop].sys.columns AS c ON c.object_id = o.object_id
@@ -214,6 +221,7 @@
 < column "type" "CHAR"
 < column "name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "is_identity" "BIT"
 < row
 : string
 | dbo
@@ -227,6 +235,7 @@
 |
 | CREATE VIEW dbo.all_people AS SELECT c.name FROM dbo.customers AS c UNION ALL SELECT e.name FROM hr.employees AS e
 |
+: bool false
 < row
 : string
 | dbo
@@ -240,6 +249,7 @@
 |
 | CREATE VIEW dbo.archived AS SELECT o.id, o.amount FROM archive.dbo.old_orders AS o
 |
+: bool false
 < row
 : string
 | dbo
@@ -253,6 +263,7 @@
 |
 | CREATE VIEW dbo.archived AS SELECT o.id, o.amount FROM archive.dbo.old_orders AS o
 |
+: bool false
 < row
 : string
 | dbo
@@ -266,6 +277,7 @@
 |
 | CREATE VIEW dbo.big_orders AS SELECT t.id, t.customer_name, t.gross FROM dbo.order_totals AS t WHERE t.gross > 100
 |
+: bool false
 < row
 : string
 | dbo
@@ -279,6 +291,7 @@
 |
 | CREATE VIEW dbo.big_orders AS SELECT t.id, t.customer_name, t.gross FROM dbo.order_totals AS t WHERE t.gross > 100
 |
+: bool false
 < row
 : string
 | dbo
@@ -292,6 +305,7 @@
 |
 | CREATE VIEW dbo.big_orders AS SELECT t.id, t.customer_name, t.gross FROM dbo.order_totals AS t WHERE t.gross > 100
 |
+: bool false
 < row
 : string
 | dbo
@@ -302,6 +316,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -312,6 +327,7 @@
 : string
 | name
 : null
+: bool false
 < row
 : string
 | dbo
@@ -322,6 +338,7 @@
 : string
 | email
 : null
+: bool false
 < row
 : string
 | dbo
@@ -332,6 +349,7 @@
 : string
 | region
 : null
+: bool false
 < row
 : string
 | dbo
@@ -342,6 +360,7 @@
 : string
 | Id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -352,6 +371,7 @@
 : string
 | CamelName
 : null
+: bool false
 < row
 : string
 | dbo
@@ -362,6 +382,7 @@
 : string
 | Order ID
 : null
+: bool false
 < row
 : string
 | dbo
@@ -372,6 +393,7 @@
 : string
 | Unit Price
 : null
+: bool false
 < row
 : string
 | dbo
@@ -382,6 +404,7 @@
 : string
 | Qty
 : null
+: bool false
 < row
 : string
 | dbo
@@ -392,6 +415,7 @@
 : string
 | order_id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -402,6 +426,7 @@
 : string
 | line
 : null
+: bool false
 < row
 : string
 | dbo
@@ -412,6 +437,7 @@
 : string
 | product_id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -422,6 +448,7 @@
 : string
 | qty
 : null
+: bool false
 < row
 : string
 | dbo
@@ -432,6 +459,7 @@
 : string
 | price
 : null
+: bool false
 < row
 : string
 | dbo
@@ -445,6 +473,7 @@
 |
 | CREATE VIEW dbo.order_totals AS SELECT o.id, o.customer_id, o.amount * 1.1 AS gross, c.name AS customer_name FROM dbo.orders AS o JOIN dbo.customers AS c ON c.id = o.customer_id
 |
+: bool false
 < row
 : string
 | dbo
@@ -458,6 +487,7 @@
 |
 | CREATE VIEW dbo.order_totals AS SELECT o.id, o.customer_id, o.amount * 1.1 AS gross, c.name AS customer_name FROM dbo.orders AS o JOIN dbo.customers AS c ON c.id = o.customer_id
 |
+: bool false
 < row
 : string
 | dbo
@@ -471,6 +501,7 @@
 |
 | CREATE VIEW dbo.order_totals AS SELECT o.id, o.customer_id, o.amount * 1.1 AS gross, c.name AS customer_name FROM dbo.orders AS o JOIN dbo.customers AS c ON c.id = o.customer_id
 |
+: bool false
 < row
 : string
 | dbo
@@ -484,6 +515,7 @@
 |
 | CREATE VIEW dbo.order_totals AS SELECT o.id, o.customer_id, o.amount * 1.1 AS gross, c.name AS customer_name FROM dbo.orders AS o JOIN dbo.customers AS c ON c.id = o.customer_id
 |
+: bool false
 < row
 : string
 | dbo
@@ -494,6 +526,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -504,6 +537,7 @@
 : string
 | customer_id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -514,6 +548,7 @@
 : string
 | amount
 : null
+: bool false
 < row
 : string
 | dbo
@@ -524,6 +559,7 @@
 : string
 | status
 : null
+: bool false
 < row
 : string
 | dbo
@@ -534,6 +570,7 @@
 : string
 | created
 : null
+: bool false
 < row
 : string
 | dbo
@@ -544,6 +581,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | dbo
@@ -554,6 +592,7 @@
 : string
 | name
 : null
+: bool false
 < row
 : string
 | dbo
@@ -564,6 +603,29 @@
 : string
 | category
 : null
+: bool false
+< row
+: string
+| dbo
+: string
+| tickets
+: string
+| U 
+: string
+| ticket_no
+: null
+: bool true
+< row
+: string
+| dbo
+: string
+| tickets
+: string
+| U 
+: string
+| subject
+: null
+: bool false
 < row
 : string
 | dbo
@@ -577,6 +639,7 @@
 |
 | CREATE VIEW dbo.v_products AS SELECT * FROM dbo.products
 |
+: bool false
 < row
 : string
 | dbo
@@ -590,6 +653,7 @@
 |
 | CREATE VIEW dbo.v_products AS SELECT * FROM dbo.products
 |
+: bool false
 < row
 : string
 | dbo
@@ -603,6 +667,7 @@
 |
 | CREATE VIEW dbo.v_products AS SELECT * FROM dbo.products
 |
+: bool false
 < row
 : string
 | dbo
@@ -616,6 +681,7 @@
 |
 | CREATE VIEW dbo.[Vip Names] AS SELECT c.name AS VipName FROM dbo.customers AS c WHERE c.region = 'vip'
 |
+: bool false
 < row
 : string
 | hr
@@ -626,6 +692,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | hr
@@ -636,6 +703,7 @@
 : string
 | nickname
 : null
+: bool false
 < row
 : string
 | hr
@@ -646,6 +714,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | hr
@@ -656,6 +725,7 @@
 : string
 | name
 : null
+: bool false
 < row
 : string
 | hr
@@ -666,6 +736,7 @@
 : string
 | id
 : null
+: bool false
 < row
 : string
 | hr
@@ -676,6 +747,7 @@
 : string
 | name
 : null
+: bool false
 < row
 : string
 | hr
@@ -686,6 +758,7 @@
 : string
 | salary
 : null
+: bool false
 < row
 : string
 | hr
@@ -696,6 +769,7 @@
 : string
 | manager_id
 : null
+: bool false
 < row
 : string
 | hr
@@ -706,6 +780,7 @@
 : string
 | dept_id
 : null
+: bool false
 < row
 : string
 | hr
@@ -716,6 +791,7 @@
 : string
 | ssn
 : null
+: bool false
 < row
 : string
 | hr
@@ -729,6 +805,7 @@
 |
 | CREATE VIEW hr.staff (staff_id, staff_name, dept) AS SELECT e.id, e.name, d.name FROM hr.employees AS e LEFT JOIN hr.departments AS d ON d.id = e.dept_id
 |
+: bool false
 < row
 : string
 | hr
@@ -742,6 +819,7 @@
 |
 | CREATE VIEW hr.staff (staff_id, staff_name, dept) AS SELECT e.id, e.name, d.name FROM hr.employees AS e LEFT JOIN hr.departments AS d ON d.id = e.dept_id
 |
+: bool false
 < row
 : string
 | hr
@@ -755,6 +833,7 @@
 |
 | CREATE VIEW hr.staff (staff_id, staff_name, dept) AS SELECT e.id, e.name, d.name FROM hr.employees AS e LEFT JOIN hr.departments AS d ON d.id = e.dept_id
 |
+: bool false
 > exec
 | USE [shop]
 < ok 0 -
@@ -10246,6 +10325,219 @@
 | dbo
 : string
 | orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT IDENTITYCOL, subject FROM tickets', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| ticket_no
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+: string
+| ticket_no
+: null
+< row
+: string
+| subject
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+: string
+| subject
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT IDENTITYCOL, subject FROM tickets
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT IDENTITYCOL, subject FROM tickets" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0xA1B2750932C50661" QueryPlanHash="0x4A6A942948270D2E" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="65" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="ticket_no"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="subject"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="ticket_no"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="subject"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[tickets]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT IDENTITYCOL, subject FROM tickets
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT $IDENTITY FROM tickets t', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| ticket_no
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+: string
+| ticket_no
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT $IDENTITY FROM tickets t
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT $IDENTITY FROM tickets t" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0x1952BDE4440ED97D" QueryPlanHash="0x4A6A942948270D2E" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Alias="[t]" Column="ticket_no"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Alias="[t]" Column="ticket_no"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[tickets]" Alias="[t]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT $IDENTITY FROM tickets t
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| ticket_no
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
+: string
+| ticket_no
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0032831" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="TRIVIAL" QueryHash="0xC8E36894FA1A5801" QueryPlanHash="0x4A6A942948270D2E" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="16" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.0032035" EstimateCPU="7.96e-05" AvgRowSize="11" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="ticket_no"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[tickets]" Column="ticket_no"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[tickets]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| tickets
 > exec
 | DROP PROCEDURE dbo.omni_span_probe
 < ok 0 -

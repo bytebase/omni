@@ -279,7 +279,7 @@ func (e *spanEngine) databases() ([]string, error) {
 // reads the tables and views each view names into fx.Views.
 func (e *spanEngine) database(name string, fx *spanFixture) (*metadatapb.DatabaseSchemaMetadata, error) {
 	db := bracket(name)
-	rows, err := e.query(`SELECT s.name, o.name, o.type, c.name, m.definition
+	rows, err := e.query(`SELECT s.name, o.name, o.type, c.name, m.definition, c.is_identity
 FROM ` + db + `.sys.schemas AS s
 LEFT JOIN ` + db + `.sys.objects AS o ON o.schema_id = s.schema_id AND o.type IN ('U', 'V') AND o.is_ms_shipped = 0
 LEFT JOIN ` + db + `.sys.columns AS c ON c.object_id = o.object_id
@@ -304,7 +304,7 @@ ORDER BY s.name, o.name, c.column_id`)
 		if r[1] == nil {
 			continue
 		}
-		col := &metadatapb.ColumnMetadata{Name: *r[3], Nullable: true}
+		col := &metadatapb.ColumnMetadata{Name: *r[3], Nullable: true, IsIdentity: r[5] != nil && *r[5] == "true"}
 		switch strings.TrimSpace(*r[2]) {
 		case "U":
 			if table == nil || table.Name != *r[1] {

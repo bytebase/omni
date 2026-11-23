@@ -1780,7 +1780,7 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 			if err != nil {
 				return nil, err
 			}
-			r.Name = resultName(v.Name, v.Val, r.Name)
+			r.Name = q.resultName(v.Name, v.Val, r.Name)
 			results = append(results, r)
 		case *ast.StarExpr:
 			fields, err := q.expandStar(v)
@@ -1798,7 +1798,7 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 				if err != nil {
 					return nil, err
 				}
-				r.Name = resultName("", expr, r.Name)
+				r.Name = q.resultName("", expr, r.Name)
 				results = append(results, r)
 				continue
 			}
@@ -1810,9 +1810,10 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 
 // resultName is the name SQL Server gives a select-list item: its alias; for
 // a column reference, the column as the query spells it, not as the catalog
-// does; for a pseudo-column, resolved holds the name; anything else has no
-// name.
-func resultName(alias string, val ast.ExprNode, resolved string) string {
+// does, through any parentheses; for a pseudo-column ($IDENTITY,
+// IDENTITYCOL, $node_id), the column it resolved to, whose name resolved
+// holds; anything else has no name.
+func (q *querySpanExtractor) resultName(alias string, val ast.ExprNode, resolved string) string {
 	if alias != "" {
 		return alias
 	}
@@ -1824,7 +1825,7 @@ func resultName(alias string, val ast.ExprNode, resolved string) string {
 		val = paren.Expr
 	}
 	if ref, ok := val.(*ast.ColumnRef); ok {
-		if strings.HasPrefix(ref.Column, "$") {
+		if classifyPseudoColumn(ref.Column) != pseudoColumnNone && !q.columnSegmentIsDelimited(ref) {
 			return resolved
 		}
 		return ref.Column

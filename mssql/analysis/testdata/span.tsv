@@ -354,6 +354,15 @@ shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT x.id FROM (SE
 id	id	engine	shop	shop.dbo	results	SELECT x.id FROM (SELECT (id) FROM orders) x
 shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT x.id FROM (SELECT (id) FROM orders) x
 shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT x.id FROM (SELECT (id) FROM orders) x
+ticket_no, subject	ticket_no, subject	engine	shop	shop.dbo	results	SELECT IDENTITYCOL, subject FROM tickets
+shop.dbo.tickets.ticket_no | shop.dbo.tickets.subject	shop.dbo.tickets.ticket_no | shop.dbo.tickets.subject	engine	shop	shop.dbo	lineage	SELECT IDENTITYCOL, subject FROM tickets
+shop.dbo.tickets	shop.dbo.tickets	engine	shop	shop.dbo	tables	SELECT IDENTITYCOL, subject FROM tickets
+ticket_no	ticket_no	engine	shop	shop.dbo	results	SELECT $IDENTITY FROM tickets t
+shop.dbo.tickets.ticket_no	shop.dbo.tickets.ticket_no	engine	shop	shop.dbo	lineage	SELECT $IDENTITY FROM tickets t
+shop.dbo.tickets	shop.dbo.tickets	engine	shop	shop.dbo	tables	SELECT $IDENTITY FROM tickets t
+ticket_no	ticket_no	engine	shop	shop.dbo	results	SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
+shop.dbo.tickets.ticket_no	shop.dbo.tickets.ticket_no	engine	shop	shop.dbo	lineage	SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
+shop.dbo.tickets	shop.dbo.tickets	engine	shop	shop.dbo	tables	SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
 error:207	error:207	engine	shop	shop.dbo	results	SELECT nope FROM orders
 error:207	error:207	engine	shop	shop.dbo	lineage	SELECT nope FROM orders
 error:207	error:207	engine	shop	shop.dbo	tables	SELECT nope FROM orders

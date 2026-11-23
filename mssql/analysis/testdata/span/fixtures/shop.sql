@@ -25,6 +25,7 @@ CREATE TABLE dbo.MixedCase (Id int, CamelName nvarchar(20))
 CREATE TABLE hr.employees (id int, name nvarchar(50), salary decimal(10,2), manager_id int, dept_id int, ssn char(11))
 CREATE TABLE hr.departments (id int, name nvarchar(50))
 CREATE TABLE hr.customers (id int, nickname nvarchar(20))
+CREATE TABLE dbo.tickets (ticket_no int IDENTITY(1, 1), subject nvarchar(50))
 GO
 CREATE VIEW dbo.order_totals AS SELECT o.id, o.customer_id, o.amount * 1.1 AS gross, c.name AS customer_name FROM dbo.orders AS o JOIN dbo.customers AS c ON c.id = o.customer_id
 GO

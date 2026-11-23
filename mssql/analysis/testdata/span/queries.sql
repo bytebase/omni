@@ -146,6 +146,9 @@ SELECT id, amount FROM orders FOR BROWSE
 SELECT (id), ((amount)) FROM orders
 SELECT x.id FROM (SELECT (id) AS id FROM orders) x
 SELECT x.id FROM (SELECT (id) FROM orders) x
+SELECT IDENTITYCOL, subject FROM tickets
+SELECT $IDENTITY FROM tickets t
+SELECT x.ticket_no FROM (SELECT IDENTITYCOL FROM tickets) x
 
 -- Queries SQL Server refuses.
 SELECT nope FROM orders
