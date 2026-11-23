@@ -15,7 +15,6 @@ func (c *plChecker) block(n ast.StmtNode) {
 	}
 	c.push()
 	defer c.pop()
-	c.collectLabels(b.Statements)
 	c.declarations(b.Declarations)
 	c.stmts(b.Statements)
 	for _, item := range listItems(b.Exceptions) {
@@ -29,18 +28,6 @@ func (c *plChecker) block(n ast.StmtNode) {
 			}
 		}
 		c.stmts(h.Statements)
-	}
-}
-
-// collectLabels records the labels of a statement list, which GOTO may
-// name.
-func (c *plChecker) collectLabels(list *ast.List) {
-	for _, item := range listItems(list) {
-		if l, ok := item.(*ast.PLSQLLabeledStatement); ok {
-			for _, name := range l.Labels {
-				c.labels[name] = true
-			}
-		}
 	}
 }
 

@@ -129,6 +129,21 @@ func (c *plChecker) readVia(name, target string) {
 
 // unit compiles a CREATE statement's unit.
 func (c *plChecker) unit(n ast.Node) {
+	// A GOTO may name a label anywhere in the unit; the checker does not
+	// hold it to the label's scope.
+	ast.Inspect(n, func(x ast.Node) bool {
+		switch x := x.(type) {
+		case *ast.PLSQLLabeledStatement:
+			for _, l := range x.Labels {
+				c.labels[l] = true
+			}
+		case *ast.PLSQLBlock:
+			c.labels[x.Label] = true
+		case *ast.PLSQLLoop:
+			c.labels[x.Label] = true
+		}
+		return true
+	})
 	c.push()
 	switch n := n.(type) {
 	case *ast.CreateProcedureStmt:
@@ -303,24 +318,24 @@ func typeParts(t *ast.TypeName) []string {
 	return parts
 }
 
-// relation finds the table or view a name reads, through a synonym.
-func (c *plChecker) relation(name string) []*metadatapb.ColumnMetadata {
+// relation finds the table, view or materialized view a name reads,
+// through a synonym. found reports one that exists; cols is empty when the
+// catalog does not know its columns (a materialized view's, a view it could
+// not derive), and then no column is missing from it.
+func (c *plChecker) relation(name string) (cols []*metadatapb.ColumnMetadata, found bool) {
 	target := c.e.resolveSynonymTarget(name, "")
-	if v := c.e.views[target]; v != nil {
-		c.read(name)
-		if target != name {
-			c.read(target)
-		}
-		return v.Columns
+	switch {
+	case c.e.views[target] != nil:
+		cols, found = c.e.views[target].Columns, true
+	case c.e.tables[target] != nil:
+		cols, found = c.e.tables[target].Columns, true
+	case c.e.materializedViews[target] != nil:
+		found = true
 	}
-	if t := c.e.tables[target]; t != nil {
-		c.read(name)
-		if target != name {
-			c.read(target)
-		}
-		return t.Columns
+	if found {
+		c.readVia(name, target)
 	}
-	return nil
+	return cols, found
 }
 
 func columnSet(cols []*metadatapb.ColumnMetadata) map[string]bool {
@@ -350,7 +365,7 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 		if sym := c.lookup(parts[0]); sym != nil {
 			return
 		}
-		if c.relation(parts[0]) == nil {
+		if _, found := c.relation(parts[0]); !found {
 			c.fail("PLS-00201", "identifier '%s' must be declared", parts[0])
 		}
 		c.read(c.e.resolveSynonymTarget(parts[0], "") + ".*")
@@ -364,15 +379,15 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 		if len(parts) != 2 {
 			return
 		}
-		cols := c.relation(parts[0])
-		if cols == nil {
+		cols, found := c.relation(parts[0])
+		if !found {
 			if c.knownObject(parts[0]) {
 				return
 			}
 			c.fail("PLS-00201", "identifier '%s.%s' must be declared", parts[0], parts[1])
 			return
 		}
-		if !columnSet(cols)[parts[1]] {
+		if len(cols) > 0 && !columnSet(cols)[parts[1]] {
 			c.fail("PLS-00302", "component '%s' must be declared", parts[1])
 		}
 		c.read(c.e.resolveSynonymTarget(parts[0], "") + "." + parts[1])

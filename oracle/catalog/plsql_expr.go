@@ -58,6 +58,7 @@ func (c *plChecker) columnRef(n *ast.ColumnRef) {
 			parts = append(parts, p)
 		}
 	}
+	parts = c.ownSchemaless(parts)
 	if len(parts) == 1 {
 		name := parts[0]
 		if sym := c.lookup(name); sym != nil {
@@ -100,6 +101,7 @@ func (c *plChecker) qualifiedName(parts []string) {
 		c.fail("PLS-00201", "identifier '%s.%s' must be declared", head, rest[0])
 	case c.e.packages[target] != nil:
 		c.readVia(head, target)
+		c.read(target + "." + rest[0])
 		if names := c.packageNames(target); names != nil && !names[rest[0]] {
 			c.fail("PLS-00302", "component '%s' must be declared", rest[0])
 		}
@@ -155,6 +157,7 @@ func (c *plChecker) packageItems(pkg string) map[string]*plSym {
 // name the checker found, whose arguments it can check; a name it cannot
 // place is taken as resolving.
 func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool) {
+	parts = c.ownSchemaless(parts)
 	if len(parts) == 1 {
 		name := parts[0]
 		if sym := c.lookup(name); sym != nil {
@@ -199,6 +202,7 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 		return nil, false
 	}
 	c.readVia(head, target)
+	c.read(target + "." + parts[1])
 	items := c.packageItems(target)
 	if items == nil {
 		return nil, false
@@ -269,3 +273,19 @@ func (c *plChecker) funcCall(n *ast.FuncCallExpr) {
 // triggerPredicates are the conditional predicates a DML trigger's body
 // reads.
 var triggerPredicates = map[string]bool{"INSERTING": true, "UPDATING": true, "DELETING": true}
+
+// ownSchemaless drops a name's first part when it names the catalog's own
+// schema and nothing the unit declares, so that OWNER.P resolves as P.
+func (c *plChecker) ownSchemaless(parts []string) []string {
+	if len(parts) < 2 || c.lookup(parts[0]) != nil {
+		return parts
+	}
+	owner := c.e.currentSchema
+	if owner == "" {
+		owner = c.e.owner
+	}
+	if owner != "" && parts[0] == owner && !c.e.objectExistsInNamespace(parts[0]) {
+		return parts[1:]
+	}
+	return parts
+}

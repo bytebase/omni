@@ -181,6 +181,7 @@ func (c *plChecker) sqlName(ref *ast.ColumnRef) bool {
 		}
 		if c.e.packages[target] != nil {
 			c.readVia(ref.Table, target)
+			c.read(target + "." + ref.Column)
 			return true
 		}
 		// A first part the catalog cannot place: another schema's
@@ -201,6 +202,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 	if n.FuncName.Schema != "" {
 		if target := c.e.resolveSynonymTarget(n.FuncName.Schema, ""); c.e.packages[target] != nil {
 			c.readVia(n.FuncName.Schema, target)
+			c.read(target + "." + n.FuncName.Name)
 		}
 		return nil
 	}

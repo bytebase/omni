@@ -631,3 +631,35 @@ func (e *oracleMetadataExtractor) recompile(kind, name string) {
 	defer func() { e.schemaText = saved }()
 	e.compileUnit(kind, name, n)
 }
+
+// invalidateChangedMembers marks INVALID the units that read a member a
+// replaced package spec drops, or declares under other parameters. Oracle
+// 23.26 keeps a caller of a member the new spec declares the same VALID.
+func (e *oracleMetadataExtractor) invalidateChangedMembers(pkg string, n *ast.CreatePackageStmt) {
+	reader := newPLChecker(e, unitPackage, "")
+	old := reader.packageItems(pkg)
+	if old == nil {
+		return
+	}
+	fresh := newPLChecker(e, unitPackage, pkg)
+	fresh.push()
+	fresh.declarations(n.Body)
+	for name, sym := range old {
+		now := fresh.scope.names[name]
+		if now == nil || sym.kind == plSubprogram && !sameOverloads(sym.subprograms, now.subprograms) {
+			e.invalidateReaders(pkg + "." + name)
+		}
+	}
+}
+
+func sameOverloads(a, b []plSignature) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].text != b[i].text || a[i].function != b[i].function {
+			return false
+		}
+	}
+	return true
+}

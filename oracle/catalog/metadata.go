@@ -330,9 +330,12 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		if e.createsUnit(kind, n.Name, n.OrReplace, n.IfNotExists) {
 			name := n.Name.Name
 			if !n.IsBody && e.hasUnit(unitPackageBody, name) {
-				// A replaced spec leaves its body to be compiled again; its
-				// callers keep what they use of it.
+				// A replaced spec leaves its body to be compiled again.
 				e.units.invalid[unitKey(unitPackageBody, name)] = true
+			}
+			if !n.IsBody && e.hasUnit(unitPackage, name) {
+				// Its callers keep what they use of it unchanged.
+				e.invalidateChangedMembers(name, n)
 			}
 			e.extractCreatePackage(name, n)
 			e.compileUnit(kind, name, n)

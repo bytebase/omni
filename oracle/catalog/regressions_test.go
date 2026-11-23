@@ -3259,3 +3259,43 @@ func TestUnitReadsBindsTrimAndRowInserts(t *testing.T) {
 		}
 	}
 }
+
+// TestUnitNamesOwnSchemaLabelsAndMembers holds four more of Oracle's
+// readings: a call naming the unit's own schema reads the callee, a
+// materialized view anchors %ROWTYPE, a GOTO reaches a label in a loop,
+// and replacing a spec invalidates only the callers of a member it drops.
+func TestUnitNamesOwnSchemaLabelsAndMembers(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER PRIMARY KEY);\n" +
+		"CREATE PROCEDURE app.p IS BEGIN NULL; END;\n/\n" +
+		"CREATE PROCEDURE app.caller IS BEGIN app.p; END;\n/\n" +
+		"CREATE MATERIALIZED VIEW app.mv AS SELECT id FROM app.t;\n" +
+		"CREATE PROCEDURE app.rowtyped IS r mv%ROWTYPE; BEGIN NULL; END;\n/\n" +
+		"CREATE PROCEDURE app.jumps IS BEGIN LOOP GOTO done; <<done>> EXIT; END LOOP; END;\n/\n" +
+		"CREATE PACKAGE app.pk AS PROCEDURE run; PROCEDURE keep; END;\n/\n" +
+		"CREATE PROCEDURE app.runs IS BEGIN pk.run; END;\n/\n" +
+		"CREATE PROCEDURE app.keeps IS BEGIN pk.keep; END;\n/\n" +
+		"CREATE OR REPLACE PACKAGE app.pk AS PROCEDURE other; PROCEDURE keep; END;\n/\n" +
+		"DROP PROCEDURE app.p;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "CALLER", "INVALID"},
+		{unitProcedure, "ROWTYPED", "VALID"},
+		{unitProcedure, "JUMPS", "VALID"},
+		{unitProcedure, "RUNS", "INVALID"},
+		{unitProcedure, "KEEPS", "VALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
