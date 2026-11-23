@@ -3,9 +3,11 @@ package catalog
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -3107,5 +3109,55 @@ func TestTriggerOnMaterializedView(t *testing.T) {
 	}
 	if len(c.unitStates()) != 1 {
 		t.Fatalf("units = %+v, want the trigger", c.unitStates())
+	}
+}
+
+// TestPackageSpecChainCompilesOnce holds a chain of specs, each reading the
+// one before twice, to reading each spec once rather than twice per level.
+func TestPackageSpecChainCompilesOnce(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("CREATE PACKAGE p0 AS a NUMBER := 1; END p0;\n/\n")
+	for i := 1; i <= 40; i++ {
+		fmt.Fprintf(&b, "CREATE PACKAGE p%d AS a NUMBER := p%d.a; b NUMBER := p%d.a; END p%d;\n/\n", i, i-1, i-1, i)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LoadSQL(b.String())
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("40 chained package specs took over 30s")
+	}
+}
+
+// TestTypeNameBlocksReplacedSynonym holds CREATE OR REPLACE SYNONYM to
+// Oracle's namespace, which a type shares (ORA-00955).
+func TestTypeNameBlocksReplacedSynonym(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE x (id NUMBER);\nCREATE TYPE t AS OBJECT (a NUMBER);\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("CREATE OR REPLACE SYNONYM t FOR x", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &refusal) || refusal.Code != "00955" {
+		t.Fatalf("results = %+v, want ORA-00955", results)
+	}
+}
+
+// TestTriggerDroppedAndCreatedAgain holds a trigger dropped and created
+// again in one GetDatabaseMetadata script, which reads every statement on
+// one extractor, to being created.
+func TestTriggerDroppedAndCreatedAgain(t *testing.T) {
+	_, err := GetDatabaseMetadata("CREATE TABLE x (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON x FOR EACH ROW BEGIN NULL; END;\n/\nDROP TRIGGER trg;\nCREATE TRIGGER trg BEFORE INSERT ON x FOR EACH ROW BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

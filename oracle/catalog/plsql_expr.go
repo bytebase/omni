@@ -134,6 +134,9 @@ func (c *plChecker) packageItems(pkg string) map[string]*plSym {
 		return nil
 	}
 	spec, _ := splitPackageUnits(p.Definition)
+	if items, ok := c.e.specItems[spec]; ok {
+		return items
+	}
 	stmt, ok := parseSaved(spec).(*ast.CreatePackageStmt)
 	if !ok || stmt.IsBody {
 		return nil
@@ -144,6 +147,11 @@ func (c *plChecker) packageItems(pkg string) map[string]*plSym {
 	defer delete(c.reading, pkg)
 	sub.push()
 	sub.declarations(stmt.Body)
+	// Each spec is read once per statement, however many units name it.
+	if c.e.specItems == nil {
+		c.e.specItems = map[string]map[string]*plSym{}
+	}
+	c.e.specItems[spec] = sub.scope.names
 	return sub.scope.names
 }
 

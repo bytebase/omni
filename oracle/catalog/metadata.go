@@ -104,6 +104,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 type oracleMetadataExtractor struct {
 	err                         error
 	units                       *unitBook
+	specItems                   map[string]map[string]*plSym
 	serverConfig                ServerConfig
 	allowUsingExistingIndex     bool
 	omitMaterializedViewClauses bool
@@ -2549,6 +2550,7 @@ func (e *oracleMetadataExtractor) dropIndex(name string) {
 }
 
 func (e *oracleMetadataExtractor) dropTrigger(name string) {
+	delete(e.triggers, name)
 	for _, table := range e.tables {
 		var triggers []*metadatapb.TriggerMetadata
 		for _, trigger := range table.Triggers {
