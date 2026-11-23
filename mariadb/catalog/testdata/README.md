@@ -15,7 +15,7 @@ After them come 20 hand-written `check:drop` rows
 column CHECK, a one-column and a two-column table CHECK, and a CHECK reading
 no column read, and renaming them. Then 39 `exists:` rows on `objects@view`,
 `objects@partitioned` and `objects@fk` write `IF [NOT] EXISTS` over names the
-fixture holds, which the generated rows, failing earlier, do not reach, and 2
+fixture holds, which the generated rows, failing earlier, do not reach, and 7
 `fk:generated_key` rows on `objects@fk` add a second foreign key over the
 column whose key the fixture's foreign key generated.
 
@@ -30,8 +30,8 @@ of the `SHOW CREATE` texts the database holds afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**5,539 / 5,539 rows (100%) agree** (498 statements × 11 fixtures, and
-61 family rows).
+**5,544 / 5,544 rows (100%) agree** (498 statements × 11 fixtures, and
+66 family rows).
 
 ## Commands
 

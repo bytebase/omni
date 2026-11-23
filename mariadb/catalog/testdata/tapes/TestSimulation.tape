@@ -87005,6 +87005,98 @@
 |   PRIMARY KEY (`b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES parent (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY idx_d (a) REFERENCES parent (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES nosuch (b)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (b, d) REFERENCES parent (b)
+< error
+| 1239 42000 Incorrect foreign key definition for 'idx_d': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (d) REFERENCES parent (b)
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `idx_d` FOREIGN KEY (`d`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec

@@ -1293,6 +1293,27 @@ func alterTouchesForeignKey(tbl *Table, cmds []*nodes.AlterTableCmd) bool {
 	return false
 }
 
+// keepsIndexNamed reports whether tbl has an index called name that a new
+// foreign key's generated key over cols does not replace.
+func keepsIndexNamed(tbl *Table, name string, cols []*IndexColumn) bool {
+	for _, idx := range tbl.Indexes {
+		if idx == nil || toLower(idx.Name) != toLower(name) {
+			continue
+		}
+		if !idx.Implicit {
+			return true
+		}
+		names := make([]string, 0, len(idx.Columns))
+		for _, ic := range idx.Columns {
+			if ic != nil && ic.Name != "" {
+				names = append(names, ic.Name)
+			}
+		}
+		return len(names) != len(idx.Columns) || !indexColsCover(cols, names)
+	}
+	return false
+}
+
 // foreignKeyNamed reports whether tbl has a foreign key called name.
 func foreignKeyNamed(tbl *Table, name string) bool {
 	for _, con := range tbl.Constraints {
@@ -1986,14 +2007,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateNoRepeatedKeyColumns(fkIdxCols); err != nil {
 			return err
 		}
-		// Validate FK before adding (unless foreign_key_checks=0).
-		db := tbl.Database
-		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
-				return err
-			}
-		}
-		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// The key a foreign key brings is generated, as the one an earlier
 		// foreign key left is, and of two generated keys over the same columns
 		// MariaDB keeps the later (mysql_prepare_create_table,
@@ -2002,7 +2015,27 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// alone after ADD CONSTRAINT zz FOREIGN KEY (a). An explicit key over
 		// the columns still backs it, and no generated one is ever covered by
 		// another, so one that is not over the same columns is longer and kept.
-		if idx := findCoveringIndex(tbl, cols); idx == nil || idx.Implicit && len(idx.Columns) == len(cols) {
+		covering := findCoveringIndex(tbl, cols)
+		makesKey := covering == nil || covering.Implicit && len(covering.Columns) == len(cols)
+		// A key it makes under a name another key holds is 1061, ahead of the
+		// referenced table and behind a column count that does not match it:
+		// on mariadb:11.8.8 over a table with KEY idx_d (d), ADD CONSTRAINT
+		// idx_d FOREIGN KEY (a) REFERENCES nosuch (b) is 1061, the same over
+		// (b, d) REFERENCES parent (b) is 1239, and over (d) it runs.
+		if makesKey && len(fkCon.RefColumns) == len(cols) {
+			if name := fkName(con); name != "" && keepsIndexNamed(tbl, name, fkIdxCols) {
+				return errDupKeyName(name)
+			}
+		}
+		// Validate FK before adding (unless foreign_key_checks=0).
+		db := tbl.Database
+		if c.foreignKeyChecks {
+			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
+				return err
+			}
+		}
+		tbl.Constraints = append(tbl.Constraints, fkCon)
+		if makesKey {
 			dropImplicitFKIndexesCoveredBy(tbl, fkIdxCols, "", false, false, false)
 		}
 		ensureFKBackingIndex(tbl, fkName(con), cols, fkIdxCols)

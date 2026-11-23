@@ -93,6 +93,11 @@ var familyRows = families(map[string][]familyRow{
 		// key over a replaces it with its own.
 		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (a) REFERENCES parent (b)"},
 		{"fk:generated_key", "ALTER TABLE a ADD FOREIGN KEY (a) REFERENCES parent (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES parent (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD FOREIGN KEY idx_d (a) REFERENCES parent (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (a) REFERENCES nosuch (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (b, d) REFERENCES parent (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT idx_d FOREIGN KEY (d) REFERENCES parent (b)"},
 	},
 })
 
