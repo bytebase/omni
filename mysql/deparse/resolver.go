@@ -408,6 +408,11 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 		if schema != "" {
 			sc.qualify(len(sc.tables)-1, schema)
 		}
+		// A table of the view's own schema under its own name, which no CTE
+		// takes, is the one db.t names; an alias or a CTE is not.
+		if _, shadowed := r.shadowing[strings.ToLower(t.Name)]; r.DefaultSchema != "" && t.Alias == "" && t.Schema == "" && !shadowed {
+			sc.markOwnSchema(len(sc.tables) - 1)
+		}
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc, baseLookup)
 		r.addTableExprToScope(t.Right, sc, baseLookup)
@@ -804,8 +809,7 @@ func (r *Resolver) resolveSchemaQualifiedColumn(col *ast.ColumnRef, sc *fromScop
 			}
 		}
 		for _, e := range named {
-			schema := cur.schemaOf(e)
-			if strings.EqualFold(schema, col.Schema) || (own && schema == "") {
+			if strings.EqualFold(cur.schemaOf(e), col.Schema) || (own && cur.ownSchema[e]) {
 				col.Table = e.Name
 				if own && nearest && unqualified == 1 && !cur.cteNamed(col.Table) {
 					col.Schema = ""
@@ -815,6 +819,21 @@ func (r *Resolver) resolveSchemaQualifiedColumn(col *ast.ColumnRef, sc *fromScop
 		}
 		if len(named) > 0 {
 			nearest = false
+		}
+	}
+	// With no table of the view's schema under the name in any query, the
+	// name is an alias or a CTE of it, which MySQL's stored text qualifies
+	// with the view's schema as well (`sys`.`stmt`.`total` for FROM ...
+	// `stmt`); it binds the nearest one.
+	if own {
+		for cur := sc; cur != nil; cur = cur.parent {
+			if e, ok := cur.FirstEqualFold(col.Table); ok {
+				col.Table = e.Name
+				if !cur.cteNamed(col.Table) {
+					col.Schema = ""
+				}
+				return col
+			}
 		}
 	}
 	return col

@@ -137,8 +137,25 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		applyAlteredAutoextendSize(tbl, origEngine, hasAutoextendOpt, autoextendBytes)
 		return nil
 	}
+	// The foreign keys that reference the table follow its new name and the
+	// columns the statement renamed, once nothing can undo the statement; a
+	// key the statement adds already names the columns as they end.
+	origDB, origName := db, tbl.Name
+	existing := make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		existing[con] = true
+	}
+	retarget := func() {
+		if renames := alterColumnRenames(stmt.Commands); len(renames) > 0 || tbl.Database != origDB || tbl.Name != origName {
+			c.retargetReferences(tbl, origDB, origName, renames, existing)
+		}
+	}
 	if tbl.Partitioning == nil && repartition == nil {
-		return afterCommands(c.alterTableCommands(db, tbl, key, stmt))
+		if err := afterCommands(c.alterTableCommands(db, tbl, key, stmt)); err != nil {
+			return err
+		}
+		retarget()
+		return nil
 	}
 	// A unique key on a partitioned table must cover the partitioning columns. MySQL
 	// checks the table the statement leaves, after every other error (1060, 1061 and
@@ -164,6 +181,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		// a snapshot's.
 		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
+	retarget()
 	return nil
 }
 
@@ -617,11 +635,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 				return err
 			}
 		}
-	}
-	// The foreign keys that reference the table follow its new name and the
-	// columns the statement renamed, once nothing can undo the statement.
-	if renames := alterColumnRenames(stmt.Commands); len(renames) > 0 || tbl.Database != db || tbl.Name != origTableName {
-		c.retargetReferences(tbl, db, origTableName, renames)
 	}
 	// Clear transient cleanup tracking after successful ALTER.
 	tbl.droppedByCleanup = nil
@@ -2372,7 +2385,9 @@ func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) erro
 // (MODIFY, CHANGE, ADD) to the foreign keys it is in, on either side: its type
 // must still compare with the column at the other end (3780), and a column a
 // SET NULL action writes stays nullable (1830). MySQL answers both whatever
-// foreign_key_checks says (mysql:8.0.46). before holds the table's columns
+// foreign_key_checks says, except that with it off two string columns may
+// differ in character set, so each can be converted on its own
+// (mysql:8.0.46). before holds the table's columns
 // before the statement; a column that is not one of them was defined anew.
 // The table was oldName in oldDB, which its references and the ones to it
 // still name: they follow a rename once the statement ends.
@@ -2402,7 +2417,7 @@ func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, oldDB *Database, o
 			if col == nil || refCol == nil || (!redefined(col) && !(parent == tbl && redefined(refCol))) {
 				continue
 			}
-			if err := fkColumnPairError(con, col, refCol); err != nil {
+			if err := fkColumnPairError(con, col, refCol, !c.foreignKeyChecks); err != nil {
 				return err
 			}
 		}
@@ -2416,7 +2431,7 @@ func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, oldDB *Database, o
 			if !redefined(refCol) || i >= len(ref.con.Columns) {
 				continue
 			}
-			if col := ref.child.GetColumn(ref.con.Columns[i]); col != nil && !fkTypesCompatible(col, refCol) {
+			if col := ref.child.GetColumn(ref.con.Columns[i]); col != nil && !fkTypesCompatibleUnless(col, refCol, !c.foreignKeyChecks) {
 				return errFKIncompatibleColumns(col.Name, refCol.Name, ref.con.Name)
 			}
 		}

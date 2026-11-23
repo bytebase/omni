@@ -23,6 +23,23 @@ func (c *Catalog) defineSRS(s *nodes.CreateSpatialRefSysStmt) {
 	c.userSRS[int(s.SRID)] = strings.HasPrefix(strings.ToUpper(strings.TrimSpace(s.Definition)), "GEOGCS")
 }
 
+// dropSRS forgets a spatial reference system CREATE SPATIAL REFERENCE SYSTEM
+// added, unless a column's SRID names it (3716, mysql:8.0.46).
+func (c *Catalog) dropSRS(s *nodes.DropSpatialRefSysStmt) error {
+	srid := int(s.SRID)
+	for _, db := range c.databases {
+		for _, tbl := range db.Tables {
+			for _, col := range tbl.Columns {
+				if col.HasSRID && col.SRID == srid {
+					return &Error{Code: 3716, SQLState: "SR005", Message: fmt.Sprintf("Can't modify SRID %d. There is at least one column depending on it.", srid)}
+				}
+			}
+		}
+	}
+	delete(c.userSRS, srid)
+	return nil
+}
+
 // lookupSRS reports whether srid names a spatial reference system the
 // server has, built in or added, and whether it is geographic.
 func (c *Catalog) lookupSRS(srid int) (exists, geographic bool) {

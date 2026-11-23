@@ -46,6 +46,10 @@ type fromScope struct {
 	schemas       map[int]string
 	schemaEntries map[scopepkg.Entry]string
 
+	// ownSchema holds the entries of tables of a view's own schema read
+	// under their own name, which db.t names for the view's db.
+	ownSchema map[scopepkg.Entry]bool
+
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
 	spans map[ast.TableExpr][2]int
 
@@ -111,6 +115,15 @@ func (sc *fromScope) qualify(i int, schema string) {
 	}
 	sc.schemas[i] = schema
 	sc.schemaEntries[sc.tables[i]] = schema
+}
+
+// markOwnSchema records that the table at index i of tables is one of the
+// view's own schema under its own name.
+func (sc *fromScope) markOwnSchema(i int) {
+	if sc.ownSchema == nil {
+		sc.ownSchema = make(map[scopepkg.Entry]bool)
+	}
+	sc.ownSchema[sc.tables[i]] = true
 }
 
 // schemaOf returns the schema that qualifies the columns of the table of a

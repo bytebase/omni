@@ -482,3 +482,66 @@ func TestViewKeepsSchemaOfCorrelatedReference(t *testing.T) {
 		t.Errorf("v:\n got %s\nwant %s", got, want)
 	}
 }
+
+func TestRoundSixReviewCases(t *testing.T) {
+	// An alias or a derived table named t is not a.t.
+	for _, tc := range []struct{ view, want string }{
+		{"CREATE VIEW v AS SELECT (SELECT a.t.id FROM o.x AS t) AS x FROM a.t", "`a`.`t`.`id` from `o`.`x` `t`"},
+		{"CREATE VIEW v AS SELECT (SELECT a.t.id FROM (SELECT 1 AS id) t) AS x FROM a.t", "`a`.`t`.`id` from (select 1 AS `id`) `t`"},
+	} {
+		c := familiesCatalog(t, "CREATE TABLE t (id INT); CREATE TABLE o.x (id INT);")
+		mustExec(t, c, tc.view)
+		if got := c.GetDatabase("a").Views["v"].Definition; !strings.Contains(got, tc.want) {
+			t.Errorf("%s:\n got %s\nwant it to hold %s", tc.view, got, tc.want)
+		}
+	}
+	// Interval arithmetic past a Duration's range.
+	c := familiesCatalog(t, "")
+	mustExec(t, c, "CREATE EVENT e ON SCHEDULE AT '1688-01-01 00:00:00' + INTERVAL 3000000 HOUR DO COMMIT")
+	if got := c.ShowCreateEvent("a", "e"); !strings.Contains(got, "AT '2030-03-29 ") || strings.Contains(got, "DISABLE") {
+		t.Errorf("SHOW CREATE EVENT %q", got)
+	}
+	// A key the statement adds names its columns as they end.
+	c = familiesCatalog(t, "CREATE TABLE p (id INT PRIMARY KEY, c INT);")
+	mustExec(t, c, "ALTER TABLE p RENAME COLUMN id TO old_id, ADD COLUMN id INT, ADD UNIQUE KEY new_id (id), ADD CONSTRAINT fk FOREIGN KEY (c) REFERENCES p (id)")
+	if got := c.ShowCreateTable("a", "p"); !strings.Contains(got, "REFERENCES `p` (`id`)") {
+		t.Errorf("new fk keeps id:\n%s", got)
+	}
+	// A rename an outer check rolls back leaves the references as they were.
+	c = familiesCatalog(t, "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (pid INT, FOREIGN KEY (pid) REFERENCES p (id));")
+	if got := familiesCode(t, c, "ALTER TABLE p RENAME TO q, ROW_FORMAT=FIXED"); got != 1478 {
+		t.Fatalf("got %d, want 1478", got)
+	}
+	if got := c.ShowCreateTable("a", "ch"); !strings.Contains(got, "REFERENCES `p` (`id`)") {
+		t.Errorf("ch after the refused rename:\n%s", got)
+	}
+	for _, tc := range []struct {
+		setup, sql string
+		code       int
+	}{
+		{"CREATE TABLE t (s VARCHAR(10), k VARCHAR(10), KEY (k)) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;", "ALTER TABLE t MODIFY s VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin, ALGORITHM=INPLACE", 0},
+		{"CREATE TABLE t (s VARCHAR(10), k VARCHAR(10), KEY (k)) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;", "ALTER TABLE t MODIFY s VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin, LOCK=NONE", 0},
+		{"CREATE TABLE t (s VARCHAR(10), k VARCHAR(10), KEY (k)) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;", "ALTER TABLE t MODIFY s VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin, ALGORITHM=INSTANT", 1845},
+		{"CREATE TABLE t (s VARCHAR(10), k VARCHAR(10), KEY (k)) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;", "ALTER TABLE t MODIFY k VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin, ALGORITHM=INPLACE", 1846},
+		{fkVarchar, "SET foreign_key_checks=0; ALTER TABLE ch MODIFY pid VARCHAR(10) CHARACTER SET latin1", 0},
+		{fkVarchar, "SET foreign_key_checks=0; ALTER TABLE p MODIFY id VARCHAR(10) CHARACTER SET latin1", 0},
+		{fkVarchar, "SET foreign_key_checks=0; ALTER TABLE ch MODIFY pid INT", 3780},
+		{fkVarchar, "ALTER TABLE ch MODIFY pid VARCHAR(10) CHARACTER SET latin1", 3780},
+		{srsInUse, "DROP SPATIAL REFERENCE SYSTEM 1000001", 3716},
+	} {
+		c := familiesCatalog(t, tc.setup)
+		if got := familiesCode(t, c, tc.sql); got != tc.code {
+			t.Errorf("%s: got %d, want %d", tc.sql, got, tc.code)
+		}
+	}
+	c = familiesCatalog(t, srsInUse)
+	familiesCode(t, c, "DROP SPATIAL REFERENCE SYSTEM 1000001")
+	if got := familiesCode(t, c, "ALTER TABLE g MODIFY x GEOMETRY SRID 1000001"); got != 0 {
+		t.Errorf("the system a refused DROP keeps: got %d", got)
+	}
+}
+
+const fkVarchar = "CREATE TABLE p (id VARCHAR(10) PRIMARY KEY) CHARSET=utf8mb4; CREATE TABLE ch (pid VARCHAR(10), FOREIGN KEY (pid) REFERENCES p (id)) CHARSET=utf8mb4;"
+
+const srsInUse = `CREATE SPATIAL REFERENCE SYSTEM 1000001 NAME 'zz' DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+	CREATE TABLE g (x GEOMETRY SRID 1000001);`

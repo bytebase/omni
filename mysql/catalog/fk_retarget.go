@@ -14,8 +14,10 @@ import (
 // id TO pid, SHOW CREATE TABLE of the child references `q`, `o`.`q` or
 // (`pid`) (mysql:8.0.46). A table that moves to another schema also keeps
 // referencing the parents it left behind, so its own references to tables of
-// oldDB name oldDB. It returns what undoes the changes.
-func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string, columns map[string]string) (undo func()) {
+// oldDB name oldDB. Columns are renamed in a key of tbl only when existing
+// holds it (nil: every key), since a key the statement added names its
+// columns as they end. It returns what undoes the changes.
+func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string, columns map[string]string, existing map[*Constraint]bool) (undo func()) {
 	// A change is saved by the table and the position of the constraint, not
 	// the constraint: a rollback may first put back a table's snapshot, whose
 	// constraints are copies, and it is those the undo must reach.
@@ -64,6 +66,9 @@ func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string
 					con.RefDatabase = ""
 				case moved:
 					con.RefDatabase = tbl.Database.Name
+				}
+				if child == tbl && existing != nil && !existing[con] {
+					continue
 				}
 				for i, col := range con.RefColumns {
 					if renamed, ok := columns[toLower(col)]; ok {

@@ -158,6 +158,14 @@ func redefinedColumnLimit(old, tbl *Table, was, is *Column) (ddlLimit, bool) {
 		}
 		return ddlLimit{}, false
 	}
+	// Another collation of the same character set changes no stored byte,
+	// so it runs in place where no key and no partitioning reads the column
+	// (mysql:8.0.46).
+	if strings.EqualFold(was.ColumnType, is.ColumnType) && isStringType(was.DataType) &&
+		columnCharset(old, was) == columnCharset(tbl, is) &&
+		!columnIndexed(old, was.Name) && !partitionUsesColumn(old, was.Name) {
+		return limitNotInstant, true
+	}
 	// A VARCHAR grows in place while its length prefix keeps its size.
 	if was.DataType == "varchar" && is.DataType == "varchar" && sameCharset {
 		mb := charsetMaxBytes(columnCharset(tbl, is))

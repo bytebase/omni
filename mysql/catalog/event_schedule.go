@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"math"
 	"strings"
 	"time"
 
@@ -40,13 +41,26 @@ func eventLiteralTime(expr nodes.ExprNode, loc *time.Location) (time.Time, bool)
 		if e.Op == nodes.BinOpSub {
 			n = -n
 		}
+		// Seconds, minutes and hours are added as whole days and the rest,
+		// which a Duration holds whatever the count: one of 3,000,000 hours
+		// is past its 292 years.
+		var unit int64
 		switch strings.ToUpper(iv.Unit) {
 		case "SECOND":
-			return base.Add(time.Duration(n) * time.Second), true
+			unit = 1
 		case "MINUTE":
-			return base.Add(time.Duration(n) * time.Minute), true
+			unit = 60
 		case "HOUR":
-			return base.Add(time.Duration(n) * time.Hour), true
+			unit = 3600
+		}
+		if unit > 0 {
+			if n > math.MaxInt64/unit || n < -math.MaxInt64/unit {
+				return time.Time{}, false
+			}
+			secs := n * unit
+			return base.AddDate(0, 0, int(secs/86400)).Add(time.Duration(secs%86400) * time.Second), true
+		}
+		switch strings.ToUpper(iv.Unit) {
 		case "DAY":
 			return base.AddDate(0, 0, int(n)), true
 		case "WEEK":

@@ -90,7 +90,7 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
 		stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true, nil)
-		undo.refs = c.retargetReferences(tbl, oldDB, oldTableName, nil)
+		undo.refs = c.retargetReferences(tbl, oldDB, oldTableName, nil, nil)
 		applied = append(applied, undo)
 	}
 	return nil

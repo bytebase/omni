@@ -2323,7 +2323,7 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if col == nil || refCol == nil {
 			continue
 		}
-		if err := fkColumnPairError(con, col, refCol); err != nil {
+		if err := fkColumnPairError(con, col, refCol, false); err != nil {
 			return err
 		}
 	}
@@ -2336,8 +2336,9 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 // NULL column (1830), a virtual column on either side (3733), a cascading or
 // nulling action on a stored generated column (3104, ON UPDATE CASCADE, ON
 // UPDATE SET NULL and ON DELETE SET NULL), and two types the key cannot
-// compare (3780).
-func fkColumnPairError(con *Constraint, col, refCol *Column) error {
+// compare (3780). ignoreCharset lets two string columns differ in character
+// set, as an existing key's do while foreign_key_checks is off.
+func fkColumnPairError(con *Constraint, col, refCol *Column, ignoreCharset bool) error {
 	if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
 		return &Error{Code: 1830, SQLState: "HY000", Message: fmt.Sprintf(
 			"Column '%s' cannot be NOT NULL: needed in a foreign key constraint '%s' SET NULL", col.Name, con.Name)}
@@ -2357,10 +2358,21 @@ func fkColumnPairError(con *Constraint, col, refCol *Column) error {
 			}
 		}
 	}
-	if !fkTypesCompatible(col, refCol) {
+	if !fkTypesCompatibleUnless(col, refCol, ignoreCharset) {
 		return errFKIncompatibleColumns(col.Name, refCol.Name, con.Name)
 	}
 	return nil
+}
+
+// fkTypesCompatibleUnless is fkTypesCompatible, with ignoreCharset leaving
+// out two string columns' character sets.
+func fkTypesCompatibleUnless(col, refCol *Column, ignoreCharset bool) bool {
+	if ignoreCharset && isStringType(col.DataType) && isStringType(refCol.DataType) {
+		same := *refCol
+		same.Charset, same.Collation = col.Charset, col.Collation
+		refCol = &same
+	}
+	return fkTypesCompatible(col, refCol)
 }
 
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
