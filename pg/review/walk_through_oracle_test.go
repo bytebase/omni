@@ -1055,6 +1055,17 @@ func walkStates(msg string) []string {
 		return []string{"42601"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept an empty `ARRAY` with no cast"):
 		return []string{"42P18"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept this literal as "):
+		return []string{"22P02", "22026"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept a `JSON_ARRAY` subquery of other than one column"):
+		return []string{"42601"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a `GROUPS` frame without `ORDER BY`"):
+		return []string{"42P20"}
+	case strings.HasPrefix(msg, "Relation ") && strings.HasSuffix(msg, " in `FOR UPDATE` or `FOR SHARE` isn't in `FROM`."):
+		return []string{"42P01"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`"):
+		return []string{"42P16"}
 	case strings.HasPrefix(msg, "Window ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42704"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept window ") && strings.HasSuffix(msg, " defined twice."):
