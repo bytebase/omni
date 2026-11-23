@@ -13,7 +13,7 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
 	var nnTracker *nnMigrationNameTracker
 	if to != nil && to.Version() >= PG18 {
-		nnTracker = newNNMigrationNameTracker(from, diff)
+		nnTracker = newNNMigrationNameTracker(from, to, diff)
 	}
 
 	// Process modified relations in the exact deterministic (SchemaName, Name)
@@ -364,7 +364,7 @@ func columnModifyOpsForStmtWithDiff(from, to *Catalog, diff *SchemaDiff, nnTrack
 					if nnTracker != nil {
 						defaultNN = nnTracker.chooseName(fromRel, relName, newCol.Name)
 					} else {
-						defaultNN = predictedSetNotNullName(from, diff, fromRel, relName, newCol.Name)
+						defaultNN = predictedSetNotNullName(from, to, diff, fromRel, relName, newCol.Name)
 					}
 					finalNN := defaultNN
 					if toNNCon != nil && toNNCon.ConIsLocal && toNNCon.Name != "" && toNNCon.Name != defaultNN {
@@ -511,7 +511,7 @@ type nnMigrationNameTracker struct {
 	counts map[uint32]map[string]int
 }
 
-func newNNMigrationNameTracker(from *Catalog, diff *SchemaDiff) *nnMigrationNameTracker {
+func newNNMigrationNameTracker(from, to *Catalog, diff *SchemaDiff) *nnMigrationNameTracker {
 	t := &nnMigrationNameTracker{
 		from:   from,
 		counts: make(map[uint32]map[string]int),
@@ -629,6 +629,74 @@ func newNNMigrationNameTracker(from *Catalog, diff *SchemaDiff) *nnMigrationName
 			t.add(bt.Namespace, dc.Name)
 		}
 	}
+
+	// Account for inline constraints created before PriorityColumn (PriorityType
+	// domains and PriorityTable new tables / foreign tables).
+	if diff != nil && to != nil {
+		schemaOID := func(schemaName string) uint32 {
+			if s := from.schemaByName[schemaName]; s != nil {
+				return s.OID
+			}
+			return 0
+		}
+		for _, de := range diff.Domains {
+			if de.To == nil {
+				continue
+			}
+			nsOID := schemaOID(de.SchemaName)
+			if nsOID == 0 {
+				continue
+			}
+			switch de.Action {
+			case DiffAdd:
+				for _, dc := range de.To.Constraints {
+					t.add(nsOID, dc.Name)
+				}
+			case DiffModify:
+				var had map[string]bool
+				if de.From != nil {
+					had = make(map[string]bool, len(de.From.Constraints))
+					for _, dc := range de.From.Constraints {
+						had[dc.Name] = true
+					}
+				}
+				for _, dc := range de.To.Constraints {
+					if !had[dc.Name] {
+						t.add(nsOID, dc.Name)
+					}
+				}
+			}
+		}
+		for _, re := range diff.Relations {
+			if re.Action != DiffAdd || re.To == nil {
+				continue
+			}
+			nsOID := schemaOID(re.SchemaName)
+			if nsOID == 0 {
+				continue
+			}
+			for _, con := range to.consByRel[re.To.OID] {
+				switch con.Type {
+				case ConstraintPK, ConstraintUnique, ConstraintCheck, ConstraintNotNull:
+					t.add(nsOID, con.Name)
+				}
+			}
+		}
+		for _, fe := range diff.ForeignTables {
+			if fe.Action != DiffAdd || fe.To == nil {
+				continue
+			}
+			nsOID := schemaOID(fe.SchemaName)
+			if nsOID == 0 {
+				continue
+			}
+			for _, con := range to.consByRel[fe.To.OID] {
+				if con.Type == ConstraintCheck || con.Type == ConstraintNotNull {
+					t.add(nsOID, con.Name)
+				}
+			}
+		}
+	}
 	return t
 }
 
@@ -700,8 +768,8 @@ func (t *nnMigrationNameTracker) chooseName(fromRel *Relation, relName, colName 
 // predictedSetNotNullName predicts the PG 18 default NOT NULL constraint name
 // that ALTER TABLE ... ALTER COLUMN ... SET NOT NULL will choose during
 // PhaseMain after PhasePre drops (DROP TABLE/COLUMN/CONSTRAINT/DOMAIN) have run.
-func predictedSetNotNullName(from *Catalog, diff *SchemaDiff, fromRel *Relation, relName, colName string) string {
-	return newNNMigrationNameTracker(from, diff).chooseName(fromRel, relName, colName)
+func predictedSetNotNullName(from, to *Catalog, diff *SchemaDiff, fromRel *Relation, relName, colName string) string {
+	return newNNMigrationNameTracker(from, to, diff).chooseName(fromRel, relName, colName)
 }
 
 // containsColumnRef checks whether a CHECK expression text references the

@@ -9,11 +9,13 @@ import (
 // generateCommentDDL produces COMMENT ON operations from the diff.
 func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
+	emittedRenames := make(map[string]bool)
 
 	for _, entry := range diff.Comments {
 		switch entry.Action {
 		case DiffAdd, DiffModify:
-			if renameOp, ok := renameNotNullForComment(from, to, entry); ok {
+			if renameOp, ok := renameNotNullForComment(from, to, entry); ok && !emittedRenames[renameOp.SQL] {
+				emittedRenames[renameOp.SQL] = true
 				ops = append(ops, renameOp)
 			}
 			sql := formatCommentEntrySQL(to, entry, entry.To)
@@ -208,23 +210,82 @@ func renameNotNullForComment(from, to *Catalog, entry CommentDiffEntry) (Migrati
 	if !ok || !fromRel.Columns[fi].NotNull {
 		return MigrationOp{}, false
 	}
-	fromNN := from.notNullConstraintName(fromRel, fromRel.Columns[fi].AttNum)
-	if fromNN == "" || fromNN == conName {
+	var fromCon *Constraint
+	for _, con := range from.consByRel[fromRel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == fromRel.Columns[fi].AttNum {
+			fromCon = con
+			break
+		}
+	}
+	if fromCon == nil || fromCon.Name == "" || fromCon.Name == conName {
 		return MigrationOp{}, false
 	}
-	tableName := fmt.Sprintf("%s.%s", quoteIdentifier(schemaName), quoteIdentifier(relName))
-	if toRel.Persistence == 't' || isTempSchemaName(schemaName) {
-		tableName = quoteIdentifier(relName)
+	fromNN := fromCon.Name
+
+	// If the NOT NULL constraint on fromRel is inherited (ConInhCount > 0),
+	// PostgreSQL rejects renaming it directly on the child/partition; resolve
+	// the owning ancestor so recursive RENAME CONSTRAINT updates the hierarchy.
+	targetRel := fromRel
+	if fromCon.ConInhCount > 0 {
+		visited := make(map[uint32]bool)
+		var findOwner func(r *Relation) *Relation
+		findOwner = func(r *Relation) *Relation {
+			if r == nil || visited[r.OID] {
+				return nil
+			}
+			visited[r.OID] = true
+			var parents []uint32
+			if r.PartitionOf != 0 {
+				parents = append(parents, r.PartitionOf)
+			}
+			parents = append(parents, r.InhParents...)
+			for _, poid := range parents {
+				p := from.relationByOID[poid]
+				if p == nil {
+					continue
+				}
+				pi, ok := p.colByName[toColName]
+				if !ok {
+					continue
+				}
+				for _, pcon := range from.consByRel[p.OID] {
+					if pcon.Type == ConstraintNotNull && len(pcon.Columns) == 1 && pcon.Columns[0] == p.Columns[pi].AttNum && pcon.Name == fromNN {
+						if pcon.ConInhCount == 0 {
+							return p
+						}
+						if owner := findOwner(p); owner != nil {
+							return owner
+						}
+					}
+				}
+			}
+			return nil
+		}
+		if owner := findOwner(fromRel); owner != nil {
+			targetRel = owner
+		}
+	}
+	targetSchema := schemaName
+	if targetRel.Schema != nil {
+		targetSchema = targetRel.Schema.Name
+	}
+	targetObjOID := toRel.OID
+	if toOwner := to.GetRelation(targetSchema, targetRel.Name); toOwner != nil {
+		targetObjOID = toOwner.OID
+	}
+	tableName := fmt.Sprintf("%s.%s", quoteIdentifier(targetSchema), quoteIdentifier(targetRel.Name))
+	if targetRel.Persistence == 't' || isTempSchemaName(targetSchema) {
+		tableName = quoteIdentifier(targetRel.Name)
 	}
 	return MigrationOp{
 		Type:          OpAlterColumn,
-		SchemaName:    schemaName,
-		ObjectName:    relName,
+		SchemaName:    targetSchema,
+		ObjectName:    targetRel.Name,
 		SQL:           fmt.Sprintf("ALTER TABLE %s RENAME CONSTRAINT %s TO %s", tableName, quoteIdentifier(fromNN), quoteIdentifier(conName)),
 		Transactional: true,
 		Phase:         PhaseMain,
 		ObjType:       'r',
-		ObjOID:        toRel.OID,
+		ObjOID:        targetObjOID,
 		Priority:      PriorityColumn,
 	}, true
 }
