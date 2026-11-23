@@ -73,7 +73,47 @@
 | ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp/omni/dump_events_dt_2024-01-02'
 < ok - -
 > exec
+| -- A partition that overrides its table's file format and SerDe properties, which
+| -- ADD PARTITION does not carry and only ALTER TABLE ... PARTITION (...) restores.
+| ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-03')
+< ok - -
+> exec
+| ALTER TABLE omni_dump.events PARTITION (dt='2024-01-03') SET FILEFORMAT ORC
+< ok - -
+> exec
+| ALTER TABLE omni_dump.events PARTITION (dt='2024-01-03') SET SERDEPROPERTIES ('orc.compress'='ZLIB')
+< ok - -
+> exec
 | INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y')
+< ok - -
+> exec
+| -- An external partitioned table whose partitions live at both default and custom
+| -- locations, with one partition unsetting a table SerDe property.
+| CREATE EXTERNAL TABLE omni_dump.ext_events (id INT) PARTITIONED BY (dt STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tmp/omni/dump_ext_events'
+< ok - -
+> exec
+| ALTER TABLE omni_dump.ext_events ADD PARTITION (dt='2024-01-01')
+< ok - -
+> exec
+| ALTER TABLE omni_dump.ext_events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp/omni/dump_ext_events_dt_2024-01-02'
+< ok - -
+> exec
+| ALTER TABLE omni_dump.ext_events PARTITION (dt='2024-01-02') UNSET SERDEPROPERTIES ('field.delim')
+< ok - -
+> exec
+| -- Tables with named PRIMARY KEY, UNIQUE, and FOREIGN KEY constraints where the
+| -- child sorts before the parent: SHOW CREATE TABLE appends ALTER TABLE lines
+| -- without a terminating semicolon on CREATE TABLE, and the foreign key must run
+| -- after the parent table and its primary key exist.
+| CREATE TABLE omni_dump.z_parent (id INT, code STRING, CONSTRAINT pk_z_parent PRIMARY KEY (id) DISABLE NOVALIDATE RELY, CONSTRAINT uq_z_parent UNIQUE (code) DISABLE NOVALIDATE RELY) STORED AS PARQUET
+< ok - -
+> exec
+| CREATE TABLE omni_dump.a_child (id INT, parent_id INT, CONSTRAINT fk_a_child_parent FOREIGN KEY (parent_id) REFERENCES omni_dump.z_parent(id) DISABLE NOVALIDATE RELY) STORED AS PARQUET
+< ok - -
+> exec
+| -- A view with column comments, a view comment, and custom TBLPROPERTIES, all of
+| -- which SHOW CREATE TABLE omits.
+| CREATE VIEW omni_dump.v_docs (id COMMENT 'the id', label COMMENT 'it\'s a \\label') COMMENT 'documented view' TBLPROPERTIES ('team'='core') AS SELECT id, name FROM omni_dump.ext_users
 < ok - -
 > exec
 | -- A view whose comment SHOW CREATE TABLE leaves out, and the quote in it, which
@@ -99,6 +139,9 @@
 < column "tab_name" "STRING"
 < row
 : string
+| a_child
+< row
+: string
 | a_top
 < row
 : string
@@ -111,6 +154,9 @@
 | events__
 < row
 : string
+| ext_events
+< row
+: string
 | ext_users
 < row
 : string
@@ -120,10 +166,277 @@
 | p_events_mv
 < row
 : string
+| v_docs
+< row
+: string
 | z_base
 < row
 : string
+| z_parent
+< row
+: string
 | z_users
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_child`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| parent_id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/a_child
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"parent_id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Foreign Keys
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.a_child   
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| fk_a_child_parent   
+: null
+< row
+: string
+| Parent Column Name:omni_dump.z_parent.id
+: string
+| Column Name:parent_id
+: string
+| Key Sequence:1      
+< row
+: string
+|
+: null
+: null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
@@ -698,7 +1011,7 @@
 : string
 | numPartitions       
 : string
-| 2                   
+| 3                   
 < row
 : string
 |
@@ -801,6 +1114,236 @@
 < row
 : string
 | dt=2024-01-02
+< row
+: string
+| dt=2024-01-03
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_events`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
@@ -1526,6 +2069,185 @@
 | N/A
 : null
 > query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`v_docs`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+| the id
+< row
+: string
+| label
+: string
+| string
+: string
+| it's a \\label
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| documented view     
+< row
+: string
+|
+: string
+| team                
+: string
+| core                
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, name FROM omni_dump.ext_users
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+: null
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -1689,6 +2411,294 @@
 | Expanded Query:     
 : string
 | SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`
+: null
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_parent`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| code
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/z_parent
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"code\":\"true\",\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Primary Key
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| pk_z_parent         
+: null
+< row
+: string
+| Column Name:        
+: string
+| id                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Unique Constraints
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| uq_z_parent         
+: null
+< row
+: string
+| Column Name:code    
+: string
+| Key Sequence:1      
+: null
+< row
+: string
+|
+: null
 : null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_users`
@@ -1868,6 +2878,9 @@
 < column "tab_name" "STRING"
 < row
 : string
+| a_child
+< row
+: string
 | a_top
 < row
 : string
@@ -1880,6 +2893,9 @@
 | events__
 < row
 : string
+| ext_events
+< row
+: string
 | ext_users
 < row
 : string
@@ -1889,10 +2905,332 @@
 | p_events_mv
 < row
 : string
+| v_docs
+< row
+: string
 | z_base
 < row
 : string
+| z_parent
+< row
+: string
 | z_users
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_child`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| parent_id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/a_child
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"parent_id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Foreign Keys
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.a_child   
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| fk_a_child_parent   
+: null
+< row
+: string
+| Parent Column Name:omni_dump.z_parent.id
+: string
+| Column Name:parent_id
+: string
+| Key Sequence:1      
+< row
+: string
+|
+: null
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`a_child`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`a_child`(
+< row
+: string
+|   `id` int, 
+< row
+: string
+|   `parent_id` int)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/a_child'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'external.table.purge'='TRUE', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+< row
+: string
+| ALTER TABLE `omni_dump`.`a_child` ADD CONSTRAINT `fk_a_child_parent` FOREIGN KEY (`parent_id`) REFERENCES `omni_dump`.`z_parent`(`id`) DISABLE NOVALIDATE RELY;
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
@@ -2520,7 +3858,7 @@
 : string
 | numPartitions       
 : string
-| 2                   
+| 3                   
 < row
 : string
 |
@@ -2687,6 +4025,9 @@
 < row
 : string
 | dt=2024-01-02
+< row
+: string
+| dt=2024-01-03
 > query
 | DESCRIBE FORMATTED `omni_dump`.`events` PARTITION (`dt`='2024-01-01')
 < result
@@ -3055,6 +4396,228 @@
 : string
 | 1                   
 > query
+| DESCRIBE FORMATTED `omni_dump`.`events` PARTITION (`dt`='2024-01-03')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| body
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-03]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| events              
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/events/dt=2024-01-03
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"body\":\"true\",\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| orc.compress        
+: string
+| ZLIB                
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`events__`
 < result
 < column "col_name" "STRING"
@@ -3313,6 +4876,689 @@
 < row
 : string
 |   'transient_lastDdlTime'='1000000000')
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_events`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
+> query
+| SHOW CREATE TABLE `omni_dump`.`ext_events`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`ext_events`(
+< row
+: string
+|   `id` int)
+< row
+: string
+| PARTITIONED BY ( 
+< row
+: string
+|   `dt` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' 
+< row
+: string
+| WITH SERDEPROPERTIES ( 
+< row
+: string
+|   'field.delim'='|', 
+< row
+: string
+|   'serialization.format'='|') 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.mapred.TextInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/tmp/omni/dump_ext_events'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+> query
+| SHOW PARTITIONS `omni_dump`.`ext_events`
+< result
+< column "partition" "STRING"
+< row
+: string
+| dt=2024-01-01
+< row
+: string
+| dt=2024-01-02
+> query
+| DESCRIBE FORMATTED `omni_dump`.`ext_events` PARTITION (`dt`='2024-01-01')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-01]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| ext_events          
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events/dt=2024-01-01
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
+> query
+| DESCRIBE FORMATTED `omni_dump`.`ext_events` PARTITION (`dt`='2024-01-02')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-02]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| ext_events          
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events_dt_2024-01-02
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
@@ -4201,6 +6447,192 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`v_docs`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+| the id
+< row
+: string
+| label
+: string
+| string
+: string
+| it's a \\label
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| documented view     
+< row
+: string
+|
+: string
+| team                
+: string
+| core                
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, name FROM omni_dump.ext_users
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`v_docs`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE VIEW `omni_dump`.`v_docs` AS SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -4372,6 +6804,352 @@
 < row
 : string
 | CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_parent`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| code
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/z_parent
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"code\":\"true\",\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Primary Key
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| pk_z_parent         
+: null
+< row
+: string
+| Column Name:        
+: string
+| id                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Unique Constraints
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| uq_z_parent         
+: null
+< row
+: string
+| Column Name:code    
+: string
+| Key Sequence:1      
+: null
+< row
+: string
+|
+: null
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`z_parent`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`z_parent`(
+< row
+: string
+|   `id` int, 
+< row
+: string
+|   `code` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/z_parent'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'external.table.purge'='TRUE', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+< row
+: string
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `pk_z_parent` PRIMARY KEY (`id`) DISABLE NOVALIDATE RELY;
+< row
+: string
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `uq_z_parent` UNIQUE (`code`) DISABLE NOVALIDATE RELY;
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_users`
 < result
@@ -4559,6 +7337,13 @@
 : string
 | {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_other@middle","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_other@middle]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
 > query
+| EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`v_docs`
+< result
+< column "Explain" "STRING"
+< row
+: string
+| {"input_tables":[{"tablename":"omni_dump@v_docs","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@v_docs]"}],"input_partitions":[]}
+> query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
 < result
 < column "Explain" "STRING"
@@ -4582,6 +7367,29 @@
 | USE `OMNI_DUMP`
 < ok - -
 > exec
+| --
+| -- Table structure for `a_child`
+| --
+| CREATE EXTERNAL TABLE `omni_dump`.`a_child`(
+|   `id` int, 
+|   `parent_id` int)
+| ROW FORMAT SERDE 
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+| STORED AS INPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+| OUTPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+| LOCATION
+|   'file:/opt/hive/data/warehouse/omni_dump.db/a_child'
+| TBLPROPERTIES (
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+|   'bucketing_version'='2', 
+|   'external.table.purge'='TRUE', 
+|   'transient_lastDdlTime'='1000000000')
+< ok - -
+> exec
+|
+|
 | --
 | -- Table structure for `events`
 | --
@@ -4624,6 +7432,21 @@
 > exec
 |
 |
+| ALTER TABLE `omni_dump`.`events` ADD PARTITION (`dt`='2024-01-03') LOCATION 'file:/opt/hive/data/warehouse/omni_dump.db/events/dt=2024-01-03'
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`events` PARTITION (`dt`='2024-01-03') SET FILEFORMAT INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat' SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`events` PARTITION (`dt`='2024-01-03') SET SERDEPROPERTIES ('orc.compress'='ZLIB')
+< ok - -
+> exec
+|
+|
 | --
 | -- Table structure for `events__`
 | --
@@ -4642,6 +7465,46 @@
 |   'bucketing_version'='2', 
 |   'external.table.purge'='TRUE', 
 |   'transient_lastDdlTime'='1000000000')
+< ok - -
+> exec
+|
+|
+| --
+| -- Table structure for `ext_events`
+| --
+| CREATE EXTERNAL TABLE `omni_dump`.`ext_events`(
+|   `id` int)
+| PARTITIONED BY ( 
+|   `dt` string)
+| ROW FORMAT SERDE 
+|   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' 
+| WITH SERDEPROPERTIES ( 
+|   'field.delim'='|', 
+|   'serialization.format'='|') 
+| STORED AS INPUTFORMAT 
+|   'org.apache.hadoop.mapred.TextInputFormat' 
+| OUTPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+| LOCATION
+|   'file:/tmp/omni/dump_ext_events'
+| TBLPROPERTIES (
+|   'bucketing_version'='2', 
+|   'transient_lastDdlTime'='1000000000')
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`ext_events` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/omni/dump_ext_events/dt=2024-01-01'
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`ext_events` ADD PARTITION (`dt`='2024-01-02') LOCATION 'file:/tmp/omni/dump_ext_events_dt_2024-01-02'
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`ext_events` PARTITION (`dt`='2024-01-02') UNSET SERDEPROPERTIES ('field.delim')
 < ok - -
 > exec
 |
@@ -4697,6 +7560,60 @@
 |
 |
 | ALTER TABLE `omni_dump`.`orders` SET TBLPROPERTIES('EXTERNAL'='FALSE')
+< ok - -
+> exec
+|
+|
+| --
+| -- Table structure for `z_parent`
+| --
+| CREATE EXTERNAL TABLE `omni_dump`.`z_parent`(
+|   `id` int, 
+|   `code` string)
+| ROW FORMAT SERDE 
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+| STORED AS INPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+| OUTPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+| LOCATION
+|   'file:/opt/hive/data/warehouse/omni_dump.db/z_parent'
+| TBLPROPERTIES (
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+|   'bucketing_version'='2', 
+|   'external.table.purge'='TRUE', 
+|   'transient_lastDdlTime'='1000000000')
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `pk_z_parent` PRIMARY KEY (`id`) DISABLE NOVALIDATE RELY
+< ok - -
+> exec
+|
+|
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `uq_z_parent` UNIQUE (`code`) DISABLE NOVALIDATE RELY
+< ok - -
+> exec
+|
+|
+| --
+| -- Foreign key constraints for `a_child`
+| --
+| ALTER TABLE `omni_dump`.`a_child` ADD CONSTRAINT `fk_a_child_parent` FOREIGN KEY (`parent_id`) REFERENCES `omni_dump`.`z_parent`(`id`) DISABLE NOVALIDATE RELY
+< ok - -
+> exec
+|
+|
+| --
+| -- View structure for `v_docs`
+| --
+| CREATE VIEW `omni_dump`.`v_docs` (`id` COMMENT 'the id', `label` COMMENT 'it\'s a \\label') AS SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`
+< ok - -
+> exec
+|
+|
+| ALTER VIEW `omni_dump`.`v_docs` SET TBLPROPERTIES('comment'='documented view', 'team'='core')
 < ok - -
 > exec
 |
@@ -4777,6 +7694,9 @@
 < column "tab_name" "STRING"
 < row
 : string
+| a_child
+< row
+: string
 | a_top
 < row
 : string
@@ -4789,6 +7709,9 @@
 | events__
 < row
 : string
+| ext_events
+< row
+: string
 | ext_users
 < row
 : string
@@ -4798,10 +7721,277 @@
 | p_events_mv
 < row
 : string
+| v_docs
+< row
+: string
 | z_base
 < row
 : string
+| z_parent
+< row
+: string
 | z_users
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_child`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| parent_id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/a_child
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"parent_id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Foreign Keys
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.a_child   
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| fk_a_child_parent   
+: null
+< row
+: string
+| Parent Column Name:omni_dump.z_parent.id
+: string
+| Column Name:parent_id
+: string
+| Key Sequence:1      
+< row
+: string
+|
+: null
+: null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
@@ -5376,7 +8566,7 @@
 : string
 | numPartitions       
 : string
-| 2                   
+| 3                   
 < row
 : string
 |
@@ -5479,6 +8669,236 @@
 < row
 : string
 | dt=2024-01-02
+< row
+: string
+| dt=2024-01-03
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_events`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
@@ -6204,6 +9624,199 @@
 | N/A
 : null
 > query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`v_docs`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+| the id
+< row
+: string
+| label
+: string
+| string
+: string
+| it's a \\label
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| documented view     
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| team                
+: string
+| core                
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT ext_users.id, ext_users.name FROM omni_dump.ext_users
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+: null
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -6367,6 +9980,294 @@
 | Expanded Query:     
 : string
 | SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`
+: null
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_parent`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| code
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/z_parent
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"code\":\"true\",\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Primary Key
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| pk_z_parent         
+: null
+< row
+: string
+| Column Name:        
+: string
+| id                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Unique Constraints
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| uq_z_parent         
+: null
+< row
+: string
+| Column Name:code    
+: string
+| Key Sequence:1      
+: null
+< row
+: string
+|
+: null
 : null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_users`
@@ -6560,6 +10461,9 @@
 < column "tab_name" "STRING"
 < row
 : string
+| a_child
+< row
+: string
 | a_top
 < row
 : string
@@ -6572,6 +10476,9 @@
 | events__
 < row
 : string
+| ext_events
+< row
+: string
 | ext_users
 < row
 : string
@@ -6581,10 +10488,332 @@
 | p_events_mv
 < row
 : string
+| v_docs
+< row
+: string
 | z_base
 < row
 : string
+| z_parent
+< row
+: string
 | z_users
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_child`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| parent_id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/a_child
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"parent_id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Foreign Keys
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.a_child   
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| fk_a_child_parent   
+: null
+< row
+: string
+| Parent Column Name:omni_dump.z_parent.id
+: string
+| Column Name:parent_id
+: string
+| Key Sequence:1      
+< row
+: string
+|
+: null
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`a_child`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`a_child`(
+< row
+: string
+|   `id` int, 
+< row
+: string
+|   `parent_id` int)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/a_child'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'external.table.purge'='TRUE', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+< row
+: string
+| ALTER TABLE `omni_dump`.`a_child` ADD CONSTRAINT `fk_a_child_parent` FOREIGN KEY (`parent_id`) REFERENCES `omni_dump`.`z_parent`(`id`) DISABLE NOVALIDATE RELY;
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
@@ -7212,7 +11441,7 @@
 : string
 | numPartitions       
 : string
-| 2                   
+| 3                   
 < row
 : string
 |
@@ -7379,6 +11608,9 @@
 < row
 : string
 | dt=2024-01-02
+< row
+: string
+| dt=2024-01-03
 > query
 | DESCRIBE FORMATTED `omni_dump`.`events` PARTITION (`dt`='2024-01-01')
 < result
@@ -7712,6 +11944,193 @@
 : string
 | 1                   
 > query
+| DESCRIBE FORMATTED `omni_dump`.`events` PARTITION (`dt`='2024-01-03')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| body
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-03]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| events              
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/events/dt=2024-01-03
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| orc.compress        
+: string
+| ZLIB                
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`events__`
 < result
 < column "col_name" "STRING"
@@ -7970,6 +12389,668 @@
 < row
 : string
 |   'transient_lastDdlTime'='1000000000')
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_events`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
+> query
+| SHOW CREATE TABLE `omni_dump`.`ext_events`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`ext_events`(
+< row
+: string
+|   `id` int)
+< row
+: string
+| PARTITIONED BY ( 
+< row
+: string
+|   `dt` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' 
+< row
+: string
+| WITH SERDEPROPERTIES ( 
+< row
+: string
+|   'field.delim'='|', 
+< row
+: string
+|   'serialization.format'='|') 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.mapred.TextInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/tmp/omni/dump_ext_events'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+> query
+| SHOW PARTITIONS `omni_dump`.`ext_events`
+< result
+< column "partition" "STRING"
+< row
+: string
+| dt=2024-01-01
+< row
+: string
+| dt=2024-01-02
+> query
+| DESCRIBE FORMATTED `omni_dump`.`ext_events` PARTITION (`dt`='2024-01-01')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-01]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| ext_events          
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events/dt=2024-01-01
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| field.delim         
+: string
+| |                   
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
+> query
+| DESCRIBE FORMATTED `omni_dump`.`ext_events` PARTITION (`dt`='2024-01-02')
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Partition Information
+: null
+: null
+< row
+: string
+| Partition Value:    
+: string
+| [2024-01-02]        
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| Table:              
+: string
+| ext_events          
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Location:           
+: string
+| file:/tmp/omni/dump_ext_events_dt_2024-01-02
+: null
+< row
+: string
+| Partition Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| |                   
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
@@ -8858,6 +13939,206 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`v_docs`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+| the id
+< row
+: string
+| label
+: string
+| string
+: string
+| it's a \\label
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| documented view     
+< row
+: string
+|
+: string
+| last_modified_by    
+: string
+| hive                
+< row
+: string
+|
+: string
+| last_modified_time  
+: string
+| 1000000000          
+< row
+: string
+|
+: string
+| team                
+: string
+| core                
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT ext_users.id, ext_users.name FROM omni_dump.ext_users
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`v_docs`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE VIEW `omni_dump`.`v_docs` AS SELECT `id` AS `id`, `name` AS `label` FROM (SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`) `v_docs`
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -9029,6 +14310,352 @@
 < row
 : string
 | CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_parent`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+| code
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/z_parent
+: null
+< row
+: string
+| Table Type:         
+: string
+| EXTERNAL_TABLE      
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"code\":\"true\",\"id\":\"true\"}}
+< row
+: string
+|
+: string
+| EXTERNAL            
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| TRANSLATED_TO_EXTERNAL
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| external.table.purge
+: string
+| TRUE                
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+| Storage Desc Params:
+: null
+: null
+< row
+: string
+|
+: string
+| serialization.format
+: string
+| 1                   
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Constraints
+: null
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Primary Key
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| pk_z_parent         
+: null
+< row
+: string
+| Column Name:        
+: string
+| id                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Unique Constraints
+: null
+: null
+< row
+: string
+| Table:              
+: string
+| omni_dump.z_parent  
+: null
+< row
+: string
+| Constraint Name:    
+: string
+| uq_z_parent         
+: null
+< row
+: string
+| Column Name:code    
+: string
+| Key Sequence:1      
+: null
+< row
+: string
+|
+: null
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`z_parent`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`z_parent`(
+< row
+: string
+|   `id` int, 
+< row
+: string
+|   `code` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/z_parent'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'external.table.purge'='TRUE', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+< row
+: string
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `pk_z_parent` PRIMARY KEY (`id`) DISABLE NOVALIDATE RELY;
+< row
+: string
+| ALTER TABLE `omni_dump`.`z_parent` ADD CONSTRAINT `uq_z_parent` UNIQUE (`code`) DISABLE NOVALIDATE RELY;
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_users`
 < result
@@ -9229,6 +14856,13 @@
 < row
 : string
 | {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_other@middle","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_other@middle]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
+> query
+| EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`v_docs`
+< result
+< column "Explain" "STRING"
+< row
+: string
+| {"input_tables":[{"tablename":"omni_dump@v_docs","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@v_docs]"}],"input_partitions":[]}
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
 < result

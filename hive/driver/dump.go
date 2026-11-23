@@ -45,13 +45,15 @@ func (k dumpKind) label() string {
 }
 
 // dumpObject is one object a dump writes: the name the server lists, the
-// statements that recreate it, and the objects of the same database that
-// creating it resolves, which orders them.
+// statements that recreate it, any foreign key constraints deferred until all
+// tables exist, and the objects of the same database that creating it resolves,
+// which orders them.
 type dumpObject struct {
-	kind  dumpKind
-	name  string
-	stmts []string
-	reads []string
+	kind    dumpKind
+	name    string
+	stmts   []string
+	fkStmts []string
+	reads   []string
 }
 
 // Dump writes the database's DDL as the server states it. The metadata is not
@@ -60,16 +62,43 @@ type dumpObject struct {
 // output formats, the serde properties, the storage handler, the skew or bucket
 // definition, or the table properties, so a synced schema cannot be turned back
 // into HiveQL. SHOW CREATE TABLE states all of those, and DESCRIBE FORMATTED
-// states the three things it leaves out — a view's or materialized view's query
-// and comment, and whether a table is managed — so the dump reads both. The
-// caller creates the database; the dump carries the objects in it, in an order
-// that replays.
+// states what it leaves out — a view's or materialized view's query, column
+// comments and table properties, whether a table is managed, and each
+// partition's location and storage — so the dump reads both. The caller creates
+// the database; the dump carries the objects in it, in an order that replays.
 func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
 	objects, err := d.dumpObjects(ctx, d.databaseNameOrDefault())
 	if err != nil {
 		return err
 	}
-	for _, o := range orderDumpObjects(objects) {
+	ordered := orderDumpObjects(objects)
+	fksEmitted := false
+	emitFKs := func() error {
+		if fksEmitted {
+			return nil
+		}
+		fksEmitted = true
+		for _, o := range ordered {
+			if len(o.fkStmts) == 0 {
+				continue
+			}
+			if _, err := fmt.Fprintf(out, "--\n-- Foreign key constraints for %s\n--\n", quoteBacktick(o.name)); err != nil {
+				return err
+			}
+			for _, stmt := range o.fkStmts {
+				if _, err := fmt.Fprintf(out, "%s;\n\n", stmt); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	for _, o := range ordered {
+		if o.kind != dumpTable {
+			if err := emitFKs(); err != nil {
+				return err
+			}
+		}
 		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n", o.kind.label(), quoteBacktick(o.name)); err != nil {
 			return err
 		}
@@ -79,7 +108,7 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 			}
 		}
 	}
-	return nil
+	return emitFKs()
 }
 
 // dumpObjects reads the database's objects and the statements that recreate
@@ -127,8 +156,8 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 }
 
 // dumpObject returns what recreates one object: the statement SHOW CREATE TABLE
-// states, or the one DESCRIBE FORMATTED completes it to, and for a managed
-// table the statements that make the table managed and add its partitions.
+// states, or the one DESCRIBE FORMATTED completes it to, plus any partition,
+// storage, property, and constraint statements needed to restore it faithfully.
 func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpObject, error) {
 	info, err := d.getTableInfo(ctx, name, database)
 	if err != nil {
@@ -149,13 +178,13 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		if err != nil {
 			return nil, err
 		}
+		stmt = dumpViewStatement(database, name, stmt, info.colMetadatas)
 		object.stmts = []string{stmt}
-		// SHOW CREATE TABLE states a view's query and no comment, and CREATE
-		// VIEW takes one only before the query: the statement that states a
-		// view's comment is the ALTER that sets it as a table parameter.
-		if info.comment != "" {
+		// SHOW CREATE TABLE states a view's query with no comment or table
+		// properties: ALTER VIEW ... SET TBLPROPERTIES restores both.
+		if props := dumpViewProperties(info.params, info.comment); props != "" {
 			object.stmts = append(object.stmts, "ALTER VIEW "+quoteBacktick(database)+"."+quoteBacktick(name)+
-				" SET TBLPROPERTIES('comment'="+dumpString(info.comment)+")")
+				" SET TBLPROPERTIES("+props+")")
 		}
 	case "MATERIALIZED_VIEW":
 		// SHOW CREATE TABLE states a materialized view as a plain CREATE TABLE:
@@ -191,11 +220,12 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		}
 	case "MANAGED_TABLE":
 		object.kind = dumpTable
-		stmt, err := d.dumpStatement(ctx, database, name)
+		raw, err := d.dumpStatement(ctx, database, name)
 		if err != nil {
 			return nil, err
 		}
-		object.stmts = append(object.stmts, stmt)
+		createStmt, localAlters, fkAlters := dumpSplitTableStatements(raw)
+		object.stmts = append(object.stmts, createStmt)
 		// SHOW CREATE TABLE states a managed table as a CREATE TABLE with no
 		// clause that makes one: with strict managed tables off, Hive 4 stores a
 		// CREATE TABLE as an external table, so the stated CREATE alone restores
@@ -204,22 +234,183 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 			"ALTER TABLE "+quoteBacktick(database)+"."+quoteBacktick(name)+" SET TBLPROPERTIES('EXTERNAL'='FALSE')")
 		// The statement declares the partitions, which DESCRIBE FORMATTED
 		// states only under a setting a session can turn off.
-		if dumpStatesPartitions(stmt) {
+		if dumpStatesPartitions(createStmt) {
 			partitions, err := d.dumpPartitions(ctx, database, name, info.storage)
 			if err != nil {
 				return nil, err
 			}
 			object.stmts = append(object.stmts, partitions...)
 		}
+		object.stmts = append(object.stmts, localAlters...)
+		object.fkStmts = fkAlters
 	default:
 		object.kind = dumpTable
-		stmt, err := d.dumpStatement(ctx, database, name)
+		raw, err := d.dumpStatement(ctx, database, name)
 		if err != nil {
 			return nil, err
 		}
-		object.stmts = append(object.stmts, stmt)
+		createStmt, localAlters, fkAlters := dumpSplitTableStatements(raw)
+		object.stmts = append(object.stmts, createStmt)
+		if dumpStatesPartitions(createStmt) {
+			partitions, err := d.dumpPartitions(ctx, database, name, info.storage)
+			if err != nil {
+				return nil, err
+			}
+			object.stmts = append(object.stmts, partitions...)
+		}
+		object.stmts = append(object.stmts, localAlters...)
+		object.fkStmts = fkAlters
 	}
 	return object, nil
+}
+
+// dumpViewSystemParams are the table parameters Hive manages on a view itself,
+// which a dump does not restate in ALTER VIEW ... SET TBLPROPERTIES.
+var dumpViewSystemParams = map[string]bool{
+	"bucketing_version":     true,
+	"transient_lastDdlTime": true,
+	"last_modified_by":      true,
+	"last_modified_time":    true,
+	"COLUMN_STATS_ACCURATE": true,
+	"numFiles":              true,
+	"numRows":               true,
+	"rawDataSize":           true,
+	"totalSize":             true,
+	"numPartitions":         true,
+}
+
+// dumpViewProperties formats a view's comment and user-defined table parameters
+// for ALTER VIEW ... SET TBLPROPERTIES(...), sorted by key.
+func dumpViewProperties(params map[string]string, comment string) string {
+	props := make(map[string]string)
+	for key, val := range params {
+		if dumpViewSystemParams[key] {
+			continue
+		}
+		props[key] = val
+	}
+	if comment != "" {
+		if _, ok := props["comment"]; !ok {
+			props["comment"] = comment
+		}
+	}
+	if len(props) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(props))
+	for key := range props {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	pairs := make([]string, 0, len(keys))
+	for _, key := range keys {
+		pairs = append(pairs, dumpString(key)+"="+dumpString(props[key]))
+	}
+	return strings.Join(pairs, ", ")
+}
+
+// dumpViewStatement returns the CREATE VIEW statement for a view. When any
+// column carries a comment — which SHOW CREATE TABLE omits — it restores the
+// column list with its comments and unwraps Hive's outer column-alias
+// projection so a restored view dumps back to the same statement.
+func dumpViewStatement(database, name, stmt string, columns []*metadatapb.ColumnMetadata) string {
+	hasComment := false
+	for _, col := range columns {
+		if col.Comment != "" {
+			hasComment = true
+			break
+		}
+	}
+	if !hasComment {
+		return stmt
+	}
+	query, ok := dumpViewQuery(stmt)
+	if !ok {
+		return stmt
+	}
+	if inner := dumpQueryInProjection(query); inner != "" {
+		query = inner
+	}
+	cols := make([]string, 0, len(columns))
+	for _, col := range columns {
+		entry := quoteBacktick(col.Name)
+		if col.Comment != "" {
+			entry += " COMMENT " + dumpString(dumpUnescapeDescribed(col.Comment))
+		}
+		cols = append(cols, entry)
+	}
+	return "CREATE VIEW " + quoteBacktick(database) + "." + quoteBacktick(name) +
+		" (" + strings.Join(cols, ", ") + ") AS " + query
+}
+
+// dumpViewQuery returns the query text after the top-level AS keyword of a
+// stated CREATE VIEW statement.
+func dumpViewQuery(stmt string) (string, bool) {
+	for i := 0; i < len(stmt); i++ {
+		switch stmt[i] {
+		case '`', '\'', '"':
+			end, err := dumpQuotedEnd(stmt, i)
+			if err != nil {
+				return "", false
+			}
+			i = end
+		default:
+			if i > 0 && isDumpSpace(stmt[i-1]) && strings.HasPrefix(stmt[i:], "AS") &&
+				i+2 < len(stmt) && isDumpSpace(stmt[i+2]) {
+				return strings.TrimSpace(stmt[i+2:]), true
+			}
+		}
+	}
+	return "", false
+}
+
+func isDumpSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+// dumpSplitTableStatements splits a SHOW CREATE TABLE answer into its CREATE
+// TABLE statement, its local constraint ALTER TABLE statements (PRIMARY KEY,
+// UNIQUE, NOT NULL), and its FOREIGN KEY ALTER TABLE statements. Hive 4 appends
+// constraint ALTER TABLE lines after TBLPROPERTIES (...) without terminating
+// the CREATE TABLE with a semicolon.
+func dumpSplitTableStatements(raw string) (createStmt string, localAlters, fkAlters []string) {
+	var splits []int
+	for i := 0; i < len(raw); i++ {
+		switch raw[i] {
+		case '`', '\'', '"':
+			end, err := dumpQuotedEnd(raw, i)
+			if err != nil {
+				return strings.TrimSuffix(strings.TrimSpace(raw), ";"), nil, nil
+			}
+			i = end
+		case '\n':
+			if strings.HasPrefix(raw[i+1:], "ALTER TABLE ") {
+				splits = append(splits, i+1)
+			}
+		}
+	}
+	if len(splits) == 0 {
+		return strings.TrimSuffix(strings.TrimSpace(raw), ";"), nil, nil
+	}
+	createStmt = strings.TrimSuffix(strings.TrimSpace(raw[:splits[0]]), ";")
+	for idx, start := range splits {
+		end := len(raw)
+		if idx+1 < len(splits) {
+			end = splits[idx+1]
+		}
+		stmt := strings.TrimSuffix(strings.TrimSpace(raw[start:end]), ";")
+		if stmt == "" {
+			continue
+		}
+		if _, ok := dumpKeyword(stmt, "FOREIGN KEY"); ok {
+			fkAlters = append(fkAlters, stmt)
+		} else {
+			localAlters = append(localAlters, stmt)
+		}
+	}
+	sort.Strings(localAlters)
+	sort.Strings(fkAlters)
+	return createStmt, localAlters, fkAlters
 }
 
 // dumpClauseStart returns the index in a stated CREATE TABLE of the first
@@ -356,6 +547,9 @@ func dumpQueryInProjection(expanded string) string {
 			i = end
 		case '(':
 			if depth == 0 {
+				if open != 0 {
+					return ""
+				}
 				open = i
 			}
 			depth++
@@ -610,6 +804,7 @@ func dumpString(s string) string {
 	escaped = strings.ReplaceAll(escaped, `'`, `\'`)
 	escaped = strings.ReplaceAll(escaped, "\r", `\r`)
 	escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+	escaped = strings.ReplaceAll(escaped, "\t", `\t`)
 	return "'" + escaped + "'"
 }
 
@@ -667,13 +862,13 @@ func (d *Driver) dumpStatement(ctx context.Context, database, name string) (stri
 	return strings.TrimSuffix(strings.TrimSpace(strings.Join(lines, "\n")), ";"), nil
 }
 
-// dumpPartitions states a managed table's partitions: the names SHOW PARTITIONS
-// answers carry the values, and DESCRIBE FORMATTED carries the location each
-// one lives at, which a partition added with its own LOCATION does not share
-// with the table. A partition whose value is null has no statement the server
-// takes and is left out, and one that reads its files otherwise than the table
-// does has no statement ADD PARTITION carries either, so it fails the dump
-// rather than coming back with the table's storage.
+// dumpPartitions states a partitioned table's partitions: the names SHOW
+// PARTITIONS answers carry the values, and DESCRIBE FORMATTED carries the
+// location and storage each one lives with. A partition whose value is null has
+// no statement the server takes and is left out; a partition with its own
+// file format or SerDe properties emits ALTER TABLE ... PARTITION (...)
+// statements after ADD PARTITION; one with an un-alterable storage layout fails
+// the dump rather than coming back under the table's layout.
 func (d *Driver) dumpPartitions(ctx context.Context, database, name string, table dumpStorage) ([]string, error) {
 	query := "SHOW PARTITIONS " + quoteBacktick(database) + "." + quoteBacktick(name)
 	rows, err := d.db.QueryContext(ctx, query)
@@ -703,26 +898,59 @@ func (d *Driver) dumpPartitions(ctx context.Context, database, name string, tabl
 		if err != nil {
 			return nil, err
 		}
-		stmt, err := dumpPartitionStatement(database, name, partition, spec, location, table, storage)
+		partStmts, err := dumpPartitionStatements(database, name, partition, spec, location, table, storage)
 		if err != nil {
 			return nil, err
 		}
-		stmts = append(stmts, stmt)
+		stmts = append(stmts, partStmts...)
 	}
 	return stmts, nil
 }
 
-// dumpPartitionStatement states one partition of a managed table where it lives.
-// A partition that reads its files otherwise than the table does states nothing
-// here: ADD PARTITION carries the table's storage, so the statement would
-// register it under a format its files are not in.
-func dumpPartitionStatement(database, name, partition, spec, location string, table, storage dumpStorage) (string, error) {
-	if diff := dumpStorageDiff(table, storage); diff != "" {
-		return "", fmt.Errorf("partition %s of %s.%s states its own %s, which ADD PARTITION does not carry",
+// dumpPartitionStatements states one partition where it lives, followed by any
+// ALTER TABLE ... PARTITION (...) statements needed to restore a per-partition
+// file format, SerDe, or SerDe properties. A partition whose storage layout
+// (such as bucketing or skew) differs from the table's still fails rather than
+// silently coming back under the table's layout.
+func dumpPartitionStatements(database, name, partition, spec, location string, table, storage dumpStorage) ([]string, error) {
+	if diff := dumpStorageLayoutDiff(table, storage); diff != "" {
+		return nil, fmt.Errorf("partition %s of %s.%s states its own %s, which ADD PARTITION does not carry",
 			partition, database, name, diff)
 	}
-	return "ALTER TABLE " + quoteBacktick(database) + "." + quoteBacktick(name) +
-		" ADD PARTITION (" + spec + ") LOCATION " + dumpString(location), nil
+	tableRef := quoteBacktick(database) + "." + quoteBacktick(name)
+	stmts := []string{
+		"ALTER TABLE " + tableRef + " ADD PARTITION (" + spec + ") LOCATION " + dumpString(location),
+	}
+	if storage.serde != table.serde || storage.inputFormat != table.inputFormat || storage.outputFormat != table.outputFormat {
+		if storage.inputFormat == "" || storage.outputFormat == "" {
+			return nil, fmt.Errorf("partition %s of %s.%s states incomplete file format (%q, %q)",
+				partition, database, name, storage.inputFormat, storage.outputFormat)
+		}
+		fmtStmt := "ALTER TABLE " + tableRef + " PARTITION (" + spec + ") SET FILEFORMAT INPUTFORMAT " +
+			dumpString(storage.inputFormat) + " OUTPUTFORMAT " + dumpString(storage.outputFormat)
+		if storage.serde != "" {
+			fmtStmt += " SERDE " + dumpString(storage.serde)
+		}
+		stmts = append(stmts, fmtStmt)
+	}
+	var unsetKeys, setPairs []string
+	for _, key := range dumpStorageKeys(table.params, storage.params) {
+		tv, inTable := table.params[key]
+		pv, inPart := storage.params[key]
+		switch {
+		case inTable && !inPart:
+			unsetKeys = append(unsetKeys, dumpString(key))
+		case inPart && (!inTable || pv != tv):
+			setPairs = append(setPairs, dumpString(key)+"="+dumpString(pv))
+		}
+	}
+	if len(unsetKeys) > 0 {
+		stmts = append(stmts, "ALTER TABLE "+tableRef+" PARTITION ("+spec+") UNSET SERDEPROPERTIES ("+strings.Join(unsetKeys, ", ")+")")
+	}
+	if len(setPairs) > 0 {
+		stmts = append(stmts, "ALTER TABLE "+tableRef+" PARTITION ("+spec+") SET SERDEPROPERTIES ("+strings.Join(setPairs, ", ")+")")
+	}
+	return stmts, nil
 }
 
 // dumpPartition reads the location a partition lives at, which DESCRIBE
@@ -806,7 +1034,7 @@ func (r *dumpStorageReader) read(colName, dataType, comment string) bool {
 		if r.storage.params == nil {
 			r.storage.params = map[string]string{}
 		}
-		r.storage.params[dataType] = comment
+		r.storage.params[dumpUnescapeDescribed(dataType)] = dumpUnescapeDescribed(comment)
 		return true
 	}
 	switch colName {
@@ -827,6 +1055,19 @@ func (r *dumpStorageReader) read(colName, dataType, comment string) bool {
 	return true
 }
 
+// dumpStorageLayoutDiff names what a partition's storage layout (bucketing,
+// skew, compression, subdirectories) states that the table's does not, and is
+// "" when both share the same layout.
+func dumpStorageLayoutDiff(table, partition dumpStorage) string {
+	var differ []string
+	for _, key := range dumpStorageKeys(table.layout, partition.layout) {
+		if partition.layout[key] != table.layout[key] {
+			differ = append(differ, strings.TrimSuffix(key, ":")+" "+partition.layout[key])
+		}
+	}
+	return strings.Join(differ, ", ")
+}
+
 // dumpStorageDiff names what a partition's storage states that the table's does
 // not, and is "" when the partition reads its files as the table does.
 func dumpStorageDiff(table, partition dumpStorage) string {
@@ -840,10 +1081,8 @@ func dumpStorageDiff(table, partition dumpStorage) string {
 	if partition.outputFormat != table.outputFormat {
 		differ = append(differ, "OutputFormat "+partition.outputFormat)
 	}
-	for _, key := range dumpStorageKeys(table.layout, partition.layout) {
-		if partition.layout[key] != table.layout[key] {
-			differ = append(differ, strings.TrimSuffix(key, ":")+" "+partition.layout[key])
-		}
+	if layout := dumpStorageLayoutDiff(table, partition); layout != "" {
+		differ = append(differ, layout)
 	}
 	for _, key := range dumpStorageKeys(table.params, partition.params) {
 		if partition.params[key] != table.params[key] {

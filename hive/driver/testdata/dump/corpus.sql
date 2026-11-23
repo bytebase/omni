@@ -53,7 +53,37 @@ ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-01')
 -- not state and only the describe of the partition does.
 ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp/omni/dump_events_dt_2024-01-02'
 
+-- A partition that overrides its table's file format and SerDe properties, which
+-- ADD PARTITION does not carry and only ALTER TABLE ... PARTITION (...) restores.
+ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-03')
+
+ALTER TABLE omni_dump.events PARTITION (dt='2024-01-03') SET FILEFORMAT ORC
+
+ALTER TABLE omni_dump.events PARTITION (dt='2024-01-03') SET SERDEPROPERTIES ('orc.compress'='ZLIB')
+
 INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y')
+
+-- An external partitioned table whose partitions live at both default and custom
+-- locations, with one partition unsetting a table SerDe property.
+CREATE EXTERNAL TABLE omni_dump.ext_events (id INT) PARTITIONED BY (dt STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tmp/omni/dump_ext_events'
+
+ALTER TABLE omni_dump.ext_events ADD PARTITION (dt='2024-01-01')
+
+ALTER TABLE omni_dump.ext_events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp/omni/dump_ext_events_dt_2024-01-02'
+
+ALTER TABLE omni_dump.ext_events PARTITION (dt='2024-01-02') UNSET SERDEPROPERTIES ('field.delim')
+
+-- Tables with named PRIMARY KEY, UNIQUE, and FOREIGN KEY constraints where the
+-- child sorts before the parent: SHOW CREATE TABLE appends ALTER TABLE lines
+-- without a terminating semicolon on CREATE TABLE, and the foreign key must run
+-- after the parent table and its primary key exist.
+CREATE TABLE omni_dump.z_parent (id INT, code STRING, CONSTRAINT pk_z_parent PRIMARY KEY (id) DISABLE NOVALIDATE RELY, CONSTRAINT uq_z_parent UNIQUE (code) DISABLE NOVALIDATE RELY) STORED AS PARQUET
+
+CREATE TABLE omni_dump.a_child (id INT, parent_id INT, CONSTRAINT fk_a_child_parent FOREIGN KEY (parent_id) REFERENCES omni_dump.z_parent(id) DISABLE NOVALIDATE RELY) STORED AS PARQUET
+
+-- A view with column comments, a view comment, and custom TBLPROPERTIES, all of
+-- which SHOW CREATE TABLE omits.
+CREATE VIEW omni_dump.v_docs (id COMMENT 'the id', label COMMENT 'it\'s a \\label') COMMENT 'documented view' TBLPROPERTIES ('team'='core') AS SELECT id, name FROM omni_dump.ext_users
 
 -- A view whose comment SHOW CREATE TABLE leaves out, and the quote in it, which
 -- a replay escapes rather than doubling. Its query names a column with an alias
