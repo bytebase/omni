@@ -172,6 +172,15 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "ALTER SEQUENCE nosuch INCREMENT BY 2;", 0, "Sequence `NOSUCH` doesn't exist.", shop)
 	oneFinding(t, "DROP SYNONYM t;", 0, "`T` isn't a private synonym.", shop)
 	noFinding(t, "DROP SYNONYM nosuch;\nDROP PUBLIC SYNONYM t;", shop)
+	// Sequence options that contradict each other or Oracle's defaults.
+	oneFinding(t, "CREATE SEQUENCE s1 CACHE 1;", 0, "A sequence must CACHE more than 1 value.", shop)
+	oneFinding(t, "CREATE SEQUENCE s1 MAXVALUE 1;", 0, "A sequence's MINVALUE must be less than its MAXVALUE.", shop)
+	oneFinding(t, "CREATE SEQUENCE s1 MINVALUE 5 MAXVALUE 5;", 0, "A sequence's MINVALUE must be less than its MAXVALUE.", shop)
+	oneFinding(t, "CREATE SEQUENCE s1 INCREMENT BY -1 MINVALUE 0;", 0, "A sequence's MINVALUE must be less than its MAXVALUE.", shop)
+	oneFinding(t, "CREATE SEQUENCE s1 CYCLE;", 0, "A sequence that CYCLEs must give the bound it cycles at, MAXVALUE ascending and MINVALUE descending.", shop)
+	oneFinding(t, "CREATE SEQUENCE s1 INCREMENT BY -2 MAXVALUE 10 CYCLE;", 0, "A sequence that CYCLEs must give the bound it cycles at, MAXVALUE ascending and MINVALUE descending.", shop)
+	noFinding(t, "CREATE SEQUENCE s1 CACHE 2;\nCREATE SEQUENCE s2 MAXVALUE 2;\nCREATE SEQUENCE s3 MINVALUE -5 MAXVALUE 0;\nCREATE SEQUENCE s4 MAXVALUE 10 CYCLE;\nCREATE SEQUENCE s5 INCREMENT BY -1 MINVALUE -10 CYCLE;\nCREATE SEQUENCE s6 INCREMENT BY -1 MINVALUE -5;\nCREATE SEQUENCE s7 NOMAXVALUE NOCYCLE NOCACHE;", shop)
+	noFinding(t, "CREATE SEQUENCE s1 INCREMENT BY n MAXVALUE 1;", shop)
 	// The sync lists every function, procedure, and package (ALL_SOURCE),
 	// so a name none holds is missing whatever else may hold it (04043).
 	oneFinding(t, "DROP PROCEDURE nosuch2;", 0, "Procedure `NOSUCH2` doesn't exist.", shop)
@@ -1030,6 +1039,22 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "INSERT INTO plain (val) SELECT 1 FROM dual, nokey_rich;", rich)
 	noFinding(t, "INSERT INTO plain (val) SELECT 1 FROM other.dual;", rich)
 	noFinding(t, "INSERT INTO plain (val) SELECT 1 FROM dual LOG ERRORS INTO err$_plain REJECT LIMIT UNLIMITED;", rich)
+	// External table clauses need an external table: one the sync lists
+	// with an index and no partitions is none (30657), and a partitioned
+	// one may be hybrid.
+	oneFinding(t, "ALTER TABLE plain REJECT LIMIT 1;", 0, "This clause is only allowed on an external table, not `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain DEFAULT DIRECTORY d;", 0, "This clause is only allowed on an external table, not `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain LOCATION ('x.csv');", 0, "This clause is only allowed on an external table, not `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain PROJECT COLUMN ALL;", 0, "This clause is only allowed on an external table, not `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain ACCESS PARAMETERS ('x');", 0, "This clause is only allowed on an external table, not `PLAIN`.", rich)
+	noFinding(t, "ALTER TABLE nokey_rich REJECT LIMIT 1;", rich)
+	noFinding(t, "ALTER TABLE part_range LOCATION ('x.csv');", rich)
+	noFinding(t, "DROP INDEX ix_plain_val;\nALTER TABLE plain REJECT LIMIT 1;", rich)
+	noFinding(t, "DROP TABLE plain;\nCREATE TABLE plain (id NUMBER) ORGANIZATION EXTERNAL (DEFAULT DIRECTORY d LOCATION ('x.csv'));\nALTER TABLE plain REJECT LIMIT 1;", rich)
+	// MEMOPTIMIZE FOR READ needs a primary key (62142).
+	oneFinding(t, "ALTER TABLE nokey_rich MEMOPTIMIZE FOR READ;", 0, "MEMOPTIMIZE FOR READ needs a primary key, which `NOKEY_RICH` has not.", rich)
+	noFinding(t, "ALTER TABLE plain MEMOPTIMIZE FOR READ;", rich)
+	noFinding(t, "ALTER TABLE nokey_rich MEMOPTIMIZE FOR WRITE;", rich)
 	// A multi-table INSERT inserts the row in each clause that takes it.
 	oneFinding(t, "INSERT ALL INTO nokey_rich VALUES (1, 2) INTO plain (val) VALUES (1) SELECT 1 FROM dual;", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)
 	oneFinding(t, "INSERT ALL WHEN 1 = 1 THEN INTO plain (val) VALUES (1) SELECT 1 FROM dual;", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)

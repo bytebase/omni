@@ -125,6 +125,14 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Index-organized table clause is not allowed on non-IOT table "+review.Code(r.written)+".")
 					return true
 				}
+				if c.Action == ast.AT_ALTER_PROPERTY && pkFact == walk.Absent && c.Subtype == "MEMOPTIMIZE" && tokensSay(tokens(b.w.sql, c.Loc), "MEMOPTIMIZE", "FOR", "READ") {
+					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "MEMOPTIMIZE FOR READ needs a primary key, which "+review.Code(r.written)+" has not.")
+					return true
+				}
+				if c.Action == ast.AT_ALTER_PROPERTY && isExternalPropertyClause(tokens(b.w.sql, c.Loc)) && b.notExternal(r) {
+					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "This clause is only allowed on an external table, not "+review.Code(r.written)+".")
+					return true
+				}
 				if b.checkAlterTableAddRefOnScalar(r, c.Loc, rangeOf(c.Loc)) {
 					return true
 				}

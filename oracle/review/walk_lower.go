@@ -1,6 +1,7 @@
 package review
 
 import (
+	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,6 +36,9 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.AlterMaterializedViewStmt:
 		return b.alterMaterializedView(v)
 	case *ast.CreateSequenceStmt:
+		if b.sequenceOptionsFail(v) {
+			return true
+		}
 		return b.createObject(v.Name, kindSequence, v.IfNotExists, false)
 	case *ast.AlterSequenceStmt:
 		return b.alterSequence(v)
@@ -1023,6 +1027,105 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 	b.Last = true
 	b.Set(k, walk.Present, kind)
 	return true
+}
+
+// sequenceOptionsFail fails a CREATE SEQUENCE whose options contradict
+// each other, from integer literals and Oracle's defaults: a CACHE below 2
+// (04010), a MINVALUE not below the MAXVALUE (04004), and a CYCLE with no
+// bound to cycle at (04015). The defaults hang on the direction of
+// INCREMENT BY, 1 when not given: MINVALUE 1 and no MAXVALUE ascending,
+// MAXVALUE -1 and no MINVALUE descending.
+func (b *builder) sequenceOptionsFail(v *ast.CreateSequenceStmt) bool {
+	rng := b.anchor()
+	if v.Cache != nil {
+		if n, ok := intLiteral(v.Cache); ok && n.Cmp(big.NewInt(2)) < 0 {
+			b.fail(rng, review.UnsupportedForm, "A sequence must CACHE more than 1 value.")
+			return true
+		}
+	}
+	inc := big.NewInt(1)
+	if v.IncrementBy != nil {
+		n, ok := intLiteral(v.IncrementBy)
+		if !ok || n.Sign() == 0 {
+			return false
+		}
+		inc = n
+	}
+	// min and max are nil when unbounded; known is false when an option
+	// is not an integer literal.
+	var min, max *big.Int
+	if inc.Sign() > 0 {
+		min = big.NewInt(1)
+	} else {
+		max = big.NewInt(-1)
+	}
+	if v.MinValue != nil {
+		n, ok := intLiteral(v.MinValue)
+		if !ok {
+			return false
+		}
+		min = n
+	} else if v.NoMinValue {
+		min = nil
+		if inc.Sign() > 0 {
+			min = big.NewInt(1)
+		}
+	}
+	if v.MaxValue != nil {
+		n, ok := intLiteral(v.MaxValue)
+		if !ok {
+			return false
+		}
+		max = n
+	} else if v.NoMaxValue {
+		max = nil
+		if inc.Sign() < 0 {
+			max = big.NewInt(-1)
+		}
+	}
+	if min != nil && max != nil && min.Cmp(max) >= 0 {
+		b.fail(rng, review.UnsupportedForm, "A sequence's MINVALUE must be less than its MAXVALUE.")
+		return true
+	}
+	if v.Cycle && (inc.Sign() > 0 && v.MaxValue == nil || inc.Sign() < 0 && v.MinValue == nil) {
+		b.fail(rng, review.UnsupportedForm, "A sequence that CYCLEs must give the bound it cycles at, MAXVALUE ascending and MINVALUE descending.")
+		return true
+	}
+	return false
+}
+
+// intLiteral reads an integer literal, signed or not.
+func intLiteral(e ast.ExprNode) (*big.Int, bool) {
+	neg := false
+	for {
+		switch x := e.(type) {
+		case *ast.ParenExpr:
+			e = x.Expr
+			continue
+		case *ast.UnaryExpr:
+			if x.Op != "-" && x.Op != "+" {
+				return nil, false
+			}
+			if x.Op == "-" {
+				neg = !neg
+			}
+			e = x.Operand
+			continue
+		}
+		break
+	}
+	lit, ok := e.(*ast.NumberLiteral)
+	if !ok || lit.IsFloat {
+		return nil, false
+	}
+	n, ok := new(big.Int).SetString(lit.Val, 10)
+	if !ok {
+		return nil, false
+	}
+	if neg {
+		n.Neg(n)
+	}
+	return n, true
 }
 
 // alterObject follows ALTER of a procedure, function, package, type, or
