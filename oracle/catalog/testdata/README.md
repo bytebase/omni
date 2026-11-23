@@ -1,7 +1,8 @@
 # Oracle catalog test data
 
 `simulate.tsv` holds one row per core schema DDL statement that the pinned
-Oracle 23ai Free (`../../testdata/pins.tsv`, `default` role:
+Oracle 23ai Free (`../../testdata/pins.tsv`, `simulate` role, the `default`
+server read by judge revision 1:
 `gvenzl/oracle-free:23.26.3-slim-faststart`, release `23.26.3.0.0`) accepts in
 `oracle/parser/testdata/compat.tsv` (grammar-generated positive rules,
 excluding `suite:*` hand corpora and near-miss `!` mutations), run once on each

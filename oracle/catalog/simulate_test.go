@@ -44,6 +44,7 @@ func TestSimulation(t *testing.T) {
 	simulate.Check(t, simulate.Suite{
 		Path:     filepath.Join("testdata", "simulate.tsv"),
 		Pins:     testcontainer.Pins,
+		PinRole:  "simulate",
 		Fixtures: filepath.Join("testdata", "fixtures"),
 		Rows:     rows,
 		MadeUp:   (testcontainer.Codec{}).MadeUp(),
