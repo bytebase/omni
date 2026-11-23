@@ -46,6 +46,9 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		w.anyFunction = true
 		clear(w.versioned)
 		clear(w.partitioned)
+		clear(w.rangeOrList)
+		clear(w.sequences)
+		clear(w.fkTables)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -222,10 +225,20 @@ type walker struct {
 	// (Present), certainly not partitioned (Absent), or Unknown (absent
 	// from the map).
 	partitioned map[walk.Key]walk.Fact
+	// rangeOrList lists the synced tables partitioned by RANGE or LIST,
+	// until a statement may change their partitioning.
+	rangeOrList map[walk.Key]bool
 	// fkGeneratedIdx lists synced index keys that may be InnoDB auto-generated
 	// foreign-key backing indexes, mapped to their lowercased column names (nil
 	// when unknown). See mariadbSnapshot.fkGeneratedIdx.
 	fkGeneratedIdx map[walk.Key][]string
+	// sequences holds the values of the synced sequences, as ALTER
+	// SEQUENCE leaves them, until a statement may replace one.
+	sequences map[walk.Key]sequenceValues
+	// fkTables holds the foreign keys and indexes of the synced InnoDB
+	// tables with a foreign key that no statement of the change has
+	// touched yet (fkIndexDropFails).
+	fkTables map[walk.Key]*fkTable
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
@@ -242,7 +255,16 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		ignoresFKs:     make(map[walk.Key]bool),
 		versioned:      make(map[walk.Key]walk.Fact),
 		partitioned:    make(map[walk.Key]walk.Fact),
+		rangeOrList:    make(map[walk.Key]bool),
 		fkGeneratedIdx: make(map[walk.Key][]string),
+		sequences:      make(map[walk.Key]sequenceValues),
+		fkTables:       make(map[walk.Key]*fkTable),
+	}
+	for name, ft := range snap.fkTables {
+		w.fkTables[relKey(snap.db, name)] = ft
+	}
+	for name, values := range snap.sequences {
+		w.sequences[relKey(snap.db, name)] = values
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
@@ -259,6 +281,9 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 			w.versioned[k] = walk.Present
 		} else {
 			w.versioned[k] = walk.Absent
+		}
+		if snap.rangeOrList[name] {
+			w.rangeOrList[k] = true
 		}
 		if snap.partitioned[name] {
 			w.partitioned[k] = walk.Present
@@ -328,6 +353,12 @@ type builder struct {
 	addedCols map[string]bool
 	addedIdxs map[string]bool
 	addedFKs  map[string]bool
+	// types is set while an ALTER TABLE lowers its subcommands to the
+	// column types it sets (alterTypes); innoDB, while a statement's table
+	// is one the walk knows to be InnoDB, whose key parts it then judges
+	// by type (keyPartTypesFail).
+	types  map[string]string
+	innoDB bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index

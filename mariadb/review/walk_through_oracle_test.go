@@ -458,6 +458,9 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Sequence ") && strings.HasSuffix(m, " operation.")
 	}, []string{"4086"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Sequence ") && strings.HasSuffix(m, " has invalid values.")
+	}, []string{"4085"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4091"}},
 	{func(m, stmt string) bool {
 		return strings.HasSuffix(m, ", not a sequence.") && leads(stmt, "ALTER SEQUENCE")
@@ -465,7 +468,22 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasSuffix(m, " is a view, not a sequence.") || strings.HasSuffix(m, " is a view, not a table or sequence.")
 	}, []string{"1965"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, ", not a sequence.") && leads(stmt, "CREATE VIEW", "CREATE OR REPLACE VIEW", "ALTER VIEW")
+	}, []string{"4089"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, ", not a sequence.") }, []string{"4090"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "This query reads no table for ") }, []string{"1096"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not in this query.")
+	}, []string{"1051"}},
+	{func(m, _ string) bool { return m == "A view's column cannot be a row." }, []string{"1241"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.HasSuffix(m, " is not defined.")
+	}, []string{"4009"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window function ") && strings.HasSuffix(m, " takes no frame.")
+	}, []string{"4017"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " must be a constant.") }, []string{"1210"}},
 	{func(m, stmt string) bool {
 		return strings.HasSuffix(m, ", not a table.") && leads(stmt, "DROP TABLE", "DROP TABLES")
 	}, []string{"1965"}},
@@ -484,6 +502,18 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not partitioned.")
 	}, []string{"1505"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " each partition it adds must be defined.")
+	}, []string{"1492"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, "`REORGANIZE PARTITION` without partitions")
+	}, []string{"1511"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.Contains(m, "`COALESCE PARTITION` does not take")
+	}, []string{"1509"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.HasSuffix(m, " clause.")
+	}, []string{"1479"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not system-versioned.")
 	}, []string{"4124"}},
@@ -510,6 +540,20 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Foreign key on ") && strings.HasSuffix(m, " has a mismatched column count.")
 	}, []string{"1239"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " is needed by a foreign key constraint.") }, []string{"1553"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`AUTO_INCREMENT`")
+	}, []string{"1075"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, ", which a sequence has not.")
+	}, []string{"4086"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`FULLTEXT`") }, []string{"1283"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && (strings.Contains(m, "`SPATIAL`") || strings.Contains(m, "`VECTOR`"))
+	}, []string{"1210"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " cannot use an index prefix length.")
+	}, []string{"1089"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops", "names")
 	}, []string{"1060", "1091"}},

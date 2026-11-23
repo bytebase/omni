@@ -2,45 +2,55 @@ package review
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/enginetest/simulate"
 	mariadbcatalog "github.com/bytebase/omni/mariadb/catalog"
-	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
 )
 
 // TestWalkSimulation holds MariaDB's WALK_THROUGH to mariadb/catalog's
-// simulate.tsv offline: each fixture is built once in the in-memory catalog,
-// and every row is checked with no server started.
+// simulate.tsv and queries/simulate.tsv offline: each fixture is built once
+// in the in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&mariadbEngine{}).Same
-	res := walktest.CheckSimulation(t, walktest.Simulation{
-		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
-		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
-		Setup:    mariadbSimFixture,
-		Codes: func(message, stmt string) []string {
-			for _, c := range walkCodes {
-				if c.match(message, stmt) {
-					return c.codes
-				}
+	for _, suite := range []struct {
+		name     string
+		path     string
+		minPct   float64
+		minFound int
+	}{
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 95.0, 3932},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 65.0, 129},
+	} {
+		t.Run(suite.name, func(t *testing.T) {
+			res := walktest.CheckSimulation(t, walktest.Simulation{
+				Path:     suite.path,
+				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
+				Setup:    mariadbSimFixture,
+				Codes: func(message, stmt string) []string {
+					for _, c := range walkCodes {
+						if c.match(message, stmt) {
+							return c.codes
+						}
+					}
+					return nil
+				},
+				Same: same,
+			})
+			pct := 0.0
+			if res.Refused > 0 {
+				pct = 100 * float64(res.Found) / float64(res.Refused)
 			}
-			return nil
-		},
-		Same: same,
-	})
-	const minRecallPct = 90.0
-	if res.Refused > 0 {
-		pct := 100 * float64(res.Found) / float64(res.Refused)
-		if pct < minRecallPct {
-			t.Errorf("WALK_THROUGH refusal recall = %.1f%% (%d/%d), want >= %.1f%%", pct, res.Found, res.Refused, minRecallPct)
-		}
+			if res.Found < suite.minFound || pct < suite.minPct {
+				t.Errorf("%s recall regressed: got %d/%d (%.1f%%), want at least %d (%.1f%%)",
+					suite.name, res.Found, res.Refused, pct, suite.minFound, suite.minPct)
+			}
+		})
 	}
 }
 
@@ -52,7 +62,7 @@ func mariadbSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
 		t.Fatalf("mariadb catalog failed to load fixture %s: %v", fx.Name, err)
 	}
 	target := review.Target{
-		Schema:           mariadbCatalogToMetadata(c, simDB),
+		Schema:           c.DatabaseMetadata(simDB),
 		ForeignKeyChecks: review.SwitchOn,
 	}
 	objects := mariadbCatalogInventory(c, simDB)
@@ -97,118 +107,6 @@ func mariadbSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
 			return v
 		},
 	}
-}
-
-func mariadbCatalogToMetadata(c *mariadbcatalog.Catalog, dbName string) *metadata.DatabaseSchemaMetadata {
-	out := &metadata.DatabaseSchemaMetadata{Name: dbName}
-	db := c.GetDatabase(dbName)
-	if db == nil {
-		return out
-	}
-	sm := &metadata.SchemaMetadata{}
-	tblKeys := make([]string, 0, len(db.Tables))
-	for k := range db.Tables {
-		tblKeys = append(tblKeys, k)
-	}
-	slices.Sort(tblKeys)
-	tblByLower := make(map[string]*metadata.TableMetadata, len(db.Tables))
-	for _, k := range tblKeys {
-		t := db.Tables[k]
-		if t.Temporary {
-			continue
-		}
-		tm := &metadata.TableMetadata{
-			Name:   t.Name,
-			Engine: t.Engine,
-		}
-		if t.SystemVersioned {
-			tm.CreateOptions = "WITH SYSTEM VERSIONING"
-		}
-		if t.Partitioning != nil {
-			for _, p := range t.Partitioning.Partitions {
-				tm.Partitions = append(tm.Partitions, &metadata.TablePartitionMetadata{
-					Name:       p.Name,
-					Expression: t.Partitioning.Expr,
-				})
-			}
-			if len(tm.Partitions) == 0 {
-				n := max(t.Partitioning.NumParts, 1)
-				for i := range n {
-					tm.Partitions = append(tm.Partitions, &metadata.TablePartitionMetadata{
-						Name:       fmt.Sprintf("p%d", i),
-						Expression: t.Partitioning.Expr,
-					})
-				}
-			}
-		}
-		for _, col := range t.VisibleColumns() {
-			tm.Columns = append(tm.Columns, &metadata.ColumnMetadata{Name: col.Name})
-		}
-		for _, idx := range t.Indexes {
-			name := idx.Name
-			if idx.Primary {
-				name = "PRIMARY"
-			}
-			var exprs []string
-			var keyLengths []int64
-			for _, ic := range idx.Columns {
-				if ic == nil {
-					continue
-				}
-				if ic.Expr != "" {
-					exprs = append(exprs, ic.Expr)
-				} else {
-					exprs = append(exprs, ic.Name)
-				}
-				if ic.Length > 0 {
-					keyLengths = append(keyLengths, int64(ic.Length))
-				} else {
-					keyLengths = append(keyLengths, -1)
-				}
-			}
-			tm.Indexes = append(tm.Indexes, &metadata.IndexMetadata{
-				Name:        name,
-				Expressions: exprs,
-				KeyLength:   keyLengths,
-				Type:        idx.IndexType,
-				Unique:      idx.Unique,
-				Primary:     idx.Primary,
-			})
-		}
-		for _, con := range t.Constraints {
-			if con.Type == mariadbcatalog.ConForeignKey {
-				tm.ForeignKeys = append(tm.ForeignKeys, &metadata.ForeignKeyMetadata{
-					Name:            con.Name,
-					Columns:         append([]string(nil), con.Columns...),
-					ReferencedTable: con.RefTable,
-				})
-			}
-		}
-		sm.Tables = append(sm.Tables, tm)
-		tblByLower[strings.ToLower(t.Name)] = tm
-	}
-	for _, tr := range db.Triggers {
-		if tm := tblByLower[strings.ToLower(tr.Table)]; tm != nil {
-			tm.Triggers = append(tm.Triggers, &metadata.TriggerMetadata{Name: tr.Name})
-		}
-	}
-	for _, v := range db.Views {
-		sm.Views = append(sm.Views, &metadata.ViewMetadata{Name: v.Name})
-	}
-	for _, q := range db.Sequences {
-		sm.Sequences = append(sm.Sequences, &metadata.SequenceMetadata{Name: q.Name})
-	}
-	for _, f := range db.Functions {
-		sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{Name: f.Name})
-	}
-	for _, p := range db.Procedures {
-		sm.Procedures = append(sm.Procedures, &metadata.ProcedureMetadata{Name: p.Name})
-	}
-	for _, ev := range db.Events {
-		sm.Events = append(sm.Events, &metadata.EventMetadata{Name: ev.Name})
-	}
-	out.Schemas = []*metadata.SchemaMetadata{sm}
-	return out
 }
 
 func mariadbCatalogInventory(c *mariadbcatalog.Catalog, dbName string) []walktest.Object {

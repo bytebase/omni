@@ -758,3 +758,127 @@ func TestWalkThroughMariaDBLowersEveryForm(t *testing.T) {
 		return len(stmts), len(stmts), false
 	})
 }
+
+func TestWalkThroughMariaDBTypesAndQueries(t *testing.T) {
+	schema := walkSchema()
+	typed := func(name, typ string) *metadata.ColumnMetadata {
+		return &metadata.ColumnMetadata{Name: name, Type: typ}
+	}
+	pk := &metadata.IndexMetadata{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}
+	fk := []*metadata.ForeignKeyMetadata{{Name: "fk_p", Columns: []string{"p"}, ReferencedTable: "r", ReferencedColumns: []string{"id"}}}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables,
+		&metadata.TableMetadata{
+			Name:    "ty",
+			Columns: []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("n", "int(11)"), typed("s", "varchar(10)"), typed("g", "point")},
+			Indexes: []*metadata.IndexMetadata{pk},
+		},
+		&metadata.TableMetadata{Name: "my", Engine: "MyISAM", Columns: []*metadata.ColumnMetadata{typed("n", "int(11)")}},
+		&metadata.TableMetadata{
+			Name:       "rp",
+			Columns:    []*metadata.ColumnMetadata{typed("id", "int(11)")},
+			Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "id"}},
+		},
+		&metadata.TableMetadata{
+			Name:       "hp",
+			Columns:    []*metadata.ColumnMetadata{typed("id", "int(11)")},
+			Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_HASH, Expression: "id"}, {Name: "p1", Type: metadata.TablePartitionMetadata_HASH, Expression: "id"}},
+		},
+		&metadata.TableMetadata{
+			Name:        "ch",
+			Columns:     []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("p", "int(11)")},
+			Indexes:     []*metadata.IndexMetadata{pk, {Name: "fk_p", Expressions: []string{"p"}}},
+			ForeignKeys: fk,
+		},
+		&metadata.TableMetadata{
+			Name:        "ch2",
+			Columns:     []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("p", "int(11)")},
+			Indexes:     []*metadata.IndexMetadata{pk, {Name: "fk_p", Expressions: []string{"p"}}, {Name: "k2", Expressions: []string{"p", "id"}}},
+			ForeignKeys: fk,
+		},
+	)
+	schema.Schemas[0].Sequences = append(schema.Schemas[0].Sequences, &metadata.SequenceMetadata{Name: "sq", Start: "1", MinValue: "1", MaxValue: "100", Increment: "1"})
+	shop := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+
+	// Key parts judged by their columns' types (1283, 1210, 1089).
+	oneFinding(t, "ALTER TABLE ty ADD FULLTEXT (n);", 0, "Column `n` cannot be part of a `FULLTEXT` index.", shop)
+	oneFinding(t, "CREATE SPATIAL INDEX k ON ty (n);", 0, "Column `n` cannot be part of a `SPATIAL` index.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD KEY USING RTREE (s);", 0, "Column `s` cannot be part of a `SPATIAL` index.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD VECTOR (n);", 0, "Column `n` cannot be part of a `VECTOR` index.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD KEY (n(3));", 0, "Column `n` cannot use an index prefix length.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD COLUMN m DATE;\nCREATE FULLTEXT INDEX k ON ty (m);", 1, "Column `m` cannot be part of a `FULLTEXT` index.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD COLUMN m DATE, ADD FULLTEXT (m);", 0, "Column `m` cannot be part of a `FULLTEXT` index.", shop)
+	oneFinding(t, "CREATE TABLE nt (a INT, FULLTEXT (a));", 0, "Column `a` cannot be part of a `FULLTEXT` index.", shop)
+	noFinding(t, "ALTER TABLE ty ADD FULLTEXT (s);\nCREATE SPATIAL INDEX k ON ty (g);\nALTER TABLE ty ADD KEY (s(3));", shop)
+	noFinding(t, "ALTER TABLE ty MODIFY n TEXT, ADD FULLTEXT (n);", shop)
+	noFinding(t, "ALTER TABLE ty MODIFY n TEXT;\nALTER TABLE ty ADD FULLTEXT (n);", shop)
+	noFinding(t, "ALTER TABLE ty CHANGE n n TEXT;\nCREATE FULLTEXT INDEX k ON ty (n);", shop)
+	noFinding(t, "ALTER TABLE ty RENAME COLUMN s TO n2;\nALTER TABLE ty ADD SPATIAL (n2);", shop)
+	noFinding(t, "ALTER TABLE ty ADD COLUMN IF NOT EXISTS n TEXT, ADD FULLTEXT (n);", shop)
+	noFinding(t, "ALTER TABLE my ADD FULLTEXT (n);", shop)
+	noFinding(t, "CREATE TABLE nt (a INT, FULLTEXT (a)) ENGINE=Mroonga;", shop)
+
+	// AUTO_INCREMENT needs a key (1075).
+	oneFinding(t, "ALTER TABLE ty ADD COLUMN x INT AUTO_INCREMENT;", 0, "Column `x` is `AUTO_INCREMENT` and must be defined as a key.", shop)
+	oneFinding(t, "CREATE TABLE ai (a INT AUTO_INCREMENT, b INT, KEY (b));", 0, "Column `a` is `AUTO_INCREMENT` and must be defined as a key.", shop)
+	noFinding(t, "ALTER TABLE ty ADD COLUMN x INT AUTO_INCREMENT, ADD KEY (x);", shop)
+	noFinding(t, "ALTER TABLE ty ADD COLUMN x INT AUTO_INCREMENT UNIQUE;", shop)
+	noFinding(t, "CREATE TABLE ai (a INT AUTO_INCREMENT PRIMARY KEY);\nCREATE TABLE ai2 (a INT AUTO_INCREMENT, KEY (a));", shop)
+
+	// SEQUENCE=1 on a table of other columns (4086).
+	oneFinding(t, "ALTER TABLE ty SEQUENCE=1;", 0, "Table `ty` has column `g`, which a sequence has not.", shop)
+	noFinding(t, "ALTER TABLE ty SEQUENCE=0;", shop)
+	noFinding(t, "ALTER TABLE ty DROP COLUMN g;\nALTER TABLE ty DROP COLUMN s;\nALTER TABLE ty DROP COLUMN n;\nALTER TABLE ty DROP COLUMN id, ADD next_not_cached_value BIGINT;\nALTER TABLE ty SEQUENCE=1;", shop)
+
+	// ALTER SEQUENCE values against the synced ones (4085).
+	oneFinding(t, "ALTER SEQUENCE sq MAXVALUE 1;", 0, "Sequence `sq` has invalid values.", shop)
+	oneFinding(t, "ALTER SEQUENCE sq START -1;", 0, "Sequence `sq` has invalid values.", shop)
+	oneFinding(t, "ALTER SEQUENCE sq MAXVALUE 50;\nALTER SEQUENCE sq START 60;", 1, "Sequence `sq` has invalid values.", shop)
+	noFinding(t, "ALTER SEQUENCE sq MAXVALUE 50 START 40;\nALTER SEQUENCE sq NO MAXVALUE;\nALTER SEQUENCE s MAXVALUE 1;", shop)
+	noFinding(t, "DROP SEQUENCE sq;\nCREATE SEQUENCE sq MINVALUE -10 START -5;\nALTER SEQUENCE sq START -1;", shop)
+
+	// Partition maintenance of a RANGE table (1479, 1492, 1509, 1511).
+	oneFinding(t, "ALTER TABLE rp COALESCE PARTITION 1;", 0, "Table `rp` is partitioned by `RANGE` or `LIST`, which `COALESCE PARTITION` does not take.", shop)
+	oneFinding(t, "ALTER TABLE rp ADD PARTITION (PARTITION p9);", 0, "Partition `p9` of `rp` requires a `VALUES` clause.", shop)
+	oneFinding(t, "ALTER TABLE rp ADD PARTITION PARTITIONS 2;", 0, "Table `rp` is partitioned by `RANGE` or `LIST`, and each partition it adds must be defined.", shop)
+	oneFinding(t, "ALTER TABLE rp REORGANIZE PARTITION;", 0, "Table `rp` is partitioned by `RANGE` or `LIST`, which `REORGANIZE PARTITION` without partitions does not take.", shop)
+	noFinding(t, "ALTER TABLE rp ADD PARTITION (PARTITION p9 VALUES LESS THAN (1000));", shop)
+	noFinding(t, "ALTER TABLE rp PARTITION BY HASH (id) PARTITIONS 4;\nALTER TABLE rp COALESCE PARTITION 1;", shop)
+	noFinding(t, "ALTER TABLE hp COALESCE PARTITION 1;", shop)
+
+	// A foreign key's only index, or its column (1553).
+	oneFinding(t, "ALTER TABLE ch DROP INDEX fk_p;", 0, "Index `fk_p` is needed by a foreign key constraint.", shop)
+	oneFinding(t, "DROP INDEX fk_p ON ch;", 0, "Index `fk_p` is needed by a foreign key constraint.", shop)
+	oneFinding(t, "ALTER TABLE ch DROP COLUMN p;", 0, "Column `p` is needed by a foreign key constraint.", shop)
+	noFinding(t, "ALTER TABLE ch DROP FOREIGN KEY fk_p, DROP INDEX fk_p;", shop)
+	noFinding(t, "ALTER TABLE ch2 DROP INDEX fk_p;", shop)
+	noFinding(t, "ALTER TABLE ch ADD KEY k2 (p, id);\nALTER TABLE ch DROP INDEX fk_p;", shop)
+	noFinding(t, "SET foreign_key_checks = 0;\nALTER TABLE ch DROP INDEX fk_p;", shop)
+	noFinding(t, "ALTER TABLE ch DROP INDEX fk_p;", review.Target{Schema: schema})
+
+	// A view's query (1054, 1060, 1096, 1146, 1210, 1241, 4009, 4017, 4089).
+	oneFinding(t, "CREATE VIEW vw AS SELECT ROW_NUMBER() OVER w FROM t;", 0, "Window `w` is not defined.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT RANK() OVER (ROWS UNBOUNDED PRECEDING) FROM t;", 0, "Window function `RANK` takes no frame.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT NEXTVAL(t) FROM t;", 0, "`t` is a table, not a sequence.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT NEXT VALUE FOR nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT a FROM t WHERE a LIKE 'x' ESCAPE a;", 0, "The `ESCAPE` of `LIKE` must be a constant.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT MATCH (a) AGAINST (a) FROM t;", 0, "The `AGAINST` of `MATCH` must be a constant.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT nosuch FROM t;", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT a FROM t WHERE nosuch > 0;", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT a, a FROM t;", 0, "This statement names column `a` twice.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT a FROM nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT *;", 0, "This query reads no table for `*`.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT t.*;", 0, "Table `t` is not in this query.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT a FROM DUAL;", 0, "Column `a` doesn't exist.", shop)
+	oneFinding(t, "CREATE VIEW vw AS SELECT ROW(1, 2);", 0, "A view's column cannot be a row.", shop)
+	oneFinding(t, "ALTER VIEW v AS SELECT nosuch FROM t;", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT ROW_NUMBER() OVER w, SUM(id) OVER (ROWS UNBOUNDED PRECEDING) FROM t WINDOW w AS (ORDER BY id);", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT NEXTVAL(s), LASTVAL(s), NEXT VALUE FOR s;", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT a FROM t WHERE a LIKE 'x' ESCAPE '|';", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT x.a, a AS z, (SELECT nosuch FROM v) AS q FROM t AS x WHERE x.id > 0 ORDER BY z;", shop)
+	noFinding(t, "CREATE VIEW vw (c1, c2) AS SELECT a, a FROM t;", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT a, a + 1, a + 1 FROM t;", shop)
+	noFinding(t, "CREATE VIEW vw AS WITH c AS (SELECT 1 AS x) SELECT x FROM c;", shop)
+	noFinding(t, "CREATE VIEW vw AS SELECT nosuch FROM v;", shop)
+	noFinding(t, "CREATE TABLE nt (q INT);\nCREATE VIEW vw AS SELECT q FROM nt;", shop)
+	noFinding(t, "ALTER TABLE t ADD COLUMN q INT;\nCREATE VIEW vw AS SELECT q FROM t;", shop)
+}

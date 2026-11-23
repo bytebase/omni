@@ -92,9 +92,22 @@ type mariadbSnapshot struct {
 	relations map[string]string
 	// versioned lists the relation keys of the system-versioned tables.
 	versioned map[string]bool
-	// partitioned lists the relation keys of the partitioned tables.
+	// partitioned lists the relation keys of the partitioned tables, and
+	// rangeOrList those partitioned by RANGE or LIST.
 	partitioned map[string]bool
+	rangeOrList map[string]bool
 	columns     map[string]map[string]bool
+	// colTypes holds each listed column's base type (baseType), the kind
+	// Lookup gives its key.
+	colTypes map[string]map[string]string
+	// columnNames lists the keys of each listed table's columns.
+	columnNames map[string][]string
+	// sequences holds the values the sync lists of each sequence it
+	// read them for.
+	sequences map[string]sequenceValues
+	// fkTables holds the foreign keys and indexes of the InnoDB tables
+	// with a foreign key (syncedFKTable).
+	fkTables    map[string]*fkTable
 	indexes     map[string]map[string]bool
 	foreignKeys map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
@@ -125,7 +138,12 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 		relations:        make(map[string]string),
 		versioned:        make(map[string]bool),
 		partitioned:      make(map[string]bool),
+		rangeOrList:      make(map[string]bool),
 		columns:          make(map[string]map[string]bool),
+		colTypes:         make(map[string]map[string]string),
+		columnNames:      make(map[string][]string),
+		sequences:        make(map[string]sequenceValues),
+		fkTables:         make(map[string]*fkTable),
 		indexes:          make(map[string]map[string]bool),
 		foreignKeys:      make(map[string]bool),
 		triggers:         make(map[string]string),
@@ -164,17 +182,31 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			if strings.Contains(strings.ToUpper(t.GetCreateOptions()), "WITH SYSTEM VERSIONING") {
 				s.versioned[tk] = true
 			}
-			if len(t.GetPartitions()) > 0 {
+			if parts := t.GetPartitions(); len(parts) > 0 {
 				s.partitioned[tk] = true
+				switch parts[0].GetType() {
+				case metadata.TablePartitionMetadata_RANGE, metadata.TablePartitionMetadata_RANGE_COLUMNS,
+					metadata.TablePartitionMetadata_LIST, metadata.TablePartitionMetadata_LIST_COLUMNS:
+					s.rangeOrList[tk] = true
+				}
 			}
 			if !keepsFKs(t.GetEngine()) {
 				s.ignoresFKs[tk] = true
 			}
+			if ft, ok := syncedFKTable(t, foldTables); ok {
+				s.fkTables[tk] = ft
+			}
 			cols := make(map[string]bool)
+			types := make(map[string]string)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, tk, c.GetName())
+				if k, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
+					types[k] = baseType(c.GetType())
+					s.columnNames[tk] = append(s.columnNames[tk], k)
+				}
 			}
 			s.columns[tk] = cols
+			s.colTypes[tk] = types
 			idx := make(map[string]bool)
 			for _, i := range t.GetIndexes() {
 				if i.GetPrimary() {
@@ -226,6 +258,9 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			if k, ok := nameKey(spaceRelation, q.GetName(), foldTables); ok {
 				s.relations[k] = relSequence
 				mark(spaceRelation, "", k)
+				if values, ok := syncedSequenceValues(q); ok {
+					s.sequences[k] = values
+				}
 			}
 		}
 		for _, f := range schema.GetFunctions() {
@@ -293,6 +328,9 @@ func (s *mariadbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		}[k.Space][path[1]]
 		if !ok {
 			return walk.Unknown, ""
+		}
+		if k.Space == spaceColumn && m[k.Name] {
+			return walk.Present, s.colTypes[path[1]][k.Name]
 		}
 		return in(m)
 	case spaceForeignKey:
