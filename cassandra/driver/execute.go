@@ -25,11 +25,14 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return 0, err
 	}
 	for _, segment := range cassandra.Split(script) {
+		// An empty segment, only whitespace and comments, is no statement:
+		// sending a trailing "-- done" would fail a script whose earlier
+		// statements already ran.
 		if segment.Empty {
 			continue
 		}
 		statement := trimStatement(segment.Text)
-		if statement == "" || holdsNoStatement(statement) {
+		if statement == "" {
 			continue
 		}
 		logCommandExecute(opts.Log, driver.Command{
