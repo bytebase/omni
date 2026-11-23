@@ -13,15 +13,27 @@ import (
 	"github.com/bytebase/omni/driver"
 )
 
-// accessDenied is ClickHouse's ACCESS_DENIED: the login lacks a grant the
-// statement needs, such as SHOW ACCESS for an access entity or SELECT on the
-// system table that lists one.
-var accessDenied int32 = 497
+// The ClickHouse error codes the access reads answer by falling back.
+const (
+	// unknownIdentifier is UNKNOWN_IDENTIFIER, which a release answers for a
+	// system table column it does not have yet.
+	unknownIdentifier int32 = 47
+	// unknownSetting is UNKNOWN_SETTING, which a release answers for a
+	// setting it does not have yet.
+	unknownSetting int32 = 115
+	// accessDenied is ACCESS_DENIED: the login lacks a grant the statement
+	// needs, such as SHOW ACCESS for an access entity or SELECT on the system
+	// table that lists one.
+	accessDenied int32 = 497
+)
 
-func isAccessDenied(err error) bool {
+// isEngineError reports whether err is the server's exception with code.
+func isEngineError(err error, code int32) bool {
 	var engineError *clickhouse.Exception
-	return errors.As(err, &engineError) && engineError.Code == accessDenied
+	return errors.As(err, &engineError) && engineError.Code == code
 }
+
+func isAccessDenied(err error) bool { return isEngineError(err, accessDenied) }
 
 // getInstanceRoles reads the server's users and roles in name order. Each
 // carries, as its Attribute, the access statements the server states for it,
@@ -54,15 +66,26 @@ func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
 // instanceUsers reads every user and its VALID UNTIL. A user with several
 // authentication methods holds one per method, and the server zeroes a method
 // that does not expire: the user expires when the last method does, and never
-// when one of them does not.
+// when one of them does not. A release before VALID UNTIL (24.8 and earlier)
+// has no valid_until column and answers UNKNOWN_IDENTIFIER, and its users are
+// read without one.
 func (d *Driver) instanceUsers(ctx context.Context) ([]*driver.Role, error) {
-	const query = `
+	query := `
 		SELECT
 			name,
 			if(empty(valid_until) OR arrayExists(t -> toUnixTimestamp(t) = 0, valid_until), '', toString(arrayMax(valid_until)))
 		FROM system.users
 		ORDER BY name`
 	rows, err := d.db.QueryContext(ctx, query)
+	if isEngineError(err, unknownIdentifier) {
+		query = `
+		SELECT
+			name,
+			''
+		FROM system.users
+		ORDER BY name`
+		rows, err = d.db.QueryContext(ctx, query)
+	}
 	if err != nil {
 		return nil, formatErrorWithQuery(err, query)
 	}
@@ -115,6 +138,8 @@ func (d *Driver) describeAccess(ctx context.Context, users []*driver.Role) ([]*d
 		// A user's authentication is a secret the server states in full when
 		// the session asks for it, and an attribute is stored by the caller:
 		// this statement asks it not to, whatever the connection's settings.
+		// A release without the setting (23.3 and earlier) answers
+		// UNKNOWN_SETTING, and states no secret either.
 		entities = append(entities, entity{role: user, show: "SHOW CREATE USER ", settings: " SETTINGS format_display_secrets_in_show_and_select = 0"})
 	}
 	for _, name := range roleNames {
@@ -135,6 +160,9 @@ func (d *Driver) describeAccess(ctx context.Context, users []*driver.Role) ([]*d
 	for _, e := range entities {
 		name := dumpIdentifier(e.role.Name)
 		lines, err := d.accessColumn(ctx, e.show+name+e.settings)
+		if e.settings != "" && isEngineError(err, unknownSetting) {
+			lines, err = d.accessColumn(ctx, e.show+name)
+		}
 		if err != nil {
 			return nil, err
 		}
