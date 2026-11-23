@@ -101,6 +101,9 @@ func (c *plChecker) trigger(n *ast.CreateTriggerStmt) {
 		cols = columnSet(t.Columns)
 	}
 	c.read(n.Table.Name)
+	for _, col := range n.UpdateColumns {
+		c.read(table + "." + col)
+	}
 	if n.Compound || cols == nil {
 		return
 	}

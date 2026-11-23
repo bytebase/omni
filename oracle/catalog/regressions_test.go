@@ -3467,3 +3467,47 @@ func TestSubtypesIteratorsAndPackageBodies(t *testing.T) {
 		}
 	}
 }
+
+// TestDefaultsRowSetsAndDependencies holds four more readings: DEFAULT in
+// VALUES and SET, a row-valued SET, a trigger's UPDATE OF column, and a
+// type created after a metadata load.
+func TestDefaultsRowSetsAndDependencies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (a NUMBER, b NUMBER);\n" +
+		"CREATE PROCEDURE defaults IS BEGIN UPDATE t SET a = DEFAULT; INSERT INTO t (a) VALUES (DEFAULT); END;\n/\n" +
+		"CREATE PROCEDURE row_set IS BEGIN UPDATE t SET (a, b) = (SELECT 1, 2 FROM dual); END;\n/\n" +
+		"CREATE PROCEDURE row_set_wide IS BEGIN UPDATE t SET (a, b) = (SELECT 1, 2, 3 FROM dual); END;\n/\n" +
+		"CREATE TRIGGER trg AFTER UPDATE OF b ON t FOR EACH ROW BEGIN NULL; END;\n/\n" +
+		"ALTER TABLE t DROP COLUMN b;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "DEFAULTS", "VALID"},
+		{unitProcedure, "ROW_SET", "INVALID"},
+		{unitProcedure, "ROW_SET_WIDE", "INVALID ORA-00913"},
+		{unitTrigger, "TRG", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	for _, stmt := range []string{"CREATE TYPE ty AS OBJECT (a NUMBER)", "CREATE PROCEDURE p IS v ty; BEGIN NULL; END;", "DROP TYPE ty FORCE"} {
+		if _, err := m.Exec(stmt, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := status(m, unitProcedure, "P"); got != "INVALID" {
+		t.Errorf("reader of a dropped type after a metadata load: %s, want INVALID", got)
+	}
+}

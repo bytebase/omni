@@ -393,15 +393,15 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 		c.read(c.e.resolveSynonymTarget(parts[0], "") + "." + parts[1])
 	case len(parts) == 1:
 		name := parts[0]
-		if plsqlTypes[name] || c.lookup(name) != nil || c.e.units.typesUnknown {
-			return
-		}
-		if c.e.hasType(name) {
-			c.read(name)
+		if plsqlTypes[name] || c.lookup(name) != nil {
 			return
 		}
 		if target := c.e.resolveSynonymTarget(name, ""); c.e.hasType(target) {
 			c.readVia(name, target)
+			return
+		}
+		if c.e.units.typesUnknown {
+			// A schema loaded from metadata may hold the type.
 			return
 		}
 		c.fail("PLS-00201", "identifier '%s' must be declared", name)

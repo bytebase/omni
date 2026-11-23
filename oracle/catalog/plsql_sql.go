@@ -310,6 +310,9 @@ func (c *plChecker) insert(a *queryAnalyzer, s *ast.InsertStmt) error {
 				continue
 			}
 			given++
+			if c.isDefault(x) {
+				continue
+			}
 			if _, _, err := a.expr(x, sc, clauseSelect); err != nil {
 				return err
 			}
@@ -378,13 +381,51 @@ func (c *plChecker) setClauses(a *queryAnalyzer, list *ast.List, sc *qscope) err
 		if set.Column != nil && !cols[set.Column.Column] {
 			return oraError("00904", "%q: invalid identifier", set.Column.Column)
 		}
-		if set.Value != nil {
+		targets := 0
+		for _, item := range listItems(set.Columns) {
+			if ref, ok := item.(*ast.ColumnRef); ok {
+				targets++
+				if !cols[ref.Column] {
+					return oraError("00904", "%q: invalid identifier", ref.Column)
+				}
+			}
+		}
+		switch {
+		case set.Value == nil, c.isDefault(set.Value):
+		case targets > 0:
+			// SET (a, b) = (SELECT ...): the query gives a row.
+			sq, ok := set.Value.(*ast.SubqueryExpr)
+			if !ok {
+				continue
+			}
+			sel, ok := sq.Subquery.(*ast.SelectStmt)
+			if !ok {
+				continue
+			}
+			res, err := a.query(sel, sc, nil, false)
+			if err != nil {
+				return err
+			}
+			if len(res.cols) > targets {
+				return oraError("00913", "too many values")
+			}
+			if len(res.cols) < targets {
+				return oraError("00947", "not enough values")
+			}
+		default:
 			if _, _, err := a.expr(set.Value, sc, clauseSelect); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// isDefault reports DML's DEFAULT keyword, which the parser keeps as a
+// name: VALUES (DEFAULT), SET a = DEFAULT. A quoted "DEFAULT" is a name.
+func (c *plChecker) isDefault(x ast.ExprNode) bool {
+	ref, ok := x.(*ast.ColumnRef)
+	return ok && ref.Table == "" && ref.Column == "DEFAULT" && !strings.Contains(c.e.nodeText(ref), `"`)
 }
 
 func (c *plChecker) update(a *queryAnalyzer, s *ast.UpdateStmt) error {
