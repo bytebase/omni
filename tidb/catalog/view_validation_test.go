@@ -240,7 +240,7 @@ func TestViewValidation(t *testing.T) {
 		assertCode(t, c, "CREATE VIEW v AS SELECT unknown_fn(a) FROM t", ErrNoSuchFunction)
 		assertCode(t, c, "CREATE VIEW v AS SELECT POINT() FROM t", ErrNoSuchFunction)
 		assertCode(t, c, "CREATE VIEW v AS SELECT APPROX_PERCENTILE(a) FROM t", ErrUnknownError)
-		assertOK(t, c, "CREATE VIEW v_ok AS SELECT APPROX_PERCENTILE(a, 50), ABS(a), TIDB_VERSION(), TIDB_ENCODE_SQL_DIGEST('select 1'), TIDB_DECODE_BASE64_KEY(''), TIDB_DECODE_BINARY_PLAN('') FROM t")
+		assertOK(t, c, "CREATE VIEW v_ok AS SELECT APPROX_PERCENTILE(a, 50), ABS(a), TIDB_VERSION(), TIDB_ENCODE_SQL_DIGEST('select 1'), TIDB_DECODE_BASE64_KEY(''), TIDB_DECODE_BINARY_PLAN(''), TIDB_ENCODE_RECORD_KEY('db', 't', 1), TIDB_ENCODE_INDEX_KEY('db', 't', 'idx', 1) FROM t")
 	})
 
 	t.Run("temporal_literals_1292", func(t *testing.T) {
