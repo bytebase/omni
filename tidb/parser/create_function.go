@@ -96,13 +96,13 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 		IsProcedure: isProcedure,
 	}
 
-	// Optional IF NOT EXISTS (MySQL 8.0.29+, applies to both FUNCTION and PROCEDURE)
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// Optional IF NOT EXISTS. parser.y CreateProcedureStmt: "CREATE" "PROCEDURE"
+	// IfNotExists TableName ...
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function/procedure name
 	ref, err := p.parseTableRef()

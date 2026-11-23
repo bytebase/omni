@@ -309,6 +309,35 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	}
 }
 
+// parseIfExists reads sql_parser_mysql_mode.y's opt_if_exists: nothing, or
+// IF EXISTS. IF alone is a syntax error.
+func (p *Parser) parseIfExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance()
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// parseOptIfNotExists reads sql_parser_mysql_mode.y's opt_if_not_exists:
+// nothing, or IF NOT EXISTS. IF without NOT EXISTS is a syntax error.
+func (p *Parser) parseOptIfNotExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance()
+	if _, err := p.expect(kwNOT); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // pos returns the byte position of the current token.
 func (p *Parser) pos() int {
 	return p.cur.Loc

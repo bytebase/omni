@@ -14,7 +14,7 @@ After them come 20 hand-written `check:drop` rows
 (`../simulate_families_test.go`) on `features@check`, which turns
 `tidb_enable_check_constraint` on: dropping and renaming columns that a column
 CHECK, a one-column and a two-column table CHECK, and a CHECK reading no column
-read. 3,037 rows: 3,037 agree and 0 disagree.
+read. 3,170 rows: 3,170 agree and 0 disagree.
 
 ## Commands
 

@@ -12,11 +12,16 @@
 1146	1146	engine	one_table@missing	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 1146	1146	engine	one_table@missing	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+4028	4028	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@missing	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	one_table@missing	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@missing	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -391,6 +396,8 @@ ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	standalone_alter_comman
 1146	1146	engine	one_table@missing	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 1146	1146	engine	one_table@missing	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 1146	1146	engine	one_table@missing	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 1146	1146	engine	one_table@missing	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 4028	4028	engine	one_table@missing	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1054	1054	engine	one_table@missing	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -423,11 +430,16 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	simple_statement/drop_tab
 1050	1050	engine	one_table@table	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@table	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	one_table@table	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@table	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	one_table@table	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	one_table@table	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	one_table@table	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -802,6 +814,8 @@ ok:faf208818ddf	ok:faf208818ddf	engine	one_table@table	ulonglong_num/ULONGLONG_N
 ok:faf208818ddf	ok:faf208818ddf	engine	one_table@table	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 ok:990131d37b3b	ok:990131d37b3b	engine	one_table@table	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 ok:990131d37b3b	ok:990131d37b3b	engine	one_table@table	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	one_table@table	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	one_table@table	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -834,11 +848,16 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	simple_statement/drop_ta
 1050	1050	engine	one_table@column	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@column	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	one_table@column	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@column	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	one_table@column	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	one_table@column	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	one_table@column	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -1213,6 +1232,8 @@ ok:22514c11b0fd	ok:22514c11b0fd	engine	one_table@column	ulonglong_num/ULONGLONG_
 ok:22514c11b0fd	ok:22514c11b0fd	engine	one_table@column	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 ok:13d531546499	ok:13d531546499	engine	one_table@column	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 ok:13d531546499	ok:13d531546499	engine	one_table@column	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	one_table@column	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	one_table@column	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -1245,11 +1266,16 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	simple_statement/drop_tab
 1050	1050	engine	one_table@index	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@index	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	one_table@index	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@index	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	one_table@index	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	one_table@index	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	one_table@index	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -1624,6 +1650,8 @@ ok:383322ff3051	ok:383322ff3051	engine	one_table@index	ulonglong_num/ULONGLONG_N
 ok:383322ff3051	ok:383322ff3051	engine	one_table@index	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 ok:c3626c92b6e7	ok:c3626c92b6e7	engine	one_table@index	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 ok:c3626c92b6e7	ok:c3626c92b6e7	engine	one_table@index	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	one_table@index	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	one_table@index	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -1656,11 +1684,16 @@ ok:121ba474cb9b	ok:121ba474cb9b	engine	objects@view	simple_statement/drop_view_s
 1050	1050	engine	objects@view	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 1146	1146	engine	objects@view	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:07a6367dc197	ok:07a6367dc197	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:07a6367dc197	ok:07a6367dc197	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	objects@view	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	objects@view	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@view	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	objects@view	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	objects@view	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	objects@view	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	objects@view	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	objects@view	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -2035,6 +2068,8 @@ ok:07a6367dc197	ok:07a6367dc197	engine	objects@view	standalone_alter_commands/RE
 1347	1347	engine	objects@view	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 1347	1347	engine	objects@view	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 1347	1347	engine	objects@view	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:07a6367dc197	ok:07a6367dc197	engine	objects@view	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:121ba474cb9b	ok:121ba474cb9b	engine	objects@view	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 1146	1146	engine	objects@view	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	objects@view	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	objects@view	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -2067,11 +2102,16 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	simple_statement/drop
 1050	1050	engine	objects@partitioned	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	objects@partitioned	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	objects@partitioned	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@partitioned	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	objects@partitioned	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	objects@partitioned	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	objects@partitioned	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	objects@partitioned	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	objects@partitioned	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -2446,6 +2486,8 @@ ok:d318956a43bb	ok:d318956a43bb	engine	objects@partitioned	ulonglong_num/ULONGLO
 ok:d318956a43bb	ok:d318956a43bb	engine	objects@partitioned	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 ok:74d2bda3ef0a	ok:74d2bda3ef0a	engine	objects@partitioned	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 ok:74d2bda3ef0a	ok:74d2bda3ef0a	engine	objects@partitioned	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	objects@partitioned	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	objects@partitioned	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
@@ -2478,11 +2520,16 @@ ok:4e3d4b0577fc	ok:4e3d4b0577fc	engine	objects@fk	simple_statement/drop_table_st
 1050	1050	engine	objects@fk	simple_statement/rename	RENAME TABLE utf8mb4 TO utf8mb4;
 ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	simple_statement/truncate_stmt	TRUNCATE utf8mb4;
 1050	1050	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc	CREATE TABLE utf8mb4(utf8mb4 INT);
+ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_table_element_list_)_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_opt_create_table_options_etc+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4;
 1066	1066	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident	CREATE TABLE utf8mb4 LIKE utf8mb4;
+1066	1066	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_LIKE_table_ident+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
 1066	1066	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
+1066	1066	engine	objects@fk	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)+opt_if_not_exists	CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 1054	1054	engine	objects@fk	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@fk	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 3708	3708	engine	objects@fk	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	objects@fk	create_srs_stmt/CREATE_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_opt_if_not_exists_real_ulonglong_num_srs_attributes+opt_if_not_exists	CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 3708	3708	engine	objects@fk	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
 3708	3708	engine	objects@fk	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 3708	3708	engine	objects@fk	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
@@ -2857,6 +2904,8 @@ ok:f1807d167fc4	ok:f1807d167fc4	engine	objects@fk	ulonglong_num/ULONGLONG_NUM	AL
 ok:f1807d167fc4	ok:f1807d167fc4	engine	objects@fk	ulonglong_num/LONG_NUM	ALTER TABLE utf8mb4 MAX_ROWS 4294967296;
 ok:c23cff8cc152	ok:c23cff8cc152	engine	objects@fk	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 ok:c23cff8cc152	ok:c23cff8cc152	engine	objects@fk	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
+ok:4e3d4b0577fc	ok:4e3d4b0577fc	engine	objects@fk	drop_table_stmt/DROP_opt_temporary_table_or_tables_if_exists_table_list_opt_restrict+if_exists	DROP TABLE IF EXISTS utf8mb4;
+ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	drop_view_stmt/DROP_VIEW_SYM_if_exists_table_list_opt_restrict+if_exists	DROP VIEW IF EXISTS utf8mb4;
 ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 1050	1050	engine	objects@fk	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 1050	1050	engine	objects@fk	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;

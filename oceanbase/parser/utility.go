@@ -1337,11 +1337,13 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 	}
 
 	// Optional IF NOT EXISTS (only when not OR REPLACE)
-	if !orReplace && p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// IF must be followed by NOT EXISTS: no grammar of OceanBase's reads IF alone here.
+	if !orReplace {
+		ifNotExists, err := p.parseOptIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = ifNotExists
 	}
 
 	// SRID (integer)
@@ -1446,11 +1448,12 @@ func (p *Parser) parseDropSpatialRefSysStmt(start int) (*nodes.DropSpatialRefSys
 	stmt := &nodes.DropSpatialRefSysStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// IF must be followed by EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// SRID (integer)
 	if p.cur.Type != tokICONST {

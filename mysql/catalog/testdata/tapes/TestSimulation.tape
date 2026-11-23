@@ -131,6 +131,62 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `utf8mb4` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< error
+| 4028 HY000 A table must have at least one visible column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -138,7 +194,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -160,6 +230,13 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -2884,6 +2961,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < error
 | 1146 42S02 Table 'omni_t_simulation.utf8mb4' doesn't exist
@@ -3162,6 +3303,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -3169,7 +3374,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -3191,6 +3410,13 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -10426,6 +10652,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < ok 0 0
 > query
@@ -10859,6 +11128,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -10866,7 +11199,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -10888,6 +11235,13 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -15925,6 +16279,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < ok 0 0
 > query
@@ -16252,6 +16649,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `utf8mb4` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `utf8mb4` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -16259,7 +16720,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -16281,6 +16756,13 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -21408,6 +21890,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `utf8mb4` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY utf8mb4 (d))
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < ok 0 0
 > query
@@ -21695,6 +22220,114 @@
 | CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `utf8mb4`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `utf8mb4` AS select `t`.`b` AS `b`,`t`.`utf8mb4` AS `utf8mb4`,`t`.`d` AS `d` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `utf8mb4`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `utf8mb4` AS select `t`.`b` AS `b`,`t`.`utf8mb4` AS `utf8mb4`,`t`.`d` AS `d` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -21703,7 +22336,23 @@
 | CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -21728,6 +22377,14 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -24911,6 +25568,93 @@
 | CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `utf8mb4`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `utf8mb4` AS select `t`.`b` AS `b`,`t`.`utf8mb4` AS `utf8mb4`,`t`.`d` AS `d` from `t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d));
+| CREATE VIEW utf8mb4 AS SELECT b, utf8mb4, d FROM t
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < error
 | 1146 42S02 Table 'omni_t_simulation.utf8mb4' doesn't exist
@@ -25243,6 +25987,76 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`utf8mb4`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`utf8mb4`)
+| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION utf8mb4 VALUES LESS THAN (200) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`utf8mb4`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`utf8mb4`)
+| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION utf8mb4 VALUES LESS THAN (200) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -25250,7 +26064,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -25272,6 +26100,13 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -30713,6 +31548,52 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`utf8mb4`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`utf8mb4`)
+| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION utf8mb4 VALUES LESS THAN (200) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT, utf8mb4 INT, d INT, PRIMARY KEY (b, utf8mb4), KEY idx_d (d)) PARTITION BY RANGE (utf8mb4) (PARTITION p0 VALUES LESS THAN (100), PARTITION utf8mb4 VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | TRUNCATE TABLE utf8mb4;
 < ok 0 0
 > query
@@ -31138,6 +32019,114 @@
 | CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(utf8mb4 INT);
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `utf8mb4` (`utf8mb4`),
+|   CONSTRAINT `utf8mb4` FOREIGN KEY (`utf8mb4`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `utf8mb4` (`utf8mb4`),
+|   CONSTRAINT `utf8mb4` FOREIGN KEY (`utf8mb4`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4 LIKE utf8mb4;
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
@@ -31146,7 +32135,23 @@
 | CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS utf8mb4 LIKE utf8mb4;
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE utf8mb4(LIKE utf8mb4);
+< error
+| 1066 42000 Not unique table/alias: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS utf8mb4(LIKE utf8mb4);
 < error
 | 1066 42000 Not unique table/alias: 'utf8mb4'
 > exec
@@ -31171,6 +32176,14 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+< error
+| 3708 SR006 Missing mandatory attribute NAME.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1;
 < error
 | 3708 SR006 Missing mandatory attribute NAME.
 > exec
@@ -38461,6 +39474,90 @@
 |   CONSTRAINT `utf8mb4` FOREIGN KEY (`utf8mb4`) REFERENCES `parent` (`b`),
 |   CONSTRAINT `chk_d` CHECK ((`d` > 0))
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS utf8mb4;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `utf8mb4` (`utf8mb4`),
+|   CONSTRAINT `utf8mb4` FOREIGN KEY (`utf8mb4`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))

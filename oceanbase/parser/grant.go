@@ -170,11 +170,10 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	p.advance() // consume REVOKE
 
 	// [IF EXISTS]
-	ifExists := false
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		ifExists = true
+	// sql_parser_mysql_mode.y revoke_stmt: REVOKE opt_if_exists ... (every alternative).
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
 
 	// Detect PROXY keyword token before parsing the privilege list so we can
@@ -1087,11 +1086,12 @@ func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_parser_mysql_mode.y drop_user_stmt: DROP USER opt_if_exists user_list.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// user [, user] ...
 	users, err := p.parseUserList()
@@ -1117,11 +1117,12 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// IF must be followed by EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Check for ALTER USER USER() ... (user_func_auth_option or registration_option)
 	if p.cur.Type == kwUSER && p.peekNext().Type == '(' {
@@ -1581,12 +1582,12 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_parser_mysql_mode.y create_role_stmt: create_with_opt_hint ROLE opt_if_not_exists role_list.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// role [, role] ... An unquoted role_ident refuses a word that is a name elsewhere, so
 	// `CREATE ROLE event` is a 1064. CURRENT_USER is a user and not a role, so it is one too.
@@ -1620,11 +1621,12 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_parser_mysql_mode.y drop_role_stmt: DROP ROLE opt_if_exists user_list.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// role [, role] ... oceanbase-ce:4.3.5 reads DROP ROLE current_user (unlike
 	// CREATE/SET ROLE), so this list keeps parseUserList and accepts CURRENT_USER.

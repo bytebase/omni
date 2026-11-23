@@ -231,11 +231,10 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	p.advance() // consume REVOKE
 
 	// [IF EXISTS]
-	ifExists := false
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		ifExists = true
+	// sql_yacc.yy revoke: REVOKE if_exists role_or_privilege_list ... (every alternative).
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
 
 	// Detect PROXY keyword token before parsing the privilege list so we can
@@ -1088,12 +1087,12 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy create: CREATE USER opt_if_not_exists create_user_list ...
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// user_spec [, user_spec] ...
 	for {
@@ -1167,11 +1166,12 @@ func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_user_stmt: DROP USER if_exists user_list.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// user [, user] ...
 	users, err := p.parseUserList()
@@ -1689,12 +1689,12 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy create_role_stmt: CREATE ROLE_SYM opt_if_not_exists role_list.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// role [, role] ... An unquoted role_ident refuses a word that is a name elsewhere, so
 	// `CREATE ROLE event` is a 1064. CURRENT_USER is a user and not a role, so it is one too.
@@ -1728,11 +1728,12 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_role_stmt: DROP ROLE_SYM if_exists role_list.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// role [, role] ...
 	roles, err := p.parseRoleRefList()

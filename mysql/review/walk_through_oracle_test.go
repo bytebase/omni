@@ -485,7 +485,7 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " must have at least one column.")
 	}, []string{"4028"}},
 	{func(m, _ string) bool {
-		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " cannot exchange a partition with itself.")
+		return strings.HasPrefix(m, "Table ") && (strings.HasSuffix(m, " cannot exchange a partition with itself.") || strings.HasSuffix(m, " cannot be created LIKE itself."))
 	}, []string{"1066"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not partitioned.")

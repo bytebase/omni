@@ -15,6 +15,10 @@ regenerates the rows from the grammar and fails if the file holds others.
   grammar once per machine and checks its SHA-256 (`../../testdata/sources.tsv`).
 - **Token forms** are in `../../testdata/tokens.tsv`, read off OceanBase's lexer
   and keyword table. A new release's tokens need rows there.
+- **`IF [NOT] EXISTS` is tried at every site.** `tokens.tsv` marks
+  `opt_if_not_exists` and `opt_if_exists` `(every site)`, so each alternative
+  naming one gets a row labelled `<alternative>+<rule>` with the clause written
+  out, and near-misses dropping each of its words.
 - **52 alternatives have no row,** because they need a token the lexer never
   produces: dead grammar, or `||` and `NOT` under a non-default `sql_mode`.
 

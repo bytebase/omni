@@ -283,6 +283,13 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		case refFailed:
 			return true
 		case refOK:
+			// A table created LIKE itself is 1066, before the target is
+			// looked up, so IF NOT EXISTS over an existing table does not
+			// skip it (verified, mysql/catalog's simulate.tsv).
+			if src.db == r.db && src.name == r.name {
+				b.fail(src.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" cannot be created LIKE itself.") // 1066
+				return true
+			}
 			f, temp, kind := b.resolve(src)
 			if !temp && f != walk.Unknown {
 				b.tableNeeds(src)

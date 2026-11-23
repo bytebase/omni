@@ -28,12 +28,12 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 	stmt := &nodes.CreateTriggerStmt{Loc: nodes.Loc{Start: start}}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy trigger_tail: TRIGGER_SYM opt_if_not_exists sp_name ...
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Trigger name
 	schema, name, err := p.parseSpName()
@@ -170,12 +170,12 @@ func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error)
 	stmt := &nodes.CreateEventStmt{Loc: nodes.Loc{Start: start}}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy event_tail: EVENT_SYM opt_if_not_exists sp_name ...
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Event name
 	schema, name, err := p.parseSpName()

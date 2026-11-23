@@ -182,22 +182,18 @@ func (p *Parser) parseWithGrantOptionOpt(stmt *nodes.GrantStmt) error {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/revoke.html
 //
-//	REVOKE [IF EXISTS] priv_type [(column_list)] [, priv_type [(column_list)]] ...
+//	REVOKE priv_type [(column_list)] [, priv_type [(column_list)]] ...
 //	    ON [object_type] priv_level FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
-//	REVOKE [IF EXISTS] ALL [PRIVILEGES], GRANT OPTION FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
-//	REVOKE [IF EXISTS] PROXY ON user_or_role FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
-//	REVOKE [IF EXISTS] role [, role] ... FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE ALL [PRIVILEGES], GRANT OPTION FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE PROXY ON user_or_role FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE role [, role] ... FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
 func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume REVOKE
 
-	// [IF EXISTS]
-	ifExists := false
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		ifExists = true
-	}
+	// TiDB has no REVOKE IF EXISTS: parser.y RevokeStmt and RevokeRoleStmt
+	// read "REVOKE" RoleOrPrivElemList, and IF is reserved, so IF here is a
+	// syntax error the privilege list reports.
 
 	// Parse the names (could be privileges or roles).
 	privs, allPriv, err := p.parsePrivilegeList()
@@ -222,7 +218,6 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			}
 			stmt := &nodes.RevokeStmt{
 				Loc:         nodes.Loc{Start: start},
-				IfExists:    ifExists,
 				AllPriv:     true,
 				GrantOption: true,
 				From:        users,
@@ -259,10 +254,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt := &nodes.RevokeRoleStmt{
-			Loc:      nodes.Loc{Start: start},
-			IfExists: ifExists,
-			Roles:    privNames(privs),
-			From:     users,
+			Loc:   nodes.Loc{Start: start},
+			Roles: privNames(privs),
+			From:  users,
 		}
 		// [IGNORE UNKNOWN USER]
 		if p.cur.Type == kwIGNORE {
@@ -284,7 +278,6 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
-	stmt.IfExists = ifExists
 	stmt.Privileges = privNames(privs)
 	stmt.AllPriv = allPriv
 

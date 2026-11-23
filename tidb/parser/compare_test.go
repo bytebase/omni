@@ -9935,16 +9935,9 @@ func TestBatch103_CreateProcedureIfNotExists(t *testing.T) {
 // TestBNFReviewSecurity tests BNF review batch 105 - security statements.
 func TestBNFReviewSecurity(t *testing.T) {
 	tests := []string{
-		// REVOKE IF EXISTS
-		"REVOKE IF EXISTS SELECT ON db1.* FROM 'user1'@'localhost'",
-		"REVOKE IF EXISTS ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost'",
-		"REVOKE IF EXISTS INSERT, UPDATE ON *.* FROM user1",
 		// REVOKE IGNORE UNKNOWN USER
 		"REVOKE SELECT ON db1.* FROM 'user1'@'localhost' IGNORE UNKNOWN USER",
 		"REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost' IGNORE UNKNOWN USER",
-		"REVOKE IF EXISTS SELECT ON db1.t1 FROM user1 IGNORE UNKNOWN USER",
-		// REVOKE IF EXISTS role
-		"REVOKE IF EXISTS role1 FROM user1",
 		// REVOKE PROXY IF EXISTS
 		// SET PASSWORD TO RANDOM
 		"SET PASSWORD TO RANDOM",
@@ -9976,6 +9969,19 @@ func TestBNFReviewSecurity(t *testing.T) {
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
+		})
+	}
+	// TiDB has no REVOKE IF EXISTS (parser.y RevokeStmt, RevokeRoleStmt):
+	// v8.5.5 answers 1064, as compat.tsv's suite:cited rows record.
+	for _, sql := range []string{
+		"REVOKE IF EXISTS SELECT ON db1.* FROM 'user1'@'localhost'",
+		"REVOKE IF EXISTS ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost'",
+		"REVOKE IF EXISTS INSERT, UPDATE ON *.* FROM user1",
+		"REVOKE IF EXISTS SELECT ON db1.t1 FROM user1 IGNORE UNKNOWN USER",
+		"REVOKE IF EXISTS role1 FROM user1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
 		})
 	}
 }

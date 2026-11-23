@@ -1626,11 +1626,12 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 	stmt := &nodes.DropServerStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_server_stmt: DROP SERVER_SYM if_exists ident_or_text.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	name, _, err := p.parseIdentOrText()
 	if err != nil {
@@ -1795,11 +1796,12 @@ func (p *Parser) parseDropSpatialRefSysStmt(start int) (*nodes.DropSpatialRefSys
 	stmt := &nodes.DropSpatialRefSysStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_srs_stmt: DROP SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM if_exists real_ulonglong_num.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// SRID (integer)
 	if p.cur.Type != tokICONST {

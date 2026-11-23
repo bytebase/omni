@@ -21,7 +21,7 @@ every object's `SHOW CREATE` text directly against `tidb/catalog`.
 `tidb/review`'s `TestWalkSimulation` also checks every row offline
 (`sequences` subtest).
 
-**135 rows (27 statements × 5 fixtures): 135 agree, 0 disagree (100.00%).**
+**150 rows (30 statements × 5 fixtures): 150 agree, 0 disagree (100.00%).**
 
 ## Commands
 

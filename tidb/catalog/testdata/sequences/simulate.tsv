@@ -3,6 +3,7 @@
 1146	1146	engine	one_table@missing	Statement/AlterSequenceStmt	ALTER SEQUENCE ident NOMINVALUE
 ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	Statement/CreateSequenceStmt	CREATE SEQUENCE ident
 4139	4139	engine	one_table@missing	Statement/DropSequenceStmt	DROP SEQUENCE ident
+ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
 ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/SequenceOptionList_SequenceOption	CREATE SEQUENCE ident NOMINVALUE NOMINVALUE
 1146	1146	engine	one_table@missing	SequenceOption/INCREMENT_EqOpt_SignedNum	ALTER SEQUENCE ident INCREMENT 1
@@ -23,6 +24,8 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 1146	1146	engine	one_table@missing	SequenceOption/NO_CYCLE!swap	ALTER SEQUENCE ident NOCACHE CYCLE
 1146	1146	engine	one_table@missing	SignedNum/+_Int64Num	ALTER SEQUENCE ident INCREMENT + 1
 1146	1146	engine	one_table@missing	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
+ok:c34acc0063c3	ok:c34acc0063c3	engine	one_table@missing	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+1146	1146	engine	one_table@missing	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
 1146	1146	engine	one_table@missing	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 1146	1146	engine	one_table@missing	AlterSequenceOption/RESTART	ALTER SEQUENCE ident RESTART
 1146	1146	engine	one_table@missing	AlterSequenceOption/RESTART_EqOpt_SignedNum	ALTER SEQUENCE ident RESTART 1
@@ -30,6 +33,7 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 1347	1347	engine	one_table@table	Statement/AlterSequenceStmt	ALTER SEQUENCE ident NOMINVALUE
 1050	1050	engine	one_table@table	Statement/CreateSequenceStmt	CREATE SEQUENCE ident
 1347	1347	engine	one_table@table	Statement/DropSequenceStmt	DROP SEQUENCE ident
+ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
 1050	1050	engine	one_table@table	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 1050	1050	engine	one_table@table	SequenceOptionList/SequenceOptionList_SequenceOption	CREATE SEQUENCE ident NOMINVALUE NOMINVALUE
 1347	1347	engine	one_table@table	SequenceOption/INCREMENT_EqOpt_SignedNum	ALTER SEQUENCE ident INCREMENT 1
@@ -50,6 +54,8 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 1347	1347	engine	one_table@table	SequenceOption/NO_CYCLE!swap	ALTER SEQUENCE ident NOCACHE CYCLE
 1347	1347	engine	one_table@table	SignedNum/+_Int64Num	ALTER SEQUENCE ident INCREMENT + 1
 1347	1347	engine	one_table@table	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
+ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+1347	1347	engine	one_table@table	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
 1347	1347	engine	one_table@table	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 1347	1347	engine	one_table@table	AlterSequenceOption/RESTART	ALTER SEQUENCE ident RESTART
 1347	1347	engine	one_table@table	AlterSequenceOption/RESTART_EqOpt_SignedNum	ALTER SEQUENCE ident RESTART 1
@@ -57,6 +63,7 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 1347	1347	engine	objects@view	Statement/AlterSequenceStmt	ALTER SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@view	Statement/CreateSequenceStmt	CREATE SEQUENCE ident
 1347	1347	engine	objects@view	Statement/DropSequenceStmt	DROP SEQUENCE ident
+ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
 1050	1050	engine	objects@view	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@view	SequenceOptionList/SequenceOptionList_SequenceOption	CREATE SEQUENCE ident NOMINVALUE NOMINVALUE
 1347	1347	engine	objects@view	SequenceOption/INCREMENT_EqOpt_SignedNum	ALTER SEQUENCE ident INCREMENT 1
@@ -77,6 +84,8 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 1347	1347	engine	objects@view	SequenceOption/NO_CYCLE!swap	ALTER SEQUENCE ident NOCACHE CYCLE
 1347	1347	engine	objects@view	SignedNum/+_Int64Num	ALTER SEQUENCE ident INCREMENT + 1
 1347	1347	engine	objects@view	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
+ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+1347	1347	engine	objects@view	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
 1347	1347	engine	objects@view	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 1347	1347	engine	objects@view	AlterSequenceOption/RESTART	ALTER SEQUENCE ident RESTART
 1347	1347	engine	objects@view	AlterSequenceOption/RESTART_EqOpt_SignedNum	ALTER SEQUENCE ident RESTART 1
@@ -84,6 +93,7 @@ ok:3d0a3939ccaa	ok:3d0a3939ccaa	engine	one_table@missing	SequenceOptionList/Sequ
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	Statement/AlterSequenceStmt	ALTER SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@sequence	Statement/CreateSequenceStmt	CREATE SEQUENCE ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	Statement/DropSequenceStmt	DROP SEQUENCE ident
+ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
 1050	1050	engine	objects@sequence	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@sequence	SequenceOptionList/SequenceOptionList_SequenceOption	CREATE SEQUENCE ident NOMINVALUE NOMINVALUE
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	SequenceOption/INCREMENT_EqOpt_SignedNum	ALTER SEQUENCE ident INCREMENT 1
@@ -104,6 +114,8 @@ ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	SequenceOption/NO_CYCLE	
 ok:525a25ffea87	ok:525a25ffea87	engine	objects@sequence	SequenceOption/NO_CYCLE!swap	ALTER SEQUENCE ident NOCACHE CYCLE
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	SignedNum/+_Int64Num	ALTER SEQUENCE ident INCREMENT + 1
 ok:69313e3ca0e2	ok:69313e3ca0e2	engine	objects@sequence	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	AlterSequenceOption/RESTART	ALTER SEQUENCE ident RESTART
 ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	AlterSequenceOption/RESTART_EqOpt_SignedNum	ALTER SEQUENCE ident RESTART 1
@@ -111,6 +123,7 @@ ok:b87a70b178a4	ok:b87a70b178a4	engine	objects@sequence	AlterSequenceOption/REST
 ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	Statement/AlterSequenceStmt	ALTER SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@sequence_options	Statement/CreateSequenceStmt	CREATE SEQUENCE ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	Statement/DropSequenceStmt	DROP SEQUENCE ident
+ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
 1050	1050	engine	objects@sequence_options	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 1050	1050	engine	objects@sequence_options	SequenceOptionList/SequenceOptionList_SequenceOption	CREATE SEQUENCE ident NOMINVALUE NOMINVALUE
 ok:0f6e2bcdddfa	ok:0f6e2bcdddfa	engine	objects@sequence_options	SequenceOption/INCREMENT_EqOpt_SignedNum	ALTER SEQUENCE ident INCREMENT 1
@@ -131,6 +144,8 @@ ok:57c3c6febda5	ok:57c3c6febda5	engine	objects@sequence_options	SequenceOption/N
 ok:60fc9e7c6fad	ok:60fc9e7c6fad	engine	objects@sequence_options	SequenceOption/NO_CYCLE!swap	ALTER SEQUENCE ident NOCACHE CYCLE
 ok:0f6e2bcdddfa	ok:0f6e2bcdddfa	engine	objects@sequence_options	SignedNum/+_Int64Num	ALTER SEQUENCE ident INCREMENT + 1
 ok:04c424641423	ok:04c424641423	engine	objects@sequence_options	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
 ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	AlterSequenceOption/RESTART	ALTER SEQUENCE ident RESTART
 ok:117684d4f72b	ok:117684d4f72b	engine	objects@sequence_options	AlterSequenceOption/RESTART_EqOpt_SignedNum	ALTER SEQUENCE ident RESTART 1
