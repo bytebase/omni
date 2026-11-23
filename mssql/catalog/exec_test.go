@@ -676,4 +676,59 @@ CREATE TABLE [app].[u] ([a] INT, CONSTRAINT [ck] CHECK ([a] > 0));
 	require.NotNil(t, c.GetSchema("dbo"))
 	execExpectCode(t, c, `DROP SCHEMA IF EXISTS [dbo]`, ErrSecurableNotFound)
 	require.NotNil(t, c.GetSchema("dbo"))
+
+	// 46. Schema-bound column dependency resolves qualifiers/aliases to their owning table.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] INT NOT NULL, [a] INT NOT NULL, [b] INT NOT NULL);
+GO
+CREATE TABLE [dbo].[u] ([id] INT NOT NULL, [b] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v_join] WITH SCHEMABINDING AS
+SELECT [t].[a], [u].[b]
+FROM [dbo].[t] AS [t]
+JOIN [dbo].[u] AS [u] ON [t].[id] = [u].[id];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrColumnDependentObject)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[u] DROP COLUMN [b]`, ErrColumnDependentObject)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] BIGINT NOT NULL`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "b"))
+
+	// 47. DROP FUNCTION rejects dropping a function referenced by a WITH SCHEMABINDING view.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS INT WITH SCHEMABINDING AS BEGIN RETURN 1; END;
+GO
+CREATE VIEW [dbo].[v_fn] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [x] FROM [dbo].[t];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP FUNCTION [dbo].[f]`, ErrDropSchemaNotEmpty)
+	require.Len(t, c.GetSchema("dbo").Functions, 1)
+	execExpectOK(t, c, `DROP VIEW [dbo].[v_fn]`)
+	execExpectOK(t, c, `DROP FUNCTION [dbo].[f]`)
+	require.Empty(t, c.GetSchema("dbo").Functions)
+
+	// 48. ALTER TABLE ADD PERIOD FOR SYSTEM_TIME accepts valid NOT NULL datetime2 period columns.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP PERIOD FOR SYSTEM_TIME`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ADD PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])`, ErrPeriodAlreadyDefined)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`)
+
+	// 49. ALTER TABLE ALTER COLUMN rejects altering a computed column.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] AS ([a] + 1));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] INT`, ErrAlterComputedColumn)
+	require.Equal(t, "AS ([a] + 1)", columnByName(c.GetTable("dbo", "t"), "b").Type)
 }

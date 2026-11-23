@@ -63,6 +63,7 @@ const (
 	ErrDropLastColumn             = 4923
 	ErrAlterColNotFound           = 4924
 	ErrDropRowguidcolMissing      = 4926
+	ErrAlterComputedColumn        = 4928
 	ErrSwitchSameTable            = 4955
 	ErrAlterColNFRNotIdentity     = 4991
 	ErrColumnDependentObject      = 5074
@@ -82,6 +83,7 @@ const (
 	ErrSpatialIndexNonSpatialCol  = 12002
 	ErrSystemTimeInvalidCols      = 13501
 	ErrSystemVersioningNoPeriod   = 13510
+	ErrPeriodAlreadyDefined       = 13514
 	ErrDropPeriodSystemVersioned  = 13554
 	ErrSystemVersioningNotEnabled = 13591
 	ErrDropPeriodNotDefined       = 13593

@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -257,17 +258,61 @@ func schemaBoundObjectConsumer(c *Catalog, targetSchema, targetObj string, exclu
 	return "", false
 }
 
+func schemaBoundFunctionConsumer(c *Catalog, targetSchema, targetFunc string, excluded func(schemaName, objName string) bool) (string, bool) {
+	for _, s := range c.schemas {
+		for _, v := range s.Views {
+			if excluded != nil && excluded(s.Name, v.Name) {
+				continue
+			}
+			if isSchemaBound(v.Definition) && definitionReferencesFunction(v.Definition, s.Name, targetSchema, targetFunc) {
+				return v.Name, true
+			}
+		}
+		for _, fn := range s.Functions {
+			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(fn.Name, targetFunc) {
+				continue
+			}
+			if excluded != nil && excluded(s.Name, fn.Name) {
+				continue
+			}
+			if isSchemaBound(fn.Definition) && definitionReferencesFunction(fn.Definition, s.Name, targetSchema, targetFunc) {
+				return fn.Name, true
+			}
+		}
+		for _, t := range s.Tables {
+			for _, ck := range t.CheckConstraints {
+				if expressionReferencesFunction(ck.Expression, s.Name, targetSchema, targetFunc) {
+					return ck.Name, true
+				}
+			}
+			for _, col := range t.Columns {
+				if isComputedColumnType(col.Type) && expressionReferencesFunction(col.Type, s.Name, targetSchema, targetFunc) {
+					return t.Name, true
+				}
+				if col.Default != "" && expressionReferencesFunction(col.Default, s.Name, targetSchema, targetFunc) {
+					name := col.DefaultConstraintName
+					if name == "" {
+						name = t.Name
+					}
+					return name, true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
 func schemaBoundColumnConsumer(c *Catalog, targetSchema, targetTable, colName string) (string, bool) {
 	for _, s := range c.schemas {
 		for _, v := range s.Views {
 			if isSchemaBound(v.Definition) && definitionReferencesTable(v.Definition, s.Name, targetSchema, targetTable) &&
-				definitionReferencesColumn(v.Definition, colName) {
+				definitionReferencesTableColumn(c, v.Definition, s.Name, targetSchema, targetTable, colName) {
 				return v.Name, true
 			}
 		}
 		for _, fn := range s.Functions {
 			if isSchemaBound(fn.Definition) && definitionReferencesTable(fn.Definition, s.Name, targetSchema, targetTable) &&
-				definitionReferencesColumn(fn.Definition, colName) {
+				definitionReferencesTableColumn(c, fn.Definition, s.Name, targetSchema, targetTable, colName) {
 				return fn.Name, true
 			}
 		}
@@ -275,15 +320,275 @@ func schemaBoundColumnConsumer(c *Catalog, targetSchema, targetTable, colName st
 	return "", false
 }
 
-func definitionReferencesColumn(definition, colName string) bool {
-	if strings.TrimSpace(definition) == "" || colName == "" {
+type tableSourceBinding struct {
+	alias    string
+	hasAlias bool
+	schema   string
+	table    string
+	isTarget bool
+}
+
+type columnRefResolver struct {
+	cat           *Catalog
+	defaultSchema string
+	targetSchema  string
+	targetTable   string
+	targetCol     string
+	cteStack      []map[string]bool
+	scopeStack    [][]tableSourceBinding
+	found         bool
+}
+
+func (r *columnRefResolver) inCTEScope(name string) bool {
+	lower := strings.ToLower(name)
+	for i := len(r.cteStack) - 1; i >= 0; i-- {
+		if r.cteStack[i][lower] {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *columnRefResolver) collectFromSources(from *ast.List) []tableSourceBinding {
+	if from == nil {
+		return nil
+	}
+	var out []tableSourceBinding
+	var walkExpr func(te ast.TableExpr)
+	walkExpr = func(te ast.TableExpr) {
+		switch x := te.(type) {
+		case *ast.JoinClause:
+			walkExpr(x.Left)
+			walkExpr(x.Right)
+		case *ast.TableRef:
+			if x.Object == "" {
+				return
+			}
+			inCTE := x.Schema == "" && r.inCTEScope(x.Object)
+			schema := x.Schema
+			if schema == "" {
+				schema = r.defaultSchema
+			}
+			alias := x.Alias
+			hasAlias := alias != ""
+			if alias == "" {
+				alias = x.Object
+			}
+			isTarget := !inCTE && strings.EqualFold(schema, r.targetSchema) && strings.EqualFold(x.Object, r.targetTable)
+			out = append(out, tableSourceBinding{
+				alias:    alias,
+				hasAlias: hasAlias,
+				schema:   schema,
+				table:    x.Object,
+				isTarget: isTarget,
+			})
+		case *ast.AliasedTableRef:
+			if tr, ok := x.Table.(*ast.TableRef); ok && tr.Object != "" {
+				inCTE := tr.Schema == "" && r.inCTEScope(tr.Object)
+				schema := tr.Schema
+				if schema == "" {
+					schema = r.defaultSchema
+				}
+				alias := x.Alias
+				if alias == "" {
+					alias = tr.Alias
+				}
+				hasAlias := alias != ""
+				if alias == "" {
+					alias = tr.Object
+				}
+				isTarget := !inCTE && strings.EqualFold(schema, r.targetSchema) && strings.EqualFold(tr.Object, r.targetTable)
+				out = append(out, tableSourceBinding{
+					alias:    alias,
+					hasAlias: hasAlias,
+					schema:   schema,
+					table:    tr.Object,
+					isTarget: isTarget,
+				})
+				return
+			}
+			if x.Alias != "" {
+				out = append(out, tableSourceBinding{alias: x.Alias, hasAlias: true})
+			}
+		case *ast.TableVarRef:
+			alias := x.Alias
+			if alias == "" {
+				alias = x.Name
+			}
+			out = append(out, tableSourceBinding{alias: alias, hasAlias: x.Alias != ""})
+		case *ast.FullTextTableRef:
+			if x.Alias != "" {
+				out = append(out, tableSourceBinding{alias: x.Alias, hasAlias: true})
+			}
+		case *ast.SemanticTableRef:
+			if x.Alias != "" {
+				out = append(out, tableSourceBinding{alias: x.Alias, hasAlias: true})
+			}
+		case *ast.PredictTableRef:
+			if x.Alias != "" {
+				out = append(out, tableSourceBinding{alias: x.Alias, hasAlias: true})
+			}
+		case *ast.AdHocTableRef:
+			if x.Alias != "" {
+				out = append(out, tableSourceBinding{alias: x.Alias, hasAlias: true})
+			}
+		}
+	}
+	for _, item := range from.Items {
+		if te, ok := item.(ast.TableExpr); ok {
+			walkExpr(te)
+		}
+	}
+	return out
+}
+
+func (r *columnRefResolver) matchesColumnRef(cr *ast.ColumnRef) bool {
+	if !strings.EqualFold(cr.Column, r.targetCol) {
 		return false
+	}
+	if cr.Table != "" {
+		for i := len(r.scopeStack) - 1; i >= 0; i-- {
+			matchedAny := false
+			matchedTarget := false
+			for _, b := range r.scopeStack[i] {
+				matched := false
+				if cr.Schema != "" {
+					matched = !b.hasAlias && strings.EqualFold(b.schema, cr.Schema) && strings.EqualFold(b.table, cr.Table)
+				} else {
+					matched = strings.EqualFold(b.alias, cr.Table)
+				}
+				if matched {
+					matchedAny = true
+					if b.isTarget {
+						matchedTarget = true
+					}
+				}
+			}
+			if matchedAny {
+				return matchedTarget
+			}
+		}
+		return strings.EqualFold(cr.Table, r.targetTable) && (cr.Schema == "" || strings.EqualFold(cr.Schema, r.targetSchema))
+	}
+	for i := len(r.scopeStack) - 1; i >= 0; i-- {
+		hasTarget := false
+		otherHasCol := false
+		for _, b := range r.scopeStack[i] {
+			if b.isTarget {
+				hasTarget = true
+				continue
+			}
+			if r.cat != nil && b.table != "" {
+				if tbl := r.cat.GetTable(b.schema, b.table); tbl != nil && columnByName(tbl, r.targetCol) != nil {
+					otherHasCol = true
+				}
+			}
+		}
+		if hasTarget {
+			return true
+		}
+		if otherHasCol {
+			return false
+		}
+	}
+	return false
+}
+
+type popColScopeVisitor struct {
+	r       *columnRefResolver
+	popCTE  bool
+	popScope bool
+}
+
+func (p popColScopeVisitor) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		if p.popScope {
+			p.r.scopeStack = p.r.scopeStack[:len(p.r.scopeStack)-1]
+		}
+		if p.popCTE {
+			p.r.cteStack = p.r.cteStack[:len(p.r.cteStack)-1]
+		}
+		return nil
+	}
+	return p.r.Visit(n)
+}
+
+func (r *columnRefResolver) Visit(n ast.Node) ast.Visitor {
+	if n == nil || r.found {
+		return nil
+	}
+	switch x := n.(type) {
+	case *ast.CommonTableExpr:
+		// A CTE query does not inherit the enclosing SELECT's FROM scope.
+		saved := r.scopeStack
+		r.scopeStack = nil
+		if x.Query != nil {
+			ast.Walk(r, x.Query)
+		}
+		r.scopeStack = saved
+		return nil
+	case *ast.SelectStmt:
+		popCTE := false
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			r.cteStack = append(r.cteStack, names)
+			popCTE = true
+		}
+		sources := r.collectFromSources(x.FromClause)
+		popScope := false
+		if len(sources) > 0 {
+			r.scopeStack = append(r.scopeStack, sources)
+			popScope = true
+		}
+		if popCTE || popScope {
+			return popColScopeVisitor{r: r, popCTE: popCTE, popScope: popScope}
+		}
+	case *ast.ColumnRef:
+		if r.matchesColumnRef(x) {
+			r.found = true
+			return nil
+		}
+	}
+	return r
+}
+
+func definitionReferencesTableColumn(c *Catalog, definition, defaultSchemaName, targetSchema, targetTable, colName string) bool {
+	if strings.TrimSpace(definition) == "" || targetTable == "" || colName == "" {
+		return false
+	}
+	if defaultSchemaName == "" {
+		defaultSchemaName = defaultSchema
+	}
+	if targetSchema == "" {
+		targetSchema = defaultSchema
 	}
 	stmts, err := mssql.Parse(creationDefinition(definition))
 	if err != nil || len(stmts) == 0 {
 		return false
 	}
-	return exprReferencesColumn(stmts[0].AST, colName)
+	var root ast.Node
+	for i := range stmts {
+		switch n := stmts[i].AST.(type) {
+		case *ast.CreateViewStmt:
+			root = n.Query
+		case *ast.CreateFunctionStmt:
+			root = n.Body
+		}
+		if root != nil {
+			break
+		}
+	}
+	if root == nil {
+		return false
+	}
+	r := &columnRefResolver{
+		cat:           c,
+		defaultSchema: defaultSchemaName,
+		targetSchema:  targetSchema,
+		targetTable:   targetTable,
+		targetCol:     colName,
+	}
+	ast.Walk(r, root)
+	return r.found
 }
 
 func fkMatchesIndex(fk *metadata.ForeignKeyMetadata, idx *metadata.IndexMetadata) bool {
@@ -1680,6 +1985,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if col == nil {
 			return mssqlErr(ErrAlterColNotFound, "ALTER TABLE ALTER COLUMN %s failed because column '%s' does not exist in table '%s'.", action.ColName, action.ColName, table.Name)
 		}
+		if isComputedColumnType(col.Type) {
+			return mssqlErr(ErrAlterComputedColumn, "Cannot alter column '%s' because it is 'computed'.", col.Name)
+		}
 		if !c.lenientMetadataLoad && !isValidDataType(action.DataType, false) {
 			typeName := ""
 			if action.DataType != nil {
@@ -1805,17 +2113,38 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		return c.execAlterTableSet(schemaName, table, action.Options)
 
 	case ast.ATAddPeriod:
-		if action.Names != nil {
-			for _, item := range action.Names.Items {
-				if s, ok := item.(*ast.String); ok {
-					if columnByName(table, s.Str) == nil {
-						return mssqlErr(ErrAlterColNotFound, "Column '%s' does not exist in table '%s'.", s.Str, table.Name)
-					}
-					return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column '%s' has invalid data type.", s.Str)
-				}
-			}
+		if action.Names == nil || len(action.Names.Items) != 2 {
+			return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column has invalid data type.")
 		}
-		return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column has invalid data type.")
+		var periodCols [2]*metadata.ColumnMetadata
+		for i, item := range action.Names.Items {
+			s, ok := item.(*ast.String)
+			if !ok {
+				return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column has invalid data type.")
+			}
+			col := columnByName(table, s.Str)
+			if col == nil {
+				return mssqlErr(ErrAlterColNotFound, "Column '%s' does not exist in table '%s'.", s.Str, table.Name)
+			}
+			periodCols[i] = col
+		}
+		if strings.EqualFold(periodCols[0].Name, periodCols[1].Name) {
+			return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column '%s' has invalid data type.", periodCols[0].Name)
+		}
+		p0, ok0 := datetime2Precision(periodCols[0].Type)
+		p1, ok1 := datetime2Precision(periodCols[1].Type)
+		if !ok0 || !ok1 || periodCols[0].Nullable || periodCols[1].Nullable || p0 != p1 {
+			return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column '%s' has invalid data type.", periodCols[0].Name)
+		}
+		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
+		if c.systemTimeTables[periodKey] {
+			return mssqlErr(ErrPeriodAlreadyDefined, "Cannot define SYSTEM_TIME period more than once on table '%s'.", table.Name)
+		}
+		if c.systemTimeTables == nil {
+			c.systemTimeTables = make(map[tableKey]bool)
+		}
+		c.systemTimeTables[periodKey] = true
+		return nil
 
 	case ast.ATDropPeriod:
 		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
@@ -2589,6 +2918,21 @@ func (c *Catalog) execDropSchema(n *ast.DropStmt) error {
 	return nil
 }
 
+func datetime2Precision(colType string) (int, bool) {
+	norm := normalizeType(colType)
+	if norm == "datetime2" {
+		return 7, true
+	}
+	if strings.HasPrefix(norm, "datetime2(") && strings.HasSuffix(norm, ")") {
+		inner := strings.TrimSpace(norm[len("datetime2(") : len(norm)-1])
+		n, err := strconv.Atoi(inner)
+		if err == nil && n >= 0 && n <= 7 {
+			return n, true
+		}
+	}
+	return 0, false
+}
+
 func isBuiltInSchema(name string) bool {
 	switch normalize(name) {
 	case "dbo", "guest", "information_schema", "sys",
@@ -2796,6 +3140,12 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 					return seenOther[otherKey{cat: targetCat, schema: normalize(sName), obj: normalize(oName)}]
 				}); bound {
 					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP VIEW '%s' because it is being referenced by object '%s'.", objName, consumer)
+				}
+			} else if wantKind == kindFunction {
+				if consumer, bound := schemaBoundFunctionConsumer(targetCat, schema.Name, objName, func(sName, oName string) bool {
+					return seenOther[otherKey{cat: targetCat, schema: normalize(sName), obj: normalize(oName)}]
+				}); bound {
+					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP FUNCTION '%s' because it is being referenced by object '%s'.", objName, consumer)
 				}
 			}
 			seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] = true
