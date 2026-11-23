@@ -379,10 +379,10 @@ func TestWalkThrough_3_5_AlterCheckEnforced(t *testing.T) {
 
 func TestWalkThrough_3_5_ConvertToCharset(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100), bio TEXT, age INT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
+	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100), bio TEXT, age INT) ENGINE=InnoDB DEFAULT CHARSET=latin1")
 
-	// Convert to latin1.
-	wtExec(t, c, "ALTER TABLE t CONVERT TO CHARACTER SET latin1")
+	// Convert to utf8mb4 (TiDB v8.5.5 supports latin1/utf8 -> utf8mb4).
+	wtExec(t, c, "ALTER TABLE t CONVERT TO CHARACTER SET utf8mb4")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -390,8 +390,8 @@ func TestWalkThrough_3_5_ConvertToCharset(t *testing.T) {
 	}
 
 	// Table charset should be updated.
-	if tbl.Charset != "latin1" {
-		t.Errorf("expected table charset 'latin1', got %q", tbl.Charset)
+	if tbl.Charset != "utf8mb4" {
+		t.Errorf("expected table charset 'utf8mb4', got %q", tbl.Charset)
 	}
 
 	// String columns should be updated.
@@ -399,16 +399,16 @@ func TestWalkThrough_3_5_ConvertToCharset(t *testing.T) {
 	if nameCol == nil {
 		t.Fatal("column name not found")
 	}
-	if nameCol.Charset != "latin1" {
-		t.Errorf("expected name column charset 'latin1', got %q", nameCol.Charset)
+	if nameCol.Charset != "utf8mb4" {
+		t.Errorf("expected name column charset 'utf8mb4', got %q", nameCol.Charset)
 	}
 
 	bioCol := tbl.GetColumn("bio")
 	if bioCol == nil {
 		t.Fatal("column bio not found")
 	}
-	if bioCol.Charset != "latin1" {
-		t.Errorf("expected bio column charset 'latin1', got %q", bioCol.Charset)
+	if bioCol.Charset != "utf8mb4" {
+		t.Errorf("expected bio column charset 'utf8mb4', got %q", bioCol.Charset)
 	}
 
 	// Non-string column should NOT be affected.

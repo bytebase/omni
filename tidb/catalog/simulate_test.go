@@ -186,6 +186,8 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	if err != nil {
 		panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
 	}
+	// The pinned standalone TiDB server in TestSimulation has no TiFlash nodes.
+	c.SetTiFlashServerCount(0)
 	results, err := c.Exec(statement, nil)
 	var syntax *tidbparser.ParseError
 	switch {

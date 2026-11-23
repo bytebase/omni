@@ -77,24 +77,21 @@ func TestWTTiDB_2_2b_AlterAddPKNonClustered(t *testing.T) {
 	t.Error("primary key constraint not found after ALTER")
 }
 
-// TestWTTiDB_2_3_AlterAddColumnInlinePKClustered verifies that ALTER
-// TABLE ADD COLUMN ... PRIMARY KEY CLUSTERED propagates the inline
-// column-constraint flag onto the synthesized table-level constraint.
-// Previously dropped silently in the ALTER path (the CREATE path
-// handled it via tablecmds.go).
-func TestWTTiDB_2_3_AlterAddColumnInlinePKClustered(t *testing.T) {
+// TestWTTiDB_2_3_AlterAddColumnInlinePKUnsupported verifies that ALTER TABLE
+// ADD COLUMN with an inline PRIMARY KEY constraint is rejected with 8200,
+// matching TiDB v8.5.5 (pkg/ddl/add_column.go checkUnsupportedColumnConstraint).
+func TestWTTiDB_2_3_AlterAddColumnInlinePKUnsupported(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (x INT)")
-	wtExec(t, c, "ALTER TABLE t ADD COLUMN id BIGINT PRIMARY KEY CLUSTERED")
-
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	for _, con := range tbl.Constraints {
-		if con.Type == ConPrimaryKey {
-			if con.Clustered == nil || !*con.Clustered {
-				t.Error("expected Clustered=true on inline-column PK added via ALTER TABLE ADD COLUMN")
-			}
-			return
-		}
+	results, err := c.Exec("ALTER TABLE t ADD COLUMN id BIGINT PRIMARY KEY CLUSTERED", nil)
+	if err != nil {
+		t.Fatalf("unexpected parse err: %v", err)
 	}
-	t.Error("primary key constraint not found after ALTER ADD COLUMN")
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatal("expected error 8200 for ALTER TABLE ADD COLUMN ... PRIMARY KEY")
+	}
+	catErr, ok := results[0].Error.(*Error)
+	if !ok || catErr.Code != ErrUnsupportedDDL {
+		t.Errorf("got err %v, want code %d", results[0].Error, ErrUnsupportedDDL)
+	}
 }

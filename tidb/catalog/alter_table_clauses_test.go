@@ -259,16 +259,13 @@ func TestAlterTableNoEffectClauses(t *testing.T) {
 		"ALTER TABLE t READ WRITE",
 		"ALTER TABLE t COMPACT",
 		"ALTER TABLE t COMPACT TIFLASH REPLICA",
-		"ALTER TABLE t ATTRIBUTES = 'str1,str2'",
+		"ALTER TABLE t ATTRIBUTES = 'merge_option=allow,k=v'",
 		"ALTER TABLE t ATTRIBUTES = DEFAULT",
-		"ALTER TABLE t STATS_OPTIONS = 'str'",
 		"ALTER TABLE t ANALYZE PARTITION p0 WITH 4 BUCKETS",
-		"ALTER TABLE t PARTITION p0 ATTRIBUTES = 'str'",
+		"ALTER TABLE t PARTITION p0 ATTRIBUTES = 'k=v'",
 		"ALTER TABLE t PARTITION p0 PLACEMENT POLICY = x",
 		"ALTER TABLE t LAST PARTITION LESS THAN (1000)",
 		"ALTER TABLE t FIRST PARTITION LESS THAN (1)",
-		"ALTER TABLE t SPLIT MAXVALUE PARTITION LESS THAN (1000)",
-		"ALTER TABLE t MERGE FIRST PARTITION LESS THAN (1000)",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			c := newCatalogWithTable(t, "(a INT, b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))")
@@ -350,7 +347,7 @@ func TestAlterTableClausesKeepTheRestOfTheStatement(t *testing.T) {
 	}
 
 	c = newCatalogWithTable(t, "(a INT)")
-	execAll(t, c, "ALTER TABLE t ATTRIBUTES = 'x', ADD COLUMN b INT, STATS_OPTIONS = 'y', COMMENT 'c';")
+	execAll(t, c, "ALTER TABLE t ATTRIBUTES = 'k=v', ADD COLUMN b INT, READ ONLY, COMMENT 'c';")
 	ddl = c.ShowCreateTable("d", "t")
 	for _, want := range []string{"`b` int", "COMMENT='c'"} {
 		if !strings.Contains(ddl, want) {

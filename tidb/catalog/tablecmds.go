@@ -23,6 +23,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			return err
 		}
 	}
+	// TiDB v8.5.5 does not implement CREATE TABLE ... SELECT and rejects it
+	// during planning before checking table name collisions (1050).
+	if declared && stmt.Select != nil {
+		return &Error{
+			Code:     ErrUnknownError,
+			SQLState: sqlState(ErrUnknownError),
+			Message:  "'CREATE TABLE ... SELECT' is not implemented yet",
+		}
+	}
+	if declared {
+		if err := checkUnsupportedTableOptions(stmt.Options); err != nil {
+			return err
+		}
+	}
 	// A LIKE clause and a CTAS take their columns from elsewhere; TiDB answers
 	// those forms with their own codes before this rule would apply.
 	if stmt.Like == nil && stmt.Select == nil && len(stmt.Columns) == 0 {

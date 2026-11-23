@@ -14,16 +14,24 @@ type Catalog struct {
 	// ALTER TABLE adds no constraint, and DROP CHECK, DROP CONSTRAINT and ALTER
 	// CHECK succeed whatever they name (read on 2026-11-06).
 	checkConstraints bool
+	// extendedStats is tidb_enable_extended_stats, OFF by default in TiDB v8.5.5.
+	extendedStats bool
+	// tiflashServerCount models the cluster's available TiFlash store count for
+	// SET TIFLASH REPLICA validation. -1 (the default) leaves replica counts
+	// unconstrained for offline schema modeling; >= 0 enforces TiDB's check that
+	// replica count <= server count (1105).
+	tiflashServerCount int
 }
 
 func New() *Catalog {
 	return &Catalog{
-		databases:         make(map[string]*Database),
-		placementPolicies: make(map[string]*PlacementPolicy),
-		rangePolicies:     make(map[string]string),
-		defaultCharset:    "utf8mb4",
-		defaultCollation:  "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
-		foreignKeyChecks:  true,
+		databases:          make(map[string]*Database),
+		placementPolicies:  make(map[string]*PlacementPolicy),
+		rangePolicies:      make(map[string]string),
+		defaultCharset:     "utf8mb4",
+		defaultCollation:   "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
+		foreignKeyChecks:   true,
+		tiflashServerCount: -1,
 	}
 }
 
@@ -32,6 +40,18 @@ func (c *Catalog) CheckConstraints() bool { return c.checkConstraints }
 
 // SetCheckConstraints sets tidb_enable_check_constraint.
 func (c *Catalog) SetCheckConstraints(v bool) { c.checkConstraints = v }
+
+// ExtendedStats reports whether tidb_enable_extended_stats is on.
+func (c *Catalog) ExtendedStats() bool { return c.extendedStats }
+
+// SetExtendedStats sets tidb_enable_extended_stats.
+func (c *Catalog) SetExtendedStats(v bool) { c.extendedStats = v }
+
+// TiFlashServerCount returns the configured TiFlash server count (-1 means unconstrained).
+func (c *Catalog) TiFlashServerCount() int { return c.tiflashServerCount }
+
+// SetTiFlashServerCount sets the TiFlash server count used to validate SET TIFLASH REPLICA.
+func (c *Catalog) SetTiFlashServerCount(n int) { c.tiflashServerCount = n }
 
 // ForeignKeyChecks returns whether FK validation is enabled.
 func (c *Catalog) ForeignKeyChecks() bool { return c.foreignKeyChecks }
