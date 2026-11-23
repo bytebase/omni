@@ -618,3 +618,18 @@ func TestLoadPropertyColumnsNeedsList(t *testing.T) {
 		t.Error("Parse(COLUMNS TERMINATED BY ',') succeeded, want a syntax error")
 	}
 }
+
+func TestShowRoutineLoad_Where(t *testing.T) {
+	sql := `SHOW ALL ROUTINE LOAD WHERE State = 'RUNNING'`
+	file, errs := parseForTest(sql)
+	if len(errs) != 0 {
+		t.Fatalf("Parse errors: %v", errs)
+	}
+	stmt, ok := file.Stmts[0].(*ast.ShowRoutineLoadStmt)
+	if !ok {
+		t.Fatalf("expected *ast.ShowRoutineLoadStmt, got %T", file.Stmts[0])
+	}
+	if !stmt.All || stmt.Where == nil {
+		t.Errorf("All = %v, Where = %v; want ALL and a WHERE", stmt.All, stmt.Where)
+	}
+}
