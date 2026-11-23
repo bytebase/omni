@@ -9,29 +9,43 @@ import (
 
 	"github.com/bytebase/omni/enginetest/simulate"
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/pg/ast"
 	pgcatalog "github.com/bytebase/omni/pg/catalog"
+	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
 )
 
-// TestWalkSimulation holds PostgreSQL's WALK_THROUGH to pg/catalog's
-// simulate.tsv offline: each fixture is built once in the in-memory catalog,
-// and every row is checked with no server started.
+// TestWalkSimulation holds PostgreSQL's WALK_THROUGH to each of
+// pg/catalog's simulate.tsv suites offline (PostgreSQL 17's, PostgreSQL
+// 18's, and the view queries): each fixture is built once in the
+// in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
-	res := walktest.CheckSimulation(t, walktest.Simulation{
-		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
-		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
-		Setup:    pgSimFixture,
-		Codes:    func(msg, _ string) []string { return walkStates(msg) },
-		Same:     func(claimed, stored walk.Key) bool { return claimed == stored },
-	})
-	const minRecall = 0.90
-	if res.Refused > 0 {
-		got := float64(res.Found) / float64(res.Refused)
-		if got < minRecall {
-			t.Errorf("WALK_THROUGH recall = %.1f%% (%d/%d), want >= %.1f%%", 100*got, res.Found, res.Refused, 100*minRecall)
-		}
+	for _, suite := range []struct {
+		name      string
+		path      string
+		minRecall float64
+	}{
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.913},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.911},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.96},
+	} {
+		t.Run(suite.name, func(t *testing.T) {
+			res := walktest.CheckSimulation(t, walktest.Simulation{
+				Path:     suite.path,
+				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
+				Setup:    pgSimFixture,
+				Codes:    func(msg, _ string) []string { return walkStates(msg) },
+				Same:     func(claimed, stored walk.Key) bool { return claimed == stored },
+			})
+			if res.Refused > 0 {
+				got := float64(res.Found) / float64(res.Refused)
+				if got < suite.minRecall {
+					t.Errorf("WALK_THROUGH recall = %.1f%% (%d/%d), want >= %.1f%%", 100*got, res.Found, res.Refused, 100*suite.minRecall)
+				}
+			}
+		})
 	}
 }
 
@@ -40,6 +54,17 @@ func pgSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
 	c, err := pgcatalog.LoadSQL(fx.SQL)
 	if err != nil {
 		t.Fatalf("pg catalog failed to load fixture %s: %v", fx.Name, err)
+	}
+	// pgCatalogToMetadata lists no rewrite rule, which the walk then takes
+	// as absent from every table and view: a fixture must create none.
+	if list, err := parser.Parse(fx.SQL); err == nil && list != nil {
+		for _, item := range list.Items {
+			if raw, ok := item.(*ast.RawStmt); ok {
+				if _, rule := raw.Stmt.(*ast.RuleStmt); rule {
+					t.Fatalf("fixture %s creates a rule, which pgCatalogToMetadata does not list", fx.Name)
+				}
+			}
+		}
 	}
 	target := review.Target{
 		Schema:      pgCatalogToMetadata(c),

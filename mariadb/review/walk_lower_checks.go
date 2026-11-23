@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -140,8 +141,61 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 	}
 	if f == walk.Present && kind == relSequence {
 		b.checkSequenceIncrement(v.Increment, r)
+		b.checkSequenceValues(v, r, k)
 	}
 	return true
+}
+
+// sequenceValues are a sequence's start, minimum, and maximum values.
+type sequenceValues struct {
+	start, min, max *big.Int
+}
+
+// syncedSequenceValues reads the values the sync lists of a sequence,
+// false when it lists none.
+func syncedSequenceValues(q *metadata.SequenceMetadata) (sequenceValues, bool) {
+	start, ok1 := new(big.Int).SetString(q.GetStart(), 10)
+	lo, ok2 := new(big.Int).SetString(q.GetMinValue(), 10)
+	hi, ok3 := new(big.Int).SetString(q.GetMaxValue(), 10)
+	if !ok1 || !ok2 || !ok3 {
+		return sequenceValues{}, false
+	}
+	return sequenceValues{start: start, min: lo, max: hi}, true
+}
+
+// checkSequenceValues follows ALTER SEQUENCE's START, MINVALUE, and
+// MAXVALUE on a sequence whose values the walk knows: the values the
+// statement leaves must keep min <= start <= max and min < max, or it
+// fails (4085, sequence_definition::check_and_adjust; verified on
+// mariadb:11.8.8). A statement that changes the value type or asks for a
+// default bound leaves the values to the server.
+func (b *builder) checkSequenceValues(v *ast.AlterSequenceStmt, r tableRef, k walk.Key) {
+	values, known := b.w.sequences[k]
+	forget := func() { b.Session(func() { delete(b.w.sequences, k) }) }
+	if !known || v.DataType != nil || v.NoMinValue || v.NoMaxValue {
+		forget()
+		return
+	}
+	next := values
+	for _, set := range []struct {
+		e  ast.ExprNode
+		to **big.Int
+	}{{v.Start, &next.start}, {v.MinValue, &next.min}, {v.MaxValue, &next.max}} {
+		if set.e == nil {
+			continue
+		}
+		n, ok := sequenceBigInt(set.e)
+		if !ok {
+			forget()
+			return
+		}
+		*set.to = n
+	}
+	if next.max.Cmp(next.start) < 0 || next.max.Cmp(next.min) <= 0 || next.start.Cmp(next.min) < 0 {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Sequence "+review.Code(r.written)+" has invalid values.") // 4085
+		return
+	}
+	b.Session(func() { b.w.sequences[k] = next })
 }
 
 // checkSequenceIncrement rejects an INCREMENT outside MariaDB's signed 64-bit

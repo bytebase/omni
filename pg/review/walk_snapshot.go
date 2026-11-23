@@ -24,6 +24,8 @@ const (
 	spacePrimaryKey = "primary key"
 	spaceTrigger    = "trigger"
 	spacePolicy     = "policy"
+	spaceRule       = "rule"
+	spaceExtension  = "extension"
 	spaceFunction   = "function"
 	spaceProcedure  = "procedure"
 )
@@ -115,8 +117,10 @@ type pgSnapshot struct {
 	constraints map[[2]string]map[string]string
 	primaryKeys map[[2]string]bool
 	triggers    map[[2]string]map[string]bool
-	functions   map[[2]string]bool
-	procedures  map[[2]string]bool
+	// rules lists the rewrite rules of each synced table and view.
+	rules      map[[2]string]map[string]bool
+	functions  map[[2]string]bool
+	procedures map[[2]string]bool
 	// ambigRoutines marks entries from SchemaMetadata.Functions with an
 	// empty Definition whose kind (function vs procedure) is uncertain, so
 	// both spaceFunction and spaceProcedure stay Unknown rather than assuming
@@ -141,6 +145,13 @@ type pgSnapshot struct {
 	// "$libdir/timescaledb" exclusion may have omitted routines of any name:
 	// no routine's absence or overload completeness is trusted then.
 	lostRoutines bool
+	// extensions is true when the synced metadata lists an extension
+	// other than plpgsql, which may add storage parameters or a table
+	// access method.
+	extensions bool
+	// extNames lists the extensions the sync lists: every one outside
+	// pg_catalog.
+	extNames map[string]bool
 	// inSchema lists the relations, types, and routines each schema holds.
 	inSchema map[string][]walk.Key
 
@@ -202,6 +213,8 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		constraints:       make(map[[2]string]map[string]string),
 		primaryKeys:       make(map[[2]string]bool),
 		triggers:          make(map[[2]string]map[string]bool),
+		rules:             make(map[[2]string]map[string]bool),
+		extNames:          make(map[string]bool),
 		functions:         make(map[[2]string]bool),
 		procedures:        make(map[[2]string]bool),
 		ambigRoutines:     make(map[[2]string]bool),
@@ -223,9 +236,12 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		return s
 	}
 	for _, ext := range db.GetExtensions() {
+		s.extNames[ext.GetName()] = true
+		if ext.GetName() != "plpgsql" {
+			s.extensions = true
+		}
 		if strings.Contains(strings.ToLower(ext.GetName()), "timescaledb") {
 			s.lostRoutines = true
-			break
 		}
 	}
 	for _, schema := range db.GetSchemas() {
@@ -321,6 +337,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				}
 			}
 			s.triggers[key] = trigs
+			s.addRules(key, t.GetRules())
 			for _, p := range t.GetPartitions() {
 				if pcols := parsePartKeyCols(p.GetExpression()); len(pcols) > 0 {
 					s.partKeyCols[key] = pcols
@@ -341,6 +358,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, v := range schema.GetViews() {
 			rel(v.GetName(), relView)
 			rowType(v.GetName())
+			s.addRules([2]string{name, v.GetName()}, v.GetRules())
 			if len(v.GetColumns()) > 0 {
 				s.viewCols[[2]string{name, v.GetName()}] = len(v.GetColumns())
 			}
@@ -450,6 +468,28 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		}
 	}
 	return s
+}
+
+// pgCatalogExtensions lists the extensions that install into pg_catalog,
+// which the sync leaves out. As for routines, an extension a superuser
+// places in pg_catalog by its SCHEMA clause is assumed not to be.
+//
+// bytebase: pg/driver/sync.go — getExtensions (n.nspname != 'pg_catalog')
+var pgCatalogExtensions = map[string]bool{
+	"plpgsql": true, "plperl": true, "plperlu": true, "plpython3u": true, "plpython2u": true,
+	"plpythonu": true, "pltcl": true, "pltclu": true, "adminpack": true,
+}
+
+// addRules records the rewrite rules the sync lists for a table or view:
+// every one but a view's _RETURN and _NOTHING.
+//
+// bytebase: pg/driver/sync.go — getRules
+func (s *pgSnapshot) addRules(key [2]string, rules []*metadata.RuleMetadata) {
+	names := make(map[string]bool, len(rules))
+	for _, r := range rules {
+		names[r.GetName()] = true
+	}
+	s.rules[key] = names
 }
 
 // addPartitions records the partitions of a table in schema root, at any
@@ -881,6 +921,24 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	case spacePrimaryKey:
 		if table, ok := splitTable(k.Parent); ok && s.primaryKeys[table] {
 			return walk.Present, ""
+		}
+	case spaceExtension:
+		switch {
+		case s.extNames[k.Name]:
+			return walk.Present, ""
+		case !pgCatalogExtensions[k.Name]:
+			return walk.Absent, ""
+		}
+	case spaceRule:
+		if table, ok := splitTable(k.Parent); ok {
+			if rules, synced := s.rules[table]; synced {
+				if rules[k.Name] {
+					return walk.Present, ""
+				}
+				if k.Name != "_RETURN" && k.Name != "_NOTHING" {
+					return walk.Absent, ""
+				}
+			}
 		}
 	case spaceTrigger:
 		if table, ok := splitTable(k.Parent); ok {
