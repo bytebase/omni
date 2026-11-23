@@ -477,6 +477,9 @@ func TestViewBinding(t *testing.T) {
 		{"delimited IDENTITYCOL is a column", []string{"CREATE TABLE ic ([IDENTITYCOL] INT NULL)"}, "CREATE VIEW v AS SELECT [IDENTITYCOL] FROM ic", 0},
 		{"IDENTITYCOL without an identity column", []string{"CREATE TABLE ic ([IDENTITYCOL] INT NULL)"}, "CREATE VIEW v AS SELECT IDENTITYCOL AS i FROM ic", ErrInvalidColumnName},
 		{"delimited star qualifier with a dot", nil, "CREATE VIEW v AS SELECT [a.b].* FROM t AS [a.b]", 0},
+		{"correlated reference to an ungrouped column", nil, "CREATE VIEW v AS SELECT (SELECT COUNT(*) FROM u WHERE u.id = t.id) AS n FROM t GROUP BY t.g", 8120},
+		{"correlated reference to a grouped column", nil, "CREATE VIEW v AS SELECT (SELECT COUNT(*) FROM u WHERE u.id = t.id) AS n FROM t GROUP BY t.id", 0},
+		{"full-text index follows a schema transfer", []string{"CREATE FULLTEXT INDEX ON x (name) KEY INDEX pk_x", "CREATE SCHEMA s", "ALTER SCHEMA s TRANSFER dbo.x"}, "CREATE VIEW v AS SELECT id FROM s.x WHERE CONTAINS(name, 'a')", 0},
 		{"xml nodes as a table source", []string{"CREATE TABLE xd (id INT NOT NULL, doc XML NULL)"}, "CREATE VIEW v AS SELECT xd.id, n.x.value('.', 'int') AS v FROM xd CROSS APPLY doc.nodes('/r') AS n(x)", 0},
 	}
 	for _, tc := range cases {

@@ -3457,10 +3457,14 @@ func (c *Catalog) execCreateFulltextIndex(n *ast.CreateFulltextIndexStmt) {
 		return
 	}
 	schemaName, name := tableRefSchemaObject(n.Table, c.defaultSchema)
-	if c.fulltextTables == nil {
-		c.fulltextTables = map[tableKey]bool{}
+	table := c.GetTable(schemaName, name)
+	if table == nil {
+		return
 	}
-	c.fulltextTables[c.temporalKey(schemaName, name)] = true
+	if c.fulltextTables == nil {
+		c.fulltextTables = map[*metadata.TableMetadata]bool{}
+	}
+	c.fulltextTables[table] = true
 }
 
 func (c *Catalog) execDrop(n *ast.DropStmt) error {
@@ -3470,7 +3474,7 @@ func (c *Catalog) execDrop(n *ast.DropStmt) error {
 			for _, item := range n.Names.Items {
 				if ref, ok := item.(*ast.TableRef); ok {
 					schemaName, name := tableRefSchemaObject(ref, c.defaultSchema)
-					delete(c.fulltextTables, c.temporalKey(schemaName, name))
+					delete(c.fulltextTables, c.GetTable(schemaName, name))
 				}
 			}
 		}

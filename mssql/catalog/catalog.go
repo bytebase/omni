@@ -56,8 +56,9 @@ type Catalog struct {
 	// the checks that read them are inconclusive.
 	fromMetadata bool
 	// fulltextTables and hiddenColumns record what Exec ran: the tables
-	// with a full-text index, and the HIDDEN columns.
-	fulltextTables        map[tableKey]bool
+	// with a full-text index, and the HIDDEN columns. Both are keyed by the
+	// object, which a rename or schema transfer keeps.
+	fulltextTables        map[*metadata.TableMetadata]bool
 	hiddenColumns         map[*metadata.ColumnMetadata]bool
 	systemTimeTables      map[tableKey][2]string
 	systemVersionedTables map[tableKey]bool

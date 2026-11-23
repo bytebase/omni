@@ -73,7 +73,7 @@ type qrel struct {
 	// tell are HIDDEN.
 	starOpaque bool
 	// table is the table a relation reads, nil for any other relation.
-	table *tableKey
+	table *metadata.TableMetadata
 }
 
 func (r *qrel) col(name string) *qcol {
@@ -1045,9 +1045,9 @@ func (b *binder) checkGrouping(sel *ast.SelectStmt, sc *qscope, blk *qblock, gro
 			if isAggregateCall(v) {
 				return false
 			}
-		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt:
-			return false
 		case *ast.ColumnRef:
+			// A subquery's own columns bind to its blocks and pass; a
+			// correlated reference to this block is held to its grouping.
 			if !grouped(v) {
 				firstBad = v
 			}
@@ -1226,7 +1226,7 @@ func (b *binder) tableExpr(te ast.Node, sc *qscope, lateral []*qrel) ([]*qrel, e
 		if err != nil {
 			return nil, err
 		}
-		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[*r.table] {
+		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[r.table] {
 			return []*qrel{{name: t.Alias, alias: true, cols: []qcol{{name: "KEY"}, {name: "RANK", typ: qtNumber}}}}, nil
 		}
 		return nil, mssqlErr(7601, "Cannot use a CONTAINS or FREETEXT predicate on table or indexed view '%s' because it is not full-text indexed.", t.Table.Object)
@@ -1235,7 +1235,7 @@ func (b *binder) tableExpr(te ast.Node, sc *qscope, lateral []*qrel) ([]*qrel, e
 		if err != nil {
 			return nil, err
 		}
-		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[*r.table] {
+		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[r.table] {
 			return []*qrel{{name: t.Alias, alias: true, opaque: true}}, nil
 		}
 		return nil, mssqlErr(41202, "The semantic language statistics database is not registered, or the table '%s' is not semantically indexed.", t.Table.Object)
@@ -1426,7 +1426,6 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		if err := b.temporal(ref, schema.Name, t.Name, outer); err != nil {
 			return nil, err
 		}
-		key := b.c.temporalKey(schema.Name, t.Name)
 		cols := tableColumns(t)
 		datetime2 := 0
 		for i := range cols {
@@ -1437,7 +1436,7 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		}
 		// A synced table may hide two datetime2 period columns from *.
 		starOpaque := b.c.fromMetadata && datetime2 >= 2
-		return exposed(&qrel{name: ref.Object, schema: schema.Name, cols: cols, starOpaque: starOpaque, table: &key}), nil
+		return exposed(&qrel{name: ref.Object, schema: schema.Name, cols: cols, starOpaque: starOpaque, table: t}), nil
 	}
 	if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, ref.Object); ok {
 		v := schema.Views[idx]
@@ -2173,7 +2172,7 @@ func (b *binder) fulltextUnknown(cols *ast.List, sc *qscope) bool {
 		return true
 	}
 	for _, r := range rels {
-		if r.table == nil || b.c.fulltextTables[*r.table] {
+		if r.table == nil || b.c.fulltextTables[r.table] {
 			return true
 		}
 	}
