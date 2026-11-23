@@ -54,6 +54,8 @@ const (
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
 	ErrFKMissingIndex                    = 1822
+	ErrFKNoUniqueIndexParent             = 6125
+	ErrWrongFieldSpec                    = 1063
 	ErrFKIncompatibleColumns             = 3780
 	ErrNoSuchFunction                    = 1305
 	ErrNoSuchProcedure                   = 1305
@@ -236,6 +238,8 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintViolated:           "HY000",
 	ErrFKCannotDropParent:                "HY000",
 	ErrFKMissingIndex:                    "HY000",
+	ErrFKNoUniqueIndexParent:             "HY000",
+	ErrWrongFieldSpec:                    "42000",
 	ErrFKIncompatibleColumns:             "HY000",
 	ErrNoSuchFunction:                    "42000",
 	ErrDupFunction:                       "HY000",
@@ -605,6 +609,16 @@ func errFKNoRefTable(table string) error {
 func errFKMissingIndex(constraint, refTable string) error {
 	return &Error{Code: ErrFKMissingIndex, SQLState: sqlState(ErrFKMissingIndex),
 		Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing index for constraint '%s' in the referenced table '%s'", constraint, refTable)}
+}
+
+func errFKNoUniqueIndexParent(constraint, refTable string) error {
+	return &Error{Code: ErrFKNoUniqueIndexParent, SQLState: sqlState(ErrFKNoUniqueIndexParent),
+		Message: fmt.Sprintf("Failed to add the foreign key constraint. Missing unique key for constraint '%s' in the referenced table '%s'", constraint, refTable)}
+}
+
+func errWrongFieldSpec(colName string) error {
+	return &Error{Code: ErrWrongFieldSpec, SQLState: sqlState(ErrWrongFieldSpec),
+		Message: fmt.Sprintf("Incorrect column specifier for column '%s'", colName)}
 }
 
 func errFKIncompatibleColumns(col, refCol, constraint string) error {

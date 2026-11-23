@@ -549,6 +549,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
+	if err := validateAutoIncrementTypes(tbl, c.session.Version); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	if err := validateAutoIncrementKeyed(tbl); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -1748,9 +1752,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
 		// Validate FK before adding (unless foreign_key_checks=0).
+		// On MySQL 8.4, restrict_fk_on_non_standard_key still checks existing
+		// parent tables even when foreign_key_checks=0.
 		db := tbl.Database
 		if c.foreignKeyChecks {
 			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
+				return err
+			}
+		} else if !c.loadingSDL && c.session.RestrictFKOnNonStandardKey && isInnoDBEngine(tbl.Engine) {
+			if err := c.validateSingleFKNonStandardOnly(db, tbl, fkCon); err != nil {
 				return err
 			}
 		}

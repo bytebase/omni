@@ -39,48 +39,50 @@ type userVarValue struct {
 
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases                 map[string]*Database      // lowered name -> Database
-	tablespaces               map[string]bool           // exact general tablespace names
-	droppedTablespaces        map[string]bool           // tablespaces explicitly dropped in session
-	tablespacesPartial        bool                      // true when seeded via LoadMetadata without full tablespace inventory
-	tablespaceBlockSizes      map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
-	tablespaceEncrypted       map[string]bool           // general tablespace name -> ENCRYPTION='Y'
-	undoTablespaces           map[string]bool           // exact undo tablespace names -> active
-	tablespaceFiles           map[string]string         // tablespace name -> normalized datafile path
-	tablespaceDirs            map[string]bool           // known InnoDB datafile directories
-	dataDir                   string                    // InnoDB/server datadir (default /var/lib/mysql)
-	userVars                  map[string]userVarValue   // lowered user var name (without @) -> value
-	systemTimeZone            string                    // @@system_time_zone (default UTC)
-	systemTimeZoneLoc         *time.Location            // optional host Location when @@system_time_zone is an abbreviation
-	namedTimeZones            map[string]*time.Location // lowercased mysql.time_zone_name entries -> Location
-	globalTimeZone            string
-	globalSQLMode             string
-	globalCharsetClient       string
-	globalCollationConn       string
-	globalForeignKeyChecks    bool
-	globalGenerateGIPK        bool
-	globalShowGIPK            bool
-	globalExplicitDefaultsTS  bool
-	globalDefaultTableEncrypt bool
-	globalDefaultEngine       string
-	globalDefaultTmpEngine    string
-	globalDefaultWeekFormat   int
-	currentDB                 string
-	defaultCharset            string
-	defaultCollation          string
-	charsetClient             string
-	collationConn             string
-	innodbPageSize            uint64 // configured innodb_page_size (0 => 16384)
-	foreignKeyChecks          bool   // SET foreign_key_checks (default true)
-	loadingSDL                bool   // true while LoadSDLWithVersion executes statements
-	validatingViewBody        bool   // true while analyzeViewBodyFor validates a view body
-	generateGIPK              bool   // SET sql_generate_invisible_primary_key
-	showGIPK                  bool   // SET show_gipk_in_create_table_and_information_schema
-	session                   SessionState
+	databases                        map[string]*Database      // lowered name -> Database
+	tablespaces                      map[string]bool           // exact general tablespace names
+	droppedTablespaces               map[string]bool           // tablespaces explicitly dropped in session
+	tablespacesPartial               bool                      // true when seeded via LoadMetadata without full tablespace inventory
+	tablespaceBlockSizes             map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
+	tablespaceEncrypted              map[string]bool           // general tablespace name -> ENCRYPTION='Y'
+	undoTablespaces                  map[string]bool           // exact undo tablespace names -> active
+	tablespaceFiles                  map[string]string         // tablespace name -> normalized datafile path
+	tablespaceDirs                   map[string]bool           // known InnoDB datafile directories
+	dataDir                          string                    // InnoDB/server datadir (default /var/lib/mysql)
+	userVars                         map[string]userVarValue   // lowered user var name (without @) -> value
+	systemTimeZone                   string                    // @@system_time_zone (default UTC)
+	systemTimeZoneLoc                *time.Location            // optional host Location when @@system_time_zone is an abbreviation
+	namedTimeZones                   map[string]*time.Location // lowercased mysql.time_zone_name entries -> Location
+	globalTimeZone                   string
+	globalSQLMode                    string
+	globalCharsetClient              string
+	globalCollationConn              string
+	globalForeignKeyChecks           bool
+	globalRestrictFKOnNonStandardKey bool
+	globalGenerateGIPK               bool
+	globalShowGIPK                   bool
+	globalExplicitDefaultsTS         bool
+	globalDefaultTableEncrypt        bool
+	globalDefaultEngine              string
+	globalDefaultTmpEngine           string
+	globalDefaultWeekFormat          int
+	currentDB                        string
+	defaultCharset                   string
+	defaultCollation                 string
+	charsetClient                    string
+	collationConn                    string
+	innodbPageSize                   uint64 // configured innodb_page_size (0 => 16384)
+	foreignKeyChecks                 bool   // SET foreign_key_checks (default true)
+	loadingSDL                       bool   // true while LoadSDLWithVersion executes statements
+	validatingViewBody               bool   // true while analyzeViewBodyFor validates a view body
+	generateGIPK                     bool   // SET sql_generate_invisible_primary_key
+	showGIPK                         bool   // SET show_gipk_in_create_table_and_information_schema
+	session                          SessionState
 }
 
 type SessionState struct {
 	ForeignKeyChecks             bool
+	RestrictFKOnNonStandardKey   bool
 	GenerateInvisiblePrimaryKey  bool
 	ShowGIPK                     bool
 	CharsetClient                string
@@ -158,9 +160,15 @@ func (c *Catalog) SetForeignKeyChecks(v bool) {
 // generate paths canonicalize against (default MySQL80).
 func (c *Catalog) Version() Version { return c.session.Version }
 
-// SetVersion fixes the MySQL major version whose stored form the diff/generate
-// canonicalizer reproduces for this catalog. MySQL80 is the only one.
-func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
+// SetVersion fixes the MySQL major version whose stored form and DDL rules
+// this catalog reproduces (MySQL80 or MySQL84). Setting MySQL84 enables
+// restrict_fk_on_non_standard_key by default; MySQL80 disables it.
+func (c *Catalog) SetVersion(v Version) {
+	c.session.Version = v
+	restrict := v >= MySQL84
+	c.session.RestrictFKOnNonStandardKey = restrict
+	c.globalRestrictFKOnNonStandardKey = restrict
+}
 
 // SystemTimeZone returns the server's configured system_time_zone (default "UTC")
 // used whenever the session or global time_zone is "SYSTEM".

@@ -101,7 +101,14 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 }
 
 func LoadSQL(sql string) (*Catalog, error) {
+	return LoadSQLWithVersion(sql, MySQL80)
+}
+
+// LoadSQLWithVersion loads imperative SQL into a fresh Catalog configured for
+// the given MySQL major version (MySQL80 or MySQL84).
+func LoadSQLWithVersion(sql string, version Version) (*Catalog, error) {
 	c := New()
+	c.SetVersion(version)
 	results, err := c.Exec(sql, nil)
 	if err != nil {
 		return nil, err
@@ -232,7 +239,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				})
 			}
 		default:
-			if spec, ok := mysqlSysvarSpecs[varName]; ok {
+			if spec, ok := c.lookupSysvarSpec(varName); ok {
 				upd, err := spec.assign(c, varName, scope, asgn.Value)
 				if err != nil {
 					return err
@@ -277,8 +284,30 @@ type sysvarSpec struct {
 }
 
 var mysqlSysvarSpecs map[string]sysvarSpec
+var mysql84SysvarSpecs map[string]sysvarSpec
+
+func (c *Catalog) lookupSysvarSpec(lowerName string) (sysvarSpec, bool) {
+	if spec, ok := mysqlSysvarSpecs[lowerName]; ok {
+		return spec, true
+	}
+	if c != nil && c.session.Version >= MySQL84 {
+		if spec, ok := mysql84SysvarSpecs[lowerName]; ok {
+			return spec, true
+		}
+	}
+	return sysvarSpec{}, false
+}
 
 func init() {
+	mysql84SysvarSpecs = map[string]sysvarSpec{
+		"restrict_fk_on_non_standard_key": makeBoolSysvarSpec(
+			true,
+			func(c *Catalog) bool { return c.globalRestrictFKOnNonStandardKey },
+			func(c *Catalog, v bool) { c.globalRestrictFKOnNonStandardKey = v },
+			func(c *Catalog) bool { return c.session.RestrictFKOnNonStandardKey },
+			func(c *Catalog, v bool) { c.session.RestrictFKOnNonStandardKey = v },
+		),
+	}
 	mysqlSysvarSpecs = map[string]sysvarSpec{
 		"foreign_key_checks": makeBoolSysvarSpec(
 			true,
@@ -1234,7 +1263,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			return userVarValue{kind: userVarNull}, true, nil
 		}
-		spec, ok, err := validateSetSysvarRef(e)
+		spec, ok, err := c.validateSetSysvarRef(e)
 		if err != nil {
 			return userVarValue{}, false, err
 		}
@@ -2657,7 +2686,7 @@ func evalSetValueTruthy(v userVarValue) bool {
 	return ok && r.Sign() != 0
 }
 
-func validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
+func (c *Catalog) validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
 	if strings.EqualFold(x.Scope, "PERSIST") || strings.EqualFold(x.Scope, "PERSIST_ONLY") {
 		return sysvarSpec{}, false, &Error{
 			Code:     1193,
@@ -2666,7 +2695,7 @@ func validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
 		}
 	}
 	lowerName := toLower(x.Name)
-	spec, ok := mysqlSysvarSpecs[lowerName]
+	spec, ok := c.lookupSysvarSpec(lowerName)
 	if !ok {
 		if !validate.IsKnownSystemVariable(lowerName) {
 			return sysvarSpec{}, false, &Error{
@@ -2726,7 +2755,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			if !x.System {
 				return true
 			}
-			if _, _, err = validateSetSysvarRef(x); err != nil {
+			if _, _, err = c.validateSetSysvarRef(x); err != nil {
 				return false
 			}
 		case *nodes.FuncCallExpr:
