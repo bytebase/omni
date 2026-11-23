@@ -146,6 +146,11 @@ func (c *plChecker) analyzer() *queryAnalyzer {
 		hashMemo:   map[hashMemoKey]uint64{},
 		plsqlName:  c.sqlName,
 		plsqlCall:  c.sqlCall,
+		plsqlBind: func(b *ast.BindVariable) error {
+			// A bad row field is the unit's error, not the statement's.
+			c.bind(b)
+			return nil
+		},
 	}
 }
 
@@ -284,7 +289,7 @@ func (c *plChecker) insert(a *queryAnalyzer, s *ast.InsertStmt) error {
 	}
 	if listed == 0 {
 		listed = visibleColumns(f)
-		c.read(s.Table.Name + ".*")
+		c.read(c.e.resolveSynonymTarget(s.Table.Name, "") + ".*")
 	}
 	sc := &qscope{}
 	given := -1

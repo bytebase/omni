@@ -3225,3 +3225,37 @@ func TestUnitChangesReachTheirReaders(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestUnitReadsBindsTrimAndRowInserts holds three forms of a unit's body to
+// Oracle: TRIM's mode word is no name, a trigger's :NEW field in static
+// SQL is the table's column (PLS-00049 otherwise), and an INSERT of a whole
+// row through a synonym reads the target table's every column.
+func TestUnitReadsBindsTrimAndRowInserts(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE FUNCTION f RETURN VARCHAR2 IS BEGIN RETURN TRIM(BOTH 'x' FROM 'xxabcxx'); END;\n/\n" +
+		"CREATE TABLE t (a NUMBER, b NUMBER);\nCREATE TABLE log (id NUMBER);\n" +
+		"CREATE TRIGGER ok_trg BEFORE INSERT ON t FOR EACH ROW BEGIN INSERT INTO log (id) VALUES (:NEW.a); END;\n/\n" +
+		"CREATE TRIGGER bad_trg BEFORE INSERT ON t FOR EACH ROW BEGIN INSERT INTO log (id) VALUES (:NEW.nope); END;\n/\n" +
+		"CREATE SYNONYM s FOR t;\nCREATE PROCEDURE p IS BEGIN INSERT INTO s VALUES (1, 2); END;\n/\n" +
+		"ALTER TABLE t DROP COLUMN b;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitFunction, "F", "VALID"},
+		{unitTrigger, "OK_TRG", "VALID"},
+		{unitTrigger, "BAD_TRG", "INVALID PLS-00049"},
+		{unitProcedure, "P", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}

@@ -233,7 +233,19 @@ func savedSignature(text string, function bool) []plSignature {
 // function, a package's function, a built-in, a type's constructor, or an
 // element of a declared collection.
 func (c *plChecker) funcCall(n *ast.FuncCallExpr) {
-	c.exprList(n.Args)
+	args := listItems(n.Args)
+	if n.FuncName != nil && n.FuncName.Schema == "" && n.FuncName.Name == "TRIM" && len(args) > 1 {
+		// TRIM(BOTH 'x' FROM s): the parser keeps the mode word as a
+		// name, which a quoted name is not.
+		if ref, ok := args[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) && !strings.Contains(c.e.nodeText(ref), `"`) {
+			args = args[1:]
+		}
+	}
+	for _, item := range args {
+		if x, ok := item.(ast.ExprNode); ok {
+			c.expr(x)
+		}
+	}
 	if n.FuncName == nil || n.FuncName.Name == "" || n.Over != nil {
 		return
 	}
