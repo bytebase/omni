@@ -46,6 +46,9 @@ type Grammar struct {
 	// ruleText gives the text written where a rule stands in another rule's
 	// row, for the rules the token table samples (see Tokens).
 	ruleText map[string]string
+	// everySite holds the rules whose clause gets a row at every alternative
+	// that names them (see EverySite).
+	everySite map[string]bool
 	// qualified holds the name tokens a recognizer also matches qualified,
 	// and the most parts each takes (see Qualified).
 	qualified map[string]int
@@ -123,9 +126,16 @@ func (g *Grammar) sampleRules(tokens *Tokens) error {
 		switch form {
 		case Spaced, Unreachable, Empty, Reserved:
 			return fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
+		case EverySite:
+			continue
 		}
 		g.ruleText[r.name] = form
 		delete(g.termText, r.name)
+	}
+	for name := range g.everySite {
+		if _, ok := g.byName[name]; !ok {
+			return fmt.Errorf("tokens.tsv gives %s the form %s, which only a rule takes, and the grammar has no rule %s", name, EverySite, name)
+		}
 	}
 	return nil
 }
@@ -142,6 +152,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		patterned:   map[string]bool{},
 		spellings:   map[string][]string{},
 		ruleText:    map[string]string{},
+		everySite:   map[string]bool{},
 		qualified:   tokens.qualified,
 		path:        tokens.path,
 	}
@@ -155,6 +166,8 @@ func newGrammar(tokens *Tokens) *Grammar {
 			g.reserved[strings.ToUpper(name)] = true
 		case Empty:
 			g.termText[name] = ""
+		case EverySite:
+			g.everySite[name] = true
 		default:
 			g.termText[name] = form
 		}

@@ -111,10 +111,17 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// ADD KEY (n), ADD n INT.
 	tbl.addedLater = statementAddedColumns(stmt.Commands)
 	defer func() { tbl.addedLater = nil }()
+	checksGone, err := checksDroppedWithColumns(tbl, stmt.Commands)
+	if err != nil {
+		return err
+	}
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
-			return c.execAlterCmd(db, tbl, stmt.Commands[0])
+			if err := c.execAlterCmd(db, tbl, stmt.Commands[0]); err != nil {
+				return err
+			}
+			dropChecks(tbl, checksGone)
 		}
 		return nil
 	}
@@ -131,6 +138,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	dropChecks(tbl, checksGone)
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
@@ -1577,6 +1585,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		}
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
+	renameCheckColumnRefs(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
