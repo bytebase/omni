@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -24,14 +25,14 @@ func validateExpressionSemantics(node nodes.Node) error {
 			return true
 		}
 		fn, ok := n.(*nodes.FuncCallExpr)
-		if !ok {
+		if !ok || fn.Schema != "" || fn.SpacedParen || fn.NameQuoted {
 			return true
 		}
 		name := strings.ToLower(fn.Name)
 		switch name {
 		case "now", "current_timestamp", "localtime", "localtimestamp", "sysdate",
 			"utc_timestamp", "curtime", "current_time", "utc_time":
-			if fsp, ok := firstIntArg(fn); ok && fsp > 6 {
+			if fsp, ok := optTimePrecisionArg(fn); ok && fsp > 6 {
 				err = errTooBigPrecision(fsp, name)
 			}
 		case "curdate", "current_date", "utc_date":
@@ -999,37 +1000,53 @@ func nondeterministicFuncIn(expr nodes.ExprNode) string {
 	return found
 }
 
-func firstIntArg(fn *nodes.FuncCallExpr) (int, bool) {
+// optTimePrecisionArg returns the effective fractional seconds precision that
+// MariaDB 11.8.8 computes for temporal function opt_time_precision arguments
+// (CURTIME/CURRENT_TIME/NOW/CURRENT_TIMESTAMP/LOCALTIME/LOCALTIMESTAMP/SYSDATE/
+// UTC_TIME/UTC_TIMESTAMP). MariaDB converts real_ulong_num through uint16
+// truncation for decimal integer literals (so 65536, 2147483648, and
+// 9223372036854775808 wrap to 0, while 2147483649 wraps to 1 and 65535 stays
+// 65535 -> 1426). For 0x hex literals, values exceeding MaxInt64 saturate at
+// MaxInt64 whose low 16 bits are 65535 -> 1426.
+func optTimePrecisionArg(fn *nodes.FuncCallExpr) (int, bool) {
 	if fn == nil || len(fn.Args) == 0 {
 		return 0, false
 	}
 	switch lit := fn.Args[0].(type) {
 	case *nodes.IntLit:
+		if lit.Text != "" {
+			if v, err := strconv.ParseUint(lit.Text, 10, 64); err == nil {
+				return int(uint16(v)), true
+			}
+			return 0xFFFF, true
+		}
+		if lit.Value >= 0 {
+			return int(uint16(lit.Value)), true
+		}
 		return int(lit.Value), true
 	case *nodes.HexLit:
 		hexStr := lit.Value
 		if strings.HasPrefix(hexStr, "0x") || strings.HasPrefix(hexStr, "0X") {
 			hexStr = hexStr[2:]
 		}
-		if v, err := strconv.ParseUint(hexStr, 16, 64); err == nil {
-			if v > uint64(^uint(0)>>1) {
-				return int(^uint(0) >> 1), true
-			}
-			return int(v), true
+		v, err := strconv.ParseUint(hexStr, 16, 64)
+		if err != nil || v > math.MaxInt64 {
+			return 0xFFFF, true
 		}
+		return int(uint16(v)), true
 	}
 	return 0, false
 }
 
 func temporalFuncFSP(fn *nodes.FuncCallExpr) (int, bool) {
-	if fn == nil {
+	if fn == nil || fn.Schema != "" || fn.SpacedParen || fn.NameQuoted {
 		return 0, false
 	}
 	name := strings.ToLower(fn.Name)
 	switch name {
 	case "now", "current_timestamp", "localtime", "localtimestamp", "sysdate",
 		"utc_timestamp":
-		if fsp, ok := firstIntArg(fn); ok {
+		if fsp, ok := optTimePrecisionArg(fn); ok {
 			return fsp, true
 		}
 		return 0, true

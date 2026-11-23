@@ -44,6 +44,7 @@ const (
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
 	ErrNoSuchFunction                    = 1305
+	ErrFuncInexistentNameCollision       = 1630
 	ErrFunctionNotDefined                = 1128
 	ErrNoSuchProcedure                   = 1305
 	ErrDupFunction                       = 1304
@@ -129,6 +130,7 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintViolated:           "HY000",
 	ErrFKCannotDropParent:                "HY000",
 	ErrNoSuchFunction:                    "42000",
+	ErrFuncInexistentNameCollision:       "42000",
 	ErrFunctionNotDefined:                "HY000",
 	ErrDupFunction:                       "HY000",
 	ErrNoSuchEvent:                       "HY000",
@@ -531,6 +533,11 @@ func errDupProcedure(name string) error {
 func errNoSuchFunction(name string) error {
 	return &Error{Code: ErrNoSuchFunction, SQLState: sqlState(ErrNoSuchFunction),
 		Message: fmt.Sprintf("FUNCTION %s does not exist", name)}
+}
+
+func errFuncInexistentNameCollision(name string) error {
+	return &Error{Code: ErrFuncInexistentNameCollision, SQLState: sqlState(ErrFuncInexistentNameCollision),
+		Message: fmt.Sprintf("FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual", name)}
 }
 
 func errNoSuchProcedure(db, name string) error {

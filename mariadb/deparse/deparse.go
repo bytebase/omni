@@ -10,6 +10,7 @@ package deparse
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -2489,6 +2490,20 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// call; keep the space so it does not re-lex as the builtin.
 		b.WriteByte(' ')
 	}
+	if n.Schema == "" && !n.SpacedParen && !n.NameQuoted && len(n.Args) == 1 && isTemporalPrecisionFunc(name) {
+		if fsp, ok := optTimePrecisionArg(n.Args[0]); ok && fsp >= 0 && fsp <= 6 {
+			if fsp == 0 {
+				b.WriteString("()")
+			} else {
+				fmt.Fprintf(b, "(%d)", fsp)
+			}
+			if n.Over != nil {
+				b.WriteString(" ")
+				writeWindowDef(b, n.Over)
+			}
+			return
+		}
+	}
 	switch {
 	case len(n.Args) == 0 && !n.Star:
 		// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens
@@ -2527,6 +2542,48 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(" ")
 		writeWindowDef(b, n.Over)
 	}
+}
+
+func isTemporalPrecisionFunc(upperName string) bool {
+	switch upperName {
+	case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP",
+		"SYSDATE", "UTC_TIMESTAMP", "CURTIME", "CURRENT_TIME", "UTC_TIME":
+		return true
+	default:
+		return false
+	}
+}
+
+// optTimePrecisionArg matches MariaDB 11.8.8's uint16 truncation of
+// real_ulong_num in opt_time_precision: e.g. CURRENT_TIME(0),
+// CURRENT_TIME(2147483648), and CURRENT_TIME(9223372036854775808) store as
+// curtime(), while CURRENT_TIME(0x06) and CURRENT_TIME(2147483649) store as
+// curtime(6) and curtime(1).
+func optTimePrecisionArg(expr ast.ExprNode) (int, bool) {
+	switch lit := expr.(type) {
+	case *ast.IntLit:
+		if lit.Text != "" {
+			if v, err := strconv.ParseUint(lit.Text, 10, 64); err == nil {
+				return int(uint16(v)), true
+			}
+			return 0xFFFF, true
+		}
+		if lit.Value >= 0 {
+			return int(uint16(lit.Value)), true
+		}
+		return int(lit.Value), true
+	case *ast.HexLit:
+		hexStr := lit.Value
+		if strings.HasPrefix(hexStr, "0x") || strings.HasPrefix(hexStr, "0X") {
+			hexStr = hexStr[2:]
+		}
+		v, err := strconv.ParseUint(hexStr, 16, 64)
+		if err != nil || v > math.MaxInt64 {
+			return 0xFFFF, true
+		}
+		return int(uint16(v)), true
+	}
+	return 0, false
 }
 
 // writeWindowDef formats a window definition.

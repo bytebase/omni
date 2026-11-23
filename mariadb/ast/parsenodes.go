@@ -866,7 +866,13 @@ type FuncCallExpr struct {
 	// parsing such text; engine-synced SQL is always adjacent, so it is never set
 	// there.
 	SpacedParen bool
-	OrderBy     []*OrderByItem
+	// NameQuoted marks a call whose function name token was backtick-quoted
+	// (e.g. `` `count`(a) `` or `` `abs`(1) ``). In MariaDB 11.8, backtick-quoted
+	// names still resolve native func_array functions (such as `abs`), while
+	// grammar-produced builtins (such as `count`, `sum`, `if`) fall through to
+	// stored-function lookup (1630 when missing).
+	NameQuoted bool
+	OrderBy    []*OrderByItem
 	// WithinGroup marks PERCENTILE_CONT and PERCENTILE_DISC's
 	// WITHIN GROUP (ORDER BY ...) clause, whose one item OrderBy holds.
 	WithinGroup bool
