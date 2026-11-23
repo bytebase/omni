@@ -523,6 +523,12 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 		if len(ops) < 2 || !last.all || last.op != ast.SETOP_UNION {
 			return oraError("32040", "recursive WITH clause must use a UNION ALL operation")
 		}
+		// The recursive member reads the element exactly once.
+		memberBlock := *last.sel
+		memberBlock.Op, memberBlock.Rarg = ast.SETOP_NONE, nil
+		if countTableRefs(&memberBlock, c.Name) != 1 {
+			return oraError("32042", "recursive WITH clause must reference itself directly in one of the UNION ALL branches")
+		}
 		// The recursive member may not be DISTINCT, grouped or a MODEL.
 		member := last.sel
 		if member.Distinct || member.UniqueKw || len(listItems(member.GroupClause)) > 0 || member.HavingClause != nil || member.ModelClause != nil {
@@ -1172,7 +1178,8 @@ func (a *queryAnalyzer) builtFromSelected(x ast.Node, targets []ast.ExprNode, co
 	}
 	switch n := x.(type) {
 	case *ast.ColumnRef:
-		if _, ok := keywordValues[n.Column]; ok && n.Table == "" {
+		// A keyword value (CURRENT_DATE), not a column named so.
+		if _, ok := keywordValues[n.Column]; ok && n.Table == "" && a.columnIdentity(n, sc) == "" && !strings.Contains(a.e.nodeText(n), `"`) {
 			return true
 		}
 		return false
@@ -2069,4 +2076,16 @@ func (a *queryAnalyzer) isWildcard(ref *ast.ColumnRef) bool {
 	}
 	text := strings.TrimSpace(a.e.nodeText(ref))
 	return text == "" || strings.HasSuffix(text, "*") && !strings.HasSuffix(text, `"*"`)
+}
+
+// countTableRefs counts the FROM-clause references to table a query makes.
+func countTableRefs(sel *ast.SelectStmt, table string) int {
+	n := 0
+	walkExpr(sel, func(x ast.Node) bool {
+		if tr, ok := x.(*ast.TableRef); ok && tr.Name != nil && tr.Name.Schema == "" && tr.Name.Name == table {
+			n++
+		}
+		return true
+	})
+	return n
 }

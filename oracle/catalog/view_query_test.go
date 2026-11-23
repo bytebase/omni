@@ -77,7 +77,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE, nv NVARCHAR2(10), vc VARCHAR2(10)); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE, nv NVARCHAR2(10), vc VARCHAR2(10), "CURRENT_DATE" DATE); CREATE TABLE u (id DATE); CREATE TABLE w (id NUMBER);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -215,6 +215,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"number_over_interval", `CREATE VIEW v AS SELECT 2 / INTERVAL '2' DAY x FROM dual`, "00932"},
 		{"interval_times_number", `CREATE VIEW v AS SELECT INTERVAL '1' DAY * 2 x FROM dual`, ""},
 		{"trim_mode_grouped", `CREATE VIEW v AS SELECT TRIM(BOTH FROM dummy) x, COUNT(*) c FROM dual GROUP BY dummy`, ""},
+		{"distinct_order_keyword_column", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY "CURRENT_DATE"`, "01791"},
+		{"recursive_member_reads_twice", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT a.n+1 FROM r a JOIN r b ON a.n=b.n WHERE a.n<2) SELECT n FROM r`, "32042"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -977,5 +979,29 @@ func TestViewQuerySysDualPastLocalDual(t *testing.T) {
 	results, err := c.Exec(`CREATE VIEW v AS SELECT dummy FROM sys.dual`, nil)
 	if err != nil || results[0].Error != nil {
 		t.Fatalf("SYS.DUAL past a local DUAL: %v %+v", err, results)
+	}
+}
+
+func TestViewQueryRound45(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER);
+CREATE SYNONYM dual FOR t;
+CREATE VIEW v AS SELECT * FROM dual;
+CREATE VIEW w AS SELECT COLLECT(id) x FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		switch v.GetName() {
+		case "V":
+			if v.GetColumns()[0].GetName() != "ID" {
+				t.Errorf("V reads %q, want the synonym's ID", v.GetColumns()[0].GetName())
+			}
+		case "W":
+			if v.GetColumns()[0].GetType() != "" {
+				t.Errorf("W.X type = %q, want unknown", v.GetColumns()[0].GetType())
+			}
+		}
 	}
 }

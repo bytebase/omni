@@ -184,7 +184,7 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 	if owner == "" {
 		owner = e.owner
 	}
-	localDual := e.tables["DUAL"] != nil || e.views["DUAL"] != nil
+	localDual := e.tables["DUAL"] != nil || e.views["DUAL"] != nil || e.synonyms["DUAL"] != nil
 	if name == "DUAL" && (schema == "SYS" || (schema == "" || schema == "PUBLIC") && !localDual) {
 		// SYS.DUAL, or DUAL when no object of the schema shadows it.
 		rel := &qrel{name: exposed, cols: dualColumns()}

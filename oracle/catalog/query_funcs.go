@@ -671,6 +671,9 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 		return varchar2Bytes(4000), false, nil
 	case "XMLAGG":
 		return simpleType("XMLTYPE"), false, nil
+	case "COLLECT":
+		// A nested table of a system-generated type.
+		return simpleType("UNKNOWN"), false, nil
 	}
 	return numberType(), false, nil
 }
