@@ -2,13 +2,20 @@ package driver
 
 import (
 	"context"
+	"database/sql"
+	sqldriver "database/sql/driver"
 	"errors"
+	"io"
 	"maps"
 	"net"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	goora "github.com/sijms/go-ora/v2"
+	"github.com/sijms/go-ora/v2/converters"
 
 	omnidriver "github.com/bytebase/omni/driver"
 )
@@ -310,5 +317,138 @@ func TestPlanJSON(t *testing.T) {
 	// A row shorter than the columns names no value for the rest.
 	if _, err := planJSON(columns, [][]any{{[]byte("0")}}); err != nil {
 		t.Errorf("a ragged row failed: %v", err)
+	}
+}
+
+type sharedGoOraDriver struct{}
+
+func (sharedGoOraDriver) Driver() sqldriver.Driver { return goora.GetDefaultDriver() }
+
+// TestOpenIsolatesGoOraDriver pins that each Open creates its own go-ora
+// driver rather than sharing go-ora's process-wide default, whose cached
+// character-set converters would otherwise bleed across Oracle data sources.
+func TestOpenIsolatesGoOraDriver(t *testing.T) {
+	const we8iso8859p1, al16utf16 = 31, 2000
+	goora.SetStringConverter(sharedGoOraDriver{}, converters.NewStringConverter(we8iso8859p1), converters.NewStringConverter(al16utf16))
+	t.Cleanup(func() { goora.SetStringConverter(sharedGoOraDriver{}, nil, nil) })
+
+	cfg := omnidriver.Config{
+		Host:   "db.example.com",
+		Port:   "1521",
+		User:   "scott",
+		Params: map[string]string{"SERVICE_NAME": "ORCLPDB1"},
+	}
+	d1, err := Open(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = d1.Close() }()
+
+	d2, err := Open(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = d2.Close() }()
+
+	shared := goora.GetDefaultDriver()
+	if d1.db.Driver() == shared || d2.db.Driver() == shared {
+		t.Fatal("Open shared go-ora's process-wide default driver")
+	}
+	if d1.db.Driver() == d2.db.Driver() {
+		t.Fatal("separate Open calls shared one go-ora driver instance")
+	}
+}
+
+type recordingOracleConnector struct {
+	mu    sync.Mutex
+	opens int
+	execs []string
+}
+
+func (c *recordingOracleConnector) Connect(context.Context) (sqldriver.Conn, error) {
+	c.mu.Lock()
+	c.opens++
+	c.mu.Unlock()
+	return &recordingOracleConn{parent: c}, nil
+}
+
+func (*recordingOracleConnector) Driver() sqldriver.Driver { return nil }
+
+type recordingOracleConn struct {
+	parent *recordingOracleConnector
+}
+
+func (*recordingOracleConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (*recordingOracleConn) Close() error                           { return nil }
+func (*recordingOracleConn) Begin() (sqldriver.Tx, error)           { return nil, errors.New("unused") }
+
+func (c *recordingOracleConn) ExecContext(_ context.Context, query string, _ []sqldriver.NamedValue) (sqldriver.Result, error) {
+	c.parent.mu.Lock()
+	c.parent.execs = append(c.parent.execs, query)
+	c.parent.mu.Unlock()
+	return sqldriver.RowsAffected(0), nil
+}
+
+func (c *recordingOracleConn) QueryContext(_ context.Context, query string, _ []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	c.parent.mu.Lock()
+	c.parent.execs = append(c.parent.execs, query)
+	c.parent.mu.Unlock()
+	return &singleCellOracleRows{val: "1"}, nil
+}
+
+type singleCellOracleRows struct {
+	val  string
+	done bool
+}
+
+func (*singleCellOracleRows) Columns() []string { return []string{"N"} }
+func (*singleCellOracleRows) Close() error      { return nil }
+func (r *singleCellOracleRows) Next(dest []sqldriver.Value) error {
+	if r.done {
+		return io.EOF
+	}
+	r.done = true
+	dest[0] = r.val
+	return nil
+}
+
+// TestSessionKeepsOneConnAndResetsCurrentSchemaOnClose pins that a Session
+// reuses one connection across Query calls and restores the driver's schema
+// before returning the connection to the pool.
+func TestSessionKeepsOneConnAndResetsCurrentSchemaOnClose(t *testing.T) {
+	ctx := context.Background()
+	conn := &recordingOracleConnector{}
+	db := sql.OpenDB(conn)
+	defer func() { _ = db.Close() }()
+
+	d := &Driver{db: db, databaseName: "APP"}
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.Query(ctx, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY/MM/DD'", omnidriver.QueryOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Query(ctx, "SELECT 1 FROM DUAL", omnidriver.QueryOptions{Schema: `OTHER"SCHEMA`}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	if conn.opens != 1 {
+		t.Fatalf("connections opened = %d, want 1", conn.opens)
+	}
+	want := []string{
+		"ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY/MM/DD'",
+		`ALTER SESSION SET CURRENT_SCHEMA = "OTHER""SCHEMA"`,
+		"SELECT 1 FROM DUAL",
+		`ALTER SESSION SET CURRENT_SCHEMA = "APP"`,
+	}
+	if !slices.Equal(conn.execs, want) {
+		t.Fatalf("statements = %q, want %q", conn.execs, want)
 	}
 }
