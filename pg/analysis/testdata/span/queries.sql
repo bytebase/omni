@@ -183,6 +183,17 @@ SELECT customer_id FROM orders GROUP BY customer_id
 SELECT count(*) FILTER (WHERE status = 'paid') AS paid FROM orders
 SELECT region, count(*) FROM customers GROUP BY ROLLUP (region)
 
+-- Stars beside other targets. The span's metadata holds no functions, so a
+-- star over tags() sends the query to ResolveQuerySpan's parse-tree
+-- fallback, which expands each star in place.
+SELECT *, c.name FROM customers c CROSS JOIN tags()
+SELECT c.name, upper(c.email) AS e, * FROM customers c CROSS JOIN tags()
+SELECT id, *, region FROM customers, tags()
+SELECT c.*, upper(c.name) AS u, tags.*, c.id FROM customers c CROSS JOIN tags()
+SELECT o.id, c.*, o.amount * 2 AS twice, tags.* FROM orders o JOIN customers c ON c.id = o.customer_id CROSS JOIN tags()
+SELECT *, s.email FROM (SELECT id, upper(email) AS email FROM customers) s CROSS JOIN tags()
+SELECT *, customer_id FROM orders JOIN items ON items.order_id = orders.id CROSS JOIN tags()
+
 -- session: sales,public
 SELECT id, region FROM orders
 SELECT * FROM orders

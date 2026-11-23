@@ -27,6 +27,7 @@
 | CREATE TABLE public.events_b PARTITION OF public.events FOR VALUES IN ('b');
 | CREATE VIEW public.renamed (cid, mail) AS SELECT id, email FROM public.customers;
 | CREATE VIEW "Mixed"."Upper View" AS SELECT "Id" AS "ID", lower_col AS "Lower" FROM "Mixed"."CamelTable";
+| CREATE FUNCTION public.tags() RETURNS SETOF text LANGUAGE sql AS $$ SELECT 'a' $$;
 < raw
 | {"database":"db","schemas":[{"name":"Mixed","tables":[{"name":"CamelTable","columns":[{"name":"Id","type":"integer"},{"name":"MixedCol","type":"text"},{"name":"lower_col","type":"text"}]}],"views":[{"name":"CamelView","columns":[{"name":"Id","type":"integer"},{"name":"Renamed","type":"text"}],"definition":" SELECT \"Id\",\n    \"MixedCol\" AS \"Renamed\"\n   FROM \"Mixed\".\"CamelTable\";"},{"name":"Upper View","columns":[{"name":"ID","type":"integer"},{"name":"Lower","type":"text"}],"definition":" SELECT \"Id\" AS \"ID\",\n    lower_col AS \"Lower\"\n   FROM \"Mixed\".\"CamelTable\";"}]},{"name":"hr","tables":[{"name":"employees","columns":[{"name":"id","type":"integer"},{"name":"name","type":"text"},{"name":"ssn","type":"text"},{"name":"manager_id","type":"integer"},{"name":"salary","type":"numeric"},{"name":"dept","type":"text"}]}],"views":[{"name":"directory","columns":[{"name":"id","type":"integer"},{"name":"name","type":"text"},{"name":"dept","type":"text"}],"definition":" SELECT id,\n    name,\n    dept\n   FROM hr.employees;"}]},{"name":"public","tables":[{"name":"accounts","columns":[{"name":"id","type":"bigint"},{"name":"customer_id","type":"integer"},{"name":"iban","type":"text"}]},{"name":"customers","columns":[{"name":"id","type":"integer"},{"name":"name","type":"text"},{"name":"email","type":"text"},{"name":"region","type":"text"}]},{"name":"events","columns":[{"name":"id","type":"integer"},{"name":"kind","type":"text"},{"name":"payload","type":"text"}],"partitions":["events_a","events_b"]},{"name":"items","columns":[{"name":"order_id","type":"integer"},{"name":"sku","type":"text"},{"name":"qty","type":"integer"},{"name":"price","type":"numeric"}]},{"name":"orders","columns":[{"name":"id","type":"integer"},{"name":"customer_id","type":"integer"},{"name":"amount","type":"numeric"},{"name":"status","type":"text"},{"name":"created_at","type":"timestamp without time zone"}]}],"views":[{"name":"customer_emails","columns":[{"name":"id","type":"integer"},{"name":"email","type":"text"}],"definition":" SELECT id,\n    email\n   FROM public.customers;"},{"name":"labeled","columns":[{"name":"id","type":"integer"},{"name":"label","type":"text"},{"name":"region","type":"text"}],"definition":" SELECT id,\n    upper(name) AS label,\n    region\n   FROM public.customers;"},{"name":"order_totals","columns":[{"name":"customer_id","type":"integer"},{"name":"total","type":"numeric"},{"name":"n","type":"bigint"}],"definition":" SELECT customer_id,\n    sum(amount) AS total,\n    count(*) AS n\n   FROM public.orders\n  GROUP BY customer_id;"},{"name":"renamed","columns":[{"name":"cid","type":"integer"},{"name":"mail","type":"text"}],"definition":" SELECT id AS cid,\n    email AS mail\n   FROM public.customers;"},{"name":"staff_orders","columns":[{"name":"name","type":"text"},{"name":"amount","type":"numeric"}],"definition":" SELECT e.name,\n    o.amount\n   FROM (hr.employees e\n     JOIN public.orders o ON ((o.customer_id = e.id)));"},{"name":"vip","columns":[{"name":"id","type":"integer"},{"name":"email","type":"text"},{"name":"total","type":"numeric"}],"definition":" SELECT e.id,\n    e.email,\n    t.total\n   FROM (public.customer_emails e\n     JOIN public.order_totals t ON ((t.customer_id = e.id)))\n  WHERE (t.total \u003e (1000)::numeric);"}],"materializedViews":[{"name":"region_counts","columns":[{"name":"region","type":"text"},{"name":"n","type":"bigint"}],"definition":" SELECT region,\n    count(*) AS n\n   FROM public.customers\n  GROUP BY region;"}]},{"name":"sales","tables":[{"name":"orders","columns":[{"name":"id","type":"integer"},{"name":"region","type":"text"},{"name":"total","type":"numeric"}]},{"name":"targets","columns":[{"name":"region","type":"text"},{"name":"goal","type":"numeric"}]}]}]}
 > raw
@@ -809,6 +810,41 @@
 | SELECT region, count(*) FROM customers GROUP BY ROLLUP (region)
 < raw
 | {"columns":[{"name":"region","sources":["db.public.customers.region"]},{"name":"count"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT *, c.name FROM customers c CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.customers.id"]},{"name":"name","sources":["db.public.customers.name"]},{"name":"email","sources":["db.public.customers.email"]},{"name":"region","sources":["db.public.customers.region"]},{"name":"tags"},{"name":"name","sources":["db.public.customers.name"]}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT c.name, upper(c.email) AS e, * FROM customers c CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"name","sources":["db.public.customers.name"]},{"name":"e"},{"name":"id","sources":["db.public.customers.id"]},{"name":"name","sources":["db.public.customers.name"]},{"name":"email","sources":["db.public.customers.email"]},{"name":"region","sources":["db.public.customers.region"]},{"name":"tags"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT id, *, region FROM customers, tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.customers.id"]},{"name":"id","sources":["db.public.customers.id"]},{"name":"name","sources":["db.public.customers.name"]},{"name":"email","sources":["db.public.customers.email"]},{"name":"region","sources":["db.public.customers.region"]},{"name":"tags"},{"name":"region","sources":["db.public.customers.region"]}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT c.*, upper(c.name) AS u, tags.*, c.id FROM customers c CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.customers.id"]},{"name":"name","sources":["db.public.customers.name"]},{"name":"email","sources":["db.public.customers.email"]},{"name":"region","sources":["db.public.customers.region"]},{"name":"u"},{"name":"tags"},{"name":"id","sources":["db.public.customers.id"]}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT o.id, c.*, o.amount * 2 AS twice, tags.* FROM orders o JOIN customers c ON c.id = o.customer_id CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.orders.id"]},{"name":"id","sources":["db.public.customers.id"]},{"name":"name","sources":["db.public.customers.name"]},{"name":"email","sources":["db.public.customers.email"]},{"name":"region","sources":["db.public.customers.region"]},{"name":"twice"},{"name":"tags"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
+| SELECT *, s.email FROM (SELECT id, upper(email) AS email FROM customers) s CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.customers.id"]},{"name":"email"},{"name":"tags"},{"name":"email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT *, customer_id FROM orders JOIN items ON items.order_id = orders.id CROSS JOIN tags()
+< raw
+| {"columns":[{"name":"id","sources":["db.public.orders.id"]},{"name":"customer_id","sources":["db.public.orders.customer_id"]},{"name":"amount","sources":["db.public.orders.amount"]},{"name":"status","sources":["db.public.orders.status"]},{"name":"created_at","sources":["db.public.orders.created_at"]},{"name":"order_id","sources":["db.public.items.order_id"]},{"name":"sku","sources":["db.public.items.sku"]},{"name":"qty","sources":["db.public.items.qty"]},{"name":"price","sources":["db.public.items.price"]},{"name":"tags"},{"name":"customer_id","sources":["db.public.orders.customer_id"]}],"tables":["db.public.items","db.public.orders"]}
 > raw
 | span sales,public
 | SELECT id, region FROM orders

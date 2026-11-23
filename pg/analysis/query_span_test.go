@@ -280,47 +280,48 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT v.x FROM t AS v(x, y) WHERE y = 'a'", results: []result{{"x", []string{"db.public.t.id"}}}, predicates: []string{"db.public.t.email"}},
 		{statement: "WITH c AS (SELECT ssn FROM t) SELECT x FROM c AS v(x)", results: []result{{"x", []string{"db.public.t.ssn"}}}},
 		// * over an unknown function sends these to the parse-tree fallback,
-		// which reports only the other outputs.
-		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.e FROM (SELECT ssn AS e FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"e", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.b FROM (SELECT * FROM t) v(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"b", []string{"db.public.t.email"}}}},
-		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t UNION SELECT email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.x FROM (SELECT o.amt FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, v.x FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}}},
-		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u WHERE v.x = '1'", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.ssn"}},
+		// which expands each star in place, taking the function to return
+		// one column.
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.e FROM (SELECT ssn AS e FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"e", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"e", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.b FROM (SELECT * FROM t) v(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"a", []string{"db.public.t.id"}}, {"b", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"b", []string{"db.public.t.email"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t UNION SELECT email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT o.amt FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.o.amt"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.x FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.id"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ssn FROM t) v(x) CROSS JOIN unknown_rows() u WHERE v.x = '1'", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.ssn"}},
 		{statement: "SELECT * FROM (SELECT ssn, email FROM t) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"email", []string{"db.public.t.email"}}, {"unknown_rows", []string{}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT greatest(ssn, '') AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.x FROM (SELECT ROW(ssn, email) AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.d FROM (SELECT * FROM o JOIN t USING (id)) v(a, b, c, d) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"d", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, v.d FROM (SELECT * FROM o NATURAL JOIN t) v(a, b, c, d) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"d", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.o.amt", "db.public.o.id", "db.public.t.email", "db.public.t.id", "db.public.t.ssn"}},
+		{statement: "SELECT *, v.ssn FROM (SELECT greatest(ssn, '') AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (SELECT ROW(ssn, email) AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.email", "db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.email", "db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.d FROM (SELECT * FROM o JOIN t USING (id)) v(a, b, c, d) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"a", []string{"db.public.o.id", "db.public.t.id"}}, {"b", []string{"db.public.o.amt"}}, {"c", []string{"db.public.t.email"}}, {"d", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"d", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.d FROM (SELECT * FROM o NATURAL JOIN t) v(a, b, c, d) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"a", []string{"db.public.o.id", "db.public.t.id"}}, {"b", []string{"db.public.o.amt"}}, {"c", []string{"db.public.t.email"}}, {"d", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"d", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.o.amt", "db.public.o.id", "db.public.t.email", "db.public.t.id", "db.public.t.ssn"}},
 		{statement: "SELECT * FROM o JOIN t USING (id) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.o.id", "db.public.t.id"}}, {"amt", []string{"db.public.o.amt"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, v.ssn FROM (SELECT j.ssn FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT j.ssn FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b)", results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, v.ssn FROM (SELECT j.* FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT ssn IN (SELECT ''::text) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: `SELECT *, v.ssn FROM (SELECT email AS "SSN", ssn FROM t) v CROSS JOIN unknown_rows() u`, fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.j FROM (SELECT json_object(ssn : 1) AS j FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"a", []string{"db.public.o.id", "db.public.t.id"}}, {"b", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"amt", []string{"db.public.o.amt"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.ssn FROM (SELECT j.* FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"k", []string{}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT ssn IN (SELECT ''::text) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: `SELECT *, v.ssn FROM (SELECT email AS "SSN", ssn FROM t) v CROSS JOIN unknown_rows() u`, fallback: true, results: []result{{"SSN", []string{"db.public.t.SSN", "db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.j FROM (SELECT json_object(ssn : 1) AS j FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"j", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT JSON_OBJECT('x': t.email, 'j': JSON_ARRAY(SELECT t.ssn)) AS j FROM t", results: []result{{"j", []string{"db.public.t.email", "db.public.t.ssn"}}}},
 		{statement: "SELECT 1 AS n FROM XMLTABLE('/r' PASSING (SELECT '<r/>'::xml FROM t WHERE ssn <> '') COLUMNS x text) AS xt", results: []result{{"n", []string{}}}, predicates: []string{"db.public.t.ssn"}},
-		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT ssn FROM t UNION ALL SELECT ssn FROM t LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.id FROM (SELECT id FROM t) v CROSS JOIN o CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}}},
-		{statement: "SELECT *, v.x FROM o CROSS JOIN LATERAL (SELECT amt AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}},
-		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, v.ssn FROM (SELECT ssn FROM c) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, ssn FROM c CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT * FROM (SELECT ssn FROM t) s LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM t x(id, email, secret) CROSS JOIN LATERAL (SELECT x.secret AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT ssn FROM t EXCEPT SELECT email FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
-		{statement: "SELECT *, v.x FROM (SELECT (SELECT ssn FROM t EXCEPT SELECT email FROM t) AS x) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
-		{statement: "SELECT *, to_jsonb(v) AS j FROM (SELECT o.amt, t.ssn FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.o.amt", "db.public.t.ssn"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
-		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT s.ssn FROM (SELECT t.ssn) s) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, (SELECT v.ssn FROM o x LIMIT 1) AS s, v.ssn FROM t x CROSS JOIN LATERAL (SELECT x.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"s", []string{"db.public.t.ssn"}}, {"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT public.t.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT ssn::text FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, ssn::text, 1::int4 FROM t CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"int4", []string{}}}},
-		{statement: "SELECT *, v.ssn FROM (SELECT (WITH c AS (SELECT ssn FROM t) SELECT c.ssn FROM c) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT *, v.x FROM (WITH c AS (SELECT ssn FROM t) SELECT * FROM c) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT ssn FROM t UNION ALL SELECT ssn FROM t LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.id FROM (SELECT id FROM t) v CROSS JOIN o CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}, {"id", []string{"db.public.o.id"}}, {"amt", []string{"db.public.o.amt"}}, {"unknown_rows", []string{}}, {"id", []string{"db.public.t.id"}}}},
+		{statement: "SELECT *, v.x FROM o CROSS JOIN LATERAL (SELECT amt AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.o.id"}}, {"amt", []string{"db.public.o.amt"}}, {"x", []string{"db.public.o.amt"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.o.amt"}}}},
+		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, v.ssn FROM (SELECT ssn FROM c) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "WITH c AS (SELECT ssn FROM t) SELECT *, ssn FROM c CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT * FROM (SELECT ssn FROM t) s LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM t x(id, email, secret) CROSS JOIN LATERAL (SELECT x.secret AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"secret", []string{"db.public.t.ssn"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT ssn FROM t EXCEPT SELECT email FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
+		{statement: "SELECT *, v.x FROM (SELECT (SELECT ssn FROM t EXCEPT SELECT email FROM t) AS x) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.t.email", "db.public.t.ssn"}},
+		{statement: "SELECT *, to_jsonb(v) AS j FROM (SELECT o.amt, t.ssn FROM t JOIN o ON o.id = t.id) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"j", []string{"db.public.o.amt", "db.public.t.ssn"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT s.ssn FROM (SELECT t.ssn) s) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, (SELECT v.ssn FROM o x LIMIT 1) AS s, v.ssn FROM t x CROSS JOIN LATERAL (SELECT x.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"s", []string{"db.public.t.ssn"}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT public.t.ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT ssn::text FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, ssn::text, 1::int4 FROM t CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}, {"int4", []string{}}}},
+		{statement: "SELECT *, v.ssn FROM (SELECT (WITH c AS (SELECT ssn FROM t) SELECT c.ssn FROM c) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"ssn", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT *, v.x FROM (WITH c AS (SELECT ssn FROM t) SELECT * FROM c) v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}, {"x", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT * FROM t AS v(x) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.t.id"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
@@ -678,6 +679,80 @@ func TestRangeVarFallbackSkipsCompositeTypes(t *testing.T) {
 	}
 }
 
+// The parse-tree fallback expands each star where it stands, so its results
+// line up with the query's output by position, and gives a function in FROM
+// the columns PostgreSQL does where the call says how many.
+func TestFallbackExpandsStarsInPlace(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		// * over an unknown function sends each of these to the fallback.
+		{"SELECT *, ssn FROM t CROSS JOIN unknown_rows() u", []string{"id", "email", "ssn", "unknown_rows", "ssn"}},
+		{"SELECT ssn, * FROM t CROSS JOIN unknown_rows() u", []string{"ssn", "id", "email", "ssn", "unknown_rows"}},
+		{"SELECT id, *, upper(ssn) FROM t CROSS JOIN unknown_rows() u", []string{"id", "id", "email", "ssn", "unknown_rows", "upper"}},
+		{"SELECT o.*, upper(t.ssn) AS s, u.*, t.* FROM t JOIN o ON o.id = t.id CROSS JOIN unknown_rows() u", []string{"id", "amt", "s", "unknown_rows", "id", "email", "ssn"}},
+		{"SELECT j.*, 1 AS k, u.* FROM (t JOIN o USING (id)) AS j(a, b) CROSS JOIN unknown_rows() u", []string{"a", "b", "ssn", "amt", "k", "unknown_rows"}},
+		// A function gives one column unless the call says otherwise.
+		// pg: src/backend/parser/parse_clause.c — transformRangeFunction
+		{"SELECT *, ssn FROM t, generate_series(1, 2), unknown_rows() u", []string{"id", "email", "ssn", "generate_series", "unknown_rows", "ssn"}},
+		{"SELECT *, ssn FROM t, unnest(ARRAY[1], ARRAY[2]) WITH ORDINALITY, unknown_rows() u", []string{"id", "email", "ssn", "unnest", "unnest", "ordinality", "unknown_rows", "ssn"}},
+		{"SELECT *, ssn FROM t, ROWS FROM (unknown_rows() AS (x int, y text), unknown_one()) AS r", []string{"id", "email", "ssn", "x", "y", "unknown_one", "ssn"}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			stmts, err := omnipg.Parse(tc.statement)
+			require.NoError(t, err)
+			_, err = newFallbackTestExtractor(t).analyzeSelect(stmts[0].AST.(*ast.SelectStmt))
+			require.Error(t, err, "the statement must fail analysis to reach the fallback")
+			var got []string
+			for _, r := range spanFor(t, tc.statement, healthySchema()).Results {
+				got = append(got, r.Name)
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// A function body that reaches a fallback expands its stars in place too,
+// so each of the function's columns reads what its position reads.
+func TestFunctionBodyFallbackExpandsStarsInPlace(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "pf", Definition: "CREATE FUNCTION public.pf() RETURNS TABLE(a int, b text, c text, d text, e text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT *, t.email FROM t CROSS JOIN unknown_rows() u; END; $$"},
+		{Name: "sf", Definition: "CREATE FUNCTION public.sf() RETURNS TABLE(a int, b text, c text, d text, e text) LANGUAGE sql AS $$ SELECT *, t.email FROM t CROSS JOIN unknown_rows() u $$"},
+		// The star over the statement's own CTE expands to its column.
+		{Name: "cf", Definition: "CREATE FUNCTION public.cf() RETURNS TABLE(a int, b int, c text) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY WITH c AS (SELECT 1 AS x) SELECT c.*, u.*, t.ssn FROM t, c, unknown_rows() u; END; $$"},
+	}
+	byPosition := [][]string{{"db.public.t.id"}, {"db.public.t.email"}, {"db.public.t.ssn"}, {}, {"db.public.t.email"}}
+	for _, tc := range []struct {
+		statement string
+		want      [][]string
+	}{
+		{"SELECT * FROM pf()", byPosition},
+		{"SELECT * FROM sf()", byPosition},
+		{"SELECT * FROM cf()", [][]string{{}, {}, {"db.public.t.ssn"}}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			var got [][]string
+			for _, r := range spanFor(t, tc.statement, schema).Results {
+				got = append(got, columnNames(r.SourceColumns))
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// The ordinality column the fallback adds counts rows and reads none of the
+// function's arguments.
+func TestFallbackOrdinalityReadsNoArgument(t *testing.T) {
+	span := spanFor(t, "SELECT u.*, x.* FROM t CROSS JOIN unnest(ARRAY[t.ssn]) WITH ORDINALITY u CROSS JOIN unknown_rows() x", healthySchema())
+	var got [][]string
+	for _, r := range span.Results {
+		got = append(got, columnNames(r.SourceColumns))
+	}
+	require.Equal(t, [][]string{{"db.public.t.ssn"}, {}, {}}, got)
+}
+
 // The fallback resolves each subquery in FROM once, however many references
 // reach it, so nested subqueries cost linear time, not exponential.
 func TestFallbackResolvesEachSubqueryOnce(t *testing.T) {
@@ -686,8 +761,9 @@ func TestFallbackResolvesEachSubqueryOnce(t *testing.T) {
 		inner = "SELECT a, b, c FROM (" + inner + ") v1, (SELECT 1 AS z) v2"
 	}
 	span := spanFor(t, "SELECT *, a FROM ("+inner+") v CROSS JOIN unknown_rows() u", healthySchema())
-	require.Len(t, span.Results, 1)
+	require.Len(t, span.Results, 5) // a, b, c, unknown_rows, a
 	require.Equal(t, []string{"db.public.t.ssn"}, columnNames(span.Results[0].SourceColumns))
+	require.Equal(t, []string{"db.public.t.ssn"}, columnNames(span.Results[4].SourceColumns))
 }
 
 // A recursive CTE's reference to itself through an alias column list

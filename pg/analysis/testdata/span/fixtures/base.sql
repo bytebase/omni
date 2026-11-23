@@ -22,3 +22,4 @@ CREATE TABLE public.events_a PARTITION OF public.events FOR VALUES IN ('a');
 CREATE TABLE public.events_b PARTITION OF public.events FOR VALUES IN ('b');
 CREATE VIEW public.renamed (cid, mail) AS SELECT id, email FROM public.customers;
 CREATE VIEW "Mixed"."Upper View" AS SELECT "Id" AS "ID", lower_col AS "Lower" FROM "Mixed"."CamelTable";
+CREATE FUNCTION public.tags() RETURNS SETOF text LANGUAGE sql AS $$ SELECT 'a' $$;
