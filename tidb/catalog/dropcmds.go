@@ -1,11 +1,27 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/tidb/ast"
+import (
+	"fmt"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
+	// The statement is judged whole before anything goes: v8.5.5 drops every
+	// table it names that exists and answers 1051 for the first that does not
+	// (DROP TABLE a, missing, b leaves neither a nor b), and a foreign key of
+	// a table the statement drops too holds no parent back (DROP TABLE p, c1,
+	// c2 runs where DROP TABLE p, c1 is 3730 for c2's key).
+	type target struct {
+		db  *Database
+		key string
+		ref string
+	}
+	var targets []target
+	var missing error
+	dropping := map[string]bool{}
 	for _, ref := range stmt.Tables {
-		dbName := ref.Schema
-		db, err := c.resolveDatabase(dbName)
+		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {
 			if stmt.IfExists {
 				continue
@@ -15,26 +31,34 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		key := toLower(ref.Name)
 		tbl := db.Tables[key]
 		if tbl == nil {
-			if stmt.IfExists {
-				continue
+			if !stmt.IfExists && missing == nil {
+				missing = errUnknownTable(db.Name, ref.Name)
 			}
-			return errUnknownTable(db.Name, ref.Name)
+			continue
 		}
 		// A cached table cannot be dropped; NOCACHE it first (8242, read on
 		// v8.5.5).
 		if tbl.Cached {
 			return errCachedTable("Drop Table")
 		}
-		// Check if any other table in any database has a FK referencing this table
-		// (unless foreign_key_checks=0).
-		if c.foreignKeyChecks {
-			if err := c.checkFKReferences(db.Name, ref.Name); err != nil {
+		targets = append(targets, target{db, key, ref.Name})
+		dropping[toLower(db.Name)+"."+key] = true
+	}
+	// Check if any other table in any database has a FK referencing this table
+	// (unless foreign_key_checks=0).
+	if c.foreignKeyChecks {
+		c.droppingTables = dropping
+		defer func() { c.droppingTables = nil }()
+		for _, t := range targets {
+			if err := c.checkFKReferences(t.db.Name, t.ref); err != nil {
 				return err
 			}
 		}
-		delete(db.Tables, key)
 	}
-	return nil
+	for _, t := range targets {
+		delete(t.db.Tables, t.key)
+	}
+	return missing
 }
 
 // checkFKReferences returns an error if any table in any database has a
@@ -44,8 +68,11 @@ func (c *Catalog) checkFKReferences(dbName, tableName string) error {
 	tblKey := toLower(tableName)
 	for _, db := range c.databases {
 		for _, tbl := range db.Tables {
-			// Skip the table itself.
+			// Skip the table itself, and the others the statement drops.
 			if toLower(db.Name) == dbKey && toLower(tbl.Name) == tblKey {
+				continue
+			}
+			if c.droppingTables[toLower(db.Name)+"."+toLower(tbl.Name)] {
 				continue
 			}
 			for _, con := range tbl.Constraints {
@@ -78,6 +105,20 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		}
 		if tbl.Cached {
 			return errCachedTable("Truncate Table")
+		}
+		// A table another table's foreign key references is not truncated
+		// while foreign_key_checks is on (v8.5.5: TRUNCATE TABLE customers
+		// under orders' fk_customer is 1701). A key of the table to itself
+		// does not count.
+		if c.foreignKeyChecks {
+			for _, ref := range c.referencingForeignKeys(tbl) {
+				if ref.child == tbl {
+					continue
+				}
+				return &Error{Code: 1701, SQLState: "42000", Message: fmt.Sprintf(
+					"Cannot truncate a table referenced in a foreign key constraint (`%s`.`%s` CONSTRAINT `%s`)",
+					ref.child.Database.Name, ref.child.Name, ref.con.Name)}
+			}
 		}
 		tbl.AutoIncrement = 0
 	}

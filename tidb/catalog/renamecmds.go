@@ -1,6 +1,10 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/tidb/ast"
+import (
+	"fmt"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
 
 func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 	// RENAME TABLE is one atomic statement: v8.5.5 answers 8242 for
@@ -88,6 +92,14 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 
 		newDB, err := c.resolveDatabase(pair.New.Schema)
 		if err != nil {
+			// A table moved to a schema that does not exist fails where the
+			// rename is applied (v8.5.5: RENAME TABLE accounts TO
+			// simulation_nope.accounts is 1025, not 1049).
+			if tbl != nil && pair.New.Schema != "" && c.GetDatabase(pair.New.Schema) == nil {
+				return &Error{Code: 1025, SQLState: "HY000", Message: fmt.Sprintf(
+					"Error on rename of '%s.%s' to '%s.%s' (errno: 168 - Database `%s` doesn't exist)",
+					oldDB.Name, pair.Old.Name, pair.New.Schema, pair.New.Name, pair.New.Schema)}
+			}
 			return err
 		}
 		if view != nil && newDB != oldDB {
@@ -122,8 +134,13 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 	for _, r := range renames {
 		switch {
 		case r.tbl != nil:
+			oldName := r.tbl.Name
 			r.tbl.Name = r.newName
 			r.tbl.Database = r.newDB
+			// The foreign keys that reference the table follow it, pair by
+			// pair, and one that moves to another schema keeps naming the
+			// parents it left (fk_retarget.go).
+			c.retargetReferences(r.tbl, r.oldDB, oldName, nil, nil)
 		case r.view != nil:
 			r.view.Name = r.newName
 			r.view.Database = r.newDB

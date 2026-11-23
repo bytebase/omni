@@ -278,6 +278,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		// variant). Skipped for a CHARACTER SET binary column, which the block
 		// above already mapped to its BLOB form, so col.DataType no longer
 		// matches the declared base name.
+		if err := c.checkColumnLength(colDef, col.Charset); err != nil {
+			return err
+		}
 		if colDef.TypeName != nil && strings.EqualFold(col.DataType, toLower(colDef.TypeName.Name)) {
 			if promoted := promoteDeclaredType(colDef.TypeName, col.Charset); promoted != "" {
 				col.DataType = promoted
@@ -512,6 +515,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// it holds unique keys to the partitioning columns.
 	columnIndexes := len(tbl.Indexes)
 
+	if err := checkGeneratedColumnOrder(tbl, stmt); err != nil {
+		return err
+	}
+
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
@@ -520,6 +527,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
 				return errMultiplePriKey()
+			}
+			// v8.5.5 answers 3756 for a PRIMARY KEY over an expression.
+			for _, ic := range con.IndexColumns {
+				if ic != nil && ic.Functional {
+					return &Error{Code: 3756, SQLState: "HY000", Message: "The primary key cannot be an expression index"}
+				}
 			}
 			// TiDB v8.5.5 rejects a PRIMARY KEY whose column was declared
 			// explicitly NULL (1171), even in a table-level PRIMARY KEY(...).
@@ -667,11 +680,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				unnamedCheckCount++
 				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 			}
+			if err := validateCheckConstraint(tbl, conName, con.Expr); err != nil {
+				return err
+			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
 				Type:        ConCheck,
 				Table:       tbl,
-				CheckExpr:   nodeToSQL(con.Expr),
+				CheckExpr:   checkExprSQL(con.Expr),
 				NotEnforced: con.NotEnforced,
 			})
 
@@ -756,11 +772,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			unnamedCheckCount++
 			conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 		}
+		if err := validateCheckConstraint(tbl, conName, cc.Expr); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
 			Table:       tbl,
-			CheckExpr:   nodeToSQL(cc.Expr),
+			CheckExpr:   checkExprSQL(cc.Expr),
 			NotEnforced: cc.NotEnforced,
 		})
 	}
@@ -801,6 +820,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// none, whatever its keys cover.
 	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
 		if err := validatePartitionExpr(tbl, stmt.Partitions); err != nil {
+			return err
+		}
+		if err := checkPartitionDefinitions(tbl, stmt.Partitions); err != nil {
 			return err
 		}
 		if err := validateCreateTableUniqueKeys(tbl, stmt.Partitions); err != nil {
@@ -893,6 +915,45 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 	}
 }
 
+// partitionExprSQL writes a partitioning expression as TiDB v8.5.5 stores it:
+// function names upper-cased, and arithmetic with no spaces around its
+// operators (PARTITION BY HASH ((`a`+`b`)), where a generated column keeps
+// them).
+func partitionExprSQL(expr nodes.ExprNode) string {
+	return compactArithmetic(upperFuncNames(nodeToSQL(expr)))
+}
+
+// compactArithmetic drops the spaces around + - * / and % outside quoted text.
+func compactArithmetic(s string) string {
+	var b strings.Builder
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			b.WriteByte(ch)
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				b.WriteByte(s[i])
+			} else if ch == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"', '`':
+			quote = ch
+		case ' ':
+			if i+2 < len(s) && strings.IndexByte("+-*/%", s[i+1]) >= 0 && s[i+2] == ' ' {
+				b.WriteByte(s[i+1])
+				i += 2
+				continue
+			}
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
+}
+
 // upperFuncNames uppercases every function name in a deparsed partition
 // expression, which is how TiDB v8.5.5 writes it in SHOW CREATE: YEAR(`c`),
 // TO_DAYS(`c`). A function name is a bare identifier immediately followed by
@@ -946,7 +1007,7 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "RANGE"
-			pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
+			pi.Expr = partitionExprSQL(pc.Expr)
 		}
 	case nodes.PartitionList:
 		if len(pc.Columns) > 0 {
@@ -954,11 +1015,11 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "LIST"
-			pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
+			pi.Expr = partitionExprSQL(pc.Expr)
 		}
 	case nodes.PartitionHash:
 		pi.Type = "HASH"
-		pi.Expr = upperFuncNames(nodeToSQL(pc.Expr))
+		pi.Expr = partitionExprSQL(pc.Expr)
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
@@ -1099,6 +1160,20 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 
 	if refTbl == nil {
 		return errFKNoRefTable(con.RefTable)
+	}
+
+	// The key names as many referenced columns as columns (1239), each one the
+	// referenced table has (3734), before their index is looked for (v8.5.5:
+	// REFERENCES customers (id, email) for one column is 1239, REFERENCES
+	// customers (nope) 3734).
+	if len(con.RefColumns) != len(con.Columns) {
+		return errFKKeyRefMismatch(con.Name)
+	}
+	for _, name := range con.RefColumns {
+		if refTbl.GetColumn(name) == nil {
+			return &Error{Code: 3734, SQLState: "HY000", Message: fmt.Sprintf(
+				"Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'", name, con.Name, refTbl.Name)}
+		}
 	}
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
@@ -1492,6 +1567,37 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 // literal its character set.
 func generationExpr(node nodes.ExprNode) string {
 	return deparse.RestoreWith(node, deparse.RestoreForGeneratedColumn)
+}
+
+// checkExprSQL writes a CHECK constraint's expression as TiDB v8.5.5 stores
+// it: as the catalog writes an expression, with the not-equal operator spelled
+// != (CHECK ((`first_name` != `last_name`)) for first_name <> last_name).
+func checkExprSQL(node nodes.ExprNode) string {
+	s := nodeToSQL(node)
+	var b strings.Builder
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			b.WriteByte(ch)
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				b.WriteByte(s[i])
+			} else if ch == quote {
+				quote = 0
+			}
+			continue
+		}
+		if ch == '\'' || ch == '"' || ch == '`' {
+			quote = ch
+		} else if strings.HasPrefix(s[i:], " <> ") {
+			b.WriteString(" != ")
+			i += 3
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
 
 func nodeToSQL(node nodes.ExprNode) string {
@@ -1952,6 +2058,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		if srcCon.Type == ConCheck {
 			checks++
 			name = fmt.Sprintf("%s_chk_%d", tableName, checks)
+			// v8.5.5 renames the source's CHECK as well: after CREATE TABLE
+			// chk5 LIKE people, SHOW CREATE TABLE people prints CONSTRAINT
+			// `chk5_chk_1` where it printed `chk_age` (the copy shares the
+			// constraint's info with its source).
+			srcCon.Name = name
 		}
 		con := &Constraint{
 			Name:        name,
@@ -1970,6 +2081,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+	// LIKE copies the partitioning (v8.5.5: CREATE TABLE r8 LIKE orders over a
+	// RANGE table prints its partitions).
+	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
 
 	db.Tables[key] = tbl
 	return nil

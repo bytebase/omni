@@ -215,10 +215,17 @@ func TestWalkThrough_9_1_ModifyChangeExpression(t *testing.T) {
 }
 
 func TestWalkThrough_9_1_ModifyGeneratedToRegular(t *testing.T) {
-	// Scenario 10: ALTER TABLE MODIFY generated column to regular column
+	// Scenario 10: ALTER TABLE MODIFY generated column to regular column. A
+	// STORED one becomes a plain column; a VIRTUAL one is 3106 'Changing the
+	// STORED status' on v8.5.5.
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL)")
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED, v INT AS (a) VIRTUAL)")
 	wtExec(t, c, "ALTER TABLE t MODIFY COLUMN c INT")
+	if results, _ := c.Exec("ALTER TABLE t MODIFY COLUMN v INT", nil); len(results) == 0 || results[0].Error == nil {
+		t.Error("expected 3106 for a VIRTUAL column made plain")
+	} else if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 3106 {
+		t.Errorf("expected 3106, got %v", results[0].Error)
+	}
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	col := tbl.GetColumn("c")
@@ -230,8 +237,8 @@ func TestWalkThrough_9_1_ModifyGeneratedToRegular(t *testing.T) {
 	}
 
 	got := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(got, "GENERATED ALWAYS AS") {
-		t.Errorf("expected no GENERATED ALWAYS AS after MODIFY to regular column\ngot:\n%s", got)
+	if strings.Contains(got, "`c` int GENERATED ALWAYS AS") {
+		t.Errorf("expected no GENERATED ALWAYS AS on c after MODIFY to regular column\ngot:\n%s", got)
 	}
 }
 

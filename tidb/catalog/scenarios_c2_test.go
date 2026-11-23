@@ -522,7 +522,7 @@ func TestScenario_C2(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// Set sql_mode='' on this session (oracle only — omni has no session state).
+		// Set sql_mode='' on the oracle session; the catalog gets the same below.
 		if _, err := mc.db.ExecContext(mc.ctx, "SET SESSION sql_mode=''"); err != nil {
 			t.Errorf("oracle SET sql_mode: %v", err)
 		}
@@ -549,6 +549,11 @@ func TestScenario_C2(t *testing.T) {
 		// omni side — we document the current behavior rather than asserting
 		// a specific outcome, since omni's byte-length → text promotion is
 		// a known gap (scenario 2.25 is pending-verify).
+		// The catalog runs under the oracle's sql_mode: strict, VARCHAR(65536)
+		// is 1074 (checkColumnLength).
+		if _, err := c.Exec(`SET SESSION sql_mode = '';`, nil); err != nil {
+			t.Fatalf("omni SET sql_mode: %v", err)
+		}
 		results, err := c.Exec(`CREATE TABLE t (c VARCHAR(65536));`, nil)
 		omniErr := err != nil
 		if !omniErr {

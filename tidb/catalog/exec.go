@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 	mysqlparser "github.com/bytebase/omni/tidb/parser"
@@ -98,9 +99,13 @@ func LoadSQL(sql string) (*Catalog, error) {
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
-		varName := toLower(asgn.Column.Column)
+		varName, scope := systemVariable(asgn.Column.Column, asgn.Scope)
 		switch varName {
 		case "foreign_key_checks":
+			// SET GLOBAL foreign_key_checks leaves the session's as it is.
+			if scope == "global" {
+				continue
+			}
 			// Extract the value.
 			val := nodeToSQLValue(asgn.Value)
 			switch toLower(val) {
@@ -123,6 +128,27 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			case "1", "on", "true":
 				c.extendedStats = true
 			}
+		case "sql_mode":
+			// SET GLOBAL sql_mode leaves the session's as it is.
+			if scope == "global" {
+				continue
+			}
+			// A string or a bare word is the mode; DEFAULT is the server's,
+			// which is strict. An expression the catalog does not evaluate
+			// (@@sql_mode, CONCAT(...)) leaves the mode as it is.
+			var mode string
+			switch v := asgn.Value.(type) {
+			case *nodes.StringLit:
+				mode = strings.ToUpper(v.Value)
+			case *nodes.ColumnRef:
+				mode = strings.ToUpper(v.Column)
+			case *nodes.DefaultExpr:
+				mode = "DEFAULT"
+			default:
+				continue
+			}
+			c.nonStrict = !(mode == "DEFAULT" || strings.Contains(mode, "STRICT_TRANS_TABLES") ||
+				strings.Contains(mode, "STRICT_ALL_TABLES") || strings.Contains(mode, "TRADITIONAL"))
 		case "names", "character set":
 			// Silently accept — these affect character encoding but
 			// the in-memory catalog doesn't need to change behavior.
@@ -131,6 +157,27 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 		}
 	}
 	return nil
+}
+
+// systemVariable reads the variable an assignment names and the scope it is
+// set in, whichever way it is spelled: sql_mode, @@sql_mode,
+// @@SESSION.sql_mode and SESSION sql_mode are the session's, @@GLOBAL.sql_mode
+// and GLOBAL sql_mode the server's. A user variable (@x) keeps its @.
+func systemVariable(name, scope string) (string, string) {
+	name = toLower(name)
+	scope = toLower(scope)
+	if rest, ok := strings.CutPrefix(name, "@@"); ok {
+		name = rest
+		for _, s := range []string{"global", "session", "local"} {
+			if rest, ok := strings.CutPrefix(name, s+"."); ok {
+				name, scope = rest, s
+			}
+		}
+	}
+	if scope == "local" {
+		scope = "session"
+	}
+	return name, scope
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.

@@ -74,12 +74,22 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl.Cached && !singleCacheCommand(stmt.Commands) {
 		return errCachedTable("Alter Table")
 	}
+	// The foreign keys that reference the table follow its renames once the
+	// whole statement holds (pendingRetargets), so a refused statement leaves
+	// them as they were.
+	c.pendingRetargets = nil
+	c.alterExisting = make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		c.alterExisting[con] = true
+	}
+	defer func() { c.pendingRetargets, c.alterExisting = nil, nil }()
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
 		if err := c.execAlterCmd(db, tbl, stmt.Commands[0]); err != nil {
 			return err
 		}
 		dropChecksOfMissingColumns(tbl)
+		c.runPendingRetargets()
 		return nil
 	}
 
@@ -87,6 +97,42 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// pre-ALTER schema, so a reference to a column added earlier in the same
 	// statement is rejected. Check that before applying any subcommand (omni
 	// would otherwise apply them left-to-right and accept the DDL).
+	if err := checkMultiCmdGenerated(tbl, stmt.Commands); err != nil {
+		return err
+	}
+	// A key the statement drops is judged against the foreign keys the table
+	// began with, one the statement also drops included (v8.5.5: DROP FOREIGN
+	// KEY fk_customer, DROP INDEX idx_customer is 1553).
+	if c.foreignKeyChecks {
+		for _, cmd := range stmt.Commands {
+			if cmd == nil || cmd.Type != nodes.ATDropIndex {
+				continue
+			}
+			for _, idx := range tbl.Indexes {
+				if toLower(idx.Name) == toLower(cmd.Name) {
+					if err := c.checkDropIndexNeededByFK(tbl, idx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	// ALGORITHM = INSTANT adds no key or constraint: v8.5.5 answers 1846 for
+	// ADD INDEX and for ADD CONSTRAINT ... CHECK under it.
+	if alterAlgorithmIs(stmt.Commands, "INSTANT") {
+		for _, cmd := range stmt.Commands {
+			if cmd != nil && (cmd.Type == nodes.ATAddIndex || cmd.Type == nodes.ATAddConstraint) {
+				return &Error{Code: 1846, SQLState: "0A000", Message: "ALGORITHM=INSTANT is not supported. Reason: Cannot alter table by INSTANT. Try ALGORITHM=INPLACE."}
+			}
+		}
+	}
+	// RENAME TO runs alone (v8.5.5: ALTER TABLE entries RENAME TO
+	// simulation_other.entries, ADD COLUMN note INT is 8200).
+	for _, cmd := range stmt.Commands {
+		if cmd != nil && cmd.Type == nodes.ATRenameTable {
+			return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported multi schema change for rename table"}
+		}
+	}
 	if err := checkMultiCmdColumnRefs(tbl, stmt.Commands); err != nil {
 		return err
 	}
@@ -118,6 +164,29 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			undoAlter(db, origKey, tbl, snapshot)
 			return errMultiSchemaDropCheck()
 		}
+		// An added column is judged against the table the statement began
+		// with: v8.5.5 answers 1060 for DROP COLUMN c, ADD COLUMN c BIGINT,
+		// once the commands before it held (a DROP COLUMN a CHECK reads is
+		// 3959 first).
+		if cmd.Type == nodes.ATAddColumn && !cmd.IfNotExists {
+			defs := cmd.Columns
+			if cmd.Column != nil {
+				defs = append([]*nodes.ColumnDef{cmd.Column}, defs...)
+			}
+			for _, def := range defs {
+				if def != nil && snapshot.GetColumn(def.Name) != nil && tbl.GetColumn(def.Name) == nil {
+					undoAlter(db, origKey, tbl, snapshot)
+					return errDupColumn(def.Name)
+				}
+			}
+		}
+		// So is a column's new name: RENAME COLUMN b TO a, CHANGE b a INT
+		// and DROP COLUMN a, RENAME COLUMN b TO a are 1060 when the table
+		// began with an a (v8.5.5).
+		if to := renamedColumnTo(cmd); to != "" && !strings.EqualFold(to, cmd.Name) && snapshot.GetColumn(to) != nil {
+			undoAlter(db, origKey, tbl, snapshot)
+			return errDupColumn(to)
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
@@ -127,7 +196,31 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	dropChecksOfMissingColumns(tbl)
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	c.runPendingRetargets()
 	return nil
+}
+
+// renamedColumnTo returns the name a RENAME COLUMN or CHANGE gives a column,
+// or "" for any other command.
+func renamedColumnTo(cmd *nodes.AlterTableCmd) string {
+	switch cmd.Type {
+	case nodes.ATRenameColumn:
+		return cmd.NewName
+	case nodes.ATChangeColumn:
+		if cmd.Column != nil {
+			return cmd.Column.Name
+		}
+	}
+	return ""
+}
+
+// runPendingRetargets applies the foreign key retargeting an ALTER TABLE's
+// renames queued, in the order they ran.
+func (c *Catalog) runPendingRetargets() {
+	for _, retarget := range c.pendingRetargets {
+		retarget()
+	}
+	c.pendingRetargets = nil
 }
 
 func isCharsetOptionName(name string) bool {
@@ -224,7 +317,10 @@ func checkMultiCmdColumnRefs(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 				return errNoSuchColumn(cmd.After, tbl.Name)
 			}
 		case nodes.ATAddIndex, nodes.ATAddConstraint:
-			if cmd.Constraint != nil {
+			// A FULLTEXT key adds nothing on v8.5.5 and names no column it
+			// is held to: ADD COLUMN e VARCHAR(10), ADD FULLTEXT INDEX ft (e)
+			// runs.
+			if cmd.Constraint != nil && cmd.Constraint.Type != nodes.ConstrFulltextIndex {
 				for _, name := range extractColumnNames(cmd.Constraint) {
 					if name != "" && !orig[toLower(name)] {
 						return errKeyColumnDoesNotExist(name)
@@ -519,6 +615,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err != nil {
 		return err
 	}
+	if err := c.checkColumnLength(colDef, col.Charset); err != nil {
+		return err
+	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
@@ -623,6 +722,22 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// or that a composite (multi-column) index covers. A column covered only by
 	// single-column secondary indexes drops cleanly — those indexes drop with
 	// it (see cleanupIndexesForDroppedColumn). Measured against the container.
+	// A column another table's foreign key references is 1829, ahead of the
+	// keys that cover it (v8.5.5: DROP COLUMN id over customers, the primary
+	// key orders' fk_customer references, is 1829 and not 8200).
+	if c.foreignKeyChecks {
+		for _, ref := range c.referencingForeignKeys(tbl) {
+			if ref.child == tbl {
+				continue
+			}
+			for _, rc := range ref.con.RefColumns {
+				if toLower(rc) == colKey {
+					return &Error{Code: 1829, SQLState: "HY000", Message: fmt.Sprintf(
+						"Cannot drop column '%s': needed in a foreign key constraint '%s' of table '%s'", cmd.Name, ref.con.Name, ref.child.Name)}
+				}
+			}
+		}
+	}
 	if err := checkDropColumnCovered(tbl, cmd.Name); err != nil {
 		return err
 	}
@@ -774,6 +889,13 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
+	// v8.5.5 redefines no column with a CHECK, whether CHECK constraints are
+	// on or not: MODIFY age INT CHECK (age > 1) is 8200.
+	for _, cc := range colDef.Constraints {
+		if cc != nil && cc.Type == nodes.ColConstrCheck {
+			return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported modify column: can't modify with check"}
+		}
+	}
 	oldKey := toLower(oldName)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
@@ -795,10 +917,43 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
 		}
 	}
+	// A VIRTUAL column made a plain one is 3106 'Changing the STORED status',
+	// and one a key reads redefined as generated again 3106 'modifying an
+	// indexed column' (v8.5.5, features@generated: MODIFY full_name
+	// VARCHAR(101) and MODIFY full_name ... AS (...) VIRTUAL under idx_full).
+	if oldCol.Generated != nil && !oldCol.Generated.Stored {
+		switch {
+		case colDef.Generated == nil:
+			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+		case columnInAnyIndex(tbl, oldCol.Name):
+			return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
+				Message: "'modifying an indexed column' is not supported for generated columns."}
+		}
+	}
+	// A column a generated column reads keeps its name (v8.5.5: CHANGE
+	// first_name given_name ... under full_name is 3108).
+	if newKey != oldKey {
+		for _, gc := range tbl.Columns {
+			if gc.Generated != nil && gc != oldCol && generatedExprReferencesColumn(gc.Generated.Expr, oldCol.Name) {
+				return errDependentByGeneratedColumn(oldCol.Name, gc.Name, tbl.Name)
+			}
+		}
+	}
 
 	col, err := buildColumnFromDef(tbl, colDef)
 	if err != nil {
 		return err
+	}
+	if err := c.checkColumnLength(colDef, col.Charset); err != nil {
+		return err
+	}
+	// A string column keeps to the character set changes TiDB makes (v8.5.5:
+	// MODIFY tag VARCHAR(20) over a utf8mb4 tag in a latin1 table is 8200
+	// "Unsupported modify charset from utf8mb4 to latin1").
+	if isStringType(oldCol.DataType) && isStringType(col.DataType) {
+		if err := checkColumnCharsetChange(columnCharsetOf(tbl, oldCol), columnCharsetOf(tbl, col)); err != nil {
+			return err
+		}
 	}
 	if c.foreignKeyChecks {
 		if err := c.checkModifyColumnFKCompatibility(tbl, oldName, col); err != nil {
@@ -811,9 +966,14 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
 
-	// Update index/constraint column references if name changed.
+	// Update index/constraint column references if name changed, and the
+	// foreign keys that reference the column (fk_retarget.go).
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+		db, name, to, existing := tbl.Database, tbl.Name, colDef.Name, c.alterExisting
+		c.pendingRetargets = append(c.pendingRetargets, func() {
+			c.retargetReferences(tbl, db, name, map[string]string{oldKey: to}, existing)
+		})
 	}
 
 	// Handle repositioning.
@@ -857,6 +1017,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
+		for _, ic := range con.IndexColumns {
+			if ic != nil && ic.Functional {
+				return &Error{Code: 3756, SQLState: "HY000", Message: "The primary key cannot be an expression index"}
+			}
+		}
 		// Check for duplicate PK.
 		for _, idx := range tbl.Indexes {
 			if idx.Primary {
@@ -977,8 +1142,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if len(con.RefColumns) == 0 {
 			return errFKKeyRefMismatch(conName)
 		}
+		// A partitioned table takes no foreign key, which v8.5.5 judges after
+		// the key's own definition (1239 first): ADD CONSTRAINT fk_archive
+		// FOREIGN KEY ... on a RANGE table is 1506.
+		if tbl.Partitioning != nil {
+			return errForeignKeyOnPartitioned()
+		}
+		// A name another foreign key of the table holds is 1826 (v8.5.5).
 		if findForeignKey(tbl, conName) != nil {
-			return errCannotAddForeign()
+			return &Error{Code: 1826, SQLState: "HY000", Message: fmt.Sprintf("Duplicate foreign key constraint name '%s'", conName)}
 		}
 		refDBName := ""
 		refTable := ""
@@ -1023,11 +1195,14 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
 		}
+		if err := validateCheckConstraint(tbl, conName, con.Expr); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
 			Table:       tbl,
-			CheckExpr:   nodeToSQL(con.Expr),
+			CheckExpr:   checkExprSQL(con.Expr),
 			NotEnforced: con.NotEnforced,
 		})
 
@@ -1043,6 +1218,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
+		// An expression key part is held to what CREATE TABLE holds it to
+		// (validateFunctionalIndexColumns), and names columns the table has
+		// (v8.5.5: ADD INDEX idx_bad ((nope + 1)) is 1054 'expression').
+		if err := validateFunctionalIndexColumns(con.IndexColumns); err != nil {
+			return err
+		}
+		if err := checkFunctionalKeyColumns(tbl, con.IndexColumns); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -1222,7 +1406,9 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if cmd.IfExists {
 			return nil
 		}
-		return errCantDropKey(name)
+		// v8.5.5 answers 3940 for a CHECK the table does not have (DROP CHECK
+		// nope, and DROP CONSTRAINT naming a foreign key).
+		return &Error{Code: 3940, SQLState: "HY000", Message: fmt.Sprintf("Constraint '%s' does not exist.", name)}
 	}
 }
 
@@ -1242,11 +1428,26 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		if _, dup := tbl.colByName[newKey]; dup {
 			return errDupColumn(cmd.NewName)
 		}
+		// A column the partitioning reads keeps its name (v8.5.5: RENAME
+		// COLUMN created TO created_at over RANGE (YEAR(created)) is 3855).
+		if partitionReadsColumn(tbl, tbl.Columns[idx].Name) {
+			return errPartitionColumnDependency(tbl.Columns[idx].Name)
+		}
 	}
 
+	oldName := tbl.Columns[idx].Name
 	tbl.Columns[idx].Name = cmd.NewName
 	updateColumnRefsInIndexes(tbl, cmd.Name, cmd.NewName)
 	rebuildColIndex(tbl)
+	// The foreign keys that reference the column follow it (v8.5.5: RENAME
+	// COLUMN id TO cid over customers leaves orders' fk_customer referencing
+	// `cid`).
+	if newKey != oldKey {
+		db, name, from, to, existing := tbl.Database, tbl.Name, toLower(oldName), cmd.NewName, c.alterExisting
+		c.pendingRetargets = append(c.pendingRetargets, func() {
+			c.retargetReferences(tbl, db, name, map[string]string{from: to}, existing)
+		})
+	}
 	return nil
 }
 
@@ -1314,10 +1515,15 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return errDupTable(newName)
 	}
 
+	oldName := tbl.Name
 	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
+	// The foreign keys that reference the table follow it (fk_retarget.go).
+	c.pendingRetargets = append(c.pendingRetargets, func() {
+		c.retargetReferences(tbl, oldDB, oldName, nil, nil)
+	})
 	return nil
 }
 
@@ -1480,7 +1686,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
-		if toLower(idx.Name) == key {
+		// The primary key is no key ALTER INDEX names (v8.5.5: ALTER INDEX
+		// `PRIMARY` INVISIBLE is 1176).
+		if toLower(idx.Name) == key && !idx.Primary {
 			idx.Visible = visible
 			return nil
 		}
@@ -1716,6 +1924,17 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	if err := checkAlterTableCharset(tbl.Charset, tbl.Collation, charset, collation); err != nil {
 		return err
 	}
+	// Each string column's own character set is held to the same changes
+	// (v8.5.5: CONVERT TO CHARACTER SET utf8mb4 over a latin1 table with an
+	// ascii column is 8200 "Unsupported modify charset from ascii to
+	// utf8mb4").
+	for _, col := range tbl.Columns {
+		if isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			if err := checkColumnCharsetChange(columnCharsetOf(tbl, col), charset); err != nil {
+				return err
+			}
+		}
+	}
 
 	tbl.Charset = charset
 	tbl.Collation = collation
@@ -1810,7 +2029,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 		toAdd = append(toAdd, pdi)
 	}
-	tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, toAdd...)
+	// The partitions it leaves keep rising bounds and distinct values
+	// (v8.5.5: ADD PARTITION (PARTITION p2022 VALUES LESS THAN (2023)) below
+	// p2023 is 1493, VALUES IN (2, 5) beside IN (1, 2) is 1495).
+	all := append(append([]*PartitionDefInfo(nil), tbl.Partitioning.Partitions...), toAdd...)
+	if err := checkPartitionSequence(tbl, tbl.Partitioning, all); err != nil {
+		return err
+	}
+	tbl.Partitioning.Partitions = all
+	// A HASH or KEY table keeps counting its partitions (v8.5.5: ADD
+	// PARTITION (PARTITION p4) over PARTITIONS 4 prints PARTITIONS 5).
+	if tbl.Partitioning.NumParts > 0 {
+		tbl.Partitioning.NumParts = len(all)
+	}
 	return nil
 }
 
@@ -1900,8 +2131,19 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// not a missing partitioning.
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	// v8.5.5 drops partitions of a RANGE or LIST table alone (1512), each one
+	// it names (1507), and not all of them (1508).
+	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") {
+		return errDropOnlyRangeList()
+	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
+		if !partitionExists(tbl, name) {
+			if cmd.IfExists {
+				continue
+			}
+			return errDropPartitionList()
+		}
 		dropSet[toLower(name)] = true
 	}
 	var remaining []*PartitionDefInfo
@@ -1909,6 +2151,9 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if !dropSet[toLower(pd.Name)] {
 			remaining = append(remaining, pd)
 		}
+	}
+	if len(remaining) == 0 {
+		return errDropLastPartition()
 	}
 	tbl.Partitioning.Partitions = remaining
 	return nil
@@ -1919,7 +2164,11 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
-	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
+	// Truncate is a data operation; for DDL catalog purposes, it's a no-op. A
+	// partition the table does not have is 1735 (v8.5.5).
+	if name := firstUnknownPartition(tbl.Partitioning, cmd.PartitionNames); !cmd.AllPartitions && name != "" {
+		return errUnknownPartition(name, tbl.Name)
+	}
 	return nil
 }
 
@@ -1936,10 +2185,14 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if currentCount == 0 {
 		currentCount = tbl.Partitioning.NumParts
 	}
-	newCount := currentCount - cmd.Number
-	if newCount < 1 {
-		newCount = 1
+	// Coalescing none is 1515, and every partition 1508 (v8.5.5).
+	if cmd.Number == 0 {
+		return errCoalesceNone()
 	}
+	if cmd.Number >= currentCount {
+		return errDropLastPartition()
+	}
+	newCount := currentCount - cmd.Number
 	if len(tbl.Partitioning.Partitions) > 0 {
 		tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:newCount]
 	}
@@ -1951,6 +2204,11 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	// v8.5.5 reorganizes RANGE and LIST partitions alone: over HASH or KEY,
+	// with partitions named or not, it answers 8200.
+	if tbl.Partitioning.Type == "HASH" || tbl.Partitioning.Type == "KEY" {
+		return errUnsupportedReorganize()
 	}
 	// TiDB v8.5.5 (pkg/ddl/executor.go ReorganizePartitions) requires RANGE
 	// reorganization to name a non-empty contiguous slice of existing partitions.
@@ -2036,6 +2294,22 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	if insertPos >= len(remaining) {
 		result = append(result, newParts...)
 	}
+	// A new name a kept partition holds is 1517, and the partitions left keep
+	// rising bounds (v8.5.5: REORGANIZE PARTITION p2024 INTO (PARTITION p2024
+	// VALUES LESS THAN (2030)) before p2025's 2026 is 1493).
+	seen := map[string]bool{}
+	for _, pd := range remaining {
+		seen[toLower(pd.Name)] = true
+	}
+	for _, pd := range newParts {
+		if seen[toLower(pd.Name)] {
+			return errDuplicatePartitionName(pd.Name)
+		}
+		seen[toLower(pd.Name)] = true
+	}
+	if err := checkPartitionSequence(tbl, tbl.Partitioning, result); err != nil {
+		return err
+	}
 	tbl.Partitioning.Partitions = result
 	return nil
 }
@@ -2063,25 +2337,25 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 			return errExchangeTableIsPartitioned(exchTbl.Name)
 		}
 	}
+	if name := firstUnknownPartition(tbl.Partitioning, []string{cmd.Name}); name != "" {
+		return errUnknownPartition(name, tbl.Name)
+	}
 	return nil
 }
 
 // checkModifyColumnFKCompatibility verifies that replacing oldName with newCol
 // keeps every foreign key referencing or referenced by the column type-
-// compatible (3780) and nullable under SET NULL (1830).
+// compatible (3780). A NOT NULL column under a SET NULL action is taken: v8.5.5
+// runs MODIFY x INT NOT NULL under ON UPDATE SET NULL and ON DELETE SET NULL.
 func (c *Catalog) checkModifyColumnFKCompatibility(tbl *Table, oldName string, newCol *Column) error {
 	oldKey := toLower(oldName)
 	for _, con := range tbl.Constraints {
 		if con.Type != ConForeignKey {
 			continue
 		}
-		setNull := con.OnDelete == "SET NULL" || con.OnUpdate == "SET NULL"
 		for i, colName := range con.Columns {
 			if toLower(colName) != oldKey {
 				continue
-			}
-			if setNull && !newCol.Nullable {
-				return errFKColumnCannotBeNull(newCol.Name, con.Name)
 			}
 			if i >= len(con.RefColumns) {
 				continue
@@ -2170,8 +2444,34 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 // references a column by name. The expression uses backtick-quoted identifiers
 // (e.g., `col_name`), so we search for the backtick-quoted form.
 func generatedExprReferencesColumn(expr, colName string) bool {
-	target := "`" + strings.ToLower(colName) + "`"
-	return strings.Contains(strings.ToLower(expr), target)
+	// A backtick-quoted identifier outside any string literal: '`id`' is a
+	// string, not the column.
+	target := strings.ToLower(colName)
+	for i := 0; i < len(expr); i++ {
+		switch ch := expr[i]; ch {
+		case '\'', '"':
+			for i++; i < len(expr) && expr[i] != ch; i++ {
+				if expr[i] == '\\' {
+					i++
+				}
+			}
+		case '`':
+			start := i + 1
+			for i++; i < len(expr); i++ {
+				if expr[i] == '`' {
+					if i+1 < len(expr) && expr[i+1] == '`' {
+						i++
+						continue
+					}
+					break
+				}
+			}
+			if i <= len(expr) && strings.ToLower(strings.ReplaceAll(expr[start:min(i, len(expr))], "``", "`")) == target {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // addNeedsRollback reports whether an ADD action can fail after it has begun

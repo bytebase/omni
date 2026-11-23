@@ -263,8 +263,18 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	// v8.5.5). The partitions an INTERVAL clause generates are built before the
 	// coverage check, which they do not change.
 	pi := buildPartitionInfo(pc)
-	if err := validatePartitionExpr(tbl, pc); err != nil {
-		return err
+	// A column of a type the function cannot read (1659) is answered after
+	// the unique keys the new partitioning must be covered by (1503): v8.5.5
+	// answers PARTITION BY HASH (amount) over a DECIMAL column outside the
+	// primary key with 1503.
+	typeErr := validatePartitionExpr(tbl, pc)
+	if typeErr != nil && !isErrorCode(typeErr, 1659) {
+		return typeErr
+	}
+	if typeErr == nil {
+		if err := checkPartitionDefinitions(tbl, pc); err != nil {
+			return err
+		}
 	}
 	if pc.Interval != nil {
 		if err := applyPartitionInterval(tbl, pc, pi); err != nil {
@@ -289,6 +299,10 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 		// The statement is refused whole, so the settings go back.
 		undo()
 		return err
+	}
+	if typeErr != nil {
+		undo()
+		return typeErr
 	}
 	// KEY () partitions by the primary key, or else by the first whole unique
 	// key of NOT NULL columns, and the ALTER path stores the columns it stands

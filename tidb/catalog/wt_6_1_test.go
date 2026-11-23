@@ -352,7 +352,13 @@ func TestWalkThrough_6_1_FKBackingIndexManagement(t *testing.T) {
 			CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES parent(id)
 		)`)
 
-		mustExec(t, c, "ALTER TABLE child DROP FOREIGN KEY fk_parent, DROP INDEX fk_parent")
+		// One statement is 1553 on TiDB v8.5.5, which judges the DROP INDEX
+		// against the foreign key the table began with.
+		if results, _ := c.Exec("ALTER TABLE child DROP FOREIGN KEY fk_parent, DROP INDEX fk_parent", nil); len(results) == 0 || results[0].Error == nil {
+			t.Fatal("expected 1553 for both drops in one statement")
+		}
+		mustExec(t, c, "ALTER TABLE child DROP FOREIGN KEY fk_parent")
+		mustExec(t, c, "ALTER TABLE child DROP INDEX fk_parent")
 
 		tbl := c.GetDatabase("testdb").GetTable("child")
 

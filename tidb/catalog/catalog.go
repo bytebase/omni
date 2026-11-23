@@ -14,6 +14,20 @@ type Catalog struct {
 	// ALTER TABLE adds no constraint, and DROP CHECK, DROP CONSTRAINT and ALTER
 	// CHECK succeed whatever they name (read on 2026-11-06).
 	checkConstraints bool
+	// nonStrict records a session sql_mode with neither STRICT_TRANS_TABLES nor
+	// STRICT_ALL_TABLES nor TRADITIONAL. The server's default is strict, which
+	// the zero value stands for.
+	nonStrict bool
+	// droppingTables holds, while DROP TABLE runs, the "db.table" keys of the
+	// tables it drops, whose foreign keys hold no parent back.
+	droppingTables map[string]bool
+	// pendingRetargets holds the foreign key retargeting the renames of the
+	// running ALTER TABLE queued, applied once the statement holds.
+	pendingRetargets []func()
+	// alterExisting holds the constraints the table the running ALTER TABLE
+	// changes began with: a column rename moves the references of those, not
+	// of a key the statement adds, which names its columns as they end.
+	alterExisting map[*Constraint]bool
 	// extendedStats is tidb_enable_extended_stats, OFF by default in TiDB v8.5.5.
 	extendedStats bool
 	// tiflashServerCount models the cluster's available TiFlash store count for

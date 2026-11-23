@@ -88,13 +88,18 @@ func TestWalkThrough_5_3_DropFKThenDropColumn(t *testing.T) {
 	}
 }
 
-// Scenario 4: DROP FOREIGN KEY fk, DROP INDEX fk
+// Scenario 4: DROP FOREIGN KEY fk, then DROP INDEX fk. In one statement
+// TiDB v8.5.5 judges the DROP INDEX against the foreign key the table began
+// with and answers 1553, so the two run one after the other.
 func TestWalkThrough_5_3_DropFKThenDropBackingIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 	wtExec(t, c, "CREATE TABLE child (id INT NOT NULL, parent_id INT, CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent(id))")
 
-	mustExec(t, c, "ALTER TABLE child DROP FOREIGN KEY fk, DROP INDEX fk")
+	results, _ := c.Exec("ALTER TABLE child DROP FOREIGN KEY fk, DROP INDEX fk", nil)
+	assertError(t, results[0].Error, 1553)
+	mustExec(t, c, "ALTER TABLE child DROP FOREIGN KEY fk")
+	mustExec(t, c, "ALTER TABLE child DROP INDEX fk")
 
 	tbl := c.GetDatabase("testdb").GetTable("child")
 	if tbl == nil {

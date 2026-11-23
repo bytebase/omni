@@ -72,6 +72,21 @@ func validatePartitionExpr(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
+	// KEY reads any column but a BLOB, TEXT or JSON one, which v8.5.5 answers
+	// with 1659 (CREATE TABLE h9 (a TEXT) PARTITION BY KEY (a)).
+	if pc.Type == nodes.PartitionKey {
+		for _, name := range pc.Columns {
+			col := tbl.GetColumn(name)
+			if col == nil {
+				continue
+			}
+			switch strings.ToLower(col.DataType) {
+			case "tinyblob", "blob", "mediumblob", "longblob", "tinytext", "text", "mediumtext", "longtext", "json":
+				return &Error{Code: 1659, SQLState: "HY000",
+					Message: "Field '" + col.Name + "' is of a not allowed type for this type of partitioning"}
+			}
+		}
+	}
 	if pc.Type == nodes.PartitionRange {
 		if err := checkRangeMaxValuePosition(pc.Partitions); err != nil {
 			return err
