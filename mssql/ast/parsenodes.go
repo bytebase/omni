@@ -3228,9 +3228,11 @@ func (n *UpdatetextStmt) stmtNode() {}
 
 // ---------- Method call ----------
 
-// MethodCallExpr represents a :: static method call.
+// MethodCallExpr represents a :: static method call, or, with Expr set, a
+// method called on an expression's value: EVENTDATA().value(path, type).
 type MethodCallExpr struct {
 	Type   *DataType
+	Expr   ExprNode // the value an instance method is called on; nil for a static call
 	Method string
 	Args   *List
 	Loc    Loc

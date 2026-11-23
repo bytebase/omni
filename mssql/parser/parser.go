@@ -38,7 +38,10 @@ type Parser struct {
 	// whose ORDER BY SQL Server holds to TOP, OFFSET or FOR and which takes no
 	// FOR BROWSE (Msg 1033, 176).
 	subqueryDepth int
-	depth         int // nesting depth of the productions being parsed (see enterNesting)
+	// dmlTrigger is set while the body of a DML trigger is parsed, where a
+	// search condition may test UPDATE ( column ) (updateCall, TSql160.g).
+	dmlTrigger bool
+	depth      int // nesting depth of the productions being parsed (see enterNesting)
 
 	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
 	// bodies, CATCH blocks and procedure or function bodies being parsed:

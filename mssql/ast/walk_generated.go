@@ -610,6 +610,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Type != nil {
 			Walk(v, n.Type)
 		}
+		Walk(v, n.Expr)
 		walkList(v, n.Args)
 	case *NextValueForExpr:
 		if n.Sequence != nil {

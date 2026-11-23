@@ -1,0 +1,153 @@
+# pin: default mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5
+# columns: omni, expected, source, fixture, rule, statement
+ok:6b208a0d4b6e	ok:6b208a0d4b6e	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id, name FROM customers
+ok:683cc3592f63	ok:683cc3592f63	engine	programs@objects	program:procedure	CREATE PROCEDURE p @id INT AS SELECT name FROM customers WHERE id = @id
+ok:ed98ab41f3f7	ok:ed98ab41f3f7	engine	programs@objects	program:procedure	CREATE PROCEDURE p @id INT = NULL, @name NVARCHAR(100) OUTPUT AS SELECT @name = name FROM customers WHERE id = @id
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT nope FROM customers
+ok:dd8d937ced45	ok:dd8d937ced45	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT nope FROM missing_t
+ok:ac2040617bd3	ok:ac2040617bd3	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT c.nope FROM customers c JOIN missing_t m ON m.id = c.id
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN SELECT nope FROM missing_t; SELECT nope FROM customers; END
+ok:2473a08ae0da	ok:2473a08ae0da	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN SET NOCOUNT ON; INSERT INTO orders (customer_id, amount) VALUES (1, 2.5); SELECT SCOPE_IDENTITY() AS id; END
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS INSERT INTO orders (nope) VALUES (1)
+110	110	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS INSERT INTO orders (customer_id) VALUES (1, 2)
+120	120	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS INSERT INTO orders (customer_id, amount) SELECT id FROM customers
+ok:96e557136350	ok:96e557136350	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS INSERT INTO missing_t (x) VALUES (1)
+ok:842df27ebe9b	ok:842df27ebe9b	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS UPDATE orders SET status = 'x' WHERE id = 1
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS UPDATE orders SET nope = 1
+ok:25326c7aa598	ok:25326c7aa598	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS UPDATE o SET status = c.region FROM orders o JOIN customers c ON c.id = o.customer_id
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS DELETE FROM orders WHERE nope = 1
+ok:28dc9cd392ac	ok:28dc9cd392ac	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS DELETE o FROM orders o JOIN customers c ON c.id = o.customer_id WHERE c.region = 'EU'
+ok:cf7fe4cefccf	ok:cf7fe4cefccf	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS MERGE orders AS t USING customers AS s ON t.customer_id = s.id WHEN MATCHED THEN UPDATE SET t.status = 'x' WHEN NOT MATCHED THEN INSERT (customer_id) VALUES (s.id);
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS MERGE orders AS t USING customers AS s ON t.customer_id = s.nope WHEN MATCHED THEN DELETE;
+ok:c8401340592b	ok:c8401340592b	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE @n INT; SET @n = (SELECT COUNT(*) FROM orders); IF @n > 10 SELECT 'many' AS r ELSE SELECT 'few' AS r; END
+ok:74758e3a1fc4	ok:74758e3a1fc4	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE @i INT = 0; WHILE @i < 10 BEGIN SET @i += 1; END; RETURN @i; END
+137	137	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT @undeclared AS v
+137	137	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN SET @x = 1; END
+137	137	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN SELECT @n AS v; DECLARE @n INT; END
+ok:69544c380f9d	ok:69544c380f9d	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN TRY SELECT 1 / 0 AS x; END TRY BEGIN CATCH SELECT ERROR_MESSAGE() AS m; THROW; END CATCH
+ok:bf321b0924f2	ok:bf321b0924f2	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN CREATE TABLE #t (x INT); INSERT INTO #t VALUES (1); SELECT x FROM #t; END
+ok:8e6b66396e92	ok:8e6b66396e92	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN CREATE TABLE #t (x INT); SELECT y FROM #t; END
+ok:d05b00e7c1b3	ok:d05b00e7c1b3	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (x INT); INSERT INTO @t VALUES (1); SELECT x FROM @t; END
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (x INT); SELECT y FROM @t; END
+1087	1087	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT x FROM @t
+ok:1b77b74404a2	ok:1b77b74404a2	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS EXEC p_existing 1
+ok:a417e11d29a6	ok:a417e11d29a6	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS EXEC nope_proc
+ok:d3322fe6eb67	ok:d3322fe6eb67	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT dbo.f_double(id) AS d FROM customers
+ok:9b37c2408e95	ok:9b37c2408e95	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT dbo.nope(id) AS d FROM customers
+8144	8144	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT dbo.f_double(id, 1) AS d FROM customers
+ok:8e9530fd0bce	ok:8e9530fd0bce	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id FROM dbo.f_orders(1)
+8144	8144	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id FROM dbo.f_orders(1, 2)
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT * FROM v_customers WHERE nope = 1
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p @id INT AS SELECT name FROM customers WHERE id = @id ORDER BY nope
+ok:b34ed5546c31	ok:b34ed5546c31	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id INTO #copy FROM customers
+8120	8120	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT customer_id, status, COUNT(*) AS n FROM orders GROUP BY customer_id
+205	205	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id FROM customers UNION SELECT id, status FROM orders
+209	209	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id FROM customers c JOIN orders o ON o.customer_id = c.id
+ok:772ab6cd9ef1	ok:772ab6cd9ef1	engine	programs@objects	program:procedure	CREATE PROCEDURE p @c CURSOR VARYING OUTPUT AS BEGIN SET @c = CURSOR FOR SELECT id FROM customers; OPEN @c; END
+207	207	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE c CURSOR FOR SELECT nope FROM customers; OPEN c; END
+ok:3f9cbabaffc8	ok:3f9cbabaffc8	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS WITH x AS (SELECT id FROM customers) SELECT id FROM x
+ok:1c6c2a3fb2c1	ok:1c6c2a3fb2c1	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS TRUNCATE TABLE audit
+ok:3b72cda443d5	ok:3b72cda443d5	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN BEGIN TRANSACTION; UPDATE orders SET amount = amount * 2; COMMIT; END
+ok:fab347017b83	ok:fab347017b83	engine	programs@objects	program:procedure	CREATE PROCEDURE p @n INT AS SELECT TOP (@n) id FROM orders ORDER BY id
+ok:16abbbde062f	ok:16abbbde062f	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT id FROM customers WHERE id = @@ROWCOUNT
+ok:521a75ed3d68	ok:521a75ed3d68	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS RAISERROR('x', 16, 1)
+ok:7fa8bf41cedc	ok:7fa8bf41cedc	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS BEGIN DECLARE @sql NVARCHAR(MAX) = N'SELECT nope FROM nowhere'; EXEC sp_executesql @sql; END
+ok:bef5cecd713c	ok:bef5cecd713c	engine	programs@objects	program:procedure	CREATE PROCEDURE p @id INT AS IF EXISTS (SELECT 1 FROM customers WHERE id = @id) RETURN 1 ELSE RETURN 0
+ok:db23e0089f15	ok:db23e0089f15	engine	programs@objects	program:procedure	CREATE PROCEDURE p WITH RECOMPILE AS SELECT id FROM customers
+ok:5621b4376945	ok:5621b4376945	engine	programs@objects	program:procedure	CREATE PROCEDURE p WITH EXECUTE AS OWNER AS SELECT id FROM customers
+ok:91d240137733	ok:91d240137733	engine	programs@objects	program:procedure	CREATE PROCEDURE s.p AS SELECT id FROM customers
+2760	2760	engine	programs@objects	program:procedure	CREATE PROCEDURE nope.p AS SELECT 1
+2714	2714	engine	programs@objects	program:procedure	CREATE PROCEDURE p_existing AS SELECT 1
+2715	2715	engine	programs@objects	program:procedure	CREATE PROCEDURE p @id NOPE AS SELECT 1
+ok:7600cd196247	ok:7600cd196247	engine	programs@objects	program:procedure	ALTER PROCEDURE p_existing @id INT, @extra INT = 0 AS SELECT name FROM customers WHERE id = @id
+207	207	engine	programs@objects	program:procedure	ALTER PROCEDURE p_existing AS SELECT nope FROM customers
+208	208	engine	programs@objects	program:procedure	ALTER PROCEDURE nope AS SELECT 1
+ok:78395239d54a	ok:78395239d54a	engine	programs@objects	program:procedure	CREATE OR ALTER PROCEDURE p_existing AS SELECT id FROM customers
+ok:72d34e39a6ed	ok:72d34e39a6ed	engine	programs@objects	program:procedure	CREATE OR ALTER PROCEDURE p AS SELECT id FROM customers
+ok:19d1a543b782	ok:19d1a543b782	engine	programs@objects	program:procedure	DROP PROCEDURE p_existing
+ok:19d1a543b782	ok:19d1a543b782	engine	programs@objects	program:procedure	DROP PROCEDURE IF EXISTS p_existing, nope
+ok:17c6742135fa	ok:17c6742135fa	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@a INT, @b INT) RETURNS INT AS BEGIN RETURN @a + @b END
+ok:0693317bb2f7	ok:0693317bb2f7	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@c INT) RETURNS DECIMAL(10,2) AS BEGIN DECLARE @s DECIMAL(10,2); SELECT @s = SUM(amount) FROM orders WHERE customer_id = @c; RETURN @s; END
+207	207	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@c INT) RETURNS INT AS BEGIN RETURN (SELECT COUNT(*) FROM orders WHERE nope = @c) END
+ok:4780ff43170d	ok:4780ff43170d	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN (SELECT COUNT(*) FROM missing_t) END
+443	443	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN INSERT INTO orders (customer_id) VALUES (1); RETURN 1 END
+443	443	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS UNIQUEIDENTIFIER AS BEGIN RETURN NEWID() END
+ok:af071c2c4409	ok:af071c2c4409	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN EXEC p_existing 1; RETURN 1 END
+137	137	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN @x END
+444	444	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN SELECT id FROM customers; RETURN 1 END
+ok:92706f9213c2	ok:92706f9213c2	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN DECLARE @t TABLE (x INT); INSERT INTO @t VALUES (1); RETURN (SELECT MAX(x) FROM @t) END
+ok:b8ea289fcb01	ok:b8ea289fcb01	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT(*) FROM dbo.orders) END
+4512	4512	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT(*) FROM orders) END
+ok:20d8a9f21536	ok:20d8a9f21536	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@x INT) RETURNS INT AS BEGIN IF @x > 0 RETURN 1; RETURN 0; END
+455	455	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@x INT) RETURNS INT AS BEGIN IF @x > 0 RETURN 1; END
+ok:e1472c4b9cd3	ok:e1472c4b9cd3	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN dbo.f_double(2) END
+ok:4b00778eaaa0	ok:4b00778eaaa0	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN dbo.nope(2) END
+ok:9b76fec2bc4d	ok:9b76fec2bc4d	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN (SELECT TOP 1 id FROM dbo.f_orders(1)) END
+2715	2715	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS NOPE AS BEGIN RETURN 1 END
+ok:577942ca3172	ok:577942ca3172	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@x INT) RETURNS INT AS BEGIN DECLARE @y INT; SET @y = @x * 2; RETURN @y END
+ok:a06069dcae46	ok:a06069dcae46	engine	programs@objects	program:scalar-function	CREATE FUNCTION f(@x INT) RETURNS INT WITH RETURNS NULL ON NULL INPUT AS BEGIN RETURN @x END
+2714	2714	engine	programs@objects	program:scalar-function	CREATE FUNCTION f_double(@x INT) RETURNS INT AS BEGIN RETURN @x END
+ok:1e07989e45df	ok:1e07989e45df	engine	programs@objects	program:scalar-function	ALTER FUNCTION f_double(@x INT) RETURNS INT AS BEGIN RETURN @x * 3 END
+2010	2010	engine	programs@objects	program:scalar-function	ALTER FUNCTION f_double(@x INT) RETURNS TABLE AS RETURN SELECT @x AS x
+ok:bb9d43f358d3	ok:bb9d43f358d3	engine	programs@objects	program:scalar-function	CREATE OR ALTER FUNCTION f_double(@x INT) RETURNS INT AS BEGIN RETURN @x + 1 END
+ok:c2edac11bcb4	ok:c2edac11bcb4	engine	programs@objects	program:scalar-function	DROP FUNCTION f_double
+ok:53577c4d5aa8	ok:53577c4d5aa8	engine	programs@objects	program:inline-function	CREATE FUNCTION f(@c INT) RETURNS TABLE AS RETURN SELECT id, amount FROM orders WHERE customer_id = @c
+ok:b3407d742f9c	ok:b3407d742f9c	engine	programs@objects	program:inline-function	CREATE FUNCTION f(@c INT) RETURNS TABLE AS RETURN (SELECT id, amount FROM orders WHERE customer_id = @c)
+207	207	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT nope FROM orders
+208	208	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT id FROM missing_t
+4514	4514	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT COUNT(*) FROM orders
+4506	4506	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT id, id FROM orders
+1033	1033	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT id FROM orders ORDER BY id
+ok:0f33d1e5429b	ok:0f33d1e5429b	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT TOP 5 id FROM orders ORDER BY id
+ok:2a6e5f760139	ok:2a6e5f760139	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN WITH x AS (SELECT id FROM orders) SELECT id FROM x
+137	137	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT @x AS v
+ok:d1217fe63f3d	ok:d1217fe63f3d	engine	programs@objects	program:inline-function	CREATE FUNCTION f(@c INT) RETURNS TABLE WITH SCHEMABINDING AS RETURN SELECT id FROM dbo.orders WHERE customer_id = @c
+4512	4512	engine	programs@objects	program:inline-function	CREATE FUNCTION f(@c INT) RETURNS TABLE WITH SCHEMABINDING AS RETURN SELECT id FROM orders WHERE customer_id = @c
+ok:4176f2bc076d	ok:4176f2bc076d	engine	programs@objects	program:inline-function	CREATE FUNCTION f(@c INT) RETURNS TABLE AS RETURN SELECT o.id, x.id AS xid FROM orders o CROSS APPLY dbo.f_orders(@c) x
+ok:670dbc3f3c05	ok:670dbc3f3c05	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT id FROM v_customers
+ok:3267a4b50458	ok:3267a4b50458	engine	programs@objects	program:inline-function	ALTER FUNCTION f_orders(@c INT) RETURNS TABLE AS RETURN SELECT id FROM orders WHERE customer_id = @c
+207	207	engine	programs@objects	program:inline-function	ALTER FUNCTION f_orders(@c INT) RETURNS TABLE AS RETURN SELECT nope FROM orders
+ok:0350f4a9282c	ok:0350f4a9282c	engine	programs@objects	program:inline-function	DROP FUNCTION f_orders, f_double
+ok:2a9985ea1921	ok:2a9985ea1921	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f(@c INT) RETURNS @r TABLE (id INT, amount DECIMAL(10,2)) AS BEGIN INSERT INTO @r SELECT id, amount FROM orders WHERE customer_id = @c; RETURN; END
+207	207	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r SELECT nope FROM orders; RETURN; END
+207	207	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r (nope) VALUES (1); RETURN; END
+2705	2705	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT, id INT) AS BEGIN RETURN; END
+ok:e7104bbb34ff	ok:e7104bbb34ff	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT PRIMARY KEY, v NVARCHAR(10) DEFAULT 'x') AS BEGIN INSERT INTO @r (id) VALUES (1); RETURN; END
+178	178	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r VALUES (1); RETURN 1; END
+ok:d2ef671b4161	ok:d2ef671b4161	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r SELECT id FROM missing_t; RETURN; END
+2715	2715	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id NOPE) AS BEGIN RETURN; END
+ok:0c95c765dd0e	ok:0c95c765dd0e	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN UPDATE @r SET id = id + 1; DELETE FROM @r WHERE id > 5; RETURN; END
+443	443	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN UPDATE orders SET amount = 0; RETURN; END
+ok:86419e08540b	ok:86419e08540b	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS INSERT INTO audit (what) SELECT 'order ' + CAST(id AS NVARCHAR(10)) FROM inserted
+ok:38baf2316f0c	ok:38baf2316f0c	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER UPDATE AS IF UPDATE(amount) INSERT INTO audit (what) SELECT 'amount' FROM inserted i JOIN deleted d ON d.id = i.id
+207	207	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER DELETE AS SELECT nope FROM deleted
+207	207	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS SELECT nope FROM inserted
+207	207	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS IF UPDATE(nope) RETURN
+ok:70957185333e	ok:70957185333e	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders INSTEAD OF DELETE AS UPDATE o SET status = 'deleted' FROM orders o JOIN deleted d ON d.id = o.id
+ok:03a960690292	ok:03a960690292	engine	programs@objects	program:trigger	CREATE TRIGGER t ON v_customers INSTEAD OF INSERT AS INSERT INTO customers (id, name) SELECT id, name FROM inserted
+207	207	engine	programs@objects	program:trigger	CREATE TRIGGER t ON v_customers INSTEAD OF INSERT AS INSERT INTO customers (id, name) SELECT id, region FROM inserted
+8197	8197	engine	programs@objects	program:trigger	CREATE TRIGGER t ON v_customers AFTER INSERT AS SET NOCOUNT ON
+ok:4fb422928000	ok:4fb422928000	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders FOR INSERT, UPDATE AS SET NOCOUNT ON
+ok:5132d58a61ff	ok:5132d58a61ff	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS BEGIN DECLARE @n INT = (SELECT COUNT(*) FROM inserted); IF @n > 1 THROW 50000, 'one at a time', 1; END
+ok:eaf3401c2b4b	ok:eaf3401c2b4b	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS SELECT COLUMNS_UPDATED() AS c
+ok:4d03d4db1afc	ok:4d03d4db1afc	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS SELECT id FROM missing_t
+137	137	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS SELECT @v AS v
+ok:fe21a97983a0	ok:fe21a97983a0	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders WITH EXECUTE AS OWNER AFTER INSERT AS SET NOCOUNT ON
+ok:e2c78face8f4	ok:e2c78face8f4	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT NOT FOR REPLICATION AS SET NOCOUNT ON
+ok:8e1a35cc7e7c	ok:8e1a35cc7e7c	engine	programs@objects	program:trigger	CREATE TRIGGER t ON orders AFTER INSERT AS ROLLBACK TRANSACTION
+8197	8197	engine	programs@objects	program:trigger	CREATE TRIGGER t ON missing_t AFTER INSERT AS SET NOCOUNT ON
+2103	2103	engine	programs@objects	program:trigger	CREATE TRIGGER s.t ON orders AFTER INSERT AS SET NOCOUNT ON
+2714	2714	engine	programs@objects	program:trigger	CREATE TRIGGER trg_existing ON orders AFTER INSERT AS SET NOCOUNT ON
+2714	2714	engine	programs@objects	program:trigger	CREATE TRIGGER trg_existing ON customers AFTER INSERT AS SET NOCOUNT ON
+ok:88d25268cc14	ok:88d25268cc14	engine	programs@objects	program:trigger	ALTER TRIGGER trg_existing ON orders AFTER UPDATE AS SET NOCOUNT ON
+2110	2110	engine	programs@objects	program:trigger	ALTER TRIGGER trg_existing ON customers AFTER UPDATE AS SET NOCOUNT ON
+ok:70899e2e69ee	ok:70899e2e69ee	engine	programs@objects	program:trigger	CREATE OR ALTER TRIGGER trg_existing ON orders AFTER DELETE AS SET NOCOUNT ON
+ok:89cd2e7f86b8	ok:89cd2e7f86b8	engine	programs@objects	program:trigger	DROP TRIGGER trg_existing
+ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:trigger	DROP TRIGGER IF EXISTS nope
+ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS PRINT 'created'
+ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR DDL_TABLE_EVENTS AS SELECT EVENTDATA().value('(/EVENT_INSTANCE/ObjectName)[1]', 'nvarchar(128)') AS n
+1084	1084	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR NOPE_EVENT AS PRINT 'x'
+ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE AFTER DROP_TABLE AS ROLLBACK
+207	207	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS SELECT nope FROM customers
+ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS INSERT INTO audit (what) VALUES (EVENTDATA().value('(/EVENT_INSTANCE/ObjectName)[1]', 'nvarchar(100)'))
+3701	3701	engine	programs@objects	program:ddl-trigger	DROP TRIGGER nope ON DATABASE

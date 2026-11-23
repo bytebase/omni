@@ -113,6 +113,18 @@ END;`
 // database, builds the fixture batches, executes the statement, and after an
 // accepted statement reads the stored objects back as DDL.
 func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return simulationEngineWith("")(t)
+}
+
+// simulationEngineWith is simulationEngine that runs beforeReset ahead of
+// each row's reset, when it is not empty.
+func simulationEngineWith(beforeReset string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return func(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+		return simulationEngineOn(t, beforeReset)
+	}
+}
+
+func simulationEngineOn(t testing.TB, beforeReset string) func(simulate.Fixture, string) (simulate.Answer, error) {
 	db := testcontainer.Open(t)
 	ctx := context.Background()
 	if _, err := db.ExecContext(ctx, simulationResetProcSQL); err != nil {
@@ -122,6 +134,11 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 		t.Fatalf("install _sim_forms: %v", err)
 	}
 	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
+		if beforeReset != "" {
+			if _, err := db.ExecContext(ctx, beforeReset); err != nil {
+				return simulate.Answer{}, fmt.Errorf("prepare the reset for fixture %s: %w", fx.Name, err)
+			}
+		}
 		if _, err := db.ExecContext(ctx, "EXEC [dbo].[_sim_reset]"); err != nil {
 			return simulate.Answer{}, fmt.Errorf("reset database for fixture %s: %w", fx.Name, err)
 		}

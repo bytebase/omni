@@ -59,6 +59,9 @@ type qcol struct {
 	identity bool
 	guid     bool // uniqueidentifier, the type a ROWGUIDCOL column has
 	hidden   bool // HIDDEN: named, but not in *
+	// noInsert is a column an INSERT without a column list does not fill:
+	// computed, rowversion, or a system-versioned table's period column.
+	noInsert bool
 }
 
 // qrel is a relation in a FROM clause: a table, a view, a derived table, a
@@ -167,6 +170,15 @@ type binder struct {
 	setOrder map[*ast.SelectStmt]bool
 	// hoisted holds the first operands whose WITH a set operation bound.
 	hoisted map[*ast.SelectStmt]bool
+	// tableVars holds the columns of the table variables a module declares,
+	// upper-cased; nil columns are unknown.
+	tableVars map[string][]qcol
+	// pseudo holds the tables a trigger's body reads by name: inserted and
+	// deleted, upper-cased.
+	pseudo map[string]*qrel
+	// deferNames is set in a module's body, where SQL Server resolves a
+	// user-defined function only when the module runs.
+	deferNames bool
 	// clauses holds the clause each enclosing subquery is in, innermost
 	// last.
 	clauses []qclause
@@ -1213,6 +1225,9 @@ func (b *binder) tableExpr(te ast.Node, sc *qscope, lateral []*qrel) ([]*qrel, e
 		if name == "" {
 			name = t.Name
 		}
+		if cols := b.tableVars[strings.ToUpper(t.Name)]; cols != nil {
+			return []*qrel{{name: name, alias: true, cols: append([]qcol(nil), cols...)}}, nil
+		}
 		return []*qrel{{name: name, alias: true, opaque: true}}, nil
 	case *ast.TableVarMethodCallRef:
 		if !b.vars[strings.ToUpper(t.Var)] {
@@ -1403,6 +1418,11 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		return exposed(&qrel{name: ref.Object, schema: ref.Schema, opaque: true}), nil
 	}
 	if ref.Schema == "" && ref.Database == "" {
+		if r, ok := b.pseudo[strings.ToUpper(ref.Object)]; ok {
+			c := *r
+			c.name, c.alias, c.schema = ref.Object, true, ""
+			return exposed(&c), nil
+		}
 		for s := outer; s != nil; s = s.parent {
 			for _, q := range s.ctes {
 				if strings.EqualFold(q.name, ref.Object) {
@@ -1437,9 +1457,13 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 			return nil, err
 		}
 		cols := tableColumns(t)
+		period := b.c.systemTimeTables[b.c.temporalKey(schema.Name, t.Name)]
 		datetime2 := 0
 		for i := range cols {
 			cols[i].hidden = b.c.hiddenColumns[t.Columns[i]]
+			if strings.EqualFold(cols[i].name, period[0]) || strings.EqualFold(cols[i].name, period[1]) {
+				cols[i].noInsert = true
+			}
 			if strings.HasPrefix(strings.ToLower(t.Columns[i].Type), "datetime2") {
 				datetime2++
 			}
@@ -1525,7 +1549,14 @@ func (b *binder) temporal(ref *ast.TableRef, schemaName, tableName string, outer
 func tableColumns(t *metadata.TableMetadata) []qcol {
 	cols := make([]qcol, 0, len(t.Columns))
 	for _, c := range t.Columns {
-		cols = append(cols, qcol{name: c.Name, typ: typeClass(c.Type), identity: c.IsIdentity, guid: typeClass(c.Type) == qtOther && strings.HasPrefix(strings.Trim(strings.ToLower(c.Type), "[ "), "uniqueidentifier")})
+		base := strings.Trim(strings.ToLower(c.Type), "[ ")
+		cols = append(cols, qcol{
+			name:     c.Name,
+			typ:      typeClass(c.Type),
+			identity: c.IsIdentity,
+			guid:     strings.HasPrefix(base, "uniqueidentifier"),
+			noInsert: isComputedColumnType(c.Type) || strings.HasPrefix(base, "timestamp") || strings.HasPrefix(base, "rowversion"),
+		})
 	}
 	return cols
 }
@@ -2333,6 +2364,13 @@ func (b *binder) funcCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error
 		return b.udfCall(f, sc, x)
 	}
 	name := strings.ToUpper(f.Name.Object)
+	if name == "UPDATE" && b.pseudo != nil {
+		// UPDATE ( column ) in a DML trigger names a column of the table
+		// the trigger is on.
+		in := &qscope{rels: []*qrel{b.pseudo["INSERTED"]}}
+		_, err := b.expr(f.Args, in, x)
+		return qtNumber, err
+	}
 	agg := aggregateFunctions[name] && f.Over == nil
 	_, win := windowFunctions[name]
 	win = win || f.Over != nil
@@ -2513,11 +2551,14 @@ func (b *binder) udfCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error)
 	}
 	missing := mssqlErr(4121, "Cannot find either column \"%s\" or the user-defined function or aggregate \"%s.%s\", or the name is ambiguous.", ref.Schema, ref.Schema, ref.Object)
 	schema := b.c.GetSchema(ref.Schema)
-	if schema == nil {
-		return qtUnknown, missing
+	idx, ok := -1, false
+	if schema != nil {
+		idx, ok = resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, ref.Object)
 	}
-	idx, ok := resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, ref.Object)
 	if !ok {
+		if b.deferNames {
+			return qtUnknown, b.children(f.Args, sc, x)
+		}
 		return qtUnknown, missing
 	}
 	fn := schema.Functions[idx]

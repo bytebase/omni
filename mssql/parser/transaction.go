@@ -250,7 +250,9 @@ func (p *Parser) parseTransEnd() string {
 	if _, ok := p.match(kwTRAN, kwTRANSACTION); !ok {
 		return ""
 	}
-	if p.cur.Type == tokVARIABLE || (p.isIdentLike() && p.cur.Type != kwWITH) {
+	// GO ends the batch rather than naming the transaction: ROLLBACK
+	// TRANSACTION on a line before GO names none.
+	if p.cur.Type == tokVARIABLE || (p.isIdentLike() && p.cur.Type != kwWITH && p.cur.Type != kwGO) {
 		name := p.cur.Str
 		p.advance()
 		return name

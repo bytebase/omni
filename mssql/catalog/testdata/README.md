@@ -102,3 +102,49 @@ go test ./mssql/catalog/ -run '^TestQuerySimulation$' -update-compat
 ```bash
 OMNI_RECORD=1 go test -v -timeout 20m ./mssql/catalog/ -run '^TestQuerySimulation$'
 ```
+
+## Program suite
+
+`programs/simulate.tsv` holds one row per stored program with a real body,
+run on `programs@objects`, so the catalog is held to how SQL Server binds a
+body when it creates the program. `simulate.tsv` already runs the grammar's
+program statements, whose bodies name nothing. `TestProgramSimulation`
+(`../simulate_program_test.go`) replays it from
+`tapes/TestProgramSimulation.tape`. Rows are labelled `program:<kind>`:
+
+| Kind | Rows | SQL Server accepts |
+| --- | ---: | ---: |
+| `procedure` | 66 | 40 |
+| `scalar-function` | 25 | 15 |
+| `inline-function` | 17 | 9 |
+| `multi-statement-function` | 10 | 4 |
+| `trigger` (DML) | 26 | 15 |
+| `ddl-trigger` | 7 | 4 |
+
+**151 / 151 rows (100.00%) agree**; the first recording agreed on 92.
+
+What a row holds the catalog to: variables are declared in the order the
+body is read (Msg 137, 1087); a statement whose tables all exist is bound
+(Msg 207, 209, 8120, 110, 120, 8144, ...), and one that names a missing or
+temporary table is deferred, as is a call of a user-defined function that
+does not exist; a function writes only its table variables and returns no
+rows (Msg 443, 444) and ends with RETURN (Msg 455, 178); an inline function
+is bound as a view is (Msg 4514, 4506, 1033); a DML trigger reads
+`inserted` and `deleted` with its table's columns and lives in its table's
+schema (Msg 2103), and ALTER TRIGGER keeps its table (Msg 2110).
+
+SQL Server stores a database DDL trigger, but the catalog models none, so a
+DDL trigger row is held to its refusal only: the stored schema read back has
+no DDL triggers.
+
+Each row first drops the schema-bound functions and views the row before it
+created (`programResetSQL`), which would keep `_sim_reset` from dropping
+their tables.
+
+```bash
+go test ./mssql/catalog/ -run '^TestProgramSimulation$' -update-compat
+```
+
+```bash
+OMNI_RECORD=1 go test -v -timeout 20m ./mssql/catalog/ -run '^TestProgramSimulation$'
+```

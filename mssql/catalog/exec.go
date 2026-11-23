@@ -1577,7 +1577,7 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 	// CREATE VIEW a AS SELECT * is Msg 263 whatever a names (measured,
 	// testdata/simulate.tsv). A script LoadSQL loads is not bound: it may
 	// define a view before what the view reads.
-	bind := !c.lenientMetadataLoad && !c.loadingScript
+	bind := c.bindsModules()
 	var cols []qcol
 	if !bind {
 		if selectStarWithoutFrom(n.Query) {
@@ -1596,8 +1596,8 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 		c.viewColumns[v] = cols
 	}
 	schema := c.GetSchema(schemaName)
-	if schema == nil && bind && !strings.EqualFold(schemaName, defaultSchema) {
-		return mssqlErr(ErrSchemaNotFound, "The specified schema name \"%s\" either does not exist or you do not have permission to use it.", schemaName)
+	if err := c.moduleSchemaExists(schema, schemaName); err != nil {
+		return err
 	}
 	kind := c.lookupSchemaObject(schema, name, false)
 	pureAlter := isPureAlterStmt(n, source)
@@ -1669,7 +1669,15 @@ func (c *Catalog) execCreateOrAlterProcedure(n *ast.CreateProcedureStmt, source 
 		return mssqlErr(ErrAssemblyNotFound, "Assembly '%s' was not found in the SQL catalog.", n.ExternalName)
 	}
 	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
+	if c.bindsModules() {
+		if err := c.bindProcedure(n, source, name); err != nil {
+			return err
+		}
+	}
 	schema := c.GetSchema(schemaName)
+	if err := c.moduleSchemaExists(schema, schemaName); err != nil {
+		return err
+	}
 	kind := c.lookupSchemaObject(schema, name, false)
 	pureAlter := isPureAlterStmt(n, source)
 
@@ -1757,7 +1765,15 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 	}
 
 	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
+	if c.bindsModules() {
+		if err := c.bindFunction(n, source, name); err != nil {
+			return err
+		}
+	}
 	schema := c.GetSchema(schemaName)
+	if err := c.moduleSchemaExists(schema, schemaName); err != nil {
+		return err
+	}
 	kind := c.lookupSchemaObject(schema, name, false)
 	pureAlter := isPureAlterStmt(n, source)
 
@@ -1835,6 +1851,11 @@ func definitionFunctionCategory(def string) string {
 
 func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source string) error {
 	if n.Table == nil || n.Name == nil {
+		// A DDL trigger is not stored in the catalog; its body is bound.
+		if n.Name != nil && c.bindsModules() {
+			_, trigName := tableRefSchemaObject(n.Name, c.defaultSchema)
+			return c.bindTrigger(n, source, trigName, nil)
+		}
 		return nil
 	}
 	schemaName, parentName := tableRefSchemaObject(n.Table, c.defaultSchema)
@@ -1850,11 +1871,27 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 		return mssqlErr(ErrTriggerTargetInvalid, "The object '%s' does not exist or is invalid for this operation.", parentName)
 	}
 
-	trigSchemaName, trigName := tableRefSchemaObject(n.Name, schemaName)
+	trigSchemaName, trigName := tableRefSchemaObject(n.Name, schema.Name)
+	if c.bindsModules() {
+		// A trigger lives in its table's schema (Msg 2103).
+		if n.Name.Schema != "" && !strings.EqualFold(n.Name.Schema, schema.Name) {
+			return mssqlErr(2103, "Cannot %s trigger '%s.%s' because its schema is different from the schema of the target table or view.", triggerVerb(n, source), n.Name.Schema, trigName)
+		}
+		if err := c.bindTrigger(n, source, trigName, c.triggerParent(schema, parentName)); err != nil {
+			return err
+		}
+	}
 	trigSchema := c.GetSchema(trigSchemaName)
 	existingKind := c.lookupSchemaObject(trigSchema, trigName, false)
-	if !n.OrAlter && existingKind != kindNone {
+	pureAlter := isPureAlterStmt(n, source)
+	existing, owner := c.findTrigger(trigSchema, trigName)
+	switch {
+	case !n.OrAlter && !pureAlter && existingKind != kindNone:
 		return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", trigName)
+	case pureAlter && existing == nil && c.bindsModules():
+		return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", trigName)
+	case existing != nil && c.bindsModules() && !strings.EqualFold(owner, parentName):
+		return mssqlErr(2110, "Cannot alter trigger '%s' on '%s' because this trigger does not belong to this object. Specify the correct trigger name or the correct target object name.", trigName, parentName)
 	}
 
 	var events []string
@@ -1872,11 +1909,22 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 	if strings.EqualFold(timing, "FOR") {
 		timing = "AFTER"
 	}
+	body := definitionText(n, source)
+	if pureAlter {
+		body = creationDefinition(body)
+	} else if n.OrAlter {
+		body = dropOrAlter(body)
+	}
 	trigger := &metadata.TriggerMetadata{
 		Name:   trigName,
 		Timing: timing,
 		Event:  strings.Join(events, ","),
-		Body:   definitionText(n, source),
+		Body:   body,
+	}
+	// CREATE OR ALTER and ALTER replace the trigger they name.
+	if existing != nil && (n.OrAlter || pureAlter) && strings.EqualFold(owner, parentName) {
+		existing.Name, existing.Timing, existing.Event, existing.Body = trigger.Name, trigger.Timing, trigger.Event, trigger.Body
+		return nil
 	}
 	if parentKind == kindTable {
 		table := c.resolveTableInSchema(schema, parentName)
@@ -1890,6 +1938,53 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 		view.Triggers = append(view.Triggers, trigger)
 	}
 	return nil
+}
+
+// triggerVerb is the verb of a trigger statement, for a message.
+func triggerVerb(n *ast.CreateTriggerStmt, source string) string {
+	if isPureAlterStmt(n, source) {
+		return "alter"
+	}
+	return "create"
+}
+
+// findTrigger returns the DML trigger named name in schema and the name of
+// the table or view it is on.
+func (c *Catalog) findTrigger(schema *metadata.SchemaMetadata, name string) (*metadata.TriggerMetadata, string) {
+	if schema == nil {
+		return nil, ""
+	}
+	for _, t := range schema.Tables {
+		for _, tr := range t.Triggers {
+			if strings.EqualFold(tr.Name, name) {
+				return tr, t.Name
+			}
+		}
+	}
+	for _, v := range schema.Views {
+		for _, tr := range v.Triggers {
+			if strings.EqualFold(tr.Name, name) {
+				return tr, v.Name
+			}
+		}
+	}
+	return nil, ""
+}
+
+// bindsModules reports whether Exec binds the bodies of views and modules:
+// not while LoadSQL loads a script, which may define a module before what
+// it reads, nor on a lenient metadata load.
+func (c *Catalog) bindsModules() bool {
+	return !c.lenientMetadataLoad && !c.loadingScript
+}
+
+// moduleSchemaExists refuses a view or module in a schema that does not
+// exist (Msg 2760). dbo always exists.
+func (c *Catalog) moduleSchemaExists(schema *metadata.SchemaMetadata, schemaName string) error {
+	if schema != nil || !c.bindsModules() || strings.EqualFold(schemaName, defaultSchema) {
+		return nil
+	}
+	return mssqlErr(ErrSchemaNotFound, "The specified schema name \"%s\" either does not exist or you do not have permission to use it.", schemaName)
 }
 
 // --- CREATE / ALTER SEQUENCE ---

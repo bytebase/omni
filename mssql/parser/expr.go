@@ -829,6 +829,9 @@ func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 // new, parenthesized operand.
 func (p *Parser) parseCollatedPrimary() (nodes.ExprNode, error) {
 	expr, err := p.parsePrimary()
+	if err == nil && expr != nil {
+		expr, err = p.parseInstanceMethods(expr)
+	}
 	if err != nil || expr == nil || p.cur.Type != kwCOLLATE {
 		return expr, err
 	}
@@ -859,6 +862,13 @@ func (p *Parser) parseCollatedPrimary() (nodes.ExprNode, error) {
 //	             | TRY_CONVERT '(' data_type ',' expr [',' style] ')'
 //	             | ident_expr
 func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
+	// UPDATE ( column ) tests a column in a DML trigger's search condition
+	// (updateCall, TSql160.g). SQL Server refuses it elsewhere: IF UPDATE(a)
+	// SELECT 1 is rejected in compat.tsv, and accepted in a trigger's body
+	// (measured, mssql/catalog/testdata/programs/simulate.tsv).
+	if p.cur.Type == kwUPDATE && p.dmlTrigger && p.inSearchCondition() && p.peekNext().Type == '(' {
+		return p.parseUpdateCall()
+	}
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
@@ -2470,4 +2480,61 @@ func (p *Parser) parseWindowSpecBody(over bool) (windowSpec, error) {
 		return spec, p.syntaxErrorAtCur()
 	}
 	return spec, nil
+}
+
+// parseUpdateCall parses UPDATE ( column ) as a call of UPDATE with the
+// column as its argument.
+func (p *Parser) parseUpdateCall() (nodes.ExprNode, error) {
+	loc := p.pos()
+	nameTok := p.advance() // consume UPDATE
+	p.advance()            // consume (
+	if !p.isIdentLike() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	col := p.advance()
+	arg := &nodes.ColumnRef{Column: col.Str, Loc: nodes.Loc{Start: col.Loc, End: p.prevEnd()}}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCallExpr{
+		Name: &nodes.TableRef{Object: "UPDATE", Loc: nodes.Loc{Start: nameTok.Loc, End: nameTok.Loc + len("UPDATE")}},
+		Args: &nodes.List{Items: []nodes.Node{arg}},
+		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
+}
+
+// parseInstanceMethods parses the method calls that may follow a call, a
+// CAST or CONVERT, or a parenthesized expression: expressionWithClrElements
+// (TSql160.g), primary ( . identifier ( args ) )*. EVENTDATA().value(path,
+// type) is the common one (measured, mssql/catalog/testdata/programs/
+// simulate.tsv). A dotted name's methods are read with the name.
+func (p *Parser) parseInstanceMethods(expr nodes.ExprNode) (nodes.ExprNode, error) {
+	switch expr.(type) {
+	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.ConvertExpr, *nodes.TryCastExpr, *nodes.TryConvertExpr, *nodes.ParenExpr:
+	default:
+		return expr, nil
+	}
+	for p.cur.Type == '.' && IsIdentTokenType(p.peekNext().Type) && p.peekSecond().Type == '(' {
+		start := nodes.NodeLoc(expr).Start
+		p.advance() // consume .
+		method := p.cur.Str
+		p.advance() // consume the method's name
+		p.advance() // consume (
+		args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+			return p.parseExpr()
+		})
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		expr = &nodes.MethodCallExpr{
+			Expr:   expr,
+			Method: method,
+			Args:   &nodes.List{Items: args},
+			Loc:    nodes.Loc{Start: start, End: p.prevEnd()},
+		}
+	}
+	return expr, nil
 }
