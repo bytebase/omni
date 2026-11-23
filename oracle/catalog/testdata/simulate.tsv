@@ -199,7 +199,7 @@ ok:1533a14c2886	ok:1533a14c2886	engine	one_table@missing	createSynonym(PUBLIC)?/
 ok:13bb93e33fb2	ok:13bb93e33fb2	engine	one_table@missing	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@missing	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok	ok:c9b9d2777e0b	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok	ok:31ba4eae6b75	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@missing	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@missing	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:757f7e625773	ok:757f7e625773	engine	one_table@missing	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)
@@ -231,7 +231,7 @@ ok:757f7e625773	ok:757f7e625773	engine	one_table@missing	createTable_column_defi
 2268	2268	engine	one_table@missing	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	CREATE TABLE a(a REFERENCES a)
 2263	2263	engine	one_table@missing	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	CREATE TABLE a(a CHECK(1 = 1))
 2263	2263	engine	one_table@missing	createTable_inline_constraint(NOT)?/NOT	CREATE TABLE a(a NOT NULL)
-942	942	engine	one_table@missing	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
+ok	942	engine	one_table@missing	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
 2270	2270	engine	one_table@missing	createTable_inline_constraint((_ID_))?/(_ID_)	CREATE TABLE a(a REFERENCES a(a))
 2268	2268	engine	one_table@missing	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE)
 2268	2268	engine	one_table@missing	createTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE TABLE a(a REFERENCES a ON DELETE SET NULL)
@@ -344,7 +344,7 @@ ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	statement/truncateTable	T
 955	955	engine	one_table@table	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause	ALTER TABLE a ADD(a NUMBER)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_drop_column_clause	ALTER TABLE a DROP COLUMN a
-ok	ok:c3b3ab2f0887	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
+ok	ok:d2b50fcfb2de	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_rename_column_clause	ALTER TABLE a RENAME COLUMN a TO a
 23292	23292	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/RENAME_CONSTRAINT_ID_TO_ID	ALTER TABLE a RENAME CONSTRAINT a TO a
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/alterTable_drop_constraint_clause	ALTER TABLE a DROP PRIMARY KEY
@@ -359,7 +359,7 @@ ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_add_column_clause(alterTabl
 904	904	engine	one_table@table	alterTable_drop_column_clause(CASCADE_CONSTRAINTS|INVALIDATE)/CASCADE_CONSTRAINTS	ALTER TABLE a DROP COLUMN a CASCADE CONSTRAINTS
 904	904	engine	one_table@table	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
 904	904	engine	one_table@table	alterTable_drop_column_clause(CHECKPOINT_NUMBER)?/CHECKPOINT_NUMBER	ALTER TABLE a DROP COLUMN a CHECKPOINT 1
-ok	ok:b65ed95a01ef	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
+ok	ok:c661eb7227a6	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
@@ -431,7 +431,7 @@ ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(a
 904	904	engine	one_table@table	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)
 22893	22893	engine	one_table@table	alterTable_inline_ref_constraint(SCOPE_IS_(ID_.)?_ID|WITH_ROWID|(CONS~5eec5f08)/SCOPE_IS_(ID_.)?_ID	ALTER TABLE a ADD(a NUMBER SCOPE IS a)
 ok:3407beda8ccd	ok:3407beda8ccd	engine	one_table@table	alterTable_inline_ref_constraint(SCOPE_IS_(ID_.)?_ID|WITH_ROWID|(CONS~5eec5f08)/(CONSTRAINT_ID)?_REFERENCES_(ID_.)?_ID_((_ID_(,_ID)*_))~2057a88d	ALTER TABLE a ADD(a NUMBER REFERENCES a)
-942	942	engine	one_table@table	alterTable_inline_ref_constraint(ID_.)?/ID_.	ALTER TABLE a ADD(a NUMBER REFERENCES a.a)
+ok	942	engine	one_table@table	alterTable_inline_ref_constraint(ID_.)?/ID_.	ALTER TABLE a ADD(a NUMBER REFERENCES a.a)
 ok:7c341d4bdf4d	ok:7c341d4bdf4d	engine	one_table@table	alterTable_inline_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD(a NUMBER CONSTRAINT a REFERENCES a)
 2270	2270	engine	one_table@table	alterTable_inline_ref_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD(a NUMBER REFERENCES a(a))
 ok:685b0443eff2	ok:685b0443eff2	engine	one_table@table	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE CASCADE)
@@ -672,7 +672,7 @@ ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_c
 ok:94c56daa0720	ok:94c56daa0720	engine	one_table@column	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 2260	2260	engine	one_table@column	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:d431560da93e	ok:d431560da93e	engine	one_table@column	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
-942	942	engine	one_table@column	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
+ok	942	engine	one_table@column	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 2270	2270	engine	one_table@column	alterTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:98c33b4d9a45	ok:98c33b4d9a45	engine	one_table@column	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
@@ -734,7 +734,7 @@ ok:cc952b6c619f	ok:cc952b6c619f	engine	one_table@column	alterTable_inline_constr
 ok:d431560da93e	ok:d431560da93e	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	ALTER TABLE a MODIFY(a REFERENCES a)
 ok:deeb0a31f49f	ok:deeb0a31f49f	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	ALTER TABLE a MODIFY(a CHECK(1 = 1))
 ok:2c8ec2e6f95c	ok:2c8ec2e6f95c	engine	one_table@column	alterTable_inline_constraint(NOT)?/NOT	ALTER TABLE a MODIFY(a NOT NULL)
-942	942	engine	one_table@column	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
+ok	942	engine	one_table@column	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
 2270	2270	engine	one_table@column	alterTable_inline_constraint((_ID_))?/(_ID_)	ALTER TABLE a MODIFY(a REFERENCES a(a))
 ok:98c33b4d9a45	ok:98c33b4d9a45	engine	one_table@column	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE)
 ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)
@@ -1126,7 +1126,7 @@ ok:e0586b61b6dc	ok:e0586b61b6dc	engine	one_table@index	createSynonym(PUBLIC)?/PU
 ok:9e4273a3a0ec	ok:9e4273a3a0ec	engine	one_table@index	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@index	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok	ok:1713acab86c0	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok	ok:2719d266cf7d	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@index	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@index	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:b221fae9589b	ok:b221fae9589b	engine	one_table@index	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)
@@ -1158,7 +1158,7 @@ ok:b221fae9589b	ok:b221fae9589b	engine	one_table@index	createTable_column_defini
 2268	2268	engine	one_table@index	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	CREATE TABLE a(a REFERENCES a)
 2263	2263	engine	one_table@index	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	CREATE TABLE a(a CHECK(1 = 1))
 2263	2263	engine	one_table@index	createTable_inline_constraint(NOT)?/NOT	CREATE TABLE a(a NOT NULL)
-942	942	engine	one_table@index	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
+ok	942	engine	one_table@index	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
 2270	2270	engine	one_table@index	createTable_inline_constraint((_ID_))?/(_ID_)	CREATE TABLE a(a REFERENCES a(a))
 2268	2268	engine	one_table@index	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE)
 2268	2268	engine	one_table@index	createTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE TABLE a(a REFERENCES a ON DELETE SET NULL)
@@ -2217,7 +2217,7 @@ ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(
 2264	2264	engine	objects@fk	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 2260	2260	engine	objects@fk	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:638d34baf8e7	ok:638d34baf8e7	engine	objects@fk	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
-942	942	engine	objects@fk	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
+ok	942	engine	objects@fk	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 2270	2270	engine	objects@fk	alterTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:bbc79878cb95	ok:bbc79878cb95	engine	objects@fk	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
@@ -2279,7 +2279,7 @@ ok:e1d3a3d7afbc	ok:e1d3a3d7afbc	engine	objects@fk	alterTable_inline_constraint(N
 ok:638d34baf8e7	ok:638d34baf8e7	engine	objects@fk	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	ALTER TABLE a MODIFY(a REFERENCES a)
 ok:9525da07ecef	ok:9525da07ecef	engine	objects@fk	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	ALTER TABLE a MODIFY(a CHECK(1 = 1))
 ok:42a067620a59	ok:42a067620a59	engine	objects@fk	alterTable_inline_constraint(NOT)?/NOT	ALTER TABLE a MODIFY(a NOT NULL)
-942	942	engine	objects@fk	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
+ok	942	engine	objects@fk	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
 2270	2270	engine	objects@fk	alterTable_inline_constraint((_ID_))?/(_ID_)	ALTER TABLE a MODIFY(a REFERENCES a(a))
 ok:bbc79878cb95	ok:bbc79878cb95	engine	objects@fk	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE)
 ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)

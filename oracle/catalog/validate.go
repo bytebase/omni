@@ -575,13 +575,47 @@ func parseSignedBigInt(s string) (*big.Int, bool) {
 	return v, ok
 }
 
+func indexColumnRefKey(colRef *ast.ColumnRef) string {
+	var parts []string
+	if colRef.Schema != "" {
+		parts = append(parts, colRef.Schema)
+	}
+	if colRef.Table != "" {
+		parts = append(parts, colRef.Table)
+	}
+	if colRef.Column != "" {
+		parts = append(parts, colRef.Column)
+	}
+	return strings.Join(parts, ".")
+}
+
+// indexColumnRefExists validates a ColumnRef in CREATE INDEX against table,
+// supporting both table/alias-qualified columns (t.col) and object-attribute
+// paths (o.x or o.nested.x).
+func indexColumnRefExists(table *metadatapb.TableMetadata, alias string, colRef *ast.ColumnRef) bool {
+	if colRef.Schema == "" && colRef.Table == "" {
+		return tableFindColumn(table, colRef.Column) != nil
+	}
+	if colRef.Schema == "" {
+		if tableFindColumn(table, colRef.Table) != nil {
+			return true
+		}
+		if colRef.Table == table.Name || (alias != "" && colRef.Table == alias) {
+			return tableFindColumn(table, colRef.Column) != nil
+		}
+		return false
+	}
+	return tableFindColumn(table, colRef.Schema) != nil
+}
+
 func (e *oracleMetadataExtractor) validateAlterForeignKey(table *metadatapb.TableMetadata, refTable *ast.ObjectName, refColumns *ast.List) bool {
 	if refTable == nil || objectName(refTable) == "" {
 		return true
 	}
 	if e.isForeignSchema(refTable.Schema) {
-		e.setError(oraError("00942", "table or view %q does not exist", refTable.Schema+"."+objectName(refTable)))
-		return false
+		// The catalog models a single schema, so it cannot assert absence of
+		// an external schema's table; preserve cross-schema foreign keys.
+		return true
 	}
 	targetName := objectName(refTable)
 	target := e.tables[targetName]

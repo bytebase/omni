@@ -26,9 +26,9 @@ back from Oracle's data dictionary afterwards. `TestSimulation`
 with zero Docker containers. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**2,355 / 2,472 rows (95.27%) agree** (up from 225 / 2,472 baseline before
-`oracle/catalog` `Exec` error-code and schema-state fidelity fixes); **117 rows
-disagree** (4 only engine takes, 22 only omni takes, 15 other schema, 76 other
+**2,348 / 2,472 rows (94.98%) agree** (up from 225 / 2,472 baseline before
+`oracle/catalog` `Exec` error-code and schema-state fidelity fixes); **124 rows
+disagree** (4 only engine takes, 29 only omni takes, 15 other schema, 76 other
 code).
 
 ## Commands
@@ -59,7 +59,7 @@ Show both schemas and the catalog diff for rows matching text:
 go test -v ./oracle/catalog/ -run '^TestSimulation$' -args -simulate-show='DROP PRIMARY KEY'
 ```
 
-## What the 117 remaining rows disagree on
+## What the 124 remaining rows disagree on
 
 ### Deployment and server-mode configuration (93 rows)
 
@@ -73,11 +73,12 @@ than schema structure, so omni does not hardcode them:
 | 24 | `ORA-65021` | `CREATE SEQUENCE/SYNONYM ... SHARING = DATA \| METADATA` (3 statements × 8 fixtures) | `SHARING = DATA \| METADATA` is only valid inside an application root container. |
 | 5 | `ORA-28365` | `ALTER TABLE a ADD/MODIFY (... ENCRYPT ...)` on non-FK columns | Transparent Data Encryption (TDE) keystore/wallet is not open on the default container. (Encrypting a foreign-key column is still refused with `ORA-28335` on `objects@fk`.) |
 
-### Unmodeled catalog metadata and runtime state (24 rows)
+### Unmodeled catalog metadata, external schemas, and runtime state (31 rows)
 
 | Rows | Category | Statements | Why omni leaves them open |
 |---:|---|---|---|
 | 11 | `other schema` | `ALTER TABLE a ADD (a AS (1) ...)` on `one_table@table` | `oracle/catalog` intentionally keeps `ColumnMetadata.Type` empty for untyped virtual columns so `DatabaseDefinition` round-trips `AS (expr)` verbatim (pinned by `TestVirtualColumnWithoutTypeStaysUntyped`), whereas Oracle infers `NUMBER`. |
+| 7 | `only omni takes` | `CREATE TABLE a(a REFERENCES a.a)`, `ALTER TABLE a ADD/MODIFY (... REFERENCES a.a)` | `oracle/catalog` models a single schema and preserves foreign keys referencing external schemas (`REFERENCES other.p`) instead of assuming the external table is absent (`TestExtractCrossSchemaForeignKey`). |
 | 4 | `other schema` | `CREATE TABLE a(PERIOD FOR a)`, `ALTER TABLE a ADD(PERIOD FOR a ...)` | Oracle synthesizes hidden `TIMESTAMP WITH TIME ZONE` start/end columns and a check constraint for temporal validity (`PERIOD FOR`), which `oracle/catalog` does not model yet. |
 | 4 | `only engine takes` | `ALTER TABLE a SET UNUSED COLUMN a [ONLINE]` on `one_table@column` and `objects@fk` | `SET UNUSED` is intentionally refused by `oracle/catalog` (pinned by `TestSetUnusedIsRejected`); missing-table (`ORA-00942`) and missing-column (`ORA-00904`) checks still run first. |
 | 3 | `ORA-38802` | `ALTER TABLE a ADD (a AS (1) EVALUATE USING EDITION a / UNUSABLE ... EDITION a)` on `one_table@table` | Editions are not tracked in `DatabaseSchemaMetadata`. |

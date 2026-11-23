@@ -1015,4 +1015,33 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 			require.Nil(t, r.Error)
 		}
 	})
+
+	t.Run("CREATE INDEX resolves object-attribute paths against root column", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE tt (o ty, o2 ty)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`CREATE INDEX tt_ix ON tt (o.x, o2.x)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Len(t, tableByName(c.Metadata().Schemas[0])["TT"].Indexes, 1)
+
+		results, err = c.Exec(`CREATE INDEX tt_bad_ix ON tt (missing.x)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "00904", oraErr.Code)
+	})
+
+	t.Run("ALTER TABLE preserves foreign keys referencing external schemas", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE app.c (p_id NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE app.c ADD CONSTRAINT c_fk FOREIGN KEY (p_id) REFERENCES other.p (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		fks := tableByName(c.Metadata().Schemas[0])["C"].ForeignKeys
+		require.Len(t, fks, 1)
+		require.Equal(t, "OTHER", fks[0].ReferencedSchema)
+		require.Equal(t, "P", fks[0].ReferencedTable)
+	})
 }

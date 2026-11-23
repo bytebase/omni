@@ -459,9 +459,7 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 				continue
 			}
 			if e.isForeignSchema(cc.RefTable.Schema) {
-				e.setError(oraError("00942", "table or view %q does not exist", cc.RefTable.Schema+"."+objectName(cc.RefTable)))
-				delete(e.tables, tableName)
-				return
+				continue
 			}
 			refName := objectName(cc.RefTable)
 			target := e.tables[refName]
@@ -2580,11 +2578,12 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 			continue
 		}
 		if colRef, ok := column.Expr.(*ast.ColumnRef); ok && colRef.Column != "" {
-			if seenCols[colRef.Column] {
-				e.setError(oraError("00957", "duplicate column name %q", colRef.Column))
+			key := indexColumnRefKey(colRef)
+			if seenCols[key] {
+				e.setError(oraError("00957", "duplicate column name %q", key))
 				return
 			}
-			seenCols[colRef.Column] = true
+			seenCols[key] = true
 		}
 	}
 	if !e.checkSchema(n.Name.Schema, "00942") || !e.checkSchema(n.Table.Schema, "00942") {
@@ -2619,8 +2618,8 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 				continue
 			}
 			if colRef, ok := column.Expr.(*ast.ColumnRef); ok && colRef.Column != "" {
-				if tableFindColumn(table, colRef.Column) == nil {
-					e.setError(oraError("00904", "%q: invalid identifier", colRef.Column))
+				if !indexColumnRefExists(table, n.Alias, colRef) {
+					e.setError(oraError("00904", "%q: invalid identifier", indexColumnRefKey(colRef)))
 					return
 				}
 			}
