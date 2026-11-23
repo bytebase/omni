@@ -825,6 +825,58 @@ func TestCompleteNilCatalogDoesNotPanic(t *testing.T) {
 	}
 }
 
+func TestCandidateTypePopulated(t *testing.T) {
+	cat := catalog.New()
+	cat.AddTable("Music")
+	meta := &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Music",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Artist"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	sqlTab, posTab := splitMarker(t, "SELECT * FROM |")
+	gotTab := CompleteWithMetadata(sqlTab, posTab, cat, meta)
+	sawTable, sawKeyword := false, false
+	for _, c := range gotTab {
+		if c.Kind != c.Type.String() {
+			t.Fatalf("candidate %+v: Kind %q != Type.String() %q", c, c.Kind, c.Type.String())
+		}
+		if c.Text == "Music" && c.Type == CandidateTable {
+			sawTable = true
+		}
+		if c.Text == "SELECT" && c.Type == CandidateKeyword {
+			sawKeyword = true
+		}
+	}
+	if !sawTable || !sawKeyword {
+		t.Fatalf("expected table and keyword candidates, sawTable=%v sawKeyword=%v", sawTable, sawKeyword)
+	}
+
+	sqlCol, posCol := splitMarker(t, "SELECT | FROM Music")
+	gotCol := CompleteWithMetadata(sqlCol, posCol, cat, meta)
+	sawCol := false
+	for _, c := range gotCol {
+		if c.Kind != c.Type.String() {
+			t.Fatalf("candidate %+v: Kind %q != Type.String() %q", c, c.Kind, c.Type.String())
+		}
+		if c.Text == "Artist" && c.Type == CandidateColumn {
+			sawCol = true
+		}
+	}
+	if !sawCol {
+		t.Fatalf("expected column candidate Artist with CandidateColumn type")
+	}
+}
+
 func splitMarker(t *testing.T, input string) (string, int) {
 	t.Helper()
 	for i := 0; i < len(input); i++ {

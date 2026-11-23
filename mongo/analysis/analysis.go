@@ -132,7 +132,7 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 		"listCommands", "stats":
 		a.Operation = OpInfo
 	case "runCommand", "adminCommand":
-		a.Operation = classifyCommandArgs(s.Args)
+		analyzeCommandInto(s.Args, a)
 	case "getSiblingDB", "getMongo":
 		// These return a database handle for further chaining; they are not
 		// read/info/admin so default to OpWrite per existing Bytebase behavior.
@@ -140,28 +140,60 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpInfo
 	}
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
+		a.Operation = OpWrite
+	}
 	return a
 }
 
-func classifyCommandArgs(args []ast.Node) Operation {
+func analyzeCommandInto(args []ast.Node, a *StatementAnalysis) {
 	if len(args) == 0 {
-		return OpWrite
+		a.Operation = OpWrite
+		return
 	}
 	doc, ok := args[0].(*ast.Document)
 	if !ok || len(doc.Pairs) == 0 {
-		return OpWrite
+		a.Operation = OpWrite
+		return
 	}
 	switch doc.Pairs[0].Key {
-	case "find", "aggregate", "count", "distinct":
-		return OpRead
+	case "find", "count", "distinct":
+		a.Operation = OpRead
+	case "aggregate":
+		analyzeCommandAggregate(doc, a)
 	case "serverStatus", "listCollections", "listIndexes", "listDatabases",
 		"collStats", "dbStats", "hostInfo", "buildInfo", "connectionStatus":
-		return OpInfo
+		a.Operation = OpInfo
 	case "create", "drop", "createIndexes", "dropIndexes", "renameCollection", "collMod":
-		return OpAdmin
+		a.Operation = OpAdmin
 	default:
-		return OpWrite
+		a.Operation = OpWrite
 	}
+}
+
+func analyzeCommandAggregate(doc *ast.Document, a *StatementAnalysis) {
+	if coll, ok := doc.Pairs[0].Value.(*ast.StringLiteral); ok {
+		a.Collection = coll.Value
+	}
+	var pipelineNode ast.Node
+	pipelineCount := 0
+	for _, pair := range doc.Pairs[1:] {
+		if pair.Key == "pipeline" {
+			pipelineNode = pair.Value
+			pipelineCount++
+		}
+	}
+	if pipelineCount != 1 {
+		a.Operation = OpWrite
+		a.UnsupportedStage = "unknown"
+		return
+	}
+	analyzePipelineInto([]ast.Node{pipelineNode}, a)
+	if hasWriteOrUnknownStage(a) {
+		a.Operation = OpWrite
+		return
+	}
+	a.Operation = OpRead
 }
 
 func analyzeRs(s *ast.RsStatement) *StatementAnalysis {
@@ -170,6 +202,9 @@ func analyzeRs(s *ast.RsStatement) *StatementAnalysis {
 	case "status", "conf", "config", "printReplicationInfo", "printSecondaryReplicationInfo":
 		a.Operation = OpInfo
 	default:
+		a.Operation = OpWrite
+	}
+	if hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
 	return a
@@ -181,6 +216,9 @@ func analyzeSh(s *ast.ShStatement) *StatementAnalysis {
 	case "status", "getBalancerState", "isBalancerRunning":
 		a.Operation = OpInfo
 	default:
+		a.Operation = OpWrite
+	}
+	if hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
 	return a
@@ -259,11 +297,6 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 		Collection: s.Collection,
 	}
 
-	if s.Explain || hasExplainCursor(s) {
-		a.Operation = OpExplain
-		return a
-	}
-
 	switch s.Method {
 	case "find":
 		a.Operation = OpFind
@@ -285,12 +318,67 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 	case "createIndex", "createIndexes", "dropIndex", "dropIndexes", "drop",
 		"renameCollection", "reIndex":
 		a.Operation = OpAdmin
+	case "validate":
+		if validateMutates(s.Args) {
+			a.Operation = OpWrite
+		} else {
+			a.Operation = OpRead
+		}
 	case "getIndexes", "stats", "storageSize", "totalIndexSize", "totalSize",
-		"dataSize", "validate", "latencyStats", "getShardDistribution":
+		"dataSize", "latencyStats", "getShardDistribution":
 		a.Operation = OpRead
 	default:
 		a.Operation = OpUnknown
 	}
 
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
+		a.Operation = OpWrite
+		a.PredicateFields = nil
+		a.ShapePreserving = false
+	}
+
+	// Only classify as OpExplain when the primary operation is read-only and
+	// explainable; mutating methods (e.g. insertOne().explain(), drop().explain(),
+	// or aggregate with $out/$merge) retain their mutating operation class.
+	if (s.Explain || hasExplainCursor(s)) &&
+		explainableMethods[s.Method] &&
+		a.Operation != OpWrite &&
+		(a.Operation != OpAggregate || !hasWriteOrUnknownStage(a)) {
+		return &StatementAnalysis{
+			Operation:  OpExplain,
+			MethodName: s.Method,
+			Collection: s.Collection,
+		}
+	}
+
 	return a
+}
+
+// validateMutates reports whether db.coll.validate(args...) enables repair
+// (which can modify indexes and remove corrupt documents) or passes options
+// that cannot be verified as read-only.
+func validateMutates(args []ast.Node) bool {
+	if len(args) == 0 {
+		return false
+	}
+	if len(args) > 1 {
+		return true
+	}
+	switch arg := args[0].(type) {
+	case *ast.BoolLiteral:
+		// Legacy db.coll.validate(full) boolean shorthand does not enable repair.
+		return false
+	case *ast.Document:
+		for _, pair := range arg.Pairs {
+			if pair.Key == "repair" {
+				b, ok := pair.Value.(*ast.BoolLiteral)
+				if !ok || b.Value {
+					return true
+				}
+			}
+		}
+		return false
+	default:
+		return true
+	}
 }

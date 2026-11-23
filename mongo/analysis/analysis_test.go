@@ -656,6 +656,88 @@ func TestAnalyzeAdminCommand(t *testing.T) {
 	}
 }
 
+func TestAnalyzePipelineCollectsStagesAfterUnsupported(t *testing.T) {
+	sa := mustAnalyze(t, `db.users.aggregate([{$match: {a: 1}}, {$project: {a: 1}}, {$match: {b: 2}}, {$out: "output"}])`)
+	if sa.ShapePreserving {
+		t.Errorf("ShapePreserving = true, want false")
+	}
+	if sa.UnsupportedStage != "$project" {
+		t.Errorf("UnsupportedStage = %q, want %q", sa.UnsupportedStage, "$project")
+	}
+	wantStages := []string{"$match", "$project", "$match", "$out"}
+	if !slices.Equal(sa.PipelineStages, wantStages) {
+		t.Errorf("PipelineStages = %v, want %v", sa.PipelineStages, wantStages)
+	}
+	// Predicates are still collected only before the first shape-changing stage.
+	assertPredicateFields(t, sa, []string{"a"})
+}
+
+func TestAnalyzeRunCommandAggregate(t *testing.T) {
+	readSA := mustAnalyze(t, `db.runCommand({aggregate: "users", pipeline: [{$match: {a: 1}}], cursor: {}})`)
+	if readSA.Operation != analysis.OpRead {
+		t.Errorf("read aggregate Operation = %v, want OpRead", readSA.Operation)
+	}
+	if readSA.Collection != "users" {
+		t.Errorf("read aggregate Collection = %q, want %q", readSA.Collection, "users")
+	}
+	if !slices.Equal(readSA.PipelineStages, []string{"$match"}) {
+		t.Errorf("read aggregate PipelineStages = %v, want [$match]", readSA.PipelineStages)
+	}
+
+	writeSA := mustAnalyze(t, `db.runCommand({aggregate: "users", pipeline: [{$project: {a: 1}}, {$out: "out"}], cursor: {}})`)
+	if writeSA.Operation != analysis.OpWrite {
+		t.Errorf("write aggregate Operation = %v, want OpWrite", writeSA.Operation)
+	}
+	if !slices.Equal(writeSA.PipelineStages, []string{"$project", "$out"}) {
+		t.Errorf("write aggregate PipelineStages = %v, want [$project $out]", writeSA.PipelineStages)
+	}
+}
+
+func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
+	if sa := mustAnalyze(t, `db.logs.validate({repair: true})`); sa.Operation != analysis.OpWrite {
+		t.Errorf("validate({repair: true}) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.logs.validate({full: true})`); sa.Operation != analysis.OpRead {
+		t.Errorf("validate({full: true}) Operation = %v, want OpRead", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({deleted: db.getCollection("audit").deleteMany({})})`); sa.Operation != analysis.OpWrite {
+		t.Errorf("find with nested deleteMany Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({_id: ObjectId("507f1f77bcf86cd799439011")})`); sa.Operation != analysis.OpFind {
+		t.Errorf("find with ObjectId Operation = %v, want OpFind", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.insertOne({name: "x"}).explain()`); sa.Operation != analysis.OpWrite {
+		t.Errorf("insertOne().explain() Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.drop().explain()`); sa.Operation != analysis.OpAdmin {
+		t.Errorf("drop().explain() Operation = %v, want OpAdmin", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({}).forEach(mutatingCallback)`); sa.Operation != analysis.OpWrite {
+		t.Errorf("find().forEach(...) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.distinct("script").forEach(eval)`); sa.Operation != analysis.OpWrite {
+		t.Errorf("distinct().forEach(...) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({}).sort({a: 1}).limit(5).toArray()`); sa.Operation != analysis.OpFind {
+		t.Errorf("find().sort().limit().toArray() Operation = %v, want OpFind", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({_id: ObjectId(db.dropDatabase()).createFromHexString("507f1f77bcf86cd799439011")})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with chained call on ObjectId() = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.users.find({x: EJSON.stringify({a: 1}, mutatingCallback)})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with EJSON.stringify replacer callback = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.users.find({x: Date.parse({toString: mutatingCallback})})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with Date.parse toString callback = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.users.aggregate([{"$\out": "output"}])`); sa.QueryType() != analysis.DML {
+		t.Errorf("aggregate with escaped $out QueryType = %v, want DML", sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.logs.validate({"rep\air": true})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("validate with escaped repair = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Masking parity integration tests
 // ---------------------------------------------------------------------------

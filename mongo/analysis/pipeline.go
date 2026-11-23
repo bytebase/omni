@@ -33,9 +33,6 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 	arr, ok := args[0].(*ast.Array)
 	if !ok {
 		a.UnsupportedStage = "unknown"
-		if len(fields) > 0 {
-			a.PredicateFields = sortedKeys(fields)
-		}
 		return
 	}
 
@@ -43,17 +40,21 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 
 	for _, elem := range arr.Elements {
 		doc, ok := elem.(*ast.Document)
-		if !ok || len(doc.Pairs) == 0 {
-			a.UnsupportedStage = "unknown"
-			a.ShapePreserving = false
-			if len(fields) > 0 {
-				a.PredicateFields = sortedKeys(fields)
+		if !ok || len(doc.Pairs) != 1 {
+			if a.ShapePreserving {
+				a.UnsupportedStage = "unknown"
+				a.ShapePreserving = false
 			}
-			return
+			a.PipelineStages = append(a.PipelineStages, "unknown")
+			continue
 		}
 
 		stageName := doc.Pairs[0].Key
 		a.PipelineStages = append(a.PipelineStages, stageName)
+
+		if !a.ShapePreserving {
+			continue
+		}
 
 		if shapePreservingStages[stageName] {
 			if stageName == "$match" {
@@ -70,10 +71,7 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 			if unsupported {
 				a.UnsupportedStage = "$lookup"
 				a.ShapePreserving = false
-				if len(fields) > 0 {
-					a.PredicateFields = sortedKeys(fields)
-				}
-				return
+				continue
 			}
 			if join != nil {
 				a.Joins = append(a.Joins, *join)
@@ -89,13 +87,10 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 			continue
 		}
 
-		// Not shape-preserving and not a join stage
+		// Not shape-preserving and not a join stage. Keep scanning the
+		// remaining elements so PipelineStages records the full pipeline.
 		a.UnsupportedStage = stageName
 		a.ShapePreserving = false
-		if len(fields) > 0 {
-			a.PredicateFields = sortedKeys(fields)
-		}
-		return
 	}
 
 	if len(fields) > 0 {

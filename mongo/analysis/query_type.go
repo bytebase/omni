@@ -1,0 +1,342 @@
+package analysis
+
+import (
+	"errors"
+
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/mongo/ast"
+	"github.com/bytebase/omni/mongo/parser"
+)
+
+// QueryType is the permission class of a statement. The values mirror
+// Bytebase's base.QueryType.
+type QueryType = analysis.QueryType
+
+const (
+	// QueryTypeUnknown is a statement not deliberately mapped.
+	QueryTypeUnknown = analysis.QueryTypeUnknown
+	// Select is a read-only user query.
+	Select = analysis.Select
+	// Explain is a query plan statement.
+	Explain = analysis.Explain
+	// SelectInfoSchema reads system or metadata information.
+	SelectInfoSchema = analysis.SelectInfoSchema
+	// DDL changes schema or administrative state.
+	DDL = analysis.DDL
+	// DML changes data.
+	DML = analysis.DML
+)
+
+// safeBSONHelpers lists pure BSON value constructors and static factory methods
+// that do not perform database writes or arbitrary shell side effects.
+var safeBSONHelpers = map[string]bool{
+	"ObjectId":                          true,
+	"ObjectId.createFromHexString":      true,
+	"ObjectId.createFromBase64":         true,
+	"ObjectId.createFromTime":           true,
+	"ObjectId.isValid":                  true,
+	"ObjectId.generate":                 true,
+	"ISODate":                           true,
+	"Date":                              true,
+	"Date.now":                          true,
+	"Date.UTC":                          true,
+	"Date.parse":                        true,
+	"UUID":                              true,
+	"NumberLong":                        true,
+	"NumberInt":                         true,
+	"NumberDecimal":                     true,
+	"Long":                              true,
+	"Long.fromString":                   true,
+	"Long.fromNumber":                   true,
+	"Long.fromInt":                      true,
+	"Long.fromBits":                     true,
+	"Int32":                             true,
+	"Int32.fromString":                  true,
+	"Double":                            true,
+	"Double.fromString":                 true,
+	"Decimal128":                        true,
+	"Decimal128.fromString":             true,
+	"Decimal128.fromStringWithRounding": true,
+	"Timestamp":                         true,
+	"Timestamp.fromBits":                true,
+	"Timestamp.fromInt":                 true,
+	"Timestamp.fromNumber":              true,
+	"Timestamp.fromString":              true,
+	"RegExp":                            true,
+	"BSONRegExp":                        true,
+	"BSONRegExp.parseOptions":           true,
+	"BinData":                           true,
+	"Binary":                            true,
+	"Binary.createFromBase64":           true,
+	"Binary.createFromHexString":        true,
+	"Binary.fromBits":                   true,
+	"Binary.fromFloat32Array":           true,
+	"Binary.fromInt8Array":              true,
+	"Binary.fromPackedBits":             true,
+	"HexData":                           true,
+	"MinKey":                            true,
+	"MaxKey":                            true,
+	"Code":                              true,
+	"DBRef":                             true,
+	"Symbol":                            true,
+	"BSONSymbol":                        true,
+	"MD5":                               true,
+	"EJSON.parse":                       true,
+	"EJSON.stringify":                   true,
+	"EJSON.serialize":                   true,
+	"EJSON.deserialize":                 true,
+}
+
+func hasWriteOrUnknownStage(a *StatementAnalysis) bool {
+	if a.UnsupportedStage == "unknown" {
+		return true
+	}
+	for _, stage := range a.PipelineStages {
+		if stage == "$out" || stage == "$merge" || stage == "unknown" {
+			return true
+		}
+	}
+	return false
+}
+
+// safeCursorModifiers lists read-only cursor methods that return a cursor and
+// can be chained before another cursor modifier or terminal.
+var safeCursorModifiers = map[string]bool{
+	"addOption":           true,
+	"allowDiskUse":        true,
+	"allowPartialResults": true,
+	"batchSize":           true,
+	"collation":           true,
+	"comment":             true,
+	"hint":                true,
+	"limit":               true,
+	"max":                 true,
+	"maxAwaitTimeMS":      true,
+	"maxTimeMS":           true,
+	"min":                 true,
+	"modifiers":           true,
+	"noCursorTimeout":     true,
+	"oplogReplay":         true,
+	"pretty":              true,
+	"projection":          true,
+	"readConcern":         true,
+	"readPref":            true,
+	"returnKey":           true,
+	"showRecordId":        true,
+	"skip":                true,
+	"sort":                true,
+	"tailable":            true,
+}
+
+// safeCursorTerminals lists read-only cursor terminal methods that consume or
+// inspect the cursor without invoking user callbacks. Because they return a
+// non-cursor JS value (such as an Array), no further chaining is allowed after
+// them.
+var safeCursorTerminals = map[string]bool{
+	"close":           true,
+	"count":           true,
+	"explain":         true,
+	"hasNext":         true,
+	"isClosed":        true,
+	"isExhausted":     true,
+	"itcount":         true,
+	"next":            true,
+	"objsLeftInBatch": true,
+	"size":            true,
+	"toArray":         true,
+	"tryNext":         true,
+}
+
+func hasUnsafeCursorChain(s *ast.CollectionStatement) bool {
+	if len(s.CursorMethods) == 0 {
+		return false
+	}
+	if s.Method != "find" && s.Method != "aggregate" {
+		if explainableMethods[s.Method] && len(s.CursorMethods) == 1 && s.CursorMethods[0].Method == explainCursorMethod {
+			return false
+		}
+		return true
+	}
+	for i, cm := range s.CursorMethods {
+		if safeCursorModifiers[cm.Method] {
+			continue
+		}
+		if safeCursorTerminals[cm.Method] && i == len(s.CursorMethods)-1 {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// hasUnsafeStatementArgs reports whether a statement's argument expressions or
+// chained method calls invoke callbacks or anything outside safe allowlists.
+func hasUnsafeStatementArgs(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.CollectionStatement:
+		if hasUnsafeCursorChain(n) {
+			return true
+		}
+		if hasUnsafeNodes(n.Args) || hasUnsafeNodes(n.ExplainArgs) {
+			return true
+		}
+		for _, cm := range n.CursorMethods {
+			if hasUnsafeNodes(cm.Args) {
+				return true
+			}
+		}
+		return false
+	case *ast.DatabaseStatement:
+		if len(n.ChainedMethods) > 0 {
+			return true
+		}
+		return hasUnsafeNodes(n.Args)
+	case *ast.RsStatement:
+		return hasUnsafeNodes(n.Args)
+	case *ast.ShStatement:
+		return hasUnsafeNodes(n.Args)
+	default:
+		return false
+	}
+}
+
+// safeIdentifiers lists global non-writable JavaScript primitive constants that
+// cannot refer to a callable function, getter, or proxy object.
+var safeIdentifiers = map[string]bool{
+	"undefined": true,
+	"NaN":       true,
+	"Infinity":  true,
+}
+
+func hasUnsafeNodes(nodes []ast.Node) bool {
+	stack := make([]ast.Node, 0, len(nodes))
+	stack = append(stack, nodes...)
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
+			continue
+		}
+		switch v := n.(type) {
+		case *ast.StringLiteral, *ast.NumberLiteral, *ast.BoolLiteral,
+			*ast.NullLiteral, *ast.RegexLiteral:
+			continue
+		case *ast.Identifier:
+			if !safeIdentifiers[v.Name] {
+				return true
+			}
+		case *ast.Document:
+			for _, pair := range v.Pairs {
+				stack = append(stack, pair.Value)
+			}
+		case *ast.Array:
+			stack = append(stack, v.Elements...)
+		case *ast.HelperCall:
+			if v.ChainedCall || !safeBSONHelpers[v.Name] {
+				return true
+			}
+			if v.Name == "EJSON.stringify" && !hasSafeStringifyReplacer(v.Args) {
+				return true
+			}
+			stack = append(stack, v.Args...)
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// hasSafeStringifyReplacer reports whether EJSON.stringify's optional second
+// argument (replacer/options) cannot be a callback function.
+func hasSafeStringifyReplacer(args []ast.Node) bool {
+	if len(args) < 2 {
+		return true
+	}
+	switch r := args[1].(type) {
+	case *ast.NullLiteral, *ast.Array, *ast.Document:
+		return true
+	case *ast.Identifier:
+		return r.Name == "undefined"
+	default:
+		return false
+	}
+}
+
+// QueryTypeOf maps a StatementAnalysis to its QueryType.
+// Nil or unrecognized analyses default to DML for safety.
+func QueryTypeOf(a *StatementAnalysis) QueryType {
+	if a == nil {
+		return DML
+	}
+	switch a.Operation {
+	case OpFind, OpFindOne, OpCount, OpDistinct:
+		return Select
+	case OpAggregate:
+		if hasWriteOrUnknownStage(a) {
+			return DML
+		}
+		return Select
+	case OpRead:
+		// OpRead covers runCommand({find:...}) and collection metadata reads
+		// (getIndexes, stats, etc.). Treat runCommand/adminCommand as Select
+		// (data access) unless a pipeline write/unknown stage is present, and
+		// collection metadata methods as SelectInfoSchema.
+		if a.MethodName == "runCommand" || a.MethodName == "adminCommand" {
+			if hasWriteOrUnknownStage(a) {
+				return DML
+			}
+			return Select
+		}
+		return SelectInfoSchema
+	case OpInfo:
+		// OpInfo covers show commands, db/rs/sh info methods, and info
+		// runCommands, plus the fallback for unknown db methods in Analyze.
+		// Classify only known info methods as SelectInfoSchema and default
+		// unknowns to DML for safety.
+		switch a.MethodName {
+		case "show", "status",
+			"getCollectionNames", "getCollectionInfos",
+			"serverStatus", "serverBuildInfo", "version",
+			"hostInfo", "getName", "listCommands", "stats",
+			"conf", "config", "printReplicationInfo", "printSecondaryReplicationInfo",
+			"getBalancerState", "isBalancerRunning":
+			return SelectInfoSchema
+		case "runCommand", "adminCommand":
+			return SelectInfoSchema
+		default:
+			return DML
+		}
+	case OpWrite:
+		return DML
+	case OpAdmin:
+		return DDL
+	case OpExplain:
+		return Explain
+	default:
+		return DML
+	}
+}
+
+// QueryType returns the QueryType for this statement analysis.
+// A nil receiver returns DML.
+func (a *StatementAnalysis) QueryType() QueryType {
+	return QueryTypeOf(a)
+}
+
+// ClassifyStatement parses a single MongoDB shell statement and returns its
+// QueryType. Empty input returns DML with a nil error. Syntax errors return DML
+// alongside the *parser.ParseError from mongo/parser, and multi-statement input
+// returns DML with an error.
+func ClassifyStatement(statement string) (QueryType, error) {
+	nodes, err := parser.Parse(statement)
+	if err != nil {
+		return DML, err
+	}
+	if len(nodes) == 0 {
+		return DML, nil
+	}
+	if len(nodes) > 1 {
+		return DML, errors.New("expected a single MongoDB statement")
+	}
+	return QueryTypeOf(Analyze(nodes[0])), nil
+}

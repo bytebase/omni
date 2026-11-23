@@ -227,9 +227,10 @@ func (n *RegexLiteral) GetLoc() Loc { return n.Loc }
 
 // HelperCall represents a BSON helper like ObjectId("..."), NumberLong(1), etc.
 type HelperCall struct {
-	Name string // helper name (ObjectId, NumberLong, etc.)
-	Args []Node // arguments
-	Loc  Loc
+	Name        string // helper name (ObjectId, NumberLong, etc.)
+	Args        []Node // arguments
+	ChainedCall bool   // true when a postfix .method() chain followed an earlier call (e.g. f(x).g(y))
+	Loc         Loc
 }
 
 func (n *HelperCall) GetLoc() Loc { return n.Loc }
