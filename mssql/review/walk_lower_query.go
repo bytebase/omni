@@ -54,8 +54,8 @@ type binder struct {
 	// view, an inline function, or a body's SELECT (verified).
 	noFrom bool
 	// pseudo is the table path a DML trigger's inserted and deleted
-	// stand for.
-	pseudo string
+	// stand for, and pseudoTable the trigger's table as written.
+	pseudo, pseudoTable string
 	// tableVars are the table variables the body declares.
 	tableVars []*ast.VariableDecl
 }
@@ -253,6 +253,17 @@ func (q *binder) expr(n ast.Node, sc *qscope) {
 		case *ast.ColumnRef:
 			q.column(v, sc)
 			return false
+		case *ast.FuncCallExpr:
+			if v.Name != nil && v.Name.Schema == "" && strings.EqualFold(v.Name.Object, "UPDATE") && v.Args != nil && len(v.Args.Items) == 1 {
+				// A DML trigger's UPDATE(column) names a column of its
+				// table, whatever the query around it reads.
+				if c, ok := v.Args.Items[0].(*ast.ColumnRef); ok {
+					if q.pseudo != "" {
+						q.column(c, &qscope{sources: []qsource{{exposed: q.pseudoTable, written: q.pseudoTable, path: q.pseudo}}})
+					}
+					return false
+				}
+			}
 		}
 		return true
 	})
@@ -269,7 +280,7 @@ func (q *binder) column(c *ast.ColumnRef, sc *qscope) {
 		q.qualified(c, sc)
 		return
 	}
-	if sc.order {
+	if sc != nil && sc.order {
 		for _, a := range sc.aliases {
 			if !differ(a, c.Column) {
 				return
@@ -491,17 +502,22 @@ func unnamedDerived(n ast.Node) (review.Range, bool) {
 	return rng, found
 }
 
-// enterModule makes unqualified names resolve as they do in the body of
-// a module named so, until the returned function runs.
-func (b *builder) enterModule(name *ast.TableRef) func() {
-	saved, savedIn := b.modSchema, b.inModule
-	b.inModule, b.modSchema = true, ""
-	if name != nil && name.Server == "" && (name.Database == "" || b.w.databaseNamed(name.Database) == dbTarget) {
-		b.modSchema = name.Schema
-		if b.modSchema == "" {
-			b.modSchema = b.w.target.DefaultSchema
-		}
+// moduleSchema returns the schema a module statement's name resolves
+// to, as createModule resolves it: the default schema for a creation,
+// and for ALTER the one a lookup finds; "" when the walk cannot tell.
+func (b *builder) moduleSchema(name *ast.TableRef, loc ast.Loc, orAlter bool) string {
+	r, ok := b.ref(name, b.moduleVerb(loc, orAlter) != "ALTER")
+	if !ok || r.where != placed || r.temp {
+		return ""
 	}
+	return r.schema.spelling
+}
+
+// enterModule makes unqualified names resolve as they do in the body of
+// a module of a schema, nowhere for "", until the returned function runs.
+func (b *builder) enterModule(schema string) func() {
+	saved, savedIn := b.modSchema, b.inModule
+	b.inModule, b.modSchema = true, schema
 	return func() { b.modSchema, b.inModule = saved, savedIn }
 }
 
@@ -825,8 +841,9 @@ func twice(names []string) string {
 // it runs instead (deferred name resolution). A body that changes a
 // table may bind against what it changed, and binds nothing here.
 // pseudo is the path of the table whose rows a DML trigger's inserted
-// and deleted hold, "" when the walk does not know them.
-func (b *builder) moduleBody(body ast.Node, params []string, tableVars []*ast.VariableDecl, pseudo string) {
+// and deleted hold, "" when the walk does not know them, and table that
+// table as written.
+func (b *builder) moduleBody(body ast.Node, params []string, tableVars []*ast.VariableDecl, pseudo, table string) {
 	if body == nil || b.undeclared(body, params) {
 		return
 	}
@@ -841,7 +858,7 @@ func (b *builder) moduleBody(body ast.Node, params []string, tableVars []*ast.Va
 		return
 	}
 	q := newBinder(b, body, false)
-	q.pseudo = pseudo
+	q.pseudo, q.pseudoTable = pseudo, table
 	q.tableVars = tableVars
 	ast.Inspect(body, func(n ast.Node) bool {
 		if v, ok := n.(*ast.VariableDecl); ok && v.IsTable {
@@ -1160,8 +1177,28 @@ func selectWidth(s *ast.SelectStmt) (int, bool) {
 }
 
 // setWidths fails a statement whose set operation joins queries of
-// different widths (205), at any depth.
+// different widths (205), at any depth. Each query's width is counted
+// once, so a long chain of branches costs no more than its length.
 func (b *builder) setWidths(n ast.Node) bool {
+	type width struct {
+		n  int
+		ok bool
+	}
+	memo := make(map[*ast.SelectStmt]width)
+	var widthOf func(s *ast.SelectStmt) (int, bool)
+	widthOf = func(s *ast.SelectStmt) (int, bool) {
+		if s == nil || s.Larg == nil && s.Rarg == nil {
+			return selectWidth(s)
+		}
+		if w, seen := memo[s]; seen {
+			return w.n, w.ok
+		}
+		l, ok1 := widthOf(s.Larg)
+		r, ok2 := widthOf(s.Rarg)
+		w := width{l, ok1 && ok2 && l == r}
+		memo[s] = w
+		return w.n, w.ok
+	}
 	var bad *ast.SelectStmt
 	ast.Inspect(n, func(m ast.Node) bool {
 		if bad != nil {
@@ -1171,8 +1208,8 @@ func (b *builder) setWidths(n ast.Node) bool {
 		if !ok || s.Larg == nil || s.Rarg == nil {
 			return true
 		}
-		l, ok1 := selectWidth(s.Larg)
-		r, ok2 := selectWidth(s.Rarg)
+		l, ok1 := widthOf(s.Larg)
+		r, ok2 := widthOf(s.Rarg)
 		if ok1 && ok2 && l != r {
 			bad = s
 			return false
@@ -1192,6 +1229,22 @@ func (b *builder) setWidths(n ast.Node) bool {
 func orderWithoutTop(n ast.Node) (review.Range, bool) {
 	var rng review.Range
 	found := false
+	memo := make(map[*ast.SelectStmt]bool)
+	var anyTop func(s *ast.SelectStmt) bool
+	anyTop = func(s *ast.SelectStmt) bool {
+		if s == nil {
+			return false
+		}
+		if s.Top != nil {
+			return true
+		}
+		if v, seen := memo[s]; seen {
+			return v
+		}
+		v := anyTop(s.Larg) || anyTop(s.Rarg)
+		memo[s] = v
+		return v
+	}
 	ast.Inspect(n, func(m ast.Node) bool {
 		if found {
 			return false
@@ -1204,14 +1257,6 @@ func orderWithoutTop(n ast.Node) (review.Range, bool) {
 		return false
 	})
 	return rng, found
-}
-
-// anyTop reports whether a query or a branch of it has TOP.
-func anyTop(s *ast.SelectStmt) bool {
-	if s == nil {
-		return false
-	}
-	return s.Top != nil || anyTop(s.Larg) || anyTop(s.Rarg)
 }
 
 // schemaBound fails a schema-bound view's or function's query that names

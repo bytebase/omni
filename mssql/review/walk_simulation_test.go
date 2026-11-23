@@ -105,7 +105,7 @@ var walkSimSuites = []struct {
 }{
 	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.5, 2610},
 	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.0, 266},
-	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 76.0, 49},
+	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 78.0, 50},
 }
 
 // walkCompatSimulation holds MSSQL's WALK_THROUGH to every unique
@@ -314,6 +314,9 @@ func reviewSimStatement(t testing.TB, stmt string, target review.Target) (*walkt
 	result, err := Review(context.Background(), stmt, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{target})
 	if err != nil {
 		t.Fatalf("Review(%q): %v", stmt, err)
+	}
+	for _, f := range result.Failures {
+		t.Errorf("Review(%q) could not evaluate target %d: %v", stmt, f.Target, f.Err)
 	}
 	var out *walktest.Finding
 	for _, f := range result.Findings {

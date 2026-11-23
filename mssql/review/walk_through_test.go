@@ -64,6 +64,9 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, f := range result.Failures {
+		t.Errorf("target %d could not be evaluated: %v", f.Target, f.Err)
+	}
 	for _, f := range result.Findings {
 		if err := review.CheckCodes(f); err != nil {
 			t.Error(err)
@@ -476,6 +479,10 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"union of two widths", "SELECT id, a FROM dbo.t UNION SELECT id FROM dbo.r;", 0, "SQL Server doesn't accept a `UNION`, `INTERSECT`, or `EXCEPT` of queries with different numbers of columns."},
 		{"trigger reads a missing column of inserted", "CREATE TRIGGER dbo.tr ON dbo.t AFTER INSERT AS SELECT nope FROM inserted;", 0, "Column `nope` doesn't exist in `inserted`."},
 		{"trigger reads a column of deleted", "CREATE TRIGGER dbo.tr ON dbo.t AFTER DELETE AS SELECT a FROM deleted;", -1, ""},
+		{"trigger tests a column of its table", "CREATE TRIGGER dbo.tr ON dbo.t AFTER UPDATE AS IF UPDATE(a) RETURN;", -1, ""},
+		{"trigger tests a missing column", "CREATE TRIGGER dbo.tr ON dbo.t AFTER UPDATE AS IF UPDATE(nope) RETURN;", 0, "Column `nope` doesn't exist in `dbo.t`."},
+		{"trigger tests a column in a query of another table", "CREATE TRIGGER dbo.tr ON dbo.t AFTER UPDATE AS SELECT id FROM dbo.r WHERE UPDATE(a);", -1, ""},
+		{"altered procedure binds in the schema it resolves to", "ALTER PROCEDURE pr AS SELECT a FROM t;", -1, ""},
 		{"AFTER trigger on a view", "CREATE TRIGGER dbo.tr ON dbo.v AFTER INSERT AS SELECT 1;", 0, "`dbo.v` is a view, not a table."},
 		{"INSTEAD OF trigger on a view", "CREATE TRIGGER dbo.tr ON dbo.v INSTEAD OF INSERT AS SELECT 1;", -1, ""},
 		{"function changes a table", "CREATE FUNCTION dbo.f2() RETURNS int AS BEGIN INSERT INTO dbo.t (a) VALUES (1); RETURN 1 END", 0, "SQL Server doesn't accept `INSERT` of a table in a function."},
@@ -539,6 +546,10 @@ func TestWalkThroughFindings(t *testing.T) {
 				target.Schema.Schemas = append(target.Schema.Schemas, cdc)
 			case "no default schema":
 				target.DefaultSchema = ""
+			case "altered procedure binds in the schema it resolves to":
+				target.DefaultSchema = "s"
+				s := target.Schema.Schemas[1]
+				s.Tables = append(s.Tables, &metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "b"}}})
 			case "a default schema that may not exist":
 				target.DefaultSchema = "nosuch"
 			case "create spatial index on int column", "create spatial index on geography column valid",

@@ -49,8 +49,8 @@ func (b *builder) statement(n ast.Node) bool {
 			return false
 		}
 		if v.ExternalName == "" {
-			defer b.enterModule(v.Name)()
-			b.moduleBody(v.Body, paramNames(v.Params), nil, "")
+			defer b.enterModule(b.moduleSchema(v.Name, v.Loc, v.OrAlter))()
+			b.moduleBody(v.Body, paramNames(v.Params), nil, "", "")
 		}
 		return true
 	case *ast.CreateFunctionStmt:
@@ -607,7 +607,7 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	if !b.createModule(v.Loc, v.Name, v.OrAlter, kindView, false) {
 		return false
 	}
-	defer b.enterModule(v.Name)()
+	defer b.enterModule(b.moduleSchema(v.Name, v.Loc, v.OrAlter))()
 	b.viewQuery(v.Query, v.Columns, "view", nil, v.SchemaBinding || hasOption(v.Options, "SCHEMABINDING"))
 	return true
 }
@@ -623,7 +623,7 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 	if v.ExternalName != "" || v.Body == nil {
 		return true
 	}
-	defer b.enterModule(v.Name)()
+	defer b.enterModule(b.moduleSchema(v.Name, v.Loc, v.OrAlter))()
 	if v.ReturnsTable != nil && v.ReturnsTable.Variable == "" && v.ReturnsTable.Columns == nil {
 		if ret, ok := v.Body.(*ast.ReturnStmt); ok {
 			if sub, ok := ret.Value.(*ast.SubqueryExpr); ok {
@@ -660,7 +660,7 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 		params = append(params, rt.Variable)
 		tableVars = append(tableVars, &ast.VariableDecl{Name: rt.Variable, IsTable: true, TableDef: rt.Columns})
 	}
-	b.moduleBody(v.Body, params, tableVars, "")
+	b.moduleBody(v.Body, params, tableVars, "", "")
 	return true
 }
 

@@ -327,15 +327,12 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	if v.ExternalName == "" {
 		// A trigger is in its table's schema.
-		mod := &ast.TableRef{Server: v.Table.Server, Database: v.Table.Database, Schema: v.Name.Schema}
-		if mod.Schema == "" {
-			mod.Schema = t.schema.spelling
-			if t.where != placed {
-				mod = nil
-			}
+		schema := ""
+		if t.where == placed && !t.temp {
+			schema = t.schema.spelling
 		}
-		done := b.enterModule(mod)
-		b.moduleBody(v.Body, nil, nil, pseudo)
+		done := b.enterModule(schema)
+		b.moduleBody(v.Body, nil, nil, pseudo, t.written)
 		done()
 	}
 	b.arriveObject(r, kindTrigger)
