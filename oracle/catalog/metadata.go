@@ -1050,7 +1050,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 							return
 						}
 					}
-					if !hasUniqueIndex(table, columns) {
+					if !tableHasUniqueConstraint(table, columns) {
 						e.setError(oraError("02442", "cannot drop nonexistent unique key"))
 						return
 					}
@@ -1699,7 +1699,6 @@ func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableM
 		if keepIndex {
 			index.IsConstraint = false
 			index.Primary = false
-			index.Unique = true
 			indexes = append(indexes, index)
 		}
 	}
@@ -3210,6 +3209,11 @@ func hasPrimaryIndex(table *metadatapb.TableMetadata) bool {
 	for _, index := range table.Indexes {
 		if index.Primary {
 			return true
+		}
+		for _, c := range index.Constraints {
+			if c.Primary {
+				return true
+			}
 		}
 	}
 	return false

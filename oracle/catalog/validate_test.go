@@ -1,9 +1,11 @@
 package catalog
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -314,5 +316,125 @@ func TestExecSchemaStateFidelityFixes(t *testing.T) {
 		require.Nil(t, syns["S1"])
 		require.NotNil(t, syns["S2"])
 		require.Equal(t, "T", syns["S2"].TargetName)
+	})
+}
+
+func TestExecForeignKeyAgainstConstraintMetadata(t *testing.T) {
+	newCatalog := func(t *testing.T, parentIndexes []*metadatapb.IndexMetadata) *Catalog {
+		t.Helper()
+		c := New()
+		_, err := c.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "PARENT",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false},
+							{Name: "CODE", Type: "NUMBER", Position: 2, Nullable: true},
+							{Name: "EXTRA", Type: "NUMBER", Position: 3, Nullable: true},
+						},
+						Indexes: parentIndexes,
+					},
+					{
+						Name: "CHILD",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "P_ID", Type: "NUMBER", Position: 1, Nullable: true},
+							{Name: "P_CODE", Type: "NUMBER", Position: 2, Nullable: true},
+							{Name: "P_EXTRA", Type: "NUMBER", Position: 3, Nullable: true},
+						},
+					},
+				},
+			}},
+		})
+		require.NoError(t, err)
+		return c
+	}
+
+	t.Run("PK reusing nonunique index accepts matching constraint columns and rejects index superset", func(t *testing.T) {
+		c := newCatalog(t, []*metadatapb.IndexMetadata{{
+			Name:         "PK_REUSED_IDX",
+			Type:         "NORMAL",
+			Primary:      true,
+			Unique:       false,
+			Expressions:  []string{`"ID"`, `"EXTRA"`},
+			Visible:      true,
+			IsConstraint: true,
+			Constraints: []*metadatapb.IndexConstraintMetadata{
+				{Name: "PK_REUSED", Columns: []string{`"ID"`}, Primary: true},
+			},
+		}})
+
+		results, err := c.Exec(`ALTER TABLE child ADD CONSTRAINT fk_id FOREIGN KEY (p_id) REFERENCES parent (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		results, err = c.Exec(`ALTER TABLE child ADD CONSTRAINT fk_both FOREIGN KEY (p_id, p_extra) REFERENCES parent (id, extra)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "02270", oraErr.Code)
+	})
+
+	t.Run("UK reusing nonunique index accepts matching constraint columns", func(t *testing.T) {
+		c := newCatalog(t, []*metadatapb.IndexMetadata{{
+			Name:         "UK_REUSED_IDX",
+			Type:         "NORMAL",
+			Primary:      false,
+			Unique:       false,
+			Expressions:  []string{`"CODE"`, `"EXTRA"`},
+			Visible:      true,
+			IsConstraint: true,
+			Constraints: []*metadatapb.IndexConstraintMetadata{
+				{Name: "UK_REUSED", Columns: []string{`"CODE"`}, Primary: false},
+			},
+		}})
+
+		results, err := c.Exec(`ALTER TABLE child ADD CONSTRAINT fk_code FOREIGN KEY (p_code) REFERENCES parent (code)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
+
+	t.Run("shared index enforcing PK and UK accepts FKs to either constraint", func(t *testing.T) {
+		c := newCatalog(t, []*metadatapb.IndexMetadata{{
+			Name:         "SHARED_IDX",
+			Type:         "NORMAL",
+			Primary:      true,
+			Unique:       false,
+			Expressions:  []string{`"ID"`, `"CODE"`},
+			Visible:      true,
+			IsConstraint: true,
+			Constraints: []*metadatapb.IndexConstraintMetadata{
+				{Name: "SHARED_PK", Columns: []string{`"ID"`}, Primary: true},
+				{Name: "SHARED_UK", Columns: []string{`"CODE"`}, Primary: false},
+			},
+		}})
+
+		results, err := c.Exec(`
+			ALTER TABLE child ADD CONSTRAINT fk_id FOREIGN KEY (p_id) REFERENCES parent (id);
+			ALTER TABLE child ADD CONSTRAINT fk_code FOREIGN KEY (p_code) REFERENCES parent (code);
+		`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+	})
+
+	t.Run("plain non-constraint unique index is rejected for FK reference", func(t *testing.T) {
+		c := newCatalog(t, []*metadatapb.IndexMetadata{{
+			Name:         "PLAIN_UQ_IDX",
+			Type:         "NORMAL",
+			Primary:      false,
+			Unique:       true,
+			Expressions:  []string{`"CODE"`},
+			Visible:      true,
+			IsConstraint: false,
+		}})
+
+		results, err := c.Exec(`ALTER TABLE child ADD CONSTRAINT fk_code FOREIGN KEY (p_code) REFERENCES parent (code)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "02270", oraErr.Code)
 	})
 }

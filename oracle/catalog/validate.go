@@ -122,13 +122,14 @@ func (e *oracleMetadataExtractor) constraintNameExists(name string) bool {
 
 func tableHasConstraint(table *metadatapb.TableMetadata, name string) bool {
 	for _, idx := range table.Indexes {
-		if idx.IsConstraint && idx.Name == name {
-			return true
-		}
-		for _, c := range idx.Constraints {
-			if c.Name == name {
-				return true
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				if c.Name == name {
+					return true
+				}
 			}
+		} else if idx.IsConstraint && idx.Name == name {
+			return true
 		}
 	}
 	for _, chk := range table.CheckConstraints {
@@ -204,6 +205,18 @@ func (e *oracleMetadataExtractor) columnsHaveIncomingForeignKeys(tableName strin
 	return false
 }
 
+func columnsMatchSet(a, wantSorted []string) bool {
+	if len(a) != len(wantSorted) {
+		return false
+	}
+	got := make([]string, len(a))
+	for i, expr := range a {
+		got[i] = strings.Trim(expr, `"`)
+	}
+	slices.Sort(got)
+	return slices.Equal(got, wantSorted)
+}
+
 func tableHasUniqueKey(table *metadatapb.TableMetadata, cols []string) bool {
 	if table == nil || len(cols) == 0 {
 		return false
@@ -214,15 +227,51 @@ func tableHasUniqueKey(table *metadatapb.TableMetadata, cols []string) bool {
 	}
 	slices.Sort(want)
 	for _, idx := range table.Indexes {
-		if !idx.Unique || !idx.IsConstraint || len(idx.Expressions) != len(want) {
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				constraintCols := c.Columns
+				if len(constraintCols) == 0 {
+					constraintCols = idx.Expressions
+				}
+				if columnsMatchSet(constraintCols, want) {
+					return true
+				}
+			}
 			continue
 		}
-		got := make([]string, len(idx.Expressions))
-		for i, expr := range idx.Expressions {
-			got[i] = strings.Trim(expr, `"`)
+		if (idx.Primary || idx.Unique) && idx.IsConstraint && columnsMatchSet(idx.Expressions, want) {
+			return true
 		}
-		slices.Sort(got)
-		if slices.Equal(got, want) {
+	}
+	return false
+}
+
+func tableHasUniqueConstraint(table *metadatapb.TableMetadata, cols []string) bool {
+	if table == nil || len(cols) == 0 {
+		return false
+	}
+	want := make([]string, len(cols))
+	for i, c := range cols {
+		want[i] = strings.Trim(c, `"`)
+	}
+	slices.Sort(want)
+	for _, idx := range table.Indexes {
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				if c.Primary {
+					continue
+				}
+				constraintCols := c.Columns
+				if len(constraintCols) == 0 {
+					constraintCols = idx.Expressions
+				}
+				if columnsMatchSet(constraintCols, want) {
+					return true
+				}
+			}
+			continue
+		}
+		if idx.Unique && !idx.Primary && idx.IsConstraint && columnsMatchSet(idx.Expressions, want) {
 			return true
 		}
 	}
