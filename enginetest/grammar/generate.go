@@ -45,8 +45,9 @@ type builtAlt struct {
 	prefix []string
 	body   []string
 	suffix []string
-	// site is set for the row an EverySite rule adds to an alternative that
-	// names it: the body tokens the rule's clause spans, [start, end).
+	// site is set for the row an EverySite or EveryAlternative rule adds to
+	// an alternative that names it: the body tokens the rule's clause, or
+	// its form, spans, [start, end).
 	// Its near-misses drop only those, since the alternative's own row
 	// breaks the rest.
 	site *[2]int
@@ -60,10 +61,11 @@ func (a builtAlt) full() []string {
 // Rows returns the generated rows: for each alternative of each rule, in
 // source order, the shortest statement that exercises it, followed by its
 // near-misses (see nearMisses), and after it a row for each EverySite rule
-// the alternative names, with that rule's clause written out. uncovered lists the alternatives no
-// statement could be generated for: unreachable from the start symbol,
-// never terminating, or needing an unreachable token. Each needs a
-// hand-added row.
+// the alternative names, with that rule's clause written out, and one for
+// each form of each EveryAlternative rule it names. uncovered lists the
+// alternatives no statement could be generated for: unreachable from the
+// start symbol, never terminating, or needing an unreachable token. Each
+// needs a hand-added row.
 func (g *Grammar) Rows() (rows []Row, uncovered []string) {
 	alts, uncovered := g.buildAlts()
 	kw := g.keywordSet()
@@ -112,6 +114,12 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 	if len(g.everySite) > 0 {
 		ne = g.shortestNonEmpty(sd)
 	}
+	forms := map[string][]altForm{}
+	for name := range g.everyAlt {
+		if _, ok := g.byName[name]; ok {
+			forms[name] = g.altForms(name, sd, map[string]bool{})
+		}
+	}
 
 	used := map[string]int{}
 	for _, r := range g.rules {
@@ -130,6 +138,7 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 			}
 			alts = append(alts, builtAlt{label: label, prefix: cxN.prefix, body: body, suffix: cxN.suffix})
 			alts = append(alts, g.siteAlts(label, alt, sd, ne, cxN)...)
+			alts = append(alts, g.formAlts(label, alt, sd, forms, cxN)...)
 		}
 	}
 	return alts, uncovered
@@ -169,6 +178,89 @@ func (g *Grammar) siteAlts(label string, alt []symbol, sd map[string]deriv, ne m
 			suffix: cx.suffix,
 			site:   &[2]int{len(before), len(before) + len(clause)},
 		})
+	}
+	return out
+}
+
+// An altForm is one form an EveryAlternative rule is written as: the
+// shortest tokens of one of its alternatives, labelled as that alternative.
+type altForm struct {
+	label string
+	toks  []string
+}
+
+// altForms returns the forms of an EveryAlternative rule, in source order:
+// for each alternative its shortest tokens, followed, for each symbol of it
+// that names another EveryAlternative rule, by the alternative with that
+// symbol written as each of that rule's forms. A rule being expanded
+// further up is written as its shortest form only.
+func (g *Grammar) altForms(name string, sd map[string]deriv, expanding map[string]bool) []altForm {
+	expanding[name] = true
+	defer delete(expanding, name)
+	var out []altForm
+	for _, alt := range g.byName[name].alts {
+		toks, ok := g.altTokens(alt, sd)
+		if !ok || g.needsUnreachable(alt) {
+			continue
+		}
+		out = append(out, altForm{label: g.altLabel(name, alt), toks: toks})
+		for k, sym := range alt {
+			if !sym.nonterm || !g.everyAlt[sym.text] || expanding[sym.text] {
+				continue
+			}
+			before, _ := g.altTokens(alt[:k], sd)
+			after, _ := g.altTokens(alt[k+1:], sd)
+			for _, f := range g.altForms(sym.text, sd, expanding) {
+				out = append(out, altForm{label: f.label, toks: join(before, f.toks, after)})
+			}
+		}
+	}
+	return out
+}
+
+// formAlts returns one builtAlt for each form of each EveryAlternative rule
+// alt names, labelled <label>+<form's label> (and #2, #3 for a rule the
+// alternative names again): the alternative's shortest statement with that
+// rule written as the form. The form that is the rule's shortest repeats
+// the alternative's own row, and Rows drops it.
+func (g *Grammar) formAlts(label string, alt []symbol, sd map[string]deriv, forms map[string][]altForm, cx ctxt) []builtAlt {
+	var out []builtAlt
+	named := map[string]int{}
+	for k, sym := range alt {
+		if !sym.nonterm || !g.everyAlt[sym.text] {
+			continue
+		}
+		suffix := ""
+		if named[sym.text]++; named[sym.text] > 1 {
+			suffix = fmt.Sprintf("#%d", named[sym.text])
+		}
+		before, ok := g.altTokens(alt[:k], sd)
+		if !ok {
+			continue
+		}
+		after, ok := g.altTokens(alt[k+1:], sd)
+		if !ok {
+			continue
+		}
+		used := map[string]int{}
+		for _, f := range forms[sym.text] {
+			if len(f.toks) == 0 {
+				continue
+			}
+			// A rule named by two alternatives of the rule chosen among
+			// writes its forms twice.
+			formLabel := f.label
+			if used[formLabel]++; used[formLabel] > 1 {
+				formLabel = fmt.Sprintf("%s#%d", formLabel, used[formLabel])
+			}
+			out = append(out, builtAlt{
+				label:  label + "+" + formLabel + suffix,
+				prefix: cx.prefix,
+				body:   join(before, f.toks, after),
+				suffix: cx.suffix,
+				site:   &[2]int{len(before), len(before) + len(f.toks)},
+			})
+		}
 	}
 	return out
 }

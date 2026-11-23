@@ -50,6 +50,9 @@ type Grammar struct {
 	// everySite holds the rules whose clause gets a row at every alternative
 	// that names them (see EverySite).
 	everySite map[string]bool
+	// everyAlt holds the rules each of whose alternatives gets a row at
+	// every alternative that names them (see EveryAlternative).
+	everyAlt map[string]bool
 	// qualified holds the name tokens a recognizer also matches qualified,
 	// and the most parts each takes (see Qualified).
 	qualified map[string]int
@@ -127,25 +130,56 @@ func (g *Grammar) sampleRules(tokens *Tokens) error {
 		switch form {
 		case Spaced, Unreachable, Empty, Reserved:
 			return fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
-		case EverySite:
+		case EverySite, EveryAlternative:
 			continue
 		}
 		g.ruleText[r.name] = form
 		delete(g.termText, r.name)
 	}
+	for _, r := range g.rules {
+		if !g.everyAlt[r.name] {
+			continue
+		}
+		if n := g.everyAltCount(r.name, map[string]bool{}); n > MaxEveryAlternative {
+			return fmt.Errorf("tokens.tsv gives the rule %s the form %s, and it writes %d forms, more than %d: name a narrower rule", r.name, EveryAlternative, n, MaxEveryAlternative)
+		}
+	}
 	return nil
 }
 
+// everyAltCount returns the forms an EveryAlternative rule writes at a
+// site: one per alternative, and for each symbol of an alternative that
+// names another EveryAlternative rule, one per form of that rule. A rule
+// being counted further up adds nothing again.
+func (g *Grammar) everyAltCount(name string, counting map[string]bool) int {
+	counting[name] = true
+	defer delete(counting, name)
+	n := 0
+	for _, alt := range g.byName[name].alts {
+		n++
+		for _, sym := range alt {
+			if !sym.literal && g.everyAlt[sym.text] && !counting[sym.text] {
+				if _, ok := g.byName[sym.text]; ok {
+					n += g.everyAltCount(sym.text, counting)
+				}
+			}
+		}
+	}
+	return n
+}
+
 // EverySiteAbsent returns, sorted, the names tokens.tsv gives the form
-// EverySite that name no rule of this grammar. A token table can serve more
+// EverySite or EveryAlternative that name no rule of this grammar. A token table can serve more
 // than one grammar, as Doris's serves its ANTLR parser and its converted CUP
 // one, so a name only some of them have is no error here: the caller fails a
 // name none of its grammars has (compat.Check does).
 func (g *Grammar) EverySiteAbsent() []string {
 	var absent []string
-	for name := range g.everySite {
-		if _, ok := g.byName[name]; !ok {
-			absent = append(absent, name)
+	for _, names := range []map[string]bool{g.everySite, g.everyAlt} {
+		for name := range names {
+			if _, ok := g.byName[name]; !ok {
+				absent = append(absent, name)
+			}
 		}
 	}
 	sort.Strings(absent)
@@ -165,6 +199,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		spellings:   map[string][]string{},
 		ruleText:    map[string]string{},
 		everySite:   map[string]bool{},
+		everyAlt:    map[string]bool{},
 		qualified:   tokens.qualified,
 		path:        tokens.path,
 	}
@@ -180,6 +215,8 @@ func newGrammar(tokens *Tokens) *Grammar {
 			g.termText[name] = ""
 		case EverySite:
 			g.everySite[name] = true
+		case EveryAlternative:
+			g.everyAlt[name] = true
 		default:
 			g.termText[name] = form
 		}

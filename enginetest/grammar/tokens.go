@@ -32,6 +32,18 @@ const (
 	// gets one more row, with the rule written as its shortest form that is
 	// not nothing, labelled <alternative>+<rule>.
 	EverySite = "(every site)"
+	// EveryAlternative: a rule, named by itself, that chooses among a few
+	// keyword forms, as PostgreSQL's object_type_any_name chooses TABLE,
+	// SEQUENCE, VIEW and the rest. Each alternative that names the rule
+	// writes the rule's shortest form, so the other forms get a row only at
+	// the one site the rule's own alternatives are reached through. Every
+	// alternative that names the rule gets one more row for each of the
+	// rule's alternatives, labelled <alternative>+<rule>/<its symbols>. An
+	// alternative of the rule that names another such rule stands for each
+	// of that rule's forms too. A rule with more than MaxEveryAlternative
+	// forms is refused: the form is for a short keyword choice, not a list
+	// of statements.
+	EveryAlternative = "(every alternative)"
 	// Qualified, at the start of a row's note: the token is a name a
 	// recognizer also matches qualified, two or three of them joined by
 	// dots, as Snowflake writes db.schema.table wherever it takes a name.
@@ -45,6 +57,11 @@ const (
 	// A string that starts with the sigil, '@a/dir with spaces', is one too.
 	Path = "(path)"
 )
+
+// MaxEveryAlternative is the most forms an EveryAlternative rule may write
+// at each of its sites, counting those of the EveryAlternative rules it
+// names.
+const MaxEveryAlternative = 32
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
 // for each terminal whose grammar declaration does not spell it.
