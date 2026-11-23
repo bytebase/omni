@@ -577,8 +577,15 @@ func widenFirst(args []qtype) qtype {
 			out.chars = n
 		}
 		return out
-	case first.kind == "NUMBER":
-		return numberType()
+	case first.isNumeric():
+		// The argument of the highest numeric precedence decides.
+		out := numberType()
+		for _, t := range args {
+			if t.isNumeric() {
+				out = numericResult(out, t)
+			}
+		}
+		return out
 	}
 	return first
 }

@@ -122,6 +122,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"correlated_ungrouped", `CREATE VIEW v AS SELECT (SELECT t.n FROM dual) x FROM t GROUP BY t.id`, "00979"},
 		{"correlated_grouped", `CREATE VIEW v AS SELECT (SELECT t.id FROM dual) x FROM t GROUP BY t.id`, ""},
 		{"search_missing_column", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SEARCH DEPTH FIRST BY nosuch SET ord SELECT n FROM r`, "00904"},
+		{"undefined_window", `CREATE VIEW v AS SELECT SUM(id) OVER nosuch s FROM t`, "32784"},
+		{"qualify_alias", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ORDER BY id) rn FROM t QUALIFY rn = 1`, ""},
+		{"distinct_to_char_clob", `CREATE VIEW v AS SELECT DISTINCT TO_CHAR(TO_CLOB('x')) x FROM t`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -242,6 +245,33 @@ func TestViewQueryCharacterResults(t *testing.T) {
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryDerivedTypesMore(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER NOT NULL, c CLOB, k CHAR(3));
+CREATE VIEW v AS SELECT id, COUNT(*) n FROM t GROUP BY ROLLUP (id);
+CREATE VIEW w AS SELECT TO_CHAR(c) a, TO_CHAR(k) b, NVL(1, CAST(2 AS BINARY_DOUBLE)) d FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	views := c.Metadata().GetSchemas()[0].GetViews()
+	for _, v := range views {
+		switch v.GetName() {
+		case "V":
+			if !v.GetColumns()[0].GetNullable() {
+				t.Errorf("V.ID is NOT NULL, want nullable under ROLLUP")
+			}
+		case "W":
+			want := []string{"VARCHAR2(4000 BYTE)", "VARCHAR2(3 BYTE)", "BINARY_DOUBLE"}
+			for i, col := range v.GetColumns() {
+				if col.GetType() != want[i] {
+					t.Errorf("W.%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+				}
+			}
 		}
 	}
 }

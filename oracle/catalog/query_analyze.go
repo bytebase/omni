@@ -770,6 +770,26 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		// is nullable, which typing already says.
 	}
 
+	// A grouping column ROLLUP, CUBE or GROUPING SETS leaves out of some
+	// grouping set is NULL in that set's rows.
+	if subtotals := groupingSubtotals(sel.GroupClause); subtotals {
+		always := map[string]bool{}
+		for _, item := range listItems(sel.GroupClause) {
+			if ex, ok := item.(ast.ExprNode); ok && !isGroupingConstruct(item) {
+				always[a.groupKey(ex, sc)] = true
+			}
+		}
+		i := 0
+		for _, t := range targets {
+			for range t.cols {
+				if t.rt.Expr != nil && !always[a.groupKey(t.rt.Expr, sc)] {
+					cols[i].notNull = false
+				}
+				i++
+			}
+		}
+	}
+
 	// The DISTINCT and grouping keys may not be LOBs.
 	if sel.Distinct || sel.UniqueKw {
 		for _, c := range cols {
@@ -779,7 +799,17 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		}
 	}
 	if sel.QualifyClause != nil {
-		if err := a.condition(sel.QualifyClause, sc, clauseOrder); err != nil {
+		// QUALIFY reads the FROM clause's columns and the select list's
+		// aliases.
+		qsc := &qscope{parent: sc.parent, ctes: sc.ctes, windows: sc.windows, aliases: sc.aliases, from: &qfrom{
+			rels: sc.from.rels, items: append([]fromCol{}, sc.from.items...), flat: sc.from.flat,
+		}}
+		for _, c := range cols {
+			if _, found, _ := a.lookupIn(sc.from, c.name); !found {
+				qsc.from.items = append(qsc.from.items, fromCol{col: c})
+			}
+		}
+		if err := a.condition(sel.QualifyClause, qsc, clauseOrder); err != nil {
 			return nil, err
 		}
 	}
@@ -1634,4 +1664,22 @@ func (a *queryAnalyzer) resolvesLocally(ref *ast.ColumnRef, sc *qscope) bool {
 	}
 	_, found, _ := a.lookupQualified(sc.from, ref)
 	return found
+}
+
+func isGroupingConstruct(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.RollupClause, *ast.CubeClause, *ast.GroupingSetsClause:
+		return true
+	}
+	return false
+}
+
+// groupingSubtotals reports a GROUP BY with ROLLUP, CUBE or GROUPING SETS.
+func groupingSubtotals(list *ast.List) bool {
+	for _, item := range listItems(list) {
+		if isGroupingConstruct(item) {
+			return true
+		}
+	}
+	return false
 }

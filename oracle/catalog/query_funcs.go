@@ -285,10 +285,12 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "TO_CHAR":
 		t := arg(0)
 		if t.isCharacter() || t.isLOB() {
-			if t.kind == "NCLOB" || t.isNational() {
-				return varchar2Bytes(t.byteLength()), false, nil
+			// TO_CHAR of characters returns VARCHAR2, a LOB's of the
+			// longest VARCHAR2.
+			if t.isLOB() {
+				return varchar2Bytes(maxVarchar2Bytes), false, nil
 			}
-			return t, false, nil
+			return varchar2Bytes(t.byteLength()), false, nil
 		}
 		if len(args) > 1 {
 			if s, ok := literalString(argNode(n, 1)); ok {
@@ -571,7 +573,7 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 			return a.windowSpec(def, s, seen)
 		}
 	}
-	return nil
+	return oraError("32784", "window %s is not defined", w.WindowName)
 }
 
 func isTrimMode(word string) bool {
