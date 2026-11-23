@@ -168,6 +168,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"qualify_not_grouped", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id QUALIFY ROW_NUMBER() OVER (ORDER BY n) = 1`, "00979"},
 		{"qualify_grouped_alias", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id QUALIFY ROW_NUMBER() OVER (ORDER BY c) = 1`, ""},
 		{"number_minus_date", `CREATE VIEW v AS SELECT 1 - DATE '2020-01-01' x FROM dual`, "00932"},
+		{"pivot_xml_subquery_missing_table", `CREATE VIEW v AS SELECT n_xml FROM t PIVOT XML (SUM(id) FOR n IN (SELECT id FROM nosuch))`, "00942"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -604,5 +605,40 @@ CREATE VIEW v AS SELECT t.* FROM t JOIN u USING (id);
 	// The stored text loads again.
 	if _, err := LoadSQL("CREATE TABLE t (id NUMBER, n NUMBER); CREATE TABLE u (id NUMBER); CREATE VIEW v AS " + v.GetDefinition()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestViewQueryTypesRound27(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT ATAN2(CAST(1 AS BINARY_FLOAT), 2) a, SUBSTR(DATE '2020-01-01', 2) b FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"BINARY_DOUBLE", "VARCHAR2(75 BYTE)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+	c, err = LoadSQL(`CREATE TABLE p (id NUMBER) PARTITION BY RANGE (id) (PARTITION p1 VALUES LESS THAN (10));`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	for sql, code := range map[string]string{
+		`CREATE VIEW v AS SELECT id FROM p PARTITION (no_such)`: "02149",
+		`CREATE VIEW w AS SELECT id FROM p PARTITION (p1)`:      "",
+	} {
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var refusal *Error
+		got := ""
+		if errors.As(results[0].Error, &refusal) {
+			got = refusal.Code
+		}
+		if got != code {
+			t.Errorf("%s: code %q, want %q", sql, got, code)
+		}
 	}
 }

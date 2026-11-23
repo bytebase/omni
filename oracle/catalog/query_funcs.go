@@ -211,8 +211,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if t.isLOB() {
 			return t, false, nil
 		}
-		if t.isNumeric() {
-			t = varchar2Bytes(40)
+		if t.isNumeric() || t.isDatetime() || t.isInterval() {
+			// A number or datetime is converted to characters first.
+			t = varchar2Bytes(concatLength(t))
 		}
 		if len(args) > 2 {
 			if lit, ok := literalInt(argNode(n, 2)); ok {
@@ -317,7 +318,15 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			if t := arg(0); len(args) < 2 && (t.kind == "BINARY_DOUBLE" || t.kind == "BINARY_FLOAT") {
 				return t, false, nil
 			}
-		case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD", "REMAINDER", "ATAN2", "NANVL":
+		case "ATAN2":
+			// BINARY_DOUBLE when either argument is a float.
+			for _, t := range args {
+				if t.kind == "BINARY_FLOAT" || t.kind == "BINARY_DOUBLE" {
+					return simpleType("BINARY_DOUBLE"), false, nil
+				}
+			}
+			return numberType(), false, nil
+		case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD", "REMAINDER", "NANVL":
 			// The arguments' highest numeric precedence.
 			out := numberType()
 			for _, t := range args {

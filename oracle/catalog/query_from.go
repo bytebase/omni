@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode"
 
+	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
@@ -228,6 +229,9 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) error {
 	if n.PartitionExt != nil && !rel.partitioned {
 		return oraError("14501", "object is not partitioned")
+	}
+	if pe := n.PartitionExt; pe != nil && !pe.IsFor && pe.Name != "" && rel.table != nil && !hasPartition(rel.table, pe.Name, pe.IsSubpartition) {
+		return oraError("02149", "Specified partition does not exist")
 	}
 	if smp := n.Sample; smp != nil {
 		for _, x := range []ast.ExprNode{smp.Percent, smp.Seed} {
@@ -1116,6 +1120,25 @@ func mapKeys(m map[string]bool) []string {
 // pivotXML analyzes PIVOT XML: the input's columns the pivot does not
 // consume, then one XMLTYPE column named for the FOR columns.
 func (a *queryAnalyzer) pivotXML(n *ast.PivotClause, src *qfrom, inner *qscope) (*qfrom, error) {
+	// The IN list's subquery supplies the pivot values.
+	for _, item := range listItems(n.InList) {
+		var sub ast.StmtNode
+		switch v := item.(type) {
+		case *ast.SubqueryExpr:
+			sub = v.Subquery
+		case *ast.SelectStmt:
+			sub = v
+		case *ast.ResTarget:
+			if sq, ok := v.Expr.(*ast.SubqueryExpr); ok {
+				sub = sq.Subquery
+			}
+		}
+		if sel, ok := sub.(*ast.SelectStmt); ok {
+			if _, err := a.query(sel, inner.parent, inner.ctes, false); err != nil {
+				return nil, err
+			}
+		}
+	}
 	used := map[string]bool{}
 	for _, item := range listItems(n.Aggregates) {
 		pa, ok := item.(*ast.PivotAggregate)
@@ -1164,4 +1187,22 @@ func (a *queryAnalyzer) pivotXML(n *ast.PivotClause, src *qfrom, inner *qscope) 
 	}
 	rel.cols = append(rel.cols, qcol{name: strings.Join(forNames, "_") + "_XML", typ: simpleType("XMLTYPE")})
 	return relFrom(rel), nil
+}
+
+// hasPartition reports whether a table has a partition, or a subpartition,
+// of that name.
+func hasPartition(t *metadatapb.TableMetadata, name string, sub bool) bool {
+	for _, p := range t.GetPartitions() {
+		if !sub && strings.EqualFold(p.GetName(), name) {
+			return true
+		}
+		if sub {
+			for _, sp := range p.GetSubpartitions() {
+				if strings.EqualFold(sp.GetName(), name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
