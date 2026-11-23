@@ -1820,6 +1820,21 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 	default:
 	}
 
+	// TIDB_PK_TYPE says whether a primary key clusters the table, written
+	// or not: a key CREATE TABLE writes without CLUSTERED or NONCLUSTERED
+	// clusters it under the default tidb_enable_clustered_index, and one
+	// ALTER TABLE adds does not (primaryKeyClustered).
+	for _, idx := range t.Indexes {
+		if idx.Primary {
+			if primaryKeyClustered(t, idx) {
+				table.PrimaryKeyType = "CLUSTERED"
+			} else {
+				table.PrimaryKeyType = "NONCLUSTERED"
+			}
+			break
+		}
+	}
+
 	sortedIndexes := slices.Clone(t.Indexes)
 	slices.SortStableFunc(sortedIndexes, func(a, b *Index) int {
 		return cmp.Compare(a.Name, b.Name)
@@ -1858,14 +1873,6 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 
 	for _, con := range t.Constraints {
 		switch con.Type {
-		case ConPrimaryKey:
-			if con.Clustered != nil && table.PrimaryKeyType == "" {
-				if *con.Clustered {
-					table.PrimaryKeyType = "CLUSTERED"
-				} else {
-					table.PrimaryKeyType = "NONCLUSTERED"
-				}
-			}
 		case ConForeignKey:
 			// Omitted actions default to NO ACTION in TiDB REFERENTIAL_CONSTRAINTS (scenarios_c21_test.go).
 			onUpdate := con.OnUpdate

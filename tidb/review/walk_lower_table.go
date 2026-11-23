@@ -46,6 +46,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		b.Set(tableCharsetKey(r.db, r.name), walk.Unknown, "")
 		b.Set(autoRandomKey(r.db, r.name), walk.Unknown, "")
 		b.Set(idCacheKey(r.db, r.name), walk.Unknown, "")
+		b.Set(clusteredKey(r.db, r.name), walk.Unknown, "")
 		return true
 	}
 	// TiDB runs ALTER TABLE <view> COMPACT [TIFLASH REPLICA] without 1347
@@ -622,6 +623,13 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExi
 		return false
 	}
 	ik := idxKey(r.db, r.name, k)
+	// TiDB keeps the primary key a table is clustered by (8200, "Unsupported
+	// drop primary key when the table is using clustered index",
+	// CheckIsDropPrimaryKey in v8.5.5's ddl).
+	if k == primaryIndex && !ifExists && b.clustered(r) {
+		b.fail(rng, nil, review.UnsupportedForm, engineName+" can't drop the primary key of "+review.Code(r.written)+", which clusters the table.")
+		return true
+	}
 	switch {
 	case ifExists:
 	case k == primaryIndex:
