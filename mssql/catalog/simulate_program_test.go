@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/enginetest/simulate"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
@@ -216,45 +217,85 @@ var programFeatures = []struct{ kind, statement string }{
 // TestProgramBinding pins module bindings beyond the simulated rows.
 func TestProgramBinding(t *testing.T) {
 	cases := []struct {
-		name string
-		sql  string
-		code int // 0 when SQL Server creates the module
+		name  string
+		setup []string
+		sql   string
+		code  int // 0 when SQL Server creates the module
 	}{
-		{"CTE as an UPDATE's target", "CREATE PROCEDURE p AS WITH x AS (SELECT id FROM t) UPDATE x SET id = 1", 0},
-		{"CTE as an INSERT's source", "CREATE PROCEDURE p AS WITH x AS (SELECT id FROM t) INSERT INTO t (id) SELECT id FROM x", 0},
-		{"INSERT skips a computed column", "CREATE PROCEDURE p AS INSERT INTO c VALUES (1)", 0},
-		{"INSERT with a value too many", "CREATE PROCEDURE p AS INSERT INTO c VALUES (1, 2)", 110},
-		{"temporary table defers its statement", "CREATE PROCEDURE p AS SELECT nope FROM #t", 0},
-		{"existing table binds its statement", "CREATE PROCEDURE p AS SELECT nope FROM t", ErrInvalidColumnName},
-		{"variable declared in a block is declared after it", "CREATE PROCEDURE p AS BEGIN IF 1 = 1 BEGIN DECLARE @a INT; END; SET @a = 1; END", 0},
+		{"CTE as an UPDATE's target", nil, "CREATE PROCEDURE p AS WITH x AS (SELECT id FROM t) UPDATE x SET id = 1", 0},
+		{"CTE as an INSERT's source", nil, "CREATE PROCEDURE p AS WITH x AS (SELECT id FROM t) INSERT INTO t (id) SELECT id FROM x", 0},
+		{"INSERT skips a computed column", nil, "CREATE PROCEDURE p AS INSERT INTO c VALUES (1)", 0},
+		{"INSERT with a value too many", nil, "CREATE PROCEDURE p AS INSERT INTO c VALUES (1, 2)", 110},
+		{"temporary table defers its statement", nil, "CREATE PROCEDURE p AS SELECT nope FROM #t", 0},
+		{"existing table binds its statement", nil, "CREATE PROCEDURE p AS SELECT nope FROM t", ErrInvalidColumnName},
+		{"variable declared in a block is declared after it", nil, "CREATE PROCEDURE p AS BEGIN IF 1 = 1 BEGIN DECLARE @a INT; END; SET @a = 1; END", 0},
+		{"UPDATE target beside its FROM sources", nil, "CREATE PROCEDURE p AS UPDATE t SET id = t.id + 1 FROM u WHERE t.id = u.n", 0},
+		{"function updates its table variable by alias", nil, "CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN INSERT INTO @r VALUES (1); UPDATE r SET id = 2 FROM @r AS r; RETURN; END", 0},
+		{"function updates a table by alias", nil, "CREATE FUNCTION f() RETURNS @r TABLE (id INT) AS BEGIN UPDATE r SET id = 2 FROM t AS r; RETURN; END", 443},
+		{"recursive call binds the new signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN CASE WHEN @x <= 0 THEN @y ELSE dbo.f(@x - 1, @y) END; END", 0},
+		{"recursive call with the old signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN dbo.f(@x); END", 313},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL);\nCREATE TABLE c (id INT NOT NULL, d AS id * 2);")
+			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL);\nCREATE TABLE u (n INT NOT NULL);\nCREATE TABLE c (id INT NOT NULL, d AS id * 2);")
 			if err != nil {
 				t.Fatal(err)
 			}
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var got error
-			for _, r := range results {
-				if r.Error != nil {
-					got = r.Error
+			for _, stmt := range append(append([]string(nil), tc.setup...), tc.sql) {
+				results, err := c.Exec(stmt, nil)
+				if err != nil {
+					t.Fatal(err)
 				}
-			}
-			var refusal *Error
-			switch {
-			case tc.code == 0 && got != nil:
-				t.Fatalf("%s: %v", tc.sql, got)
-			case tc.code != 0 && (!errors.As(got, &refusal) || refusal.Code != tc.code):
-				t.Fatalf("%s: got %v, want Msg %d", tc.sql, got, tc.code)
+				var got error
+				for _, r := range results {
+					if r.Error != nil {
+						got = r.Error
+					}
+				}
+				if stmt != tc.sql {
+					if got != nil {
+						t.Fatalf("%s: %v", stmt, got)
+					}
+					continue
+				}
+				var refusal *Error
+				switch {
+				case tc.code == 0 && got != nil:
+					t.Fatalf("%s: %v", stmt, got)
+				case tc.code != 0 && (!errors.As(got, &refusal) || refusal.Code != tc.code):
+					t.Fatalf("%s: got %v, want Msg %d", stmt, got, tc.code)
+				}
 			}
 		})
 	}
 	// A desired-state script may define a module before the tables it reads.
 	if _, err := LoadSQL("CREATE PROCEDURE p AS SELECT id FROM t;\nGO\nCREATE TABLE t (id INT NOT NULL);"); err != nil {
 		t.Fatalf("LoadSQL: %v", err)
+	}
+}
+
+// TestAlterTriggerPrefersExactName pins ALTER TRIGGER on a case-sensitive
+// snapshot holding trg and TRG: it replaces the one its name matches exactly.
+func TestAlterTriggerPrefersExactName(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := c.GetTable("dbo", "t")
+	table.Triggers = []*metadata.TriggerMetadata{
+		{Name: "trg", Timing: "AFTER", Event: "INSERT", Body: "CREATE TRIGGER trg ON t AFTER INSERT AS SET NOCOUNT ON"},
+		{Name: "TRG", Timing: "AFTER", Event: "INSERT", Body: "CREATE TRIGGER TRG ON t AFTER INSERT AS SET NOCOUNT ON"},
+	}
+	results, err := c.Exec("ALTER TRIGGER TRG ON t AFTER UPDATE AS SET NOCOUNT ON", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatal(r.Error)
+		}
+	}
+	if table.Triggers[0].Event != "INSERT" || table.Triggers[1].Event != "UPDATE" {
+		t.Fatalf("got %s %s, %s %s", table.Triggers[0].Name, table.Triggers[0].Event, table.Triggers[1].Name, table.Triggers[1].Event)
 	}
 }

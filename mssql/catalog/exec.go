@@ -1954,19 +1954,25 @@ func (c *Catalog) findTrigger(schema *metadata.SchemaMetadata, name string) (*me
 	if schema == nil {
 		return nil, ""
 	}
+	type owned struct {
+		trigger *metadata.TriggerMetadata
+		owner   string
+	}
+	var all []owned
 	for _, t := range schema.Tables {
 		for _, tr := range t.Triggers {
-			if strings.EqualFold(tr.Name, name) {
-				return tr, t.Name
-			}
+			all = append(all, owned{tr, t.Name})
 		}
 	}
 	for _, v := range schema.Views {
 		for _, tr := range v.Triggers {
-			if strings.EqualFold(tr.Name, name) {
-				return tr, v.Name
-			}
+			all = append(all, owned{tr, v.Name})
 		}
+	}
+	// An exact name first, then one that matches only by case, if just one
+	// does, as the catalog resolves other objects.
+	if i, ok := resolveExactOrFoldIndex(all, func(o owned) string { return o.trigger.Name }, name); ok {
+		return all[i].trigger, all[i].owner
 	}
 	return nil, ""
 }

@@ -211,6 +211,13 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 			},
 		},
 		{
+			// An instance method reads its receiver.
+			statement: "SELECT CAST(a AS xml).value('.', 'int') AS v FROM t",
+			want: []QuerySpanResult{
+				{Name: "v", SourceColumns: set(column("t", "a"))},
+			},
+		},
+		{
 			statement: "SELECT value FROM STRING_SPLIT('a,b', ',')",
 			want: []QuerySpanResult{
 				{Name: "value", SourceColumns: set(), IsPlainField: true},

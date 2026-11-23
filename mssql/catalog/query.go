@@ -182,6 +182,8 @@ type binder struct {
 	// clauses holds the clause each enclosing subquery is in, innermost
 	// last.
 	clauses []qclause
+	// self is the function whose body is bound, which may call itself.
+	self *selfFunction
 	// existsBody holds the queries EXISTS tests, whose select list SQL
 	// Server does not hold to their GROUP BY.
 	existsBody map[*ast.SelectStmt]bool
@@ -1783,6 +1785,12 @@ func (b *binder) rowsetColumns(columns *ast.List, rel func([]qcol, bool) *qrel) 
 	return rel(cols, false), nil
 }
 
+// selfFunction is a function being created or altered, as its body sees it.
+type selfFunction struct {
+	schema, name string
+	info         fnInfo
+}
+
 // fnInfo is what a query needs to know of a user-defined function.
 type fnInfo struct {
 	category string // scalar, itvf, mstvf, or "" when its definition does not parse
@@ -2547,6 +2555,12 @@ func (b *binder) udfCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error)
 		}
 	}
 	if strings.EqualFold(ref.Schema, "$PARTITION") || !b.localObject(ref) || systemSchema(ref.Schema) {
+		return qtUnknown, b.children(f.Args, sc, x)
+	}
+	if s := b.self; s != nil && strings.EqualFold(ref.Object, s.name) && strings.EqualFold(ref.Schema, s.schema) && ref.Database == "" {
+		if err := b.checkArgCount(f, s.info, s.schema, s.name); err != nil {
+			return qtUnknown, err
+		}
 		return qtUnknown, b.children(f.Args, sc, x)
 	}
 	missing := mssqlErr(4121, "Cannot find either column \"%s\" or the user-defined function or aggregate \"%s.%s\", or the name is ambiguous.", ref.Schema, ref.Schema, ref.Object)

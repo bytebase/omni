@@ -71,6 +71,13 @@ func (c *Catalog) bindFunction(n *ast.CreateFunctionStmt, source, name string) e
 	pb := c.newProgramBinder(kind, source, name)
 	pb.schemaBound = hasOptionWord(n.Options, "SCHEMABINDING")
 	moduleParams(pb.binder, n.Params)
+	// A recursive call binds against the signature being created, not the
+	// one an ALTER replaces.
+	schemaName, _ := tableRefSchemaObject(n.Name, c.defaultSchema)
+	pb.self = &selfFunction{schema: schemaName, name: name, info: fnInfo{category: functionCategory(n)}}
+	if n.Params != nil {
+		pb.self.info.params = len(n.Params.Items)
+	}
 	if kind == programTableFunction {
 		if err := returnTableColumns(n.ReturnsTable); err != nil {
 			return err
@@ -306,7 +313,7 @@ func (pb *programBinder) stmt(n ast.Node) error {
 		}
 		return pb.query(s)
 	case *ast.InsertStmt:
-		if err := pb.sideEffect(s.Relation, "INSERT"); err != nil {
+		if err := pb.sideEffect(s.Relation, "INSERT", nil); err != nil {
 			return err
 		}
 		if pb.deferred(s) {
@@ -314,7 +321,7 @@ func (pb *programBinder) stmt(n ast.Node) error {
 		}
 		return pb.insert(s)
 	case *ast.UpdateStmt:
-		if err := pb.sideEffect(s.Relation, "UPDATE"); err != nil {
+		if err := pb.sideEffect(s.Relation, "UPDATE", s.FromClause); err != nil {
 			return err
 		}
 		if pb.deferred(s) {
@@ -322,7 +329,7 @@ func (pb *programBinder) stmt(n ast.Node) error {
 		}
 		return pb.update(s)
 	case *ast.DeleteStmt:
-		if err := pb.sideEffect(s.Relation, "DELETE"); err != nil {
+		if err := pb.sideEffect(s.Relation, "DELETE", s.FromClause); err != nil {
 			return err
 		}
 		if pb.deferred(s) {
@@ -330,7 +337,7 @@ func (pb *programBinder) stmt(n ast.Node) error {
 		}
 		return pb.delete(s)
 	case *ast.MergeStmt:
-		if err := pb.sideEffect(s.Target, "MERGE"); err != nil {
+		if err := pb.sideEffect(s.Target, "MERGE", nil); err != nil {
 			return err
 		}
 		if pb.deferred(s) {
@@ -363,12 +370,25 @@ func (pb *programBinder) function() bool {
 
 // sideEffect refuses, in a function, a statement that writes anything but a
 // table variable.
-func (pb *programBinder) sideEffect(target ast.Node, verb string) error {
+func (pb *programBinder) sideEffect(target ast.Node, verb string, from *ast.List) error {
 	if !pb.function() {
 		return nil
 	}
 	if _, ok := target.(*ast.TableVarRef); ok {
 		return nil
+	}
+	// UPDATE r ... FROM @r AS r writes the table variable its alias names.
+	if ref, ok := target.(*ast.TableRef); ok && ref.Schema == "" && ref.Database == "" && from != nil {
+		aliased := false
+		ast.Inspect(from, func(n ast.Node) bool {
+			if v, ok := n.(*ast.TableVarRef); ok && strings.EqualFold(v.Alias, ref.Object) {
+				aliased = true
+			}
+			return !aliased
+		})
+		if aliased {
+			return nil
+		}
 	}
 	return mssqlErr(443, "Invalid use of a side-effecting operator '%s' within a function.", verb)
 }
@@ -597,9 +617,9 @@ func (pb *programBinder) dmlScope(wc *ast.WithClause, target ast.Node, fromClaus
 	if len(rels) != 1 {
 		return sc, &qrel{opaque: true}, nil
 	}
-	if len(sc.rels) == 0 {
-		sc.rels = rels
-	}
+	// A target the FROM clause does not name is one more table its
+	// expressions see: UPDATE t SET ... FROM u WHERE t.id = u.n.
+	sc.rels = append(sc.rels, rels[0])
 	return sc, rels[0], nil
 }
 
