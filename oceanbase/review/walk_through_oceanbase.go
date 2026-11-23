@@ -1082,17 +1082,25 @@ func (b *builder) checkTriggerBodyOB(timing, event, body string, rng review.Rang
 		return false
 	}
 	toks := parser.Tokenize(body)
-	// Skip OLD./NEW. checks if the body introduces a table or alias named old/new.
+	// Skip OLD./NEW. checks if the body binds old/new as a table name, implicit
+	// or explicit alias, or local variable (any standalone identifier not
+	// preceded or followed by '.').
 	var oldBound, newBound bool
-	for i := 0; i+1 < len(toks); i++ {
+	for i := 0; i < len(toks); i++ {
+		if toks[i].Type == obStringTokenType {
+			continue
+		}
+		if i > 0 && toks[i-1].Type == '.' {
+			continue
+		}
+		if i+1 < len(toks) && toks[i+1].Type == '.' {
+			continue
+		}
 		switch strings.ToLower(toks[i].Str) {
-		case "from", "join", "as", "into", "update":
-			next := strings.ToLower(toks[i+1].Str)
-			if next == "old" {
-				oldBound = true
-			} else if next == "new" {
-				newBound = true
-			}
+		case "old":
+			oldBound = true
+		case "new":
+			newBound = true
 		}
 	}
 	lowerEvent := strings.ToLower(event)
@@ -1505,6 +1513,9 @@ func obLiteralDefaultFits(dt *ast.DataType, typeName string, expr ast.ExprNode) 
 		precision, scale := dt.Length, dt.Scale
 		if precision == 0 {
 			precision = 10
+		}
+		if precision < 0 || precision > 65 || scale < 0 || scale > 30 || scale > precision {
+			return true
 		}
 		limit := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(precision-scale)), nil))
 		half := new(big.Float).Quo(big.NewFloat(0.5), new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)))

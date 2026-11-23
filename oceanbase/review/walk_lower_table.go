@@ -762,12 +762,37 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 // alterColumnKeys records the keys a column definition of ALTER TABLE
 // declares inline: a primary key the table must not have yet (1068).
 func (b *builder) alterColumnKeys(r tableRef, col *ast.ColumnDef, rng review.Range) {
+	var addsPK, addsUnique bool
 	for _, cc := range col.Constraints {
-		if cc.Type == ast.ColConstrPrimaryKey {
+		switch cc.Type {
+		case ast.ColConstrPrimaryKey:
 			b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+			addsPK = true
+		case ast.ColConstrUnique:
+			addsUnique = true
 		}
 	}
 	b.columnKeys(r, col)
+	if addsPK || addsUnique {
+		rel := relKey(r.db, r.name)
+		ck, ok := b.key(spaceColumn, col.Name)
+		b.Session(func() {
+			if !ok {
+				if addsPK {
+					delete(b.w.pkCols, rel)
+				}
+				delete(b.w.indexLeadsKnown, rel)
+				delete(b.w.indexLeads, rel)
+				return
+			}
+			if addsPK {
+				b.w.pkCols[rel] = []string{ck}
+			}
+			if b.w.indexLeadsKnown[rel] {
+				b.w.indexLeads[rel] = append(b.w.indexLeads[rel], []string{ck})
+			}
+		})
+	}
 }
 
 // addConstraint follows ADD of a key, index, or foreign key.
