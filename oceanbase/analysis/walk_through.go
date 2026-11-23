@@ -164,10 +164,13 @@ var (
 	ctasTokExternal  = parser.NewLexer("EXTERNAL").NextToken().Type
 	ctasTokTable     = parser.NewLexer("TABLE").NextToken().Type
 	ctasTokSelect    = parser.NewLexer("SELECT").NextToken().Type
+	ctasTokValues    = parser.NewLexer("VALUES").NextToken().Type
+	ctasTokWith      = parser.NewLexer("WITH").NextToken().Type
 )
 
-// IsCreateTableAs reports whether statement is a CREATE [TEMPORARY | EXTERNAL] TABLE ... SELECT
-// statement by scanning its OceanBase token stream. It provides a lexer-backed fallback
+// IsCreateTableAs reports whether statement is a CREATE [TEMPORARY | EXTERNAL]
+// TABLE ... query_expression (SELECT, VALUES, or parenthesized query) statement
+// by scanning its OceanBase token stream. It provides a lexer-backed fallback
 // for CTAS forms that do not produce a CreateTableStmt AST.
 func IsCreateTableAs(statement string) bool {
 	lex := parser.NewLexer(statement)
@@ -181,13 +184,37 @@ func IsCreateTableAs(statement string) bool {
 	if tok.Type != ctasTokTable {
 		return false
 	}
+	parenDepth := 0
+	atParenStart := false
 	for {
 		tok = lex.NextToken()
-		if tok.Type == 0 || tok.Type == ';' {
+		switch tok.Type {
+		case 0, ';':
 			return false
-		}
-		if tok.Type == ctasTokSelect {
+		case '(':
+			if parenDepth == 0 {
+				atParenStart = true
+			}
+			parenDepth++
+		case ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			atParenStart = false
+		case ctasTokSelect:
 			return true
+		case ctasTokValues:
+			if parenDepth == 0 || atParenStart {
+				return true
+			}
+			atParenStart = false
+		case ctasTokWith:
+			if atParenStart {
+				return true
+			}
+			atParenStart = false
+		default:
+			atParenStart = false
 		}
 	}
 }
