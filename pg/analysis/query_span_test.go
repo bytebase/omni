@@ -716,3 +716,33 @@ func TestResolveQuerySpanWholeRowVar(t *testing.T) {
 	predSpan := spanFor(t, "SELECT 1 FROM t t1 WHERE to_jsonb(t1) IS NOT NULL", healthySchema())
 	require.Equal(t, []string{"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}, columnNames(predSpan.PredicateColumns))
 }
+
+// A statement's target is the relation of its name, even where a CTE of the
+// same name is in scope; a reference in the query reads the CTE.
+func TestResolveQuerySpanKeepsATargetACTEShadows(t *testing.T) {
+	for _, statement := range []string{
+		"WITH t AS (SELECT 1 AS id) UPDATE t SET email = 'x'",
+		"WITH t AS (SELECT 1 AS id) DELETE FROM t",
+		"WITH t AS (SELECT 1 AS id) INSERT INTO t (id) SELECT id FROM t",
+		"WITH t AS (SELECT 1 AS id) MERGE INTO t USING o ON t.id = o.id WHEN MATCHED THEN DELETE",
+	} {
+		span := spanFor(t, statement, healthySchema())
+		require.Contains(t, columnNames(span.SourceColumns), "db.public.t", statement)
+	}
+	span := spanFor(t, "WITH t AS (SELECT id FROM o) SELECT * FROM t", healthySchema())
+	require.Equal(t, []string{"db.public.o"}, columnNames(span.SourceColumns))
+}
+
+// A JSON_TABLE column reads the context item, the PASSING arguments and its
+// own DEFAULT values.
+func TestResolveQuerySpanJSONTableColumns(t *testing.T) {
+	span := spanFor(t, "SELECT jt.* FROM t, JSON_TABLE(to_jsonb(t.email), '$' PASSING t.id AS k COLUMNS (n FOR ORDINALITY, v text PATH '$', d text PATH '$.x' DEFAULT t.ssn ON EMPTY)) AS jt", healthySchema())
+	var got [][]string
+	var names []string
+	for _, r := range span.Results {
+		names = append(names, r.Name)
+		got = append(got, columnNames(r.SourceColumns))
+	}
+	require.Equal(t, []string{"n", "v", "d"}, names)
+	require.Equal(t, [][]string{{}, {"db.public.t.email", "db.public.t.id"}, {"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}}, got)
+}

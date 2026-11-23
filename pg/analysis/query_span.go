@@ -1226,8 +1226,9 @@ func fromItemNamed(item ast.Node, name string) ast.Node {
 }
 
 // jsonTableColumns returns the columns of a JSON_TABLE: each column of its
-// COLUMNS clause, NESTED ones in place, reading the context item and the
-// PASSING arguments; an ORDINALITY column reads nothing.
+// COLUMNS clause, NESTED ones in place, reading the context item, the
+// PASSING arguments and its own DEFAULT values; an ORDINALITY column reads
+// nothing.
 //
 // pg: src/backend/parser/parse_jsontable.c — transformJsonTable
 func jsonTableColumns(jt *ast.JsonTable, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
@@ -1259,7 +1260,17 @@ func jsonTableColumns(jt *ast.JsonTable, analyzer *plpgsqlAnalyzer, fromTables m
 			case ast.JTC_FOR_ORDINALITY:
 				columns = append(columns, QuerySpanResult{Name: col.Name, SourceColumns: make(ColumnSet)})
 			default:
-				columns = append(columns, QuerySpanResult{Name: col.Name, SourceColumns: maps.Clone(sources)})
+				// A DEFAULT ... ON EMPTY or ON ERROR value is the column's
+				// value too.
+				colSources := maps.Clone(sources)
+				if analyzer != nil {
+					for _, b := range []*ast.JsonBehavior{col.OnEmpty, col.OnError} {
+						if b != nil && b.Expr != nil {
+							analyzer.extractColumnRefsFromExpr(b.Expr, fromTables, colSources)
+						}
+					}
+				}
+				columns = append(columns, QuerySpanResult{Name: col.Name, SourceColumns: colSources})
 			}
 		}
 	}

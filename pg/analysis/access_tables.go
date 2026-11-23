@@ -47,6 +47,8 @@ type accessTableExtractor struct {
 	searchPath      []string
 	accessTables    []ColumnResource
 	getDatabase     func(name string) (Database, error)
+	// targets holds the target relations of the DML statements walked.
+	targets map[*ast.RangeVar]bool
 }
 
 // walk finds every table reference (RangeVar) under n. ctes holds the names
@@ -68,7 +70,16 @@ func (a *accessTableExtractor) walk(n ast.Node, ctes []string, skip ast.Node) {
 				return false
 			}
 		}
-		if rv, ok := c.(*ast.RangeVar); ok && !(rv.Schemaname == "" && rv.Catalogname == "" && slices.Contains(ctes, rv.Relname)) {
+		if rv := dmlTarget(c); rv != nil {
+			// A statement's target is a relation whatever CTE shares its
+			// name.
+			// pg: src/backend/parser/parse_clause.c — setTargetTable
+			if a.targets == nil {
+				a.targets = map[*ast.RangeVar]bool{}
+			}
+			a.targets[rv] = true
+		}
+		if rv, ok := c.(*ast.RangeVar); ok && (a.targets[rv] || !(rv.Schemaname == "" && rv.Catalogname == "" && slices.Contains(ctes, rv.Relname))) {
 			a.processRangeVar(rv)
 		}
 		return true
@@ -97,6 +108,22 @@ func (a *accessTableExtractor) walkWith(n ast.Node, w *ast.WithClause, outer []s
 		a.walk(cte, append(slices.Clone(outer), visible...), nil)
 	}
 	a.walk(n, append(slices.Clone(outer), names...), w)
+}
+
+// dmlTarget returns the target relation of an INSERT, UPDATE, DELETE or
+// MERGE, or nil.
+func dmlTarget(n ast.Node) *ast.RangeVar {
+	switch n := n.(type) {
+	case *ast.InsertStmt:
+		return n.Relation
+	case *ast.UpdateStmt:
+		return n.Relation
+	case *ast.DeleteStmt:
+		return n.Relation
+	case *ast.MergeStmt:
+		return n.Relation
+	}
+	return nil
 }
 
 // withClauseOf returns the WITH clause of a statement that can have one.
