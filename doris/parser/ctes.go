@@ -10,7 +10,7 @@ import (
 
 // parseWithSelect parses a WITH clause followed by the query it prefixes:
 //
-//	WITH [RECURSIVE] cte_name [(col, ...)] AS (query)
+//	WITH cte_name [(col, ...)] AS (query)
 //	  [, cte_name2 [(col, ...)] AS (query2)]
 //	{ SELECT ... | VALUES ... }
 //
@@ -100,7 +100,7 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 	return p.parseQueryStmt(stmt)
 }
 
-// parseWithClause parses WITH [RECURSIVE] cte (',' cte)* and returns the
+// parseWithClause parses WITH cte (',' cte)* and returns the
 // clause, leaving the cursor at the statement keyword that follows it. The
 // WITH keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseWithClause() (*ast.WithClause, error) {
@@ -113,11 +113,9 @@ func (p *Parser) parseWithClause() (*ast.WithClause, error) {
 		Loc: ast.Loc{Start: withTok.Loc.Start},
 	}
 
-	// Optional RECURSIVE keyword.
-	if p.cur.Kind == kwRECURSIVE {
-		p.advance()
-		with.Recursive = true
-	}
+	// No RECURSIVE: DorisParser.g4's cte is WITH aliasQuery (COMMA
+	// aliasQuery)* at the pinned 3.1.4, and RECURSIVE is no token of its
+	// lexer, so WITH recursive AS (...) names a CTE recursive.
 
 	// Parse comma-separated CTE definitions.
 	cte, err := p.parseCTE()

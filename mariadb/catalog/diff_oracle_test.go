@@ -35,7 +35,7 @@ var diffSyncLosses = map[string]string{
 	"MariaDB views/new":                                                                     lossView,
 	"MariaDB vector index/new":                                                              lossVector,
 	"MariaDB compressed columns/new":                                                        gapCompressed,
-	"MariaDB routines/new":                                                                  gapForRange,
+	"MariaDB routines/new":                                                                  lossAggregate,
 }
 
 // TestOracle_DiffSnapshotAgainstSchemaText loads each snapshot synced from the
@@ -80,7 +80,12 @@ func TestOracle_DiffSnapshotAgainstSchemaText(t *testing.T) {
 					}
 					fromSDL, err := LoadSDLWithVersion("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n"+sdl, srv.version)
 					if err != nil {
-						t.Fatalf("LoadSDL of the snapshot's SDL: %v\n%s", err, sdl)
+						// A listed loss can leave the snapshot's SDL one the
+						// server refuses too, as restoreFailures records.
+						if !listed {
+							t.Fatalf("LoadSDL of the snapshot's SDL: %v\n%s", err, sdl)
+						}
+						return
 					}
 					if d := Diff(snapshot, fromSDL); !d.IsEmpty() {
 						t.Errorf("snapshot and its SDL differ:\n%s", describeDiff(d))

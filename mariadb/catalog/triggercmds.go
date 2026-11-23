@@ -10,7 +10,10 @@ import (
 
 // createTrigger installs a trigger. source is the script the statement was
 // parsed from, which SHOW CREATE TRIGGER echoes; it is empty where the caller
-// has no script, as DefineTrigger does for a synced trigger.
+// has no script, as DefineTrigger does for a synced trigger. A synced trigger,
+// and one a declarative schema states, is installed as the server holds it:
+// its table may have lost a column it reads since it was made, and the trigger
+// it follows may be installed after it, so neither is checked.
 func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) error {
 	// A trigger lives with its table. Its database is the one its name is qualified with, or the
 	// current one, and an unqualified table is looked up in it: with `a` current,
@@ -46,23 +49,35 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 	name := stmt.Name
 	key := toLower(name)
 
-	if _, exists := db.Triggers[key]; exists {
+	// CREATE OR REPLACE replaces a trigger of the name (mariadb:11.8.8).
+	if _, exists := db.Triggers[key]; exists && !stmt.OrReplace {
 		if !stmt.IfNotExists {
 			return errDupTrigger(name)
 		}
 		return nil
 	}
+	authored := source != "" && !c.loadingSDL
+	if authored {
+		if err := checkTriggerRowColumns(stmt.Body, db.GetTable(tableName)); err != nil {
+			return err
+		}
+	}
+	// FOLLOWS and PRECEDES name a trigger of the same table, time and event
+	// (4031, ER_REFERENCED_TRG_DOES_NOT_EXIST, mariadb:11.8.8).
+	if o := stmt.Order; o != nil && authored {
+		ref := db.Triggers[toLower(o.TriggerName)]
+		if ref == nil || toLower(ref.Table) != toLower(tableName) ||
+			!strings.EqualFold(ref.Timing, stmt.Timing) || !strings.EqualFold(ref.Event, stmt.Event) {
+			return &Error{Code: 4031, SQLState: "HY000",
+				Message: fmt.Sprintf("Referenced trigger '%s' for the given action time and event type does not exist", o.TriggerName)}
+		}
+	}
+	delete(db.Triggers, key)
 
-	// MySQL always sets a definer. Default to `root`@`%` when not specified.
-	definer := stmt.Definer
-	if definer == "" {
-		definer = "`root`@`%`"
-	}
-	if err := validateTriggerBody(stmt.Timing, stmt.Event, stmt.BodyText); err != nil {
-		return err
-	}
+	definer := programDefiner(stmt.Definer)
 
 	c.triggersCreated++
+	sourceText, tableSpan := triggerSourceDDL(stmt, source)
 	trigger := &Trigger{
 		created:             c.triggersCreated,
 		Name:                name,
@@ -72,7 +87,8 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 		Event:               stmt.Event,
 		Definer:             definer,
 		Body:                strings.TrimSpace(stmt.BodyText),
-		SourceText:          triggerSourceDDL(stmt, source),
+		SourceText:          sourceText,
+		tableSpan:           tableSpan,
 		CharacterSetClient:  c.charsetClient,
 		CollationConnection: c.collationConn,
 		DatabaseCollation:   db.Collation,
@@ -89,9 +105,65 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 	return nil
 }
 
+// dropTableTriggers drops the triggers of a table db drops, as DROP TABLE
+// does (mariadb:11.8.8).
+func dropTableTriggers(db *Database, table string) {
+	for name, trg := range db.Triggers {
+		if toLower(trg.Table) == toLower(table) {
+			delete(db.Triggers, name)
+		}
+	}
+}
+
+// renameTableTriggers moves the triggers of a table renamed within its
+// database to the new name. MariaDB writes the name into the statement SHOW
+// CREATE TRIGGER echoes, quoted: measured on mariadb:11.8.8, a trigger written
+// `... ON t FOR EACH ROW ...` reads `... ON `+"`t2`"+` FOR EACH ROW ...` after
+// RENAME TABLE t TO t2.
+func renameTableTriggers(db *Database, oldName, newName string) {
+	for _, trg := range db.Triggers {
+		if toLower(trg.Table) != toLower(oldName) {
+			continue
+		}
+		trg.Table = newName
+		if s, e := trg.tableSpan[0], trg.tableSpan[1]; e > s && e <= len(trg.SourceText) {
+			quoted := backtickIDQ(newName)
+			trg.SourceText = trg.SourceText[:s] + quoted + trg.SourceText[e:]
+			trg.tableSpan[1] = s + len(quoted)
+		}
+	}
+}
+
+// checkTriggerRowColumns holds NEW.col and OLD.col in a trigger's body to the
+// columns of its table: 1054, measured on mariadb:11.8.8 for SET NEW.zzz = 1.
+// A query in the body is left alone, since a table it reads may be named NEW.
+func checkTriggerRowColumns(body nodes.Node, tbl *Table) error {
+	if body == nil || tbl == nil {
+		return nil
+	}
+	var err error
+	nodes.Inspect(body, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		switch x := n.(type) {
+		case *nodes.SelectStmt:
+			return false
+		case *nodes.ColumnRef:
+			row := strings.ToUpper(x.Table)
+			if x.Schema == "" && !x.Star && (row == "NEW" || row == "OLD") && tbl.GetColumn(x.Column) == nil {
+				err = errNoSuchColumn(x.Column, row)
+			}
+		}
+		return true
+	})
+	return err
+}
+
 // triggerSourceDDL returns the part of the CREATE TRIGGER statement that
 // SHOW CREATE TRIGGER echoes: the text from the TRIGGER keyword to the end of
-// the statement, as written, without the FOLLOWS or PRECEDES clause.
+// the statement, as written, without the FOLLOWS or PRECEDES clause, and where
+// the table's name stands in it, which a rename of the table rewrites.
 //
 // Measured on mariadb:11.8.8. The shown statement is the original one with
 // only the definer replaced, so a statement written
@@ -101,16 +173,26 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt, source string) er
 // the TRIGGER keyword is dropped, OR REPLACE and a comment with it, while
 // IF NOT EXISTS, which sits after it, is kept. The ordering clause is dropped
 // wherever it stood.
-func triggerSourceDDL(stmt *nodes.CreateTriggerStmt, source string) string {
+func triggerSourceDDL(stmt *nodes.CreateTriggerStmt, source string) (string, [2]int) {
 	start, end := stmt.Loc.Start, stmt.Loc.End
 	if source == "" || start < 0 || start >= end || end > len(source) {
-		return ""
+		return "", [2]int{}
 	}
 	text := source[start:end]
 	kw := triggerKeywordOffset(text)
 	if kw < 0 {
-		return ""
+		return "", [2]int{}
 	}
+	// The table's name comes before the ordering clause, so its place in the
+	// text from the keyword on holds whether or not the clause is dropped.
+	var span [2]int
+	if t := stmt.Table; t != nil && t.Loc.Start-start > kw && t.Loc.End > t.Loc.Start && t.Loc.End-start <= len(text) {
+		span = [2]int{t.Loc.Start - start - kw, t.Loc.End - start - kw}
+	}
+	return triggerSourceText(stmt, text, start, kw), span
+}
+
+func triggerSourceText(stmt *nodes.CreateTriggerStmt, text string, start, kw int) string {
 	if stmt.Order == nil {
 		return strings.TrimSpace(text[kw:])
 	}
@@ -168,26 +250,6 @@ func triggerKeywordOffset(text string) int {
 	return -1
 }
 
-func validateTriggerBody(timing, event, body string) error {
-	lowerBody := strings.ToLower(strings.TrimSpace(body))
-	lowerEvent := strings.ToLower(event)
-	lowerTiming := strings.ToLower(timing)
-	switch lowerEvent {
-	case "insert":
-		if strings.Contains(lowerBody, "old.") {
-			return &Error{Code: 1363, SQLState: "HY000", Message: "There is no OLD row in on INSERT trigger"}
-		}
-	case "delete":
-		if strings.Contains(lowerBody, "new.") {
-			return &Error{Code: 1363, SQLState: "HY000", Message: "There is no NEW row in on DELETE trigger"}
-		}
-	}
-	if lowerTiming == "after" && strings.HasPrefix(lowerBody, "set new.") {
-		return &Error{Code: 1362, SQLState: "HY000", Message: "Updating of NEW row is not allowed in after trigger"}
-	}
-	return nil
-}
-
 func (c *Catalog) dropTrigger(stmt *nodes.DropTriggerStmt) error {
 	schema := ""
 	if stmt.Name != nil {
@@ -197,6 +259,12 @@ func (c *Catalog) dropTrigger(stmt *nodes.DropTriggerStmt) error {
 	if err != nil {
 		if stmt.IfExists {
 			return nil
+		}
+		// A trigger is found by its file in the database's directory, and a
+		// missing directory holds none: DROP TRIGGER nosuch.tr is 1360
+		// (mariadb:11.8.8).
+		if schema != "" {
+			return errNoSuchTrigger(schema, stmt.Name.Name)
 		}
 		return err
 	}

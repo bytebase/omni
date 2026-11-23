@@ -163,8 +163,11 @@ func alterRoutineOp(e *RoutineDiffEntry, to *Routine) MigrationOp {
 func renderCreateRoutine(database string, r *Routine, noBackslash bool) string {
 	var b strings.Builder
 	kw := "FUNCTION"
-	if r.IsProcedure {
+	switch {
+	case r.IsProcedure:
 		kw = "PROCEDURE"
+	case r.IsAggregate:
+		kw = "AGGREGATE FUNCTION"
 	}
 	fmt.Fprintf(&b, "CREATE %s %s(", kw, routineIdent(database, r.Name))
 
@@ -174,10 +177,12 @@ func renderCreateRoutine(database string, r *Routine, noBackslash bool) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		if r.IsProcedure && strings.TrimSpace(p.Direction) != "" {
-			fmt.Fprintf(&b, "%s %s %s", strings.ToUpper(p.Direction), migrationQuoteIdent(p.Name), p.TypeName)
-		} else {
-			fmt.Fprintf(&b, "%s %s", migrationQuoteIdent(p.Name), p.TypeName)
+		if dir := strings.TrimSpace(p.Direction); dir != "" {
+			b.WriteString(strings.ToUpper(dir) + " ")
+		}
+		fmt.Fprintf(&b, "%s %s", migrationQuoteIdent(p.Name), p.TypeName)
+		if p.Default != "" {
+			b.WriteString(" DEFAULT " + p.Default)
 		}
 	}
 	b.WriteString(")")

@@ -97,7 +97,9 @@ func (v *validator) walk(n nodes.Node) {
 	case *nodes.OpenCursorStmt:
 		v.checkCursorRef(s.Name, s.Loc.Start)
 	case *nodes.FetchCursorStmt:
-		v.checkCursorRef(s.Name, s.Loc.Start)
+		if !s.Group {
+			v.checkCursorRef(s.Name, s.Loc.Start)
+		}
 	case *nodes.CloseCursorStmt:
 		v.checkCursorRef(s.Name, s.Loc.Start)
 	case *nodes.ReturnStmt:
@@ -419,6 +421,9 @@ func (v *validator) walkRepeatStmt(s *nodes.RepeatStmt) {
 
 // walkForStmt walks MariaDB's FOR loop: its record variable is visible to the body alone.
 func (v *validator) walkForStmt(s *nodes.ForStmt) {
+	if s.Cursor != "" {
+		v.checkCursorRef(s.Cursor, s.Loc.Start)
+	}
 	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
 	scope := v.push(scopeBlock)
 	scope.vars[lower(s.Var)] = &nodes.DeclareVarStmt{Loc: s.Loc, Names: []string{s.Var}}

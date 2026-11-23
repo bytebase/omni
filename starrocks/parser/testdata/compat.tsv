@@ -12634,6 +12634,9 @@ reject	reject	engine	suite:doris-residue	ALTER TABLE orders ADD CONSTRAINT fk_cu
 reject	reject	engine	suite:doris-residue	CREATE REPOSITORY s3_repo WITH S3 ON LOCATION "s3://bucket/path" PROPERTIES("s3.endpoint" = "s3.us-east-1.amazonaws.com")
 reject	reject	engine	suite:doris-residue	CREATE REPOSITORY hdfs_repo WITH HDFS ON LOCATION "hdfs://path" PROPERTIES("dfs.nameservices" = "ns")
 reject	reject	engine	suite:doris-residue	CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP) PROPERTIES("read_timeout" = "3000")
+reject	reject	engine	suite:doris-residue	SELECT * EXCEPT (a, b) FROM t
+reject	reject	engine	suite:doris-residue	SELECT * EXCEPT (a) FROM t
+accept	accept	engine	suite:doris-residue	SELECT * FROM t EXCEPT (SELECT * FROM u)
 reject	reject	engine	suite:characters	SELECT 1 \ 2
 accept	accept	engine	suite:characters	SELECT 1 \
 reject	reject	engine	suite:characters	SELECT 1 AS a\b

@@ -33,6 +33,7 @@ const (
 	tokAt2        // @@ (system variable prefix)
 	tokOrOr       // || (logical OR outside PIPES_AS_CONCAT)
 	tokAndAnd     // && (logical AND)
+	tokDotDot     // .. (a FOR loop's range)
 )
 
 // Keyword token constants. Values start at 700.
@@ -2122,6 +2123,12 @@ func (l *Lexer) nextToken() Token {
 		case ch == '&' && next == '&':
 			l.pos += 2
 			return Token{Type: tokAndAnd, Str: "&&", Loc: l.start}
+		case ch == '.' && next == '.' && !l.dotSeparates():
+			// DOT_DOT_SYM, from the state MY_LEX_REAL_OR_POINT of MariaDB 11.8's
+			// lexer (sql/sql_lex.cc): a dot that does not end a name, followed by
+			// another.
+			l.pos += 2
+			return Token{Type: tokDotDot, Str: "..", Loc: l.start}
 		}
 	}
 
@@ -2440,8 +2447,9 @@ func (l *Lexer) scanNumber() Token {
 		return l.scanDigitLeadingIdent(start)
 	}
 
-	// Decimal point
-	if l.pos < len(l.input) && l.input[l.pos] == '.' {
+	// Decimal point. Digits followed by two dots are an integer, as in FOR i IN
+	// 1..10: MY_LEX_INT_OR_REAL of MariaDB 11.8's lexer.
+	if l.pos < len(l.input) && l.input[l.pos] == '.' && !(l.pos+1 < len(l.input) && l.input[l.pos+1] == '.') {
 		isFloat = true
 		l.pos++
 		for l.pos < len(l.input) && l.input[l.pos] >= '0' && l.input[l.pos] <= '9' {

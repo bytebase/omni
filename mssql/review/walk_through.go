@@ -651,7 +651,8 @@ func (b *builder) knownTable(r objRef) bool {
 }
 
 // markTableDirty marks a table path so snapshot-only properties (synced column
-// types, non-edge status) are no longer relied on after the statement runs.
+// types, non-edge status, the clustered index, a view's schema binding) are
+// no longer relied on after the statement runs.
 func (b *builder) markTableDirty(path string) {
 	b.Session(func() { b.w.dirtyTables[path] = true })
 }
@@ -676,6 +677,61 @@ func (b *builder) syncedTable(r objRef) *snapTable {
 		return nil
 	}
 	return s.tables[path]
+}
+
+// unboundView reports whether r certainly refers to a synced view, not
+// changed since, whose definition is not schema-bound: it has no index,
+// and SQL Server creates none on it (1939, 1940, 35305).
+func (b *builder) unboundView(r objRef) bool {
+	s := b.w.snap
+	if r.temp || r.where != placed || b.w.target.OtherSpecs || b.w.allTablesDirty || s == nil {
+		return false
+	}
+	space, parent := r.relSpace()
+	f, kind := b.classFact(r.n.classKey(space, parent))
+	if f != walk.Present {
+		return false
+	}
+	k, sp, ok := single(kind)
+	if !ok || k != kindView || (sp != r.n.spelling && !b.unmarked(space, parent)) {
+		return false
+	}
+	path := r.tablePath()
+	return !b.w.dirtyTables[path] && !s.ambiguous[path] && s.unbound[path]
+}
+
+// referencer returns another synced table, unchanged since, whose foreign
+// key references r's synced table, which then can be neither dropped
+// (3726) nor truncated (4712).
+func (b *builder) referencer(r objRef) string {
+	if b.syncedTable(r) == nil {
+		return ""
+	}
+	for _, from := range b.w.snap.tables[r.tablePath()].referencedBy {
+		if !b.w.dirtyTables[from.path] && !b.w.snap.ambiguous[from.path] {
+			return from.written
+		}
+	}
+	return ""
+}
+
+// syncedTriggerOn returns the relation a synced trigger r names is on,
+// when neither has changed since: ALTER TRIGGER can't move it to another
+// (2110).
+func (b *builder) syncedTriggerOn(r objRef) fkSource {
+	s := b.w.snap
+	if r.temp || r.where != placed || b.w.target.OtherSpecs || b.w.allTablesDirty || s == nil {
+		return fkSource{}
+	}
+	if sg := b.see(spaceObject, r.parent, r.n); sg.fact != walk.Present || sg.kind != kindTrigger {
+		return fkSource{}
+	}
+	path := r.tablePath()
+	on := s.triggerOn[path]
+	if b.w.dirtyTables[path] || on.path == "" || b.w.dirtyTables[on.path] || s.ambiguous[on.path] {
+		return fkSource{}
+	}
+	return on
 }
 
 // knownColType returns the lowercased base type of a synced column when the
@@ -734,6 +790,8 @@ func (b *builder) arriveObject(r objRef, kind string) {
 	}
 	b.arrive(spaceObject, r.parent, r.n, kind)
 	b.w.made[r.parent] = append(b.w.made[r.parent], r.n.exactKey(spaceObject, r.parent))
+	// What the sync says of the relation the name meant no longer holds.
+	b.markTableDirty(r.tablePath())
 	if isRelation(kind) {
 		b.arrive(spaceRelation, r.parent, r.n, kind)
 	} else {

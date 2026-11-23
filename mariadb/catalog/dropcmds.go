@@ -49,6 +49,9 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 				continue
 			}
 		}
+		if !db.Tables[key].Temporary {
+			dropTableTriggers(db, ref.Name)
+		}
 		delete(db.Tables, key)
 	}
 	return refused

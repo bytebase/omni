@@ -486,33 +486,15 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 	startLoc := p.cur.Loc
 
-	// Bare star: SELECT *  (optionally followed by EXCEPT(col, ...) for column exclusion)
+	// Bare star: SELECT *. selectItem (StarRocks.g4) has no EXCEPT list
+	// after it, which the pinned 3.4.10 refuses; an EXCEPT after the star
+	// is the set operator.
 	if p.cur.Kind == int('*') {
 		p.advance() // consume '*'
-		item := &ast.SelectItem{
+		return &ast.SelectItem{
 			Star: true,
 			Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
-		}
-		// SELECT * EXCEPT(col, col, ...)
-		if p.cur.Kind == kwEXCEPT && p.peekNext().Kind == int('(') {
-			p.advance() // consume EXCEPT
-			p.advance() // consume '('
-			for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-				name, _, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				item.ExceptColumns = append(item.ExceptColumns, name)
-				if p.cur.Kind == int(',') {
-					p.advance()
-				}
-			}
-			if _, err := p.expect(int(')')); err != nil {
-				return nil, err
-			}
-			item.Loc.End = p.prev.Loc.End
-		}
-		return item, nil
+		}, nil
 	}
 
 	// Qualified star: ident.* or ident.ident.*. This lookahead exists ONLY

@@ -1933,14 +1933,16 @@ type CreateFunctionStmt struct {
 	OrReplace       bool // CREATE OR REPLACE {FUNCTION | PROCEDURE}: replaces an existing routine
 	IfNotExists     bool
 	IsProcedure     bool
-	IsAggregate     bool // CREATE AGGREGATE FUNCTION (loadable UDF)
+	IsAggregate     bool // CREATE AGGREGATE FUNCTION: a loadable UDF, or a stored function that reads its group's rows
 	Definer         string
 	Name            *TableRef
 	Params          []*FuncParam
 	Returns         *DataType
-	Soname          string // SONAME 'shared_library' (loadable UDF)
-	Body            Node   // parsed sp_proc_stmt (compound or simple). nil for loadable UDFs.
-	BodyText        string // raw source bytes of the body (byte-preserved from the input segment).
+	ReturnsRow      []*RowField // MariaDB's RETURNS ROW(name type, ...)
+	ReturnsAnchor   *TypeAnchor // MariaDB's RETURNS TYPE OF a column / ROW TYPE OF a table
+	Soname          string      // SONAME 'shared_library' (loadable UDF)
+	Body            Node        // parsed sp_proc_stmt (compound or simple). nil for loadable UDFs.
+	BodyText        string      // raw source bytes of the body (byte-preserved from the input segment).
 	Characteristics []*RoutineCharacteristic
 }
 
@@ -1956,6 +1958,10 @@ type FuncParam struct {
 	TypeName  *DataType
 	RowFields []*RowField // MariaDB's ROW(name type, ...)
 	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
+	Default   ExprNode    // MariaDB's DEFAULT expr, an IN parameter's value when a call leaves it out
+	// DefaultText is the DEFAULT expression as written, which SHOW CREATE echoes. It was
+	// written under the routine's sql_mode, so it reads the same when the routine is made again.
+	DefaultText string
 }
 
 func (p *FuncParam) nodeTag() {}
@@ -2021,6 +2027,7 @@ type EventSchedule struct {
 	Loc     Loc
 	At      ExprNode
 	Every   ExprNode
+	Unit    string // EVERY's interval unit, upper case (e.g., "HOUR", "DAY_MINUTE")
 	Starts  ExprNode
 	Ends    ExprNode
 	RawText string // raw schedule text from input (e.g., "EVERY 1 HOUR" or "AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR")
@@ -2763,16 +2770,22 @@ type LoopStmt struct {
 func (s *LoopStmt) nodeTag()  {}
 func (s *LoopStmt) stmtNode() {}
 
-// ForStmt represents MariaDB's FOR loop over the rows of a query:
-// [label:] FOR rec IN [REVERSE] (query) DO statement_list END FOR [label].
+// ForStmt represents MariaDB's FOR loop, over the rows of a query or a cursor, or over
+// an integer range:
+// [label:] FOR var IN [REVERSE] {(query) | cursor[(args)] | low..high} DO statement_list
+// END FOR [label]. One of Select, Cursor and Lower is set.
 type ForStmt struct {
-	Loc      Loc
-	Label    string      // optional begin label
-	EndLabel string      // optional end label
-	Var      string      // the record variable each row is read into
-	Reverse  bool        // REVERSE
-	Select   *SelectStmt // the query
-	Stmts    []Node      // statement list
+	Loc        Loc
+	Label      string      // optional begin label
+	EndLabel   string      // optional end label
+	Var        string      // the record variable each row is read into, or the range's index
+	Reverse    bool        // REVERSE
+	Select     *SelectStmt // the query
+	Cursor     string      // the cursor, declared by a block around the loop
+	CursorArgs []ExprNode  // the cursor's arguments
+	Lower      ExprNode    // the range's lower bound
+	Upper      ExprNode    // the range's upper bound
+	Stmts      []Node      // statement list
 }
 
 func (s *ForStmt) nodeTag()  {}
@@ -2819,6 +2832,9 @@ type FetchCursorStmt struct {
 	Loc  Loc
 	Name string   // cursor name
 	Into []string // variable names
+	// Group is MariaDB's FETCH GROUP NEXT ROW, which an aggregate function reads its
+	// group's next row with. It has no cursor and no INTO.
+	Group bool
 }
 
 func (s *FetchCursorStmt) nodeTag()  {}

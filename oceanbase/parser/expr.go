@@ -1191,6 +1191,27 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			// `(lambda_expr, expr_list)` in func_expr (sql_parser_mysql_mode.y,
 			// lines 3563-3578).
 			return p.parseArrayLambdaFunc(fc)
+		case "PERCENTILE_CONT":
+			// func_expr's `PERCENTILE_CONT '(' opt_distinct_or_all expr ','
+			// expr_list ')'` (sql_parser_mysql_mode.y:2791) takes ALL, DISTINCT
+			// or UNIQUE before two or more arguments. Unquantified, the name is
+			// also an unreserved keyword and so an ordinary call's name, which
+			// the generic path below reads.
+			switch p.cur.Type {
+			case kwALL, kwDISTINCT, kwDISTINCTROW, kwUNIQUE:
+				q, err := p.parseAggQuantifier(quantDistinct | quantAll)
+				if err != nil {
+					return nil, err
+				}
+				fc.Quantifier = q
+				if err := p.parseAggArgs(fc, aggArgSpec{args: argList}); err != nil {
+					return nil, err
+				}
+				if len(fc.Args) < 2 {
+					return nil, p.syntaxErrorAtTok(p.prev)
+				}
+				return p.finishFuncCall(fc, builtin)
+			}
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which

@@ -303,6 +303,7 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 		if !isIntervalUnitToken(p.cur) {
 			return nil, p.syntaxErrorAtCur()
 		}
+		sched.Unit = strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End))
 		p.advance()
 
 		// Optional STARTS
@@ -341,7 +342,7 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 func isIntervalUnitToken(tok Token) bool {
 	switch tok.Type {
 	case kwYEAR, kwHOUR, kwDAY, kwMINUTE, kwSECOND, kwWEEK, kwMONTH, kwQUARTER,
-		kwHOUR_MINUTE, kwHOUR_SECOND, kwHOUR_MICROSECOND,
+		kwMICROSECOND, kwHOUR_MINUTE, kwHOUR_SECOND, kwHOUR_MICROSECOND,
 		kwDAY_HOUR, kwDAY_MINUTE, kwDAY_SECOND, kwDAY_MICROSECOND,
 		kwMINUTE_SECOND, kwMINUTE_MICROSECOND, kwSECOND_MICROSECOND:
 		return true

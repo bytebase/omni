@@ -140,15 +140,15 @@ func TestCTEMultiple(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCTERecursive(t *testing.T) {
-	stmt := mustParseWithSelect(t, "WITH RECURSIVE c AS (SELECT 1) SELECT * FROM c")
-	if !stmt.With.Recursive {
-		t.Error("Recursive = false, want true")
+	// DorisParser.g4 has no RECURSIVE at the pin: the 3.1.4 server refuses
+	// WITH RECURSIVE c AS (...), and reads WITH recursive AS (...) as a CTE
+	// named recursive (compat.tsv's suite:conformance rows).
+	if _, errs := parseForTest("WITH RECURSIVE c AS (SELECT 1) SELECT * FROM c"); len(errs) == 0 {
+		t.Error("WITH RECURSIVE c parsed, want an error")
 	}
-	if len(stmt.With.CTEs) != 1 {
-		t.Fatalf("CTEs = %d, want 1", len(stmt.With.CTEs))
-	}
-	if stmt.With.CTEs[0].Name != "c" {
-		t.Errorf("CTE.Name = %q, want %q", stmt.With.CTEs[0].Name, "c")
+	stmt := mustParseWithSelect(t, "WITH recursive AS (SELECT 1) SELECT * FROM recursive")
+	if len(stmt.With.CTEs) != 1 || stmt.With.CTEs[0].Name != "recursive" {
+		t.Errorf("CTEs = %+v, want one named recursive", stmt.With.CTEs)
 	}
 }
 

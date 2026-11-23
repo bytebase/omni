@@ -1,5 +1,4 @@
 SELECT Name FROM student WHERE age IN (18,20,25);
-SELECT * EXCEPT(age) FROM student;
 SELECT type, AVG(price) FROM tb_book GROUP BY type;
 SELECT DISTINCT type FROM tb_book;
 SELECT * FROM tb_book ORDER BY id DESC LIMIT 3;
