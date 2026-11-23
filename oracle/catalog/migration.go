@@ -258,7 +258,11 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 				// Drop check constraints
 				for _, checkDiff := range tableDiff.CheckConstraintChanges {
 					if checkDiff.Action == DiffActionDrop {
-						writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+						if period, _, ok := periodForCheckConstraint(tableDiff.OldTable, checkDiff.OldCheckConstraint); ok {
+							writeDropPeriod(buf, tableDiff.SchemaName, tableDiff.TableName, period)
+						} else {
+							writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+						}
 					}
 				}
 
@@ -333,7 +337,11 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 				// Drop check constraints
 				for _, checkDiff := range tableDiff.CheckConstraintChanges {
 					if checkDiff.Action == DiffActionDrop {
-						writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+						if period, _, ok := periodForCheckConstraint(tableDiff.OldTable, checkDiff.OldCheckConstraint); ok {
+							writeDropPeriod(buf, tableDiff.SchemaName, tableDiff.TableName, period)
+						} else {
+							writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+						}
 					}
 				}
 
@@ -1091,7 +1099,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			// Add check constraints
 			for _, checkDiff := range tableDiff.CheckConstraintChanges {
 				if checkDiff.Action == DiffActionCreate {
-					writeAddCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint)
+					if _, clause, ok := periodForCheckConstraint(tableDiff.NewTable, checkDiff.NewCheckConstraint); ok {
+						writeAddPeriod(buf, tableDiff.SchemaName, tableDiff.TableName, clause)
+					} else {
+						writeAddCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint)
+					}
 				}
 			}
 
@@ -2296,6 +2308,36 @@ func writeDropCheckConstraint(out *strings.Builder, schema, table, constraint st
 	_, _ = out.WriteString(`" DROP CONSTRAINT "`)
 	_, _ = out.WriteString(constraint)
 	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropPeriod(out *strings.Builder, schema, table, period string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" DROP (PERIOD FOR "`)
+	_, _ = out.WriteString(escapeOracleDoubleQuote(period))
+	_, _ = out.WriteString(`");`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAddPeriod(out *strings.Builder, schema, table, clause string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD (`)
+	_, _ = out.WriteString(clause)
+	_, _ = out.WriteString(`);`)
 	_, _ = out.WriteString("\n")
 }
 

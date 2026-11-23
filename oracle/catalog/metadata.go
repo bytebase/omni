@@ -359,7 +359,7 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 	if tableName == "" {
 		return
 	}
-	if !e.serverConfig.ApplicationRoot && isApplicationSharing(n.Sharing) {
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
 		e.setError(oraError("65021", "illegal use of SHARING clause"))
 		return
 	}
@@ -1143,6 +1143,10 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.addPeriodConstraint(table, period, startCol, endCol)
 			} else if action.ColumnName != "" {
 				e.addPeriodConstraint(table, action.ColumnName, "", "")
+			}
+		case ast.AT_DROP_PERIOD:
+			if action.ColumnName != "" {
+				e.dropPeriodConstraint(table, action.ColumnName)
 			}
 		case ast.AT_MODIFY_COLUMN:
 			if action.ColumnDef != nil {
@@ -2827,7 +2831,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	if viewName == "" {
 		return
 	}
-	if !e.serverConfig.ApplicationRoot && isApplicationSharing(n.Sharing) {
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
 		e.setError(oraError("65021", "illegal use of SHARING clause"))
 		return
 	}
@@ -3022,11 +3026,11 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	if sequenceName == "" {
 		return
 	}
-	if !e.serverConfig.ApplicationRoot && isApplicationSharing(n.Sharing) {
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
 		e.setError(oraError("65021", "illegal use of SHARING clause"))
 		return
 	}
-	if !e.serverConfig.ShardDDLEnabled && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
+	if e.serverConfig.DisableShardDDL && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
 		e.setError(oraError("02511", "Shard DDL is not enabled"))
 		return
 	}
@@ -3089,7 +3093,7 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	if name == "" {
 		return
 	}
-	if !e.serverConfig.ShardDDLEnabled && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
+	if e.serverConfig.DisableShardDDL && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
 		e.setError(oraError("02511", "Shard DDL is not enabled"))
 		return
 	}
@@ -3812,7 +3816,7 @@ func (e *oracleMetadataExtractor) extractCreateSynonym(n *ast.CreateSynonymStmt)
 	if name == "" || n.Target == nil || objectName(n.Target) == "" {
 		return
 	}
-	if !e.serverConfig.ApplicationRoot && isApplicationSharing(n.Sharing) {
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
 		e.setError(oraError("65021", "illegal use of SHARING clause"))
 		return
 	}

@@ -1083,8 +1083,14 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.Nil(t, results[1].Error)
 	})
 
-	t.Run("sequence SHARD and NOSHARD fail with ORA-02511 unless Shard DDL is enabled", func(t *testing.T) {
+	t.Run("sequence SHARD and NOSHARD fail with ORA-02511 when DisableShardDDL is enabled, while schema dumps stay permissive", func(t *testing.T) {
+		// Schema dumps (GetDatabaseMetadata / default LoadSQL) stay permissive for sharded DDL.
+		meta, err := GetDatabaseMetadata(`CREATE SEQUENCE s_dump SHARD; ALTER SEQUENCE s_dump NOSHARD;`)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas[0].Sequences, 1)
+
 		c := New()
+		c.SetServerConfig(StandardOracle23ServerConfig())
 		for _, stmt := range []string{
 			`CREATE SEQUENCE s SHARD`,
 			`ALTER SEQUENCE missing SHARD`,
@@ -1108,8 +1114,18 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		requireCode(t, results[1].Error, "02511")
 	})
 
-	t.Run("SHARING = METADATA and DATA fail with ORA-65021 outside Application Root while SHARING = NONE succeeds", func(t *testing.T) {
+	t.Run("SHARING = METADATA and DATA fail with ORA-65021 outside Application Root, while schema dumps stay permissive", func(t *testing.T) {
+		// Schema dumps (GetDatabaseMetadata / default LoadSQL) stay permissive for application-common DDL.
+		meta, err := GetDatabaseMetadata(`
+			CREATE SEQUENCE s_app SHARING = METADATA;
+			CREATE SYNONYM sy_app SHARING = METADATA FOR s_app;
+		`)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas[0].Sequences, 1)
+		require.Len(t, meta.Schemas[0].Synonyms, 1)
+
 		c := New()
+		c.SetServerConfig(StandardOracle23ServerConfig())
 		for _, stmt := range []string{
 			`CREATE SEQUENCE s SHARING = METADATA`,
 			`CREATE SEQUENCE s SHARING = DATA`,
@@ -1127,7 +1143,7 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 
 		// Inside an application root, SHARING = METADATA is accepted.
 		cfg := c.ServerConfig()
-		cfg.ApplicationRoot = true
+		cfg.NonApplicationRoot = false
 		c.SetServerConfig(cfg)
 		results, err = c.Exec(`CREATE SEQUENCE s2 SHARING = METADATA; CREATE SYNONYM sy2 SHARING = METADATA FOR s2`, nil)
 		require.NoError(t, err)
@@ -1191,12 +1207,16 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		}
 	})
 
-	t.Run("untyped virtual column infers NUMBER for numeric literals and arithmetic while keeping functions untyped", func(t *testing.T) {
+	t.Run("untyped virtual column infers NUMBER, BINARY_FLOAT, and BINARY_DOUBLE with numeric precedence while keeping functions untyped", func(t *testing.T) {
 		c, err := LoadSQL(`
 			CREATE TABLE t (c VARCHAR2(10));
 			ALTER TABLE t ADD (v_lit AS (1));
 			ALTER TABLE t ADD (v_neg AS (-1));
 			ALTER TABLE t ADD (v_arith AS (1 + 2 * 3));
+			ALTER TABLE t ADD (v_float AS (1f));
+			ALTER TABLE t ADD (v_double AS (1d));
+			ALTER TABLE t ADD (v_mix_f AS (1 + 2.5F));
+			ALTER TABLE t ADD (v_mix_d AS (1f + 2.5D));
 			ALTER TABLE t ADD (v_fn AS (UPPER(c)));
 		`)
 		require.NoError(t, err)
@@ -1204,6 +1224,10 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_LIT").Type)
 		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_NEG").Type)
 		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_ARITH").Type)
+		require.Equal(t, "BINARY_FLOAT", tableFindColumn(tbl, "V_FLOAT").Type)
+		require.Equal(t, "BINARY_DOUBLE", tableFindColumn(tbl, "V_DOUBLE").Type)
+		require.Equal(t, "BINARY_FLOAT", tableFindColumn(tbl, "V_MIX_F").Type)
+		require.Equal(t, "BINARY_DOUBLE", tableFindColumn(tbl, "V_MIX_D").Type)
 		require.Equal(t, "", tableFindColumn(tbl, "V_FN").Type)
 	})
 
@@ -1241,10 +1265,10 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		requireCode(t, results[0].Error, "38802")
 	})
 
-	t.Run("PERIOD FOR synthesizes temporal validity check constraints", func(t *testing.T) {
+	t.Run("PERIOD FOR synthesizes temporal validity check constraints and renders executable PERIOD FOR DDL", func(t *testing.T) {
 		c, err := LoadSQL(`
 			CREATE TABLE p1 (PERIOD FOR valid_time);
-			CREATE TABLE p2 (id NUMBER);
+			CREATE TABLE p2 (id NUMBER, s_col TIMESTAMP, e_col TIMESTAMP);
 			ALTER TABLE p2 ADD (PERIOD FOR vt);
 			ALTER TABLE p2 ADD (PERIOD FOR vt2 (s_col, e_col));
 		`)
@@ -1258,6 +1282,36 @@ func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
 		require.Len(t, t2.CheckConstraints, 2)
 		require.Equal(t, `"VT_START" < "VT_END"`, t2.CheckConstraints[0].Expression)
 		require.Equal(t, `("S_COL" < "E_COL") and ("VT2" > 0)`, t2.CheckConstraints[1].Expression)
+
+		// DatabaseDefinition must emit PERIOD FOR clauses rather than standalone CHECKs
+		// referencing hidden generated columns, and must round-trip cleanly.
+		def, err := DatabaseDefinition(c.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, def, `PERIOD FOR "VALID_TIME"`)
+		require.Contains(t, def, `PERIOD FOR "VT"`)
+		require.Contains(t, def, `PERIOD FOR "VT2" ("S_COL", "E_COL")`)
+		require.NotContains(t, def, `VALID_TIME_START`)
+		require.NotContains(t, def, `VT_START`)
+
+		roundTrip, err := LoadSQL(def)
+		require.NoError(t, err)
+		require.True(t, Diff(c, roundTrip).IsEmpty())
+
+		// GenerateMigration adding and dropping a PERIOD FOR emits ALTER TABLE ADD/DROP (PERIOD FOR ...).
+		base, err := LoadSQL(`CREATE TABLE p2 (id NUMBER, s_col TIMESTAMP, e_col TIMESTAMP);`)
+		require.NoError(t, err)
+		withPeriod, err := LoadSQL(`CREATE TABLE p2 (id NUMBER, s_col TIMESTAMP, e_col TIMESTAMP, PERIOD FOR vt);`)
+		require.NoError(t, err)
+		addSQL := GenerateMigration(base, withPeriod, nil).SQL()
+		require.Contains(t, addSQL, `ALTER TABLE "P2" ADD (PERIOD FOR "VT");`)
+		require.NotContains(t, addSQL, `VT_START`)
+		dropSQL := GenerateMigration(withPeriod, base, nil).SQL()
+		require.Contains(t, dropSQL, `ALTER TABLE "P2" DROP (PERIOD FOR "VT");`)
+		// Replaying dropSQL removes the period cleanly.
+		results, err := withPeriod.Exec(dropSQL, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.True(t, Diff(withPeriod, base).IsEmpty())
 	})
 
 	t.Run("SET UNUSED executes when ApplySetUnused is enabled and enforces column/FK/last-column checks", func(t *testing.T) {

@@ -14,23 +14,24 @@ import (
 // gate feature-specific DDL validation in Exec.
 //
 // The zero value keeps LoadSQL and GetDatabaseMetadata permissive for schema
-// dumps from extended-collation, TDE-enabled, or cross-schema databases, while
-// StandardOracle23ServerConfig matches a default Oracle 23ai Free PDB.
+// dumps from extended-collation, sharded, application-common, TDE-enabled, or
+// cross-schema databases, while StandardOracle23ServerConfig matches a default
+// Oracle 23ai Free PDB.
 type ServerConfig struct {
 	// MaxStringSize models Oracle's MAX_STRING_SIZE parameter. When set to
 	// "STANDARD", column COLLATE and table/view DEFAULT COLLATION clauses are
 	// refused with ORA-43929 before table/column/view existence checks.
 	MaxStringSize string
 
-	// ShardDDLEnabled controls whether sequence SHARD/NOSHARD DDL is enabled
-	// (e.g. via ALTER SESSION ENABLE SHARD DDL in a sharded database). When
-	// false, sequence SHARD/NOSHARD clauses fail with ORA-02511.
-	ShardDDLEnabled bool
+	// DisableShardDDL models a non-sharded Oracle database (SHARD DDL disabled,
+	// toggled via ALTER SESSION ENABLE/DISABLE SHARD DDL). When true, sequence
+	// SHARD/NOSHARD clauses fail with ORA-02511.
+	DisableShardDDL bool
 
-	// ApplicationRoot controls whether this catalog models an Oracle
-	// Application Root container. When false, SHARING = METADATA | DATA |
-	// EXTENDED DATA clauses fail with ORA-65021.
-	ApplicationRoot bool
+	// NonApplicationRoot models a standard PDB outside an Oracle Application
+	// Root container. When true, SHARING = METADATA | DATA | EXTENDED DATA
+	// clauses fail with ORA-65021.
+	NonApplicationRoot bool
 
 	// KeystoreClosed models a database whose TDE keystore/wallet is not open.
 	// When true, column ENCRYPT clauses fail with ORA-28365 after
@@ -56,8 +57,8 @@ type ServerConfig struct {
 func StandardOracle23ServerConfig() ServerConfig {
 	return ServerConfig{
 		MaxStringSize:              "STANDARD",
-		ShardDDLEnabled:            false,
-		ApplicationRoot:            false,
+		DisableShardDDL:            true,
+		NonApplicationRoot:         true,
 		KeystoreClosed:             true,
 		ValidateExternalSchemaRefs: true,
 		ApplySetUnused:             true,

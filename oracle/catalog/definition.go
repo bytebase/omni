@@ -672,6 +672,15 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 		if err := writeSeparator(); err != nil {
 			return err
 		}
+		if _, clause, ok := periodForCheckConstraint(table, check); ok {
+			if _, err := buf.WriteString("    "); err != nil {
+				return err
+			}
+			if _, err := buf.WriteString(clause); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := writeCheckConstraint(buf, check); err != nil {
 			return err
 		}

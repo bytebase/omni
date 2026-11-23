@@ -1023,8 +1023,8 @@ func alterTableHasCollationClause(actions *ast.List) bool {
 }
 
 // inferVirtualColumnType infers the Oracle data type of an untyped virtual
-// column expression when Oracle unambiguously resolves it as NUMBER (numeric
-// literals and arithmetic over numeric literals). Non-numeric expressions
+// column numeric literal or arithmetic expression using Oracle's numeric type
+// precedence (BINARY_DOUBLE > BINARY_FLOAT > NUMBER). Non-numeric expressions
 // (such as UPPER(C)) stay untyped so DatabaseDefinition preserves AS (expr).
 func inferVirtualColumnType(expr ast.ExprNode) string {
 	for expr != nil {
@@ -1038,13 +1038,22 @@ func inferVirtualColumnType(expr ast.ExprNode) string {
 			}
 			return ""
 		case *ast.NumberLiteral:
-			return "NUMBER"
+			return inferNumberLiteralType(v.Val)
 		case *ast.BinaryExpr:
 			switch v.Op {
 			case "+", "-", "*", "/":
-				if inferVirtualColumnType(v.Left) == "NUMBER" && inferVirtualColumnType(v.Right) == "NUMBER" {
-					return "NUMBER"
+				lt := inferVirtualColumnType(v.Left)
+				rt := inferVirtualColumnType(v.Right)
+				if lt == "" || rt == "" {
+					return ""
 				}
+				if lt == "BINARY_DOUBLE" || rt == "BINARY_DOUBLE" {
+					return "BINARY_DOUBLE"
+				}
+				if lt == "BINARY_FLOAT" || rt == "BINARY_FLOAT" {
+					return "BINARY_FLOAT"
+				}
+				return "NUMBER"
 			}
 			return ""
 		default:
@@ -1052,6 +1061,21 @@ func inferVirtualColumnType(expr ast.ExprNode) string {
 		}
 	}
 	return ""
+}
+
+func inferNumberLiteralType(val string) string {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return ""
+	}
+	switch val[len(val)-1] {
+	case 'f', 'F':
+		return "BINARY_FLOAT"
+	case 'd', 'D':
+		return "BINARY_DOUBLE"
+	default:
+		return "NUMBER"
+	}
 }
 
 // virtualColumnEditionRefs extracts edition names referenced in virtual-column
@@ -1159,9 +1183,9 @@ func (e *oracleMetadataExtractor) extractAlterSession(n *ast.AlterSessionStmt) {
 	if strings.EqualFold(n.Feature, "SHARD_DDL") {
 		switch strings.ToUpper(n.Action) {
 		case "ENABLE":
-			e.serverConfig.ShardDDLEnabled = true
+			e.serverConfig.DisableShardDDL = false
 		case "DISABLE":
-			e.serverConfig.ShardDDLEnabled = false
+			e.serverConfig.DisableShardDDL = true
 		}
 	}
 }
@@ -1253,6 +1277,74 @@ func (e *oracleMetadataExtractor) addPeriodConstraint(table *metadatapb.TableMet
 		Name:       checkName,
 		Expression: expr,
 	})
+}
+
+// periodForCheckConstraint recognizes an Oracle temporal-validity check
+// constraint whose synthetic period column(s) are not present in table.Columns
+// and returns the corresponding PERIOD FOR clause so DatabaseDefinition and
+// GenerateMigration emit valid PERIOD FOR DDL instead of a CHECK referencing
+// nonexistent hidden columns.
+func periodForCheckConstraint(table *metadatapb.TableMetadata, check *metadatapb.CheckConstraintMetadata) (periodName, clause string, ok bool) {
+	if table == nil || check == nil {
+		return "", "", false
+	}
+	expr := strings.TrimSpace(check.GetExpression())
+	if expr == "" {
+		return "", "", false
+	}
+	type tokItem struct {
+		str    string
+		typ    int
+		quoted bool
+	}
+	lexer := oracleparser.NewLexer(expr)
+	var toks []tokItem
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(expr) && expr[tok.Loc] == '"'
+		toks = append(toks, tokItem{str: tok.Str, typ: tok.Type, quoted: quoted})
+	}
+	// Pattern 1 (implicit endpoints): "<P>_START" < "<P>_END"
+	if len(toks) == 3 && toks[0].quoted && toks[1].typ == '<' && toks[2].quoted {
+		startName, endName := toks[0].str, toks[2].str
+		if p1, ok1 := strings.CutSuffix(startName, "_START"); ok1 && p1 != "" && endName == p1+"_END" {
+			if tableFindColumn(table, startName) == nil && tableFindColumn(table, endName) == nil {
+				return p1, fmt.Sprintf(`PERIOD FOR "%s"`, escapeOracleDoubleQuote(p1)), true
+			}
+		}
+	}
+	// Pattern 2 (explicit endpoints): ("<S>" < "<E>") and ("<P>" > 0)
+	if len(toks) == 11 &&
+		toks[0].typ == '(' && toks[1].quoted && toks[2].typ == '<' && toks[3].quoted && toks[4].typ == ')' &&
+		!toks[5].quoted && strings.EqualFold(toks[5].str, "AND") &&
+		toks[6].typ == '(' && toks[7].quoted && toks[8].typ == '>' && !toks[9].quoted && toks[9].str == "0" && toks[10].typ == ')' {
+		startCol, endCol, period := toks[1].str, toks[3].str, toks[7].str
+		if period != "" && tableFindColumn(table, period) == nil {
+			return period, fmt.Sprintf(`PERIOD FOR "%s" ("%s", "%s")`,
+				escapeOracleDoubleQuote(period),
+				escapeOracleDoubleQuote(startCol),
+				escapeOracleDoubleQuote(endCol)), true
+		}
+	}
+	return "", "", false
+}
+
+func (e *oracleMetadataExtractor) dropPeriodConstraint(table *metadatapb.TableMetadata, periodName string) {
+	if table == nil || periodName == "" {
+		return
+	}
+	var remaining []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if p, _, ok := periodForCheckConstraint(table, check); ok && p == periodName {
+			delete(e.syntheticConstraints, table.Name+"\x00"+check.Name)
+			continue
+		}
+		remaining = append(remaining, check)
+	}
+	table.CheckConstraints = remaining
 }
 
 // extractSetUnusedSpec parses SET UNUSED { COLUMN col | (col [, col ...]) }
