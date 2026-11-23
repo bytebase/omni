@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 // maxRecordLength is the longest row MySQL's server stores, BLOB and TEXT
@@ -51,6 +53,36 @@ func (c *Catalog) checkRowLengths(tbl *Table) error {
 	}
 	if record+(nullable+7)/8 > maxRecordLength {
 		return errTooBigRowSize()
+	}
+	return nil
+}
+
+// checkOversizeVarchars refuses, under a strict sql_mode, a VARCHAR a
+// statement defines past 65535 bytes (1074), which the catalog otherwise
+// stores as the MEDIUMTEXT MySQL makes of it outside one: VARCHAR(70000) in
+// latin1 is "max = 65535" and VARCHAR(20000) in utf8mb4 "max = 16383"
+// (mysql:8.0.46). A length past the bytes the column's character set allows
+// below 65536 characters is the row-size check's (checkRowLengths).
+func (c *Catalog) checkOversizeVarchars(defs []*nodes.ColumnDef, tableCharset string) error {
+	if !c.isStrictSQLMode() {
+		return nil
+	}
+	for _, def := range defs {
+		if def == nil || def.TypeName == nil || normalizedTypeName(def.TypeName.Name) != "varchar" || def.TypeName.Length <= maxRecordLength {
+			continue
+		}
+		charset := def.TypeName.Charset
+		if charset == "" && def.TypeName.Collate != "" {
+			charset = charsetForCollation(def.TypeName.Collate)
+		}
+		if charset == "" {
+			charset = tableCharset
+		}
+		mb := charsetMaxBytes(normalizeCharsetName(charset))
+		if def.TypeName.Binary || strings.EqualFold(charset, "binary") {
+			mb = 1
+		}
+		return errTooBigFieldLength(def.Name, maxRecordLength/mb)
 	}
 	return nil
 }

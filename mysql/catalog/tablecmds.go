@@ -1034,6 +1034,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if declared {
 		if !c.loadingSDL {
+			if err := checkColumnSRIDs(stmt.Columns); err != nil {
+				return err
+			}
+			if err := c.checkOversizeVarchars(stmt.Columns, tbl.Charset); err != nil {
+				return err
+			}
+			if err := checkGeographicSpatialKeys(tbl); err != nil {
+				return err
+			}
+			spatialKeysForGeometry(tbl)
+			if err := checkExprReferences(tbl, createExprRefs(tbl, stmt)); err != nil {
+				return err
+			}
 			if err := c.checkRowLengths(tbl); err != nil {
 				return err
 			}
@@ -1821,6 +1834,25 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+// createExprRefs returns the expressions a CREATE TABLE defines: its columns'
+// generated expressions and its CHECK constraints, the columns' first, as the
+// table names them.
+func createExprRefs(tbl *Table, stmt *nodes.CreateTableStmt) []exprRef {
+	refs, checks := columnExprRefs(stmt.Columns)
+	for _, con := range stmt.Constraints {
+		if con != nil && con.Type == nodes.ConstrCheck && con.Expr != nil {
+			checks = append(checks, con.Expr)
+		}
+	}
+	var made []*Constraint
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck {
+			made = append(made, con)
+		}
+	}
+	return append(refs, namedChecks(checks, made)...)
 }
 
 // clauseBounds is the partitioning a clause defines as far as its bounds go,
@@ -2897,6 +2929,11 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 }
 
 func (c *Catalog) validateIndexColumnsOpts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique, checkWidths bool) error {
+	// A SPATIAL key has one part, which MySQL holds it to before it reads
+	// the parts: (loc, area) with area nullable is 1070 (mysql:8.0.46).
+	if spatial && len(idxCols) > 1 {
+		return &Error{Code: 1070, SQLState: "42000", Message: "Too many key parts specified; max 1 parts allowed"}
+	}
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue

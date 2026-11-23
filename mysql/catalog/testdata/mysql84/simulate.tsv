@@ -2902,7 +2902,7 @@ ok:f59670e77fab	ok:f59670e77fab	engine	features@charset	charset:column	ALTER TAB
 ok:fe02ce2d7100	ok:fe02ce2d7100	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra NATIONAL VARCHAR(10)
 ok:0b67f40321c6	ok:0b67f40321c6	engine	features@charset	charset:column	CREATE TABLE n2 (a VARCHAR(10)) CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 1074	1074	engine	features@charset	charset:column	CREATE TABLE n3 (a VARCHAR(20000)) CHARSET = utf8mb4
-ok	1074	engine	features@charset	charset:column	CREATE TABLE n4 (a VARCHAR(70000)) CHARSET = latin1
+1074	1074	engine	features@charset	charset:column	CREATE TABLE n4 (a VARCHAR(70000)) CHARSET = latin1
 1118	1118	engine	features@charset	charset:column	CREATE TABLE n5 (a VARCHAR(16383), b VARCHAR(10)) CHARSET = utf8mb4
 1253	1253	engine	features@charset	charset:column	CREATE TABLE n6 (a VARCHAR(10) CHARACTER SET latin1 COLLATE utf8mb4_bin)
 ok:74d901704017	ok:74d901704017	engine	features@charset	charset:column	CREATE TABLE n7 LIKE notes
@@ -2953,25 +2953,25 @@ ok:967553daa63c	ok:967553daa63c	engine	features@fk	fk:create	CREATE TABLE refund
 ok:7c4e67212779	ok:7c4e67212779	engine	features@fk	fk:create	CREATE TABLE refunds LIKE orders
 ok:1442ff9542c0	ok:1442ff9542c0	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN initials VARCHAR(2) AS (CONCAT(LEFT(first_name, 1), LEFT(last_name, 1))) VIRTUAL
 ok:8ff2ef9b99ac	ok:8ff2ef9b99ac	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) STORED
-ok	1054	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (nope + 1)
+1054	1054	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (nope + 1)
 3763	3763	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND())
 3107	3107	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (g + 1)
 ok:eb0b3317d284	ok:eb0b3317d284	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL NOT NULL
 ok:7b57b32c0481	ok:7b57b32c0481	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (age + 1) STORED, ADD INDEX idx_g (g)
-3108	3959	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN first_name
+3959	3959	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN first_name
 ok:6e3796d6ef6d	ok:6e3796d6ef6d	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN full_name
-ok	3959	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN full_name, DROP COLUMN name_len, DROP COLUMN first_name
+3959	3959	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN full_name, DROP COLUMN name_len, DROP COLUMN first_name
 ok:e6c839bc74eb	ok:e6c839bc74eb	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL
 3106	3106	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) STORED
 ok:dff089161170	ok:dff089161170	engine	features@generated	generated:column	ALTER TABLE people MODIFY name_len INT
-ok	3106	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(101)
+3106	3106	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(101)
 ok:980aed207c69	ok:980aed207c69	engine	features@generated	generated:column	ALTER TABLE people MODIFY age INT AS (id + 1) STORED
-ok	3959	engine	features@generated	generated:column	ALTER TABLE people RENAME COLUMN first_name TO given_name
-ok	3959	engine	features@generated	generated:column	ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL
-ok	1221	engine	features@generated	generated:column	ALTER TABLE people ALTER COLUMN full_name SET DEFAULT 'x'
+3959	3959	engine	features@generated	generated:column	ALTER TABLE people RENAME COLUMN first_name TO given_name
+3959	3959	engine	features@generated	generated:column	ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL
+1221	1221	engine	features@generated	generated:column	ALTER TABLE people ALTER COLUMN full_name SET DEFAULT 'x'
 ok:4be6e4a4abfc	ok:4be6e4a4abfc	engine	features@generated	generated:column	CREATE TABLE gc2 (a INT, b INT AS (a + 1), c INT AS (b * 2) STORED, KEY ((b + 1)))
-ok	3107	engine	features@generated	generated:column	CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
-ok	3109	engine	features@generated	generated:column	CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
+3107	3107	engine	features@generated	generated:column	CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
+3109	3109	engine	features@generated	generated:column	CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
 ok:52dfe7e8d9be	ok:52dfe7e8d9be	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))
 ok:db983e1d952f	ok:db983e1d952f	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_expr ((age + 1))
 1054	1054	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_bad ((nope + 1))
@@ -2981,16 +2981,16 @@ ok:db983e1d952f	ok:db983e1d952f	engine	features@generated	index:functional	ALTER
 ok:3f24fcaf8c6a	ok:3f24fcaf8c6a	engine	features@generated	index:functional	ALTER TABLE people ADD UNIQUE INDEX uk_expr ((LOWER(first_name)), last_name)
 ok:b08db3d7e069	ok:b08db3d7e069	engine	features@generated	index:functional	CREATE INDEX idx_upper ON people ((UPPER(first_name)))
 ok:1be5efa942da	ok:1be5efa942da	engine	features@generated	index:functional	ALTER TABLE people DROP INDEX idx_lower
-3108	3959	engine	features@generated	index:functional	ALTER TABLE people DROP COLUMN last_name
+3959	3959	engine	features@generated	index:functional	ALTER TABLE people DROP COLUMN last_name
 3762	3762	engine	features@generated	index:functional	CREATE TABLE fx (a INT, KEY ((a)))
 ok:0c62a65ad889	ok:0c62a65ad889	engine	features@generated	index:functional	CREATE TABLE fx (a INT, b VARCHAR(10), KEY f ((a + 1), b DESC))
 3756	3756	engine	features@generated	index:functional	CREATE TABLE fx (a INT, PRIMARY KEY ((a + 1)))
 ok:2492aa4f1639	ok:2492aa4f1639	engine	features@generated	index:invisible	ALTER TABLE people ALTER INDEX idx_age VISIBLE
 ok:b3e9783753ed	ok:b3e9783753ed	engine	features@generated	index:invisible	ALTER TABLE people ALTER INDEX idx_full INVISIBLE
-ok	3522	engine	features@generated	index:invisible	ALTER TABLE people ALTER INDEX `PRIMARY` INVISIBLE
+3522	3522	engine	features@generated	index:invisible	ALTER TABLE people ALTER INDEX `PRIMARY` INVISIBLE
 1176	1176	engine	features@generated	index:invisible	ALTER TABLE people ALTER INDEX nope VISIBLE
 ok:323e3a687624	ok:323e3a687624	engine	features@generated	index:invisible	ALTER TABLE people ADD UNIQUE KEY uk_age (age) INVISIBLE
-1068	3522	engine	features@generated	index:invisible	ALTER TABLE people ADD PRIMARY KEY (id) INVISIBLE
+3522	3522	engine	features@generated	index:invisible	ALTER TABLE people ADD PRIMARY KEY (id) INVISIBLE
 ok:fb6d2bca6428	ok:fb6d2bca6428	engine	features@generated	index:invisible	CREATE INDEX idx_name ON people (first_name) INVISIBLE
 3522	3522	engine	features@generated	index:invisible	CREATE TABLE inv (a INT NOT NULL, UNIQUE KEY u (a) INVISIBLE)
 ok:f13da61c34cc	ok:f13da61c34cc	engine	features@generated	column:invisible	ALTER TABLE people ALTER COLUMN secret SET VISIBLE
@@ -3006,33 +3006,33 @@ ok:61185f0cfaec	ok:61185f0cfaec	engine	features@generated	check:constraint	ALTER
 3822	3822	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_age CHECK (age < 200)
 ok:434baab6a9a1	ok:434baab6a9a1	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_max CHECK (age < 200)
 ok:9469bf847b7d	ok:9469bf847b7d	engine	features@generated	check:constraint	ALTER TABLE people ADD CHECK (age < 200)
-ok	1054	engine	features@generated	check:constraint	ALTER TABLE people ADD CHECK (age < nope)
-3815	3814	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_rand CHECK (age > RAND())
-3815	3814	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_now CHECK (age < YEAR(NOW()))
-ok	ok:69e45f8ad76f	engine	features@generated	check:constraint	ALTER TABLE people DROP COLUMN age
-ok	3959	engine	features@generated	check:constraint	ALTER TABLE people RENAME COLUMN age TO years
-ok	ok:06a0a39c7951	engine	features@generated	check:constraint	ALTER TABLE people MODIFY age INT CHECK (age > 1)
+1054	1054	engine	features@generated	check:constraint	ALTER TABLE people ADD CHECK (age < nope)
+3814	3814	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_rand CHECK (age > RAND())
+3814	3814	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_now CHECK (age < YEAR(NOW()))
+ok:69e45f8ad76f	ok:69e45f8ad76f	engine	features@generated	check:constraint	ALTER TABLE people DROP COLUMN age
+3959	3959	engine	features@generated	check:constraint	ALTER TABLE people RENAME COLUMN age TO years
+ok:06a0a39c7951	ok:06a0a39c7951	engine	features@generated	check:constraint	ALTER TABLE people MODIFY age INT CHECK (age > 1)
 3821	3821	engine	features@generated	check:constraint	ALTER TABLE people DROP CHECK nope
 ok:068e6f649b30	ok:068e6f649b30	engine	features@generated	check:constraint	CREATE TABLE chk2 (a INT CHECK (a > 0), b INT, CHECK (a < b))
 3822	3822	engine	features@generated	check:constraint	CREATE TABLE chk3 (a INT, CONSTRAINT chk_age CHECK (a > 0))
-ok	3818	engine	features@generated	check:constraint	CREATE TABLE chk4 (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a > 0))
+3818	3818	engine	features@generated	check:constraint	CREATE TABLE chk4 (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a > 0))
 ok:2181808bea66	ok:2181808bea66	engine	features@generated	check:constraint	CREATE TABLE chk5 LIKE people
 ok:5bbb5f5c599b	ok:5bbb5f5c599b	engine	features@generated	check:constraint	RENAME TABLE people TO persons
 1252	1252	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_area (area)
 ok:dde462e44146	ok:dde462e44146	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY area POLYGON NOT NULL SRID 0, ADD SPATIAL INDEX sp_area (area)
 1687	1687	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_name (name)
 ok:70f9a97d9804	ok:70f9a97d9804	engine	features@spatial	index:spatial	CREATE SPATIAL INDEX sp_loc2 ON places (loc)
-ok	ok:54fc01662b32	engine	features@spatial	index:spatial	ALTER TABLE places ADD INDEX idx_loc (loc)
+ok:54fc01662b32	ok:54fc01662b32	engine	features@spatial	index:spatial	ALTER TABLE places ADD INDEX idx_loc (loc)
 1089	1089	engine	features@spatial	index:spatial	ALTER TABLE places ADD INDEX idx_loc (loc(10))
-ok	3644	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NOT NULL
-ok	1252	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NULL SRID 4326
+3644	3644	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NOT NULL
+1252	1252	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NULL SRID 4326
 ok:cae08834f318	ok:cae08834f318	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc GEOMETRY NOT NULL SRID 4326
 ok:f04dfa7576a8	ok:f04dfa7576a8	engine	features@spatial	index:spatial	ALTER TABLE places DROP INDEX sp_loc
-ok	3548	engine	features@spatial	index:spatial	ALTER TABLE places ADD COLUMN g GEOMETRY SRID 9999
+3548	3548	engine	features@spatial	index:spatial	ALTER TABLE places ADD COLUMN g GEOMETRY SRID 9999
 ok:8a87836fbdfc	ok:8a87836fbdfc	engine	features@spatial	index:spatial	ALTER TABLE places ADD COLUMN g GEOMETRY NOT NULL SRID 3857
-1252	1070	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_multi (loc, area)
+1070	1070	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_multi (loc, area)
 ok:93f2a618ba76	ok:93f2a618ba76	engine	features@spatial	index:spatial	CREATE TABLE p2 (g GEOMETRY NOT NULL, SPATIAL KEY (g))
-ok	1178	engine	features@spatial	index:spatial	CREATE TABLE p3 (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g)) ENGINE = MyISAM
+1178	1178	engine	features@spatial	index:spatial	CREATE TABLE p3 (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g)) ENGINE = MyISAM
 ok:c1591886a2f8	ok:c1591886a2f8	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_descr (descr)
 ok:63042c0c578e	ok:63042c0c578e	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_both (name, descr)
 ok:aa3acd084973	ok:aa3acd084973	engine	features@spatial	index:fulltext	CREATE FULLTEXT INDEX ft_descr ON places (descr) WITH PARSER ngram
@@ -3042,7 +3042,7 @@ ok:aa3acd084973	ok:aa3acd084973	engine	features@spatial	index:fulltext	CREATE FU
 ok:1389dc1ecabd	ok:1389dc1ecabd	engine	features@spatial	index:fulltext	ALTER TABLE places DROP INDEX ft_name
 ok:096efd142637	ok:096efd142637	engine	features@spatial	index:fulltext	ALTER TABLE places DROP COLUMN name
 ok:fc5d6149ef18	ok:fc5d6149ef18	engine	features@spatial	index:fulltext	ALTER TABLE places MODIFY name VARCHAR(200) NOT NULL
-ok	1283	engine	features@spatial	index:fulltext	ALTER TABLE places MODIFY name INT NOT NULL
+1283	1283	engine	features@spatial	index:fulltext	ALTER TABLE places MODIFY name INT NOT NULL
 ok:9129b00acfd1	ok:9129b00acfd1	engine	features@spatial	index:fulltext	CREATE TABLE p4 (a TEXT, FULLTEXT KEY (a)) ENGINE = MyISAM
 ok:ea6a0495aeee	ok:ea6a0495aeee	engine	features@spatial	index:fulltext	CREATE TABLE p5 (a VARCHAR(10), FULLTEXT KEY (a) KEY_BLOCK_SIZE = 4)
 ok:a8614beef3b5	ok:a8614beef3b5	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT

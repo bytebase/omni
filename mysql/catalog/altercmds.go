@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -524,6 +525,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	willBePartitioned := (tbl.Partitioning != nil && !removesPartitioning) || hasRepartition
 	deferKeyWidths := alterChangesIndexCapacity(stmt.Commands)
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
+	if err := checkConstraintColumnDeps(tbl, stmt.Commands); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	var droppedIndexes []*Index
 	beforeColumns := make(map[*Column]bool, len(tbl.Columns))
 	for _, col := range tbl.Columns {
@@ -539,6 +544,27 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
+	if err := checkExprReferences(tbl, alterExprRefs(tbl, stmt.Commands, beforeConstraints)); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	var defs []*nodes.ColumnDef
+	for _, cmd := range stmt.Commands {
+		defs = append(defs, alterColumnDefs(cmd)...)
+	}
+	if err := checkColumnSRIDs(defs); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := c.checkOversizeVarchars(defs, tbl.Charset); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := checkKeysOverRedefinedColumns(tbl, beforeColumns); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	spatialKeysForGeometry(tbl)
 	tbl.ignoredGeneratedIndexes = nil
 	droppedIndexes = append(droppedIndexes, reconcileGeneratedFKIndexes(tbl, preGen)...)
 	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedIndexes); err != nil {
@@ -1352,37 +1378,43 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			})
 
 		case nodes.ColConstrCheck:
-			// A column's CHECK is a table constraint like any other, and the
-			// CREATE TABLE path has always built one; the ALTER path dropped
-			// it, so `ADD b INT CONSTRAINT positive_b CHECK (b > 0)` reported
-			// success and installed only the column. MySQL 8.0.46 installs
-			// the constraint -- `CONSTRAINT positive_b CHECK ((b > 0))` reads
-			// back from SHOW CREATE TABLE -- and names an unnamed one
-			// <table>_chk_<n>, continuing the table's run (read on
-			// 2026-11-04).
-			if cc.Expr == nil {
-				break
-			}
-			conName := cc.Name
-			if conName == "" {
-				conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
-			}
-			if checkConstraintNameExists(tbl.Database, nil, conName) {
-				return errCheckConstraintDupName(conName)
-			}
-			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+			if err := c.addColumnCheck(tbl, colDef.Name, cc); err != nil {
 				return err
 			}
-			tbl.Constraints = append(tbl.Constraints, &Constraint{
-				Name:        conName,
-				Type:        ConCheck,
-				Table:       tbl,
-				CheckExpr:   nodeToSQL(cc.Expr),
-				NotEnforced: cc.NotEnforced,
-			})
 		}
 	}
 
+	return nil
+}
+
+// addColumnCheck installs a column's CHECK as the table constraint it is. A
+// column's CHECK is a table constraint like any other, and the CREATE TABLE
+// path has always built one; ADD, MODIFY and CHANGE install it too: MySQL
+// 8.0.46 reads back `CONSTRAINT positive_b CHECK ((b > 0))` after `ADD b INT
+// CONSTRAINT positive_b CHECK (b > 0)` and `people_chk_1` after `MODIFY age
+// INT CHECK (age > 1)`, naming an unnamed one <table>_chk_<n>, continuing the
+// table's run (read on 2026-11-04 and 2026-11-23).
+func (c *Catalog) addColumnCheck(tbl *Table, column string, cc *nodes.ColumnConstraint) error {
+	if cc.Expr == nil {
+		return nil
+	}
+	conName := cc.Name
+	if conName == "" {
+		conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+	}
+	if checkConstraintNameExists(tbl.Database, nil, conName) {
+		return errCheckConstraintDupName(conName)
+	}
+	if err := validateColumnCheckReferences(column, conName, cc.Expr); err != nil {
+		return err
+	}
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:        conName,
+		Type:        ConCheck,
+		Table:       tbl,
+		CheckExpr:   nodeToSQL(cc.Expr),
+		NotEnforced: cc.NotEnforced,
+	})
 	return nil
 }
 
@@ -1448,6 +1480,18 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOld
 			}
 		}
 	}
+
+	// A CHECK constraint on the dropped column alone goes with it; one that
+	// names another column was refused before the statement ran
+	// (checkConstraintColumnDeps).
+	kept := tbl.Constraints[:0]
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && generatedExprReferencesColumn(con.CheckExpr, cmd.Name) {
+			continue
+		}
+		kept = append(kept, con)
+	}
+	tbl.Constraints = kept
 
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
@@ -1561,6 +1605,23 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
 		}
 	}
+	// The SRID of a column a SPATIAL key reads stays as it is (3644), the
+	// clause's presence included: MODIFY loc POINT NOT NULL on a POINT SRID
+	// 4326 column with a SPATIAL key is refused (mysql:8.0.46).
+	if colDef.TypeName != nil && (colDef.TypeName.HasSRID != oldCol.HasSRID || (colDef.TypeName.HasSRID && colDef.TypeName.SRID != oldCol.SRID)) {
+		for _, index := range tbl.Indexes {
+			if index.Spatial && len(index.Columns) == 1 && toLower(index.Columns[0].Name) == oldKey {
+				return &Error{Code: 3644, SQLState: "HY000", Message: fmt.Sprintf(
+					"The SRID specification on the column '%s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.", oldCol.Name)}
+			}
+		}
+	}
+	// A VIRTUAL column does not become a stored one by losing its expression
+	// either: MODIFY v VARCHAR(10) on a virtual v is 3106, where a STORED one
+	// becomes an ordinary column (mysql:8.0.46).
+	if oldCol.Generated != nil && !oldCol.Generated.Stored && colDef.Generated == nil {
+		return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+	}
 
 	col := c.buildColumnFromDef(tbl, colDef)
 	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
@@ -1583,6 +1644,13 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+	}
+	for _, cc := range colDef.Constraints {
+		if cc != nil && cc.Type == nodes.ColConstrCheck {
+			if err := c.addColumnCheck(tbl, colDef.Name, cc); err != nil {
+				return err
+			}
+		}
 	}
 
 	// SERIAL implies a unique key here too: a replacement keeps the keys the
@@ -1648,6 +1716,14 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 	case nodes.ConstrPrimaryKey:
 		if constraintHasFunctionalKeyPart(con) {
 			return errFunctionalIndexPrimaryKey()
+		}
+		// An invisible primary key is refused before the one the table has:
+		// ADD PRIMARY KEY (id) INVISIBLE on a keyed table is 3522, not 1068
+		// (mysql:8.0.46).
+		probe := &Index{Visible: true}
+		applyIndexOptions(probe, con.IndexOptions)
+		if !probe.Visible {
+			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
 		}
 		// Check for duplicate PK.
 		for _, idx := range tbl.Indexes {
@@ -2171,6 +2247,99 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	return nil
 }
 
+// alterExprRefs returns the expressions an ALTER TABLE defined: its columns'
+// generated expressions and the CHECK constraints it added, named as the
+// table now names them.
+func alterExprRefs(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) []exprRef {
+	var refs []exprRef
+	var checks []nodes.ExprNode
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		generated, columnChecks := columnExprRefs(alterColumnDefs(cmd))
+		refs = append(refs, generated...)
+		checks = append(checks, columnChecks...)
+		if cmd.Type == nodes.ATAddConstraint && cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrCheck && cmd.Constraint.Expr != nil {
+			checks = append(checks, cmd.Constraint.Expr)
+		}
+	}
+	var made []*Constraint
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && !before[con] {
+			made = append(made, con)
+		}
+	}
+	return append(refs, namedChecks(checks, made)...)
+}
+
+// checkConstraintColumnDeps refuses dropping or renaming a column a CHECK
+// constraint the statement keeps reads (3959). MySQL judges it before the
+// statement runs and before a generated column's dependency on the column
+// (3108), and lets a constraint go with the columns it reads when the
+// statement drops every one of them: on CHECK (age >= 0), DROP COLUMN age
+// drops the constraint too, RENAME COLUMN age TO years is 3959, and DROP
+// CHECK chk, RENAME COLUMN age TO years runs (mysql:8.0.46).
+func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	droppedChecks := map[string]bool{}
+	droppedCols := map[string]bool{}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATDropConstraint:
+			droppedChecks[toLower(cmd.Name)] = true
+		case nodes.ATDropColumn:
+			if tbl.GetColumn(cmd.Name) != nil {
+				droppedCols[toLower(cmd.Name)] = true
+			}
+		}
+	}
+	reads := func(con *Constraint) []string {
+		var cols []string
+		for _, col := range tbl.Columns {
+			if generatedExprReferencesColumn(con.CheckExpr, col.Name) {
+				cols = append(cols, toLower(col.Name))
+			}
+		}
+		return cols
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		var column string
+		renames := false
+		switch cmd.Type {
+		case nodes.ATDropColumn:
+			column = cmd.Name
+		case nodes.ATRenameColumn:
+			column, renames = cmd.Name, !strings.EqualFold(cmd.Name, cmd.NewName)
+		case nodes.ATChangeColumn:
+			column, renames = cmd.Name, cmd.Column != nil && !strings.EqualFold(cmd.Name, cmd.Column.Name)
+		}
+		if column == "" || (cmd.Type != nodes.ATDropColumn && !renames) || tbl.GetColumn(column) == nil {
+			continue
+		}
+		for _, con := range tbl.Constraints {
+			if con.Type != ConCheck || droppedChecks[toLower(con.Name)] {
+				continue
+			}
+			cols := reads(con)
+			if !slices.Contains(cols, toLower(column)) {
+				continue
+			}
+			if !renames && !slices.ContainsFunc(cols, func(c string) bool { return !droppedCols[c] }) {
+				continue
+			}
+			return &Error{Code: 3959, SQLState: "HY000", Message: fmt.Sprintf(
+				"Check constraint '%s' uses column '%s', hence column cannot be dropped or renamed.", con.Name, column)}
+		}
+	}
+	return nil
+}
+
 // checkRedefinedForeignKeyColumns holds a column an ALTER TABLE defined anew
 // (MODIFY, CHANGE, ADD) to the foreign keys it is in, on either side: its type
 // must still compare with the column at the other end (3780), and a column a
@@ -2358,6 +2527,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	col := tbl.Columns[idx]
+	// A generated column takes no default (1221); dropping the one it does
+	// not have is no error (mysql:8.0.46).
+	if cmd.DefaultExpr != nil && col.Generated != nil {
+		return &Error{Code: 1221, SQLState: "HY000", Message: "Incorrect usage of DEFAULT and generated column"}
+	}
 	if cmd.DefaultExpr != nil {
 		if err := validateDefaultExprFuncs(cmd.DefaultExpr, col.Name, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
@@ -2401,6 +2575,9 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			if idx.Primary && !visible {
+				return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			}
 			idx.Visible = visible
 			idx.Generated = false
 			return nil

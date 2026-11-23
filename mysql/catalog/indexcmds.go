@@ -157,6 +157,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
+	spatialKeysForGeometry(tbl)
 	tbl.ignoredGeneratedIndexes = nil
 	droppedGen := reconcileGeneratedFKIndexes(tbl, preGen)
 	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedGen); err != nil {
