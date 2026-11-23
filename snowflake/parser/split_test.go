@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/snowflake/ast"
 )
 
 // runSplitCases is a table-driven helper that asserts Split(input) returns
@@ -49,7 +51,7 @@ func TestSplit_Simple(t *testing.T) {
 			{"B", 2, 3},
 			{"C", 4, 5},
 		}},
-		{"trailing whitespace", "SELECT 1;  ", []Segment{{"SELECT 1", 0, 8}}},
+		{"trailing whitespace", "SELECT 1;  ", []Segment{{"SELECT 1", 0, 8}, {"  ", 9, 11}}},
 		{"leading whitespace", "  SELECT 1;", []Segment{{"  SELECT 1", 0, 10}}},
 	}
 	runSplitCases(t, cases)
@@ -61,16 +63,102 @@ func TestSplit_EmptyStatements(t *testing.T) {
 		input string
 		want  []Segment
 	}{
-		{"lone semi", ";", nil},
-		{"triple semi", ";;;", nil},
-		{"leading semi", ";SELECT 1;", []Segment{{"SELECT 1", 1, 9}}},
-		{"trailing semi", "SELECT 1;;", []Segment{{"SELECT 1", 0, 8}}},
+		{"lone semi", ";", []Segment{{"", 0, 0}}},
+		{"double semi", ";;", []Segment{{"", 0, 0}, {"", 1, 1}}},
+		{"triple semi", ";;;", []Segment{{"", 0, 0}, {"", 1, 1}, {"", 2, 2}}},
+		{"spaced semis", " ; ;", []Segment{{" ", 0, 1}, {" ", 2, 3}}},
+		{"leading semi", ";SELECT 1;", []Segment{{"", 0, 0}, {"SELECT 1", 1, 9}}},
+		{"trailing semi", "SELECT 1;;", []Segment{{"SELECT 1", 0, 8}, {"", 9, 9}}},
 		{"embedded semi", "SELECT 1;;SELECT 2;", []Segment{
 			{"SELECT 1", 0, 8},
+			{"", 9, 9},
 			{"SELECT 2", 10, 18},
+		}},
+		{"around dollar body", ";CREATE PROCEDURE p() AS $$ a; b $$;;", []Segment{
+			{"", 0, 0},
+			{"CREATE PROCEDURE p() AS $$ a; b $$", 1, 35},
+			{"", 36, 36},
+		}},
+		{"around scripting block", "; BEGIN SELECT 1; END; ;", []Segment{
+			{"", 0, 0},
+			{" BEGIN SELECT 1; END", 1, 21},
+			{" ", 22, 23},
+		}},
+		{"around declare block", "DECLARE x INT; BEGIN x := 1; END;;-- c", []Segment{
+			{"DECLARE x INT; BEGIN x := 1; END", 0, 32},
+			{"", 33, 33},
+			{"-- c", 34, 38},
+		}},
+		{"after task body", "CREATE TASK t AS BEGIN SELECT 1; END;\n;", []Segment{
+			{"CREATE TASK t AS BEGIN SELECT 1; END", 0, 36},
+			{"\n", 37, 38},
 		}},
 	}
 	runSplitCases(t, cases)
+}
+
+// TestSplit_EmptyMarked pins which segments Empty() reports: a chunk of
+// whitespace, a comment, or nothing is empty; a statement is not. Each
+// segment's Text is its byte range of the input.
+func TestSplit_EmptyMarked(t *testing.T) {
+	cases := []struct {
+		input string
+		empty []bool
+	}{
+		{";", []bool{true}},
+		{";;", []bool{true, true}},
+		{"SELECT 1;;SELECT 2", []bool{false, true, false}},
+		{"-- c\n", []bool{true}},
+		{"// c\n", []bool{true}},
+		{"/* c */;SELECT 1", []bool{true, false}},
+		{"/* a /* nested */ b */;", []bool{true}},
+		{"SELECT 1; -- done", []bool{false, true}},
+		{"SELECT 1;  ", []bool{false, true}},
+		{"SELECT 1;", []bool{false}},
+		{"SELECT $$;$$; ;", []bool{false, true}},
+		{"BEGIN; ; COMMIT;", []bool{false, true, false}},
+		{"EXECUTE IMMEDIATE $$ BEGIN RETURN 1; END $$; /* c */", []bool{false, true}},
+	}
+	for _, c := range cases {
+		segments := Split(c.input)
+		got := make([]bool, len(segments))
+		for i, segment := range segments {
+			got[i] = segment.Empty()
+			if segment.Text != c.input[segment.ByteStart:segment.ByteEnd] {
+				t.Errorf("Split(%q)[%d].Text = %q, want input[%d:%d]", c.input, i, segment.Text, segment.ByteStart, segment.ByteEnd)
+			}
+		}
+		if !reflect.DeepEqual(got, c.empty) {
+			t.Errorf("Split(%q) Empty() = %v, want %v", c.input, got, c.empty)
+		}
+	}
+}
+
+// TestParseSkipsEmptySegments pins that the parse entry points skip the
+// segments Split marks Empty: a lone ';' or a comment adds no statement, and
+// the statements keep their absolute positions.
+func TestParseSkipsEmptySegments(t *testing.T) {
+	input := "; SELECT 1;; /* c */; SELECT 2; -- done"
+	for name, result := range map[string]*ParseResult{
+		"strict":      ParseStrict(input),
+		"best effort": ParseBestEffort(input),
+	} {
+		if len(result.Errors) != 0 {
+			t.Fatalf("%s: errors = %+v, want none", name, result.Errors)
+		}
+		if len(result.File.Stmts) != 2 {
+			t.Fatalf("%s: %d statements, want 2", name, len(result.File.Stmts))
+		}
+		for i, want := range []string{"SELECT 1", "SELECT 2"} {
+			loc := ast.NodeLoc(result.File.Stmts[i])
+			if got := input[loc.Start:loc.End]; got != want {
+				t.Errorf("%s: statement %d = %q, want %q", name, i, got, want)
+			}
+		}
+	}
+	if result := ParseStrict(";; -- only\n/* c */;"); len(result.Errors) != 0 || len(result.File.Stmts) != 0 {
+		t.Errorf("ParseStrict(empty segments) = %d statements, errors %+v; want none", len(result.File.Stmts), result.Errors)
+	}
 }
 
 func TestSplit_Positions(t *testing.T) {
@@ -125,8 +213,18 @@ func TestSplit_Comments(t *testing.T) {
 		{"nested block", "/* outer /* inner */ still */ SELECT 1;", []Segment{
 			{"/* outer /* inner */ still */ SELECT 1", 0, 38},
 		}},
-		{"comment-only filtered", "-- just a comment\n", nil},
-		{"block comment only filtered", "/* only */", nil},
+		{"comment-only", "-- just a comment\n", []Segment{{"-- just a comment\n", 0, 18}}},
+		{"slash comment only", "// note\n", []Segment{{"// note\n", 0, 8}}},
+		{"block comment only", "/* only */", []Segment{{"/* only */", 0, 10}}},
+		{"comment-only chunk between", "SELECT 1; /* c */; SELECT 2", []Segment{
+			{"SELECT 1", 0, 8},
+			{" /* c */", 9, 17},
+			{" SELECT 2", 18, 27},
+		}},
+		{"comment-only tail without semi", "SELECT 1; -- done", []Segment{
+			{"SELECT 1", 0, 8},
+			{" -- done", 9, 17},
+		}},
 	}
 	runSplitCases(t, cases)
 }
@@ -315,10 +413,10 @@ func TestSplit_UnterminatedMultiLineString(t *testing.T) {
 }
 
 func TestSplit_TrailingWhitespaceAfterSemi(t *testing.T) {
-	// Whitespace-only content after the last `;` should NOT produce a
-	// trailing segment (filtered by Empty()).
+	// Whitespace-only content after the last `;` is a trailing segment that
+	// Empty() reports.
 	got := Split("SELECT 1;   \n\t")
-	want := []Segment{{"SELECT 1", 0, 8}}
+	want := []Segment{{"SELECT 1", 0, 8}, {"   \n\t", 9, 14}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Split mismatch\n got: %+v\nwant: %+v", got, want)
 	}
@@ -352,15 +450,13 @@ func TestSplit_LegacyCorpus(t *testing.T) {
 				return
 			}
 
-			// Every segment must have valid byte range and non-empty text.
+			// Every segment must have a valid byte range; one holding a
+			// statement has a non-empty one. Segments holding only
+			// whitespace or comments are kept and marked Empty().
 			for i, seg := range segments {
-				if seg.ByteStart >= seg.ByteEnd {
-					t.Errorf("%s: segment[%d] ByteStart=%d >= ByteEnd=%d",
+				if seg.ByteStart > seg.ByteEnd || (!seg.Empty() && seg.ByteStart == seg.ByteEnd) {
+					t.Errorf("%s: segment[%d] ByteStart=%d, ByteEnd=%d",
 						entry.Name(), i, seg.ByteStart, seg.ByteEnd)
-				}
-				if seg.Empty() {
-					t.Errorf("%s: segment[%d] Text is empty or whitespace-only: %q",
-						entry.Name(), i, seg.Text)
 				}
 				// Text must equal the raw slice.
 				if seg.Text != string(data)[seg.ByteStart:seg.ByteEnd] {
@@ -387,7 +483,12 @@ func TestSplit_TaskScriptingHasTwoSegments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read task_scripting.sql: %v", err)
 	}
-	segments := Split(string(data))
+	var segments []Segment
+	for _, seg := range Split(string(data)) {
+		if !seg.Empty() {
+			segments = append(segments, seg)
+		}
+	}
 	if len(segments) != 2 {
 		t.Errorf("Split(task_scripting.sql) returned %d segments, want 2:", len(segments))
 		for i, seg := range segments {
