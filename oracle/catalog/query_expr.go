@@ -108,7 +108,7 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 		case "DATE":
 			return simpleType("DATE"), false, nil
 		case "TIMESTAMP":
-			if strings.ContainsAny(n.Val, "+") || strings.Count(n.Val, "-") > 2 || strings.ContainsAny(n.Val, "/") {
+			if zonedTimestampLiteral(n.Val) {
 				return timestampType("TIMESTAMP WITH TIME ZONE", 9), false, nil
 			}
 			return timestampType("TIMESTAMP", 9), false, nil
@@ -602,6 +602,10 @@ func concatLength(t qtype) int {
 func arithmeticType(op string, l, r qtype) (qtype, error) {
 	if op == "+" && l.isDatetime() && r.isDatetime() {
 		return qtype{}, oraError("00975", "date + date not allowed")
+	}
+	if (l.isInterval() && r.isNumeric()) || (l.isNumeric() && r.isInterval()) {
+		// An interval and a number neither add nor subtract.
+		return qtype{}, oraError("00932", "expression is of data type NUMBER, which is incompatible with expected data type INTERVAL")
 	}
 	if op == "-" && r.isDatetime() && (l.isNumeric() || l.isInterval()) {
 		// A datetime subtracts only from a datetime.
@@ -1176,4 +1180,20 @@ func aggregateDepth(x ast.Node) int {
 		return true
 	})
 	return depth
+}
+
+// zonedTimestampLiteral reports a TIMESTAMP literal that names a time zone:
+// an offset after the time, or a region name (UTC, US/Pacific).
+func zonedTimestampLiteral(val string) bool {
+	fields := strings.Fields(val)
+	if len(fields) >= 3 {
+		return true
+	}
+	if len(fields) == 2 {
+		t := fields[1]
+		return strings.ContainsAny(t, "+") || strings.Contains(t[1:], "-") || strings.IndexFunc(t, func(r rune) bool {
+			return r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z'
+		}) >= 0
+	}
+	return false
 }

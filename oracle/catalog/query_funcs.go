@@ -168,6 +168,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if err := a.windowSpec(n.Over, sc, map[string]bool{}); err != nil {
 			return qtype{}, false, err
 		}
+		if needsWindowOrder[name] && n.FuncName.Schema == "" && !a.windowOrdered(n.Over, sc, map[string]bool{}) {
+			return qtype{}, false, oraError("30485", "missing ORDER BY expression in the window specification")
+		}
 	}
 	arg := func(i int) qtype {
 		if i < len(args) {
@@ -916,4 +919,31 @@ var numericOnly = map[string]bool{
 	"ASIN": true, "ACOS": true, "ATAN": true, "ATAN2": true, "SINH": true, "COSH": true,
 	"TANH": true, "BITAND": true, "NANVL": true,
 	"ROUND": true, "TRUNC": true, "CEIL": true, "FLOOR": true,
+}
+
+// needsWindowOrder are the analytic functions whose window must be ordered.
+var needsWindowOrder = map[string]bool{
+	"ROW_NUMBER": true, "RANK": true, "DENSE_RANK": true, "PERCENT_RANK": true,
+	"CUME_DIST": true, "NTILE": true, "LAG": true, "LEAD": true,
+}
+
+// windowOrdered reports whether a window, or the WINDOW definition it
+// names, orders its rows.
+func (a *queryAnalyzer) windowOrdered(w *ast.WindowSpec, sc *qscope, seen map[string]bool) bool {
+	if w == nil {
+		return false
+	}
+	if len(listItems(w.OrderBy)) > 0 {
+		return true
+	}
+	if w.WindowName == "" || seen[w.WindowName] {
+		return false
+	}
+	seen[w.WindowName] = true
+	for s := sc; s != nil; s = s.parent {
+		if def := s.windows[w.WindowName]; def != nil {
+			return a.windowOrdered(def, s, seen)
+		}
+	}
+	return false
 }

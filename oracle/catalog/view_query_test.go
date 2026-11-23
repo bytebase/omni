@@ -207,6 +207,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"distinct_parenthesized_order", `CREATE VIEW v AS SELECT DISTINCT (t.id) x FROM t ORDER BY t.id`, ""},
 		{"dual_flashback_bind", `CREATE VIEW v AS SELECT * FROM dual AS OF SCN :p`, "01027"},
 		{"aggregate_three_deep", `CREATE VIEW v AS SELECT MAX(SUM(AVG(id))) x FROM t GROUP BY n`, "00935"},
+		{"interval_plus_number", `CREATE VIEW v AS SELECT INTERVAL '1' DAY + 1 x FROM dual`, "00932"},
+		{"row_number_unordered", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER () x FROM dual`, "30485"},
+		{"row_number_named_ordered", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER w x FROM t WINDOW w AS (ORDER BY id)`, ""},
+		{"extract_tz_from_region_literal", `CREATE VIEW v AS SELECT EXTRACT(TIMEZONE_HOUR FROM TIMESTAMP '2020-01-01 00:00:00 UTC') x FROM dual`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
