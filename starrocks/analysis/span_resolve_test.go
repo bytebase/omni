@@ -16,6 +16,7 @@ var spanFixture = testcontainer.SpanFixture{Databases: []testcontainer.SpanDatab
 	},
 	Views: []testcontainer.SpanRelation{
 		{Name: "broken", Columns: []string{"id"}, Definition: "SELECT id FROM orders WHERE"},
+		{Name: "big", Columns: []string{"id"}, Definition: "SELECT id FROM shop.orders WHERE amount > 5"},
 	},
 	MaterializedViews: []testcontainer.SpanRelation{
 		{Name: "totals", Definition: "CREATE MATERIALIZED VIEW `totals` (`cid`, `total`)\nREFRESH MANUAL\nAS SELECT customer_id, sum(amount) FROM shop.orders GROUP BY customer_id"},
@@ -206,5 +207,24 @@ func TestResolveQuerySpanLambdaFieldPath(t *testing.T) {
 	info := ColumnResource{Database: "shop", Table: "customers", Column: "info"}
 	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 || !span.Results[0].SourceColumns[info] {
 		t.Errorf("results %+v, want customers.info", span.Results)
+	}
+}
+
+// An EXPLAIN reads what its query reads, views expanded, and answers with
+// a plan rather than the query's columns.
+func TestResolveQuerySpanExplain(t *testing.T) {
+	span, err := resolveWithCatalog(t, "EXPLAIN SELECT * FROM big")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !span.SourceColumns[ColumnResource{Database: "shop", Table: "orders"}] || !span.SourceColumns[ColumnResource{Database: "shop", Table: "big"}] {
+		t.Errorf("tables %v, want big and orders", span.SourceColumns)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("results %+v, want none", span.Results)
+	}
+	span, err = resolveWithCatalog(t, "EXPLAIN SELECT nope FROM orders")
+	if err != nil || span.NotFoundError == nil {
+		t.Errorf("EXPLAIN of a missing column: %v, NotFoundError %v; want one", err, span.NotFoundError)
 	}
 }
