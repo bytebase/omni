@@ -172,6 +172,13 @@ reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_
 reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882!drop-8	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY
 reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882!insert	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY 1 zzz
 reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882!swap	ALTER TABLE a AFTER INDEX a 1e1 TYPE a GRANULARITY 1
+accept	accept	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(IF_NOT_EXISTS)?	ALTER TABLE a ADD INDEX IF NOT EXISTS a 1e1 TYPE a GRANULARITY 1
+reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(IF_NOT_EXISTS)?!drop-3	ALTER TABLE a ADD INDEX NOT EXISTS a 1e1 TYPE a GRANULARITY 1
+reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(IF_NOT_EXISTS)?!drop-4	ALTER TABLE a ADD INDEX IF EXISTS a 1e1 TYPE a GRANULARITY 1
+reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(IF_NOT_EXISTS)?!drop-5	ALTER TABLE a ADD INDEX IF NOT a 1e1 TYPE a GRANULARITY 1
+accept	accept	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(AFTER_nestedIdentifier)?	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY 1 AFTER a
+reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(AFTER_nestedIdentifier)?!drop-9	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY 1 a
+reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882+alterTableClause(AFTER_nestedIdentifier)?!drop-10	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY 1 AFTER
 accept	accept	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38	ALTER TABLE a ADD PROJECTION a(SELECT *)
 reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38!drop-1	ALTER TABLE a PROJECTION a(SELECT *)
 reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38!drop-2	ALTER TABLE a ADD a(SELECT *)
@@ -182,6 +189,13 @@ reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProje
 reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38!drop-7	ALTER TABLE a ADD PROJECTION a(SELECT *
 reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38!insert	ALTER TABLE a ADD PROJECTION a(SELECT *) zzz
 reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38!swap	ALTER TABLE a AFTER PROJECTION a(SELECT *)
+accept	accept	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(IF_NOT_EXISTS)?	ALTER TABLE a ADD PROJECTION IF NOT EXISTS a(SELECT *)
+reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(IF_NOT_EXISTS)?!drop-3	ALTER TABLE a ADD PROJECTION NOT EXISTS a(SELECT *)
+reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(IF_NOT_EXISTS)?!drop-4	ALTER TABLE a ADD PROJECTION IF EXISTS a(SELECT *)
+reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(IF_NOT_EXISTS)?!drop-5	ALTER TABLE a ADD PROJECTION IF NOT a(SELECT *)
+accept	accept	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(AFTER_nestedIdentifier)?	ALTER TABLE a ADD PROJECTION a(SELECT *) AFTER a
+reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(AFTER_nestedIdentifier)?!drop-8	ALTER TABLE a ADD PROJECTION a(SELECT *) a
+reject	reject	engine	alterTableClause/ADD_PROJECTION_(IF_NOT_EXISTS)?_tableProjectionDfnt_(AF~3fd62f38+alterTableClause(AFTER_nestedIdentifier)?!drop-9	ALTER TABLE a ADD PROJECTION a(SELECT *) AFTER
 accept	accept	engine	alterTableClause/ATTACH_partitionClause_(FROM_tableIdentifier)?	ALTER TABLE a ATTACH PARTITION 1e1
 reject	reject	engine	alterTableClause/ATTACH_partitionClause_(FROM_tableIdentifier)?!drop-1	ALTER TABLE a PARTITION 1e1
 reject	reject	engine	alterTableClause/ATTACH_partitionClause_(FROM_tableIdentifier)?!drop-2	ALTER TABLE a ATTACH 1e1
@@ -199,11 +213,25 @@ reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_
 reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?!drop-3	ALTER TABLE a CLEAR INDEX
 reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?!insert	ALTER TABLE a CLEAR INDEX a zzz
 reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?!swap	ALTER TABLE a CLUSTER INDEX a
+accept	accept	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IF_EXISTS)?	ALTER TABLE a CLEAR INDEX IF EXISTS a
+reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a CLEAR INDEX EXISTS a
+reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a CLEAR INDEX IF a
+accept	accept	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IN_partitionClause)?	ALTER TABLE a CLEAR INDEX a IN PARTITION 1e1
+reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IN_partitionClause)?!drop-4	ALTER TABLE a CLEAR INDEX a PARTITION 1e1
+reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IN_partitionClause)?!drop-5	ALTER TABLE a CLEAR INDEX a IN 1e1
+reject	reject	engine	alterTableClause/CLEAR_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_partitionClause)?+alterTableClause(IN_partitionClause)?!drop-6	ALTER TABLE a CLEAR INDEX a IN PARTITION
 accept	accept	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd	ALTER TABLE a CLEAR PROJECTION a
 reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd!drop-1	ALTER TABLE a PROJECTION a
 reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd!drop-3	ALTER TABLE a CLEAR PROJECTION
 reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd!insert	ALTER TABLE a CLEAR PROJECTION a zzz
 reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd!swap	ALTER TABLE a CLUSTER PROJECTION a
+accept	accept	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IF_EXISTS)?	ALTER TABLE a CLEAR PROJECTION IF EXISTS a
+reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a CLEAR PROJECTION EXISTS a
+reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a CLEAR PROJECTION IF a
+accept	accept	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IN_partitionClause)?	ALTER TABLE a CLEAR PROJECTION a IN PARTITION 1e1
+reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IN_partitionClause)?!drop-4	ALTER TABLE a CLEAR PROJECTION a PARTITION 1e1
+reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IN_partitionClause)?!drop-5	ALTER TABLE a CLEAR PROJECTION a IN 1e1
+reject	reject	engine	alterTableClause/CLEAR_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(IN_part~52f35ebd+alterTableClause(IN_partitionClause)?!drop-6	ALTER TABLE a CLEAR PROJECTION a IN PARTITION
 accept	accept	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral	ALTER TABLE a COMMENT COLUMN a X'00'
 reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral!drop-1	ALTER TABLE a COLUMN a X'00'
 reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral!drop-2	ALTER TABLE a COMMENT a X'00'
@@ -211,6 +239,9 @@ reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifi
 reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral!drop-4	ALTER TABLE a COMMENT COLUMN a
 reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral!insert	ALTER TABLE a COMMENT COLUMN a X'00' zzz
 reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral!swap	ALTER TABLE a CONSTRAINT COLUMN a X'00'
+accept	accept	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral+alterTableClause(IF_EXISTS)?	ALTER TABLE a COMMENT COLUMN IF EXISTS a X'00'
+reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a COMMENT COLUMN EXISTS a X'00'
+reject	reject	engine	alterTableClause/COMMENT_COLUMN_(IF_EXISTS)?_nestedIdentifier_stringLiteral+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a COMMENT COLUMN IF a X'00'
 accept	accept	engine	alterTableClause/DELETE_WHERE_columnExpr	ALTER TABLE a DELETE WHERE 1e1
 reject	reject	engine	alterTableClause/DELETE_WHERE_columnExpr!drop-1	ALTER TABLE a WHERE 1e1
 reject	reject	engine	alterTableClause/DELETE_WHERE_columnExpr!drop-2	ALTER TABLE a DELETE 1e1
@@ -227,14 +258,23 @@ reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier!
 reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier!drop-3	ALTER TABLE a DROP COLUMN
 reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier!insert	ALTER TABLE a DROP COLUMN a zzz
 reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier!swap	ALTER TABLE a ELSE COLUMN a
+accept	accept	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?	ALTER TABLE a DROP COLUMN IF EXISTS a
+reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a DROP COLUMN EXISTS a
+reject	reject	engine	alterTableClause/DROP_COLUMN_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a DROP COLUMN IF a
 accept	accept	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier	ALTER TABLE a DROP INDEX a
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier!drop-3	ALTER TABLE a DROP INDEX
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier!insert	ALTER TABLE a DROP INDEX a zzz
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier!swap	ALTER TABLE a ELSE INDEX a
+accept	accept	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?	ALTER TABLE a DROP INDEX IF EXISTS a
+reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a DROP INDEX EXISTS a
+reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a DROP INDEX IF a
 accept	accept	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier	ALTER TABLE a DROP PROJECTION a
 reject	reject	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier!drop-3	ALTER TABLE a DROP PROJECTION
 reject	reject	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier!insert	ALTER TABLE a DROP PROJECTION a zzz
 reject	reject	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier!swap	ALTER TABLE a ELSE PROJECTION a
+accept	accept	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?	ALTER TABLE a DROP PROJECTION IF EXISTS a
+reject	reject	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a DROP PROJECTION EXISTS a
+reject	reject	engine	alterTableClause/DROP_PROJECTION_(IF_EXISTS)?_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a DROP PROJECTION IF a
 accept	accept	engine	alterTableClause/DROP_partitionClause	ALTER TABLE a DROP PARTITION 1e1
 reject	reject	engine	alterTableClause/DROP_partitionClause!drop-2	ALTER TABLE a DROP 1e1
 reject	reject	engine	alterTableClause/DROP_partitionClause!drop-3	ALTER TABLE a DROP PARTITION
@@ -247,10 +287,24 @@ reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdent
 reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939!drop-3	ALTER TABLE a MATERIALIZE INDEX
 reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939!insert	ALTER TABLE a MATERIALIZE INDEX a zzz
 reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939!swap	ALTER TABLE a MATERIALIZED INDEX a
+accept	accept	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IF_EXISTS)?	ALTER TABLE a MATERIALIZE INDEX IF EXISTS a
+reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MATERIALIZE INDEX EXISTS a
+reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MATERIALIZE INDEX IF a
+accept	accept	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IN_partitionClause)?	ALTER TABLE a MATERIALIZE INDEX a IN PARTITION 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IN_partitionClause)?!drop-4	ALTER TABLE a MATERIALIZE INDEX a PARTITION 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IN_partitionClause)?!drop-5	ALTER TABLE a MATERIALIZE INDEX a IN 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_INDEX_(IF_EXISTS)?_nestedIdentifier_(IN_par~af546939+alterTableClause(IN_partitionClause)?!drop-6	ALTER TABLE a MATERIALIZE INDEX a IN PARTITION
 accept	accept	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721	ALTER TABLE a MATERIALIZE PROJECTION a
 reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721!drop-3	ALTER TABLE a MATERIALIZE PROJECTION
 reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721!insert	ALTER TABLE a MATERIALIZE PROJECTION a zzz
 reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721!swap	ALTER TABLE a MATERIALIZED PROJECTION a
+accept	accept	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IF_EXISTS)?	ALTER TABLE a MATERIALIZE PROJECTION IF EXISTS a
+reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MATERIALIZE PROJECTION EXISTS a
+reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MATERIALIZE PROJECTION IF a
+accept	accept	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IN_partitionClause)?	ALTER TABLE a MATERIALIZE PROJECTION a IN PARTITION 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IN_partitionClause)?!drop-4	ALTER TABLE a MATERIALIZE PROJECTION a PARTITION 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IN_partitionClause)?!drop-5	ALTER TABLE a MATERIALIZE PROJECTION a IN 1e1
+reject	reject	engine	alterTableClause/MATERIALIZE_PROJECTION_(IF_EXISTS)?_nestedIdentifier_(I~97070721+alterTableClause(IN_partitionClause)?!drop-6	ALTER TABLE a MATERIALIZE PROJECTION a IN PARTITION
 accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr	ALTER TABLE a MODIFY COLUMN a CODEC(a)
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr!drop-1	ALTER TABLE a COLUMN a CODEC(a)
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr!drop-2	ALTER TABLE a MODIFY a CODEC(a)
@@ -261,6 +315,9 @@ reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifie
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr!drop-7	ALTER TABLE a MODIFY COLUMN a CODEC(a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr!insert	ALTER TABLE a MODIFY COLUMN a CODEC(a) zzz
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr!swap	ALTER TABLE a MONTH COLUMN a CODEC(a)
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY COLUMN IF EXISTS a CODEC(a)
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY COLUMN EXISTS a CODEC(a)
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_codecExpr+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY COLUMN IF a CODEC(a)
 accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf	ALTER TABLE a MODIFY COLUMN a COMMENT X'00'
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf!drop-1	ALTER TABLE a COLUMN a COMMENT X'00'
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf!drop-2	ALTER TABLE a MODIFY a COMMENT X'00'
@@ -269,6 +326,9 @@ reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifie
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf!drop-5	ALTER TABLE a MODIFY COLUMN a COMMENT
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf!insert	ALTER TABLE a MODIFY COLUMN a COMMENT X'00' zzz
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf!swap	ALTER TABLE a MONTH COLUMN a COMMENT X'00'
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY COLUMN IF EXISTS a COMMENT X'00'
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY COLUMN EXISTS a COMMENT X'00'
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_COMMENT_str~5b7080cf+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY COLUMN IF a COMMENT X'00'
 accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340	ALTER TABLE a MODIFY COLUMN a REMOVE ALIAS
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340!drop-1	ALTER TABLE a COLUMN a REMOVE ALIAS
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340!drop-2	ALTER TABLE a MODIFY a REMOVE ALIAS
@@ -277,11 +337,17 @@ reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifie
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340!drop-5	ALTER TABLE a MODIFY COLUMN a REMOVE
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340!insert	ALTER TABLE a MODIFY COLUMN a REMOVE ALIAS zzz
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340!swap	ALTER TABLE a MONTH COLUMN a REMOVE ALIAS
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY COLUMN IF EXISTS a REMOVE ALIAS
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY COLUMN EXISTS a REMOVE ALIAS
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_nestedIdentifier_REMOVE_tabl~8c8b4340+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY COLUMN IF a REMOVE ALIAS
 accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt	ALTER TABLE a MODIFY COLUMN a a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt!drop-2	ALTER TABLE a MODIFY a a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt!drop-3	ALTER TABLE a MODIFY COLUMN a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt!insert	ALTER TABLE a MODIFY COLUMN a a zzz
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt!swap	ALTER TABLE a MONTH COLUMN a a
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY COLUMN IF EXISTS a a
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY COLUMN EXISTS a a
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY COLUMN IF a a
 accept	accept	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr	ALTER TABLE a MODIFY ORDER BY 1e1
 reject	reject	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr!drop-1	ALTER TABLE a ORDER BY 1e1
 reject	reject	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr!drop-2	ALTER TABLE a MODIFY BY 1e1
@@ -317,6 +383,9 @@ reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifie
 reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier!drop-5	ALTER TABLE a RENAME COLUMN a TO
 reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
 reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier!swap	ALTER TABLE a REPLACE COLUMN a TO a
+accept	accept	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier+alterTableClause(IF_EXISTS)?	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a RENAME COLUMN EXISTS a TO a
+reject	reject	engine	alterTableClause/RENAME_COLUMN_(IF_EXISTS)?_nestedIdentifier_TO_nestedIdentifier+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a RENAME COLUMN IF a TO a
 accept	accept	engine	alterTableClause/REPLACE_partitionClause_FROM_tableIdentifier	ALTER TABLE a REPLACE PARTITION 1e1 FROM a
 reject	reject	engine	alterTableClause/REPLACE_partitionClause_FROM_tableIdentifier!drop-1	ALTER TABLE a PARTITION 1e1 FROM a
 reject	reject	engine	alterTableClause/REPLACE_partitionClause_FROM_tableIdentifier!drop-2	ALTER TABLE a REPLACE 1e1 FROM a
@@ -450,6 +519,14 @@ reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5!drop-7	ATTACH DICTIONARY a(a a
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5!insert	ATTACH DICTIONARY a(a a) zzz
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5!swap	BETWEEN DICTIONARY a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?	ATTACH DICTIONARY IF NOT EXISTS a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-3	ATTACH DICTIONARY NOT EXISTS a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH DICTIONARY IF EXISTS a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH DICTIONARY IF NOT a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?	ATTACH DICTIONARY a ON CLUSTER a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-4	ATTACH DICTIONARY a CLUSTER a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-5	ATTACH DICTIONARY a ON a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-6	ATTACH DICTIONARY a ON CLUSTER(a a)
 accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47	ATTACH MATERIALIZED VIEW a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!drop-1	MATERIALIZED VIEW a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!drop-2	ATTACH VIEW a TO a AS SELECT *
@@ -462,10 +539,26 @@ reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!drop-9	ATTACH MATERIALIZED VIEW a TO a AS SELECT
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!insert	ATTACH MATERIALIZED VIEW a TO a AS SELECT * zzz
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!swap	BETWEEN MATERIALIZED VIEW a TO a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?	ATTACH MATERIALIZED VIEW IF NOT EXISTS a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH MATERIALIZED VIEW NOT EXISTS a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH MATERIALIZED VIEW IF EXISTS a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-6	ATTACH MATERIALIZED VIEW IF NOT a TO a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?	ATTACH MATERIALIZED VIEW a ON CLUSTER a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-5	ATTACH MATERIALIZED VIEW a CLUSTER a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-6	ATTACH MATERIALIZED VIEW a ON a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-7	ATTACH MATERIALIZED VIEW a ON CLUSTER TO a AS SELECT *
 accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80	ATTACH TABLE a
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80!drop-3	ATTACH TABLE
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80!insert	ATTACH TABLE a zzz
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80!swap	BETWEEN TABLE a
+accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(IF_NOT_EXISTS)?	ATTACH TABLE IF NOT EXISTS a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(IF_NOT_EXISTS)?!drop-3	ATTACH TABLE NOT EXISTS a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH TABLE IF EXISTS a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH TABLE IF NOT a
+accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(clusterClause)?	ATTACH TABLE a ON CLUSTER a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(clusterClause)?!drop-4	ATTACH TABLE a CLUSTER a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(clusterClause)?!drop-5	ATTACH TABLE a ON a
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80+createStmt(clusterClause)?!drop-6	ATTACH TABLE a ON CLUSTER
 accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e	ATTACH VIEW a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e!drop-1	VIEW a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e!drop-2	ATTACH a AS SELECT *
@@ -475,6 +568,17 @@ reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXIST
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e!drop-6	ATTACH VIEW a AS SELECT
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e!insert	ATTACH VIEW a AS SELECT * zzz
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e!swap	BETWEEN VIEW a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(OR_REPLACE)?	ATTACH OR REPLACE VIEW a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(OR_REPLACE)?!drop-2	ATTACH REPLACE VIEW a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(OR_REPLACE)?!drop-3	ATTACH OR VIEW a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?	ATTACH VIEW IF NOT EXISTS a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-3	ATTACH VIEW NOT EXISTS a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH VIEW IF EXISTS a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH VIEW IF NOT a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?	ATTACH VIEW a ON CLUSTER a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-4	ATTACH VIEW a CLUSTER a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-5	ATTACH VIEW a ON a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-6	ATTACH VIEW a ON CLUSTER AS SELECT *
 accept	accept	engine	createStmt(ATTACH|CREATE)/ATTACH	ATTACH DATABASE a
 reject	reject	engine	createStmt(ATTACH|CREATE)/ATTACH!insert	ATTACH zzz DATABASE a
 accept	accept	engine	createStmt(ATTACH|CREATE)/CREATE	CREATE DATABASE a
@@ -952,6 +1056,13 @@ accept	accept	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456!drop-3	DETACH DICTIONARY
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456!insert	DETACH DICTIONARY a zzz
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456!swap	DICTIONARIES DICTIONARY a
+accept	accept	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(IF_EXISTS)?	DETACH DICTIONARY IF EXISTS a
+reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(IF_EXISTS)?!drop-3	DETACH DICTIONARY EXISTS a
+reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(IF_EXISTS)?!drop-4	DETACH DICTIONARY IF a
+accept	accept	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?	DETACH DICTIONARY a ON CLUSTER a
+reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-4	DETACH DICTIONARY a CLUSTER a
+reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-5	DETACH DICTIONARY a ON a
+reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-6	DETACH DICTIONARY a ON CLUSTER
 accept	accept	engine	dropStmt(DETACH|DROP)/DETACH	DETACH DATABASE a
 reject	reject	engine	dropStmt(DETACH|DROP)/DETACH!insert	DETACH zzz DATABASE a
 accept	accept	engine	dropStmt(DETACH|DROP)/DROP	DROP DATABASE a
@@ -2140,6 +2251,7 @@ reject	reject	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/TABLE!insert	SHOW
 accept	accept	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/CREATE_(TEMPORARY)?_(TABLE)?	SHOW CREATE a
 reject	reject	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/CREATE_(TEMPORARY)?_(TABLE)?!insert	SHOW CREATE zzz a
 reject	reject	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/CREATE_(TEMPORARY)?_(TABLE)?!swap	SHOW CROSS a
+accept	accept	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/CREATE_(TEMPORARY)?_(TABLE)?+showStmt(TEMPORARY)?	SHOW CREATE TEMPORARY a
 accept	accept	engine	showStmt(TABLE)?/%empty	SHOW CREATE a
 accept	accept	engine	showStmt(TABLE)?/TABLE	SHOW CREATE TABLE a
 reject	reject	engine	showStmt(TABLE)?/TABLE!insert	SHOW CREATE TABLE zzz a

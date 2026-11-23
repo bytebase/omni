@@ -12,3 +12,18 @@ FLOATING_LITERAL	1e1	ClickHouseLexer.g4:255 floating-point literal with exponent
 STRING_LITERAL	'a'	ClickHouseLexer.g4:268 single-quoted string literal
 HEXADECIMAL_STRING_LITERAL	X'00'	ClickHouseLexer.g4:247 hexadecimal string literal
 BINARY_STRING_LITERAL	B'00'	ClickHouseLexer.g4:248 binary string literal
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one site the shortest row reaches. Each names the rule ReadANTLR
+# lowers the inline group to: <owner>(<group>)?.
+alterTableClause(IF_NOT_EXISTS)?	(every site)	ClickHouseParser.g4:44 ADD ... IF NOT EXISTS
+alterTableClause(IF_EXISTS)?	(every site)	ClickHouseParser.g4:48 CLEAR, COMMENT, DROP, MATERIALIZE, MODIFY, RENAME ... IF EXISTS
+createStmt(IF_NOT_EXISTS)?	(every site)	ClickHouseParser.g4:99 CREATE ... IF NOT EXISTS
+createStmt(OR_REPLACE)?	(every site)	ClickHouseParser.g4:100 CREATE OR REPLACE
+dropStmt(IF_EXISTS)?	(every site)	ClickHouseParser.g4:191 DROP ... IF EXISTS
+createStmt(TEMPORARY)?	(every site)	ClickHouseParser.g4:102 CREATE TEMPORARY TABLE
+dropStmt(TEMPORARY)?	(every site)	ClickHouseParser.g4:192 DROP TEMPORARY TABLE
+showStmt(TEMPORARY)?	(every site)	ClickHouseParser.g4:376 SHOW TEMPORARY TABLES, SHOW CREATE TEMPORARY TABLE
+createStmt(clusterClause)?	(every site)	ClickHouseParser.g4:99 CREATE ... ON CLUSTER
+dropStmt(clusterClause)?	(every site)	ClickHouseParser.g4:191 DROP ... ON CLUSTER
+alterTableClause(IN_partitionClause)?	(every site)	ClickHouseParser.g4:48 CLEAR, MATERIALIZE ... IN PARTITION
+alterTableClause(AFTER_nestedIdentifier)?	(every site)	ClickHouseParser.g4:43 ADD ... AFTER

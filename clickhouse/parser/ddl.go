@@ -44,7 +44,11 @@ func (p *parser) parseCreateStmt() (Statement, error) {
 	action := strings.ToUpper(p.advance().Val) // CREATE, ATTACH, or REPLACE
 
 	orReplace := false
-	if action == "CREATE" && p.cur().Type == KwOr && p.peek(1).Type == KwReplace {
+	// ATTACH takes OR REPLACE before VIEW only: ClickHouseParser.g4:103
+	// writes (ATTACH | CREATE) (OR REPLACE)? VIEW, and ParserCreateViewQuery
+	// reads OR REPLACE after either keyword.
+	if (action == "CREATE" || action == "ATTACH" && p.peek(2).Type == KwView) &&
+		p.cur().Type == KwOr && p.peek(1).Type == KwReplace {
 		p.advance()
 		p.advance()
 		orReplace = true
