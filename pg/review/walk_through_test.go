@@ -695,6 +695,7 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 	schema.Schemas[0].RangeTypes = []*metadata.RangeTypeMetadata{
 		{Name: "myrange"},
 		{Name: "customrange", MultirangeName: "custom_mr"},
+		{Name: "r_mr", MultirangeName: "public.r_mr_multirange"},
 	}
 	schema.Schemas[0].ExternalTables = []*metadata.ExternalTableMetadata{{Name: "ft"}}
 	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{
@@ -873,6 +874,11 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 		"CREATE TABLE text (a text);",
 		"CREATE SCHEMA s_dom;\nSET search_path = s_dom, public;\nCREATE DOMAIN d AS d;",
 		"CREATE TYPE r_drop AS RANGE (SUBTYPE = int4);\nDROP TYPE r_drop;",
+		// Dropping a synced range type invalidates its companion multirange type.
+		"DROP TYPE public.customrange;\nCREATE TYPE public.custom_mr AS ENUM ('x');",
+		"DROP TYPE public.r_mr;\nCREATE TYPE public.r_mr_multirange AS ENUM ('x');",
+		"ALTER TYPE public.customrange RENAME TO customrange2;\nDROP TYPE public.customrange2;\nCREATE TYPE public.custom_mr AS ENUM ('x');",
+		"ALTER TYPE public.custom_mr RENAME TO custom_mr2;\nDROP TYPE public.customrange;\nCREATE TYPE public.custom_mr2 AS ENUM ('x');",
 		// Enum ADD VALUE IF NOT EXISTS with same neighbor (valid no-op when value exists).
 		"ALTER TYPE mood ADD VALUE IF NOT EXISTS 'a' BEFORE 'a';",
 		// DROP TYPE IF EXISTS array / SETOF.
@@ -1066,5 +1072,34 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 	other.OtherSpecs = true
 	if got := walkFindings(t, "ALTER TABLE t ALTER n DROP IDENTITY;", other); len(got) != 0 {
 		t.Errorf("OtherSpecs: findings = %+v, want none", got)
+	}
+
+	// TimescaleDB extension disables snapshot routine absence and signature
+	// completeness because pg/driver/sync.go omits routines whose definition
+	// contains "$libdir/timescaledb".
+	tsSchema := &metadata.DatabaseSchemaMetadata{
+		Name:       "mydb",
+		SearchPath: `"$user", public`,
+		Extensions: []*metadata.ExtensionMetadata{{Name: "timescaledb", Schema: "public"}},
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadata.FunctionMetadata{
+				{Name: "plain_fn", Definition: "CREATE OR REPLACE FUNCTION public.plain_fn() RETURNS integer LANGUAGE sql AS 'SELECT 1'"},
+			},
+		}},
+	}
+	tsTarget := review.Target{Schema: tsSchema, SessionUser: "alice"}
+	for _, sql := range []string{
+		"ALTER FUNCTION public.create_hypertable(regclass, name) IMMUTABLE;",
+		"ALTER FUNCTION create_hypertable(regclass, name) IMMUTABLE;",
+		"ALTER PROCEDURE public.ts_proc() SET search_path = public;",
+		"ALTER FUNCTION public.plain_fn() ROWS 10;",
+	} {
+		if got := walkFindings(t, sql, tsTarget); len(got) != 0 {
+			t.Errorf("timescaledb %q: findings = %+v, want none", sql, got)
+		}
+	}
+	if got := walkFindings(t, "ALTER FUNCTION missing_schema.f() IMMUTABLE;", tsTarget); len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{review.ObjectNotFound}) {
+		t.Errorf("timescaledb missing schema: findings = %+v, want one ObjectNotFound", got)
 	}
 }

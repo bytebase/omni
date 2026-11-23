@@ -2769,6 +2769,11 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 			typmodTypes[rekey(k)] = true
 		}
 		w.typmodTypes = typmodTypes
+		rangeMultirange := make(map[walk.Key]walk.Key, len(w.rangeMultirange))
+		for rk, mr := range w.rangeMultirange {
+			rangeMultirange[rekey(rk)] = rekey(mr)
+		}
+		w.rangeMultirange = rangeMultirange
 		// What the synced schema listed in it is there under the new name.
 		for _, k := range w.pg.inSchema[oldName] {
 			w.made = append(w.made, rekey(k))
@@ -3072,6 +3077,15 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 	}
 	b.set(k, walk.Absent, "")
 	b.clear(walk.Scope{Parent: walk.Path(name), Deep: true})
+	for rk, mrKey := range b.w.rangeMultirange {
+		if rk.Parent == walk.Path(name) && mrKey.Parent != walk.Path(name) {
+			if mf, _ := b.l.Lookup(mrKey); mf == walk.Present {
+				b.set(mrKey, walk.Unknown, "")
+			}
+			b.mayRemoveArrayType(schemaOfKey(mrKey))
+			b.mayRemove(walk.Scope{Space: spaceFunction, Parent: mrKey.Parent})
+		}
+	}
 	b.session(func() {
 		b.w.allDirty = true
 		// What it held is gone, and so is the partition state of it.
@@ -3097,6 +3111,11 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 		for k := range w.typmodTypes {
 			if in(k) {
 				delete(w.typmodTypes, k)
+			}
+		}
+		for rk, mrKey := range w.rangeMultirange {
+			if in(rk) || in(mrKey) {
+				delete(w.rangeMultirange, rk)
 			}
 		}
 		for _, k := range w.pg.inSchema[name] {
@@ -3179,6 +3198,11 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 		}
 		if !domain {
 			b.mayRemove(walk.Scope{Space: spaceFunction, Deep: true})
+			for _, mrKey := range b.w.rangeMultirange {
+				if mf, _ := b.l.Lookup(mrKey); mf == walk.Present {
+					b.set(mrKey, walk.Unknown, "")
+				}
+			}
 		}
 		b.session(func() { b.w.allDirty = true })
 		return
@@ -3221,15 +3245,30 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 	s := schemaOfKey(r.key)
 	b.mayRemoveArrayType(s)
 	if !domain {
-		// Dropping a range type also drops its range/multirange constructor
-		// functions in pg_proc.
+		// Dropping a range type also drops its companion multirange type (and
+		// array type) and its range/multirange constructor functions in pg_proc.
 		b.mayRemove(walk.Scope{Space: spaceFunction, Parent: walk.Path(s)})
+		if mrKey, ok := b.w.rangeMultirange[r.key]; ok {
+			if mf, _ := b.l.Lookup(mrKey); mf == walk.Present {
+				b.set(mrKey, walk.Unknown, "")
+			}
+			if ms := schemaOfKey(mrKey); ms != s {
+				b.mayRemoveArrayType(ms)
+				b.mayRemove(walk.Scope{Space: spaceFunction, Parent: mrKey.Parent})
+			}
+		}
 	}
 	b.set(r.key, walk.Absent, "")
 	rk := relKey(s, r.key.Name)
 	b.session(func() {
 		delete(b.w.shellTypes, r.key)
 		delete(b.w.typmodTypes, r.key)
+		delete(b.w.rangeMultirange, r.key)
+		for k, mr := range b.w.rangeMultirange {
+			if mr == r.key {
+				delete(b.w.rangeMultirange, k)
+			}
+		}
 		b.w.dirtyTypes[rk] = true
 	})
 	switch f, kind := b.l.Lookup(rk); {
@@ -4648,9 +4687,20 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		if rf == walk.Present && rkind == relComposite {
 			b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s), Kinds: []string{relComposite}})
 		}
+		if mrKey, hasMR := b.w.rangeMultirange[r.key]; hasMR {
+			if mf, _ := b.l.Lookup(mrKey); mf == walk.Present {
+				b.set(mrKey, walk.Unknown, "")
+			}
+		}
 		b.session(func() {
 			delete(b.w.shellTypes, r.key)
 			delete(b.w.typmodTypes, r.key)
+			delete(b.w.rangeMultirange, r.key)
+			for k, mr := range b.w.rangeMultirange {
+				if mr == r.key {
+					delete(b.w.rangeMultirange, k)
+				}
+			}
 		})
 		return true
 	}
@@ -4679,6 +4729,15 @@ func (b *builder) renameType(v *ast.RenameStmt) bool {
 		if b.w.typmodTypes[r.key] {
 			delete(b.w.typmodTypes, r.key)
 			b.w.typmodTypes[nk] = true
+		}
+		if mrKey, hasMR := b.w.rangeMultirange[r.key]; hasMR {
+			delete(b.w.rangeMultirange, r.key)
+			b.w.rangeMultirange[nk] = mrKey
+		}
+		for k, mr := range b.w.rangeMultirange {
+			if mr == r.key {
+				b.w.rangeMultirange[k] = nk
+			}
 		}
 	})
 	b.made(nk)
@@ -4786,6 +4845,12 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 		b.mayAdd(walk.Scope{Space: spaceType, Parent: walk.Path(ns)})
 		b.mayRemove(walk.Scope{Space: spaceFunction, Parent: walk.Path(old)})
 		b.mayAdd(walk.Scope{Space: spaceFunction, Parent: walk.Path(ns)})
+		if mrKey, hasMR := b.w.rangeMultirange[r.key]; hasMR && schemaOfKey(mrKey) != old {
+			if mf, _ := b.l.Lookup(mrKey); mf == walk.Present {
+				b.set(mrKey, walk.Unknown, "")
+			}
+			b.mayRemove(walk.Scope{Space: spaceFunction, Parent: mrKey.Parent})
+		}
 		b.set(r.key, walk.Absent, "")
 		b.set(nk, walk.Present, r.kind)
 		b.session(func() {
@@ -4796,6 +4861,15 @@ func (b *builder) setSchemaType(v *ast.AlterObjectSchemaStmt) bool {
 			if b.w.typmodTypes[r.key] {
 				delete(b.w.typmodTypes, r.key)
 				b.w.typmodTypes[nk] = true
+			}
+			if mrKey, hasMR := b.w.rangeMultirange[r.key]; hasMR {
+				delete(b.w.rangeMultirange, r.key)
+				b.w.rangeMultirange[nk] = mrKey
+			}
+			for k, mr := range b.w.rangeMultirange {
+				if mr == r.key {
+					b.w.rangeMultirange[k] = nk
+				}
 			}
 		})
 		b.made(nk)
@@ -5736,7 +5810,7 @@ func (b *builder) alterFunction(v *ast.AlterFunctionStmt) bool {
 // (for unqualified names, no other search-path schema or pg_catalog holds the
 // name) and the routine has not been modified earlier in the change.
 func (b *builder) uniqueSyncedFunc(parts []string, r resolved) (*syncedFuncInfo, bool) {
-	if r.fact != walk.Present || r.key.Space != spaceFunction || b.w.isRoutineDirty(r.key) || b.w.pg == nil {
+	if r.fact != walk.Present || r.key.Space != spaceFunction || b.w.isRoutineDirty(r.key) || b.w.pg == nil || b.w.pg.lostRoutines {
 		return nil, false
 	}
 	targetSchema := schemaOfKey(r.key)

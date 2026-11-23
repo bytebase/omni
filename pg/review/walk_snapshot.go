@@ -99,7 +99,12 @@ var systemColumns = map[string]bool{
 // index, partition, trigger, or rule, which the sync drops with it. Such
 // a relation is a table named like a system catalog, a view or
 // materialized view named like an extension's, or a partition placed in a
-// system schema.
+// system schema. Likewise, pg/driver/sync.go omits routines for which
+// pg/analysis.IsSystemFunction(name, definition) is true, including any
+// definition containing "$libdir/timescaledb"; when a TimescaleDB extension
+// or schema is present in the synced metadata, lostRoutines disables routine
+// absence and signature-completeness claims across all synced schemas, and
+// otherwise ordinary user routines are assumed not to embed "$libdir/timescaledb".
 type pgSnapshot struct {
 	schemas   map[string]bool
 	relations map[[2]string]string
@@ -120,13 +125,22 @@ type pgSnapshot struct {
 	// rangeConstructors marks pre-existing range and multirange constructor
 	// names omitted from SchemaMetadata.Functions by pg/driver/sync.go.
 	rangeConstructors map[[2]string]bool
-	viewCols          map[[2]string]int
+	// rangeMultirange maps each synced range type (schema, name) to its
+	// companion multirange type (schema, name), which DROP TYPE on the range
+	// drops automatically (pg: src/backend/catalog/dependency.c).
+	rangeMultirange map[[2]string][2]string
+	viewCols        map[[2]string]int
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
 	// lost is true when the sync may have lost partitions, of any name in
 	// any schema: no relation's absence is trusted then.
 	lost bool
+	// lostRoutines is true when a TimescaleDB extension or schema is present
+	// in the synced metadata, so pg/driver/sync.go's definition-based
+	// "$libdir/timescaledb" exclusion may have omitted routines of any name:
+	// no routine's absence or overload completeness is trusted then.
+	lostRoutines bool
 	// inSchema lists the relations, types, and routines each schema holds.
 	inSchema map[string][]walk.Key
 
@@ -192,6 +206,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		procedures:        make(map[[2]string]bool),
 		ambigRoutines:     make(map[[2]string]bool),
 		rangeConstructors: make(map[[2]string]bool),
+		rangeMultirange:   make(map[[2]string][2]string),
 		viewCols:          make(map[[2]string]int),
 		anywhere:          make(map[string]bool),
 		inSchema:          make(map[string][]walk.Key),
@@ -207,8 +222,17 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 	if db == nil {
 		return s
 	}
+	for _, ext := range db.GetExtensions() {
+		if strings.Contains(strings.ToLower(ext.GetName()), "timescaledb") {
+			s.lostRoutines = true
+			break
+		}
+	}
 	for _, schema := range db.GetSchemas() {
 		name := schema.GetName()
+		if strings.Contains(strings.ToLower(name), "timescaledb") {
+			s.lostRoutines = true
+		}
 		if trustedSchemaName(name) {
 			s.schemas[name] = true
 		}
@@ -357,9 +381,12 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				case 1:
 					rowType(mrParts[0])
 					s.rangeConstructors[[2]string{name, mrParts[0]}] = true
+					s.rangeMultirange[[2]string{name, rt.GetName()}] = [2]string{name, mrParts[0]}
 				case 2:
 					s.types[[2]string{mrParts[0], mrParts[1]}] = true
+					s.inSchema[mrParts[0]] = append(s.inSchema[mrParts[0]], typeKey(mrParts[0], mrParts[1]))
 					s.rangeConstructors[[2]string{mrParts[0], mrParts[1]}] = true
+					s.rangeMultirange[[2]string{name, rt.GetName()}] = [2]string{mrParts[0], mrParts[1]}
 				}
 			} else {
 				s.rangeConstructors[[2]string{name, rt.GetName() + "_multirange"}] = true
@@ -815,7 +842,7 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if s.ambigRoutines[[2]string{schema, k.Name}] || s.rangeConstructors[[2]string{schema, k.Name}] {
 			return walk.Unknown, ""
 		}
-		if s.schemas[schema] && trustedRoutineName(k.Name) {
+		if !s.lostRoutines && s.schemas[schema] && trustedRoutineName(k.Name) {
 			return walk.Absent, ""
 		}
 	case spaceProcedure:
@@ -829,7 +856,7 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if s.ambigRoutines[[2]string{schema, k.Name}] {
 			return walk.Unknown, ""
 		}
-		if s.schemas[schema] && trustedRoutineName(k.Name) {
+		if !s.lostRoutines && s.schemas[schema] && trustedRoutineName(k.Name) {
 			return walk.Absent, ""
 		}
 	case spaceColumn:

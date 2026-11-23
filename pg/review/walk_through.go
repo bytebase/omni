@@ -55,6 +55,7 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		w.triggered = true
 		w.allDirty = true
 		w.partitioned = make(map[walk.Key]bool)
+		w.rangeMultirange = make(map[walk.Key]walk.Key)
 		w.pg.viewCols = nil
 	}
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
@@ -266,6 +267,9 @@ type walker struct {
 	// typmodTypes marks user-defined base types in this change that accept
 	// type modifiers (defined or altered with TYPMOD_IN).
 	typmodTypes map[walk.Key]bool
+	// rangeMultirange maps each range type key to its companion multirange
+	// type key so dropping the range invalidates its companion multirange.
+	rangeMultirange map[walk.Key]walk.Key
 	// modifiedViews marks synced views whose column count may have changed
 	// earlier in this change (replaced, dropped, renamed, or moved).
 	modifiedViews map[walk.Key]bool
@@ -293,9 +297,10 @@ func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 		routines:      make(map[string]bool),
 		partitioned:   make(map[walk.Key]bool),
 		partitions:    make(map[walk.Key][]walk.Key),
-		shellTypes:    make(map[walk.Key]bool),
-		typmodTypes:   make(map[walk.Key]bool),
-		modifiedViews: make(map[walk.Key]bool),
+		shellTypes:      make(map[walk.Key]bool),
+		typmodTypes:     make(map[walk.Key]bool),
+		rangeMultirange: make(map[walk.Key]walk.Key),
+		modifiedViews:   make(map[walk.Key]bool),
 		dirtyTables:   make(map[walk.Key]bool),
 		dirtyRoutines: make(map[walk.Key]bool),
 		dirtyTypes:    make(map[walk.Key]bool),
@@ -306,6 +311,9 @@ func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	}
 	if path := parseSearchPath(db.GetSearchPath()); len(path) > 0 {
 		w.path = path
+	}
+	for rk, mr := range w.pg.rangeMultirange {
+		w.rangeMultirange[typeKey(rk[0], rk[1])] = typeKey(mr[0], mr[1])
 	}
 	for _, schema := range db.GetSchemas() {
 		for _, t := range schema.GetTables() {
