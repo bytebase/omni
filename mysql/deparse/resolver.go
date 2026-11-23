@@ -5,6 +5,7 @@ package deparse
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -288,9 +289,15 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 	}
 	// A CTE of a table's name keeps that table's schema (viewTableSchema).
 	// A derived table in the FROM clause is resolved on its own scope, so
-	// the outer one is put back after.
+	// the outer one is put back after; the CTEs of the query that holds the
+	// derived table shadow its tables too.
 	outerShadowing := r.shadowing
 	r.shadowing = localCTETables
+	if len(outerShadowing) > 0 {
+		r.shadowing = make(map[string]*ResolverTable, len(outerShadowing)+len(localCTETables))
+		maps.Copy(r.shadowing, outerShadowing)
+		maps.Copy(r.shadowing, localCTETables)
+	}
 	sc := r.buildScope(stmt.From, origLookup)
 	r.shadowing = outerShadowing
 	sc.parent = parentScope

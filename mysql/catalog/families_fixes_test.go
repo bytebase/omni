@@ -456,3 +456,18 @@ func TestRoundThreeReviewCases(t *testing.T) {
 const subpartitioned = `CREATE TABLE s (id INT NOT NULL, y INT NOT NULL) PARTITION BY RANGE (y) SUBPARTITION BY HASH (id) SUBPARTITIONS 2
 	(PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 	CREATE TABLE plain (id INT NOT NULL, y INT NOT NULL);`
+
+func TestRoundFourReviewCases(t *testing.T) {
+	// A derived table's tables are shadowed by the CTEs of the query that
+	// holds it, so a.t keeps its schema inside it.
+	c := familiesCatalog(t, "CREATE TABLE t (id INT);")
+	mustExec(t, c, "CREATE VIEW v AS WITH t AS (SELECT 2 AS id) SELECT d.id FROM (SELECT a.t.id FROM a.t) d")
+	if got := c.GetDatabase("a").Views["v"].Definition; !strings.Contains(got, "from `a`.`t`") {
+		t.Errorf("v reads the CTE inside the derived table:\n%s", got)
+	}
+	// IF NOT EXISTS on a system the server ships changes nothing of it.
+	c = familiesCatalog(t, `CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 3857 NAME 'zz' DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';`)
+	if got := familiesCode(t, c, "CREATE TABLE p (g GEOMETRY NOT NULL SRID 3857, SPATIAL KEY (g)) ENGINE = MyISAM"); got != 0 {
+		t.Errorf("SRID 3857 stays projected: got %d", got)
+	}
+}

@@ -8,8 +8,15 @@ import (
 )
 
 // defineSRS records a spatial reference system CREATE SPATIAL REFERENCE
-// SYSTEM added, which a column's SRID may then name.
+// SYSTEM added, which a column's SRID may then name. A system the server
+// ships stays as it is, and IF NOT EXISTS leaves one that exists alone.
 func (c *Catalog) defineSRS(s *nodes.CreateSpatialRefSysStmt) {
+	if builtIn, _ := lookupSRS(int(s.SRID)); builtIn {
+		return
+	}
+	if _, defined := c.userSRS[int(s.SRID)]; defined && s.IfNotExists {
+		return
+	}
 	if c.userSRS == nil {
 		c.userSRS = make(map[int]bool)
 	}
