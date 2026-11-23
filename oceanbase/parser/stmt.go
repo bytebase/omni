@@ -787,13 +787,16 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			p.addTokenCandidate(kwTABLE)
 			return nil, &ParseError{Message: "collecting"}
 		}
-		if p.cur.Type != kwTABLE {
+		if p.cur.Type != kwTABLE && p.cur.Type != kwTABLES {
 			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
 	switch p.cur.Type {
-	case kwTABLE:
+	case kwTABLE, kwTABLES:
+		// drop_table_stmt: DROP opt_temporary table_or_tables ...
+		// (sql_parser_mysql_mode.y:10940), and table_or_tables is TABLE or
+		// TABLES.
 		return p.parseDropTableStmt(start, temporary)
 
 	case kwINDEX:

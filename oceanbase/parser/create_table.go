@@ -1222,13 +1222,14 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// [[NOT] ENFORCED]
+		// [[NOT] ENFORCED]: check_state (sql_parser_mysql_mode.y:10388) is
+		// NOT ENFORCED or ENFORCED, so a NOT alone is a 1064.
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				constr.NotEnforced = true
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
+			constr.NotEnforced = true
 		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}

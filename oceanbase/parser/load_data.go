@@ -478,7 +478,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -492,7 +492,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -504,7 +504,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -515,7 +515,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -544,7 +544,7 @@ func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -555,7 +555,7 @@ func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseTextString()
 			if err != nil {
 				return err
 			}
@@ -570,15 +570,15 @@ func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) error {
 	}
 }
 
-// parseFieldTerminator parses the value a FIELDS or LINES option takes: a
-// string literal, a hex literal, or a bit literal, the last two decoded to
-// the bytes they stand for. So `TERMINATED BY X'6B6B'` and `TERMINATED BY
+// parseTextString parses a text_string, the value a FIELDS or LINES option
+// and PREPARE's FROM take: a string literal, a hex literal, or a bit literal,
+// the last two decoded to the bytes they stand for. So `TERMINATED BY X'6B6B'` and `TERMINATED BY
 // B'110101101101011'` both read as "kk". mysql:8.0.46, mariadb:11.8.8,
 // OceanBase 4.3.5 and pingcap/tidb:v8.5.5 take the same three spellings
 // (read on 2026-11-04).
 //
 // Ref: text_string in sql_yacc.yy, which field_term and line_term both take.
-func (p *Parser) parseFieldTerminator() (string, error) {
+func (p *Parser) parseTextString() (string, error) {
 	switch p.cur.Type {
 	case tokSCONST:
 		tok := p.advance()

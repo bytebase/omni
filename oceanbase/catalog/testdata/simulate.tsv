@@ -57,6 +57,7 @@ ok:32b490ff5720	ok:32b490ff5720	engine	one_table@missing	create_table_stmt/creat
 1054	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	one_table@missing	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	one_table@missing	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	one_table@missing	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	one_table@missing	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@missing	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -65,13 +66,16 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@missing	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@missing	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	one_table@missing	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@missing	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -80,6 +84,10 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1146	1146	engine	one_table@missing	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1146	1146	engine	one_table@missing	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1146	1146	engine	one_table@missing	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1146	1146	engine	one_table@missing	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1146	1146	engine	one_table@missing	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1146	1146	engine	one_table@missing	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1146	1146	engine	one_table@missing	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1146	1146	engine	one_table@missing	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1146	1146	engine	one_table@missing	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -92,7 +100,9 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1146	1146	engine	one_table@missing	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 1146	1146	engine	one_table@missing	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+1146	1146	engine	one_table@missing	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 1146	1146	engine	one_table@missing	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+1146	1146	engine	one_table@missing	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 1146	1146	engine	one_table@missing	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 1146	1146	engine	one_table@missing	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1146	1146	engine	one_table@missing	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -114,9 +124,17 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1146	1146	engine	one_table@missing	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1146	1146	engine	one_table@missing	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1146	1146	engine	one_table@missing	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1146	1146	engine	one_table@missing	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1146	1146	engine	one_table@missing	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1146	1146	engine	one_table@missing	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1146	1146	engine	one_table@missing	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1146	1146	engine	one_table@missing	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1146	1146	engine	one_table@missing	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1146	1146	engine	one_table@missing	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1146	1146	engine	one_table@missing	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1146	1146	engine	one_table@missing	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1146	1146	engine	one_table@missing	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1146	1146	engine	one_table@missing	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1146	1146	engine	one_table@missing	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1146	1146	engine	one_table@missing	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -149,6 +167,7 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1146	1146	engine	one_table@missing	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1146	1146	engine	one_table@missing	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1146	1146	engine	one_table@missing	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1146	1146	engine	one_table@missing	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1146	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1146	1146	engine	one_table@missing	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -242,11 +261,16 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 1146	1146	engine	one_table@missing	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+1146	1146	engine	one_table@missing	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1146	1146	engine	one_table@missing	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 1146	1146	engine	one_table@missing	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 1146	1146	engine	one_table@missing	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 1146	1146	engine	one_table@missing	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 1146	1146	engine	one_table@missing	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+1146	1146	engine	one_table@missing	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 1146	1146	engine	one_table@missing	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 1146	1146	engine	one_table@missing	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 1146	1146	engine	one_table@missing	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -416,6 +440,9 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	one_table@missing	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	one_table@missing	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	one_table@missing	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	one_table@missing	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -445,7 +472,11 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 1146	1146	engine	one_table@missing	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1146	1146	engine	one_table@missing	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+1146	1146	engine	one_table@missing	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+1146	1146	engine	one_table@missing	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 1146	1146	engine	one_table@missing	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+1146	1146	engine	one_table@missing	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+1146	1146	engine	one_table@missing	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 1146	1146	engine	one_table@missing	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1146	1146	engine	one_table@missing	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 1146	1146	engine	one_table@missing	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -472,7 +503,9 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1146	1146	engine	one_table@missing	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 1146	1146	engine	one_table@missing	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+1146	1146	engine	one_table@missing	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 1146	1146	engine	one_table@missing	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+1146	1146	engine	one_table@missing	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1146	1146	engine	one_table@missing	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1146	1146	engine	one_table@missing	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1146	1146	engine	one_table@missing	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -486,6 +519,8 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1051	1051	engine	one_table@missing	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1051	1051	engine	one_table@missing	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	one_table@missing	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1146	1146	engine	one_table@missing	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1146	1146	engine	one_table@missing	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -501,6 +536,9 @@ ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_view_stmt/DROP_VIE
 1146	1146	engine	one_table@missing	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 1146	1146	engine	one_table@missing	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1146	1146	engine	one_table@missing	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1146	1146	engine	one_table@missing	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+1146	1146	engine	one_table@missing	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+1146	1146	engine	one_table@missing	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 1146	1146	engine	one_table@missing	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 1146	1146	engine	one_table@missing	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 1146	1146	engine	one_table@missing	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -540,10 +578,14 @@ ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_view_stmt/DROP_VIE
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1146	1146	engine	one_table@missing	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1146	1146	engine	one_table@missing	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 1146	1146	engine	one_table@missing	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+1146	1146	engine	one_table@missing	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 1146	1146	engine	one_table@missing	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+1146	1146	engine	one_table@missing	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 1146	1146	engine	one_table@missing	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 1146	1146	engine	one_table@missing	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 1146	1146	engine	one_table@missing	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -562,7 +604,11 @@ ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_view_stmt/DROP_VIE
 1146	1146	engine	one_table@missing	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1146	1146	engine	one_table@missing	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1146	1146	engine	one_table@missing	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+1146	1146	engine	one_table@missing	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+1146	1146	engine	one_table@missing	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 1146	1146	engine	one_table@missing	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+1146	1146	engine	one_table@missing	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+1146	1146	engine	one_table@missing	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 1146	1146	engine	one_table@missing	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 1146	1146	engine	one_table@missing	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 1146	1146	engine	one_table@missing	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -647,6 +693,7 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	create_table_stmt/create_
 1054	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	one_table@table	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	one_table@table	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	one_table@table	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@table	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -655,13 +702,16 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	create_table_stmt/create_
 4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@table	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@table	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	one_table@table	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@table	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	one_table@table	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@table	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	one_table@table	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	one_table@table	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -670,6 +720,10 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_column_reference/REFE
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -682,7 +736,9 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	match_action/PARTIAL	ALTE
 1054	1054	engine	one_table@table	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 ok:26e0874d4a45	ok:26e0874d4a45	engine	one_table@table	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3820	3820	engine	one_table@table	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3820	3820	engine	one_table@table	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1054	1054	engine	one_table@table	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -704,9 +760,17 @@ ok:c69cd6ca0ee3	ok:c69cd6ca0ee3	engine	one_table@table	column_definition_list/co
 1060	1060	engine	one_table@table	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	one_table@table	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+ok:9e1e9203418c	ok:9e1e9203418c	engine	one_table@table	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+ok:b5e3435ca7e5	ok:b5e3435ca7e5	engine	one_table@table	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+ok:a3a25bfc2510	ok:a3a25bfc2510	engine	one_table@table	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+ok:a3a25bfc2510	ok:a3a25bfc2510	engine	one_table@table	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+ok:a3a25bfc2510	ok:a3a25bfc2510	engine	one_table@table	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+ok:7c54bd39ee0f	ok:7c54bd39ee0f	engine	one_table@table	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 ok:2c46dc8f702b	ok:2c46dc8f702b	engine	one_table@table	data_type/BOOL	ALTER TABLE a ADD a BOOL
 ok:2c46dc8f702b	ok:2c46dc8f702b	engine	one_table@table	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 ok:c56663f91704	ok:c56663f91704	engine	one_table@table	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -739,6 +803,7 @@ ok:f08041e0e140	ok:f08041e0e140	engine	one_table@table	data_type/MULTIPOINT	ALTE
 ok:97d8cffc4b73	ok:97d8cffc4b73	engine	one_table@table	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 ok:cd3f176a8f16	ok:cd3f176a8f16	engine	one_table@table	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 ok:a1c8fd7a08a3	ok:a1c8fd7a08a3	engine	one_table@table	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+ok:a1c8fd7a08a3	ok:a1c8fd7a08a3	engine	one_table@table	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 ok:d31c42b0504b	ok:d31c42b0504b	engine	one_table@table	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -832,11 +897,16 @@ ok:f8e70892c438	ok:f8e70892c438	engine	one_table@table	table_option/ROW_FORMAT_o
 4179	4179	engine	one_table@table	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:5117c6129d29	ok:5117c6129d29	engine	one_table@table	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+ok:399d6395568f	ok:399d6395568f	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+ok:5ce266ca50f2	ok:5ce266ca50f2	engine	one_table@table	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	one_table@table	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:b53b91bb13b8	ok:b53b91bb13b8	engine	one_table@table	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 5151	5151	engine	one_table@table	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 ok:4f987e38db64	ok:4f987e38db64	engine	one_table@table	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	one_table@table	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:dbac01045c1c	ok:dbac01045c1c	engine	one_table@table	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -1006,6 +1076,9 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	row_format_option/DEFAULT
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	one_table@table	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	one_table@table	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	one_table@table	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	one_table@table	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -1035,7 +1108,11 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE 
 3821	3821	engine	one_table@table	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 1072	1072	engine	one_table@table	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	one_table@table	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+1072	1072	engine	one_table@table	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+1072	1072	engine	one_table@table	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 1072	1072	engine	one_table@table	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+1072	1072	engine	one_table@table	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+1072	1072	engine	one_table@table	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 1072	1072	engine	one_table@table	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1072	1072	engine	one_table@table	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 1072	1072	engine	one_table@table	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -1062,7 +1139,9 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE 
 1072	1072	engine	one_table@table	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	one_table@table	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 1072	1072	engine	one_table@table	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+1072	1072	engine	one_table@table	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 1072	1072	engine	one_table@table	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+1072	1072	engine	one_table@table	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	one_table@table	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -1076,6 +1155,8 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE 
 1072	1072	engine	one_table@table	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 1347	1347	engine	one_table@table	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1347	1347	engine	one_table@table	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1347	1347	engine	one_table@table	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	one_table@table	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@table	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1505	1505	engine	one_table@table	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -1091,6 +1172,9 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	drop_table_stmt/DROP_opt_
 ok:8b06d49c8260	ok:8b06d49c8260	engine	one_table@table	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	one_table@table	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	one_table@table	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+ok:399d6395568f	ok:399d6395568f	engine	one_table@table	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+ok:5ce266ca50f2	ok:5ce266ca50f2	engine	one_table@table	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -1130,10 +1214,14 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	one_table@table	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	one_table@table	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 1072	1072	engine	one_table@table	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+1072	1072	engine	one_table@table	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 1072	1072	engine	one_table@table	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+1072	1072	engine	one_table@table	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 1072	1072	engine	one_table@table	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 1072	1072	engine	one_table@table	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 1072	1072	engine	one_table@table	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -1152,7 +1240,11 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_C
 1210	1210	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	one_table@table	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1091	1091	engine	one_table@table	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+1091	1091	engine	one_table@table	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+1091	1091	engine	one_table@table	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 1091	1091	engine	one_table@table	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+1091	1091	engine	one_table@table	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+1091	1091	engine	one_table@table	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 1054	1054	engine	one_table@table	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 1054	1054	engine	one_table@table	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 1054	1054	engine	one_table@table	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -1237,6 +1329,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 1054	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	one_table@column	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	one_table@column	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	one_table@column	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@column	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -1245,13 +1338,16 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@column	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@column	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	one_table@column	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@column	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	one_table@column	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@column	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	one_table@column	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	one_table@column	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -1260,6 +1356,10 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 1060	1060	engine	one_table@column	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	one_table@column	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1060	1060	engine	one_table@column	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1060	1060	engine	one_table@column	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1060	1060	engine	one_table@column	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1060	1060	engine	one_table@column	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1060	1060	engine	one_table@column	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1060	1060	engine	one_table@column	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1060	1060	engine	one_table@column	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1060	1060	engine	one_table@column	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -1272,7 +1372,9 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@column	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3812	3812	engine	one_table@column	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3812	3812	engine	one_table@column	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@column	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -1294,9 +1396,17 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 1060	1060	engine	one_table@column	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	one_table@column	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1060	1060	engine	one_table@column	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1060	1060	engine	one_table@column	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1060	1060	engine	one_table@column	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1060	1060	engine	one_table@column	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1060	1060	engine	one_table@column	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1060	1060	engine	one_table@column	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1060	1060	engine	one_table@column	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1060	1060	engine	one_table@column	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1060	1060	engine	one_table@column	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1060	1060	engine	one_table@column	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1060	1060	engine	one_table@column	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1060	1060	engine	one_table@column	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1060	1060	engine	one_table@column	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1060	1060	engine	one_table@column	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1060	1060	engine	one_table@column	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -1329,6 +1439,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	create_table_stmt/create
 1060	1060	engine	one_table@column	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	one_table@column	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	one_table@column	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1060	1060	engine	one_table@column	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1060	1060	engine	one_table@column	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	one_table@column	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -1422,11 +1533,16 @@ ok:75c468979562	ok:75c468979562	engine	one_table@column	table_option/ROW_FORMAT_
 4179	4179	engine	one_table@column	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:e8971b56c4bd	ok:e8971b56c4bd	engine	one_table@column	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+ok:a0ff69f00057	ok:a0ff69f00057	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+ok:47af32189f56	ok:47af32189f56	engine	one_table@column	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	one_table@column	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:80dd5ef560c2	ok:80dd5ef560c2	engine	one_table@column	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 5151	5151	engine	one_table@column	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 ok:4aaabe6edbf5	ok:4aaabe6edbf5	engine	one_table@column	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	one_table@column	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:13c7354c7ffb	ok:13c7354c7ffb	engine	one_table@column	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -1596,6 +1712,9 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	row_format_option/DEFAUL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	one_table@column	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	one_table@column	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	one_table@column	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	one_table@column	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -1625,7 +1744,11 @@ ok:934c824fed49	ok:934c824fed49	engine	one_table@column	opt_constraint_name/%emp
 3821	3821	engine	one_table@column	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	one_table@column	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 3762	3762	engine	one_table@column	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+3762	3762	engine	one_table@column	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+3762	3762	engine	one_table@column	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1089	1089	engine	one_table@column	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:8c5785ed3496	ok:8c5785ed3496	engine	one_table@column	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -1652,7 +1775,9 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/STORING_(_c
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	one_table@column	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+ok	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -1666,6 +1791,8 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_using_algorithm/US
 ok:1894f59014d4	ok:1894f59014d4	engine	one_table@column	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 1347	1347	engine	one_table@column	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1347	1347	engine	one_table@column	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1347	1347	engine	one_table@column	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	one_table@column	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@column	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1505	1505	engine	one_table@column	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -1681,6 +1808,9 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	drop_table_stmt/DROP_opt
 ok:55cedbd601bb	ok:55cedbd601bb	engine	one_table@column	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	one_table@column	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	one_table@column	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+ok:a0ff69f00057	ok:a0ff69f00057	engine	one_table@column	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+ok:47af32189f56	ok:47af32189f56	engine	one_table@column	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -1720,10 +1850,14 @@ ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_
 1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	one_table@column	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	one_table@column	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 ok:989aaa2a0497	ok:989aaa2a0497	engine	one_table@column	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+ok:989aaa2a0497	ok:989aaa2a0497	engine	one_table@column	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -1742,7 +1876,11 @@ ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_constraint_uniq_key/
 1210	1210	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	one_table@column	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 ok:fc92d6b12a7b	ok:fc92d6b12a7b	engine	one_table@column	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -1827,6 +1965,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 1054	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	one_table@index	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	one_table@index	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	one_table@index	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	one_table@index	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -1835,13 +1974,16 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	one_table@index	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@index	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	one_table@index	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	one_table@index	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	one_table@index	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@index	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	one_table@index	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	one_table@index	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -1850,6 +1992,10 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 1060	1060	engine	one_table@index	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	one_table@index	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1060	1060	engine	one_table@index	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1060	1060	engine	one_table@index	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1060	1060	engine	one_table@index	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1060	1060	engine	one_table@index	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1060	1060	engine	one_table@index	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1060	1060	engine	one_table@index	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1060	1060	engine	one_table@index	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1060	1060	engine	one_table@index	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -1862,7 +2008,9 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	one_table@index	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3812	3812	engine	one_table@index	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3812	3812	engine	one_table@index	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	one_table@index	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -1884,9 +2032,17 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 1060	1060	engine	one_table@index	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	one_table@index	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1060	1060	engine	one_table@index	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1060	1060	engine	one_table@index	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1060	1060	engine	one_table@index	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1060	1060	engine	one_table@index	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1060	1060	engine	one_table@index	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1060	1060	engine	one_table@index	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1060	1060	engine	one_table@index	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1060	1060	engine	one_table@index	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1060	1060	engine	one_table@index	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1060	1060	engine	one_table@index	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1060	1060	engine	one_table@index	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1060	1060	engine	one_table@index	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1060	1060	engine	one_table@index	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1060	1060	engine	one_table@index	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1060	1060	engine	one_table@index	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -1919,6 +2075,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	create_table_stmt/create_
 1060	1060	engine	one_table@index	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	one_table@index	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	one_table@index	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1060	1060	engine	one_table@index	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1060	1060	engine	one_table@index	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	one_table@index	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -2012,11 +2169,16 @@ ok:a55e5012546a	ok:a55e5012546a	engine	one_table@index	table_option/ROW_FORMAT_o
 4179	4179	engine	one_table@index	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:def5440268e9	ok:def5440268e9	engine	one_table@index	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+ok:dca03f761b3c	ok:dca03f761b3c	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+ok:d8c603058cbd	ok:d8c603058cbd	engine	one_table@index	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	one_table@index	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:ed1e476cd50c	ok:ed1e476cd50c	engine	one_table@index	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 5151	5151	engine	one_table@index	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 ok:0f0f62a4c3ed	ok:0f0f62a4c3ed	engine	one_table@index	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	one_table@index	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:e3fb4373ff03	ok:e3fb4373ff03	engine	one_table@index	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -2186,6 +2348,9 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	row_format_option/DEFAULT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	one_table@index	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	one_table@index	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	one_table@index	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	one_table@index	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -2215,7 +2380,11 @@ ok:fd1a18b592c6	ok:fd1a18b592c6	engine	one_table@index	opt_constraint_name/%empt
 3821	3821	engine	one_table@index	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	one_table@index	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 3762	3762	engine	one_table@index	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+3762	3762	engine	one_table@index	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+3762	3762	engine	one_table@index	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1089	1089	engine	one_table@index	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:aa069d086dd7	ok:aa069d086dd7	engine	one_table@index	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -2242,7 +2411,9 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/STORING_(_co
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	one_table@index	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+ok	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -2256,6 +2427,8 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_using_algorithm/USI
 ok:872adc6fc998	ok:872adc6fc998	engine	one_table@index	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 1347	1347	engine	one_table@index	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1347	1347	engine	one_table@index	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1347	1347	engine	one_table@index	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	one_table@index	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	one_table@index	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1505	1505	engine	one_table@index	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -2271,6 +2444,9 @@ ok:7b0f12d09c84	ok:7b0f12d09c84	engine	one_table@index	key_or_index/INDEX	ALTER 
 ok:cc3e0d59ec45	ok:cc3e0d59ec45	engine	one_table@index	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	one_table@index	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	one_table@index	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+ok:dca03f761b3c	ok:dca03f761b3c	engine	one_table@index	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+ok:d8c603058cbd	ok:d8c603058cbd	engine	one_table@index	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -2310,10 +2486,14 @@ ok:8ad4b5558f9a	ok:8ad4b5558f9a	engine	one_table@index	alter_index_option/DROP_P
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1061	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1061	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	one_table@index	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	one_table@index	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 ok:84147f20f515	ok:84147f20f515	engine	one_table@index	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+ok:84147f20f515	ok:84147f20f515	engine	one_table@index	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:25c111463945	ok:25c111463945	engine	one_table@index	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:94f0cfbec4bf	ok:94f0cfbec4bf	engine	one_table@index	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:25c111463945	ok:25c111463945	engine	one_table@index	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -2332,7 +2512,11 @@ ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIB
 1210	1210	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	one_table@index	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 ok:341cdad22d31	ok:341cdad22d31	engine	one_table@index	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -2417,6 +2601,7 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1054	1054	engine	objects@view	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	objects@view	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	objects@view	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	objects@view	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	objects@view	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	objects@view	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	objects@view	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -2425,13 +2610,16 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 4028	4028	engine	objects@view	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	objects@view	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	objects@view	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	objects@view	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	objects@view	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	objects@view	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@view	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	objects@view	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@view	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	objects@view	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@view	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	objects@view	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	objects@view	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	objects@view	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	objects@view	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	objects@view	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -2440,6 +2628,10 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1347	1347	engine	objects@view	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1347	1347	engine	objects@view	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1347	1347	engine	objects@view	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1347	1347	engine	objects@view	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1347	1347	engine	objects@view	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1347	1347	engine	objects@view	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1347	1347	engine	objects@view	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1347	1347	engine	objects@view	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1347	1347	engine	objects@view	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1347	1347	engine	objects@view	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -2452,7 +2644,9 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1347	1347	engine	objects@view	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1347	1347	engine	objects@view	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3812	3812	engine	objects@view	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	objects@view	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@view	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	objects@view	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@view	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3812	3812	engine	objects@view	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1347	1347	engine	objects@view	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -2474,9 +2668,17 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1060	1060	engine	objects@view	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	objects@view	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1347	1347	engine	objects@view	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1347	1347	engine	objects@view	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1347	1347	engine	objects@view	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1347	1347	engine	objects@view	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1347	1347	engine	objects@view	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1347	1347	engine	objects@view	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1347	1347	engine	objects@view	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1347	1347	engine	objects@view	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1347	1347	engine	objects@view	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1347	1347	engine	objects@view	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1347	1347	engine	objects@view	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1347	1347	engine	objects@view	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1347	1347	engine	objects@view	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1347	1347	engine	objects@view	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1347	1347	engine	objects@view	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -2509,6 +2711,7 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1347	1347	engine	objects@view	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1347	1347	engine	objects@view	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1347	1347	engine	objects@view	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1347	1347	engine	objects@view	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1347	1347	engine	objects@view	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1347	1347	engine	objects@view	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1347	1347	engine	objects@view	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -2602,11 +2805,16 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	create_table_stmt/create_wit
 1347	1347	engine	objects@view	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 1347	1347	engine	objects@view	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	objects@view	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	objects@view	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	objects@view	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+1347	1347	engine	objects@view	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+1347	1347	engine	objects@view	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	objects@view	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 1347	1347	engine	objects@view	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 1347	1347	engine	objects@view	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 1347	1347	engine	objects@view	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+1347	1347	engine	objects@view	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 1347	1347	engine	objects@view	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	objects@view	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 1347	1347	engine	objects@view	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -2776,6 +2984,9 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	table_option/COMMENT_opt_equ
 1146	1146	engine	objects@view	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	objects@view	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	objects@view	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	objects@view	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	objects@view	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	objects@view	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	objects@view	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	objects@view	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	objects@view	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -2805,7 +3016,11 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	table_option/COMMENT_opt_equ
 3821	3821	engine	objects@view	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 1347	1347	engine	objects@view	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	objects@view	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+1347	1347	engine	objects@view	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+1347	1347	engine	objects@view	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 3762	3762	engine	objects@view	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+3762	3762	engine	objects@view	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+3762	3762	engine	objects@view	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 1347	1347	engine	objects@view	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1347	1347	engine	objects@view	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 1347	1347	engine	objects@view	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -2832,7 +3047,9 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	table_option/COMMENT_opt_equ
 1347	1347	engine	objects@view	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	objects@view	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 1347	1347	engine	objects@view	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+1347	1347	engine	objects@view	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 1347	1347	engine	objects@view	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+1347	1347	engine	objects@view	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	objects@view	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	objects@view	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	objects@view	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -2846,6 +3063,8 @@ ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	table_option/COMMENT_opt_equ
 1347	1347	engine	objects@view	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	objects@view	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	objects@view	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1505	1505	engine	objects@view	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -2861,6 +3080,9 @@ ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt
 1235	1235	engine	objects@view	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 1347	1347	engine	objects@view	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	objects@view	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	objects@view	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+1347	1347	engine	objects@view	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+1347	1347	engine	objects@view	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 1347	1347	engine	objects@view	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 1347	1347	engine	objects@view	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 1347	1347	engine	objects@view	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -2900,10 +3122,14 @@ ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt
 1347	1347	engine	objects@view	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	objects@view	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1347	1347	engine	objects@view	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1347	1347	engine	objects@view	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1347	1347	engine	objects@view	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	objects@view	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	objects@view	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 1347	1347	engine	objects@view	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+1347	1347	engine	objects@view	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 1347	1347	engine	objects@view	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+1347	1347	engine	objects@view	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 1347	1347	engine	objects@view	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 1347	1347	engine	objects@view	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 1347	1347	engine	objects@view	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -2922,7 +3148,11 @@ ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt
 1210	1210	engine	objects@view	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	objects@view	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1347	1347	engine	objects@view	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+1347	1347	engine	objects@view	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+1347	1347	engine	objects@view	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 1347	1347	engine	objects@view	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+1347	1347	engine	objects@view	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+1347	1347	engine	objects@view	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 1347	1347	engine	objects@view	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 1347	1347	engine	objects@view	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 1347	1347	engine	objects@view	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -3007,6 +3237,7 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 1054	1054	engine	objects@partitioned	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	objects@partitioned	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	objects@partitioned	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	objects@partitioned	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	objects@partitioned	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	objects@partitioned	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	objects@partitioned	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -3015,13 +3246,16 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 4028	4028	engine	objects@partitioned	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	objects@partitioned	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	objects@partitioned	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	objects@partitioned	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	objects@partitioned	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	objects@partitioned	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@partitioned	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	objects@partitioned	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@partitioned	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	objects@partitioned	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@partitioned	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	objects@partitioned	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	objects@partitioned	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	objects@partitioned	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	objects@partitioned	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	objects@partitioned	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -3030,6 +3264,10 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 1060	1060	engine	objects@partitioned	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	objects@partitioned	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1060	1060	engine	objects@partitioned	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1060	1060	engine	objects@partitioned	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1060	1060	engine	objects@partitioned	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1060	1060	engine	objects@partitioned	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1060	1060	engine	objects@partitioned	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1060	1060	engine	objects@partitioned	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1060	1060	engine	objects@partitioned	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1060	1060	engine	objects@partitioned	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -3042,7 +3280,9 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 1060	1060	engine	objects@partitioned	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	objects@partitioned	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3812	3812	engine	objects@partitioned	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	objects@partitioned	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@partitioned	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	objects@partitioned	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@partitioned	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3812	3812	engine	objects@partitioned	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	objects@partitioned	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -3064,9 +3304,17 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 1060	1060	engine	objects@partitioned	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	objects@partitioned	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1060	1060	engine	objects@partitioned	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1060	1060	engine	objects@partitioned	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1060	1060	engine	objects@partitioned	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1060	1060	engine	objects@partitioned	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1060	1060	engine	objects@partitioned	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1060	1060	engine	objects@partitioned	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1060	1060	engine	objects@partitioned	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1060	1060	engine	objects@partitioned	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1060	1060	engine	objects@partitioned	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1060	1060	engine	objects@partitioned	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1060	1060	engine	objects@partitioned	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1060	1060	engine	objects@partitioned	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1060	1060	engine	objects@partitioned	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1060	1060	engine	objects@partitioned	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1060	1060	engine	objects@partitioned	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -3099,6 +3347,7 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	create_table_stmt/cre
 1060	1060	engine	objects@partitioned	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	objects@partitioned	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	objects@partitioned	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1060	1060	engine	objects@partitioned	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1060	1060	engine	objects@partitioned	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1060	1060	engine	objects@partitioned	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	objects@partitioned	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -3192,11 +3441,16 @@ ok:9c721bd98bb3	ok:9c721bd98bb3	engine	objects@partitioned	table_option/ROW_FORM
 4179	4179	engine	objects@partitioned	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:d360a6f92954	ok:d360a6f92954	engine	objects@partitioned	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	objects@partitioned	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	objects@partitioned	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	objects@partitioned	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+ok:6b6a7f6c64a4	ok:6b6a7f6c64a4	engine	objects@partitioned	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+ok:f082af3ae0f4	ok:f082af3ae0f4	engine	objects@partitioned	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	objects@partitioned	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:f11c87af6b09	ok:f11c87af6b09	engine	objects@partitioned	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 5151	5151	engine	objects@partitioned	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 ok:9abdd45b594a	ok:9abdd45b594a	engine	objects@partitioned	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	objects@partitioned	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:bbb99dc877c7	ok:bbb99dc877c7	engine	objects@partitioned	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -3366,6 +3620,9 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	row_format_option/DEF
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	objects@partitioned	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	objects@partitioned	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	objects@partitioned	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	objects@partitioned	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	objects@partitioned	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	objects@partitioned	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	objects@partitioned	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	objects@partitioned	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -3395,7 +3652,11 @@ ok:0bf5656b30e9	ok:0bf5656b30e9	engine	objects@partitioned	opt_constraint_name/%
 3821	3821	engine	objects@partitioned	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	objects@partitioned	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 3762	3762	engine	objects@partitioned	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+3762	3762	engine	objects@partitioned	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+3762	3762	engine	objects@partitioned	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1089	1089	engine	objects@partitioned	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:62ede871f1af	ok:62ede871f1af	engine	objects@partitioned	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -3422,7 +3683,9 @@ ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/STORING_
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	objects@partitioned	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+ok	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	objects@partitioned	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	objects@partitioned	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	objects@partitioned	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -3436,6 +3699,8 @@ ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_using_algorithm
 ok:7933ce7e75ca	ok:7933ce7e75ca	engine	objects@partitioned	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 1347	1347	engine	objects@partitioned	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1347	1347	engine	objects@partitioned	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1347	1347	engine	objects@partitioned	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	objects@partitioned	table_list/table_list_,_relation_factor	DROP TABLE a, a
 ok:9b3bd8ee86ef	ok:9b3bd8ee86ef	engine	objects@partitioned	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1508	1508	engine	objects@partitioned	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -3451,6 +3716,9 @@ ok:9b3bd8ee86ef	ok:9b3bd8ee86ef	engine	objects@partitioned	name_list/NAME_OB	ALT
 ok:89d9beabf399	ok:89d9beabf399	engine	objects@partitioned	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	objects@partitioned	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	objects@partitioned	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+ok:6b6a7f6c64a4	ok:6b6a7f6c64a4	engine	objects@partitioned	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+ok:f082af3ae0f4	ok:f082af3ae0f4	engine	objects@partitioned	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -3490,10 +3758,14 @@ ok:5418936cc598	ok:5418936cc598	engine	objects@partitioned	alter_index_option/DR
 1176	1176	engine	objects@partitioned	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	objects@partitioned	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	objects@partitioned	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	objects@partitioned	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1176	1176	engine	objects@partitioned	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	objects@partitioned	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	objects@partitioned	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 ok:50126e7a1367	ok:50126e7a1367	engine	objects@partitioned	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+ok:50126e7a1367	ok:50126e7a1367	engine	objects@partitioned	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:659c65c42f6a	ok:659c65c42f6a	engine	objects@partitioned	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:0acd2d9473cb	ok:0acd2d9473cb	engine	objects@partitioned	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:659c65c42f6a	ok:659c65c42f6a	engine	objects@partitioned	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -3512,7 +3784,11 @@ ok:0acd2d9473cb	ok:0acd2d9473cb	engine	objects@partitioned	add_constraint_uniq_k
 1210	1210	engine	objects@partitioned	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	objects@partitioned	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 3855	3855	engine	objects@partitioned	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+3855	3855	engine	objects@partitioned	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+3855	3855	engine	objects@partitioned	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 3855	3855	engine	objects@partitioned	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+3855	3855	engine	objects@partitioned	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+3855	3855	engine	objects@partitioned	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 ok:7834921c490a	ok:7834921c490a	engine	objects@partitioned	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
@@ -3597,6 +3873,7 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 1054	1054	engine	objects@fk	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt!insert	CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 1054	1054	engine	objects@fk	create_table_stmt/create_with_opt_hint_special_table_type_TABLE_opt_if_not_exists_relation_factor_with_column_group_AS_select_stmt+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 1054	1054	engine	objects@fk	opt_ignore_or_replace/ignore_or_replace	CREATE TABLE a NOPARALLEL IGNORE SELECT a
+1054	1054	engine	objects@fk	opt_ignore_or_replace/ignore_or_replace+ignore_or_replace/REPLACE	CREATE TABLE a NOPARALLEL REPLACE SELECT a
 1054	1054	engine	objects@fk	ignore_or_replace/REPLACE	CREATE TABLE a REPLACE SELECT a
 1050	1050	engine	objects@fk	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	objects@fk	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
@@ -3605,13 +3882,16 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 4028	4028	engine	objects@fk	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
 4028	4028	engine	objects@fk	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
 4028	4028	engine	objects@fk	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	objects@fk	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	CREATE TABLE a(INDEX(a))
 4028	4028	engine	objects@fk	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+4028	4028	engine	objects@fk	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@fk	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 4028	4028	engine	objects@fk	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@fk	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 4028	4028	engine	objects@fk	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 4028	4028	engine	objects@fk	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 4028	4028	engine	objects@fk	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	objects@fk	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list+key_or_index/INDEX	CREATE TABLE a(VECTOR INDEX(a))
 4028	4028	engine	objects@fk	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 4028	4028	engine	objects@fk	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 4028	4028	engine	objects@fk	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
@@ -3620,6 +3900,10 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 1060	1060	engine	objects@fk	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	objects@fk	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
 1060	1060	engine	objects@fk	reference_option/ON_DELETE_reference_action	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE RESTRICT
+1060	1060	engine	objects@fk	reference_option/ON_DELETE_reference_action+reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE CASCADE
+1060	1060	engine	objects@fk	reference_option/ON_DELETE_reference_action+reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET NULL
+1060	1060	engine	objects@fk	reference_option/ON_DELETE_reference_action+reference_action/NO_ACTION	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE NO ACTION
+1060	1060	engine	objects@fk	reference_option/ON_DELETE_reference_action+reference_action/SET_DEFAULT	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON DELETE SET DEFAULT
 1060	1060	engine	objects@fk	reference_option/CHECK_(_expr_)	ALTER TABLE a ADD a TINYINT REFERENCES a(a) CHECK(a)
 1060	1060	engine	objects@fk	reference_action/CASCADE	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE CASCADE
 1060	1060	engine	objects@fk	reference_action/SET_NULLX	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE SET NULL
@@ -3632,7 +3916,9 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 1060	1060	engine	objects@fk	column_definition/column_definition_ref_data_type_opt_collation_opt_generated_keyname_AS_(_expr_)_opt_storage_type_opt_generated_column_attribute_list_opt_column_reference_opt_position_column!swap	ALTER TABLE a ADD a TINYTEXT AS(a)
 1060	1060	engine	objects@fk	column_definition/column_definition_ref_SERIAL_opt_column_attribute_list_opt_position_column	ALTER TABLE a ADD a SERIAL
 3812	3812	engine	objects@fk	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state	ALTER TABLE a ADD CONSTRAINT CHECK(a) ENFORCED
+3812	3812	engine	objects@fk	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@fk	constraint_definition/CHECK_(_expr_)_check_state	ALTER TABLE a ADD CHECK(a) ENFORCED
+3812	3812	engine	objects@fk	constraint_definition/CHECK_(_expr_)_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ADD CHECK(a) NOT ENFORCED
 3812	3812	engine	objects@fk	constraint_definition/CONSTRAINT_opt_constraint_name_CHECK_(_expr_)	ALTER TABLE a ADD CONSTRAINT CHECK(a)
 3812	3812	engine	objects@fk	constraint_definition/CHECK_(_expr_)	ALTER TABLE a ADD CHECK(a)
 1060	1060	engine	objects@fk	opt_generated_keyname/GENERATED_opt_generated_option_list	ALTER TABLE a ADD a TINYINT GENERATED ALWAYS AS(a)
@@ -3654,9 +3940,17 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 1060	1060	engine	objects@fk	column_definition_list/column_definition_list_,_column_definition	ALTER TABLE a ADD(a TINYINT, a TINYINT)
 1060	1060	engine	objects@fk	column_definition_list/column_definition_list_,_column_definition!swap	ALTER TABLE a ADD(a TINYTEXT, a TINYINT)
 1060	1060	engine	objects@fk	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FLOAT
+1060	1060	engine	objects@fk	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FLOAT UNSIGNED
+1060	1060	engine	objects@fk	data_type/float_type_i_opt_float_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FLOAT SIGNED
 1060	1060	engine	objects@fk	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a NUMBER
+1060	1060	engine	objects@fk	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a NUMBER UNSIGNED
+1060	1060	engine	objects@fk	data_type/NUMBER_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a NUMBER SIGNED
 1060	1060	engine	objects@fk	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a DECIMAL
+1060	1060	engine	objects@fk	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a DECIMAL UNSIGNED
+1060	1060	engine	objects@fk	data_type/DECIMAL_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a DECIMAL SIGNED
 1060	1060	engine	objects@fk	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i	ALTER TABLE a ADD a FIXED
+1060	1060	engine	objects@fk	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/UNSIGNED	ALTER TABLE a ADD a FIXED UNSIGNED
+1060	1060	engine	objects@fk	data_type/FIXED_opt_number_precision_opt_unsigned_i_opt_zerofill_i+opt_unsigned_i/SIGNED	ALTER TABLE a ADD a FIXED SIGNED
 1060	1060	engine	objects@fk	data_type/BOOL	ALTER TABLE a ADD a BOOL
 1060	1060	engine	objects@fk	data_type/BOOLEAN	ALTER TABLE a ADD a BOOLEAN
 1060	1060	engine	objects@fk	data_type/datetime_type_i_opt_datetime_fsp_i	ALTER TABLE a ADD a DATETIME
@@ -3689,6 +3983,7 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	create_table_stmt/create_with_
 1060	1060	engine	objects@fk	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 1060	1060	engine	objects@fk	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
 1060	1060	engine	objects@fk	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+1060	1060	engine	objects@fk	data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	ALTER TABLE a ADD a GEOMCOLLECTION
 1060	1060	engine	objects@fk	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 1060	1060	engine	objects@fk	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 1060	1060	engine	objects@fk	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -3782,11 +4077,16 @@ ok:c6f3dd31ace7	ok:c6f3dd31ace7	engine	objects@fk	table_option/ROW_FORMAT_opt_eq
 4179	4179	engine	objects@fk	table_option/STORAGE_FORMAT_VERSION_opt_equal_mark_INTNUM	ALTER TABLE a STORAGE_FORMAT_VERSION 1
 ok:bccaeab9fd78	ok:bccaeab9fd78	engine	objects@fk	table_option/USE_BLOOM_FILTER_opt_equal_mark_BOOL_VALUE	ALTER TABLE a USE_BLOOM_FILTER TRUE
 1115	1115	engine	objects@fk	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name	ALTER TABLE a CHARSET a
+1115	1115	engine	objects@fk	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_key/CHARACTER_SET	ALTER TABLE a CHARACTER SET a
+1115	1115	engine	objects@fk	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/STRING_VALUE	ALTER TABLE a CHARSET 's'
+ok:50838f0e6e2a	ok:50838f0e6e2a	engine	objects@fk	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/BINARY	ALTER TABLE a CHARSET BINARY
+ok:d0b264d1a035	ok:d0b264d1a035	engine	objects@fk	table_option/opt_default_mark_charset_key_opt_equal_mark_charset_name+charset_name/ASCII	ALTER TABLE a CHARSET ASCII
 1273	1273	engine	objects@fk	table_option/opt_default_mark_COLLATE_opt_equal_mark_collation_name	ALTER TABLE a COLLATE a
 ok:7cc3c96997ed	ok:7cc3c96997ed	engine	objects@fk	table_option/COMMENT_opt_equal_mark_STRING_VALUE	ALTER TABLE a COMMENT 's'
 5151	5151	engine	objects@fk	table_option/TABLEGROUP_opt_equal_mark_relation_name_or_string	ALTER TABLE a TABLEGROUP a
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	table_option/AUTO_INCREMENT_opt_equal_mark_int_or_decimal	ALTER TABLE a AUTO_INCREMENT 1
 ok:98fb132ccbb8	ok:98fb132ccbb8	engine	objects@fk	table_option/read_only_or_write	ALTER TABLE a READ ONLY
+ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	table_option/read_only_or_write+read_only_or_write/READ_WRITE	ALTER TABLE a READ WRITE
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	table_option/ENGINE__opt_equal_mark_relation_name_or_string	ALTER TABLE a ENGINE a
 4147	4147	engine	objects@fk	table_option/TABLET_SIZE_opt_equal_mark_INTNUM	ALTER TABLE a TABLET_SIZE 1
 ok:9cd972d664f4	ok:9cd972d664f4	engine	objects@fk	table_option/PCTFREE_opt_equal_mark_INTNUM	ALTER TABLE a PCTFREE 1
@@ -3956,6 +4256,9 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	row_format_option/DEFAULT	ALTE
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	opt_table/TABLE	TRUNCATE TABLE a
 1054	1054	engine	objects@fk	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option	ALTER VIEW a AS SELECT a
 1054	1054	engine	objects@fk	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
+1054	1054	engine	objects@fk	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CHECK OPTION
+1054	1054	engine	objects@fk	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_CASCADED_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH CASCADED CHECK OPTION
+1054	1054	engine	objects@fk	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option+opt_check_option/WITH_LOCAL_CHECK_OPTION	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION
 1054	1054	engine	objects@fk	opt_algorithm/ALGORITHM_COMP_EQ_view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a
 1054	1054	engine	objects@fk	view_algorithm/MERGE	CREATE ALGORITHM = MERGE VIEW a AS SELECT a
 1054	1054	engine	objects@fk	view_algorithm/TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW a AS SELECT a
@@ -3985,7 +4288,11 @@ ok:5775d2da96a4	ok:5775d2da96a4	engine	objects@fk	opt_constraint_name/%empty!ins
 3821	3821	engine	objects@fk	constraint_name/relation_name	ALTER TABLE a DROP CHECK a
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 1060	1060	engine	objects@fk	sort_column_list/sort_column_list_,_sort_column_key	ALTER TABLE a ADD KEY(a, a)
+ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY(a ASC)
+ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	sort_column_key/column_name_opt_sort_column_key_length_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY(a DESC)
 3762	3762	engine	objects@fk	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id	ALTER TABLE a ADD KEY((a))
+3762	3762	engine	objects@fk	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/ASC	ALTER TABLE a ADD KEY((a) ASC)
+3762	3762	engine	objects@fk	sort_column_key/(_index_expr_)_opt_asc_desc_opt_column_id+opt_asc_desc/DESC	ALTER TABLE a ADD KEY((a) DESC)
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 1089	1089	engine	objects@fk	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 ok:4dcd19669ff4	ok:4dcd19669ff4	engine	objects@fk	opt_index_option_list/opt_index_options	ALTER TABLE a ADD KEY(a) GLOBAL
@@ -4012,7 +4319,9 @@ ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/STORING_(_column_
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/WITH_ROWID	ALTER TABLE a ADD KEY(a) WITH ROWID
 1235	1235	engine	objects@fk	index_option/WITH_(_vec_index_params_)	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
+ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
+ok	ok:dc6e32f7591c	engine	objects@fk	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	objects@fk	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	objects@fk	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	objects@fk	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -4026,6 +4335,8 @@ ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_using_algorithm/USING_HA
 ok:321a34002ecb	ok:321a34002ecb	engine	objects@fk	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 ok:dd30c58dbd8b	ok:dd30c58dbd8b	engine	objects@fk	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP TABLE IF EXISTS a
 1347	1347	engine	objects@fk	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_if_exists	DROP VIEW IF EXISTS a
+1347	1347	engine	objects@fk	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/CASCADE	DROP VIEW a CASCADE
+1347	1347	engine	objects@fk	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior+opt_drop_behavior/RESTRICT	DROP VIEW a RESTRICT
 1066	1066	engine	objects@fk	table_list/table_list_,_relation_factor	DROP TABLE a, a
 1505	1505	engine	objects@fk	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
 1505	1505	engine	objects@fk	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
@@ -4041,6 +4352,9 @@ ok:dd30c58dbd8b	ok:dd30c58dbd8b	engine	objects@fk	drop_table_stmt/DROP_opt_tempo
 ok:bf8e2636e367	ok:bf8e2636e367	engine	objects@fk	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 1115	1115	engine	objects@fk	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation	ALTER TABLE a CONVERT TO CHARACTER SET a
+1115	1115	engine	objects@fk	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/STRING_VALUE	ALTER TABLE a CONVERT TO CHARACTER SET 's'
+ok:50838f0e6e2a	ok:50838f0e6e2a	engine	objects@fk	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/BINARY	ALTER TABLE a CONVERT TO CHARACTER SET BINARY
+ok:d0b264d1a035	ok:d0b264d1a035	engine	objects@fk	alter_table_action/CONVERT_TO_CHARACTER_SET_charset_name_opt_collation+charset_name/ASCII	ALTER TABLE a CONVERT TO CHARACTER SET ASCII
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_table_action/alter_column_option	ALTER TABLE a FORCE
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_table_action/alter_tablegroup_option	ALTER TABLE a DROP TABLEGROUP
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_table_action/RENAME_opt_to_relation_factor	ALTER TABLE a RENAME a
@@ -4080,10 +4394,14 @@ ok:8abf917501d5	ok:8abf917501d5	engine	objects@fk	alter_index_option/DROP_PRIMAR
 1146	1146	engine	objects@fk	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
 1235	1235	engine	objects@fk	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	objects@fk	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
+1176	1176	engine	objects@fk	alter_index_option/RENAME_key_or_index_index_name_TO_index_name+key_or_index/INDEX	ALTER TABLE a RENAME INDEX a TO a
 1176	1176	engine	objects@fk	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3821	3821	engine	objects@fk	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
+3821	3821	engine	objects@fk	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state+check_state/NOT_ENFORCED	ALTER TABLE a ALTER CHECK a NOT ENFORCED
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a)
 ok:08ecb2eb13d7	ok:08ecb2eb13d7	engine	objects@fk	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+ok:08ecb2eb13d7	ok:08ecb2eb13d7	engine	objects@fk	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group+key_or_index/INDEX	ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:58dd45cd1a4f	ok:58dd45cd1a4f	engine	objects@fk	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:58d6991a3443	ok:58d6991a3443	engine	objects@fk	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 ok:58dd45cd1a4f	ok:58dd45cd1a4f	engine	objects@fk	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
@@ -4102,7 +4420,11 @@ ok:58d6991a3443	ok:58d6991a3443	engine	objects@fk	add_constraint_uniq_key/CONSTR
 1210	1210	engine	objects@fk	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1210	1210	engine	objects@fk	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 5320	5320	engine	objects@fk	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
+5320	5320	engine	objects@fk	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP a CASCADE
+5320	5320	engine	objects@fk	alter_column_option/DROP_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP a RESTRICT
 5320	5320	engine	objects@fk	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
+5320	5320	engine	objects@fk	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/CASCADE	ALTER TABLE a DROP COLUMN a CASCADE
+5320	5320	engine	objects@fk	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior+opt_drop_behavior/RESTRICT	ALTER TABLE a DROP COLUMN a RESTRICT
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	alter_column_option/alter_with_opt_hint_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER a DROP DEFAULT
 5320	5320	engine	objects@fk	alter_column_option/CHANGE_COLUMN_column_definition_ref_column_definition	ALTER TABLE a CHANGE COLUMN a a TINYINT
