@@ -180,35 +180,26 @@ type gap struct {
 }
 
 // obGaps lists the probes that fail on OceanBase today, by subtest name: bugs and missing
-// pieces of this catalog and its parser that are not fixed yet, and two readbacks of
-// OceanBase's that are not the text it was given. The engine's side of each is on the
-// probe's tape. knownGap runs a listed probe and passes it only while it fails exactly
-// as recorded, so an entry cannot hide anything else and cannot outlive its gap: a fix
+// pieces of this catalog and its parser that are not fixed yet, and settings OceanBase
+// does not keep, so no plan can carry them. The engine's side of each is on the probe's
+// tape. knownGap runs a listed probe and passes it only while it fails exactly as
+// recorded, so an entry cannot hide anything else and cannot outlive its gap: a fix
 // fails the probe until the entry is removed.
 //
 // This is the work list. An entry is not a way to make a new failure pass.
 var obGaps = map[string]gap{
-	// SHOW CREATE FUNCTION prints a COMMENT without its escapes, so the readback is not
-	// the comment the routine has. information_schema.ROUTINES is where to read it.
-	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-quote": {
-		"OceanBase's SHOW CREATE FUNCTION prints a COMMENT's quote unescaped, COMMENT 'it's here', which does not parse",
-		[]string{"reload of routine readback failed"},
-	},
-	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-backslash": {
-		`OceanBase's SHOW CREATE FUNCTION prints a COMMENT's backslash unescaped, COMMENT 'a\b' for the comment a\b, which reads back as another comment`,
-		twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
-	},
-
-	// Events. OceanBase gives an event the server's sql_mode and time_zone
-	// rather than the session's, on both CREATE EVENT and ALTER EVENT.
+	// OceanBase 4.3.5.6 stores every event, on CREATE EVENT and ALTER EVENT alike, with
+	// the sql_mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,
+	// ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION and the
+	// time_zone SYSTEM, whatever the session's or the global settings are (measured: a
+	// session under PIPES_AS_CONCAT and +08:00, and one opened after SET GLOBAL to
+	// PIPES_AS_CONCAT,STRICT_ALL_TABLES and +03:00, both store those two). The plan's SET
+	// sql_mode cannot reach the event, and neither could any statement a plan may run.
 	"TestOracle_EventAlterPreservesSQLMode/oceanbase": {
-		"OceanBase gives an event altered under SET sql_mode the server's sql_mode, so the plan's SET does not carry the mode the event had",
+		"OceanBase stores every event with one fixed sql_mode and time_zone SYSTEM, whatever the session or global settings, so no plan can give an event the sql_mode it had",
 		[]string{"event sql_mode not preserved across ALTER"},
 	},
 }
-
-// twoWays is the pair of failures of a form that differs from its readback: once each way.
-func twoWays(forward, reverse string) []string { return []string{forward, reverse} }
 
 var obGapsSeen sync.Map
 

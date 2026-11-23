@@ -20,6 +20,7 @@ import (
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	oceanbaseast "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/catalog"
 	oceanbaseparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
@@ -1054,7 +1055,7 @@ func (d *Driver) syncRoutines(ctx context.Context, databaseName string) ([]*meta
 	var procedures []*metadatapb.ProcedureMetadata
 	for _, r := range rawRoutines {
 		if strings.EqualFold(r.routineType, "PROCEDURE") {
-			def, err := d.getCreateProcedureStmt(ctx, databaseName, r.name)
+			def, err := d.getCreateProcedureStmt(ctx, databaseName, r.name, r.comment)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1068,7 +1069,7 @@ func (d *Driver) syncRoutines(ctx context.Context, databaseName string) ([]*meta
 				Comment:             r.comment,
 			})
 		} else {
-			def, err := d.getCreateFunctionStmt(ctx, databaseName, r.name)
+			def, err := d.getCreateFunctionStmt(ctx, databaseName, r.name, r.comment)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -1086,22 +1087,28 @@ func (d *Driver) syncRoutines(ctx context.Context, databaseName string) ([]*meta
 	return functions, procedures, nil
 }
 
-func (d *Driver) getCreateFunctionStmt(ctx context.Context, databaseName, functionName string) (string, error) {
+// getCreateFunctionStmt reads a function's definition from SHOW CREATE FUNCTION, whose
+// COMMENT OceanBase prints unescaped, so the comment is written again from comment, the
+// routine's information_schema.ROUTINES row.
+func (d *Driver) getCreateFunctionStmt(ctx context.Context, databaseName, functionName, comment string) (string, error) {
 	f, err := d.showCreateColumn(ctx, fmt.Sprintf("SHOW CREATE FUNCTION %s.%s", quoteBacktick(databaseName), quoteBacktick(functionName)), "Create Function")
 	if err != nil || f == "" {
 		return "", err
 	}
+	f = catalog.RoutineReadbackWithComment(f, comment)
 	if idx := strings.Index(f, " FUNCTION "); idx >= 0 {
 		f = "CREATE" + f[idx:]
 	}
 	return stripReturnsCharset(f), nil
 }
 
-func (d *Driver) getCreateProcedureStmt(ctx context.Context, databaseName, procName string) (string, error) {
+// getCreateProcedureStmt is getCreateFunctionStmt for a procedure.
+func (d *Driver) getCreateProcedureStmt(ctx context.Context, databaseName, procName, comment string) (string, error) {
 	p, err := d.showCreateColumn(ctx, fmt.Sprintf("SHOW CREATE PROCEDURE %s.%s", quoteBacktick(databaseName), quoteBacktick(procName)), "Create Procedure")
 	if err != nil || p == "" {
 		return "", err
 	}
+	p = catalog.RoutineReadbackWithComment(p, comment)
 	if idx := strings.Index(p, " PROCEDURE "); idx >= 0 {
 		p = "CREATE" + p[idx:]
 	}

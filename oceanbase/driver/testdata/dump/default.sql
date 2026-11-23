@@ -81,6 +81,7 @@ DELIMITER ;;
 CREATE FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)
     NO SQL
     DETERMINISTIC
+    COMMENT 'it''s C:\\path'
 RETURN CONCAT(p, '-escaped');;
 DELIMITER ;
 
@@ -145,7 +146,7 @@ SET sql_mode = 'STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER';
 DELIMITER ;;
 CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)
     READS SQL DATA
-    COMMENT 'reads order total'
+    COMMENT 'reads an order''s total from C:\\orders'
 BEGIN
 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 END;;

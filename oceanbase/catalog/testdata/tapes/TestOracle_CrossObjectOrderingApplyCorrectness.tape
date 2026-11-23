@@ -22,8 +22,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_to_create_function_and_view.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -35,10 +35,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_to_create_function_and_view.ent_v_fn
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | ent_v_fn
@@ -51,12 +51,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_to_create_function_and_view.ent_ucount
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ent_ucount
@@ -72,6 +72,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_to_create_function_and_view
+: string
+| ent_ucount
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_from_create_function_and_view
 < ok 0 0
@@ -87,8 +100,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_from_create_function_and_view.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -120,8 +133,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_t.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -133,10 +146,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_t.ent_v_fn
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | ent_v_fn
@@ -149,12 +162,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_t.ent_ucount
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ent_ucount
@@ -170,6 +183,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_t
+: string
+| ent_ucount
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 2 0
@@ -194,8 +220,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_to_drop_function_and_view.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -225,8 +251,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_from_drop_function_and_view.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -238,10 +264,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_from_drop_function_and_view.ent_v_fn
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | ent_v_fn
@@ -254,12 +280,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_from_drop_function_and_view.ent_ucount
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ent_ucount
@@ -275,6 +301,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_from_drop_function_and_view
+: string
+| ent_ucount
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 0 0
@@ -302,8 +341,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_t.users
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -353,8 +392,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_to_create_function_view_view_chain.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -365,10 +404,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_to_create_function_view_view_chain.v1
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v1
@@ -381,10 +420,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_to_create_function_view_view_chain.v2
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v2
@@ -397,12 +436,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_to_create_function_view_view_chain.fn_base
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_base
@@ -418,6 +457,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_to_create_function_view_view_chain
+: string
+| fn_base
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_from_create_function_view_view_chain
 < ok 0 0
@@ -433,8 +485,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_from_create_function_view_view_chain.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -468,8 +520,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_t.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -480,10 +532,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_t.v1
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v1
@@ -496,10 +548,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_t.v2
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v2
@@ -512,12 +564,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_t.fn_base
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_base
@@ -533,6 +585,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_t
+: string
+| fn_base
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 3 0
@@ -563,8 +628,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_to_create_function_selecting_view.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -575,10 +640,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_to_create_function_selecting_view.v_src
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_src
@@ -591,12 +656,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_to_create_function_selecting_view.fn_over_view
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_over_view
@@ -612,6 +677,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_to_create_function_selecting_view
+: string
+| fn_over_view
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_from_create_function_selecting_view
 < ok 0 0
@@ -627,8 +705,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_from_create_function_selecting_view.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -659,8 +737,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_t.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -671,10 +749,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_t.v_src
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_src
@@ -687,12 +765,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_t.fn_over_view
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_over_view
@@ -708,6 +786,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_t
+: string
+| fn_over_view
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 2 0
@@ -738,8 +829,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_to_modify_function_add_view.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -750,10 +841,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_to_modify_function_add_view.v1
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v1
@@ -766,12 +857,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_to_modify_function_add_view.fn_base
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_base
@@ -787,6 +878,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_to_modify_function_add_view
+: string
+| fn_base
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_from_modify_function_add_view
 < ok 0 0
@@ -805,8 +909,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_from_modify_function_add_view.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -817,12 +921,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_from_modify_function_add_view.fn_base
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_base
@@ -838,6 +942,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_from_modify_function_add_view
+: string
+| fn_base
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 0 0
@@ -867,8 +984,8 @@
 > query
 | SHOW CREATE TABLE ordsdl_t.t
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | t
@@ -879,10 +996,10 @@
 > query
 | SHOW CREATE VIEW ordsdl_t.v1
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v1
@@ -895,12 +1012,12 @@
 > query
 | SHOW CREATE FUNCTION ordsdl_t.fn_base
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_base
@@ -916,6 +1033,19 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_general_ci
+> query
+| SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?
+: string
+| ordsdl_t
+: string
+| fn_base
+: string
+| FUNCTION
+< result
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< row
+: bytes
+|
 > exec
 | DROP DATABASE IF EXISTS ordsdl_t
 < ok 2 0
