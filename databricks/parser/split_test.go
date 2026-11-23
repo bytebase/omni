@@ -232,6 +232,24 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "DECLARE EXIT HANDLER with non-BEGIN action referencing begin identifier",
+			script: "BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION SELECT begin FROM t; SELECT 1; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION SELECT begin FROM t; SELECT 1; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with condition named begin and non-BEGIN action",
+			script: "BEGIN DECLARE begin CONDITION; DECLARE EXIT HANDLER FOR begin SELECT 1; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE begin CONDITION; DECLARE EXIT HANDLER FOR begin SELECT 1; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with SQLSTATE and multiple conditions before BEGIN END",
+			script: "BEGIN DECLARE my_cond CONDITION; DECLARE EXIT HANDLER FOR SQLSTATE VALUE '42000', my_cond BEGIN SELECT 1; END; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE my_cond CONDITION; DECLARE EXIT HANDLER FOR SQLSTATE VALUE '42000', my_cond BEGIN SELECT 1; END; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:    "begin and end as non-reserved identifiers do not merge statements",
 			script:  "SELECT begin, end FROM t; SELECT 2;",
 			want:    []string{"SELECT begin, end FROM t;", " SELECT 2;"},
@@ -266,6 +284,30 @@ func TestSplit(t *testing.T) {
 			name:   "case variable as simple CASE operand inside compound block",
 			script: "BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable inside CASE WHEN condition in IF header",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN end = 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN end = 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable in CASE operand, THEN, and ELSE branches",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE end WHEN 1 THEN end ELSE end END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE end WHEN 1 THEN end ELSE end END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "qualified end column as simple CASE operand",
+			script: "BEGIN IF CASE t.end WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF CASE t.end WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable in second WHEN branch and nested CASE",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
 			empty:  []bool{false, false},
 		},
 		{

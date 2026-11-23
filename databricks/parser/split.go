@@ -50,6 +50,19 @@ type compoundFrame struct {
 	label string // normalized begin label, or empty
 }
 
+type casePhase uint8
+
+const (
+	caseExpectWhen casePhase = iota
+	caseInWhen
+	caseAfterThen
+)
+
+type caseFrame struct {
+	parenDepth int
+	phase      casePhase
+}
+
 // Split splits a Databricks/Spark SQL script into segments at top-level
 // semicolons using the Spark 4.0.5 lexer. Semicolons inside single-quoted
 // strings, double-quoted strings, raw strings (R'...' / R"..."),
@@ -99,9 +112,32 @@ func Split(script string) []Segment {
 	stmtHead := tokEOF
 	prevTokKind := tokEOF
 	parenDepth := 0
-	caseExprDepth := 0
-	sawHandler := false
-	sawHandlerFor := false
+	var caseStack []caseFrame
+
+	canPrecedeCaseEnd := func(prevKind TokenKind) bool {
+		switch prevKind {
+		case tokEOF, tokSemicolon, tokComma, tokDot, tokColon, tokDoubleColon, tokLParen, tokLBracket,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokTilde, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokArrow, tokFatArrow,
+			kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE,
+			kwBETWEEN, kwAS, kwDISTINCT, kwALL, kwSELECT, kwFROM, kwWHERE, kwHAVING, kwON, kwUSING, kwINTO:
+			return false
+		}
+		return true
+	}
+
+	isCaseExprEnd := func(prevKind TokenKind) bool {
+		if len(caseStack) == 0 {
+			return false
+		}
+		top := caseStack[len(caseStack)-1]
+		if parenDepth != top.parenDepth || top.phase != caseAfterThen {
+			return false
+		}
+		return canPrecedeCaseEnd(prevKind)
+	}
 
 	isCaseExprStart := func(prevKind TokenKind) bool {
 		if prevKind == tokDot {
@@ -113,6 +149,7 @@ func Split(script string) []Segment {
 				// Disambiguate `CASE case WHEN ... END` (identifier operand named `case`)
 				// from `CASE CASE WHEN ... END WHEN ... END` (nested searched CASE).
 				relDepth := 0
+				afterThen := false
 				for off := 1; ; off++ {
 					k := peekTok(off).Kind
 					switch k {
@@ -125,8 +162,16 @@ func Split(script string) []Segment {
 							return false
 						}
 						relDepth--
-					case kwEND:
+					case kwWHEN:
 						if relDepth == 0 {
+							afterThen = false
+						}
+					case kwTHEN, kwELSE:
+						if relDepth == 0 {
+							afterThen = true
+						}
+					case kwEND:
+						if relDepth == 0 && afterThen && canPrecedeCaseEnd(peekTok(off-1).Kind) {
 							return peekTok(off+1).Kind == kwWHEN
 						}
 					}
@@ -139,7 +184,7 @@ func Split(script string) []Segment {
 			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
 			tokAsterisk, tokSlash, tokPercent, kwDIV,
 			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
-			kwTHEN, kwDO, kwEND, kwELSE, kwELSEIF, kwUNTIL, kwFROM, kwWHERE,
+			kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL, kwFROM, kwWHERE,
 			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwAS:
 			return false
 		}
@@ -166,7 +211,11 @@ func Split(script string) []Segment {
 				if relDepth == 0 && off > 0 {
 					return false
 				}
-			case kwTHEN, kwDO, kwEND, kwELSE, kwELSEIF, kwUNTIL:
+			case kwEND:
+				if relDepth == 0 && off > 0 && canPrecedeCaseEnd(peekTok(off-1).Kind) {
+					return false
+				}
+			case kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL:
 				if relDepth == 0 {
 					return false
 				}
@@ -183,10 +232,9 @@ func Split(script string) []Segment {
 		pendingLabel = ""
 		atBodyStmtStart = true
 		stmtHead = tokEOF
+		prevTokKind = tokEOF
 		parenDepth = 0
-		caseExprDepth = 0
-		sawHandler = false
-		sawHandlerFor = false
+		caseStack = caseStack[:0]
 	}
 
 	consumeMatchingEndLabel := func(label string) {
@@ -267,10 +315,9 @@ func Split(script string) []Segment {
 			atBodyStmtStart = true
 			pendingLabel = ""
 			stmtHead = tokEOF
+			prevTokKind = tokEOF
 			parenDepth = 0
-			caseExprDepth = 0
-			sawHandler = false
-			sawHandlerFor = false
+			caseStack = caseStack[:0]
 			continue
 		}
 
@@ -323,6 +370,70 @@ func Split(script string) []Segment {
 				// Body follows ELSE immediately without a semicolon.
 				pendingLabel = ""
 				continue
+			case kwDECLARE:
+				pendingLabel = ""
+				// `DECLARE (EXIT|CONTINUE) HANDLER FOR <conditionValues> <action>`
+				// Consume the handler header and condition list so BEGIN is only
+				// recognized when it actually begins the handler's action.
+				if (peekTok(0).Kind == kwEXIT || peekTok(0).Kind == kwCONTINUE) &&
+					peekTok(1).Kind == kwHANDLER && peekTok(2).Kind == kwFOR {
+					nextTok() // EXIT / CONTINUE
+					nextTok() // HANDLER
+					nextTok() // FOR
+					for {
+						k := peekTok(0).Kind
+						if k == kwSQLSTATE {
+							if peekTok(1).Kind == kwVALUE && (peekTok(2).Kind == tokString || peekTok(2).Kind == tokDoubleQuoted) {
+								nextTok()
+								nextTok()
+								nextTok()
+							} else if peekTok(1).Kind == tokString || peekTok(1).Kind == tokDoubleQuoted {
+								nextTok()
+								nextTok()
+							} else {
+								nextTok()
+								for peekTok(0).Kind == tokDot && peekTok(1).Kind.isIdentifier() {
+									nextTok()
+									nextTok()
+								}
+							}
+						} else if k == kwSQLEXCEPTION {
+							nextTok()
+						} else if k == kwNOT && peekTok(1).Kind == kwFOUND {
+							nextTok()
+							nextTok()
+						} else if k.isIdentifier() {
+							nextTok()
+							for peekTok(0).Kind == tokDot && peekTok(1).Kind.isIdentifier() {
+								nextTok()
+								nextTok()
+							}
+						} else {
+							break
+						}
+						if peekTok(0).Kind != tokComma {
+							break
+						}
+						nextTok() // ','
+					}
+					if peekTok(0).Kind == kwBEGIN {
+						nextTok()
+						enterBeginBlock("")
+						continue
+					}
+					if peekTok(0).Kind.isIdentifier() && peekTok(1).Kind == tokColon && peekTok(2).Kind == kwBEGIN {
+						label := normalizeIdentName(nextTok().Text)
+						nextTok() // ':'
+						nextTok() // BEGIN
+						enterBeginBlock(label)
+						continue
+					}
+				}
+				stmtHead = kwDECLARE
+				atBodyStmtStart = false
+				parenDepth = 0
+				caseStack = caseStack[:0]
+				continue
 			case kwEND:
 				pendingLabel = ""
 				top := stack[len(stack)-1]
@@ -351,9 +462,7 @@ func Split(script string) []Segment {
 				stmtHead = tok.Kind
 				atBodyStmtStart = false
 				parenDepth = 0
-				caseExprDepth = 0
-				sawHandler = false
-				sawHandlerFor = false
+				caseStack = caseStack[:0]
 				continue
 			}
 		}
@@ -366,19 +475,6 @@ func Split(script string) []Segment {
 			if parenDepth > 0 {
 				parenDepth--
 			}
-		case kwHANDLER:
-			if stmtHead == kwDECLARE {
-				sawHandler = true
-			}
-		case kwFOR:
-			if stmtHead == kwDECLARE && sawHandler {
-				sawHandlerFor = true
-			}
-		case kwBEGIN:
-			// `DECLARE EXIT HANDLER FOR <cond> BEGIN ... END;`
-			if stmtHead == kwDECLARE && sawHandlerFor {
-				enterBeginBlock("")
-			}
 		case kwCASE:
 			// Track nested SQL CASE expressions inside IF/ELSEIF/WHEN/UNTIL headers so
 			// `IF CASE WHEN ... THEN ... END THEN` doesn't treat the expression's
@@ -386,37 +482,47 @@ func Split(script string) []Segment {
 			// named `case` (e.g. `IF case = 1 THEN ...`).
 			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL) &&
 				isCaseExprStart(prevKind) {
-				caseExprDepth++
+				caseStack = append(caseStack, caseFrame{parenDepth: parenDepth, phase: caseExpectWhen})
 			}
 		case kwEND:
-			if caseExprDepth > 0 {
-				caseExprDepth--
+			if len(caseStack) > 0 {
+				if isCaseExprEnd(prevKind) {
+					caseStack = caseStack[:len(caseStack)-1]
+				}
 			} else if stmtHead == kwUNTIL && parenDepth == 0 {
 				// `REPEAT ... UNTIL <cond> END REPEAT [label];` has no semicolon before END REPEAT.
 				popControlEnd(compoundRepeat, kwREPEAT)
 			}
 		case kwWHEN:
-			if stmtHead == kwCASE && parenDepth == 0 && caseExprDepth == 0 {
+			if len(caseStack) > 0 {
+				top := &caseStack[len(caseStack)-1]
+				if parenDepth == top.parenDepth {
+					top.phase = caseInWhen
+				}
+			} else if stmtHead == kwCASE && parenDepth == 0 {
 				stmtHead = kwWHEN
 			}
 		case kwTHEN:
-			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN) && parenDepth == 0 && caseExprDepth == 0 {
+			if len(caseStack) > 0 {
+				top := &caseStack[len(caseStack)-1]
+				if parenDepth == top.parenDepth {
+					top.phase = caseAfterThen
+				}
+			} else if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN) && parenDepth == 0 {
 				atBodyStmtStart = true
 				stmtHead = tokEOF
+			}
+		case kwELSE:
+			if len(caseStack) > 0 {
+				top := &caseStack[len(caseStack)-1]
+				if parenDepth == top.parenDepth {
+					top.phase = caseAfterThen
+				}
 			}
 		case kwDO:
-			if (stmtHead == kwWHILE || stmtHead == kwFOR) && parenDepth == 0 && caseExprDepth == 0 {
+			if (stmtHead == kwWHILE || stmtHead == kwFOR) && parenDepth == 0 && len(caseStack) == 0 {
 				atBodyStmtStart = true
 				stmtHead = tokEOF
-			}
-		default:
-			// `DECLARE EXIT HANDLER FOR <cond> label: BEGIN ... END label;`
-			if stmtHead == kwDECLARE && sawHandlerFor && tok.Kind.isIdentifier() &&
-				peekTok(0).Kind == tokColon && peekTok(1).Kind == kwBEGIN {
-				label := normalizeIdentName(tok.Text)
-				nextTok() // consume ':'
-				nextTok() // consume 'BEGIN'
-				enterBeginBlock(label)
 			}
 		}
 	}
