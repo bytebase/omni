@@ -124,6 +124,15 @@ type walker struct {
 	// made lists, by schema path, the exact keys of the objects the change
 	// made there, which DROP SCHEMA asks the ledger about.
 	made map[string][]walk.Key
+	// declaredVars holds local @variable names declared in the current batch
+	// (cleared on GO).
+	declaredVars []string
+	// dirtyTables marks table paths whose synced column types or graph-edge
+	// status may no longer match the initial snapshot (e.g. altered, dropped,
+	// recreated, or renamed). allTablesDirty invalidates every table when an
+	// unplaced or marked-name mutation could alias any synced table.
+	dirtyTables    map[string]bool
+	allTablesDirty bool
 }
 
 // batchPlace is where a statement sits in its batch, as Bytebase splits
@@ -142,12 +151,13 @@ type batchPlace struct {
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	w := &walker{
-		sql:    sql,
-		stmts:  stmts,
-		snap:   newMSSQLSnapshot(t.Schema),
-		target: t,
-		batch:  make([]batchPlace, len(stmts)),
-		made:   make(map[string][]walk.Key),
+		sql:         sql,
+		stmts:       stmts,
+		snap:        newMSSQLSnapshot(t.Schema),
+		target:      t,
+		batch:       make([]batchPlace, len(stmts)),
+		made:        make(map[string][]walk.Key),
+		dirtyTables: make(map[string]bool),
 	}
 	w.triggers = w.snap.triggers
 	first, body, only := true, false, false
@@ -185,11 +195,15 @@ const (
 )
 
 func moduleOf(n ast.Node) module {
-	switch n.(type) {
+	switch v := n.(type) {
 	case *ast.CreateProcedureStmt, *ast.CreateTriggerStmt:
 		return moduleBody
 	case *ast.CreateViewStmt, *ast.CreateFunctionStmt, *ast.CreateSchemaStmt:
 		return moduleOnly
+	case *ast.SecurityStmt:
+		if strings.EqualFold(v.Action, "CREATE") && (strings.EqualFold(v.ObjectType, "DEFAULT") || strings.EqualFold(v.ObjectType, "RULE")) {
+			return moduleOnly
+		}
 	}
 	return moduleNone
 }
@@ -621,6 +635,67 @@ func (b *builder) knownTable(r objRef) bool {
 	}
 	k, sp, ok := single(kind)
 	return ok && k == kindTable && (sp == r.n.spelling || b.unmarked(space, parent))
+}
+
+// markTableDirty marks a table path so snapshot-only properties (synced column
+// types, non-edge status) are no longer relied on after the statement runs.
+func (b *builder) markTableDirty(path string) {
+	b.Session(func() { b.w.dirtyTables[path] = true })
+}
+
+// markAllTablesDirty invalidates snapshot-only properties on every table, for
+// mutations whose target table could alias another synced table under some
+// collation (unplaced or marked-name references).
+func (b *builder) markAllTablesDirty() {
+	b.Session(func() { b.w.allTablesDirty = true })
+}
+
+// syncedTable returns the unmodified snapTable for r if the snapshot is
+// trusted, unambiguous, and the table has not been mutated by earlier
+// statements in the change.
+func (b *builder) syncedTable(r objRef) *snapTable {
+	s := b.w.snap
+	if r.temp || b.w.target.OtherSpecs || b.w.allTablesDirty || s == nil || !b.knownTable(r) {
+		return nil
+	}
+	path := r.tablePath()
+	if b.w.dirtyTables[path] || s.ambiguous[path] {
+		return nil
+	}
+	return s.tables[path]
+}
+
+// knownColType returns the lowercased base type of a synced column when the
+// table is unmodified from the snapshot and holds exact spelling col.
+func (b *builder) knownColType(r objRef, col string) string {
+	st := b.syncedTable(r)
+	if st == nil {
+		return ""
+	}
+	return st.colTypes[col]
+}
+
+// knownNonEdgeTable reports whether r certainly refers to a synced table that
+// is not a graph edge table.
+func (b *builder) knownNonEdgeTable(r objRef) bool {
+	st := b.syncedTable(r)
+	return st != nil && !st.edge
+}
+
+// varDeclared reports whether local variable v (e.g. "@a") may have been
+// declared in the current batch under some collation. System variables ("@@...")
+// are always considered declared.
+func (b *builder) varDeclared(v string) bool {
+	if strings.HasPrefix(v, "@@") {
+		return true
+	}
+	name := strings.TrimPrefix(v, "@")
+	for _, decl := range b.w.declaredVars {
+		if !differ(strings.TrimPrefix(decl, "@"), name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isRelation reports whether a kind is listed in the relation space.

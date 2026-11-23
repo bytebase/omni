@@ -297,6 +297,95 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"create edge table ends walk", "CREATE TABLE dbo.e AS EDGE;\nCREATE TABLE dbo.t (a int);", -1, ""},
 		{"create schema with elements over existing schema", "CREATE SCHEMA s CREATE VIEW s.v1 AS SELECT 1 AS a;", 0, "Schema `s` already exists."},
 		{"create schema with elements ends walk", "CREATE SCHEMA s2 CREATE VIEW s2.v1 AS SELECT 1 AS a;\nCREATE TABLE dbo.t (a int);", -1, ""},
+		// Statistics checks.
+		{"update statistics missing table", "UPDATE STATISTICS dbo.nosuch;", 0, "Table `dbo.nosuch` doesn't exist."},
+		{"update statistics synonym", "UPDATE STATISTICS dbo.syn;", 0, "`dbo.syn` is a synonym, not a table or view."},
+		{"update statistics existing table", "UPDATE STATISTICS dbo.t;", -1, ""},
+		{"update statistics view allowed", "UPDATE STATISTICS dbo.v;", -1, ""},
+		{"create statistics missing table", "CREATE STATISTICS st1 ON dbo.nosuch (a);", 0, "Table `dbo.nosuch` doesn't exist."},
+		{"create statistics synonym", "CREATE STATISTICS st1 ON dbo.syn (a);", 0, "`dbo.syn` is a synonym, not a table or view."},
+		{"create statistics duplicate column", "CREATE STATISTICS st1 ON dbo.t (a, a);", 0, "This statement lists column `a` twice."},
+		{"create statistics missing column", "CREATE STATISTICS st1 ON dbo.t (nosuch);", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"create statistics collides with index", "CREATE STATISTICS ix_a ON dbo.t (a);", 0, "Index `ix_a` already exists in `dbo.t`."},
+		{"create statistics valid", "CREATE STATISTICS st1 ON dbo.t (a);", -1, ""},
+		// ALTER SCHEMA.
+		{"alter schema missing target", "ALTER SCHEMA nosuch TRANSFER dbo.t;", 0, "Schema `nosuch` doesn't exist."},
+		{"alter schema existing target", "ALTER SCHEMA s TRANSFER dbo.t;", -1, ""},
+		// Legacy defaults and rules.
+		{"create default over table", "CREATE DEFAULT dbo.t AS 1;", 0, "The name `dbo.t` is already taken."},
+		{"create default missing schema", "CREATE DEFAULT nosuch.d1 AS 1;", 0, "Schema `nosuch` doesn't exist."},
+		{"create default valid", "CREATE DEFAULT dbo.d1 AS 1;", -1, ""},
+		{"drop default of table", "DROP DEFAULT dbo.t;", 0, "`dbo.t` is a table, not a default."},
+		{"drop default if exists of view", "DROP DEFAULT IF EXISTS dbo.v;", 0, "`dbo.v` is a view, not a default."},
+		{"drop default unsynced may exist", "DROP DEFAULT dbo.nosuch;", -1, ""},
+		{"drop rule of table", "DROP RULE dbo.t;", 0, "`dbo.t` is a table, not a rule."},
+		{"drop rule if exists of procedure", "DROP RULE IF EXISTS dbo.pr;", 0, "`dbo.pr` is a procedure, not a rule."},
+		{"drop rule unsynced may exist", "DROP RULE dbo.nosuch;", -1, ""},
+		// CREATE TYPE base type validation.
+		{"create type from non-system type", "CREATE TYPE dbo.ty FROM dbo.custom_t;", 0, "Base type `dbo.custom_t` is not a system data type."},
+		{"create type from unknown base type", "CREATE TYPE dbo.ty FROM nosuch_type;", 0, "Base type `nosuch_type` is not a system data type."},
+		{"create type from sys system type", "CREATE TYPE dbo.ty FROM sys.int;", -1, ""},
+		{"create type from national char varying", "CREATE TYPE dbo.ty FROM NATIONAL CHAR VARYING(10);", -1, ""},
+		// SELECT * without FROM and function body returning data.
+		{"select star without from", "SELECT * INTO dbo.x;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"create view select star without from", "CREATE VIEW dbo.v2 AS SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"insert select star without from", "INSERT INTO dbo.nokey SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"inline tvf select star without from", "CREATE FUNCTION dbo.tvf() RETURNS TABLE RETURN SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"create schema inline view select star", "CREATE SCHEMA s2 CREATE VIEW s2.v2 AS SELECT *;", 0, "`SELECT *` requires a `FROM` clause."},
+		{"select count star without from valid", "SELECT COUNT(*) AS c INTO dbo.x;", -1, ""},
+		{"scalar function returning select data", "CREATE FUNCTION dbo.f2() RETURNS int AS BEGIN SELECT 1 END;", 0, "SELECT statements inside a function cannot return data to a client."},
+		{"scalar function variable select assign valid", "CREATE FUNCTION dbo.f2() RETURNS int AS BEGIN DECLARE @x int; SELECT @x = 1; RETURN @x; END;", -1, ""},
+		// Batch-local @variable tracking.
+		{"delete undeclared table variable", "DELETE @tv;", 0, "Table variable `@tv` is not declared."},
+		{"delete declared table variable", "DECLARE @tv TABLE (a int);\nDELETE @tv;", -1, ""},
+		{"delete table variable across GO", "DECLARE @tv TABLE (a int);\nGO\nDELETE @tv;", 2, "Table variable `@tv` is not declared."},
+		{"update undeclared scalar variable", "UPDATE dbo.t SET @v = 1;", 0, "Variable `@v` is not declared."},
+		{"update declared scalar variable", "DECLARE @v int;\nUPDATE dbo.t SET @v = 1;", -1, ""},
+		{"delete where current of undeclared cursor var", "DELETE dbo.t WHERE CURRENT OF @c;", 0, "Variable `@c` is not declared."},
+		{"delete where current of declared cursor var", "DECLARE @c CURSOR;\nDELETE dbo.t WHERE CURRENT OF @c;", -1, ""},
+		{"declare inside if counts as declared", "IF 1 = 0 DECLARE @v int;\nUPDATE dbo.t SET @v = 1;", -1, ""},
+		// Index / constraint column checks, inline index without cols, XML/spatial index checks.
+		{"create index duplicate column", "CREATE INDEX ix_dup ON dbo.t (a, a);", 0, "This statement lists column `a` twice."},
+		{"create index duplicate include column", "CREATE INDEX ix_dup ON dbo.t (a) INCLUDE (a);", 0, "This statement lists column `a` twice."},
+		{"create index missing column", "CREATE INDEX ix_bad ON dbo.t (nosuch);", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"alter table add index missing columns", "ALTER TABLE dbo.t ADD INDEX ix_nocol;", 0, "Index `ix_nocol` must specify at least one column."},
+		{"create table clustered columnstore inline index valid", "CREATE TABLE dbo.cc (a int, INDEX ix_cc CLUSTERED COLUMNSTORE);", -1, ""},
+		{"alter table add unique duplicate column", "ALTER TABLE dbo.t ADD UNIQUE (a, a);", 0, "This statement lists column `a` twice."},
+		{"alter table add unique missing column", "ALTER TABLE dbo.t ADD UNIQUE (nosuch);", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"alter table add unique sees new column in same statement", "ALTER TABLE dbo.nokey ADD UNIQUE (x), x int;", -1, ""},
+		{"alter table add fk without columns", "ALTER TABLE dbo.nokey ADD FOREIGN KEY REFERENCES dbo.r;", 0, "Table-level foreign key constraint must specify referencing columns."},
+		{"alter table add fk missing column", "ALTER TABLE dbo.nokey ADD FOREIGN KEY (nosuch) REFERENCES dbo.r (id);", 0, "Column `nosuch` doesn't exist in `dbo.nokey`."},
+		{"alter table switch to itself", "ALTER TABLE dbo.t SWITCH TO dbo.t;", 0, "Cannot switch table `dbo.t` to itself."},
+		{"alter table switch to missing target", "ALTER TABLE dbo.t SWITCH TO dbo.nosuch;", 0, "Table `dbo.nosuch` doesn't exist."},
+		{"alter table switch to other table valid", "ALTER TABLE dbo.t SWITCH TO dbo.r;", -1, ""},
+		{"alter table add period duplicate column", "ALTER TABLE dbo.t ADD PERIOD FOR SYSTEM_TIME (a, a);", 0, "This statement lists column `a` twice."},
+		{"alter table add period missing column", "ALTER TABLE dbo.t ADD PERIOD FOR SYSTEM_TIME (a, nosuch);", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"alter table add period distinct columns valid", "ALTER TABLE dbo.t ADD PERIOD FOR SYSTEM_TIME (a, b);", -1, ""},
+		{"alter table add connection on non-edge table", "ALTER TABLE dbo.t ADD CONNECTION (dbo.t TO dbo.r);", 0, "Table `dbo.t` is not a graph edge table."},
+		{"alter index for on non-xml index", "ALTER INDEX ix_a ON dbo.t FOR (REMOVE p);", 0, "`ix_a` is an index, not an XML index."},
+		{"create secondary xml index missing parent", "CREATE XML INDEX sx1 ON dbo.t (a) USING XML INDEX nosuch FOR VALUE;", 0, "Index `nosuch` doesn't exist in `dbo.t`."},
+		{"create secondary xml index non-xml parent", "CREATE XML INDEX sx1 ON dbo.t (a) USING XML INDEX ix_a FOR VALUE;", 0, "`ix_a` is an index, not an XML index."},
+		// Column type incompatibilities and valid controls.
+		{"create spatial index on int column", "CREATE SPATIAL INDEX sp1 ON dbo.typed (i);", 0, "Column `i` of type `int` cannot be used in a spatial index."},
+		{"create spatial index on geography column valid", "CREATE SPATIAL INDEX sp1 ON dbo.typed (g);", -1, ""},
+		{"create primary xml index on int column", "CREATE PRIMARY XML INDEX px1 ON dbo.typed (i);", 0, "Column `i` of type `int` cannot be used in an XML index."},
+		{"create primary xml index on xml column valid", "CREATE PRIMARY XML INDEX px1 ON dbo.typed (x);", -1, ""},
+		{"create index on xml key column", "CREATE INDEX ix_x ON dbo.typed (x);", 0, "Column `x` of type `xml` cannot be used as an index or statistics key column."},
+		{"create index include xml column valid", "CREATE INDEX ix_inc ON dbo.typed (i) INCLUDE (x);", -1, ""},
+		{"create index on geography key column", "CREATE INDEX ix_g ON dbo.typed (g);", 0, "Column `g` of type `geography` cannot be used as an index or statistics key column."},
+		{"alter column invalidates synced column type", "ALTER TABLE dbo.typed ALTER COLUMN x int;\nCREATE INDEX ix_x ON dbo.typed (x);", -1, ""},
+		// Trigger name kind, DML function call / EXEC target / DML column checks.
+		{"disable trigger named like table", "DISABLE TRIGGER dbo.t ON dbo.t;", 0, "`dbo.t` is a table, not a trigger."},
+		{"disable trigger in wrong schema", "DISABLE TRIGGER s.tr1 ON dbo.t;", 0, "Trigger `s.tr1` must be in the schema of `dbo.t`."},
+		{"delete function call on table", "DELETE dbo.t();", 0, "`dbo.t` is a table, not a function."},
+		{"delete function call on function allowed", "DELETE dbo.fn();", -1, ""},
+		{"insert empty column list on table", "INSERT dbo.t() DEFAULT VALUES;", 0, "`dbo.t` is a table, not a function."},
+		{"insert missing column", "INSERT INTO dbo.t (nosuch) VALUES (1);", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"insert identity default values", "INSERT INTO dbo.t ($IDENTITY) DEFAULT VALUES;", 0, "Cannot insert `DEFAULT VALUES` into `$IDENTITY`."},
+		{"insert exec table target", "INSERT INTO dbo.nokey EXEC dbo.t;", 0, "`dbo.t` is a table, not a procedure."},
+		{"update missing column", "UPDATE dbo.t SET nosuch = 1;", 0, "Column `nosuch` doesn't exist in `dbo.t`."},
+		{"update identity pseudocolumn", "UPDATE dbo.t SET $IDENTITY = 1;", 0, "Cannot update `$IDENTITY` column."},
+		{"update with from clause skips missing column check", "UPDATE dbo.t SET nosuch = 1 FROM dbo.r;", -1, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -350,6 +439,18 @@ func TestWalkThroughFindings(t *testing.T) {
 				target.DefaultSchema = ""
 			case "a default schema that may not exist":
 				target.DefaultSchema = "nosuch"
+			case "create spatial index on int column", "create spatial index on geography column valid",
+				"create primary xml index on int column", "create primary xml index on xml column valid",
+				"create index on xml key column", "create index include xml column valid",
+				"create index on geography key column", "alter column invalidates synced column type":
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{
+					Name: "typed",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "i", Type: "int"},
+						{Name: "x", Type: "xml"},
+						{Name: "g", Type: "geography"},
+					},
+				})
 			}
 			got := walkFindings(t, tt.sql, target)
 			if tt.statement < 0 {
@@ -510,12 +611,18 @@ var walkForms = []walktest.Form{
 	{SQL: "CREATE TRIGGER dbo.tr ON dbo.t AFTER INSERT AS SELECT 1;"},
 	{SQL: "CREATE TRIGGER tr ON dbo.t AFTER INSERT AS SELECT 1;\nGO\nDROP TRIGGER dbo.tr;"},
 	{SQL: "ENABLE TRIGGER ALL ON dbo.t;\nDISABLE TRIGGER ALL ON dbo.t;"},
-	// Sequences, synonyms, types.
+	// Sequences, synonyms, types, statistics, defaults, schema transfer.
 	{SQL: "CREATE SEQUENCE dbo.sq2 START WITH 1;"},
 	{SQL: "ALTER SEQUENCE dbo.sq RESTART;"},
 	{SQL: "DROP SEQUENCE dbo.sq;"},
 	{SQL: "CREATE SYNONYM dbo.syn FOR dbo.t;\nDROP SYNONYM dbo.syn;"},
 	{SQL: "CREATE TYPE dbo.ty FROM int NOT NULL;\nCREATE TYPE dbo.tt AS TABLE (a int);\nDROP TYPE dbo.ty;\nDROP TYPE IF EXISTS dbo.tt;"},
+	{SQL: "CREATE STATISTICS st1 ON dbo.t (a);\nUPDATE STATISTICS dbo.t;"},
+	{SQL: "CREATE DEFAULT dbo.d1 AS 1;\nGO\nDROP DEFAULT dbo.d1;"},
+	{SQL: "DROP RULE IF EXISTS dbo.r1;"},
+	{SQL: "ALTER SCHEMA s TRANSFER dbo.t;", Last: true},
+	{SQL: "ALTER TABLE dbo.t SWITCH TO dbo.r;", Last: true},
+	{SQL: "ALTER TABLE dbo.t ADD PERIOD FOR SYSTEM_TIME (a, b);", Last: true},
 	// sp_rename and extended properties.
 	{SQL: "EXEC sp_rename 'dbo.nokey', 'n2';"},
 	{SQL: "EXEC sp_rename @objname = N'dbo.v', @newname = N'v2', @objtype = N'OBJECT';"},

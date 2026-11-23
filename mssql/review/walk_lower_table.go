@@ -36,12 +36,16 @@ func (b *builder) ofKind(space, parent string, n name, kinds []string, nt *walkN
 func (b *builder) createdTable(r objRef, fill func(path string)) bool {
 	if r.where != placed {
 		b.arriveObject(r, kindTable)
+		if r.where == unplaced {
+			b.markAllTablesDirty()
+		}
 		return false
 	}
 	space, parent := r.relSpace()
 	fresh, _ := b.classFact(r.n.classKey(space, parent))
 	b.arriveObject(r, kindTable)
 	path := r.tablePath()
+	b.markTableDirty(path)
 	if fresh != walk.Absent {
 		b.forgetChildren(path)
 		return false
@@ -49,6 +53,125 @@ func (b *builder) createdTable(r objRef, fill func(path string)) bool {
 	b.clearChildren(path)
 	fill(path)
 	return true
+}
+
+// builtinSystemTypes are SQL Server's built-in system data type names
+// (including ANSI synonyms). User-defined alias types (CREATE TYPE ... FROM)
+// may only derive from built-in system types, and column-type checks only
+// fire for recognized built-in types so alias/UDT columns are never misjudged.
+var builtinSystemTypes = map[string]bool{
+	"bigint": true, "int": true, "integer": true, "smallint": true, "tinyint": true, "bit": true,
+	"decimal": true, "dec": true, "numeric": true, "money": true, "smallmoney": true,
+	"float": true, "real": true, "double precision": true,
+	"date": true, "time": true, "datetime": true, "datetime2": true, "datetimeoffset": true, "smalldatetime": true,
+	"char": true, "character": true, "varchar": true, "char varying": true, "character varying": true,
+	"nchar": true, "nchar varying": true, "national char": true, "national character": true,
+	"nvarchar": true, "national char varying": true, "national character varying": true,
+	"text": true, "ntext": true, "national text": true,
+	"binary": true, "varbinary": true, "binary varying": true, "image": true,
+	"uniqueidentifier": true, "xml": true, "sql_variant": true, "hierarchyid": true,
+	"geometry": true, "geography": true, "timestamp": true, "rowversion": true,
+	"sysname": true, "json": true, "vector": true,
+}
+
+func isBuiltinSystemType(name string) bool {
+	return builtinSystemTypes[strings.ToLower(strings.TrimSpace(name))]
+}
+
+// isSystemBaseType reports whether dt names a built-in SQL Server system type
+// (unqualified or in schema sys).
+func isSystemBaseType(dt *ast.DataType) bool {
+	if dt == nil {
+		return true
+	}
+	if dt.Schema != "" && !strings.EqualFold(dt.Schema, "sys") {
+		return false
+	}
+	return isBuiltinSystemType(dt.Name)
+}
+
+func typeDisplay(dt *ast.DataType) string {
+	if dt == nil {
+		return ""
+	}
+	if dt.Schema != "" {
+		return ident(dt.Schema) + "." + ident(dt.Name)
+	}
+	return ident(dt.Name)
+}
+
+// nonIndexableKeyType reports whether a synced base type cannot be used as a
+// key column in a B-tree/columnstore index, statistics, PK, or UNIQUE
+// constraint (1977, 1978, 1919, 35343).
+func nonIndexableKeyType(typ string) bool {
+	return typ == "xml" || typ == "geometry" || typ == "geography"
+}
+
+// dupColumnInLists reports the first exact column name that appears twice
+// across the given column lists (*ast.IndexColumn or *ast.String items).
+func dupColumnInLists(lists ...*ast.List) (string, review.Range, bool) {
+	seen := make(map[string]bool)
+	for _, list := range lists {
+		if list == nil {
+			continue
+		}
+		for _, item := range list.Items {
+			var name string
+			var loc ast.Loc
+			switch v := item.(type) {
+			case *ast.IndexColumn:
+				name, loc = v.Name, v.Loc
+			case *ast.String:
+				name = v.Str
+			default:
+				continue
+			}
+			if name == "" {
+				continue
+			}
+			if seen[name] {
+				return name, rangeOf(loc), true
+			}
+			seen[name] = true
+		}
+	}
+	return "", review.Range{}, false
+}
+
+// checkIndexColList checks that every non-pseudo column in list exists on a
+// known table (1911/1769) and, when checkKeyType is true, is not of a
+// non-indexable system type such as xml, geometry, or geography.
+func (b *builder) checkIndexColList(r objRef, path string, list *ast.List, checkKeyType bool) {
+	if list == nil {
+		return
+	}
+	for _, item := range list.Items {
+		var name string
+		var loc ast.Loc
+		switch v := item.(type) {
+		case *ast.IndexColumn:
+			name, loc = v.Name, v.Loc
+		case *ast.String:
+			name = v.Str
+		default:
+			continue
+		}
+		if name == "" || isPseudoCol(name) {
+			continue
+		}
+		rng := b.anchor()
+		if loc.Start >= 0 && loc.End > loc.Start {
+			rng = rangeOf(loc)
+		}
+		if cn, ok := keyed(name); ok {
+			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(name), r.written), nil))
+		}
+		if checkKeyType {
+			if typ := b.knownColType(r, name); nonIndexableKeyType(typ) {
+				b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(name))+" of type "+review.Code(typ)+" cannot be used as an index or statistics key column.")
+			}
+		}
+	}
 }
 
 // constraintPrefixes are the generated names of unnamed constraints,
@@ -204,6 +327,19 @@ func (b *builder) defTextFails(r objRef, d *tableDef, verb string) bool {
 	if pks > 1 {
 		b.fail(b.anchor(), review.NameTaken, "This statement gives "+review.Code(r.written)+" two primary keys.")
 		return true
+	}
+	for _, i := range d.indexes {
+		if !i.Columnstore && (i.Columns == nil || len(i.Columns.Items) == 0) {
+			b.fail(rangeOf(i.Loc), review.UnsupportedForm, "Index "+review.Code(ident(i.Name))+" must specify at least one column.")
+			return true
+		}
+		if dup, dupRng, hasDup := dupColumnInLists(i.Columns, i.IncludeCols); hasDup {
+			if dupRng.Start == 0 && dupRng.End == 0 {
+				dupRng = rangeOf(i.Loc)
+			}
+			b.fail(dupRng, review.DuplicateName, msgTwice("lists", "column", ident(dup)))
+			return true
+		}
 	}
 	return false
 }
@@ -448,8 +584,10 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		// The table may be any of its name; its children are not known
 		// while its class is forgotten.
 		b.forgetTable(r)
+		b.markAllTablesDirty()
 	case !known:
 		b.forgetMeant(r, childSpaces...)
+		b.markAllTablesDirty()
 	}
 	if b.alterTextFails(r, actions) {
 		return true
@@ -529,6 +667,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
 		b.defEffects(r, path, known, d)
+		b.markTableDirty(path)
 	case ast.ATAddIndex:
 		// ADD INDEX name ...: the index must not already name one of the
 		// table's indexes (1913), and its name then arrives in that space.
@@ -541,13 +680,42 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		}
 		if known {
 			b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(a.Index.Name), r.written))))
+			b.checkIndexColList(r, path, a.Index.Columns, true)
+			b.checkIndexColList(r, path, a.Index.IncludeCols, false)
 		}
 		b.defEffects(r, path, known, &tableDef{indexes: []*ast.InlineIndexDef{a.Index}})
 	case ast.ATAddConstraint:
 		if a.Constraint == nil {
 			return false
 		}
-		d := &tableDef{constraints: []*ast.ConstraintDef{a.Constraint}}
+		c := a.Constraint
+		if c.Type == ast.ConstraintEdge {
+			if b.knownNonEdgeTable(r) {
+				b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not a graph edge table.")
+			}
+			b.Last = true
+			return true
+		}
+		if known {
+			switch c.Type {
+			case ast.ConstraintPrimaryKey, ast.ConstraintUnique:
+				if dup, dupRng, hasDup := dupColumnInLists(c.Columns); hasDup {
+					if dupRng.Start == 0 && dupRng.End == 0 {
+						dupRng = rng
+					}
+					b.fail(dupRng, review.DuplicateName, msgTwice("lists", "column", ident(dup)))
+					return true
+				}
+				b.checkIndexColList(r, path, c.Columns, true)
+			case ast.ConstraintForeignKey:
+				if c.Columns == nil || len(c.Columns.Items) == 0 {
+					b.fail(rng, review.UnsupportedForm, "Table-level foreign key constraint must specify referencing columns.")
+					return true
+				}
+				b.checkIndexColList(r, path, c.Columns, true)
+			}
+		}
+		d := &tableDef{constraints: []*ast.ConstraintDef{c}}
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
 		b.defEffects(r, path, known, d)
@@ -584,6 +752,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 			b.maybe()
 		}
 		b.leave(spaceColumn, path, cn)
+		b.markTableDirty(path)
 	case ast.ATDropConstraint:
 		if a.Constraint == nil {
 			return false
@@ -601,6 +770,35 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		if known {
 			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(cn.spelling), r.written), nil))
 		}
+		b.markTableDirty(path)
+	case ast.ATSwitchPartition:
+		if a.TargetName != nil {
+			if tr, ok := b.ref(a.TargetName, false); ok && tr.where == placed {
+				b.tableNeeds(tr, []string{kindTable}, msgMissing("table", tr.written), notKind(tr.written, "table", kindTable))
+				if known && r.temp == tr.temp && r.schema.spelling == tr.schema.spelling && r.n.spelling == tr.n.spelling {
+					b.fail(tr.rng, review.UnsupportedForm, "Cannot switch table "+review.Code(r.written)+" to itself.")
+				}
+			}
+		}
+		b.Last = true
+	case ast.ATAddPeriod:
+		if a.Names != nil && len(a.Names.Items) == 2 {
+			s0, ok0 := a.Names.Items[0].(*ast.String)
+			s1, ok1 := a.Names.Items[1].(*ast.String)
+			if ok0 && ok1 && known {
+				cn0, okCN0 := keyed(s0.Str)
+				if okCN0 {
+					b.needs(spaceColumn, path, cn0, nil, note(rng, msgMissingIn("column", ident(s0.Str), r.written), nil))
+				}
+				if cn1, ok := keyed(s1.Str); ok {
+					b.needs(spaceColumn, path, cn1, nil, note(rng, msgMissingIn("column", ident(s1.Str), r.written), nil))
+				}
+				if okCN0 && s0.Str == s1.Str && b.see(spaceColumn, path, cn0).fact != walk.Absent {
+					b.fail(rng, review.DuplicateName, msgTwice("lists", "column", ident(s0.Str)))
+				}
+			}
+		}
+		b.Last = true
 	case ast.ATCheckConstraint, ast.ATNocheckConstraint:
 		if a.Names == nil {
 			return false
@@ -730,7 +928,10 @@ func (b *builder) dropTables(v *ast.DropStmt) bool {
 		path := r.tablePath()
 		b.leaveObject(r, kindTable)
 		if known {
+			b.markTableDirty(path)
 			b.clearChildren(path)
+		} else if r.where != elsewhere {
+			b.markAllTablesDirty()
 		}
 		if r.where == placed && !r.temp {
 			b.MayRemove(walk.Scope{Space: spaceObject, Parent: r.parent})
@@ -856,6 +1057,13 @@ func (b *builder) indexOn(tr *ast.TableRef) (objRef, bool) {
 // (1913, which statistics share), or with DROP_EXISTING = ON exist
 // (7999). A view's indexes are not synced, so only a table's are judged.
 func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
+	if dup, dupRng, hasDup := dupColumnInLists(v.Columns, v.IncludeCols, v.OrderCols); hasDup {
+		if dupRng.Start == 0 && dupRng.End == 0 {
+			dupRng = b.anchor()
+		}
+		b.fail(dupRng, review.DuplicateName, msgTwice("lists", "column", ident(dup)))
+		return true
+	}
 	in, ok := keyed(v.Name)
 	if !ok {
 		return false
@@ -880,6 +1088,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	path := r.tablePath()
 	rng := b.anchor()
+	b.checkIndexColList(r, path, v.Columns, true)
+	b.checkIndexColList(r, path, v.IncludeCols, false)
+	b.checkIndexColList(r, path, v.OrderCols, true)
 	if rebuild {
 		// The index is rebuilt under its name, and a PK's or UQ's keeps
 		// its constraint.
@@ -893,9 +1104,12 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 
 // createSpecializedIndex follows CREATE [PRIMARY|SELECTIVE] XML INDEX and
 // CREATE SPATIAL INDEX: unlike ordinary indexes, these can only be created
-// on a user table (1088 missing, 6334 non-table), and their index name must
-// be free on the table (1913) or exist when DROP_EXISTING = ON (7999).
-func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, opts *ast.List, kind string) bool {
+// on a user table (1088 missing, 6334 non-table), their target column must
+// exist (1911) and have a compatible type (6330 XML, 12002 spatial), a
+// secondary XML index's USING XML INDEX parent must exist as an XML index
+// (6333), and their index name must be free on the table (1913) or exist
+// when DROP_EXISTING = ON (7999).
+func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, colName, usingIndex string, opts *ast.List, kind string, isXML, isSpatial bool) bool {
 	in, ok := keyed(name)
 	if !ok {
 		return false
@@ -924,12 +1138,98 @@ func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, opts 
 	}
 	path := r.tablePath()
 	rng := b.anchor()
+	if colName != "" && !isPseudoCol(colName) {
+		if cn, ok := keyed(colName); ok {
+			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(colName), r.written), nil))
+		}
+	}
+	usingFails := false
+	if usingIndex != "" {
+		if pn, ok := keyed(usingIndex); ok {
+			b.needs(spaceIndex, path, pn, []string{kindXMLIndex}, note(rng, msgMissingIn("index", ident(usingIndex), r.written), notKind(ident(usingIndex), "XML index", kindXMLIndex)))
+			ps := b.see(spaceIndex, path, pn)
+			if ps.fact == walk.Absent || (ps.fact == walk.Present && ps.kind != "" && ps.kind != kindXMLIndex) {
+				usingFails = true
+			}
+		}
+	}
+	ixSight := b.see(spaceIndex, path, in)
+	ixFails := (!rebuild && ixSight.fact == walk.Present) || (rebuild && ixSight.fact == walk.Absent)
+	if colName != "" && !usingFails {
+		if typ := b.knownColType(r, colName); typ != "" && isBuiltinSystemType(typ) {
+			if isSpatial && typ != "geometry" && typ != "geography" {
+				b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" of type "+review.Code(typ)+" cannot be used in a spatial index.")
+			} else if isXML && !ixFails && typ != "xml" {
+				b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" of type "+review.Code(typ)+" cannot be used in an XML index.")
+			}
+		}
+	}
 	if rebuild {
 		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(name), r.written), nil))
 		return true
 	}
 	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(name), r.written))))
 	b.arrive(spaceIndex, path, in, kind)
+	return true
+}
+
+// createStatistics follows CREATE STATISTICS: checks duplicate column names
+// (1909), target table or view existence (1088, 1929), column existence and
+// indexability (1911, 1977, 1978), and collision with an existing index
+// name (1927), then marks the statistics name as May-added in spaceIndex.
+func (b *builder) createStatistics(v *ast.CreateStatisticsStmt) bool {
+	if dup, dupRng, hasDup := dupColumnInLists(v.Columns); hasDup {
+		if dupRng.Start == 0 && dupRng.End == 0 {
+			dupRng = b.anchor()
+		}
+		b.fail(dupRng, review.DuplicateName, msgTwice("lists", "column", ident(dup)))
+		return true
+	}
+	sn, ok := keyed(v.Name)
+	if !ok {
+		return false
+	}
+	r, ok := b.ref(v.Table, false)
+	if !ok {
+		return false
+	}
+	if r.where == elsewhere {
+		return true
+	}
+	if b.refTooLong(v.Table, r) || b.tooLong(v.Name, false, b.anchor()) {
+		return true
+	}
+	b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), notKind(r.written, "table or view", kindTable, kindView))
+	if !b.knownTable(r) {
+		if r.where == placed {
+			b.forgetMeant(r, spaceIndex)
+		}
+		return true
+	}
+	path := r.tablePath()
+	b.checkIndexColList(r, path, v.Columns, true)
+	b.lacks(spaceIndex, path, sn, note(b.anchor(), "", text(msgExistsIn("index", ident(v.Name), r.written))))
+	// Statistics share the index namespace (1913) but are not indexes
+	// themselves, so record a MayAdd rather than arrive.
+	b.MayAdd(walk.Scope{Space: spaceIndex, Parent: path, Prefix: sn.class})
+	b.across(spaceIndex, path, sn, true)
+	return true
+}
+
+// updateStatistics follows UPDATE STATISTICS: its target must exist as a
+// table or indexed view (2706).
+func (b *builder) updateStatistics(v *ast.UpdateStatisticsStmt) bool {
+	r, ok := b.ref(v.Table, false)
+	if !ok {
+		return false
+	}
+	if r.where == elsewhere {
+		return true
+	}
+	if b.refTooLong(v.Table, r) {
+		return true
+	}
+	b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), notKind(r.written, "table or view", kindTable, kindView))
 	return true
 }
 
@@ -956,7 +1256,8 @@ func dropExisting(opts *ast.List) (on, ok bool) {
 }
 
 // alterIndex follows ALTER INDEX, which renames nothing: the table must
-// exist (1088), and a named index on it (2727).
+// exist (1088), a named index on it (2727), and FOR (ADD/REMOVE ...) path
+// alterations require a selective XML index (6333).
 func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	r, ok := b.indexOn(v.Table)
 	if !ok {
@@ -969,7 +1270,13 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	if !ok {
 		return false
 	}
-	b.needs(spaceIndex, r.tablePath(), in, nil, note(b.anchor(), msgMissingIn("index", ident(v.IndexName), r.written), nil))
+	var kinds []string
+	var present func(string) string
+	if strings.EqualFold(v.Action, "FOR") {
+		kinds = []string{kindXMLIndex}
+		present = notKind(ident(v.IndexName), "XML index", kindXMLIndex)
+	}
+	b.needs(spaceIndex, r.tablePath(), in, kinds, note(b.anchor(), msgMissingIn("index", ident(v.IndexName), r.written), present))
 	return true
 }
 

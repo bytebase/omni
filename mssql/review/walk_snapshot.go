@@ -44,6 +44,8 @@ const (
 	kindFunction  = "function"
 	kindTrigger   = "trigger"
 	kindSynonym   = "synonym"
+	kindDefault   = "default"
+	kindRule      = "rule"
 	kindIndex     = "index"
 	kindXMLIndex  = "xml"
 	kindPK        = "pk"
@@ -131,7 +133,10 @@ func (s *snapSpace) lookup(key string, trusted bool) (walk.Fact, string) {
 // snapTable is a synced table's children.
 type snapTable struct {
 	columns, indexes, constraints snapSpace
-	primary                       bool
+	// colTypes maps exact synced column spelling to its lowercased base type
+	// name (empty for computed or untyped columns).
+	colTypes map[string]string
+	primary  bool
 	// edge is set for a graph edge table, whose edge constraints the sync
 	// skips.
 	edge bool
@@ -253,6 +258,15 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			}
 			for _, c := range t.GetColumns() {
 				st.columns.add(c.GetName(), "")
+				if typ := strings.ToLower(strings.TrimSpace(c.GetType())); typ != "" && !strings.HasPrefix(typ, "as ") {
+					base, _, _ := strings.Cut(typ, "(")
+					if base = strings.TrimSpace(base); base != "" {
+						if st.colTypes == nil {
+							st.colTypes = make(map[string]string)
+						}
+						st.colTypes[c.GetName()] = base
+					}
+				}
 				if strings.HasPrefix(c.GetName(), "$edge_id") {
 					st.edge = true
 				}

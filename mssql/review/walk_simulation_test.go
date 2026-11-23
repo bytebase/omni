@@ -169,12 +169,16 @@ func TestWalkSimulation(t *testing.T) {
 		}
 	}
 
+	const minWalkSimRecall = 85.0
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)
 	}
 	t.Logf("TestWalkSimulation: %d rows (%d fixtures x %d statements): %d ok, %d refused; WALK_THROUGH found %d/%d refusals (%.1f%%), %d false positives, %d unsound, %d syntax-skipped",
 		total, len(walkSimFixtures), len(stmts), okCount, refusedCount, foundCount, refusedCount, pct, falsePositives, unsound, syntaxSkipped)
+	if pct < minWalkSimRecall {
+		t.Errorf("WALK_THROUGH recall %.1f%% (%d/%d) dropped below %.1f%% floor", pct, foundCount, refusedCount, minWalkSimRecall)
+	}
 
 	if mode == enginetest.ModeRecord {
 		if err := writeWalkSimVerdicts(walkSimVerdictsPath, pin.String(), recorded); err != nil {
