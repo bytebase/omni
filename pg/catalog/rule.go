@@ -91,6 +91,16 @@ type ruleBindings struct {
 	stmtCtx        map[*nodes.SelectStmt]*ruleEvalContext
 	srfCalls       map[*nodes.FuncCall]bool
 
+	// fn is the SQL function whose body these bindings hold, nil for a
+	// rule. A name no column takes is one of its parameters, and a column
+	// prints qualified, as print_function_sqlbody prints it.
+	fn *sqlFnParams
+	// fnQualify reports that the statement being bound has a range table
+	// whatever its FROM holds (a DML target), so a parameter in it prints
+	// qualified.
+	fnQualify   bool
+	paramByNode map[nodes.Node]sqlFnParamRef
+
 	relDeps  []uint32
 	colDeps  []ruleColDep
 	conDeps  []uint32
@@ -218,6 +228,11 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	}
 	for k, v := range b.naturalJoined {
 		cp.naturalJoined[k] = v
+	}
+	cp.fn = b.fn
+	cp.paramByNode = make(map[nodes.Node]sqlFnParamRef, len(b.paramByNode))
+	for k, v := range b.paramByNode {
+		cp.paramByNode[k] = v
 	}
 	return cp
 }
@@ -675,6 +690,7 @@ func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 		naturalJoined:  make(map[*nodes.JoinExpr]bool),
 		stmtCtx:        make(map[*nodes.SelectStmt]*ruleEvalContext),
 		srfCalls:       make(map[*nodes.FuncCall]bool),
+		paramByNode:    make(map[nodes.Node]sqlFnParamRef),
 		seenRel:        make(map[uint32]bool),
 		seenCol:        make(map[ruleColDep]bool),
 		seenCon:        make(map[uint32]bool),
@@ -950,7 +966,9 @@ func (c *Catalog) bindRangeVar(b *ruleBindings, rv *nodes.RangeVar, cteNames map
 				return 0, "seq", nil
 			}
 		}
-		if c.snapshot {
+		if c.snapshot || b != nil && b.fn != nil && !forDMLTarget && systemRelationName(rv) {
+			// The catalog holds no system catalog or information_schema
+			// view, which a function body may read.
 			return 0, "open", nil
 		}
 		return 0, "", err
@@ -5493,6 +5511,7 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				var matchedOID uint32
 				var matchedAtt int16
 				var matchedType uint32
+				var matchedSE ruleScopeEntry
 				count := 0
 				hasAnyOpen := cur.hasOpenSource
 				seenRel := map[uint32]bool{}
@@ -5534,6 +5553,7 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 						if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
 							matchedOID = se.relOID
 							matchedAtt = attNum
+							matchedSE = se
 							for _, col := range rel.Columns {
 								if col.AttNum == attNum {
 									matchedType = col.TypeOID
@@ -5559,7 +5579,11 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				}
 				if count == 1 {
 					if matchedOID != 0 && len(cur.colAliasesFor(matchedOID)) == 0 && cur.usingCols[colName] == 0 {
-						b.colByRef[v] = ruleColBinding{relOID: matchedOID, attNum: matchedAtt}
+						cb := ruleColBinding{relOID: matchedOID, attNum: matchedAtt}
+						if b.fn != nil {
+							cb.prefix, cb.useRelName = matchedSE.alias, !matchedSE.hasAlias
+						}
+						b.colByRef[v] = cb
 					}
 					if matchedType != 0 && b != nil && b.exprTypeByNode != nil {
 						b.exprTypeByNode[v] = matchedType
@@ -5591,6 +5615,10 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				if cur.targetAliases[colName] || hasAnyOpen {
 					return nil
 				}
+			}
+			if num := b.fn.lookup(colName); num > 0 {
+				b.bindFnParam(v, num, ctx)
+				return nil
 			}
 			isOld := strings.EqualFold(colName, "old")
 			isNew := strings.EqualFold(colName, "new")
@@ -5711,6 +5739,18 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				b.addColDep(se.relOID, attNum)
 				return nil
 			}
+			if b.fn != nil && !isStar && qual == b.fn.name {
+				if num := b.fn.lookup(colName); num > 0 {
+					b.bindFnParam(v, num, ctx)
+					return nil
+				}
+			}
+			// A field or all fields of a composite parameter: param.field,
+			// param.*. Its type is left unresolved.
+			// pg: src/backend/executor/functions.c — sql_fn_post_column_ref
+			if b.fn.lookup(qual) > 0 {
+				return nil
+			}
 			if !c.snapshot {
 				if isOld && b.isOnSelect {
 					return &Error{
@@ -5743,6 +5783,10 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				return err
 			}
 			items = items[1:]
+		}
+		if len(items) == 3 && b.fn != nil && stringVal(items[0]) == b.fn.name && b.fn.lookup(stringVal(items[1])) > 0 {
+			// fname.param.field or fname.param.*, of a composite parameter.
+			return nil
 		}
 		if len(items) == 3 {
 			schName := stringVal(items[0])
@@ -6400,6 +6444,16 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		}
 		return c.bindRuleJsonAggConstructor(b, v.Constructor, ctx)
 	case *nodes.ParamRef:
+		if b != nil && b.fn != nil {
+			if v.Number < 1 || v.Number > len(b.fn.types) {
+				return &Error{
+					Code:    CodeUndefinedParameter,
+					Message: fmt.Sprintf("there is no parameter $%d", v.Number),
+				}
+			}
+			b.bindFnParam(v, v.Number, ctx)
+			return nil
+		}
 		if b != nil && b.ownerRelOID != 0 && !c.snapshot {
 			return &Error{
 				Code:    CodeUndefinedParameter,
@@ -9286,6 +9340,11 @@ func (d *ruleDeparser) deparseIndirection(ind *nodes.List) string {
 func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 	if n == nil {
 		return ""
+	}
+	if d.b != nil {
+		if pr, ok := d.b.paramByNode[n]; ok {
+			return d.b.fn.deparse(d.cat, pr)
+		}
 	}
 	switch v := n.(type) {
 	case *nodes.ColumnRef:

@@ -181,7 +181,7 @@ func TestCreateFunctionOrReplaceWrongReturnType(t *testing.T) {
 		[]TypeName{{Name: "int4", TypeMod: -1}},
 		TypeName{Name: "text", TypeMod: -1},
 		"sql", "SELECT $1::text", true))
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
 
 func TestCreateFunctionOrReplaceWrongRetSet(t *testing.T) {
@@ -198,7 +198,7 @@ func TestCreateFunctionOrReplaceWrongRetSet(t *testing.T) {
 		"sql", "SELECT $1", true)
 	stmt.ReturnType.Setof = true
 	err := c.CreateFunctionStmt(stmt)
-	assertCode(t, err, CodeInvalidObjectDefinition)
+	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
 
 func TestDropFunction(t *testing.T) {

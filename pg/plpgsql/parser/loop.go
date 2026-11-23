@@ -442,12 +442,21 @@ func (p *Parser) parseForEach(label string) (ast.Node, error) {
 	startPos := p.pos()
 	p.advance() // consume FOREACH
 
-	// Parse loop variable name
+	// Parse the loop variable, or a list of scalar variables.
+	// pg: src/pl/plpgsql/src/pl_gram.y — for_variable (read_into_scalar_list)
 	if !p.isIdent() && !p.isAnyKeywordAsIdent() {
 		return nil, p.errorf("syntax error at or near %q, expected loop variable name", p.tokenText(p.cur))
 	}
 	varName := p.identText()
 	p.advance()
+	for p.cur.Type == ',' {
+		p.advance()
+		if !p.isIdent() && !p.isAnyKeywordAsIdent() {
+			return nil, p.errorf("syntax error at or near %q, expected loop variable name", p.tokenText(p.cur))
+		}
+		varName += ", " + p.identText()
+		p.advance()
+	}
 
 	// Parse optional SLICE n
 	sliceDim := 0

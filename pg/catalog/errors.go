@@ -39,6 +39,7 @@ const (
 	CodeInvalidTableDefinition       = "42P16"
 	CodeDuplicatePKey                = "42P16" // same SQLSTATE as InvalidTableDefinition
 	CodeDatatypeMismatch             = "42804"
+	CodeErrorInAssignment            = "22005"
 	CodeCannotCoerce                 = "42846"
 	CodeUndefinedFunction            = "42883"
 	CodeAmbiguousColumn              = "42702"

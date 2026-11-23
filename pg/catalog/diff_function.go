@@ -99,7 +99,7 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if fp.Kind != tp.Kind {
 		return true
 	}
-	if fp.Body != tp.Body || fp.HasSqlBody != tp.HasSqlBody {
+	if from.procBody(fp) != to.procBody(tp) || fp.HasSqlBody != tp.HasSqlBody {
 		return true
 	}
 	if fp.Volatile != tp.Volatile {

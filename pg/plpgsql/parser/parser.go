@@ -584,6 +584,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 	}
 
+	// A word followed by :=, = or [ at the start of a statement is an
+	// assignment target, even one spelled like a statement keyword (return,
+	// comment) or a parameter ($1).
+	// pg: src/pl/plpgsql/src/pl_scanner.c — plpgsql_yylex (AT_STMT_START)
+	if isIntoTargetToken(p.cur) {
+		switch p.peekNext().Type {
+		case pgparser.COLON_EQUALS, '=', '[':
+			return p.parseAssignOrCall()
+		}
+	}
+
 	// Unlabeled statement dispatch
 	switch {
 	case p.isKeyword("IF"):

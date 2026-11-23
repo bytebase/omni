@@ -2685,7 +2685,7 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteByte('\n')
 	}
 	if up.HasSqlBody {
-		b.WriteString(up.Body)
+		b.WriteString(cat.procBody(up))
 		b.WriteByte('\n')
 	} else if up.LinkSymbol != "" {
 		b.WriteString("AS ")

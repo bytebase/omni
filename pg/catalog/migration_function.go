@@ -114,7 +114,7 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	}
 
 	// Body.
-	b.WriteString(formatFunctionBodyClause(proc))
+	b.WriteString(formatFunctionBodyClause(c, proc))
 
 	return MigrationOp{
 		Type:          OpCreateFunction,
@@ -156,7 +156,7 @@ func buildReplaceeFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	b.WriteString(formatFuncAttributes(proc))
 
-	b.WriteString(formatFunctionBodyClause(proc))
+	b.WriteString(formatFunctionBodyClause(c, proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -373,9 +373,9 @@ func formatFuncAttributes(proc *UserProc) string {
 	return "\n" + strings.Join(parts, "\n")
 }
 
-func formatFunctionBodyClause(proc *UserProc) string {
+func formatFunctionBodyClause(c *Catalog, proc *UserProc) string {
 	if proc.HasSqlBody {
-		return "\n" + proc.Body
+		return "\n" + c.procBody(proc)
 	}
 	if proc.LinkSymbol != "" {
 		return "\nAS " + quoteLiteral(proc.Body) + ", " + quoteLiteral(proc.LinkSymbol)
@@ -405,7 +405,7 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		b.WriteString(sc)
 	}
 
-	b.WriteString(formatFunctionBodyClause(proc))
+	b.WriteString(formatFunctionBodyClause(c, proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,

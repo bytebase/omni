@@ -754,7 +754,7 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 	inDegree := make([]int, n)
 	edgeSeen := make(map[[2]int]bool) // avoid duplicate edges
 
-	for _, d := range c.deps {
+	for _, d := range append(c.bodyOrderingDeps(), c.deps...) {
 		if d.DepType == DepInternal {
 			continue
 		}

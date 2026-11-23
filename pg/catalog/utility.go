@@ -321,8 +321,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// COPY: no-op for pgddl
 		return nil
 	case *nodes.DoStmt:
-		// DO: no-op for pgddl
-		return nil
+		return c.checkDo(s)
 	case *nodes.ExplainStmt:
 		// EXPLAIN: no-op for pgddl
 		return nil
@@ -370,8 +369,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// SHOW: no-op for pgddl
 		return nil
 	case *nodes.CallStmt:
-		// CALL: no-op for pgddl
-		return nil
+		// CALL resolves its procedure; what the procedure does when it runs
+		// is not simulated.
+		return c.checkCall(newRuleBindings(0, 0), s.Funccall, &ruleEvalContext{})
 	case *nodes.PrepareStmt:
 		if s.Name != "" && c.preparedStmts[s.Name] != nil {
 			return &Error{

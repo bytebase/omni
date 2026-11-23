@@ -1,0 +1,268 @@
+# pin: default postgres:17.12-alpine sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f REL_17_12
+# columns: omni, expected, source, fixture, rule, statement
+ok:c4aa24712a7a	ok:c4aa24712a7a	engine	programs@objects	program:function-sql	CREATE FUNCTION f(c int) RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM orders WHERE customer_id = c'
+ok:9864c49839a6	ok:9864c49839a6	engine	programs@objects	program:function-sql	CREATE FUNCTION f(c int) RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM orders WHERE customer_id = $1'
+42P01	42P01	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM missing_t'
+42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS text LANGUAGE sql AS 'SELECT nope FROM customers'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT name FROM customers'
+42601	42601	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELEC 1'
+42P01	42P01	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'CREATE TABLE made_in_f (x int); INSERT INTO made_in_f VALUES (1)'
+ok:33ce5eb3fe0d	ok:33ce5eb3fe0d	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'CREATE TABLE made_in_f (x int)'
+ok:bef3656dc629	ok:bef3656dc629	engine	programs@objects	program:function-sql	CREATE FUNCTION f(x anyelement) RETURNS anyelement LANGUAGE sql AS 'SELECT nope FROM missing_t'
+ok:063fdf963e2c	ok:063fdf963e2c	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS SETOF orders LANGUAGE sql AS 'SELECT * FROM orders'
+ok:83929717070a	ok:83929717070a	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS TABLE (id int, name text) LANGUAGE sql AS 'SELECT id, name FROM customers'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS TABLE (id int, name text) LANGUAGE sql AS 'SELECT id FROM customers'
+ok:8f8bf2d8f40d	ok:8f8bf2d8f40d	engine	programs@objects	program:function-sql	CREATE FUNCTION f(INOUT a int, OUT b text) LANGUAGE sql AS 'SELECT a, ''x'''
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f(OUT a int, OUT b int) LANGUAGE sql AS 'SELECT 1'
+ok:cbe25aa03677	ok:cbe25aa03677	engine	programs@objects	program:function-sql	CREATE FUNCTION f(VARIADIC xs int[]) RETURNS int LANGUAGE sql AS 'SELECT array_length(xs, 1)'
+ok:2063af9925b7	ok:2063af9925b7	engine	programs@objects	program:function-sql	CREATE FUNCTION f(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'SELECT a + b'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f(a int DEFAULT 1, b int) RETURNS int LANGUAGE sql AS 'SELECT a + b'
+ok:90064dcae8a4	ok:90064dcae8a4	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql STABLE STRICT PARALLEL SAFE COST 10 SECURITY DEFINER SET search_path = public AS 'SELECT 1'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS trigger LANGUAGE sql AS 'SELECT 1'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS event_trigger LANGUAGE sql AS 'SELECT 1'
+ok:90861c9f3e03	ok:90861c9f3e03	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1; SELECT 2'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'INSERT INTO logs (msg) VALUES (''x'')'
+ok:b6e641c22775	ok:b6e641c22775	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'INSERT INTO logs (id) VALUES (1) RETURNING id'
+42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'UPDATE orders SET nope = 1'
+42P01	42P01	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'DELETE FROM missing_t'
+42P01	42P01	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'SELECT; SELECT nope FROM missing_t'
+ok:06e0fc3ecfff	ok:06e0fc3ecfff	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT f_double(1)'
+42883	42883	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT nope_fn(1)'
+42883	42883	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT f_double(1, 2)'
+42P02	42P02	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT $1'
+42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT id FROM customers WHERE region = nope'
+42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f(c int) RETURNS SETOF orders LANGUAGE sql AS 'SELECT * FROM orders WHERE customer_id = c ORDER BY nope'
+ok:63950d46bf1e	ok:63950d46bf1e	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS SETOF text LANGUAGE sql AS 'SELECT name FROM v_customers'
+ok	22P02	engine	programs@objects	program:function-sql	CREATE FUNCTION f(m mood) RETURNS boolean LANGUAGE sql AS 'SELECT m = ''nope'''
+ok:bc53eee44db6	ok:bc53eee44db6	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS record LANGUAGE sql AS 'SELECT 1, 2'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS ''
+ok:c4cb5a856159	ok:c4cb5a856159	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS ''
+ok:81e62167c69d	ok:81e62167c69d	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$
+ok	42883	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE internal AS 'nope_symbol'
+42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE nope AS 'SELECT 1'
+42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS nope LANGUAGE sql AS 'SELECT 1'
+42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f(x nope) RETURNS int LANGUAGE sql AS 'SELECT 1'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int AS 'SELECT 1'
+3F000	3F000	engine	programs@objects	program:function-sql	CREATE FUNCTION nope_schema.f() RETURNS int LANGUAGE sql AS 'SELECT 1'
+42723	42723	engine	programs@objects	program:function-sql	CREATE FUNCTION f_double(x int) RETURNS int LANGUAGE sql AS 'SELECT x'
+ok:2e5224ab7fda	ok:2e5224ab7fda	engine	programs@objects	program:function-sql	CREATE FUNCTION f_double(x bigint) RETURNS bigint LANGUAGE sql AS 'SELECT x * 2'
+ok:0992aa18b0be	ok:0992aa18b0be	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION f_double(x int) RETURNS int LANGUAGE sql AS 'SELECT x * 3'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION f_double(x int) RETURNS bigint LANGUAGE sql AS 'SELECT x::bigint'
+42P13	42P13	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y'
+42P01	42P01	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION f_double(x int) RETURNS int LANGUAGE sql AS 'SELECT nope FROM missing_t'
+42809	42809	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION p_log(m text) RETURNS void LANGUAGE sql AS 'SELECT'
+ok:617b68fcdc24	ok:617b68fcdc24	engine	programs@objects	program:function-sql	CREATE OR REPLACE FUNCTION f_log_count() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM audit'
+ok:36e79a602416	ok:36e79a602416	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(i int) RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT qty FROM items WHERE id = i; END
+42P01	42P01	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT qty FROM missing_t; END
+42703	42703	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT nope FROM items; END
+ok:b458dbb2482c	ok:b458dbb2482c	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x int) RETURNS int RETURN x * 2
+42883	42883	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x int) RETURNS int RETURN nope_fn(x)
+42703	42703	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x int) RETURNS int RETURN nope
+42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x int) RETURNS int LANGUAGE plpgsql RETURN x
+42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC END
+ok:35c5fa4bb670	ok:35c5fa4bb670	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS void LANGUAGE sql BEGIN ATOMIC END
+42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x anyelement) RETURNS anyelement BEGIN ATOMIC SELECT x; END
+ok	ok:304c157b9c19	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS bigint LANGUAGE sql BEGIN ATOMIC INSERT INTO logs (msg) VALUES ('a'); SELECT count(*) FROM logs; END
+ok:714ee5649c49	ok:714ee5649c49	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS text RETURN (SELECT name FROM v_customers LIMIT 1)
+42703	42703	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS text RETURN (SELECT name FROM v_customers WHERE nope)
+ok:77ca7940ce68	ok:77ca7940ce68	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int RETURN f_quad(1)
+ok	ok:356dbe43233e	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'happy'
+ok	22P02	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'nope'
+42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int RETURN 'a'
+ok:f58f112b20fa	ok:f58f112b20fa	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS SETOF int LANGUAGE sql BEGIN ATOMIC SELECT id FROM orders; END
+ok:daafda76c8fb	ok:daafda76c8fb	engine	programs@objects	program:function-atomic	CREATE OR REPLACE FUNCTION f_item_qty(i int) RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT qty * 2 FROM items WHERE id = i; END
+ok:2b998f3e8dab	ok:2b998f3e8dab	engine	programs@objects	program:procedure	CREATE PROCEDURE p(m text) LANGUAGE sql AS 'INSERT INTO logs (msg) VALUES (m)'
+42P01	42P01	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql AS 'INSERT INTO missing_t VALUES (1)'
+42703	42703	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql AS 'SELECT nope FROM logs'
+ok:e49c7f779760	ok:e49c7f779760	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE plpgsql AS $$ BEGIN INSERT INTO missing_t VALUES (1); END $$
+ok:1a8435b39ba7	ok:1a8435b39ba7	engine	programs@objects	program:procedure	CREATE PROCEDURE p(m text) BEGIN ATOMIC INSERT INTO logs (msg) VALUES (m); END
+42P01	42P01	engine	programs@objects	program:procedure	CREATE PROCEDURE p() BEGIN ATOMIC INSERT INTO missing_t VALUES (1); END
+ok:95187645744c	ok:95187645744c	engine	programs@objects	program:procedure	CREATE PROCEDURE p(OUT n int) LANGUAGE plpgsql AS $$ BEGIN n := 1; END $$
+42601	42601	engine	programs@objects	program:procedure	CREATE PROCEDURE p() RETURNS int LANGUAGE sql AS 'SELECT 1'
+42601	42601	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
+ok:881bb4603082	ok:881bb4603082	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE plpgsql AS $$ BEGIN COMMIT; END $$
+42P13	42P13	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql STRICT AS 'SELECT'
+ok:642f5b6dfa41	ok:642f5b6dfa41	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql SECURITY DEFINER SET search_path = public AS 'SELECT'
+ok:dcc595cffade	ok:dcc595cffade	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql AS 'CALL p_log(''x'')'
+42883	42883	engine	programs@objects	program:procedure	CREATE PROCEDURE p() LANGUAGE sql AS 'CALL nope()'
+42723	42723	engine	programs@objects	program:procedure	CREATE PROCEDURE p_log(m text) LANGUAGE sql AS 'SELECT'
+ok:41ac34c6cf9b	ok:41ac34c6cf9b	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE p_log(m text) LANGUAGE plpgsql AS $$ BEGIN NULL; END $$
+42809	42809	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE f_double(x int) LANGUAGE sql AS 'SELECT'
+ok:3b6131fa5605	ok:3b6131fa5605	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS bigint LANGUAGE plpgsql AS $$ BEGIN RETURN (SELECT count(*) FROM missing_t); END $$
+ok:92bacdef3a69	ok:92bacdef3a69	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x int; BEGIN SELECT id INTO x FROM missing_t; RETURN x; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN IF true THEN RETURN 1; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN x := 1; RETURN 1; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN SELECT 1 INTO nope; RETURN 1; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 + ; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN UPDATE orders SET WHERE; RETURN 1; END $$
+42704	42704	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x nope_type; BEGIN RETURN 1; END $$
+ok:46196032938c	ok:46196032938c	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r orders%ROWTYPE; BEGIN RETURN 1; END $$
+42P01	42P01	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r missing_t%ROWTYPE; BEGIN RETURN 1; END $$
+ok:dd3b322552a6	ok:dd3b322552a6	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.amount%TYPE; BEGIN RETURN 1; END $$
+42703	42703	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.nope%TYPE; BEGIN RETURN 1; END $$
+22005	22005	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE c CONSTANT int := 1; BEGIN c := 2; RETURN c; END $$
+42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
+42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN NEXT 1; END $$
+ok:74e50edd86a3	ok:74e50edd86a3	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS SETOF int LANGUAGE plpgsql AS $$ BEGIN RETURN NEXT 1; RETURN; END $$
+42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS SETOF int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
+42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f(OUT a int) LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
+ok:8c0c5ec8f8f2	ok:8c0c5ec8f8f2	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN PERFORM nope_fn(); RETURN 1; END $$
+ok:eb5fd32c31f1	ok:eb5fd32c31f1	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN EXECUTE 'SELECT nope FROM missing_t'; RETURN 1; END $$
+ok:096b698cc6b6	ok:096b698cc6b6	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r record; BEGIN FOR r IN SELECT id FROM customers LOOP NULL; END LOOP; RETURN 1; END $$
+ok:3632842f70f9	ok:3632842f70f9	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'boom'; END $$
+42704	42704	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RAISE nope_condition; END $$
+ok:87b527bba939	ok:87b527bba939	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; EXCEPTION WHEN unique_violation THEN RETURN 0; END $$
+42704	42704	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; EXCEPTION WHEN nope_condition THEN RETURN 0; END $$
+ok:593f2de8b611	ok:593f2de8b611	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS 'BEGIN RETURN 1; END'
+ok:7950e844862e	ok:7950e844862e	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$
+ok:f805d77e7232	ok:f805d77e7232	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN RAISE NOTICE 'e'; END $$
+ok:06e5cda57913	ok:06e5cda57913	engine	programs@objects	program:function-plpgsql	CREATE OR REPLACE FUNCTION f_total(c int) RETURNS numeric LANGUAGE plpgsql AS $$ BEGIN RETURN 0; END $$
+42601	42601	engine	programs@objects	program:function-plpgsql	CREATE OR REPLACE FUNCTION f_total(c int) RETURNS numeric LANGUAGE plpgsql AS $$ BEGIN RETURN 0 END $$
+ok:de8a7212f0ff	ok:de8a7212f0ff	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) RENAME TO f_twice
+42723	42723	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) RENAME TO f_quad
+42883	42883	engine	programs@objects	program:alter-routine	ALTER FUNCTION nope(int) RENAME TO f_twice
+ok:bf5b8de1fe52	ok:bf5b8de1fe52	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double STABLE
+ok:2d51e8d75df6	ok:2d51e8d75df6	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) STRICT
+ok:83066fb3174c	ok:83066fb3174c	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) SET search_path = public
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) RESET ALL
+3F000	3F000	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) SET SCHEMA nope_schema
+42704	42704	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(int) OWNER TO nope_role
+42883	42883	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_double(bigint) STABLE
+42725	42725	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_over STABLE
+ok:334d17407de0	ok:334d17407de0	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_over(text) STABLE
+42809	42809	engine	programs@objects	program:alter-routine	ALTER FUNCTION p_log(text) STABLE
+ok:8a5cf1e8f646	ok:8a5cf1e8f646	engine	programs@objects	program:alter-routine	ALTER FUNCTION f_item_qty(int) RENAME TO f_qty
+ok:183a0950dc85	ok:183a0950dc85	engine	programs@objects	program:alter-routine	ALTER PROCEDURE p_log(text) RENAME TO p_write
+42809	42809	engine	programs@objects	program:alter-routine	ALTER PROCEDURE f_double(int) RENAME TO p_write
+ok:7f2fa9b7f3bb	ok:7f2fa9b7f3bb	engine	programs@objects	program:alter-routine	ALTER PROCEDURE p_log(text) SECURITY DEFINER
+42P13	42P13	engine	programs@objects	program:alter-routine	ALTER PROCEDURE p_log(text) STRICT
+ok:bc2389e8d9d9	ok:bc2389e8d9d9	engine	programs@objects	program:alter-routine	ALTER ROUTINE f_double(int) COST 5
+ok:183a0950dc85	ok:183a0950dc85	engine	programs@objects	program:alter-routine	ALTER ROUTINE p_log RENAME TO p_write
+ok:dc2729ff2611	ok:dc2729ff2611	engine	programs@objects	program:alter-routine	COMMENT ON FUNCTION f_double(int) IS 'doubles'
+ok:85d6330de06d	ok:85d6330de06d	engine	programs@objects	program:alter-routine	COMMENT ON PROCEDURE p_log(text) IS 'logs'
+42883	42883	engine	programs@objects	program:alter-routine	COMMENT ON FUNCTION nope() IS 'x'
+2BP01	2BP01	engine	programs@objects	program:drop-routine	DROP FUNCTION f_double(int)
+ok:09cf733d3526	ok:09cf733d3526	engine	programs@objects	program:drop-routine	DROP FUNCTION f_double(int) CASCADE
+ok:b08c8a8642e5	ok:b08c8a8642e5	engine	programs@objects	program:drop-routine	DROP FUNCTION f_total(int)
+ok:b08c8a8642e5	ok:b08c8a8642e5	engine	programs@objects	program:drop-routine	DROP FUNCTION f_total
+42883	42883	engine	programs@objects	program:drop-routine	DROP FUNCTION f_total(text)
+42725	42725	engine	programs@objects	program:drop-routine	DROP FUNCTION f_over
+ok:7e12a0161106	ok:7e12a0161106	engine	programs@objects	program:drop-routine	DROP FUNCTION f_over(text)
+42883	42883	engine	programs@objects	program:drop-routine	DROP FUNCTION nope()
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:drop-routine	DROP FUNCTION IF EXISTS nope()
+42883	42883	engine	programs@objects	program:drop-routine	DROP FUNCTION f_total(int), nope()
+2BP01	2BP01	engine	programs@objects	program:drop-routine	DROP FUNCTION trg_status()
+ok:d79db41630e4	ok:d79db41630e4	engine	programs@objects	program:drop-routine	DROP FUNCTION trg_status() CASCADE
+2BP01	2BP01	engine	programs@objects	program:drop-routine	DROP FUNCTION evt_note()
+ok:98986fb7d4d6	ok:98986fb7d4d6	engine	programs@objects	program:drop-routine	DROP FUNCTION evt_note() CASCADE
+42809	42809	engine	programs@objects	program:drop-routine	DROP FUNCTION p_log(text)
+ok:860813b5143d	ok:860813b5143d	engine	programs@objects	program:drop-routine	DROP PROCEDURE p_log(text)
+42809	42809	engine	programs@objects	program:drop-routine	DROP PROCEDURE f_total(int)
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:drop-routine	DROP PROCEDURE IF EXISTS nope(int)
+ok:9f203aa812db	ok:9f203aa812db	engine	programs@objects	program:drop-routine	DROP ROUTINE p_log, f_total
+ok:300d51009af7	ok:300d51009af7	engine	programs@objects	program:drop-routine	DROP FUNCTION f_log_count()
+ok:5749bd2169e1	ok:5749bd2169e1	engine	programs@objects	program:drop-routine	DROP FUNCTION f_item_qty(int)
+ok:4eed7ff15217	ok:4eed7ff15217	engine	programs@objects	program:drop-routine	DROP FUNCTION f_quad(int)
+ok:d96106910ded	ok:d96106910ded	engine	programs@objects	program:drop-routine	DROP FUNCTION f_mood(mood)
+2BP01	2BP01	engine	programs@objects	program:dependency	DROP TABLE items
+ok:9b667f98082e	ok:9b667f98082e	engine	programs@objects	program:dependency	DROP TABLE items CASCADE
+ok:6d06fcffb0cc	ok:6d06fcffb0cc	engine	programs@objects	program:dependency	DROP TABLE logs
+2BP01	2BP01	engine	programs@objects	program:dependency	DROP TABLE audit
+ok:96cb68a96e45	ok:96cb68a96e45	engine	programs@objects	program:dependency	DROP TABLE orders
+2BP01	2BP01	engine	programs@objects	program:dependency	DROP TABLE customers
+2BP01	2BP01	engine	programs@objects	program:dependency	ALTER TABLE items DROP COLUMN qty
+ok:ce8b7ec69d4e	ok:ce8b7ec69d4e	engine	programs@objects	program:dependency	ALTER TABLE items DROP COLUMN note
+ok:7a76838f0083	ok:7a76838f0083	engine	programs@objects	program:dependency	ALTER TABLE items DROP COLUMN qty CASCADE
+ok:3f130d5dbc94	ok:3f130d5dbc94	engine	programs@objects	program:dependency	ALTER TABLE items RENAME COLUMN qty TO quantity
+ok:f7a6113bc485	ok:f7a6113bc485	engine	programs@objects	program:dependency	ALTER TABLE items RENAME TO goods
+0A000	0A000	engine	programs@objects	program:dependency	ALTER TABLE items ALTER COLUMN qty TYPE bigint
+ok:45ea593c5ac2	ok:45ea593c5ac2	engine	programs@objects	program:dependency	ALTER TABLE logs DROP COLUMN msg
+2BP01	2BP01	engine	programs@objects	program:dependency	ALTER TABLE audit DROP COLUMN msg
+2BP01	2BP01	engine	programs@objects	program:dependency	DROP VIEW v_customers
+ok:50ad892c082f	ok:50ad892c082f	engine	programs@objects	program:dependency	DROP VIEW v_customers CASCADE
+2BP01	2BP01	engine	programs@objects	program:dependency	DROP TYPE mood
+ok:2033f242360c	ok:2033f242360c	engine	programs@objects	program:dependency	DROP TYPE mood CASCADE
+ok:792a8404cd8e	ok:792a8404cd8e	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+ok:2941d20b8064	ok:2941d20b8064	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER INSERT OR UPDATE OR DELETE ON orders FOR EACH STATEMENT EXECUTE PROCEDURE trg_status()
+ok:30b33ae0ff48	ok:30b33ae0ff48	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE UPDATE OF status ON orders FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status) EXECUTE FUNCTION trg_status()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW WHEN (OLD.status IS NULL) EXECUTE FUNCTION trg_status()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE DELETE ON orders FOR EACH ROW WHEN (NEW.id > 0) EXECUTE FUNCTION trg_status()
+42703	42703	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW WHEN (NEW.nope > 0) EXECUTE FUNCTION trg_status()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER INSERT ON orders FOR EACH STATEMENT WHEN (NEW.id > 0) EXECUTE FUNCTION trg_status()
+42703	42703	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE UPDATE OF nope ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+42P01	42P01	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON missing_t FOR EACH ROW EXECUTE FUNCTION trg_status()
+42883	42883	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION nope()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION evt_note()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION f_log_count()
+ok:2ffd5a6f06e3	ok:2ffd5a6f06e3	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION trg_status('a', 'b')
+42710	42710	engine	programs@objects	program:trigger	CREATE TRIGGER orders_status BEFORE INSERT ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+ok:a1762f9bf89b	ok:a1762f9bf89b	engine	programs@objects	program:trigger	CREATE OR REPLACE TRIGGER orders_status AFTER INSERT ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+42809	42809	engine	programs@objects	program:trigger	CREATE TRIGGER t INSTEAD OF INSERT ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+ok:2928ea00c35d	ok:2928ea00c35d	engine	programs@objects	program:trigger	CREATE TRIGGER t INSTEAD OF INSERT ON v_customers FOR EACH ROW EXECUTE FUNCTION trg_status()
+42809	42809	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON v_customers FOR EACH ROW EXECUTE FUNCTION trg_status()
+0A000	0A000	engine	programs@objects	program:trigger	CREATE TRIGGER t INSTEAD OF INSERT ON v_customers FOR EACH STATEMENT EXECUTE FUNCTION trg_status()
+ok:610dd1ee988c	ok:610dd1ee988c	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER INSERT ON orders REFERENCING NEW TABLE AS nt FOR EACH STATEMENT EXECUTE FUNCTION trg_status()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t BEFORE INSERT ON orders REFERENCING NEW TABLE AS nt FOR EACH ROW EXECUTE FUNCTION trg_status()
+42P17	42P17	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER DELETE ON orders REFERENCING NEW TABLE AS nt FOR EACH STATEMENT EXECUTE FUNCTION trg_status()
+ok:c29c9405ce56	ok:c29c9405ce56	engine	programs@objects	program:trigger	CREATE CONSTRAINT TRIGGER t AFTER INSERT ON orders DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION trg_status()
+ok:bc40cb00e3c3	ok:bc40cb00e3c3	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER TRUNCATE ON orders FOR EACH STATEMENT EXECUTE FUNCTION trg_status()
+0A000	0A000	engine	programs@objects	program:trigger	CREATE TRIGGER t AFTER TRUNCATE ON orders FOR EACH ROW EXECUTE FUNCTION trg_status()
+ok:5a33a38611c1	ok:5a33a38611c1	engine	programs@objects	program:trigger	ALTER TRIGGER orders_status ON orders RENAME TO orders_status2
+42704	42704	engine	programs@objects	program:trigger	ALTER TRIGGER nope ON orders RENAME TO t
+42704	42704	engine	programs@objects	program:trigger	ALTER TRIGGER orders_status ON customers RENAME TO t
+ok:b932e621f953	ok:b932e621f953	engine	programs@objects	program:trigger	DROP TRIGGER orders_status ON orders
+42704	42704	engine	programs@objects	program:trigger	DROP TRIGGER nope ON orders
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:trigger	DROP TRIGGER IF EXISTS nope ON orders
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:trigger	DROP TRIGGER IF EXISTS nope ON missing_t
+ok:82cfac8fc711	ok:82cfac8fc711	engine	programs@objects	program:trigger	ALTER TABLE orders DISABLE TRIGGER orders_status
+ok:e1ac3530bb6b	ok:e1ac3530bb6b	engine	programs@objects	program:trigger	ALTER TABLE orders ENABLE ALWAYS TRIGGER orders_status
+42704	42704	engine	programs@objects	program:trigger	ALTER TABLE orders DISABLE TRIGGER nope
+ok:1ce4fb8bb839	ok:1ce4fb8bb839	engine	programs@objects	program:trigger	COMMENT ON TRIGGER orders_status ON orders IS 'status'
+ok:4feccaf4d1b7	ok:4feccaf4d1b7	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_start EXECUTE FUNCTION evt_note()
+ok:224f7b715d97	ok:224f7b715d97	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON sql_drop EXECUTE PROCEDURE evt_note()
+ok:cd578f35fba6	ok:cd578f35fba6	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON table_rewrite EXECUTE FUNCTION evt_note()
+ok:c9da560ec222	ok:c9da560ec222	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_end WHEN TAG IN ('CREATE TABLE', 'ALTER TABLE') EXECUTE FUNCTION evt_note()
+ok:5ea7596f23d5	ok:5ea7596f23d5	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON sql_drop WHEN TAG IN ('DROP TABLE') EXECUTE FUNCTION evt_note()
+42601	42601	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_end WHEN TAG IN ('NOPE') EXECUTE FUNCTION evt_note()
+0A000	0A000	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_end WHEN TAG IN ('CREATE EVENT TRIGGER') EXECUTE FUNCTION evt_note()
+0A000	0A000	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON table_rewrite WHEN TAG IN ('CREATE TABLE') EXECUTE FUNCTION evt_note()
+42601	42601	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_end WHEN nope IN ('CREATE TABLE') EXECUTE FUNCTION evt_note()
+42601	42601	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON nope_event EXECUTE FUNCTION evt_note()
+42P17	42P17	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_start EXECUTE FUNCTION trg_status()
+42883	42883	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER e ON ddl_command_start EXECUTE FUNCTION nope()
+42710	42710	engine	programs@objects	program:event-trigger	CREATE EVENT TRIGGER evt_existing ON ddl_command_start EXECUTE FUNCTION evt_note()
+ok:f47276c522f6	ok:f47276c522f6	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER evt_existing DISABLE
+ok:baca0baa33ae	ok:baca0baa33ae	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER evt_existing ENABLE REPLICA
+ok:d967b8c6decc	ok:d967b8c6decc	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER evt_existing ENABLE ALWAYS
+ok:65ef715567c3	ok:65ef715567c3	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER evt_existing RENAME TO evt_renamed
+42704	42704	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER nope DISABLE
+42704	42704	engine	programs@objects	program:event-trigger	ALTER EVENT TRIGGER evt_existing OWNER TO nope_role
+ok:dcb07d9dadbe	ok:dcb07d9dadbe	engine	programs@objects	program:event-trigger	DROP EVENT TRIGGER evt_existing
+42704	42704	engine	programs@objects	program:event-trigger	DROP EVENT TRIGGER nope
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:event-trigger	DROP EVENT TRIGGER IF EXISTS nope
+ok:305bb710cf44	ok:305bb710cf44	engine	programs@objects	program:event-trigger	COMMENT ON EVENT TRIGGER evt_existing IS 'notes'
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:call	CALL p_log('x')
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:call	CALL p_log(m => 'x')
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:call	CALL p_audit('x')
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:call	CALL p_bump(1)
+42883	42883	engine	programs@objects	program:call	CALL p_bump()
+42883	42883	engine	programs@objects	program:call	CALL nope()
+42883	42883	engine	programs@objects	program:call	CALL p_log()
+42883	42883	engine	programs@objects	program:call	CALL p_log('x', 'y')
+42883	42883	engine	programs@objects	program:call	CALL p_log(nope => 'x')
+42809	42809	engine	programs@objects	program:call	CALL f_double(1)
+ok	42P01	engine	programs@objects	program:call	CALL p_broken()
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN NULL; END $$
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN RAISE NOTICE 'x'; END $$
+42601	42601	engine	programs@objects	program:do	DO $$ BEGIN NULL $$
+42601	42601	engine	programs@objects	program:do	DO $$ BEGIN x := 1; END $$
+0A000	0A000	engine	programs@objects	program:do	DO LANGUAGE sql $$ SELECT 1 $$
+42704	42704	engine	programs@objects	program:do	DO LANGUAGE nope $$ x $$
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN CALL p_log('x'); END $$
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ DECLARE r record; BEGIN FOR r IN SELECT id FROM customers LOOP NULL; END LOOP; END $$
+ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'customers') THEN CREATE TABLE customers (id int); END IF; END $$
+ok	P0001	engine	programs@objects	program:do	DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$
+ok	42P01	engine	programs@objects	program:do	DO $$ BEGIN INSERT INTO missing_t VALUES (1); END $$
+ok	ok:50bb7f762670	engine	programs@objects	program:do	DO $$ BEGIN CREATE TABLE made_by_do (x int); END $$

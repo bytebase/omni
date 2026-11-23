@@ -481,6 +481,9 @@ func loadForms(forms []simulate.Form) (*Catalog, error) {
 
 func loadFormsWithVersion(forms []simulate.Form, v Version) (*Catalog, error) {
 	c := NewWithVersion(v)
+	// A string body may name what is gone, as one PostgreSQL kept after a
+	// DROP does; pg_dump restores such a schema with the check off too.
+	c.sessionSettings = map[string]string{"check_function_bodies": "off"}
 	type parsedStmt struct {
 		node nodes.Node
 		desc string
