@@ -35,12 +35,13 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	if b.w.oceanBase && f == walk.Present && kind != relTable {
-		// OceanBase takes some ALTER TABLE of a view (COMMENT), and of the
-		// kinds the walk does not follow, which the walk then cannot tell
-		// apart (OceanBase spec §4.1, O7): the relation exists, and the walk
-		// ends.
-		b.Last = true
-		return true
+		// OceanBase accepts ALTER TABLE ... COMMENT on a view, and refuses
+		// every other ALTER TABLE form on a view (1347). External tables and
+		// materialized views (kind == "") are not modeled, so the walk ends.
+		if kind != relView || onlyCommentAlter(v.Commands) {
+			b.Last = true
+			return true
+		}
 	}
 	b.tableNeeds(r)
 	if f == walk.Absent || kind == relView {
@@ -68,10 +69,98 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if b.alterTextFails(v, r) {
 		return true
 	}
+	if b.w.oceanBase && b.alterTableOptionsFail(r, v.Commands) {
+		return true
+	}
 	var rename *ast.AlterTableCmd
+	b.touchedCols = make(map[string]bool)
 	for _, c := range v.Commands {
-		if c.Type == ast.ATRenameTable {
+		if c == nil {
+			continue
+		}
+		switch c.Type {
+		case ast.ATRenameTable:
 			rename = c
+		case ast.ATAddColumn:
+			cols := c.Columns
+			if c.Column != nil {
+				cols = append([]*ast.ColumnDef{c.Column}, cols...)
+			}
+			for _, col := range cols {
+				if col == nil {
+					continue
+				}
+				if ck, ok := b.key(spaceColumn, col.Name); ok {
+					b.touchedCols[ck] = true
+				}
+				for _, cc := range col.Constraints {
+					if cc.Type == ast.ColConstrPrimaryKey {
+						b.changesPK = true
+						b.addsIndex = true
+					} else if cc.Type == ast.ColConstrUnique {
+						b.addsIndex = true
+					}
+				}
+			}
+		case ast.ATDropColumn:
+			if ck, ok := b.key(spaceColumn, c.Name); ok {
+				b.touchedCols[ck] = true
+			}
+		case ast.ATModifyColumn:
+			if c.Column != nil {
+				if ck, ok := b.key(spaceColumn, c.Column.Name); ok {
+					b.touchedCols[ck] = true
+				}
+				for _, cc := range c.Column.Constraints {
+					if cc.Type == ast.ColConstrPrimaryKey {
+						b.changesPK = true
+						b.addsIndex = true
+					} else if cc.Type == ast.ColConstrUnique {
+						b.addsIndex = true
+					}
+				}
+			}
+		case ast.ATChangeColumn:
+			if ck, ok := b.key(spaceColumn, c.Name); ok {
+				b.touchedCols[ck] = true
+			}
+			if c.Column != nil {
+				if ck, ok := b.key(spaceColumn, c.Column.Name); ok {
+					b.touchedCols[ck] = true
+				}
+				for _, cc := range c.Column.Constraints {
+					if cc.Type == ast.ColConstrPrimaryKey {
+						b.changesPK = true
+						b.addsIndex = true
+					} else if cc.Type == ast.ColConstrUnique {
+						b.addsIndex = true
+					}
+				}
+			}
+		case ast.ATRenameColumn:
+			if ck, ok := b.key(spaceColumn, c.Name); ok {
+				b.touchedCols[ck] = true
+			}
+			if ck, ok := b.key(spaceColumn, c.NewName); ok {
+				b.touchedCols[ck] = true
+			}
+		case ast.ATAddConstraint, ast.ATAddIndex:
+			if c.Constraint != nil {
+				switch c.Constraint.Type {
+				case ast.ConstrPrimaryKey:
+					b.changesPK = true
+					b.addsIndex = true
+				case ast.ConstrUnique, ast.ConstrIndex, ast.ConstrFulltextIndex, ast.ConstrSpatialIndex, ast.ConstrVector:
+					b.addsIndex = true
+				}
+			}
+		case ast.ATDropConstraint:
+			switch dropKindOf(b.w.sql, c) {
+			case dropPrimaryKey:
+				b.changesPK = true
+			case dropForeignKey, dropConstraint:
+				b.dropsFK = true
+			}
 		}
 	}
 	b.renames = rename != nil
@@ -183,12 +272,19 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if c.Column != nil {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
+		addedHere := make(map[string]bool, len(cols))
 		for _, col := range cols {
 			if b.columnFormFails(col, rangeOf(col.Loc), true) {
 				return true
 			}
+			if b.checkGeneratedColumnRefsOB(r, col, addedHere, rangeOf(col.Loc)) {
+				return true
+			}
 			if !b.addColumn(r, col, c.After, c.Before, rangeOf(col.Loc)) {
 				return false
+			}
+			if ck, ok := b.key(spaceColumn, col.Name); ok {
+				addedHere[ck] = true
 			}
 		}
 	case ast.ATDropColumn:
@@ -198,9 +294,18 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		ck := colKey(r.db, r.name, k)
 		b.need(ck, walk.Present, nil, rng, notFound("column", ident(c.Name), r.written), "") // 1091
+		if b.checkColumnUsedInFKOB(r, c.Name, nil, true, rng) {
+			return true
+		}
 		b.leave(ck)
 		// An index loses the column, and goes with its last one.
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
+		rel := relKey(r.db, r.name)
+		b.Session(func() {
+			delete(b.w.colTypes[rel], k)
+			delete(b.w.indexLeadsKnown, rel)
+			delete(b.w.indexLeads, rel)
+		})
 	case ast.ATModifyColumn:
 		if c.Column == nil {
 			return false
@@ -211,14 +316,34 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if !b.columnNeeds(r, c.Column.Name, rng) {
 			return false
 		}
+		if b.checkColumnUsedInFKOB(r, c.Column.Name, c.Column.TypeName, false, rng) {
+			return true
+		}
 		b.before(r, c.After, c.Column.Name, rng)
 		b.before(r, c.Before, c.Column.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
+		if ck, ok := b.key(spaceColumn, c.Column.Name); ok {
+			bt := obNormalizedDataType(c.Column.TypeName)
+			rel := relKey(r.db, r.name)
+			b.Session(func() {
+				if bt == "" {
+					delete(b.w.colTypes[rel], ck)
+				} else {
+					if b.w.colTypes[rel] == nil {
+						b.w.colTypes[rel] = make(map[string]string)
+					}
+					b.w.colTypes[rel][ck] = bt
+				}
+			})
+		}
 	case ast.ATChangeColumn:
 		if c.Column == nil {
 			return false
 		}
 		if b.columnFormFails(c.Column, rng, true) {
+			return true
+		}
+		if b.checkColumnUsedInFKOB(r, c.Name, c.Column.TypeName, false, rng) {
 			return true
 		}
 		if !b.renameColumn(r, c.Name, c.Column.Name, rng) {
@@ -227,24 +352,54 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		b.before(r, c.After, c.Name, rng)
 		b.before(r, c.Before, c.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
+		if fk, ok1 := b.key(spaceColumn, c.Name); ok1 {
+			if tk, ok2 := b.key(spaceColumn, c.Column.Name); ok2 {
+				bt := obNormalizedDataType(c.Column.TypeName)
+				rel := relKey(r.db, r.name)
+				b.Session(func() {
+					delete(b.w.colTypes[rel], fk)
+					if bt != "" {
+						if b.w.colTypes[rel] == nil {
+							b.w.colTypes[rel] = make(map[string]string)
+						}
+						b.w.colTypes[rel][tk] = bt
+					}
+				})
+			}
+		}
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
 	case ast.ATAlterColumnDefault:
-		return b.columnNeeds(r, c.Name, rng)
+		if !b.columnNeeds(r, c.Name, rng) {
+			return false
+		}
+		b.checkAlterColumnDefaultOB(r, c, rng)
+		return true
 	case ast.ATAddConstraint, ast.ATAddIndex:
 		if c.Constraint == nil {
 			return false
 		}
 		b.addConstraint(r, c.Constraint)
 	case ast.ATDropIndex:
+		rel := relKey(r.db, r.name)
+		b.Session(func() {
+			delete(b.w.indexLeadsKnown, rel)
+			delete(b.w.indexLeads, rel)
+		})
 		return b.dropIndexName(r, c.Name, rng)
 	case ast.ATDropConstraint:
+		rel := relKey(r.db, r.name)
 		switch dropKindOf(b.w.sql, c) {
 		case dropPrimaryKey:
 			if b.w.oceanBase {
 				// The table gets the hidden column __pk_increment.
 				b.Set(colKey(r.db, r.name, pkIncrement), walk.Unknown, "")
 			}
+			b.Session(func() {
+				delete(b.w.pkCols, rel)
+				delete(b.w.indexLeadsKnown, rel)
+				delete(b.w.indexLeads, rel)
+			})
 			return b.dropIndexName(r, "PRIMARY", rng)
 		case dropForeignKey:
 			k, ok := b.key(spaceForeignKey, c.Name)
@@ -252,6 +407,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 				return false
 			}
 			fk, own := fkKeys(r, k)
+			b.Session(func() { delete(b.w.fkCols, rel) })
 			if !b.fks {
 				b.Set(fk, walk.Unknown, "")
 				b.Set(own, walk.Unknown, "")
@@ -266,6 +422,11 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.Set(own, walk.Absent, "")
 		case dropCheck:
 		case dropConstraint:
+			b.Session(func() {
+				delete(b.w.fkCols, rel)
+				delete(b.w.indexLeadsKnown, rel)
+				delete(b.w.indexLeads, rel)
+			})
 			names := c.ConstraintNames
 			if len(names) == 0 && c.Name != "" {
 				names = []string{c.Name}
@@ -281,10 +442,42 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		default:
 			return false
 		}
+	case ast.ATAlterCheckEnforced:
+		if b.w.oceanBase && c.ConstraintKeyword == ast.ConstraintKeywordConstraint {
+			if k, ok := b.key(spaceForeignKey, c.Name); ok {
+				_, own := fkKeys(r, k)
+				if f, _ := b.l.Lookup(own); f == walk.Present {
+					b.fail(rng, []walk.Key{own}, review.UnsupportedForm, b.engine()+" refuses altering enforcement on foreign key "+review.Code(ident(c.Name))+".")
+					return true
+				}
+			}
+		}
 	case ast.ATPartitionBy:
-		if b.w.oceanBase && c.PartitionBy != nil && c.PartitionBy.SplitSize != "" {
-			b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses partition SIZE on ALTER TABLE.")
+		if b.w.oceanBase {
+			if b.checkPartitionByOB(r, c.PartitionBy, rng) {
+				return true
+			}
+		}
+	case ast.ATAddPartition, ast.ATAddSubpartition, ast.ATDropPartition, ast.ATExchangePartition:
+		if b.w.oceanBase {
+			if b.checkAlterPartitionCmdOB(r, c, rng) {
+				return true
+			}
+		}
+	case ast.ATAlterPartitionStorageCachePolicy:
+		if b.w.oceanBase {
+			b.fail(rng, nil, review.UnsupportedForm, b.engine()+" has no storage cache policy for a partition.")
 			return true
+		}
+	case ast.ATTableOption:
+		if b.w.oceanBase && c.Option != nil && strings.EqualFold(c.Option.Name, "TTL") {
+			if b.checkTTLOptionOB(r, c.Option, rng) {
+				return true
+			}
+		}
+	case ast.ATAddColumnGroup, ast.ATDropColumnGroup:
+		if !b.w.oceanBase {
+			return false
 		}
 	case ast.ATRenameIndex:
 		from, ok1 := b.key(spaceIndex, c.Name)
@@ -298,6 +491,8 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.NewName), r.written)) // 1061
 			b.leave(fk)
 			b.arrive(tk)
+		} else if b.w.oceanBase {
+			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.NewName), r.written)) // 1061
 		}
 	case ast.ATRefresh:
 		// REFRESH is an external table's, and the walk follows base tables: the
@@ -442,6 +637,17 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after, before string
 	b.after(r, before, rng)
 	b.Set(ck, walk.Present, "")
 	b.alterColumnKeys(r, col, rng)
+	if col.TypeName != nil {
+		if bt := obNormalizedDataType(col.TypeName); bt != "" {
+			rel := relKey(r.db, r.name)
+			b.Session(func() {
+				if b.w.colTypes[rel] == nil {
+					b.w.colTypes[rel] = make(map[string]string)
+				}
+				b.w.colTypes[rel][k] = bt
+			})
+		}
+	}
 	return true
 }
 
@@ -488,7 +694,7 @@ func (b *builder) columnFormFails(col *ast.ColumnDef, rng review.Range, inAlter 
 		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses a quoted string literal as a column data type.")
 		return true
 	}
-	return false
+	return b.columnDefFailsOB(col, rng, inAlter)
 }
 
 func hasStringDataType(dt *ast.DataType) bool {
@@ -524,6 +730,31 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 		b.need(tc, walk.Absent, nil, rng, "", alreadyExists("column", ident(to), r.written)) // 1060
 		b.leave(fc)
 		b.arrive(tc)
+		rel := relKey(r.db, r.name)
+		b.Session(func() {
+			if types := b.w.colTypes[rel]; types != nil {
+				if bt, ok := types[fk]; ok {
+					delete(types, fk)
+					types[tk] = bt
+				}
+			}
+			if fks := b.w.fkCols[rel]; fks != nil && fks[fk] {
+				delete(fks, fk)
+				fks[tk] = true
+			}
+			for i, col := range b.w.pkCols[rel] {
+				if col == fk {
+					b.w.pkCols[rel][i] = tk
+				}
+			}
+			for _, idx := range b.w.indexLeads[rel] {
+				for i, col := range idx {
+					if col == fk {
+						idx[i] = tk
+					}
+				}
+			}
+		})
 	}
 	return true
 }
@@ -542,10 +773,28 @@ func (b *builder) alterColumnKeys(r tableRef, col *ast.ColumnDef, rng review.Ran
 // addConstraint follows ADD of a key, index, or foreign key.
 func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	rng := rangeOf(c.Loc)
+	rel := relKey(r.db, r.name)
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
+		if b.w.oceanBase {
+			if b.checkKeyPartsOB(r, c.Columns, c.IndexColumns, obKeyPlain, c.IndexOptions, rng) {
+				return
+			}
+		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+		cols := constraintColumnKeys(c)
+		b.Session(func() {
+			if len(cols) > 0 {
+				b.w.pkCols[rel] = cols
+				if b.w.indexLeadsKnown[rel] {
+					b.w.indexLeads[rel] = append(b.w.indexLeads[rel], cols)
+				}
+			} else {
+				delete(b.w.indexLeadsKnown, rel)
+			}
+		})
 	case ast.ConstrCheck:
+		b.checkTableCheckConstraintOB(r, c, rng)
 		return
 	case ast.ConstrForeignKey:
 		if !b.fks {
@@ -555,10 +804,44 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(c.Name), "")) // 1826; 1022 on 5.7
 		}
 		b.foreignKeyTarget(r, c)
+		if b.checkForeignKeyColumnsOB(r, c, rng) {
+			return
+		}
+		var fkCols []string
+		for _, col := range c.Columns {
+			if ck, ok := b.key(spaceColumn, col); ok {
+				fkCols = append(fkCols, ck)
+			}
+		}
+		b.Session(func() {
+			if len(fkCols) > 0 {
+				if b.w.fkCols[rel] == nil {
+					b.w.fkCols[rel] = make(map[string]bool)
+				}
+				for _, ck := range fkCols {
+					b.w.fkCols[rel][ck] = true
+				}
+			}
+		})
 	default:
+		if b.w.oceanBase {
+			if kind, ok := constraintKeyKindOB(c); ok {
+				if b.checkKeyPartsOB(r, c.Columns, c.IndexColumns, kind, c.IndexOptions, rng) {
+					return
+				}
+			}
+		}
 		if k, ok := b.key(spaceIndex, c.Name); ok {
 			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 		}
+		cols := constraintColumnKeys(c)
+		b.Session(func() {
+			if len(cols) > 0 && b.w.indexLeadsKnown[rel] {
+				b.w.indexLeads[rel] = append(b.w.indexLeads[rel], cols)
+			} else if len(cols) == 0 {
+				delete(b.w.indexLeadsKnown, rel)
+			}
+		})
 	}
 	b.constraint(r, c)
 }
@@ -647,6 +930,36 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		} else {
 			delete(b.w.ignoresFKs, tk)
 		}
+		if v, ok := b.w.colTypes[fk]; ok {
+			delete(b.w.colTypes, fk)
+			b.w.colTypes[tk] = v
+		} else {
+			delete(b.w.colTypes, tk)
+		}
+		if v, ok := b.w.pkCols[fk]; ok {
+			delete(b.w.pkCols, fk)
+			b.w.pkCols[tk] = v
+		} else {
+			delete(b.w.pkCols, tk)
+		}
+		if v, ok := b.w.indexLeads[fk]; ok {
+			delete(b.w.indexLeads, fk)
+			b.w.indexLeads[tk] = v
+		} else {
+			delete(b.w.indexLeads, tk)
+		}
+		if b.w.indexLeadsKnown[fk] {
+			delete(b.w.indexLeadsKnown, fk)
+			b.w.indexLeadsKnown[tk] = true
+		} else {
+			delete(b.w.indexLeadsKnown, tk)
+		}
+		if v, ok := b.w.fkCols[fk]; ok {
+			delete(b.w.fkCols, fk)
+			b.w.fkCols[tk] = v
+		} else {
+			delete(b.w.fkCols, tk)
+		}
 	})
 }
 
@@ -686,6 +999,11 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			return true
 		}
 		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
+		if from.db == to.db && from.name == to.name {
+			// Renaming a relation to itself always fails (1050 when present,
+			// 1017 when absent); stop before any later pair masks the check.
+			return true
+		}
 		if b.w.materialized[fk] {
 			delete(b.w.materialized, fk)
 			b.w.materialized[relKey(to.db, to.name)] = true
@@ -708,6 +1026,7 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 // the base table.
 func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 	b.Order = walk.Lookups
+	seen := make(map[[2]string]bool, len(v.Tables))
 	for _, t := range v.Tables {
 		b.Next()
 		r, st := b.ref(t)
@@ -719,6 +1038,14 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		}
 		if b.tooLong(spaceRelation, t.Name, r.rng) {
 			return true
+		}
+		if b.w.oceanBase {
+			pair := [2]string{r.db, r.name}
+			if seen[pair] {
+				b.fail(r.rng, nil, review.DuplicateName, statesTwice("drops", "table", r.written))
+				return true
+			}
+			seen[pair] = true
 		}
 		tk := tempKey(r.db, r.name)
 		tf, _ := b.l.Lookup(tk)
@@ -771,6 +1098,13 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(k, walk.Absent, "")
 			delete(b.w.materialized, k)
 			delete(b.w.materializedLogs, k)
+			b.Session(func() {
+				delete(b.w.colTypes, k)
+				delete(b.w.pkCols, k)
+				delete(b.w.indexLeads, k)
+				delete(b.w.indexLeadsKnown, k)
+				delete(b.w.fkCols, k)
+			})
 			b.Clear(path)
 			b.droppedOwned(r)
 		}

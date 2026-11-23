@@ -20,14 +20,15 @@ import (
 func TestWalkSimulation(t *testing.T) {
 	same := (&oceanBaseEngine{}).Same
 	for _, suite := range []struct {
-		name string
-		path string
+		name     string
+		path     string
+		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv")},
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv")},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3050},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 275},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
-			walktest.CheckSimulation(t, walktest.Simulation{
+			res := walktest.CheckSimulation(t, walktest.Simulation{
 				Path:     suite.path,
 				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 				Setup:    oceanBaseSimFixture,
@@ -43,6 +44,9 @@ func TestWalkSimulation(t *testing.T) {
 				},
 				Same: same,
 			})
+			if res.Found < suite.minFound {
+				t.Errorf("%s WALK_THROUGH recall regression: found %d/%d refusals, want >= %d", suite.name, res.Found, res.Refused, suite.minFound)
+			}
 		})
 	}
 }

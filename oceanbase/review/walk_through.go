@@ -44,6 +44,11 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		snap = nil
 		w.anyTrigger = true
 		w.anyFunction = true
+		clear(w.colTypes)
+		clear(w.pkCols)
+		clear(w.indexLeads)
+		clear(w.indexLeadsKnown)
+		clear(w.fkCols)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -219,9 +224,21 @@ type walker struct {
 	// materializedLogs holds each table's materialized view log state, as
 	// materializedLogUnknown, materializedLogPresent, or materializedLogAbsent.
 	materializedLogs map[walk.Key]int
+	// Optional per-table column types, primary key columns, index leading
+	// columns, and foreign key columns seeded from the snapshot and maintained
+	// across committed steps. Missing entries are treated as unknown.
+	colTypes        map[walk.Key]map[string]string
+	pkCols          map[walk.Key][]string
+	indexLeads      map[walk.Key][][]string
+	indexLeadsKnown map[walk.Key]bool
+	fkCols          map[walk.Key]map[string]bool
 	// oceanBase is OceanBase's MySQL mode, whose deltas from MySQL each
 	// lowering gates on it.
 	oceanBase bool
+}
+
+func (w *walker) colType(r tableRef, colKey string) string {
+	return w.colTypes[relKey(r.db, r.name)][colKey]
 }
 
 func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walker {
@@ -240,6 +257,11 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 		materialized:     make(map[walk.Key]bool),
 		materializedLogs: make(map[walk.Key]int),
 		external:         make(map[walk.Key]bool),
+		colTypes:         make(map[walk.Key]map[string]string),
+		pkCols:           make(map[walk.Key][]string),
+		indexLeads:       make(map[walk.Key][][]string),
+		indexLeadsKnown:  make(map[walk.Key]bool),
+		fkCols:           make(map[walk.Key]map[string]bool),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
@@ -252,6 +274,33 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 	}
 	for name := range snap.external {
 		w.external[relKey(snap.db, name)] = true
+	}
+	for name, types := range snap.colTypes {
+		cp := make(map[string]string, len(types))
+		for k, v := range types {
+			cp[k] = v
+		}
+		w.colTypes[relKey(snap.db, name)] = cp
+	}
+	for name, cols := range snap.pkCols {
+		w.pkCols[relKey(snap.db, name)] = append([]string(nil), cols...)
+	}
+	for name, known := range snap.indexLeadsKnown {
+		if !known {
+			continue
+		}
+		rk := relKey(snap.db, name)
+		w.indexLeadsKnown[rk] = true
+		for _, l := range snap.indexLeads[name] {
+			w.indexLeads[rk] = append(w.indexLeads[rk], append([]string(nil), l...))
+		}
+	}
+	for name, cols := range snap.fkCols {
+		cp := make(map[string]bool, len(cols))
+		for k, v := range cols {
+			cp[k] = v
+		}
+		w.fkCols[relKey(snap.db, name)] = cp
 	}
 	return w
 }
@@ -287,6 +336,13 @@ type builder struct {
 	// and index names they bring in (leave, arrive).
 	early   bool
 	arrived map[walk.Key]bool
+	// Multi-command ALTER TABLE flags to avoid false positives when another
+	// subcommand in the same statement changes a column's type, drops a FK,
+	// changes the PK, or adds an index before Session callbacks commit.
+	dropsFK     bool
+	changesPK   bool
+	addsIndex   bool
+	touchedCols map[string]bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index

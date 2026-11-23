@@ -204,6 +204,33 @@ func (b *builder) clearDatabase(d string) {
 			delete(b.w.materializedLogs, k)
 		}
 	}
+	b.Session(func() {
+		for k := range b.w.colTypes {
+			if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.colTypes, k)
+			}
+		}
+		for k := range b.w.pkCols {
+			if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.pkCols, k)
+			}
+		}
+		for k := range b.w.indexLeads {
+			if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.indexLeads, k)
+			}
+		}
+		for k := range b.w.indexLeadsKnown {
+			if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.indexLeadsKnown, k)
+			}
+		}
+		for k := range b.w.fkCols {
+			if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.fkCols, k)
+			}
+		}
+	})
 }
 
 // alterDatabase follows ALTER DATABASE, of the current database when it
@@ -285,6 +312,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	// tables (verified).
 	if v.Select != nil && b.callsStoredFunction(v.Select) {
 		b.forgetTemporary()
+	}
+	if b.w.oceanBase && v.Select != nil {
+		if col, ok := selectWithoutFromColRef(v.Select); ok {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
+			return true
+		}
 	}
 	if v.Temporary {
 		tk := tempKey(r.db, r.name)
@@ -508,6 +541,10 @@ func (b *builder) constraintName(c *ast.Constraint) (string, string) {
 // keys of one name (1826, or 1061 for the index each would add), two
 // primary keys (1068), or an index named PRIMARY (1280).
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
+	if b.w.oceanBase && len(v.Columns) == 0 && v.Like == nil && (v.Select == nil || len(v.Constraints) > 0) {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
+		return true
+	}
 	columns := make(map[string]bool)
 	for _, c := range v.Columns {
 		if b.columnFormFails(c, rangeOf(c.Loc), false) {
@@ -534,6 +571,11 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		}
 	}
 	for _, c := range v.Constraints {
+		if b.w.oceanBase {
+			if kind, ok := constraintKeyKindOB(c); ok && b.indexOptionsFailOB(c.IndexOptions, kind, rangeOf(c.Loc)) {
+				return true
+			}
+		}
 		switch c.Type {
 		case ast.ConstrPrimaryKey:
 			primaries++
@@ -600,6 +642,116 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Unknown, "")
 		b.Set(colKey(r.db, r.name, gipkColumn), walk.Unknown, "")
 	}
+	rel := relKey(r.db, r.name)
+	if v.Like != nil || v.Select != nil {
+		b.Session(func() {
+			delete(b.w.colTypes, rel)
+			delete(b.w.pkCols, rel)
+			delete(b.w.indexLeads, rel)
+			delete(b.w.indexLeadsKnown, rel)
+			delete(b.w.fkCols, rel)
+		})
+		return
+	}
+	types := make(map[string]string, len(v.Columns))
+	var pkCols []string
+	var leads [][]string
+	leadsKnown := true
+	fkCols := make(map[string]bool)
+	for _, c := range v.Columns {
+		ck, ok := b.key(spaceColumn, c.Name)
+		if ok && c.TypeName != nil {
+			if bt := obNormalizedDataType(c.TypeName); bt != "" {
+				types[ck] = bt
+			}
+		}
+		for _, cc := range c.Constraints {
+			switch cc.Type {
+			case ast.ColConstrPrimaryKey:
+				if ok {
+					pkCols = []string{ck}
+					leads = append(leads, []string{ck})
+				}
+			case ast.ColConstrUnique:
+				if ok {
+					leads = append(leads, []string{ck})
+				}
+			}
+		}
+	}
+	for _, c := range v.Constraints {
+		switch c.Type {
+		case ast.ConstrPrimaryKey:
+			cols := constraintColumnKeys(c)
+			if len(cols) > 0 {
+				pkCols = cols
+				leads = append(leads, cols)
+			} else {
+				leadsKnown = false
+			}
+		case ast.ConstrForeignKey:
+			if b.fks {
+				for _, col := range c.Columns {
+					if ck, ok := b.key(spaceColumn, col); ok {
+						fkCols[ck] = true
+					}
+				}
+			}
+		case ast.ConstrCheck:
+		default:
+			cols := constraintColumnKeys(c)
+			if len(cols) > 0 {
+				leads = append(leads, cols)
+			} else {
+				leadsKnown = false
+			}
+		}
+	}
+	b.Session(func() {
+		b.w.colTypes[rel] = types
+		if len(pkCols) > 0 {
+			b.w.pkCols[rel] = pkCols
+		} else {
+			delete(b.w.pkCols, rel)
+		}
+		if leadsKnown {
+			b.w.indexLeadsKnown[rel] = true
+			b.w.indexLeads[rel] = leads
+		} else {
+			delete(b.w.indexLeadsKnown, rel)
+			delete(b.w.indexLeads, rel)
+		}
+		if len(fkCols) > 0 {
+			b.w.fkCols[rel] = fkCols
+		} else {
+			delete(b.w.fkCols, rel)
+		}
+	})
+}
+
+func constraintColumnKeys(c *ast.Constraint) []string {
+	if len(c.IndexColumns) > 0 {
+		var out []string
+		for _, ic := range c.IndexColumns {
+			if ic == nil || ic.Functional {
+				return nil
+			}
+			cr, ok := ic.Expr.(*ast.ColumnRef)
+			if !ok || cr.Column == "" {
+				return nil
+			}
+			out = append(out, strings.ToLower(cr.Column))
+		}
+		return out
+	}
+	if len(c.Columns) > 0 {
+		out := make([]string, len(c.Columns))
+		for i, name := range c.Columns {
+			out[i] = strings.ToLower(name)
+		}
+		return out
+	}
+	return nil
 }
 
 // columnKeys records the keys a column definition declares inline, and
