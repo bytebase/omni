@@ -106,7 +106,7 @@ type mariadbSnapshot struct {
 	// read them for.
 	sequences map[string]sequenceValues
 	// fkTables holds the foreign keys and indexes of the InnoDB tables
-	// with a foreign key (syncedFKTable).
+	// (syncedFKTable).
 	fkTables map[string]*fkTable
 	// tables holds what the sync says of each base table beyond its
 	// names (syncedTable).

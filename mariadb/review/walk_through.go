@@ -237,8 +237,8 @@ type walker struct {
 	// SEQUENCE leaves them, until a statement may replace one.
 	sequences map[walk.Key]sequenceValues
 	// fkTables holds the foreign keys and indexes of the synced InnoDB
-	// tables with a foreign key that no statement of the change has
-	// touched yet (fkIndexDropFails).
+	// tables that no statement of the change has touched yet
+	// (fkIndexDropFails, fkIndexNameFails).
 	fkTables map[walk.Key]*fkTable
 	// synced holds what the sync says of each base table beyond its
 	// names, for the tables no statement of the change has touched yet;

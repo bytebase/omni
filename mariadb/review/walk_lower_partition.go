@@ -341,14 +341,18 @@ func (b *builder) alterPartitionColumnsFail(v *ast.AlterTableStmt, r tableRef) b
 		switch c.Type {
 		case ast.ATDropColumn:
 			k, ok := b.key(spaceColumn, c.Name)
-			if !ok || c.IfExists || !partCols[k] || !b.namedOnce(v, k) {
+			if !ok || !partCols[k] || !b.namedOnce(v, k) {
+				continue
+			}
+			// IF EXISTS drops a column the table has.
+			if f, _ := b.l.Lookup(colKey(r.db, r.name, k)); c.IfExists && f != walk.Present {
 				continue
 			}
 			b.fail(rangeOf(c.Loc), []walk.Key{rel, colKey(r.db, r.name, k)}, review.UnsupportedForm, "Column "+review.Code(ident(c.Name))+" is read by the partitioning function of "+review.Code(r.written)+".")
 			return true
 		case ast.ATAddConstraint, ast.ATAddIndex:
 			con := c.Constraint
-			if con == nil || con.IfNotExists {
+			if con == nil || con.IfNotExists && (con.Type != ast.ConstrForeignKey || b.fkIfNotExistsSkips(r, con)) {
 				continue
 			}
 			switch con.Type {

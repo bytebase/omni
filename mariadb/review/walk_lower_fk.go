@@ -13,7 +13,8 @@ import (
 
 // fkTable is a synced InnoDB table's foreign keys and its indexes, as the
 // walk reads them to tell whether a drop leaves a foreign key without an
-// index (1553). An index's columns are the keys of its key parts in
+// index (1553), or a foreign key added would add an index of a name the
+// table holds (1061). An index's columns are the keys of its key parts in
 // order; any index whose leading parts are a foreign key's columns counts
 // as one that serves it, whatever its type or prefixes, so the walk never
 // takes an index InnoDB would use for one it would not.
@@ -22,10 +23,10 @@ type fkTable struct {
 	fks     map[string][]string
 }
 
-// syncedFKTable reads a synced table's foreign keys and indexes, false
-// when it has no foreign key or the walk cannot read an index's parts.
+// syncedFKTable reads a synced InnoDB table's foreign keys and indexes,
+// false when the walk cannot read an index's parts.
 func syncedFKTable(t *metadata.TableMetadata, foldTables bool) (*fkTable, bool) {
-	if len(t.GetForeignKeys()) == 0 || !keepsFKs(t.GetEngine()) {
+	if !keepsFKs(t.GetEngine()) {
 		return nil, false
 	}
 	plain := func(name string) (string, bool) {
@@ -371,6 +372,171 @@ func (b *builder) fkColumnFails(v *ast.AlterTableStmt, r tableRef) bool {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+// fkIndexNameFails fails an ALTER TABLE of an InnoDB table the change has
+// not touched that only adds foreign keys, when one would add its index
+// under a name an index of the table already holds whose leading columns
+// are not the foreign key's (1061, verified on mariadb:11.8.8). MariaDB
+// names that index for the foreign key's symbol, or the name after FOREIGN
+// KEY when there is none, and leaves it out when the index of that name
+// serves the foreign key. A foreign key whose column counts differ fails
+// first (1239), and IF NOT EXISTS is left to the server.
+func (b *builder) fkIndexNameFails(v *ast.AlterTableStmt, r tableRef) bool {
+	rel := relKey(r.db, r.name)
+	ft := b.w.fkTables[rel]
+	if ft == nil || b.w.ignoresFKs[rel] || len(v.Commands) == 0 {
+		return false
+	}
+	for _, c := range v.Commands {
+		if c == nil || c.Type != ast.ATAddConstraint && c.Type != ast.ATAddIndex || c.Constraint == nil ||
+			c.Constraint.Type != ast.ConstrForeignKey || c.Constraint.IfNotExists {
+			return false
+		}
+	}
+	for _, c := range v.Commands {
+		con := c.Constraint
+		name := keyName(con)
+		if name == "" || sameName(name, "PRIMARY") || len(con.RefColumns) > 0 && len(con.RefColumns) != len(con.Columns) {
+			continue
+		}
+		ik, ok := b.key(spaceIndex, name)
+		if !ok {
+			continue
+		}
+		icols, has := ft.indexes[ik]
+		if !has {
+			continue
+		}
+		var cols []string
+		for _, col := range con.Columns {
+			k, ok := b.key(spaceColumn, col)
+			if !ok {
+				return false
+			}
+			cols = append(cols, k)
+		}
+		if len(cols) == 0 || serves(icols, cols) {
+			continue
+		}
+		b.fail(rangeOf(c.Loc), []walk.Key{idxKey(r.db, r.name, ik)}, review.NameTaken, alreadyExists("index", ident(name), r.written)) // 1061
+		return true
+	}
+	return false
+}
+
+// fkIfNotExistsSkips reports whether ADD FOREIGN KEY IF NOT EXISTS may skip
+// a foreign key, false only for one with no name on a table whose foreign
+// keys the walk knows when none is named for its first column or starts
+// with it. On mariadb:11.8.8 IF NOT EXISTS (a) is a no-op beside a foreign
+// key a on (a), and adds the foreign key beside an index a.
+func (b *builder) fkIfNotExistsSkips(r tableRef, con *ast.Constraint) bool {
+	if !con.IfNotExists {
+		return false
+	}
+	ft := b.w.fkTables[relKey(r.db, r.name)]
+	if ft == nil || con.Name != "" || con.IndexName != "" || len(con.Columns) == 0 {
+		return true
+	}
+	first, ok1 := b.key(spaceColumn, con.Columns[0])
+	named, ok2 := b.key(spaceTableForeignKey, con.Columns[0])
+	if !ok1 || !ok2 {
+		return true
+	}
+	for name, cols := range ft.fks {
+		if name == named || len(cols) > 0 && cols[0] == first {
+			return true
+		}
+	}
+	return false
+}
+
+// fkSelfRefFails fails an ALTER TABLE of an InnoDB table the change has
+// not touched, while foreign keys are checked, that only adds columns and
+// foreign keys, when a foreign key it adds references the table itself
+// and the table as it was has no index whose leading columns are the
+// referenced ones (1005, errno 150, verified on mariadb:11.8.8). MariaDB
+// checks such a foreign key against the table before the statement, so a
+// column the statement adds is none it can reference, and a foreign key
+// with no column list references columns of its own columns' names.
+func (b *builder) fkSelfRefFails(v *ast.AlterTableStmt, r tableRef) bool {
+	rel := relKey(r.db, r.name)
+	ft := b.w.fkTables[rel]
+	if ft == nil || b.w.ignoresFKs[rel] || b.w.fkChecks != review.SwitchOn || len(v.Commands) == 0 {
+		return false
+	}
+	type selfRef struct {
+		rng       review.Range
+		cols, ref []string
+	}
+	var refs []selfRef
+	self := func(t *ast.TableRef) bool {
+		if t == nil {
+			return false
+		}
+		ref := *t
+		if ref.Schema == "" {
+			ref.Schema = r.db
+			if strings.HasPrefix(r.db, nonASCII) {
+				return false
+			}
+		}
+		tr, st := b.ref(&ref)
+		return st == refOK && tr.db == r.db && tr.name == r.name
+	}
+	for _, c := range v.Commands {
+		switch {
+		case c == nil:
+			return false
+		case c.Type == ast.ATAddColumn && !c.IfNotExists:
+			for _, col := range columnsOf(c) {
+				if col == nil {
+					return false
+				}
+				for _, cc := range col.Constraints {
+					if cc != nil && cc.Type == ast.ColConstrReferences && self(cc.RefTable) {
+						refs = append(refs, selfRef{rangeOf(col.Loc), []string{col.Name}, cc.RefColumns})
+					}
+				}
+			}
+		case (c.Type == ast.ATAddConstraint || c.Type == ast.ATAddIndex) && c.Constraint != nil && c.Constraint.Type == ast.ConstrForeignKey:
+			if b.fkIfNotExistsSkips(r, c.Constraint) {
+				return false
+			}
+			if self(c.Constraint.RefTable) {
+				refs = append(refs, selfRef{rangeOf(c.Loc), c.Constraint.Columns, c.Constraint.RefColumns})
+			}
+		default:
+			return false
+		}
+	}
+	for _, sr := range refs {
+		names := sr.ref
+		if len(names) == 0 {
+			names = sr.cols
+		}
+		if len(names) == 0 || len(names) != len(sr.cols) {
+			continue
+		}
+		var keys []string
+		for _, n := range names {
+			k, ok := b.key(spaceColumn, n)
+			if !ok {
+				return false
+			}
+			keys = append(keys, k)
+		}
+		served := false
+		for _, icols := range ft.indexes {
+			served = served || serves(icols, keys)
+		}
+		if served {
+			continue
+		}
+		b.fail(sr.rng, []walk.Key{rel}, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no index on the columns its foreign key references.") // 1005
+		return true
 	}
 	return false
 }

@@ -167,6 +167,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if dropIdx, dropCols, ok := alterDropsOnly(v); ok && !sets && b.fkIndexDropFails(r, dropIdx, dropCols, b.anchor()) {
 		return true
 	}
+	if !sets && (b.fkIndexNameFails(v, r) || b.fkSelfRefFails(v, r)) {
+		return true
+	}
 	var rename *ast.AlterTableCmd
 	for _, c := range v.Commands {
 		if c.Type == ast.ATRenameTable {
