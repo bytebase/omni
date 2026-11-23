@@ -34,9 +34,8 @@ var parseTrinoSpan = parser.Parse
 //   - expansion of each accessed table to its columns via the metadata getter,
 //   - mapping omni's PredicateColumns onto the expanded source columns.
 type resolver struct {
-	defaultDatabase     string
-	defaultSchema       string
-	ignoreCaseSensitive bool
+	defaultDatabase string
+	defaultSchema   string
 
 	opts ResolveOptions
 
@@ -47,11 +46,10 @@ type resolver struct {
 // newResolver creates a new Trino query span extractor.
 func newResolver(defaultDatabase, defaultSchema string, opts ResolveOptions) *resolver {
 	return &resolver{
-		defaultDatabase:     defaultDatabase,
-		defaultSchema:       defaultSchema,
-		opts:                opts,
-		ignoreCaseSensitive: opts.IgnoreCaseSensitive,
-		metaCache:           make(map[string]*metadata.DatabaseSchemaMetadata),
+		defaultDatabase: defaultDatabase,
+		defaultSchema:   defaultSchema,
+		opts:            opts,
+		metaCache:       make(map[string]*metadata.DatabaseSchemaMetadata),
 	}
 }
 
@@ -118,7 +116,11 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 	query := spanQueryNode(node)
 	var rawSpan *QuerySpan
 	if query != nil {
-		rawSpan, err = getQuerySpanForQuery(query, queryType, newViewState(q.buildSpanCatalog(single)))
+		vs := newViewState(q.buildSpanCatalog(single))
+		if vs != nil {
+			vs.qualified = true
+		}
+		rawSpan, err = getQuerySpanForQuery(query, queryType, vs)
 		if err != nil {
 			return nil, err
 		}
@@ -158,6 +160,13 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 	}
 
 	results := q.buildResults(rawSpan, fullSourceColumns, orderedColumns, aliasMap)
+	for i := range results {
+		if results[i].Name == "" {
+			// Trino names an output column that has no alias and is no
+			// column reference _col<position>, from 0 (StatementAnalyzer).
+			results[i].Name = fmt.Sprintf("_col%d", i)
+		}
+	}
 	predicateColumns := q.mapPredicateColumns(rawSpan, fullSourceColumns, aliasMap)
 
 	span := &ResolvedQuerySpan{
@@ -281,7 +290,7 @@ func (q *resolver) toTableResources(span *QuerySpan) ColumnSet {
 		out[Column{
 			Database: db,
 			Schema:   schema,
-			Table:    t.Table,
+			Table:    relationName(t.Table),
 		}] = true
 	}
 	return out
@@ -291,11 +300,16 @@ func (q *resolver) toTableResources(span *QuerySpan) ColumnSet {
 // table reference that omitted them, mirroring Trino's session-qualified
 // resolution. The schema falls back to defaultTrinoSchema ("public") when no
 // default schema is configured, matching the legacy resource-key format.
+//
+// A name the statement wrote is folded to lower case: Trino folds every part
+// of a relation name, quoted or not (io.trino.sql.tree.QualifiedName), so a
+// written "Orders" reads the table its metadata stores as orders.
 func (q *resolver) resolveCatalogSchema(catalog, schema string) (string, string) {
-	db := catalog
+	db := strings.ToLower(catalog)
 	if db == "" {
 		db = q.defaultDatabase
 	}
+	schema = strings.ToLower(schema)
 	if schema == "" {
 		schema = q.defaultSchema
 		if schema == "" {
@@ -304,6 +318,10 @@ func (q *resolver) resolveCatalogSchema(catalog, schema string) (string, string)
 	}
 	return db, schema
 }
+
+// relationName folds a written relation name as Trino does (see
+// resolveCatalogSchema).
+func relationName(table string) string { return strings.ToLower(table) }
 
 // expandTablesToColumns expands each accessed table into one resource per column
 // from the table's metadata. It returns the columns both as an ordered slice
@@ -332,6 +350,7 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 	}
 	for _, t := range span.AccessTables {
 		db, schema := q.resolveCatalogSchema(t.Catalog, t.Schema)
+		table := relationName(t.Table)
 		if isSystemSchemaTable(db, schema) {
 			// Trino's "system" catalog (system.runtime/metadata/jdbc.*) and the
 			// per-catalog information_schema are pseudo-objects, not
@@ -350,10 +369,10 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 			// fixing it needs system-table column metadata (not available); such
 			// queries are already classified SelectInfoSchema. Tracked as a
 			// follow-up rather than blocking the cutover.
-			add(Column{Database: db, Schema: schema, Table: t.Table})
+			add(Column{Database: db, Schema: schema, Table: table})
 			continue
 		}
-		columns, err := q.tableColumns(db, schema, t.Table)
+		schema, table, columns, err := q.tableColumns(db, schema, table)
 		if err != nil {
 			var notFound *ResourceNotFoundError
 			if errors.As(err, &notFound) {
@@ -362,7 +381,7 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 				}
 				// A missing resource is reported on the span; the table-level
 				// resource still records the read.
-				add(Column{Database: db, Schema: schema, Table: t.Table})
+				add(Column{Database: db, Schema: schema, Table: table})
 				continue
 			}
 			// Any other metadata failure is not a missing object; surfacing it
@@ -370,11 +389,11 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 			return nil, nil, nil, err
 		}
 		if len(columns) == 0 {
-			add(Column{Database: db, Schema: schema, Table: t.Table})
+			add(Column{Database: db, Schema: schema, Table: table})
 			continue
 		}
 		for _, col := range columns {
-			add(Column{Database: db, Schema: schema, Table: t.Table, Column: col})
+			add(Column{Database: db, Schema: schema, Table: table, Column: col})
 		}
 	}
 	return ordered, set, firstNotFound, nil
@@ -436,6 +455,9 @@ func (q *resolver) buildResults(span *QuerySpan, fullSourceColumns ColumnSet, or
 		}
 		sourceColumns := ColumnSet{}
 		for _, ref := range r.SourceColumns {
+			if addQualifiedColumn(sourceColumns, fullSourceColumns, ref) {
+				continue
+			}
 			addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 		}
 		results = append(results, ResolvedQuerySpanResult{
@@ -522,7 +544,7 @@ func (q *resolver) qualifiedStarTargets(ref ColumnRef, span *QuerySpan) ColumnSe
 	for _, t := range span.AccessTables {
 		if t.Alias != "" && strings.EqualFold(t.Alias, ref.Column) {
 			db, schema := q.resolveCatalogSchema(t.Catalog, t.Schema)
-			targets[Column{Database: db, Schema: schema, Table: t.Table}] = true
+			targets[Column{Database: db, Schema: schema, Table: relationName(t.Table)}] = true
 			aliasMatched = true
 		}
 	}
@@ -542,7 +564,7 @@ func (q *resolver) qualifiedStarTargets(ref ColumnRef, span *QuerySpan) ColumnSe
 	for _, t := range span.AccessTables {
 		db, schema := q.resolveCatalogSchema(t.Catalog, t.Schema)
 		if strings.EqualFold(db, wantDB) && strings.EqualFold(schema, wantSchema) && strings.EqualFold(t.Table, ref.Column) {
-			targets[Column{Database: db, Schema: schema, Table: t.Table}] = true
+			targets[Column{Database: db, Schema: schema, Table: relationName(t.Table)}] = true
 		}
 	}
 	return targets
@@ -578,6 +600,25 @@ func (*resolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSe
 		addMatchingColumns(out, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 	}
 	return out
+}
+
+// addQualifiedColumn adds the source column a catalog-qualified ref names to
+// dst, and reports whether it found it. A qualified ref names one column of one
+// relation, so matching it by table name and column alone would also take the
+// same-named table of another schema.
+func addQualifiedColumn(dst, fullSourceColumns ColumnSet, ref ColumnRef) bool {
+	if ref.Catalog == "" || ref.Schema == "" || ref.Table == "" {
+		return false
+	}
+	found := false
+	for sc := range fullSourceColumns {
+		if strings.EqualFold(sc.Database, ref.Catalog) && strings.EqualFold(sc.Schema, ref.Schema) &&
+			strings.EqualFold(sc.Table, ref.Table) && strings.EqualFold(sc.Column, ref.Column) {
+			dst[sc] = true
+			found = true
+		}
+	}
+	return found
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches
@@ -647,16 +688,18 @@ func containsFold(list []string, s string) bool {
 	return false
 }
 
-// tableColumns returns the column names of the given table or view, honouring
-// the case-sensitivity flag for object lookup.
-func (q *resolver) tableColumns(db, schema, table string) ([]string, error) {
+// tableColumns returns the schema and the table or view as the metadata names
+// them, and its column names. An exact name wins; otherwise names match
+// case-insensitively whatever IgnoreCaseSensitive says, since Trino resolves
+// every name that way.
+func (q *resolver) tableColumns(db, schema, table string) (string, string, []string, error) {
 	dbMeta, err := q.getDatabaseMetadata(db)
 	if err != nil {
-		return nil, err
+		return schema, table, nil, err
 	}
 
 	schemaMeta := findSpanSchema(dbMeta, schema)
-	if schemaMeta == nil && q.ignoreCaseSensitive {
+	if schemaMeta == nil {
 		for _, name := range listSpanSchemaNames(dbMeta) {
 			if strings.EqualFold(name, schema) {
 				schemaMeta = findSpanSchema(dbMeta, name)
@@ -665,15 +708,16 @@ func (q *resolver) tableColumns(db, schema, table string) ([]string, error) {
 		}
 	}
 	if schemaMeta == nil {
-		return nil, &ResourceNotFoundError{
+		return schema, table, nil, &ResourceNotFoundError{
 			Database: &db,
 			Schema:   &schema,
 		}
 	}
+	schema = schemaMeta.GetName()
 
 	// Table first.
 	tableMeta := findSpanTable(schemaMeta, table)
-	if tableMeta == nil && q.ignoreCaseSensitive {
+	if tableMeta == nil {
 		for _, name := range listSpanTableNames(schemaMeta) {
 			if strings.EqualFold(name, table) {
 				tableMeta = findSpanTable(schemaMeta, name)
@@ -686,12 +730,12 @@ func (q *resolver) tableColumns(db, schema, table string) ([]string, error) {
 		for _, col := range tableMeta.GetColumns() {
 			cols = append(cols, col.Name)
 		}
-		return cols, nil
+		return schema, tableMeta.GetName(), cols, nil
 	}
 
 	// Then view.
 	viewMeta := findSpanView(schemaMeta, table)
-	if viewMeta == nil && q.ignoreCaseSensitive {
+	if viewMeta == nil {
 		for _, name := range listSpanViewNames(schemaMeta) {
 			if strings.EqualFold(name, table) {
 				viewMeta = findSpanView(schemaMeta, name)
@@ -704,10 +748,10 @@ func (q *resolver) tableColumns(db, schema, table string) ([]string, error) {
 		for _, col := range viewMeta.GetColumns() {
 			cols = append(cols, col.Name)
 		}
-		return cols, nil
+		return schema, viewMeta.GetName(), cols, nil
 	}
 
-	return nil, &ResourceNotFoundError{
+	return schema, table, nil, &ResourceNotFoundError{
 		Database: &db,
 		Schema:   &schema,
 		Table:    &table,

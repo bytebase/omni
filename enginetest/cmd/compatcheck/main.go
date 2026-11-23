@@ -1,5 +1,5 @@
 // Command compatcheck fails a change to committed engine answers that only a
-// recording may make. It compares each compat.tsv and simulate.tsv the
+// recording may make. It compares each compat.tsv, simulate.tsv and span.tsv the
 // commits since <base> change with the file at their merge base (see
 // compat.Guard), and fails a pin bump that also changes non-test Go code: a
 // pin bump's diff must be what the release changed, so omni's fixes go in
@@ -20,6 +20,7 @@ import (
 
 	"github.com/bytebase/omni/enginetest/compat"
 	"github.com/bytebase/omni/enginetest/simulate"
+	"github.com/bytebase/omni/enginetest/span"
 )
 
 func main() {
@@ -98,6 +99,17 @@ var guards = map[string]func(beforeName string, before []byte, afterName string,
 			return nil, false, err
 		}
 		return simulate.Guard(b, a), simulate.PinChanged(b, a), nil
+	},
+	"span.tsv": func(beforeName string, before []byte, afterName string, after []byte) ([]string, bool, error) {
+		b, err := span.Parse(beforeName, before)
+		if err != nil {
+			return nil, false, err
+		}
+		a, err := span.Parse(afterName, after)
+		if err != nil {
+			return nil, false, err
+		}
+		return span.Guard(b, a), span.PinChanged(b, a), nil
 	},
 }
 

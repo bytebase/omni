@@ -614,11 +614,14 @@ func newClient(baseURL string) *client {
 
 // queryResp models the relevant fields of a /v1/statement response.
 type queryResp struct {
-	ID         string  `json:"id"`
-	NextURI    string  `json:"nextUri"`
-	UpdateType string  `json:"updateType"`
-	Data       [][]any `json:"data"`
-	Stats      struct {
+	ID         string `json:"id"`
+	NextURI    string `json:"nextUri"`
+	UpdateType string `json:"updateType"`
+	Columns    []struct {
+		Name string `json:"name"`
+	} `json:"columns"`
+	Data  [][]any `json:"data"`
+	Stats struct {
 		State string `json:"state"`
 	} `json:"stats"`
 	Error *struct {
@@ -757,6 +760,11 @@ func quote(name any) string {
 }
 
 func (c *client) post(ctx context.Context, sql string) (queryResp, error) {
+	return c.postIn(ctx, sql, memoryDefault)
+}
+
+// postIn sends sql to run in session in.
+func (c *client) postIn(ctx context.Context, sql string, in session) (queryResp, error) {
 	// Trino can answer 503 SERVER_STARTING_UP briefly; retry a few times.
 	var lastErr error
 	for attempt := 0; attempt < 5; attempt++ {
@@ -765,8 +773,8 @@ func (c *client) post(ctx context.Context, sql string) (queryResp, error) {
 			return queryResp{}, err
 		}
 		req.Header.Set("X-Trino-User", "omni-oracle")
-		req.Header.Set("X-Trino-Catalog", "memory")
-		req.Header.Set("X-Trino-Schema", "default")
+		req.Header.Set("X-Trino-Catalog", in.catalog)
+		req.Header.Set("X-Trino-Schema", in.schema)
 		req.Header.Set("Content-Type", "text/plain")
 		resp, err := c.http.Do(req)
 		if err != nil {
