@@ -704,6 +704,54 @@ CREATE TABLE c_rdc () INHERITS (p1_dc, p2_dc);
 			t.Fatalf("expected surviving c_rdc.x to become nullable after sole NOT NULL parent p1_dc drops x")
 		}
 	}
+
+	// ALTER TABLE ONLY SET NOT NULL on a nullable partitioned table with partitions fails with 42P16
+	// without mutating either relation.
+	partOnlySetSetup := `
+CREATE TABLE p_os (x int, k int) PARTITION BY RANGE (k);
+CREATE TABLE p_os_1 PARTITION OF p_os FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, partOnlySetSetup, "ALTER TABLE ONLY p_os ALTER COLUMN x SET NOT NULL"); got != CodeInvalidTableDefinition {
+		t.Fatalf("PG18 ALTER TABLE ONLY partitioned SET NOT NULL: got %q, want %q", got, CodeInvalidTableDefinition)
+	} else {
+		p := c.GetRelation("public", "p_os")
+		p1 := c.GetRelation("public", "p_os_1")
+		if p.Columns[0].NotNull || p1.Columns[0].NotNull {
+			t.Fatalf("expected failed ONLY SET NOT NULL to leave both parent and partition nullable")
+		}
+	}
+
+	// ALTER TABLE ONLY SET NOT NULL on an ordinary inheritance parent with children marks the constraint
+	// NO INHERIT; a subsequent recursive SET NOT NULL is rejected with 42P16.
+	inhOnlySetSetup := `
+CREATE TABLE p_ois (x int);
+CREATE TABLE c_ois () INHERITS (p_ois);
+`
+	if got, c := execCodeVersion(t, PG18, inhOnlySetSetup, "ALTER TABLE ONLY p_ois ALTER COLUMN x SET NOT NULL"); got != "" {
+		t.Fatalf("PG18 ALTER TABLE ONLY inheritance SET NOT NULL: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_ois")
+		ch := c.GetRelation("public", "c_ois")
+		if !p.Columns[0].NotNull || ch.Columns[0].NotNull {
+			t.Fatalf("expected p_ois.x NOT NULL and c_ois.x nullable (p=%v, ch=%v)", p.Columns[0].NotNull, ch.Columns[0].NotNull)
+		}
+		var noInh bool
+		for _, con := range c.ConstraintsOf(p.OID) {
+			if con.Type == ConstraintNotNull && con.ConNoInherit {
+				noInh = true
+			}
+		}
+		if !noInh {
+			t.Fatalf("expected ConNoInherit=true on p_ois_x_not_null")
+		}
+		if res, err := c.Exec("ALTER TABLE p_ois ALTER COLUMN x SET NOT NULL", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error == nil {
+			t.Fatalf("expected recursive SET NOT NULL on NO INHERIT constraint to fail")
+		} else {
+			assertErrorCode(t, res[0].Error, CodeInvalidTableDefinition)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

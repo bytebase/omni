@@ -314,8 +314,8 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 						existCD.CollationName = pcol.CollationName
 						existCD.UserCollationOID = pcol.UserCollationOID
 					}
-					// Merge NOT NULL from parent.
-					if pcol.NotNull {
+					// Merge NOT NULL from parent (skip NO INHERIT NOT NULL constraints).
+					if pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum) {
 						existCD.NotNull = true
 						existCD.NotNullInhCount++
 					}
@@ -340,14 +340,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					existCD.InhCount++
 				} else {
 					// New inherited column — not locally defined.
+					inheritNN := pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum)
 					var nnInh int16
-					if pcol.NotNull {
+					if inheritNN {
 						nnInh = 1
 					}
 					newCD := ColumnDef{
 						Name:             pcol.Name,
 						Type:             c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
-						NotNull:          pcol.NotNull,
+						NotNull:          inheritNN,
 						NotNullLocal:     false,
 						NotNullInhCount:  nnInh,
 						Default:          pcol.Default,

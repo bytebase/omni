@@ -355,7 +355,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				}
 			}
 		} else if subtype == nodes.AT_DropColumn {
-			if ci, ok := rel.colByName[p.cmd.Name]; ok && rel.Columns[ci].NotNull {
+			if ci, ok := rel.colByName[p.cmd.Name]; ok && rel.Columns[ci].NotNull && !c.isNotNullNoInherit(rel, rel.Columns[ci].AttNum) {
 				dropColWasNotNull = true
 			}
 		}
@@ -984,7 +984,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_SetNotNull:
 		if c.Version() >= PG18 && !recursing {
-			return c.setNotNullTree(rel, atc.Name, recurse || rel.RelKind == 'p', false)
+			return c.setNotNullTree(rel, atc.Name, recurse, false)
 		}
 		return c.atSetNotNull(rel, atc.Name)
 
@@ -2462,7 +2462,7 @@ func (c *Catalog) atDropColumnWithParentNotNull(schema *Schema, rel *Relation, c
 	}
 	idx = rel.colByName[colName]
 	col = rel.Columns[idx]
-	colWasNotNull := col.NotNull
+	colWasNotNull := col.NotNull && !c.isNotNullNoInherit(rel, col.AttNum)
 
 	// Drop indexes and constraints that reference this column. Their
 	// dependency entries normally cover them; this also catches those that
@@ -2733,9 +2733,25 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 	return nil
 }
 
+// isNotNullNoInherit reports whether rel's PG 18 NOT NULL constraint for attnum
+// is marked NO INHERIT.
+func (c *Catalog) isNotNullNoInherit(rel *Relation, attnum int16) bool {
+	if c.Version() < PG18 || rel == nil {
+		return false
+	}
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+			return con.ConNoInherit
+		}
+	}
+	return false
+}
+
 // setNotNullTree marks colName NOT NULL on rel and propagates the PG 18
 // cataloged NOT NULL constraint down inheritance/partition children, tracking
-// ConIsLocal and ConInhCount accurately.
+// ConIsLocal, ConInhCount, and ConNoInherit accurately.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecSetNotNull (PG 18)
 func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recursing bool) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
@@ -2743,7 +2759,6 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 	}
 	col := rel.Columns[idx]
 	wasNotNull := col.NotNull
-	col.NotNull = true
 
 	var nnCon *Constraint
 	for _, con := range c.consByRel[rel.OID] {
@@ -2753,15 +2768,38 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 		}
 	}
 	if !recursing {
+		if nnCon != nil && nnCon.ConNoInherit && propagate {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot change NO INHERIT status of NOT NULL constraint %q on relation %q", nnCon.Name, rel.Name),
+			}
+		}
+		hasChildren := len(c.findChildRelations(rel.OID)) > 0
+		if !propagate && rel.RelKind == 'p' && !wasNotNull && hasChildren {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot add NOT NULL constraint to only relation %q when partitions exist", rel.Name),
+			}
+		}
+		col.NotNull = true
 		if nnCon != nil {
 			nnCon.ConIsLocal = true
 		} else {
 			_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", true, 0)
+			if !propagate && rel.RelKind != 'p' && hasChildren {
+				for _, con := range c.consByRel[rel.OID] {
+					if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {
+						con.ConNoInherit = true
+						break
+					}
+				}
+			}
 		}
 		if wasNotNull || !propagate {
 			return nil
 		}
 	} else {
+		col.NotNull = true
 		if nnCon != nil {
 			nnCon.ConInhCount++
 			return nil
@@ -2836,8 +2874,12 @@ func (c *Catalog) dropNotNullConstraintTree(rel *Relation, colName string, propa
 			return nil
 		}
 	}
+	noInherit := nnCon != nil && nnCon.ConNoInherit
 	if err := c.atDropNotNull(rel, colName); err != nil {
 		return err
+	}
+	if noInherit {
+		return nil
 	}
 	if !propagate {
 		// Non-recursive drop (ALTER TABLE ONLY p DROP CONSTRAINT / DROP NOT NULL):
@@ -4404,7 +4446,8 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 					"column %q has a type conflict", pcol.Name,
 				))
 			}
-			if pcol.NotNull {
+			pcolInheritableNN := pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum)
+			if pcolInheritableNN {
 				childCol.NotNull = true
 				if c.Version() >= PG18 {
 					var existing *Constraint
@@ -4423,13 +4466,14 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 			}
 			childCol.InhCount++
 		} else {
+			pcolInheritableNN := pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum)
 			// Add inherited column.
 			col := &Column{
 				AttNum:    int16(len(rel.Columns) + 1),
 				Name:      pcol.Name,
 				TypeOID:   pcol.TypeOID,
 				TypeMod:   pcol.TypeMod,
-				NotNull:   pcol.NotNull,
+				NotNull:   pcolInheritableNN,
 				Len:       pcol.Len,
 				ByVal:     pcol.ByVal,
 				Align:     pcol.Align,
@@ -4505,7 +4549,7 @@ func (c *Catalog) atDropInherit(rel *Relation, rv *nodes.RangeVar) error {
 				childCol.IsLocal = true
 				childCol.InhCount = 0
 			}
-			if pcol.NotNull && c.Version() >= PG18 {
+			if pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum) && c.Version() >= PG18 {
 				for _, con := range c.consByRel[rel.OID] {
 					if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == childCol.AttNum {
 						if con.ConInhCount > 0 {
