@@ -334,7 +334,8 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 	case "||":
 		return concatType(lt, rt), false, nil
 	case "+", "-":
-		return arithmeticType(n.Op, lt, rt), false, nil
+		t, err := arithmeticType(n.Op, lt, rt)
+		return t, false, err
 	case "*", "/", "**":
 		return multiplyType(lt, rt), false, nil
 	case "=", "!=", "<>", "^=", "~=", "<", ">", "<=", ">=":
@@ -394,7 +395,14 @@ func concatLength(t qtype) int {
 	return t.byteLength()
 }
 
-func arithmeticType(op string, l, r qtype) qtype {
+func arithmeticType(op string, l, r qtype) (qtype, error) {
+	if op == "+" && l.isDatetime() && r.isDatetime() {
+		return qtype{}, oraError("00975", "date + date not allowed")
+	}
+	return arithmeticResult(op, l, r), nil
+}
+
+func arithmeticResult(op string, l, r qtype) qtype {
 	switch {
 	case l.kind == "DATE" && r.kind == "DATE" && op == "-":
 		t := numberType()

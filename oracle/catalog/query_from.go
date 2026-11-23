@@ -691,8 +691,15 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 	// One type per value column, merged across the IN mappings by position.
 	var valueTypes []qtype
 	var haveType []bool
-	labelBytes := 0
-	labelIsNumber := false
+	// One label type per FOR column, by position across the mappings.
+	var labelBytes []int
+	var labelIsNumber []bool
+	growLabels := func(n int) {
+		for len(labelBytes) < n {
+			labelBytes = append(labelBytes, 0)
+			labelIsNumber = append(labelIsNumber, false)
+		}
+	}
 	for _, item := range listItems(n.InputMappings) {
 		m, ok := item.(*ast.UnpivotInItem)
 		if !ok {
@@ -727,14 +734,26 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 			}
 		}
 		if m.Label != nil {
-			switch l := unparen(m.Label).(type) {
-			case *ast.StringLiteral:
-				labelBytes = max(labelBytes, len(l.Val))
-			case *ast.NumberLiteral:
-				labelIsNumber = true
+			labels := []ast.Node{m.Label}
+			if row, ok := unparen(m.Label).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+				labels = listItems(row.Args)
+			}
+			growLabels(len(labels))
+			for pos, l := range labels {
+				ex, ok := l.(ast.ExprNode)
+				if !ok {
+					continue
+				}
+				switch v := unparen(ex).(type) {
+				case *ast.StringLiteral:
+					labelBytes[pos] = max(labelBytes[pos], len(v.Val))
+				case *ast.NumberLiteral:
+					labelIsNumber[pos] = true
+				}
 			}
 		} else {
-			labelBytes = max(labelBytes, len(strings.Join(names, "_")))
+			growLabels(1)
+			labelBytes[0] = max(labelBytes[0], len(strings.Join(names, "_")))
 		}
 	}
 	rel := &qrel{name: aliasName(n.Alias)}
@@ -749,14 +768,17 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 		c.notNull = false
 		rel.cols = append(rel.cols, c)
 	}
-	labelType := varchar2Bytes(labelBytes)
-	if labelIsNumber {
-		labelType = numberType()
-	}
-	for _, x := range unpivotLabelColumns(n) {
-		if ref, ok := x.(*ast.ColumnRef); ok {
-			rel.cols = append(rel.cols, qcol{name: ref.Column, typ: labelType})
+	for pos, x := range unpivotLabelColumns(n) {
+		ref, ok := x.(*ast.ColumnRef)
+		if !ok {
+			continue
 		}
+		growLabels(pos + 1)
+		labelType := varchar2Bytes(labelBytes[pos])
+		if labelIsNumber[pos] {
+			labelType = numberType()
+		}
+		rel.cols = append(rel.cols, qcol{name: ref.Column, typ: labelType})
 	}
 	for pos, x := range unpivotValueColumns(n) {
 		if ref, ok := x.(*ast.ColumnRef); ok {

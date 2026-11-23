@@ -127,6 +127,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"distinct_to_char_clob", `CREATE VIEW v AS SELECT DISTINCT TO_CHAR(TO_CLOB('x')) x FROM t`, ""},
 		{"rollup_composite_column", `CREATE VIEW v AS SELECT id, n, COUNT(*) c FROM t GROUP BY ROLLUP((id, n))`, ""},
 		{"qualified_duplicate_column", `CREATE VIEW v AS SELECT x.c FROM (SELECT id c, n c FROM t) x`, "00918"},
+		{"date_plus_date", `CREATE VIEW v AS SELECT DATE '2020-01-01' + DATE '2020-01-02' x FROM dual`, "00975"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -296,6 +297,28 @@ CREATE VIEW w AS SELECT N'a' || 'b' n FROM dual;
 		case "W":
 			if got := v.GetColumns()[0].GetType(); got != "NVARCHAR2(2)" {
 				t.Errorf("W.N type = %s, want NVARCHAR2(2)", got)
+			}
+		}
+	}
+}
+
+func TestViewQueryTypesRound11(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (a NUMBER);
+CREATE VIEW v AS SELECT ROUND(CAST(1.25 AS BINARY_DOUBLE), 1) x, ROUND(CAST(1.25 AS BINARY_DOUBLE)) y, LISTAGG(HEXTORAW('AA')) WITHIN GROUP (ORDER BY dummy) z FROM dual;
+CREATE VIEW w AS SELECT * FROM t UNPIVOT (val FOR (yr, qtr) IN (a AS (2020, 'Q1')));
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]string{
+		"V": {"NUMBER", "BINARY_DOUBLE", "RAW(2000)"},
+		"W": {"NUMBER", "VARCHAR2(2 BYTE)", "NUMBER"},
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		for i, col := range v.GetColumns() {
+			if col.GetType() != want[v.GetName()][i] {
+				t.Errorf("%s.%s type = %s, want %s", v.GetName(), col.GetName(), col.GetType(), want[v.GetName()][i])
 			}
 		}
 	}

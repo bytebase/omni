@@ -269,7 +269,12 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 		if t := arg(0); t.kind == "BINARY_DOUBLE" || t.kind == "BINARY_FLOAT" {
 			switch name {
-			case "ABS", "CEIL", "FLOOR", "ROUND", "TRUNC", "SQRT", "EXP", "LN", "POWER", "MOD", "SIGN":
+			case "ROUND", "TRUNC":
+				// With a precision, ROUND and TRUNC return NUMBER.
+				if len(args) < 2 {
+					return t, false, nil
+				}
+			case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD", "SIGN":
 				return t, false, nil
 			}
 		}
@@ -487,6 +492,13 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 		}
 		return withinGroup, false, nil
 	case "LISTAGG":
+		if arg(0).kind == "RAW" {
+			// A RAW measure aggregates to RAW (2000 bytes under
+			// MAX_STRING_SIZE=STANDARD).
+			t := simpleType("RAW")
+			t.bytes = 2000
+			return t, false, nil
+		}
 		return varchar2Bytes(4000), false, nil
 	case "JSON_ARRAYAGG", "JSON_OBJECTAGG":
 		return varchar2Bytes(4000), false, nil
