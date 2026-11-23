@@ -85,6 +85,20 @@ func (s *plScope) lookup(name string) (found, constant bool) {
 			return true, false
 		}
 	}
+	// The PL/pgSQL parser folds a quoted name to lower case, so a quoted
+	// mixed-case name matches regardless of case.
+	for cur := s; cur != nil; cur = cur.outer {
+		for v, c := range cur.vars {
+			if strings.EqualFold(v, name) {
+				return true, c
+			}
+		}
+		for l := range cur.labels {
+			if strings.EqualFold(l, name) {
+				return true, false
+			}
+		}
+	}
 	return false, false
 }
 

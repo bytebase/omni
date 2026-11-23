@@ -679,11 +679,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				}
 			}
 		}
-		if err := validateBody(); err != nil {
-			return err
-		}
 		if up != nil {
-			fnParams.procOID = existing.OID
 			// A replacement may add parameter defaults, but not remove one
 			// or change one's type.
 			// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (pronargdefaults)
@@ -700,6 +696,18 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 					}
 				}
 			}
+		}
+		// The body is validated against the replacement's defaults, as
+		// PostgreSQL validates it after updating pg_proc.
+		// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (validator call)
+		oldNArgDefaults := existing.NArgDefaults
+		existing.NArgDefaults = nArgDefaults
+		if err := validateBody(); err != nil {
+			existing.NArgDefaults = oldNArgDefaults
+			return err
+		}
+		if up != nil {
+			fnParams.procOID = existing.OID
 			up.NArgDefaults = nArgDefaults
 			up.ArgDefaultTypes = defaultTypes
 			up.ArgDefaults = argDefaults

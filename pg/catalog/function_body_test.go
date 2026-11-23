@@ -15,6 +15,14 @@ func TestSQLFunctionBodyAccepts(t *testing.T) {
 		// pg_dump turns the checks off to create a function before its table.
 		`SET check_function_bodies = false; CREATE FUNCTION later() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM made_later'`,
 		`SET check_function_bodies = false; CREATE FUNCTION later() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$`,
+		// CALL passes NULL for an OUT parameter.
+		`CREATE PROCEDURE p(OUT n int) LANGUAGE plpgsql AS $$ BEGIN n := 1; END $$; CALL p(NULL)`,
+		// A quoted mixed-case parameter is assignable.
+		`CREATE FUNCTION f("X" int) RETURNS int LANGUAGE plpgsql AS $$ BEGIN "X" := 2; RETURN "X"; END $$`,
+		// SELECT INTO may target a record field.
+		`CREATE TABLE t(x int); CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r t%ROWTYPE; BEGIN SELECT 1 INTO r.x; RETURN r.x; END $$`,
+		// A replacement's body sees the defaults it adds.
+		`CREATE FUNCTION f(n int) RETURNS int LANGUAGE sql AS 'SELECT n'; CREATE OR REPLACE FUNCTION f(n int DEFAULT 0) RETURNS int LANGUAGE sql AS 'SELECT CASE WHEN n > 0 THEN f() ELSE 0 END'`,
 	} {
 		results, err := New().Exec(sql, nil)
 		for _, r := range results {

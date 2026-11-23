@@ -378,8 +378,15 @@ func (p *Parser) collectSQLWithInto() (string, []string, bool, error) {
 				if !p.isIntoTarget() {
 					break
 				}
-				into = append(into, p.intoTargetText())
+				target := p.intoTargetText()
 				p.advance()
+				// A record field: rec.field.
+				for p.cur.Type == '.' && isIntoTargetToken(p.peekNext()) {
+					p.advance()
+					target += "." + p.identText()
+					p.advance()
+				}
+				into = append(into, target)
 				if p.cur.Type == ',' {
 					// A comma before another target continues the INTO list;
 					// otherwise it belongs to the SELECT list.

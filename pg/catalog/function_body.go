@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -379,6 +380,14 @@ func (c *Catalog) checkCall(b *ruleBindings, fc *nodes.FuncCall, ctx *ruleEvalCo
 		}
 		if len(candidates) == 0 {
 			continue
+		}
+		// CALL passes an argument for each OUT parameter too, which the
+		// call signature here leaves out; accept a call to such a procedure.
+		// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (proc_call)
+		for _, p := range candidates {
+			if up := c.userProcs[p.OID]; up != nil && p.Kind == 'p' && slices.Contains(up.ArgModes, 'o') {
+				return nil
+			}
 		}
 		best, _, err := c.resolveFuncOverload(candidates, argTypes, argNames, false, fc.FuncVariadic)
 		if err != nil || best == nil {
