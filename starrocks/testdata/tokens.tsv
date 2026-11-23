@@ -32,3 +32,68 @@ addPartitionClause(TEMPORARY)?	(every site)	StarRocks.g4:1153 TEMPORARY
 dropPartitionClause(TEMPORARY)?	(every site)	StarRocks.g4:1158 TEMPORARY
 partitionNames(TEMPORARY)?	(every site)	StarRocks.g4:2269 TEMPORARY
 dropPartitionClause(FORCE)?	(every site)	StarRocks.g4:1158 FORCE
+showDatabasesStatement((LIKE_string)|(WHERE_expression))?	(every site)	StarRocks.g4:344 LIKE string or WHERE expression
+showAlterStatement((FROM|IN)_qualifiedName)?	(every site)	StarRocks.g4:555 FROM or IN a database
+showAlterStatement(WHERE_expression)?	(every site)	StarRocks.g4:556 WHERE expression
+showAlterStatement(ORDER_BY_sortItem_(,_sortItem)*)?	(every site)	StarRocks.g4:556 ORDER BY
+showAlterStatement(limitElement)?	(every site)	StarRocks.g4:556 LIMIT
+updateFailPointStatusStatement(ON_BACKEND_string)?	(every site)	StarRocks.g4:831 ON BACKEND string
+addPartitionClause(distributionDesc)?	(every site)	StarRocks.g4:1153 DISTRIBUTED BY
+addPartitionClause(properties)?	(every site)	StarRocks.g4:1153 PROPERTIES
+createAnalyzeStatement(FULL|SAMPLE)?	(every site)	StarRocks.g4:1323 FULL or SAMPLE
+createAnalyzeStatement(properties)?	(every site)	StarRocks.g4:1323 PROPERTIES
+showResourceGroupStatement(VERBOSE)?	(every site)	StarRocks.g4:1375 VERBOSE
+loadStatement(dataDescList)?	(every site)	StarRocks.g4:1429 a data description list
+loadStatement(PROPERTIES_propertyList)?	(every site)	StarRocks.g4:1432 PROPERTIES
+dataDesc(NEGATIVE)?	(every site)	StarRocks.g4:1449 NEGATIVE
+dataDesc(partitionNames)?	(every site)	StarRocks.g4:1451 PARTITION
+dataDesc(SET_classifier)?	(every site)	StarRocks.g4:1458 SET (column mapping)
+dataDesc(WHERE_expression)?	(every site)	StarRocks.g4:1459 WHERE expression
+brokerDesc(propertyList)?	(every site)	StarRocks.g4:1478 a property list
+showUserPropertyStatement(FOR_string)?	(every site)	StarRocks.g4:1605 FOR string
+showUserPropertyStatement(LIKE_string)?	(every site)	StarRocks.g4:1605 LIKE string
+grantPrivilegeStatement(WITH_GRANT_OPTION)?	(every site)	StarRocks.g4:1691 WITH GRANT OPTION
+setVar(varType)?	(every site)	StarRocks.g4:1958 GLOBAL, LOCAL, SESSION or VERBOSE
+unsupportedStatement(WORK)?	(every site)	StarRocks.g4:2007 WORK
+unsupportedStatement(AND_NO?_CHAIN)?	(every site)	StarRocks.g4:2008 AND [NO] CHAIN
+unsupportedStatement(NO?_RELEASE)?	(every site)	StarRocks.g4:2008 [NO] RELEASE
+queryPrimary(setQuantifier)?	(every site)	StarRocks.g4:2118 DISTINCT or ALL
+relationPrimary(columnAliases)?	(every site)	StarRocks.g4:2191 a column alias list
+joinRelation(bracketHint)?	(every site)	StarRocks.g4:2230 a join hint
+joinRelation(LATERAL)?	(every site)	StarRocks.g4:2231 LATERAL
+functionCall(over)?	(every site)	StarRocks.g4:2447 OVER
+aggregationFunction(setQuantifier)?	(every site)	StarRocks.g4:2454 DISTINCT or ALL
+aggregationFunction(ORDER_BY_sortItem_(,_sortItem)*)?	(every site)	StarRocks.g4:2460 ORDER BY
+windowFunction(ignoreNulls)?	(every site)	StarRocks.g4:2526 IGNORE NULLS
+backupRestoreObjectDesc(AS_identifier)?	(every site)	StarRocks.g4:2566 AS identifier
+distributionDesc(BUCKETS_INTEGER_VALUE)?	(every site)	StarRocks.g4:2682 BUCKETS n
+baseType(typeParameter)?	(every site)	StarRocks.g4:2818 a type's length
+# Keyword choices tried at every site that names them, and not only at the
+# one site the rule's own rows reach. Each is a named rule used at several
+# sites, or an inline group of one (keyDesc, charsetDesc, explainDesc), whose
+# forms its rule then writes at each of its sites.
+charsetDesc	(every alternative)	StarRocks.g4:424 a charset clause
+charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)	(every alternative)	StarRocks.g4:425 CHAR SET, CHARSET or CHARACTER SET
+keyDesc	(every alternative)	StarRocks.g4:432 a key clause
+keyDesc(AGGREGATE|UNIQUE|PRIMARY|DUPLICATE)	(every alternative)	StarRocks.g4:433 AGGREGATE, UNIQUE, PRIMARY or DUPLICATE
+columnNullable	(every alternative)	StarRocks.g4:440 NULL or NOT NULL
+timeUnit	(every alternative)	StarRocks.g4:1136 DAYS, HOURS or MINUTES
+brokerDesc	(every alternative)	StarRocks.g4:1477 WITH BROKER, named or not
+authOption	(every alternative)	StarRocks.g4:1722 IDENTIFIED BY or WITH
+privObjectType	(every alternative)	StarRocks.g4:1753 a privilege object type
+privObjectTypePlural	(every alternative)	StarRocks.g4:1758 a plural privilege object type
+transaction_access_mode	(every alternative)	StarRocks.g4:1970 READ ONLY or WRITE
+setExprOrDefault	(every alternative)	StarRocks.g4:1986 DEFAULT, ON, ALL or an expression
+periodType	(every alternative)	StarRocks.g4:2109 SYSTEM_TIME, TIMESTAMP or VERSION
+limitElement	(every alternative)	StarRocks.g4:2135 LIMIT n [OFFSET m] or LIMIT m, n
+setQuantifier	(every alternative)	StarRocks.g4:2167 DISTINCT or ALL
+joinCriteria	(every alternative)	StarRocks.g4:2258 ON or USING
+frameBound	(every alternative)	StarRocks.g4:2555 a window frame bound
+explainDesc	(every alternative)	StarRocks.g4:2580 an EXPLAIN keyword and level
+explainDesc(DESC|DESCRIBE|EXPLAIN)	(every alternative)	StarRocks.g4:2581 DESC, DESCRIBE or EXPLAIN
+explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?	(every alternative)	StarRocks.g4:2581 LOGICAL, ANALYZE, VERBOSE, COSTS or SCHEDULER
+distributionDesc	(every alternative)	StarRocks.g4:2681 DISTRIBUTED BY HASH or RANDOM
+refreshSchemeDesc	(every alternative)	StarRocks.g4:2687 a refresh scheme
+varType	(every alternative)	StarRocks.g4:2727 GLOBAL, LOCAL, SESSION or VERBOSE
+identifierOrStringOrStar	(every alternative)	StarRocks.g4:2886 *, a name or a string
+number	(every alternative)	StarRocks.g4:2906 a decimal, double or integer

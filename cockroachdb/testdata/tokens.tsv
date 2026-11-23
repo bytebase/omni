@@ -717,3 +717,64 @@ WORK	WORK
 WRITE	WRITE
 YEAR	YEAR
 ZONE	ZONE
+
+# Optional clauses written out at every site that names them (enginetest/grammar
+# EverySite); line numbers are pkg/sql/parser/sql.y's at v25.2.3. IF [NOT] EXISTS
+# is spelled inline in each alternative of sql.y, so every site already has a row.
+opt_or_replace	(every site)	sql.y:5350 OR REPLACE
+opt_concurrently	(every site)	sql.y:12358 CONCURRENTLY
+opt_unique	(every site)	sql.y:12368 UNIQUE
+opt_column	(every site)	sql.y:12926 COLUMN
+opt_transaction	(every site)	sql.y:13134 TRANSACTION
+opt_equal	(every site)	sql.y:13469 =
+opt_with	(every site)	sql.y:14079 WITH
+opt_validate_behavior	(every site)	sql.y:3146 NOT VALID
+opt_compact	(every site)	sql.y:9385 COMPACT
+with_comment	(every site)	sql.y:9507 WITH COMMENT
+opt_with_grant_option	(every site)	sql.y:12841 WITH GRANT OPTION
+opt_view_recursive	(every site)	sql.y:12105 RECURSIVE
+opt_ordinality	(every site)	sql.y:14773 WITH ORDINALITY
+opt_without_index	(every site)	sql.y:11188 WITHOUT INDEX
+opt_asymmetric	(every site)	sql.y:17457 ASYMMETRIC
+join_outer	(every site)	sql.y:14889 OUTER
+opt_immediate	(every site)	sql.y:6660 IMMEDIATE
+
+# Keyword choices written out in each form at every site that names them
+# (enginetest/grammar EveryAlternative), cited to sql.y at v25.2.3.
+opt_temp	(every alternative)	sql.y:10818 TEMPORARY or TEMP
+opt_persistence_temp_table	(every alternative)	sql.y:10823 [LOCAL | GLOBAL] TEMPORARY or TEMP, or UNLOGGED
+opt_drop_behavior	(every alternative)	sql.y:3132 CASCADE or RESTRICT
+opt_cluster	(every alternative)	sql.y:9172 CLUSTER or LOCAL
+opt_index_visible	(every alternative)	sql.y:12452 NOT VISIBLE, INVISIBLE, VISIBLE or VISIBILITY
+alter_index_visible	(every alternative)	sql.y:2560 NOT VISIBLE, INVISIBLE, VISIBLE or VISIBILITY
+relocate_kw	(every alternative)	sql.y:2492 TESTING_RELOCATE, EXPERIMENTAL_RELOCATE or RELOCATE
+relocate_subject_nonlease	(every alternative)	sql.y:2504 VOTERS or NONVOTERS
+virtual_cluster	(every alternative)	sql.y:4957 TENANT or VIRTUAL CLUSTER
+include_all_clusters	(every alternative)	sql.y:3555 INCLUDE_ALL_SECONDARY_TENANTS or INCLUDE_ALL_VIRTUAL_CLUSTERS
+role_or_group_or_user	(every alternative)	sql.y:11849 ROLE, GROUP or USER
+to_or_eq	(every alternative)	sql.y:7951 = or TO
+statements_or_queries	(every alternative)	sql.y:9182 STATEMENTS or QUERIES
+from_or_in	(every alternative)	sql.y:8574 FROM or IN
+from_with_implicit_for_alias	(every alternative)	sql.y:9879 FROM or FOR
+forward_backward	(every alternative)	sql.y:8566 FORWARD or BACKWARD
+opt_asc_desc	(every alternative)	sql.y:12438 ASC or DESC
+opt_nulls_order	(every alternative)	sql.y:14246 NULLS FIRST or NULLS LAST
+comment_text	(every alternative)	sql.y:4683 a string or NULL
+reference_action	(every alternative)	sql.y:11616 a foreign key's referential action
+key_match	(every alternative)	sql.y:11561 MATCH SIMPLE, FULL or PARTIAL
+opt_deferrable	(every alternative)	sql.y:11483 DEFERRABLE and INITIALLY forms
+all_or_distinct	(every alternative)	sql.y:14097 ALL or DISTINCT
+opt_join_hint	(every alternative)	sql.y:14914 HASH, MERGE, LOOKUP, INVERTED or STRAIGHT
+char_aliases	(every alternative)	sql.y:15464 CHAR or CHARACTER
+row_or_rows	(every alternative)	sql.y:14349 ROW or ROWS
+first_or_next	(every alternative)	sql.y:14353 FIRST or NEXT
+opt_timezone	(every alternative)	sql.y:15544 WITH or WITHOUT TIME ZONE
+opt_frame_exclusion	(every alternative)	sql.y:16995 EXCLUDE CURRENT ROW, GROUP, TIES or NO OTHERS
+routine_param_class	(every alternative)	sql.y:5427 IN, OUT, INOUT, IN OUT or VARIADIC
+opt_schedule_executor_type	(every alternative)	sql.y:9344 FOR BACKUP, SQL STATISTICS or CHANGEFEED
+opt_show_create_format_options	(every alternative)	sql.y:9733 WITH REDACT or WITH IGNORE_FOREIGN_KEYS
+schedule_state	(every alternative)	sql.y:9334 RUNNING or PAUSED
+opt_policy_type	(every alternative)	sql.y:5146 AS PERMISSIVE or AS RESTRICTIVE
+opt_policy_command	(every alternative)	sql.y:5160 FOR ALL, SELECT, INSERT, UPDATE or DELETE
+opt_add_val_placement	(every alternative)	sql.y:3285 BEFORE or AFTER
+placement_clause	(every alternative)	sql.y:13353 PLACEMENT RESTRICTED or DEFAULT

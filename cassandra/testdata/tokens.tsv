@@ -26,3 +26,19 @@ alterTableStatement(columnMask)?	(every site)	Parser.g:969 a MASKED WITH on a co
 permissionOrAll(K_PERMISSION)?	(every site)	Parser.g:1145 a permission's noise word PERMISSION
 selectorModifier	(every site)	Parser.g:343 a field or element taken from a selector, as in WRITETIME(a.b)
 isStaticColumn	(every site)	Parser.g:989 STATIC on a column ALTER TABLE ADD
+# Choices tried at every site that names them, and not only where their own
+# alternatives' rows reach (see grammar.EveryAlternative).
+permission	(every alternative)	Parser.g:1138 each permission a GRANT, REVOKE or LIST names
+permissionOrAll	(every alternative)	Parser.g:1143 ALL PERMISSIONS or a permission list, in GRANT, REVOKE and LIST
+resource	(every alternative)	Parser.g:1148 each kind of resource a GRANT, REVOKE or LIST names
+dataResource	(every alternative)	Parser.g:1155 ALL KEYSPACES, a keyspace, a table or ALL TABLES IN KEYSPACE
+jmxResource	(every alternative)	Parser.g:1162 ALL MBEANS, an MBEAN or MBEANS
+roleResource	(every alternative)	Parser.g:1170 ALL ROLES or a ROLE
+functionResource	(every alternative)	Parser.g:1175 ALL FUNCTIONS, in a keyspace or not, or a FUNCTION
+userPassword	(every alternative)	Parser.g:1399 PASSWORD or HASHED PASSWORD, in CREATE and ALTER USER
+relationType	(every alternative)	Parser.g:1764 each comparison operator of a relation
+native_type	(every alternative)	Parser.g:1873 each native type, as CAST's target
+constant	(every alternative)	Parser.g:1527 each kind of literal, as a selector and a term
+intValue	(every alternative)	Parser.g:1601 a number, a named or a positional marker, in LIMIT, TTL and TIMESTAMP
+inMarker	(every alternative)	Parser.g:1812 a positional or a named marker after IN
+columnMask	(every alternative)	Parser.g:798 MASKED WITH a function or DEFAULT, in CREATE and ALTER TABLE

@@ -15,7 +15,10 @@ design is `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md`
 - **`tokens.tsv`** gives the text each token class of `SqlBase.g4` is written
   as, citing its lexer rule, the keyword written for `methodName`'s
   wildcard, and the optional `(...)?` groups of `statement`, such as
-  `(IF NOT EXISTS)?`, tried at every site that writes them.
+  `(IF NOT EXISTS)?`, tried at every site that writes them, and the
+  keyword-choice rules (`principal`, `privilegeOrRole`, `frameBound`,
+  `literal` and the rest) whose every alternative is written at every site
+  that names them.
 
 `SqlBase.g4` is distributed under the Apache License 2.0, in `Trino.LICENSE`.
 It is a test fixture read at test time and is not compiled into omni.

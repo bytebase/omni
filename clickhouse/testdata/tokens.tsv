@@ -27,3 +27,12 @@ createStmt(clusterClause)?	(every site)	ClickHouseParser.g4:99 CREATE ... ON CLU
 dropStmt(clusterClause)?	(every site)	ClickHouseParser.g4:191 DROP ... ON CLUSTER
 alterTableClause(IN_partitionClause)?	(every site)	ClickHouseParser.g4:48 CLEAR, MATERIALIZE ... IN PARTITION
 alterTableClause(AFTER_nestedIdentifier)?	(every site)	ClickHouseParser.g4:43 ADD ... AFTER
+# Choices tried at every site that names them, and not only where the rule's
+# own alternatives are reached.
+stringLiteral	(every alternative)	ClickHouseParser.g4:547 hexadecimal, binary or quoted string literal
+literal	(every alternative)	ClickHouseParser.g4:548 number, JSON true or false, string or NULL
+interval	(every alternative)	ClickHouseParser.g4:555 an interval unit
+partitionClause	(every alternative)	ClickHouseParser.g4:82 PARTITION expr or PARTITION ID 'id'
+identifierOrNull	(every alternative)	ClickHouseParser.g4:585 an identifier or Null
+tableSchemaClause	(every alternative)	ClickHouseParser.g4:142 a column list, AS table or AS table function
+columnTypeExpr	(every alternative)	ClickHouseParser.g4:433 simple, Nested, Enum, complex or parametric type

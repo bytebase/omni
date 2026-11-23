@@ -161,7 +161,7 @@ func (p *Parser) parseDropIndex(startLoc ast.Loc) (ast.Node, error) {
 
 // parseBuildIndex parses a BUILD INDEX statement.
 //
-//	BUILD INDEX index_name ON table_name [PARTITIONS(p1, p2, ...)]
+//	BUILD INDEX index_name ON table_name [partitionSpec]
 //
 // cur is kwINDEX on entry (BUILD has already been consumed).
 // startLoc is the Loc of the BUILD token.
@@ -184,39 +184,30 @@ func (p *Parser) parseBuildIndex(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Optional partition restriction (grammar: specifiedPartition):
-	// PARTITION p1, PARTITION (p1, p2, ...), or PARTITIONS (p1, p2, ...).
+	// Optional partitionSpec (DorisParser.g4:834 buildIndex, :962
+	// partitionSpec; DorisLegacyParser.g4:452 opt_partition_names). BUILD
+	// INDEX is an unsupportedCreateStatement, so Doris takes the forms both
+	// grammars derive, which parseAlterPartitionSpec reads.
 	var partitions []string
-	if p.cur.Kind == kwPARTITIONS || p.cur.Kind == kwPARTITION {
-		singular := p.cur.Kind == kwPARTITION
-		p.advance()
-		if singular && p.cur.Kind != int('(') {
-			// PARTITION with a single bare identifier.
-			name, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			partitions = []string{name}
-		} else {
-			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
-			}
-			partitions, err = p.parseIdentifierList()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(int(')')); err != nil {
-				return nil, err
-			}
+	var temporary bool
+	if p.alterAtPartitionSpec() {
+		var star bool
+		temporary, partitions, star, err = p.parseAlterPartitionSpec()
+		if err != nil {
+			return nil, err
+		}
+		if star {
+			partitions = []string{"*"}
 		}
 	}
 
 	endLoc := p.prev.Loc
 	stmt := &ast.BuildIndexStmt{
-		Name:       indexName,
-		Table:      tableName,
-		Partitions: partitions,
-		Loc:        ast.Loc{Start: startLoc.Start, End: endLoc.End},
+		Name:               indexName,
+		Table:              tableName,
+		Partitions:         partitions,
+		TemporaryPartition: temporary,
+		Loc:                ast.Loc{Start: startLoc.Start, End: endLoc.End},
 	}
 	return stmt, nil
 }

@@ -29,3 +29,37 @@ statement(AUTHORIZATION_principal)?	(every site)	SqlBase.g4:61 AUTHORIZATION pri
 statement(IN_identifier)?	(every site)	SqlBase.g4:145 IN identifier, a role's catalog
 statement(GRANTED_BY_grantor)?	(every site)	SqlBase.g4:151 GRANTED BY grantor
 statement(WHERE_booleanExpression)?	(every site)	SqlBase.g4:83 WHERE booleanExpression
+# Keyword choices tried at every site that names them, and not only at the
+# one site the rule's own rows reach. Each is a named rule of SqlBase.g4 used
+# at several sites.
+setQuantifier	(every alternative)	SqlBase.g4:362 DISTINCT or ALL
+joinType	(every alternative)	SqlBase.g4:382 INNER, LEFT, RIGHT or FULL [OUTER]
+skipTo	(every alternative)	SqlBase.g4:453 an AFTER MATCH SKIP target
+jsonValueBehavior	(every alternative)	SqlBase.g4:727 ERROR, NULL or DEFAULT expression
+jsonQueryWrapperBehavior	(every alternative)	SqlBase.g4:733 WITHOUT or WITH [CONDITIONAL or UNCONDITIONAL] ARRAY
+jsonQueryBehavior	(every alternative)	SqlBase.g4:738 ERROR, NULL, EMPTY ARRAY or EMPTY OBJECT
+processingMode	(every alternative)	SqlBase.g4:750 RUNNING or FINAL
+comparisonOperator	(every alternative)	SqlBase.g4:770 a comparison operator
+frameBound	(every alternative)	SqlBase.g4:870 a window frame bound
+explainOption	(every alternative)	SqlBase.g4:905 an EXPLAIN FORMAT or TYPE
+transactionMode	(every alternative)	SqlBase.g4:910 an isolation level or access mode
+privilege	(every alternative)	SqlBase.g4:1001 a privilege
+grantor	(every alternative)	SqlBase.g4:1030 a principal, CURRENT_USER or CURRENT_ROLE
+principal	(every alternative)	SqlBase.g4:1036 a name, USER name or ROLE name
+privilegeOrRole	(every alternative)	SqlBase.g4:1042 a privilege or a role
+string	(every alternative)	SqlBase.g4:760 a string or a Unicode string
+sortItem	(every alternative)	SqlBase.g4:317 an ORDER BY item, with its ordering and null ordering
+sortItem(ASC|DESC)?	(every alternative)	SqlBase.g4:318 ASC or DESC
+sortItem(NULLS_(FIRST|LAST))?	(every alternative)	SqlBase.g4:318 NULLS FIRST or LAST
+tableElement	(every alternative)	SqlBase.g4:247 a column definition or a LIKE clause
+selectItem	(every alternative)	SqlBase.g4:367 an expression, a qualified * or *
+rowCount	(every alternative)	SqlBase.g4:295 an integer or ?
+groupingElement	(every alternative)	SqlBase.g4:334 a grouping set, AUTO, ROLLUP, CUBE or GROUPING SETS
+groupingSet	(every alternative)	SqlBase.g4:342 a parenthesized list or an expression
+intervalQualifier	(every alternative)	SqlBase.g4:804 an interval's fields
+rowField	(every alternative)	SqlBase.g4:816 a ROW field, named or not
+typeParameter	(every alternative)	SqlBase.g4:820 an integer or a type
+argument	(every alternative)	SqlBase.g4:922 a positional or named argument
+literal	(every alternative)	SqlBase.g4:687 a literal
+booleanValue	(every alternative)	SqlBase.g4:778 TRUE or FALSE
+number	(every alternative)	SqlBase.g4:1059 a decimal, double or integer, signed or not

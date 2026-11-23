@@ -1402,80 +1402,35 @@ func (p *parser) parseDataType() (*DataType, error) {
 		return dt, nil
 	}
 
-	// Enum values: stringLiteral '=' numberLiteral (',' ...)*
-	if isStringTok(p.cur().Type) && p.peek(1).Type == TokEq {
-		for {
-			lit, err := p.parseStringLiteral()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(TokEq); err != nil {
-				return nil, err
-			}
-			num, err := p.parseNumberLiteral()
-			if err != nil {
-				return nil, err
-			}
-			dt.EnumValues = append(dt.EnumValues, EnumValue{Name: lit.Val, Value: num.Raw})
-			if !p.match(TokComma) {
-				break
-			}
-		}
-		rp, err := p.expect(TokRParen)
-		if err != nil {
-			return nil, err
-		}
-		dt.End = rp.End
-		return dt, nil
-	}
-
-	// Named elements (Nested / named Tuple): ident dataType (',' ident dataType)*
-	// In ClickHouse, named elements in a type expression are only valid for Nested and Tuple.
-	upperName := strings.ToUpper(name)
-	if (upperName == "NESTED" || upperName == "TUPLE") && isIdentifier(p.cur()) && isIdentifier(p.peek(1)) {
+	// Enum values: stringLiteral '=' numberLiteral (',' ...)*. A list that is
+	// not only such pairs ('a' = 1, 2 or 'a' = 1 = 2) falls back to the
+	// general arguments below, as ParserDataType's enum fast path does.
+	if !typeHasOwnArgs(name) && isStringTok(p.cur().Type) && p.peek(1).Type == TokEq {
 		save := p.pos
-		var cols []NestedCol
-		ok := true
-		for {
-			colName, err := p.parseIdentifier()
-			if err != nil {
-				ok = false
-				break
-			}
-			colType, err := p.parseDataType()
-			if err != nil {
-				ok = false
-				break
-			}
-			cols = append(cols, NestedCol{Name: colName, Type: colType})
-			if !p.match(TokComma) {
-				break
-			}
-		}
-		if ok && p.cur().Type == TokRParen {
+		if vals, ok := p.tryParseEnumValues(); ok {
 			rp := p.advance()
-			dt.NestedCols = cols
+			dt.EnumValues = vals
 			dt.End = rp.End
 			return dt, nil
 		}
 		p.pos = save
 	}
 
-	// General arguments: mix of data types and literal/expr params (no bare `*`, optional trailing comma)
-	for {
-		arg, typeArg, err := p.parseTypeArg()
-		if err != nil {
+	// ParserDataType (ParserDataType.cpp at v26.8.38.9-lts) reads arguments
+	// until one does not parse and then requires ')', so a trailing comma
+	// passes.
+	versioned := false
+	for n := 0; ; n++ {
+		if n > 0 && !p.match(TokComma) {
+			break
+		}
+		save := p.pos
+		if err := p.parseTypeArg(dt, n, &versioned); err != nil {
+			p.pos = save
+			if n > 0 && p.cur().Type == TokRParen {
+				break
+			}
 			return nil, err
-		}
-		dt.Args = append(dt.Args, arg)
-		if typeArg != nil {
-			dt.TypeArgs = append(dt.TypeArgs, typeArg)
-		}
-		if !p.match(TokComma) {
-			break
-		}
-		if p.cur().Type == TokRParen {
-			break
 		}
 	}
 	rp, err := p.expect(TokRParen)
@@ -1486,27 +1441,242 @@ func (p *parser) parseDataType() (*DataType, error) {
 	return dt, nil
 }
 
-func (p *parser) parseTypeArg() (Expr, *DataType, error) {
-	// Nested data type (e.g. Nullable(UInt64) or bare UInt64 inside Array(UInt64))
-	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen && !p.noTypeArgAt[p.pos] {
+// tryParseEnumValues parses 'name' = number (, 'name' = number)* up to the
+// closing parenthesis, which it leaves unread. It reports false when the
+// arguments are anything else.
+func (p *parser) tryParseEnumValues() ([]EnumValue, bool) {
+	var vals []EnumValue
+	for {
+		if !isStringTok(p.cur().Type) || p.peek(1).Type != TokEq {
+			return nil, false
+		}
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, false
+		}
+		p.advance()
+		num, err := p.parseNumberLiteral()
+		if err != nil {
+			return nil, false
+		}
+		vals = append(vals, EnumValue{Name: lit.Val, Value: num.Raw})
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	return vals, p.cur().Type == TokRParen
+}
+
+// typeHasOwnArgs reports whether ClickHouse's ParserDataType reads the
+// arguments of the type named name with a parser of their own rather than
+// its general one (ParserDataType.cpp at v26.8.38.9-lts: Dynamic, JSON,
+// Nested, Tuple, AggregateFunction and SimpleAggregateFunction). Only JSON's
+// name is matched without regard to case.
+func typeHasOwnArgs(name string) bool {
+	switch name {
+	case "Dynamic", "Nested", "Tuple", "AggregateFunction", "SimpleAggregateFunction":
+		return true
+	}
+	return strings.EqualFold(name, "json")
+}
+
+// isTypeArgLiteralStart reports whether tok starts a ParserLiteral: a
+// signed number, inf or nan, a string, a boolean or NULL.
+func isTypeArgLiteralStart(tok Token) bool {
+	switch tok.Type {
+	case TokInt, TokFloat, KwInf, KwNan, TokPlus, TokMinus, KwTrue, KwFalse, KwNull:
+		return true
+	}
+	return isStringTok(tok.Type)
+}
+
+// parseTypeArg parses the nth argument of dt and adds it to dt, following
+// ParserDataType's argument loop (ParserDataType.cpp at v26.8.38.9-lts):
+//   - Dynamic: name = number (DynamicArgumentParser);
+//   - JSON: SKIP path, SKIP REGEXP 'pattern', path = number or path type
+//     (ObjectArgumentParser);
+//   - Nested: name type; Tuple: name type or type;
+//   - AggregateFunction: an optional unsigned version, then a function or a
+//     name, then types; SimpleAggregateFunction the same with no version;
+//   - any other type: an enum element chain (literal = literal ...), a
+//     literal, or a type, never an expression: `a((1))`, `a([1])` and
+//     `a(1 + 1)` are syntax errors.
+func (p *parser) parseTypeArg(dt *DataType, n int, versioned *bool) error {
+	switch name := dt.Name; {
+	case name == "Dynamic":
+		arg, err := p.parseTypeParamArg(false)
+		if err != nil {
+			return err
+		}
+		dt.Args = append(dt.Args, arg)
+		return nil
+	case strings.EqualFold(name, "json"):
+		return p.parseJSONTypeArg(dt)
+	case name == "Nested":
+		col, err := p.parseNameTypePair()
+		if err != nil {
+			return err
+		}
+		dt.NestedCols = append(dt.NestedCols, col)
+		return nil
+	case name == "Tuple":
 		save := p.pos
-		if dt, err := p.parseDataType(); err == nil && (p.cur().Type == TokComma || p.cur().Type == TokRParen) {
-			return &TypeExpr{span: dt.span, Type: dt}, dt, nil
+		if col, err := p.parseNameTypePair(); err == nil {
+			dt.NestedCols = append(dt.NestedCols, col)
+			return nil
 		}
-		if p.noTypeArgAt == nil {
-			p.noTypeArgAt = make(map[int]bool)
-		}
-		p.noTypeArgAt[save] = true
 		p.pos = save
+		return p.parseTypeArgType(dt)
+	case name == "AggregateFunction" || name == "SimpleAggregateFunction":
+		// ParserUnsignedInteger reads the version: digits, no sign.
+		if n == 0 && name == "AggregateFunction" && p.cur().Type == TokInt {
+			lit, err := p.parseNumberLiteral()
+			if err != nil {
+				return err
+			}
+			dt.Args = append(dt.Args, lit)
+			*versioned = true
+			return nil
+		}
+		fn := 0
+		if *versioned {
+			fn = 1
+		}
+		if n != fn {
+			return p.parseTypeArgType(dt)
+		}
+		// ParserFunction or ParserIdentifier.
+		if !isIdentifier(p.cur()) {
+			return p.errAt(p.cur(), fmt.Sprintf("expected aggregate function, got %q", p.cur().Raw))
+		}
+		arg, err := p.parseIdentOrFuncCall()
+		if err != nil {
+			return err
+		}
+		dt.Args = append(dt.Args, arg)
+		return nil
 	}
-	if isIdentifier(p.cur()) && (p.peek(1).Type == TokComma || p.peek(1).Type == TokRParen) {
-		tok := p.advance()
-		dt := &DataType{span: span{Pos: tok.Pos, End: tok.End}, Name: tok.Val}
-		return &TypeExpr{span: dt.span, Type: dt}, dt, nil
+	if isTypeArgLiteralStart(p.cur()) {
+		lit, err := p.parseLiteral()
+		if err != nil {
+			return err
+		}
+		var arg Expr = lit
+		for p.cur().Type == TokEq {
+			op := p.advance().Raw
+			right, err := p.parseLiteral()
+			if err != nil {
+				return err
+			}
+			arg = &BinaryExpr{span: span{Pos: arg.StartPos(), End: right.EndPos()}, Op: op, Left: arg, Right: right}
+		}
+		dt.Args = append(dt.Args, arg)
+		return nil
 	}
-	if p.cur().Type == TokStar {
-		return nil, nil, p.errAt(p.cur(), "unexpected '*' in data type argument")
+	return p.parseTypeArgType(dt)
+}
+
+// parseTypeArgType parses a type argument and adds it to dt.
+func (p *parser) parseTypeArgType(dt *DataType) error {
+	arg, err := p.parseDataType()
+	if err != nil {
+		return err
 	}
-	expr, err := p.parseExpr()
-	return expr, nil, err
+	dt.Args = append(dt.Args, &TypeExpr{span: arg.span, Type: arg})
+	dt.TypeArgs = append(dt.TypeArgs, arg)
+	return nil
+}
+
+// parseNameTypePair parses ParserNameTypePair: an identifier and a type.
+func (p *parser) parseNameTypePair() (NestedCol, error) {
+	colName, err := p.parseIdentifier()
+	if err != nil {
+		return NestedCol{}, err
+	}
+	colType, err := p.parseDataType()
+	if err != nil {
+		return NestedCol{}, err
+	}
+	return NestedCol{Name: colName, Type: colType}, nil
+}
+
+// parseTypeParamArg parses name = number, a Dynamic or JSON parameter such
+// as max_types = 8. A JSON parameter's name is compound (ParserCompoundIdentifier),
+// a Dynamic one's is not (ParserIdentifier); the value is a ParserNumber.
+func (p *parser) parseTypeParamArg(compound bool) (Expr, error) {
+	start := p.cur()
+	var name string
+	var err error
+	if compound {
+		name, err = p.parseNestedIdentifier()
+	} else {
+		name, err = p.parseIdentifier()
+	}
+	if err != nil {
+		return nil, err
+	}
+	left := &IdentExpr{span: span{Pos: start.Pos, End: p.peek(-1).End}, Parts: strings.Split(name, ".")}
+	if _, err := p.expect(TokEq); err != nil {
+		return nil, err
+	}
+	num, err := p.parseNumberLiteral()
+	if err != nil {
+		return nil, err
+	}
+	return &BinaryExpr{span: span{Pos: left.Pos, End: num.End}, Op: "=", Left: left, Right: num}, nil
+}
+
+// isBareWord reports whether tok is the unquoted word w, as ParserKeyword
+// matches it.
+func isBareWord(tok Token, w string) bool {
+	return tok.Type != TokQuotedIdent && isIdentifier(tok) && strings.EqualFold(tok.Raw, w)
+}
+
+// parseJSONTypeArg parses one argument of JSON(...) and adds it to dt, as
+// ObjectArgumentParser does: SKIP REGEXP 'pattern', SKIP path, path =
+// number, or path type.
+func (p *parser) parseJSONTypeArg(dt *DataType) error {
+	if isBareWord(p.cur(), "SKIP") {
+		p.advance()
+		if isBareWord(p.cur(), "REGEXP") {
+			p.advance()
+			lit, err := p.parseStringLiteral()
+			if err != nil {
+				return err
+			}
+			dt.Skips = append(dt.Skips, JSONSkip{Regexp: lit})
+			return nil
+		}
+		path, err := p.parseNestedIdentifier()
+		if err != nil {
+			return err
+		}
+		dt.Skips = append(dt.Skips, JSONSkip{Path: path})
+		return nil
+	}
+	if save := p.pos; isIdentifier(p.cur()) {
+		if _, err := p.parseNestedIdentifier(); err != nil {
+			return err
+		}
+		isParam := p.cur().Type == TokEq
+		p.pos = save
+		if isParam {
+			arg, err := p.parseTypeParamArg(true)
+			if err != nil {
+				return err
+			}
+			dt.Args = append(dt.Args, arg)
+			return nil
+		}
+	}
+	path, err := p.parseNestedIdentifier()
+	if err != nil {
+		return err
+	}
+	pathType, err := p.parseDataType()
+	if err != nil {
+		return err
+	}
+	dt.NestedCols = append(dt.NestedCols, NestedCol{Name: path, Type: pathType})
+	return nil
 }

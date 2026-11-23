@@ -855,29 +855,6 @@ func (p *Parser) wildcardQualifiers() int {
 	return 0
 }
 
-// parseDerivedColumnList parses an optional parenthesized column alias list
-// for derived tables: (col1, col2, ...).
-// MySQL 8.0.14+ syntax: (SELECT ...) AS alias(c1, c2).
-func (p *Parser) parseDerivedColumnList() ([]string, error) {
-	p.advance() // consume '('
-	var cols []string
-	for {
-		name, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, name)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-	return cols, nil
-}
-
 // isClauseKeyword returns true if the current token is a core SQL clause keyword.
 // In MySQL, these keywords are non-reserved (can be used as identifiers), so the
 // bottom-level expression parser won't soft-fail on them. This check is needed in
@@ -1445,65 +1422,8 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// LATERAL (SELECT ...) — LATERAL derived table
-	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
-		latStart := p.pos()
-		p.advance() // consume LATERAL
-
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		if p.cur.Type != kwSELECT {
-			return nil, &ParseError{
-				Message:  "expected SELECT after LATERAL (",
-				Position: p.cur.Loc,
-			}
-		}
-
-		sel, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-
-		sub := &nodes.SubqueryExpr{
-			Loc:     nodes.Loc{Start: latStart},
-			Select:  sel,
-			Lateral: true,
-		}
-
-		// Optional alias: [AS] alias. TiDB does not accept a string-literal
-		// derived-table alias (unlike MySQL), so this uses parseIdent.
-		if _, ok := p.match(kwAS); ok {
-			alias, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			sub.Alias = alias
-		} else if p.isIdentToken() && !p.isSelectTerminator() {
-			alias, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			sub.Alias = alias
-		}
-
-		// Optional derived column alias list: AS t(c1, c2)
-		if sub.Alias != "" && p.cur.Type == '(' {
-			cols, err := p.parseDerivedColumnList()
-			if err != nil {
-				return nil, err
-			}
-			sub.Columns = cols
-		}
-
-		sub.Loc.End = p.prev.End
-		return sub, nil
-	}
-
+	// TiDB's TableFactor (parser.y, v8.5.5) has no LATERAL derived table:
+	// LATERAL is no keyword there, so LATERAL (SELECT ...) is a 1064.
 	if p.cur.Type == '(' {
 		startPos := p.pos()
 
@@ -1544,15 +1464,8 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				sub.Alias = alias
 			}
 
-			// Optional derived column alias list: AS t(c1, c2)
-			if sub.Alias != "" && p.cur.Type == '(' {
-				cols, err := p.parseDerivedColumnList()
-				if err != nil {
-					return nil, err
-				}
-				sub.Columns = cols
-			}
-
+			// TiDB's TableFactor takes no derived column list after the
+			// alias (SubSelect TableAsNameOpt, parser.y, v8.5.5).
 			sub.Loc.End = p.prev.End
 			return sub, nil
 		}

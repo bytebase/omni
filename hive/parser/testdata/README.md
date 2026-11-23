@@ -16,17 +16,17 @@ fresh container (`OMNI_RECORD=verify`).
 
 | Rows | Total | Agree | Only Hive accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| Generated alternatives | 2,168 | 2,168 | 0 | 0 |
-| Generated near-misses | 4,728 | 4,728 | 0 | 0 |
-| **All** | **6,896** | **6,896** | **0** | **0** |
+| Generated alternatives | 2,380 | 2,380 | 0 | 0 |
+| Generated near-misses | 5,035 | 5,035 | 0 | 0 |
+| **All** | **7,415** | **7,415** | **0** | **0** |
 
-Apache Hive 4.0.1 accepts 2,156 of the 2,168 generated alternatives and rejects
-12: 11 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
+Apache Hive 4.0.1 accepts 2,367 of the 2,380 generated alternatives and rejects
+13: 12 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
 throws ANTLR 3's `RewriteEmptyStreamException` on `whenClauses` during parsing)
 and 1 `SELECT a(*, *)` row (where `function`'s `(STAR) => STAR` syntactic
-predicate matches bare `*` before `selectExpression`). It rejects 4,284 of the
-4,728 near-misses and accepts 444 whose single-token mutation still produces
-valid HiveQL. `hive/parser` agrees with live `apache/hive:4.0.1` on all 6,896
+predicate matches bare `*` before `selectExpression`). It rejects 4,585 of the
+5,035 near-misses and accepts 450 whose single-token mutation still produces
+valid HiveQL. `hive/parser` agrees with live `apache/hive:4.0.1` on all 7,415
 rows (100.0%).
 
 ## Grammar source
@@ -49,6 +49,9 @@ rows (100.0%).
   and `HiveLexerParent.g`. Ten terminals referenced in the parser grammar have
   no lexer rule in `HiveLexerParent.g` (`KW_ANTI`, fragment `QuotedIdentifier`,
   and 8 stale `nonReserved` entries) and are marked `(unreachable)`.
+  A rule that chooses among a few forms and is named at several sites, such
+  as `tableName` or `principalName`, gets a row for each form at each site:
+  `tokens.tsv` names it with the form `(every alternative)`.
 - **25 alternatives have no generated row:** the 10 `(unreachable)` terminals
   above plus unused standalone/legacy rules in Apache Hive 4.0.1's `.g` files
   (`alterDatabaseSuffixSetManagedLocation`, `alterStatementSuffixStatsPart`,

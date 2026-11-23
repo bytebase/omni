@@ -41,6 +41,11 @@ How PostgreSQL's answers are read, all in `span_test.go` and
   planner removes (a constant-false condition, an unused LEFT JOIN), while
   the rule lists every relation the query names, as the span does.
 
+The metadata holds tables and views but no functions, as a sync that
+predates a function would. A star over `tags()`, which the fixture defines,
+is a function omni cannot expand, so those queries reach `ResolveQuerySpan`'s
+parse-tree fallback, which takes the function to return one column.
+
 The conversation with PostgreSQL is on `tapes/TestQuerySpanFidelity.tape`,
 with every OID resolved to a name before it is written, so the test starts
 no server.

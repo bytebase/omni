@@ -78,6 +78,9 @@ var selectAcceptCorpus = []string{
 	"SELECT a FROM t GROUP BY a, b, (c, d)",
 	"SELECT a FROM t GROUP BY ROLLUP (a, b)",
 	"SELECT a FROM t GROUP BY ROLLUP ()",
+	"SELECT a FROM t GROUP BY ROLLUP ((a, b), (), c)",
+	"SELECT a FROM t GROUP BY CUBE (())",
+	"SELECT a FROM t GROUP BY ROLLUP ((a) + 1, (b))",
 	"SELECT a FROM t GROUP BY CUBE (a, b)",
 	"SELECT a FROM t GROUP BY GROUPING SETS (a)",
 	"SELECT a, b, GROUPING(a, b) FROM t GROUP BY GROUPING SETS ((a), (b))",
@@ -322,9 +325,9 @@ func TestSelect_StructureGroupingElements(t *testing.T) {
 			t.Errorf("element %d kind=%v, want %v", i, gb.Elements[i].Kind, want)
 		}
 	}
-	// ROLLUP (b, c) → two expressions.
-	if len(gb.Elements[1].Exprs) != 2 {
-		t.Errorf("ROLLUP element: want 2 exprs, got %d", len(gb.Elements[1].Exprs))
+	// ROLLUP (b, c) → two grouping sets of one expression each.
+	if len(gb.Elements[1].Sets) != 2 || len(gb.Elements[1].Sets[0]) != 1 {
+		t.Errorf("ROLLUP element: want 2 sets of 1 expr, got %+v", gb.Elements[1].Sets)
 	}
 	// GROUPING SETS ((e), ()) → two sets, second empty.
 	if len(gb.Elements[3].Sets) != 2 {

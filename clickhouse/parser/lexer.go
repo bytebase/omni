@@ -8,9 +8,10 @@ import (
 
 // Lexer tokenizes ClickHouse SQL source text one token at a time.
 type Lexer struct {
-	src string
-	pos int
-	err error
+	src  string
+	pos  int
+	err  error
+	prev Token // the last token scanned, which decides what a '.' starts
 }
 
 // NewLexer creates a streaming ClickHouse SQL lexer over src.
@@ -79,6 +80,30 @@ func tokenize(src string) ([]Token, error) {
 }
 
 func (l *Lexer) nextToken() (Token, error) {
+	tok, err := l.scanToken()
+	if err == nil {
+		l.prev = tok
+	}
+	return tok, err
+}
+
+// dotStartsNumber reports whether a '.' followed by a digit starts a number
+// (.5) rather than a qualifier or tuple access (t.1). ClickHouse's Lexer.cpp
+// at v26.8.38.9-lts reads a dot after a closing bracket, a word, a quoted
+// identifier or a number as a dot, and any other dot before a digit as a
+// number: `SELECT .1` is a syntax error and `SELECT (.1)` a number.
+func (l *Lexer) dotStartsNumber() bool {
+	if l.pos+1 >= len(l.src) || !isDigit(l.src[l.pos+1]) {
+		return false
+	}
+	switch l.prev.Type {
+	case TokRParen, TokRBracket, TokIdent, TokQuotedIdent, TokInt, TokFloat:
+		return false
+	}
+	return !l.prev.IsKeyword()
+}
+
+func (l *Lexer) scanToken() (Token, error) {
 	if err := l.skipWhitespaceAndComments(); err != nil {
 		return Token{}, err
 	}
@@ -108,8 +133,8 @@ func (l *Lexer) nextToken() (Token, error) {
 	if (c == 'X' || c == 'x' || c == 'B' || c == 'b') && l.pos+1 < len(l.src) && l.src[l.pos+1] == '\'' {
 		return l.scanPrefixedString(c)
 	}
-	// Numbers (ClickHouse numbers must start with a digit; leading '.' is always TokDot)
-	if isDigit(c) {
+	// Numbers: a digit, or a '.' before a digit where ClickHouse reads a number
+	if isDigit(c) || c == '.' && l.dotStartsNumber() {
 		return l.scanNumber()
 	}
 	// Identifiers and keywords
